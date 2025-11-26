@@ -4,6 +4,7 @@ from app.core.config import settings
 from app.core.database import engine, Base
 from app.api import api_router
 import logging
+import os
 
 # Configure logging
 logging.basicConfig(
@@ -13,8 +14,20 @@ logging.basicConfig(
 
 logger = logging.getLogger(__name__)
 
-# Create database tables
-Base.metadata.create_all(bind=engine)
+# Database initialization
+reset_db = os.getenv("RESET_DB", "false").lower() == "true"
+
+if reset_db:
+    logger.warning("⚠️  RESET_DB is enabled - Dropping all tables and recreating schema")
+    logger.warning("⚠️  This will delete ALL data in the database!")
+    Base.metadata.drop_all(bind=engine)
+    logger.info("✓ All tables dropped")
+    Base.metadata.create_all(bind=engine)
+    logger.info("✓ Database schema recreated")
+else:
+    # Normal startup - only create missing tables
+    Base.metadata.create_all(bind=engine)
+    logger.info("✓ Database tables initialized")
 
 app = FastAPI(
     title="AretaCare API",
