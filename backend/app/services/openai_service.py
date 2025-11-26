@@ -2,7 +2,6 @@ from openai import OpenAI
 from app.core.config import settings
 from typing import List, Dict, Optional
 import logging
-import json
 
 logger = logging.getLogger(__name__)
 
@@ -16,7 +15,6 @@ CORE PRINCIPLES:
 - You provide clear, structured summaries of medical information
 - You translate medical jargon into understandable language
 - You help families prepare questions for healthcare teams
-- You maintain emotional steadiness with brief acknowledgment of caregiver stress
 - You are calm, professional, compassionate but not sentimental
 
 STRICT SAFETY BOUNDARIES - YOU MUST NEVER:
@@ -25,7 +23,6 @@ STRICT SAFETY BOUNDARIES - YOU MUST NEVER:
 - Predict medical outcomes
 - Dispute clinician decisions
 - Give medical instructions (dosages, treatments, home care protocols)
-- Store or reference patient identifiable information
 - Provide therapeutic counseling
 
 YOU MUST ALWAYS:
@@ -35,50 +32,55 @@ YOU MUST ALWAYS:
 - Only summarize information provided - never invent medical facts
 - Flag unclear or incomplete information
 - Maintain factual neutrality and respect for medical professionals
-
-When providing medical summaries, use this structure:
-1. Summary of Update
-2. Key Changes or Findings
-3. Recommended Questions for the Care Team
-4. Family Notes or Next Actions
+- Only provide the response; don't include commentary before or after the response
 """
 
     def __init__(self):
         self.client = OpenAI(api_key=settings.OPENAI_API_KEY)
-        self.model = "gpt-4-turbo-preview"  # Using GPT-4 for medical accuracy
+        self.model = "gpt-5.1"
 
     def _create_chat_completion(
         self,
         messages: List[Dict[str, str]],
-        temperature: float = 0.7,
-        max_tokens: int = 2000
+        temperature: float = 0.5,
     ) -> Optional[str]:
-        """Create chat completion with error handling"""
+        """Create chat completion with error handling using Responses API"""
         try:
-            response = self.client.chat.completions.create(
+            response = self.client.responses.create(
                 model=self.model,
-                messages=messages,
+                input=messages,
                 temperature=temperature,
-                max_tokens=max_tokens
             )
-            return response.choices[0].message.content
+
+            # Prefer the convenience property if available
+            text = getattr(response, "output_text", None)
+            if text is not None:
+                return text
+
+            # Fallback: extract first text segment from output
+            if getattr(response, "output", None):
+                first_item = response.output[0]
+                if getattr(first_item, "content", None):
+                    first_content = first_item.content[0]
+                    return getattr(first_content, "text", None)
+
+            return None
+
         except Exception as e:
             logger.error(f"OpenAI API error: {e}")
             return None
 
-    async def generate_medical_summary(self, medical_text: str, context: List[Dict[str, str]] = None) -> Dict:
+    async def generate_medical_summary(
+        self,
+        medical_text: str,
+        context: List[Dict[str, str]] = None
+    ) -> Dict:
         """Generate structured medical summary from provided text"""
 
         prompt = f"""Please analyze the following medical information and provide a structured summary.
 
 Medical Information:
 {medical_text}
-
-Provide your response in the following structure:
-1. Summary of Update (2-3 sentences)
-2. Key Changes or Findings (bullet points)
-3. Recommended Questions for the Care Team (3-5 questions)
-4. Family Notes or Next Actions (brief guidance)
 
 Remember to:
 - Only summarize what is explicitly stated
@@ -95,59 +97,96 @@ Remember to:
 
         messages.append({"role": "user", "content": prompt})
 
-        response = self._create_chat_completion(messages, temperature=0.5)
+        response = self._create_chat_completion(messages)
 
         if response:
-            return self._parse_medical_summary(response)
+            return {"content": response}
         else:
-            return {
-                "summary": "Unable to generate summary at this time.",
-                "key_changes": [],
-                "recommended_questions": [],
-                "family_notes": "Please consult with your healthcare team directly."
-            }
+            return {"content": "Unable to generate summary at this time. Please consult with your healthcare team directly."}
 
     def _parse_medical_summary(self, response: str) -> Dict:
-        """Parse structured summary from response"""
+        """Parse structured summary from response, preserving markdown"""
         lines = response.split('\n')
 
-        summary = ""
+        summary = []
         key_changes = []
         questions = []
-        family_notes = ""
+        family_notes = []
 
         current_section = None
+        current_item = []
+
+        def is_bullet_start(line):
+            """Check if line starts a new bullet point"""
+            stripped = line.lstrip()
+            return (stripped.startswith('-') or
+                   stripped.startswith('•') or
+                   (len(stripped) > 0 and stripped[0].isdigit() and '.' in stripped[:3]))
+
+        def save_current_item():
+            """Save accumulated item to appropriate section"""
+            if not current_item:
+                return
+            content = '\n'.join(current_item).strip()
+            if not content:
+                return
+
+            if current_section == "changes":
+                key_changes.append(content)
+            elif current_section == "questions":
+                questions.append(content)
 
         for line in lines:
-            line = line.strip()
-            if not line:
+            stripped_line = line.strip()
+            if not stripped_line:
                 continue
 
-            if "summary of update" in line.lower():
+            lower_line = stripped_line.lower()
+
+            # Check for section headers
+            if "summary of update" in lower_line or (lower_line == "summary" or lower_line.startswith("## summary")):
+                save_current_item()
+                current_item = []
                 current_section = "summary"
-            elif "key changes" in line.lower() or "findings" in line.lower():
+                continue
+            elif "key changes" in lower_line or "findings" in lower_line:
+                save_current_item()
+                current_item = []
                 current_section = "changes"
-            elif "recommended questions" in line.lower():
+                continue
+            elif "recommended questions" in lower_line or lower_line.startswith("## questions"):
+                save_current_item()
+                current_item = []
                 current_section = "questions"
-            elif "family notes" in line.lower() or "next actions" in line.lower():
+                continue
+            elif "family notes" in lower_line or "next actions" in lower_line:
+                save_current_item()
+                current_item = []
                 current_section = "notes"
-            elif line.startswith('-') or line.startswith('•') or line[0:2].replace('.', '').isdigit():
-                clean_line = line.lstrip('-•0123456789. ').strip()
-                if current_section == "changes":
-                    key_changes.append(clean_line)
-                elif current_section == "questions":
-                    questions.append(clean_line)
-            else:
-                if current_section == "summary":
-                    summary += line + " "
-                elif current_section == "notes":
-                    family_notes += line + " "
+                continue
+
+            # Handle content based on section
+            if current_section == "summary":
+                summary.append(stripped_line)
+            elif current_section == "notes":
+                family_notes.append(stripped_line)
+            elif current_section in ["changes", "questions"]:
+                # If this is a new bullet point, save previous and start new
+                if is_bullet_start(line):
+                    save_current_item()
+                    current_item = [stripped_line]
+                else:
+                    # Continue accumulating content for current bullet
+                    current_item.append(stripped_line)
+
+        # Save any remaining item
+        save_current_item()
 
         return {
-            "summary": summary.strip(),
+            "summary": '\n'.join(summary).strip(),
             "key_changes": key_changes,
             "recommended_questions": questions,
-            "family_notes": family_notes.strip()
+            "family_notes": '\n'.join(family_notes).strip()
         }
 
     async def translate_jargon(self, medical_term: str, context: str = "") -> Dict:
@@ -170,7 +209,7 @@ Keep the tone calm and professional."""
             {"role": "user", "content": prompt}
         ]
 
-        response = self._create_chat_completion(messages, temperature=0.5)
+        response = self._create_chat_completion(messages)
 
         if response:
             return {
@@ -185,7 +224,11 @@ Keep the tone calm and professional."""
                 "context_note": ""
             }
 
-    async def generate_conversation_coaching(self, situation: str, context: List[Dict[str, str]] = None) -> Dict:
+    async def generate_conversation_coaching(
+        self,
+        situation: str,
+        context: List[Dict[str, str]] = None
+    ) -> Dict:
         """Help families prepare for healthcare conversations"""
 
         prompt = f"""A family member is preparing for the following healthcare interaction:
@@ -209,46 +252,71 @@ Focus on:
 
         messages.append({"role": "user", "content": prompt})
 
-        response = self._create_chat_completion(messages, temperature=0.7)
+        response = self._create_chat_completion(messages)
 
         if response:
-            return self._parse_coaching_response(response)
+            return {"content": response}
         else:
-            return {
-                "suggested_questions": [
-                    "Can you help me understand the current care plan?",
-                    "What should we watch for or be aware of?",
-                    "How can we best support our loved one right now?"
-                ],
-                "preparation_tips": [
-                    "Write down your questions beforehand",
-                    "Take notes during the conversation"
-                ]
-            }
+            return {"content": "Unable to generate coaching at this time. Please write down your questions and concerns for your healthcare team."}
 
     def _parse_coaching_response(self, response: str) -> Dict:
-        """Parse coaching response into structured format"""
+        """Parse coaching response into structured format, preserving markdown"""
         lines = response.split('\n')
 
         questions = []
         tips = []
         current_section = None
+        current_item = []
+
+        def is_bullet_start(line):
+            """Check if line starts a new bullet point"""
+            stripped = line.lstrip()
+            return (stripped.startswith('-') or
+                   stripped.startswith('•') or
+                   (len(stripped) > 0 and stripped[0].isdigit() and '.' in stripped[:3]))
+
+        def save_current_item():
+            """Save accumulated item to appropriate section"""
+            if not current_item:
+                return
+            content = '\n'.join(current_item).strip()
+            if not content:
+                return
+
+            if current_section == "questions":
+                questions.append(content)
+            elif current_section == "tips":
+                tips.append(content)
 
         for line in lines:
-            line = line.strip()
-            if not line:
+            stripped_line = line.strip()
+            if not stripped_line:
                 continue
 
-            if "question" in line.lower():
+            lower_line = stripped_line.lower()
+
+            # Check for section headers
+            if "question" in lower_line and not is_bullet_start(line):
+                save_current_item()
+                current_item = []
                 current_section = "questions"
-            elif "tip" in line.lower() or "preparation" in line.lower():
+                continue
+            elif ("tip" in lower_line or "preparation" in lower_line) and not is_bullet_start(line):
+                save_current_item()
+                current_item = []
                 current_section = "tips"
-            elif line.startswith('-') or line.startswith('•') or line[0:2].replace('.', '').isdigit():
-                clean_line = line.lstrip('-•0123456789. ').strip()
-                if current_section == "questions":
-                    questions.append(clean_line)
-                elif current_section == "tips":
-                    tips.append(clean_line)
+                continue
+
+            # Handle bullet points
+            if current_section in ["questions", "tips"]:
+                if is_bullet_start(line):
+                    save_current_item()
+                    current_item = [stripped_line]
+                else:
+                    current_item.append(stripped_line)
+
+        # Save any remaining item
+        save_current_item()
 
         return {
             "suggested_questions": questions,
@@ -262,9 +330,13 @@ Focus on:
         messages.extend(conversation_history[-10:])  # Last 10 messages for context
         messages.append({"role": "user", "content": message})
 
-        response = self._create_chat_completion(messages, temperature=0.7)
+        response = self._create_chat_completion(messages)
 
-        return response if response else "I apologize, but I'm unable to respond at this moment. Please try again or consult with your healthcare team directly."
+        return (
+            response
+            if response
+            else "I apologize, but I'm unable to respond at this moment. Please try again or consult with your healthcare team directly."
+        )
 
 
 openai_service = OpenAIService()

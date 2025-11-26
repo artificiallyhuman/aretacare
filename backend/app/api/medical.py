@@ -69,20 +69,10 @@ async def generate_medical_summary(
     )
     db.add(user_message)
 
-    assistant_response = f"""Summary: {summary_data['summary']}
-
-Key Changes:
-{chr(10).join(f"- {change}" for change in summary_data['key_changes'])}
-
-Recommended Questions:
-{chr(10).join(f"- {q}" for q in summary_data['recommended_questions'])}
-
-Family Notes: {summary_data['family_notes']}"""
-
     assistant_message = Conversation(
         session_id=request.session_id,
         role=MessageRole.ASSISTANT,
-        content=assistant_response
+        content=summary_data['content']
     )
     db.add(assistant_message)
     db.commit()
@@ -140,16 +130,10 @@ async def get_conversation_coaching(
     )
     db.add(user_message)
 
-    assistant_response = f"""Suggested Questions:
-{chr(10).join(f"- {q}" for q in coaching_data['suggested_questions'])}
-
-Preparation Tips:
-{chr(10).join(f"- {tip}" for tip in coaching_data['preparation_tips'])}"""
-
     assistant_message = Conversation(
         session_id=request.session_id,
         role=MessageRole.ASSISTANT,
-        content=assistant_response
+        content=coaching_data['content']
     )
     db.add(assistant_message)
     db.commit()

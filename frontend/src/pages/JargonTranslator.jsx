@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import ReactMarkdown from 'react-markdown';
 import { medicalAPI } from '../services/api';
 import Disclaimer from '../components/Disclaimer';
 
@@ -90,16 +91,16 @@ const JargonTranslator = () => {
             Translation: {translation.term}
           </h2>
 
-          <div className="prose max-w-none">
-            <div className="text-sm sm:text-base text-gray-700 whitespace-pre-wrap mb-4">
-              {translation.explanation}
+          <div className="prose prose-sm sm:prose-base max-w-none">
+            <div className="text-gray-700 mb-4">
+              <ReactMarkdown>{translation.explanation}</ReactMarkdown>
             </div>
 
             {translation.context_note && (
               <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 sm:p-4 mt-4">
-                <p className="text-sm text-yellow-800">
-                  <strong>Note:</strong> {translation.context_note}
-                </p>
+                <div className="text-sm text-yellow-800">
+                  <strong>Note:</strong> <ReactMarkdown className="inline">{translation.context_note}</ReactMarkdown>
+                </div>
               </div>
             )}
           </div>

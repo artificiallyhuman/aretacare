@@ -28,10 +28,7 @@ class MedicalSummaryRequest(BaseModel):
 
 
 class MedicalSummaryResponse(BaseModel):
-    summary: str
-    key_changes: list[str]
-    recommended_questions: list[str]
-    family_notes: str
+    content: str
 
 
 class JargonTranslationRequest(BaseModel):
@@ -51,5 +48,4 @@ class ConversationCoachRequest(BaseModel):
 
 
 class ConversationCoachResponse(BaseModel):
-    suggested_questions: list[str]
-    preparation_tips: list[str]
+    content: str

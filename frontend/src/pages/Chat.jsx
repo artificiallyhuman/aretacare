@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import ReactMarkdown from 'react-markdown';
 import { medicalAPI } from '../services/api';
 import { useSession } from '../hooks/useSession';
 import Disclaimer from '../components/Disclaimer';
@@ -102,7 +103,11 @@ const Chat = () => {
                     : 'bg-gray-100 text-gray-900'
                 }`}
               >
-                <p className="text-sm sm:text-base whitespace-pre-wrap">{message.content}</p>
+                <div className={`prose prose-sm sm:prose-base max-w-none ${
+                  message.role === 'user' ? 'prose-invert' : ''
+                }`}>
+                  <ReactMarkdown>{message.content}</ReactMarkdown>
+                </div>
                 <p
                   className={`text-xs mt-2 ${
                     message.role === 'user'

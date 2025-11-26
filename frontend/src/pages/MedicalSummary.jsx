@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import ReactMarkdown from 'react-markdown';
 import { medicalAPI, documentAPI } from '../services/api';
 import { useSession } from '../hooks/useSession';
 import Disclaimer from '../components/Disclaimer';
@@ -121,48 +122,9 @@ const MedicalSummary = () => {
       {summary && (
         <div className="card">
           <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-4 sm:mb-6">Summary</h2>
-
-          <div className="mb-4 sm:mb-6">
-            <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-2">
-              Summary of Update
-            </h3>
-            <p className="text-sm sm:text-base text-gray-700">{summary.summary}</p>
+          <div className="prose prose-sm sm:prose-base max-w-none">
+            <ReactMarkdown>{summary.content}</ReactMarkdown>
           </div>
-
-          {summary.key_changes && summary.key_changes.length > 0 && (
-            <div className="mb-4 sm:mb-6">
-              <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-2">
-                Key Changes or Findings
-              </h3>
-              <ul className="list-disc list-inside space-y-2 text-sm sm:text-base text-gray-700">
-                {summary.key_changes.map((change, index) => (
-                  <li key={index}>{change}</li>
-                ))}
-              </ul>
-            </div>
-          )}
-
-          {summary.recommended_questions && summary.recommended_questions.length > 0 && (
-            <div className="mb-4 sm:mb-6">
-              <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-2">
-                Recommended Questions for the Care Team
-              </h3>
-              <ul className="list-disc list-inside space-y-2 text-sm sm:text-base text-gray-700">
-                {summary.recommended_questions.map((question, index) => (
-                  <li key={index}>{question}</li>
-                ))}
-              </ul>
-            </div>
-          )}
-
-          {summary.family_notes && (
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 sm:p-4">
-              <h3 className="text-base sm:text-lg font-semibold text-blue-900 mb-2">
-                Family Notes / Next Actions
-              </h3>
-              <p className="text-sm sm:text-base text-blue-800">{summary.family_notes}</p>
-            </div>
-          )}
         </div>
       )}
     </div>
