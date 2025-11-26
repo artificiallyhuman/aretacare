@@ -255,11 +255,33 @@ Must be reviewed against the safety guidelines to ensure:
 
 ## Production Deployment
 
-Deployment via `render.yaml` blueprint to Render.com:
-- Creates 3 services: PostgreSQL database, FastAPI backend, React frontend (static)
-- Environment variables must be set in Render dashboard
-- Frontend built as static site, served from `frontend/dist`
-- Database URL auto-injected into backend
+Deployment via `render.yaml` Blueprint to Render.com:
+
+### Services Created
+- **aretacare-db**: PostgreSQL database (basic plan)
+- **aretacare-backend**: FastAPI Docker web service (starter plan)
+- **aretacare-frontend**: React static site (built from `frontend/dist`)
+
+### Deployment Process
+1. Push code to GitHub
+2. In Render dashboard: Click "New +" → "Blueprint"
+3. Connect GitHub repository - Render detects `render.yaml`
+4. Add environment variables for backend:
+   - `OPENAI_API_KEY` (required)
+   - `AWS_ACCESS_KEY_ID` (required)
+   - `AWS_SECRET_ACCESS_KEY` (required)
+   - `S3_BUCKET_NAME` (required)
+5. Auto-configured variables:
+   - `DATABASE_URL` - Auto-injected from database
+   - `SECRET_KEY` - Auto-generated
+   - `CORS_ORIGINS` - Set to frontend URL
+6. Click "Apply" to deploy all services
+
+### Important Files for Production
+- `Dockerfile` (root) - Production backend build, copies from `backend/`
+- `backend/Dockerfile` - Local development only (used by docker-compose.yml)
+- `frontend/Dockerfile` - Local development only (used by docker-compose.yml)
+- `render.yaml` - Blueprint configuration defining all services and plans
 
 ## Documentation
 

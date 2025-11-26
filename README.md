@@ -74,7 +74,7 @@ AretaCare maintains strict safety boundaries:
    ```
 
    The application will be available at:
-   - Frontend: http://localhost:3000
+   - Frontend: http://localhost:3001
    - Backend API: http://localhost:8000
    - API Documentation: http://localhost:8000/docs
 
@@ -96,23 +96,32 @@ AretaCare maintains strict safety boundaries:
 
 1. **Push your code to GitHub**
 
-2. **Connect to Render**
+2. **Deploy using Blueprint**
    - Go to https://render.com
-   - Click "New" → "Blueprint"
+   - Click "New +" → "Blueprint"
    - Connect your GitHub repository
-   - Render will detect the `render.yaml` file
+   - Render will detect the `render.yaml` file and create:
+     - `aretacare-db` - PostgreSQL database (basic plan)
+     - `aretacare-backend` - FastAPI web service (starter plan)
+     - `aretacare-frontend` - React static site
 
 3. **Configure Environment Variables**
 
-   Set the following environment variables in Render dashboard:
+   In the Render dashboard for `aretacare-backend`, add these environment variables:
    - `OPENAI_API_KEY`: Your OpenAI API key
    - `AWS_ACCESS_KEY_ID`: Your AWS access key
    - `AWS_SECRET_ACCESS_KEY`: Your AWS secret key
    - `S3_BUCKET_NAME`: Your S3 bucket name
 
+   The following are auto-configured:
+   - `DATABASE_URL`: Auto-injected from `aretacare-db`
+   - `SECRET_KEY`: Auto-generated
+   - `CORS_ORIGINS`: Set to frontend URL
+
 4. **Deploy**
-   - Render will automatically deploy your services
+   - Click "Apply" to deploy all services
    - Wait for all services to be live
+   - Access your app at the frontend URL provided by Render
 
 ## API Documentation
 
@@ -131,7 +140,7 @@ aretacare/
 │   │   ├── models/        # Database models
 │   │   ├── schemas/       # Pydantic schemas
 │   │   └── services/      # Business logic services
-│   ├── Dockerfile
+│   ├── Dockerfile         # Local development
 │   └── requirements.txt
 ├── frontend/
 │   ├── src/
@@ -140,10 +149,11 @@ aretacare/
 │   │   ├── services/      # API services
 │   │   ├── hooks/         # Custom React hooks
 │   │   └── styles/        # CSS styles
-│   ├── Dockerfile
+│   ├── Dockerfile         # Local development
 │   └── package.json
-├── docker-compose.yml
-└── render.yaml
+├── Dockerfile             # Production backend (Render)
+├── docker-compose.yml     # Local development
+└── render.yaml            # Render Blueprint config
 ```
 
 ## Privacy & Security
