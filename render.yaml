@@ -11,7 +11,6 @@ services:
   - type: web
     name: aretacare-backend
     env: docker
-    dockerfilePath: ./Dockerfile
     dockerContext: ./backend
     plan: starter
     envVars:
