@@ -5,6 +5,7 @@ psycopg2-binary==2.9.9
 alembic==1.12.1
 pydantic==2.5.0
 pydantic-settings==2.1.0
+email-validator==2.1.0
 python-multipart==0.0.6
 boto3==1.29.7
 openai>=1.56.0
