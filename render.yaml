@@ -3,7 +3,7 @@ databases:
   - name: aretacare-db
     databaseName: aretacare
     user: aretacare
-    plan: basic
+    plan: starter
 
 services:
 
