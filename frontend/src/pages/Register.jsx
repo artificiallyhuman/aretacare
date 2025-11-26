@@ -90,9 +90,10 @@ function Register() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
-              placeholder="At least 8 characters"
+              placeholder="8-72 characters"
               disabled={loading}
               minLength={8}
+              maxLength={72}
             />
           </div>
 
@@ -107,6 +108,7 @@ function Register() {
               placeholder="Re-enter your password"
               disabled={loading}
               minLength={8}
+              maxLength={72}
             />
           </div>
 
