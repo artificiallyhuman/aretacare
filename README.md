@@ -11,6 +11,8 @@ AretaCare is an AI-powered care advocate assistant that helps families navigate 
 - **Care Assistant Chat**: Have a conversation with AretaCare about medical information and care navigation
 - **Session Management**: Temporary sessions tied to user accounts with conversation history
 - **Professional UI**: Clean, modern interface with intuitive navigation and professional design
+- **Mobile Responsive**: Fully optimized for mobile devices with hamburger menu navigation and touch-friendly interface
+- **Accessibility**: Professional design system with consistent spacing, typography, and visual hierarchy
 
 ## Safety Boundaries
 
@@ -172,18 +174,22 @@ aretacare/
 ├── frontend/
 │   ├── src/
 │   │   ├── components/
-│   │   │   ├── Header.jsx      # Navigation with auth UI
-│   │   │   └── Disclaimer.jsx  # Safety disclaimer
+│   │   │   ├── Header.jsx      # Responsive navigation with mobile hamburger menu
+│   │   │   └── Disclaimer.jsx  # Safety disclaimer component
 │   │   ├── pages/
-│   │   │   ├── Login.jsx       # Login page
+│   │   │   ├── Login.jsx       # Login page with professional styling
 │   │   │   ├── Register.jsx    # Registration page
-│   │   │   ├── Home.jsx        # Dashboard
-│   │   │   └── ...             # Feature pages
+│   │   │   ├── Home.jsx        # Dashboard with feature cards
+│   │   │   ├── MedicalSummary.jsx    # Medical summary generator
+│   │   │   ├── JargonTranslator.jsx  # Medical jargon translator
+│   │   │   ├── ConversationCoach.jsx # Conversation preparation coach
+│   │   │   └── Chat.jsx              # AI care assistant chat
 │   │   ├── services/
-│   │   │   └── api.js          # Axios instance with auth interceptors
+│   │   │   └── api.js          # Axios instance with auth token interceptors
 │   │   ├── hooks/
 │   │   │   └── useSession.js   # Session & auth state management
-│   │   └── styles/             # CSS styles
+│   │   └── styles/
+│   │       └── index.css       # Tailwind CSS with custom components
 │   ├── Dockerfile         # Local development
 │   └── package.json
 ├── Dockerfile             # Production backend (Render)

@@ -10,6 +10,7 @@ AretaCare is an AI-powered medical care advocate assistant that helps families u
 - JWT-based user authentication with secure password hashing
 - Session-based conversation history tied to user accounts
 - Professional UI with modern design and intuitive navigation
+- Mobile-responsive design with hamburger menu navigation
 - Medical document upload with OCR support
 - AI-powered medical information translation and summarization
 
@@ -168,12 +169,14 @@ This structure is parsed from LLM responses in `_parse_medical_summary()`.
 ### Frontend Entry Points
 
 - `frontend/src/main.jsx` - React app entry point
-- `frontend/src/App.jsx` - Router configuration, protected/public routes, layout
-- `frontend/src/pages/Login.jsx` - Login page with form validation
-- `frontend/src/pages/Register.jsx` - Registration page with password matching
-- `frontend/src/components/Header.jsx` - Navigation with user avatar and auth UI
+- `frontend/src/App.jsx` - Router configuration, protected/public routes, layout with responsive footer
+- `frontend/src/pages/Login.jsx` - Login page with professional styling, mobile-responsive
+- `frontend/src/pages/Register.jsx` - Registration page with professional styling, mobile-responsive
+- `frontend/src/components/Header.jsx` - **Mobile-responsive navigation** with hamburger menu (lg breakpoint), user avatar, auth UI
+- `frontend/src/components/Disclaimer.jsx` - Responsive safety disclaimer component
 - `frontend/src/services/api.js` - Axios instance with auth token interceptor
 - `frontend/src/hooks/useSession.js` - Session & auth state management (calls /auth/me)
+- `frontend/src/styles/index.css` - Tailwind CSS with responsive custom components (.btn-primary, .card, .input, .textarea)
 
 ## Important Configuration Details
 
@@ -258,9 +261,12 @@ curl http://localhost:8000/api/auth/me \
 ### Adding a New Frontend Page
 
 1. Create component in `frontend/src/pages/`
-2. Add route in `frontend/src/App.jsx`
-3. Add navigation link in `frontend/src/components/Header.jsx`
-4. Hot reload handles updates automatically
+2. Ensure mobile responsiveness using Tailwind breakpoints (sm:, md:, lg:)
+3. Use consistent spacing: `py-6 sm:py-8 lg:py-12` for page padding
+4. Use responsive text sizes: `text-2xl sm:text-3xl` for headings
+5. Add route in `frontend/src/App.jsx`
+6. Add navigation link in `frontend/src/components/Header.jsx` (both desktop and mobile menus)
+7. Hot reload handles updates automatically
 
 ### Debugging Connection Issues
 
@@ -343,9 +349,12 @@ Access points after `docker compose up`:
 4. You'll be automatically logged in and redirected to the dashboard
 
 **UI Features:**
+- **Mobile-responsive navigation**: Hamburger menu on mobile (<1024px), full nav on desktop
 - Professional header with logo and user avatar (shows first initial)
 - Color-coded feature cards (blue, green, purple, amber) with SVG icons
 - Hover effects with smooth transitions
+- Responsive design with Tailwind CSS breakpoints (sm, md, lg)
+- Professional login/register pages with consistent styling
 - Clear Session icon button (trash can) to delete conversation history
 - Logout button to sign out
 

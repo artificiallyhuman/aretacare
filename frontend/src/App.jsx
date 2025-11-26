@@ -139,7 +139,7 @@ function App() {
           <footer className="bg-white border-t border-gray-200 mt-8 sm:mt-12">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
               <p className="text-center text-gray-600 text-xs sm:text-sm px-2">
-                AretaCare is an educational assistant. Always consult with your healthcare team for medical decisions.
+                AretaCare is an AI assistant. Always consult with your healthcare team for medical decisions.
               </p>
               <p className="text-center text-gray-500 text-xs mt-2 px-2">
                 © 2025 AretaCare. Your privacy is protected - sessions are temporary and not stored beyond your active use.
