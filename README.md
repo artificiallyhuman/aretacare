@@ -66,6 +66,12 @@ AretaCare maintains strict safety boundaries:
    - `S3_BUCKET_NAME`: Your S3 bucket name
    - `SECRET_KEY`: Generate a secure random string
 
+   **Important**: Your AWS IAM user must have the correct S3 permissions. See `docs/AWS_IAM_POLICY.md` for the required IAM policy configuration. The IAM user needs these permissions on your S3 bucket:
+   - `s3:PutObject` - Upload documents
+   - `s3:GetObject` - Download documents
+   - `s3:DeleteObject` - Delete documents
+   - `s3:PutObjectAcl` - Set object permissions
+
 3. **Configure Frontend Environment**
    ```bash
    cp frontend/.env.example frontend/.env
@@ -115,6 +121,8 @@ AretaCare maintains strict safety boundaries:
    - `AWS_ACCESS_KEY_ID`: Your AWS access key
    - `AWS_SECRET_ACCESS_KEY`: Your AWS secret key
    - `S3_BUCKET_NAME`: Your S3 bucket name
+
+   **Important**: Ensure your AWS IAM user has the correct S3 permissions. See `docs/AWS_IAM_POLICY.md` for the required policy. Without proper permissions, document uploads will fail with AccessDenied errors.
 
    The following are auto-configured:
    - `DATABASE_URL`: Auto-injected from `aretacare-db`

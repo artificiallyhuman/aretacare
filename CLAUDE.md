@@ -288,6 +288,47 @@ curl http://localhost:8000/api/sessions/ -X POST
 2. Database auto-creates tables on startup (no migrations currently)
 3. To reset schema: `docker compose down -v && docker compose up -d`
 
+### AWS S3 Permissions Troubleshooting
+
+**Error: AccessDenied when uploading documents**
+
+If you see this error in backend logs:
+```
+ERROR - Failed to upload file to S3: An error occurred (AccessDenied) when calling the PutObject operation:
+User: arn:aws:iam::ACCOUNT_ID:user/USERNAME is not authorized to perform: s3:PutObject on resource: "arn:aws:s3:::BUCKET_NAME/..."
+```
+
+**Solution:**
+1. Go to AWS Console → IAM → Users → Select your IAM user
+2. Go to "Permissions" tab → "Add permissions" → "Create inline policy"
+3. Use the JSON policy from `docs/AWS_IAM_POLICY.md`
+4. The policy must grant these permissions on your S3 bucket:
+   - `s3:PutObject` - Upload documents
+   - `s3:GetObject` - Download documents
+   - `s3:DeleteObject` - Delete documents
+   - `s3:PutObjectAcl` - Set object permissions
+
+**Quick IAM Policy Template:**
+```json
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Effect": "Allow",
+            "Action": [
+                "s3:PutObject",
+                "s3:GetObject",
+                "s3:DeleteObject",
+                "s3:PutObjectAcl"
+            ],
+            "Resource": "arn:aws:s3:::YOUR_BUCKET_NAME/*"
+        }
+    ]
+}
+```
+
+Replace `YOUR_BUCKET_NAME` with your actual S3 bucket name. See `docs/AWS_IAM_POLICY.md` for complete setup instructions.
+
 ## Testing the Application
 
 Access points after `docker compose up`:
