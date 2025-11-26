@@ -10,6 +10,32 @@ const api = axios.create({
   },
 });
 
+// Add auth token to requests if it exists
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem('auth_token');
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
+
+// Auth API
+export const authAPI = {
+  register: (name, email, password) =>
+    api.post('/auth/register', { name, email, password }),
+
+  login: (email, password) =>
+    api.post('/auth/login', { email, password }),
+
+  getMe: () => api.get('/auth/me'),
+
+  logout: () => {
+    localStorage.removeItem('auth_token');
+    localStorage.removeItem('user');
+    localStorage.removeItem('session_id');
+  },
+};
+
 // Session API
 export const sessionAPI = {
   create: () => api.post('/sessions/'),

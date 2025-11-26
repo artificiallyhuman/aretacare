@@ -1,14 +1,33 @@
 import { useState, useEffect } from 'react';
-import { sessionAPI } from '../services/api';
+import { sessionAPI, authAPI } from '../services/api';
 
 export const useSession = () => {
   const [sessionId, setSessionId] = useState(null);
+  const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   useEffect(() => {
     const initSession = async () => {
       try {
+        // Check if user is authenticated
+        const token = localStorage.getItem('auth_token');
+        if (!token) {
+          setLoading(false);
+          return;
+        }
+
+        // Get user info
+        try {
+          const userResponse = await authAPI.getMe();
+          setUser(userResponse.data);
+        } catch (err) {
+          // Token invalid, clear auth data
+          authAPI.logout();
+          setLoading(false);
+          return;
+        }
+
         // Check for existing session in localStorage
         const existingSessionId = localStorage.getItem('aretacare_session_id');
 
@@ -58,5 +77,11 @@ export const useSession = () => {
     }
   };
 
-  return { sessionId, loading, error, clearSession };
+  const logout = () => {
+    authAPI.logout();
+    setUser(null);
+    setSessionId(null);
+  };
+
+  return { sessionId, user, loading, error, clearSession, logout };
 };

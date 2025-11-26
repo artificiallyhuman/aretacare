@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from app.core.database import get_db
-from app.models import Session as SessionModel, Conversation, MessageRole
+from app.models import Session as SessionModel, Conversation, MessageRole, User
 from app.schemas import (
     MedicalSummaryRequest,
     MedicalSummaryResponse,
@@ -14,6 +14,7 @@ from app.schemas import (
     ConversationHistory,
 )
 from app.services import openai_service
+from app.api.auth import get_current_user
 from typing import List
 import logging
 
@@ -37,6 +38,7 @@ def get_conversation_context(session_id: str, db: Session) -> List[dict]:
 @router.post("/summary", response_model=MedicalSummaryResponse)
 async def generate_medical_summary(
     request: MedicalSummaryRequest,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """Generate structured medical summary from provided text"""
@@ -45,6 +47,10 @@ async def generate_medical_summary(
     session = db.query(SessionModel).filter(SessionModel.id == request.session_id).first()
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
+
+    # Verify session belongs to current user
+    if session.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Access denied")
 
     # Get conversation context
     context = get_conversation_context(request.session_id, db)
@@ -87,6 +93,7 @@ Family Notes: {summary_data['family_notes']}"""
 @router.post("/translate", response_model=JargonTranslationResponse)
 async def translate_medical_jargon(
     request: JargonTranslationRequest,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """Translate medical jargon into plain language"""
@@ -102,6 +109,7 @@ async def translate_medical_jargon(
 @router.post("/coach", response_model=ConversationCoachResponse)
 async def get_conversation_coaching(
     request: ConversationCoachRequest,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """Get coaching for healthcare conversations"""
@@ -110,6 +118,10 @@ async def get_conversation_coaching(
     session = db.query(SessionModel).filter(SessionModel.id == request.session_id).first()
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
+
+    # Verify session belongs to current user
+    if session.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Access denied")
 
     # Get conversation context
     context = get_conversation_context(request.session_id, db)
@@ -148,6 +160,7 @@ Preparation Tips:
 @router.post("/chat", response_model=MessageResponse)
 async def chat(
     request: MessageRequest,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """General chat interface with safety boundaries"""
@@ -156,6 +169,10 @@ async def chat(
     session = db.query(SessionModel).filter(SessionModel.id == request.session_id).first()
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
+
+    # Verify session belongs to current user
+    if session.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Access denied")
 
     # Get conversation history
     context = get_conversation_context(request.session_id, db)
@@ -189,6 +206,7 @@ async def chat(
 @router.get("/conversation/{session_id}", response_model=ConversationHistory)
 async def get_conversation_history(
     session_id: str,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """Get conversation history for a session"""
@@ -197,6 +215,10 @@ async def get_conversation_history(
     session = db.query(SessionModel).filter(SessionModel.id == session_id).first()
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
+
+    # Verify session belongs to current user
+    if session.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Access denied")
 
     conversations = db.query(Conversation).filter(
         Conversation.session_id == session_id

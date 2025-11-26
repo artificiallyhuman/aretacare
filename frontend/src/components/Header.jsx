@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 
-const Header = ({ onClearSession }) => {
+const Header = ({ onClearSession, onLogout, user }) => {
   return (
     <header className="bg-white shadow-sm">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -33,6 +33,17 @@ const Header = ({ onClearSession }) => {
             >
               Clear Session
             </button>
+            <div className="flex items-center space-x-4 border-l pl-4">
+              <span className="text-sm text-gray-700">
+                Welcome, <strong>{user?.name}</strong>
+              </span>
+              <button
+                onClick={onLogout}
+                className="text-sm text-gray-600 hover:text-red-600 transition-colors"
+              >
+                Logout
+              </button>
+            </div>
           </nav>
         </div>
       </div>

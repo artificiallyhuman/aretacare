@@ -1,9 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from sqlalchemy.orm import Session
 from app.core.database import get_db
-from app.models import Document as DocumentModel, Session as SessionModel
+from app.models import Document as DocumentModel, Session as SessionModel, User
 from app.schemas import DocumentUploadResponse, DocumentResponse
 from app.services import s3_service, document_processor
+from app.api.auth import get_current_user
 from typing import List
 import uuid
 import logging
@@ -28,6 +29,7 @@ MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB
 async def upload_document(
     file: UploadFile = File(...),
     session_id: str = None,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """Upload a medical document"""
@@ -37,9 +39,12 @@ async def upload_document(
         session = db.query(SessionModel).filter(SessionModel.id == session_id).first()
         if not session:
             raise HTTPException(status_code=404, detail="Session not found")
+        # Verify session belongs to current user
+        if session.user_id != current_user.id:
+            raise HTTPException(status_code=403, detail="Access denied")
     else:
         # Create new session if none provided
-        session = SessionModel()
+        session = SessionModel(user_id=current_user.id)
         db.add(session)
         db.commit()
         db.refresh(session)
@@ -92,12 +97,20 @@ async def upload_document(
 
 
 @router.get("/session/{session_id}", response_model=List[DocumentResponse])
-async def get_session_documents(session_id: str, db: Session = Depends(get_db)):
+async def get_session_documents(
+    session_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
     """Get all documents for a session"""
     session = db.query(SessionModel).filter(SessionModel.id == session_id).first()
 
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
+
+    # Verify session belongs to current user
+    if session.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Access denied")
 
     documents = db.query(DocumentModel).filter(
         DocumentModel.session_id == session_id
@@ -107,23 +120,41 @@ async def get_session_documents(session_id: str, db: Session = Depends(get_db)):
 
 
 @router.get("/{document_id}", response_model=DocumentResponse)
-async def get_document(document_id: int, db: Session = Depends(get_db)):
+async def get_document(
+    document_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
     """Get document details"""
     document = db.query(DocumentModel).filter(DocumentModel.id == document_id).first()
 
     if not document:
         raise HTTPException(status_code=404, detail="Document not found")
 
+    # Verify document belongs to current user
+    session = db.query(SessionModel).filter(SessionModel.id == document.session_id).first()
+    if not session or session.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Access denied")
+
     return document
 
 
 @router.delete("/{document_id}")
-async def delete_document(document_id: int, db: Session = Depends(get_db)):
+async def delete_document(
+    document_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
     """Delete a document"""
     document = db.query(DocumentModel).filter(DocumentModel.id == document_id).first()
 
     if not document:
         raise HTTPException(status_code=404, detail="Document not found")
+
+    # Verify document belongs to current user
+    session = db.query(SessionModel).filter(SessionModel.id == document.session_id).first()
+    if not session or session.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Access denied")
 
     # Delete from S3
     await s3_service.delete_file(document.s3_key)
@@ -136,12 +167,21 @@ async def delete_document(document_id: int, db: Session = Depends(get_db)):
 
 
 @router.get("/{document_id}/download-url")
-async def get_document_download_url(document_id: int, db: Session = Depends(get_db)):
+async def get_document_download_url(
+    document_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
     """Get presigned URL for document download"""
     document = db.query(DocumentModel).filter(DocumentModel.id == document_id).first()
 
     if not document:
         raise HTTPException(status_code=404, detail="Document not found")
+
+    # Verify document belongs to current user
+    session = db.query(SessionModel).filter(SessionModel.id == document.session_id).first()
+    if not session or session.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Access denied")
 
     url = s3_service.generate_presigned_url(document.s3_key)
 
