@@ -23,8 +23,8 @@ function Login() {
       localStorage.setItem('auth_token', access_token);
       localStorage.setItem('user', JSON.stringify(user));
 
-      // Navigate to home page
-      navigate('/');
+      // Reload to home page to reinitialize session
+      window.location.href = '/';
     } catch (err) {
       setError(err.response?.data?.detail || 'Login failed. Please try again.');
     } finally {
