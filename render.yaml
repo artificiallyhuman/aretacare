@@ -1,17 +1,11 @@
-services:
+databases:
   # PostgreSQL Database
-  - type: pserv
-    name: aretacare-db
-    env: docker
+  - name: aretacare-db
+    databaseName: aretacare
+    user: aretacare
     plan: starter
-    dockerfilePath: ./Dockerfile.postgres
-    envVars:
-      - key: POSTGRES_USER
-        value: aretacare
-      - key: POSTGRES_PASSWORD
-        generateValue: true
-      - key: POSTGRES_DB
-        value: aretacare
+
+services:
 
   # Backend API
   - type: web
@@ -32,7 +26,7 @@ services:
       - key: AWS_SECRET_ACCESS_KEY
         sync: false
       - key: AWS_REGION
-        value: us-east-1
+        value: us-east-2
       - key: S3_BUCKET_NAME
         sync: false
       - key: SECRET_KEY
@@ -40,10 +34,7 @@ services:
       - key: DEBUG
         value: false
       - key: CORS_ORIGINS
-        fromService:
-          type: web
-          name: aretacare-frontend
-          envVarKey: RENDER_EXTERNAL_URL
+        value: https://aretacare-frontend.onrender.com
 
   # Frontend
   - type: web
@@ -57,7 +48,4 @@ services:
         destination: /index.html
     envVars:
       - key: VITE_API_URL
-        fromService:
-          type: web
-          name: aretacare-backend
-          envVarKey: RENDER_EXTERNAL_URL
+        value: https://aretacare-backend.onrender.com/api
