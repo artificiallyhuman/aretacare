@@ -1,11 +1,9 @@
 import React, { useState } from 'react';
 import ReactMarkdown from 'react-markdown';
-import { medicalAPI } from '../services/api';
-import { useSession } from '../hooks/useSession';
-import Disclaimer from '../components/Disclaimer';
+import { toolsAPI } from '../../services/api';
+import Disclaimer from '../../components/Disclaimer';
 
 const ConversationCoach = () => {
-  const { sessionId, loading: sessionLoading } = useSession();
   const [situation, setSituation] = useState('');
   const [coaching, setCoaching] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -21,7 +19,7 @@ const ConversationCoach = () => {
     setError(null);
 
     try {
-      const response = await medicalAPI.getConversationCoach(situation, sessionId);
+      const response = await toolsAPI.getConversationCoach(situation);
       setCoaching(response.data);
     } catch (err) {
       setError('Failed to get coaching: ' + err.message);
@@ -29,10 +27,6 @@ const ConversationCoach = () => {
       setLoading(false);
     }
   };
-
-  if (sessionLoading) {
-    return <div className="text-center py-12">Loading...</div>;
-  }
 
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 lg:py-12">

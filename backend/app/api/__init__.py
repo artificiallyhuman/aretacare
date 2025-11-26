@@ -1,9 +1,25 @@
 from fastapi import APIRouter
-from app.api import auth, sessions, documents, medical
+from app.api import auth, sessions, documents, medical, journal, conversation, tools
 
 api_router = APIRouter()
 
+# Authentication
 api_router.include_router(auth.router, prefix="/auth", tags=["auth"])
+
+# Session management
 api_router.include_router(sessions.router)
+
+# Document management
 api_router.include_router(documents.router)
+
+# Journal (new)
+api_router.include_router(journal.router)
+
+# Conversation (new - replaces medical chat)
+api_router.include_router(conversation.router)
+
+# Tools (new - standalone tools)
+api_router.include_router(tools.router)
+
+# Medical (legacy - keep for backwards compatibility during transition)
 api_router.include_router(medical.router)

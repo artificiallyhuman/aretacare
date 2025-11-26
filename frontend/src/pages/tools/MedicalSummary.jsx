@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import ReactMarkdown from 'react-markdown';
-import { medicalAPI, documentAPI } from '../services/api';
-import { useSession } from '../hooks/useSession';
-import Disclaimer from '../components/Disclaimer';
+import { toolsAPI, documentAPI } from '../../services/api';
+import { useSession } from '../../hooks/useSession';
+import Disclaimer from '../../components/Disclaimer';
 
 const MedicalSummary = () => {
   const { sessionId, loading: sessionLoading } = useSession();
@@ -21,7 +21,11 @@ const MedicalSummary = () => {
     setError(null);
 
     try {
-      const response = await documentAPI.upload(file, sessionId);
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('session_id', sessionId);
+
+      const response = await documentAPI.upload(formData);
       const extractedText = response.data.extracted_text;
 
       if (extractedText) {
@@ -46,7 +50,7 @@ const MedicalSummary = () => {
     setError(null);
 
     try {
-      const response = await medicalAPI.generateSummary(medicalText, sessionId);
+      const response = await toolsAPI.generateSummary(medicalText);
       setSummary(response.data);
     } catch (err) {
       setError('Failed to generate summary: ' + err.message);

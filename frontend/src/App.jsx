@@ -2,11 +2,12 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { useSession } from './hooks/useSession';
 import Header from './components/Header';
-import Home from './pages/Home';
-import MedicalSummary from './pages/MedicalSummary';
-import JargonTranslator from './pages/JargonTranslator';
-import ConversationCoach from './pages/ConversationCoach';
-import Chat from './pages/Chat';
+import Conversation from './pages/Conversation';
+import JournalView from './pages/JournalView';
+import MedicalSummary from './pages/tools/MedicalSummary';
+import JargonTranslator from './pages/tools/JargonTranslator';
+import ConversationCoach from './pages/tools/ConversationCoach';
+import Documents from './pages/tools/Documents';
 import Login from './pages/Login';
 import Register from './pages/Register';
 
@@ -97,12 +98,21 @@ function App() {
             path="/"
             element={
               <ProtectedRoute>
-                <Home />
+                <Conversation />
               </ProtectedRoute>
             }
           />
           <Route
-            path="/summary"
+            path="/journal"
+            element={
+              <ProtectedRoute>
+                <JournalView />
+              </ProtectedRoute>
+            }
+          />
+          {/* Tools Routes */}
+          <Route
+            path="/tools/summary"
             element={
               <ProtectedRoute>
                 <MedicalSummary />
@@ -110,7 +120,7 @@ function App() {
             }
           />
           <Route
-            path="/jargon"
+            path="/tools/jargon"
             element={
               <ProtectedRoute>
                 <JargonTranslator />
@@ -118,7 +128,7 @@ function App() {
             }
           />
           <Route
-            path="/coach"
+            path="/tools/coach"
             element={
               <ProtectedRoute>
                 <ConversationCoach />
@@ -126,10 +136,10 @@ function App() {
             }
           />
           <Route
-            path="/chat"
+            path="/tools/documents"
             element={
               <ProtectedRoute>
-                <Chat />
+                <Documents />
               </ProtectedRoute>
             }
           />

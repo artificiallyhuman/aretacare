@@ -23,6 +23,36 @@ async def create_session(
     return new_session
 
 
+@router.post("/primary", response_model=SessionResponse)
+async def get_or_create_primary_session(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Get or create the user's primary (long-running) session"""
+    # Check if user already has a primary session
+    primary_session = db.query(SessionModel).filter(
+        SessionModel.user_id == current_user.id,
+        SessionModel.is_primary == True
+    ).first()
+
+    if primary_session:
+        # Update last activity
+        primary_session.last_activity = datetime.utcnow()
+        db.commit()
+        db.refresh(primary_session)
+        return primary_session
+
+    # Create new primary session
+    new_primary_session = SessionModel(
+        user_id=current_user.id,
+        is_primary=True
+    )
+    db.add(new_primary_session)
+    db.commit()
+    db.refresh(new_primary_session)
+    return new_primary_session
+
+
 @router.get("/{session_id}", response_model=SessionResponse)
 async def get_session(
     session_id: str,

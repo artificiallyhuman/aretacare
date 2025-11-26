@@ -28,28 +28,11 @@ export const useSession = () => {
           return;
         }
 
-        // Check for existing session in localStorage
-        const existingSessionId = localStorage.getItem('aretacare_session_id');
-
-        if (existingSessionId) {
-          // Verify session is still valid
-          try {
-            await sessionAPI.get(existingSessionId);
-            setSessionId(existingSessionId);
-          } catch (err) {
-            // Session invalid, create new one
-            const response = await sessionAPI.create();
-            const newSessionId = response.data.id;
-            localStorage.setItem('aretacare_session_id', newSessionId);
-            setSessionId(newSessionId);
-          }
-        } else {
-          // Create new session
-          const response = await sessionAPI.create();
-          const newSessionId = response.data.id;
-          localStorage.setItem('aretacare_session_id', newSessionId);
-          setSessionId(newSessionId);
-        }
+        // Get or create primary session (one long-running session per user)
+        const response = await sessionAPI.getPrimary();
+        const primarySessionId = response.data.id;
+        localStorage.setItem('aretacare_session_id', primarySessionId);
+        setSessionId(primarySessionId);
       } catch (err) {
         setError(err.message);
       } finally {
@@ -63,14 +46,12 @@ export const useSession = () => {
   const clearSession = async () => {
     if (sessionId) {
       try {
-        await sessionAPI.cleanup(sessionId);
+        // Delete the entire session (conversations + journal entries)
+        await sessionAPI.delete(sessionId);
+        // Clear session ID from localStorage
         localStorage.removeItem('aretacare_session_id');
-
-        // Create new session
-        const response = await sessionAPI.create();
-        const newSessionId = response.data.id;
-        localStorage.setItem('aretacare_session_id', newSessionId);
-        setSessionId(newSessionId);
+        // Reload to create a fresh new session
+        window.location.reload();
       } catch (err) {
         setError(err.message);
       }

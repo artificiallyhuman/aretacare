@@ -1,6 +1,7 @@
 from pydantic import BaseModel
 from datetime import datetime
-from app.models.conversation import MessageRole
+from app.models.conversation import MessageRole, MessageType
+from typing import Optional
 
 
 class MessageRequest(BaseModel):
@@ -13,6 +14,10 @@ class MessageResponse(BaseModel):
     role: MessageRole
     content: str
     created_at: datetime
+    message_type: Optional[MessageType] = None
+    document_id: Optional[int] = None
+    media_url: Optional[str] = None
+    extracted_text: Optional[str] = None
 
     class Config:
         from_attributes = True

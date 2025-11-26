@@ -39,6 +39,7 @@ export const authAPI = {
 // Session API
 export const sessionAPI = {
   create: () => api.post('/sessions/'),
+  getPrimary: () => api.post('/sessions/primary'),
   get: (sessionId) => api.get(`/sessions/${sessionId}`),
   delete: (sessionId) => api.delete(`/sessions/${sessionId}`),
   cleanup: (sessionId) => api.post(`/sessions/${sessionId}/cleanup`),
@@ -46,13 +47,8 @@ export const sessionAPI = {
 
 // Document API
 export const documentAPI = {
-  upload: (file, sessionId) => {
-    const formData = new FormData();
-    formData.append('file', file);
-    if (sessionId) {
-      formData.append('session_id', sessionId);
-    }
-    return api.post('/documents/upload', formData, {
+  upload: (formData, sessionId) => {
+    return api.post(`/documents/upload${sessionId ? `?session_id=${sessionId}` : ''}`, formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
       },
@@ -62,6 +58,38 @@ export const documentAPI = {
   get: (documentId) => api.get(`/documents/${documentId}`),
   delete: (documentId) => api.delete(`/documents/${documentId}`),
   getDownloadUrl: (documentId) => api.get(`/documents/${documentId}/download-url`),
+};
+
+// Conversation API (new)
+export const conversationAPI = {
+  sendMessage: (data) =>
+    api.post('/conversation/message', null, { params: data }),
+  getHistory: (sessionId, limit = 100) =>
+    api.get(`/conversation/${sessionId}/history`, { params: { limit } }),
+};
+
+// Journal API (new)
+export const journalAPI = {
+  getEntries: (sessionId, startDate = null, endDate = null) =>
+    api.get(`/journal/${sessionId}`, { params: { start_date: startDate, end_date: endDate } }),
+  getEntriesForDate: (sessionId, date) =>
+    api.get(`/journal/${sessionId}/date/${date}`),
+  createEntry: (sessionId, entryData) =>
+    api.post(`/journal/${sessionId}`, entryData),
+  updateEntry: (entryId, updates) =>
+    api.put(`/journal/${entryId}`, updates),
+  deleteEntry: (entryId) =>
+    api.delete(`/journal/${entryId}`),
+};
+
+// Tools API (new - standalone)
+export const toolsAPI = {
+  generateSummary: (medicalText) =>
+    api.post('/tools/medical-summary', null, { params: { medical_text: medicalText } }),
+  translateJargon: (medicalTerm, context = '') =>
+    api.post('/tools/jargon-translator', null, { params: { medical_term: medicalTerm, context } }),
+  getConversationCoach: (situation) =>
+    api.post('/tools/conversation-coach', null, { params: { situation } }),
 };
 
 // Medical API

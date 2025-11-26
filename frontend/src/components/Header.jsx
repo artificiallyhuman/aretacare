@@ -1,8 +1,24 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 
 const Header = ({ onClearSession, onLogout, user }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [toolsDropdownOpen, setToolsDropdownOpen] = useState(false);
+  const dropdownRef = useRef(null);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setToolsDropdownOpen(false);
+      }
+    };
+
+    if (toolsDropdownOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [toolsDropdownOpen]);
 
   return (
     <header className="bg-white border-b border-gray-200">
@@ -24,20 +40,57 @@ const Header = ({ onClearSession, onLogout, user }) => {
           {/* Desktop Navigation */}
           <nav className="hidden lg:flex items-center space-x-1">
             <Link to="/" className="px-3 py-2 text-sm font-medium text-gray-700 hover:text-primary-600 hover:bg-gray-50 rounded-md transition-colors">
-              Home
+              Conversation
             </Link>
-            <Link to="/summary" className="px-3 py-2 text-sm font-medium text-gray-700 hover:text-primary-600 hover:bg-gray-50 rounded-md transition-colors">
-              Summary
+            <Link to="/journal" className="px-3 py-2 text-sm font-medium text-gray-700 hover:text-primary-600 hover:bg-gray-50 rounded-md transition-colors">
+              Journal
             </Link>
-            <Link to="/jargon" className="px-3 py-2 text-sm font-medium text-gray-700 hover:text-primary-600 hover:bg-gray-50 rounded-md transition-colors">
-              Translator
-            </Link>
-            <Link to="/coach" className="px-3 py-2 text-sm font-medium text-gray-700 hover:text-primary-600 hover:bg-gray-50 rounded-md transition-colors">
-              Coach
-            </Link>
-            <Link to="/chat" className="px-3 py-2 text-sm font-medium text-gray-700 hover:text-primary-600 hover:bg-gray-50 rounded-md transition-colors">
-              Chat
-            </Link>
+
+            {/* Tools Dropdown */}
+            <div className="relative" ref={dropdownRef}>
+              <button
+                onClick={() => setToolsDropdownOpen(!toolsDropdownOpen)}
+                className="px-3 py-2 text-sm font-medium text-gray-700 hover:text-primary-600 hover:bg-gray-50 rounded-md transition-colors flex items-center space-x-1"
+              >
+                <span>Tools</span>
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+
+              {toolsDropdownOpen && (
+                <div className="absolute top-full left-0 mt-1 w-48 bg-white rounded-md shadow-lg border border-gray-200 py-1 z-10">
+                  <Link
+                    to="/tools/summary"
+                    className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-primary-600"
+                    onClick={() => setToolsDropdownOpen(false)}
+                  >
+                    Medical Summary
+                  </Link>
+                  <Link
+                    to="/tools/jargon"
+                    className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-primary-600"
+                    onClick={() => setToolsDropdownOpen(false)}
+                  >
+                    Jargon Translator
+                  </Link>
+                  <Link
+                    to="/tools/coach"
+                    className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-primary-600"
+                    onClick={() => setToolsDropdownOpen(false)}
+                  >
+                    Conversation Coach
+                  </Link>
+                  <Link
+                    to="/tools/documents"
+                    className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-primary-600"
+                    onClick={() => setToolsDropdownOpen(false)}
+                  >
+                    Documents
+                  </Link>
+                </div>
+              )}
+            </div>
 
             <div className="ml-4 pl-4 border-l border-gray-200 flex items-center space-x-3">
               <div className="flex items-center space-x-2">
@@ -52,7 +105,7 @@ const Header = ({ onClearSession, onLogout, user }) => {
               <button
                 onClick={onClearSession}
                 className="p-2 text-gray-400 hover:text-gray-600 transition-colors"
-                title="Clear Session"
+                title="Start Fresh Session (clears all conversations and journal entries)"
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -102,36 +155,50 @@ const Header = ({ onClearSession, onLogout, user }) => {
                 className="px-3 py-2 text-base font-medium text-gray-700 hover:text-primary-600 hover:bg-gray-50 rounded-md transition-colors"
                 onClick={() => setMobileMenuOpen(false)}
               >
-                Home
+                Conversation
               </Link>
               <Link
-                to="/summary"
+                to="/journal"
                 className="px-3 py-2 text-base font-medium text-gray-700 hover:text-primary-600 hover:bg-gray-50 rounded-md transition-colors"
                 onClick={() => setMobileMenuOpen(false)}
               >
-                Medical Summary
+                Journal
               </Link>
-              <Link
-                to="/jargon"
-                className="px-3 py-2 text-base font-medium text-gray-700 hover:text-primary-600 hover:bg-gray-50 rounded-md transition-colors"
-                onClick={() => setMobileMenuOpen(false)}
-              >
-                Jargon Translator
-              </Link>
-              <Link
-                to="/coach"
-                className="px-3 py-2 text-base font-medium text-gray-700 hover:text-primary-600 hover:bg-gray-50 rounded-md transition-colors"
-                onClick={() => setMobileMenuOpen(false)}
-              >
-                Conversation Coach
-              </Link>
-              <Link
-                to="/chat"
-                className="px-3 py-2 text-base font-medium text-gray-700 hover:text-primary-600 hover:bg-gray-50 rounded-md transition-colors"
-                onClick={() => setMobileMenuOpen(false)}
-              >
-                Care Assistant
-              </Link>
+
+              {/* Tools Section */}
+              <div className="border-t border-gray-200 pt-2 mt-2">
+                <p className="px-3 py-1 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                  Tools
+                </p>
+                <Link
+                  to="/tools/summary"
+                  className="px-3 py-2 text-base font-medium text-gray-700 hover:text-primary-600 hover:bg-gray-50 rounded-md transition-colors"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  Medical Summary
+                </Link>
+                <Link
+                  to="/tools/jargon"
+                  className="px-3 py-2 text-base font-medium text-gray-700 hover:text-primary-600 hover:bg-gray-50 rounded-md transition-colors"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  Jargon Translator
+                </Link>
+                <Link
+                  to="/tools/coach"
+                  className="px-3 py-2 text-base font-medium text-gray-700 hover:text-primary-600 hover:bg-gray-50 rounded-md transition-colors"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  Conversation Coach
+                </Link>
+                <Link
+                  to="/tools/documents"
+                  className="px-3 py-2 text-base font-medium text-gray-700 hover:text-primary-600 hover:bg-gray-50 rounded-md transition-colors"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  Documents
+                </Link>
+              </div>
 
               <div className="border-t border-gray-200 pt-3 mt-3 space-y-2">
                 <div className="px-3 py-2 flex items-center space-x-2">
@@ -153,7 +220,7 @@ const Header = ({ onClearSession, onLogout, user }) => {
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                   </svg>
-                  <span>Clear Session</span>
+                  <span>Start Fresh Session</span>
                 </button>
 
                 <button

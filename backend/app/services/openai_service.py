@@ -17,13 +17,32 @@ CORE PRINCIPLES:
 - You help families prepare questions for healthcare teams
 - You are calm, professional, compassionate but not sentimental
 
+CONTEXT AWARENESS:
+- You have access to a daily journal of this caregiver's experience
+- The journal contains synthesized insights, not raw conversation logs
+- Use journal context to provide continuity and personalized support
+- Reference past events naturally when relevant to help the caregiver
+
 STRICT SAFETY BOUNDARIES - YOU MUST NEVER:
-- Diagnose any medical condition
-- Recommend or adjust medications
-- Predict medical outcomes
+- Diagnose any medical condition (even with patient history in journal)
+- Recommend or adjust medications (even with treatment timeline in journal)
+- Predict medical outcomes (even with accumulated context in journal)
 - Dispute clinician decisions
 - Give medical instructions (dosages, treatments, home care protocols)
 - Provide therapeutic counseling
+
+CRITICAL REMINDER - SAFETY WITH CONTEXT:
+Despite having extensive patient history via the journal, your fundamental limitations remain unchanged:
+✓ DO: Reference past events to provide continuity
+✓ DO: Help identify patterns for discussion with doctors
+✓ DO: Suggest questions based on historical trends
+
+✗ NEVER: Use history to diagnose conditions
+✗ NEVER: Use timeline to recommend treatment changes
+✗ NEVER: Use accumulated data to predict outcomes
+✗ NEVER: Claim medical expertise based on patient-specific context
+
+Your role remains: Translate, organize, support. NOT: Diagnose, prescribe, predict.
 
 YOU MUST ALWAYS:
 - Defer final authority to clinicians
@@ -331,6 +350,73 @@ Focus on:
         messages.append({"role": "user", "content": message})
 
         response = self._create_chat_completion(messages)
+
+        return (
+            response
+            if response
+            else "I apologize, but I'm unable to respond at this moment. Please try again or consult with your healthcare team directly."
+        )
+
+    async def chat_with_journal(
+        self,
+        message: str,
+        conversation_history: List[Dict[str, str]],
+        journal_context: str,
+        document_url: Optional[str] = None,
+        document_type: Optional[str] = None
+    ) -> str:
+        """Chat interface with journal context and native file/image support"""
+
+        # Conversation-specific instructions for concise, formatted responses
+        conversation_instructions = """
+When responding to conversational messages:
+- Be warm but concise (2-4 sentences for simple questions, 1-2 short paragraphs for complex topics)
+- Use markdown formatting: **bold** for key terms, bullet lists for multiple points
+- Start with a direct answer, then provide brief context if needed
+- Reference journal entries naturally when relevant
+- Avoid lengthy preambles or repetitive safety disclaimers
+"""
+
+        messages = [
+            {"role": "system", "content": self.SYSTEM_PROMPT},
+            {"role": "system", "content": conversation_instructions}
+        ]
+
+        # Add journal context as system message
+        if journal_context and journal_context.strip() != "# Care Journal\n\nNo journal entries yet.":
+            messages.append({
+                "role": "system",
+                "content": f"Care journal for context:\n\n{journal_context}"
+            })
+
+        # Add recent conversation history
+        messages.extend(conversation_history[-10:])
+
+        # Add current message with file/image support
+        if document_url and document_type:
+            # Multi-modal message with file or image
+            content_items = [{"type": "input_text", "text": message}]
+
+            if document_type == "image":
+                content_items.append({
+                    "type": "input_image",
+                    "image_url": document_url
+                })
+            else:  # document (PDF, text, etc.)
+                content_items.append({
+                    "type": "input_file",
+                    "file_url": document_url
+                })
+
+            messages.append({
+                "role": "user",
+                "content": content_items
+            })
+        else:
+            # Text-only message
+            messages.append({"role": "user", "content": message})
+
+        response = self._create_chat_completion(messages, temperature=0.7)
 
         return (
             response
