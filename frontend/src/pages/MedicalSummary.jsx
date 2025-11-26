@@ -59,15 +59,15 @@ const MedicalSummary = () => {
   }
 
   return (
-    <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-      <h1 className="text-3xl font-bold text-gray-900 mb-6">
+    <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 lg:py-12">
+      <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-4 sm:mb-6">
         Medical Summary Generator
       </h1>
 
       <Disclaimer />
 
-      <div className="card mb-6">
-        <h2 className="text-xl font-semibold text-gray-900 mb-4">
+      <div className="card mb-4 sm:mb-6">
+        <h2 className="text-lg sm:text-xl font-semibold text-gray-900 mb-4">
           Upload Medical Document or Paste Text
         </h2>
 
@@ -120,21 +120,21 @@ const MedicalSummary = () => {
 
       {summary && (
         <div className="card">
-          <h2 className="text-2xl font-bold text-gray-900 mb-6">Summary</h2>
+          <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-4 sm:mb-6">Summary</h2>
 
-          <div className="mb-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">
+          <div className="mb-4 sm:mb-6">
+            <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-2">
               Summary of Update
             </h3>
-            <p className="text-gray-700">{summary.summary}</p>
+            <p className="text-sm sm:text-base text-gray-700">{summary.summary}</p>
           </div>
 
           {summary.key_changes && summary.key_changes.length > 0 && (
-            <div className="mb-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">
+            <div className="mb-4 sm:mb-6">
+              <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-2">
                 Key Changes or Findings
               </h3>
-              <ul className="list-disc list-inside space-y-2 text-gray-700">
+              <ul className="list-disc list-inside space-y-2 text-sm sm:text-base text-gray-700">
                 {summary.key_changes.map((change, index) => (
                   <li key={index}>{change}</li>
                 ))}
@@ -143,11 +143,11 @@ const MedicalSummary = () => {
           )}
 
           {summary.recommended_questions && summary.recommended_questions.length > 0 && (
-            <div className="mb-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">
+            <div className="mb-4 sm:mb-6">
+              <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-2">
                 Recommended Questions for the Care Team
               </h3>
-              <ul className="list-disc list-inside space-y-2 text-gray-700">
+              <ul className="list-disc list-inside space-y-2 text-sm sm:text-base text-gray-700">
                 {summary.recommended_questions.map((question, index) => (
                   <li key={index}>{question}</li>
                 ))}
@@ -156,11 +156,11 @@ const MedicalSummary = () => {
           )}
 
           {summary.family_notes && (
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-              <h3 className="text-lg font-semibold text-blue-900 mb-2">
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 sm:p-4">
+              <h3 className="text-base sm:text-lg font-semibold text-blue-900 mb-2">
                 Family Notes / Next Actions
               </h3>
-              <p className="text-blue-800">{summary.family_notes}</p>
+              <p className="text-sm sm:text-base text-blue-800">{summary.family_notes}</p>
             </div>
           )}
         </div>

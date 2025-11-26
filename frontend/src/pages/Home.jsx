@@ -51,12 +51,12 @@ const Home = () => {
   ];
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <div className="text-center mb-10">
-        <h1 className="text-3xl font-bold text-gray-900 mb-3">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+      <div className="text-center mb-8 sm:mb-10">
+        <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-900 mb-3">
           Welcome to AretaCare
         </h1>
-        <p className="text-lg text-gray-600 max-w-3xl mx-auto">
+        <p className="text-base sm:text-lg text-gray-600 max-w-3xl mx-auto px-2">
           Your AI care advocate, helping families navigate complex medical information
           with clarity, compassion, and confidence.
         </p>
@@ -64,19 +64,19 @@ const Home = () => {
 
       <Disclaimer />
 
-      <div className="grid md:grid-cols-2 gap-6 mt-10">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 mt-8 sm:mt-10">
         {features.map((feature, index) => (
           <Link
             key={index}
             to={feature.link}
-            className="group bg-white rounded-xl shadow-sm hover:shadow-md border border-gray-200 p-6 transition-all duration-200 hover:border-primary-300"
+            className="group bg-white rounded-xl shadow-sm hover:shadow-md border border-gray-200 p-4 sm:p-6 transition-all duration-200 hover:border-primary-300"
           >
-            <div className="flex items-start space-x-4">
-              <div className={`flex-shrink-0 w-14 h-14 ${feature.color} rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform duration-200`}>
+            <div className="flex items-start space-x-3 sm:space-x-4">
+              <div className={`flex-shrink-0 w-12 h-12 sm:w-14 sm:h-14 ${feature.color} rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform duration-200`}>
                 {feature.icon}
               </div>
               <div className="flex-1 min-w-0">
-                <h3 className="text-lg font-semibold text-gray-900 mb-2 group-hover:text-primary-600 transition-colors">
+                <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-1 sm:mb-2 group-hover:text-primary-600 transition-colors">
                   {feature.title}
                 </h3>
                 <p className="text-sm text-gray-600 leading-relaxed">{feature.description}</p>
@@ -86,11 +86,11 @@ const Home = () => {
         ))}
       </div>
 
-      <div className="mt-12 bg-gradient-to-br from-primary-50 to-blue-50 rounded-xl border border-primary-100 p-8">
-        <h2 className="text-xl font-semibold text-gray-900 mb-6">
+      <div className="mt-8 sm:mt-12 bg-gradient-to-br from-primary-50 to-blue-50 rounded-xl border border-primary-100 p-5 sm:p-8">
+        <h2 className="text-lg sm:text-xl font-semibold text-gray-900 mb-4 sm:mb-6">
           How AretaCare Helps You
         </h2>
-        <ul className="grid md:grid-cols-2 gap-4">
+        <ul className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
           <li className="flex items-start space-x-3">
             <svg className="w-5 h-5 text-primary-600 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
               <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />

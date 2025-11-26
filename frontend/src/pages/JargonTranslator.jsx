@@ -29,15 +29,15 @@ const JargonTranslator = () => {
   };
 
   return (
-    <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-      <h1 className="text-3xl font-bold text-gray-900 mb-6">
+    <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 lg:py-12">
+      <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-4 sm:mb-6">
         Medical Jargon Translator
       </h1>
 
       <Disclaimer />
 
-      <div className="card mb-6">
-        <h2 className="text-xl font-semibold text-gray-900 mb-4">
+      <div className="card mb-4 sm:mb-6">
+        <h2 className="text-lg sm:text-xl font-semibold text-gray-900 mb-4">
           Enter Medical Term
         </h2>
 
@@ -86,17 +86,17 @@ const JargonTranslator = () => {
 
       {translation && (
         <div className="card">
-          <h2 className="text-2xl font-bold text-gray-900 mb-4">
+          <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-4">
             Translation: {translation.term}
           </h2>
 
           <div className="prose max-w-none">
-            <div className="text-gray-700 whitespace-pre-wrap mb-4">
+            <div className="text-sm sm:text-base text-gray-700 whitespace-pre-wrap mb-4">
               {translation.explanation}
             </div>
 
             {translation.context_note && (
-              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mt-4">
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 sm:p-4 mt-4">
                 <p className="text-sm text-yellow-800">
                   <strong>Note:</strong> {translation.context_note}
                 </p>

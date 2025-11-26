@@ -34,15 +34,15 @@ const ConversationCoach = () => {
   }
 
   return (
-    <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-      <h1 className="text-3xl font-bold text-gray-900 mb-6">
+    <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 lg:py-12">
+      <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-4 sm:mb-6">
         Conversation Coach
       </h1>
 
       <Disclaimer />
 
-      <div className="card mb-6">
-        <h2 className="text-xl font-semibold text-gray-900 mb-4">
+      <div className="card mb-4 sm:mb-6">
+        <h2 className="text-lg sm:text-xl font-semibold text-gray-900 mb-4">
           Prepare for Healthcare Conversations
         </h2>
 
@@ -76,22 +76,22 @@ const ConversationCoach = () => {
       </div>
 
       {coaching && (
-        <div className="space-y-6">
+        <div className="space-y-4 sm:space-y-6">
           {coaching.suggested_questions && coaching.suggested_questions.length > 0 && (
             <div className="card">
-              <h2 className="text-xl font-semibold text-gray-900 mb-4">
+              <h2 className="text-lg sm:text-xl font-semibold text-gray-900 mb-4">
                 Suggested Questions
               </h2>
-              <ul className="space-y-3">
+              <ul className="space-y-2 sm:space-y-3">
                 {coaching.suggested_questions.map((question, index) => (
                   <li
                     key={index}
                     className="flex items-start bg-blue-50 p-3 rounded-lg"
                   >
-                    <span className="text-blue-600 font-semibold mr-3">
+                    <span className="text-blue-600 font-semibold mr-2 sm:mr-3 flex-shrink-0">
                       {index + 1}.
                     </span>
-                    <span className="text-gray-800">{question}</span>
+                    <span className="text-sm sm:text-base text-gray-800">{question}</span>
                   </li>
                 ))}
               </ul>
@@ -100,17 +100,17 @@ const ConversationCoach = () => {
 
           {coaching.preparation_tips && coaching.preparation_tips.length > 0 && (
             <div className="card">
-              <h2 className="text-xl font-semibold text-gray-900 mb-4">
+              <h2 className="text-lg sm:text-xl font-semibold text-gray-900 mb-4">
                 Preparation Tips
               </h2>
-              <ul className="space-y-3">
+              <ul className="space-y-2 sm:space-y-3">
                 {coaching.preparation_tips.map((tip, index) => (
                   <li
                     key={index}
                     className="flex items-start"
                   >
-                    <span className="text-green-600 mr-3">✓</span>
-                    <span className="text-gray-700">{tip}</span>
+                    <span className="text-green-600 mr-2 sm:mr-3 flex-shrink-0">✓</span>
+                    <span className="text-sm sm:text-base text-gray-700">{tip}</span>
                   </li>
                 ))}
               </ul>
