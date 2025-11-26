@@ -6,6 +6,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 AretaCare is an AI-powered medical care advocate assistant that helps families understand complex medical information. It maintains **strict safety boundaries** - never diagnosing, recommending treatments, or predicting outcomes. The core function is to translate medical jargon, summarize clinical notes, and help families prepare questions for healthcare teams.
 
+**Key Features:**
+- JWT-based user authentication with secure password hashing
+- Session-based conversation history tied to user accounts
+- Professional UI with modern design and intuitive navigation
+- Medical document upload with OCR support
+- AI-powered medical information translation and summarization
+
 ## Development Commands
 
 ### Local Development (Docker)
@@ -68,16 +75,22 @@ python -c "import secrets; print(secrets.token_urlsafe(32))"
 - Auto-creates database tables on startup via SQLAlchemy
 - API routes mounted at `/api` prefix
 - All routes return JSON, documented at `/docs`
+- JWT-based authentication with Bearer token in Authorization header
+- Password hashing with bcrypt (version <5.0.0 for passlib compatibility)
 
 **Frontend (React + Vite)**
 - Lives in `frontend/src/`
 - Uses **relative API URLs** (`/api`) to leverage Vite's proxy in Docker
 - Session management via `useSession` hook stores session ID in localStorage
-- No user authentication - privacy via temporary sessions
+- **User authentication** with JWT tokens stored in localStorage
+- Auth token automatically included in API requests via axios interceptor
+- Protected routes redirect to login if not authenticated
 
 **Database (PostgreSQL)**
-- Three main tables: `sessions`, `documents`, `conversations`
-- Cascading deletes: deleting session removes all associated data
+- Four main tables: `users`, `sessions`, `documents`, `conversations`
+- User table stores authentication credentials (bcrypt hashed passwords)
+- Sessions tied to user accounts via foreign key
+- Cascading deletes: deleting user removes all associated data
 - Sessions expire after 60 minutes of inactivity
 
 **Storage (AWS S3)**
@@ -112,12 +125,21 @@ Medical summaries follow a 4-part structure enforced by the OpenAI service:
 
 This structure is parsed from LLM responses in `_parse_medical_summary()`.
 
-### Session-Based Privacy
+### Authentication & Privacy Model
 
-- No persistent user accounts
-- Session ID created on first visit, stored in browser localStorage
-- All data (documents, conversations) tied to session ID
-- Clearing session deletes all associated data from both database and S3
+**User Authentication:**
+- JWT-based authentication with 7-day token expiration
+- Passwords hashed with bcrypt (72-byte maximum due to bcrypt limitation)
+- Minimum password length: 8 characters
+- Auth token stored in localStorage, included in API requests via Authorization header
+- Protected routes on both frontend (React Router) and backend (FastAPI dependencies)
+
+**Session Management:**
+- Session ID created when user first uses the app (after login/register)
+- Session ID stored in browser localStorage
+- All data (documents, conversations) tied to both user account and session ID
+- Sessions belong to specific users (foreign key relationship)
+- Clearing session deletes conversation history but keeps user account
 - Sessions auto-expire via `SESSION_TIMEOUT_MINUTES` (default: 60)
 
 ## Key Files and Their Roles
@@ -126,8 +148,16 @@ This structure is parsed from LLM responses in `_parse_medical_summary()`.
 
 - `backend/app/main.py` - FastAPI application, CORS config, route mounting
 - `backend/app/api/__init__.py` - Combines all API routers
+- `backend/app/api/auth.py` - **Authentication endpoints** (register, login, /me)
 - `backend/app/core/config.py` - Pydantic settings, environment variables
 - `backend/app/core/database.py` - SQLAlchemy session management
+- `backend/app/core/auth.py` - **JWT & password hashing utilities** (bcrypt, jose)
+
+### Models & Schemas
+
+- `backend/app/models/user.py` - User model with authentication fields
+- `backend/app/models/session.py` - Session model with user foreign key
+- `backend/app/schemas/auth.py` - Auth request/response schemas (UserRegister, UserLogin, TokenResponse)
 
 ### Service Layer (Business Logic)
 
@@ -138,9 +168,12 @@ This structure is parsed from LLM responses in `_parse_medical_summary()`.
 ### Frontend Entry Points
 
 - `frontend/src/main.jsx` - React app entry point
-- `frontend/src/App.jsx` - Router configuration, main layout
-- `frontend/src/services/api.js` - Axios instance, all API functions
-- `frontend/src/hooks/useSession.js` - Session creation and management
+- `frontend/src/App.jsx` - Router configuration, protected/public routes, layout
+- `frontend/src/pages/Login.jsx` - Login page with form validation
+- `frontend/src/pages/Register.jsx` - Registration page with password matching
+- `frontend/src/components/Header.jsx` - Navigation with user avatar and auth UI
+- `frontend/src/services/api.js` - Axios instance with auth token interceptor
+- `frontend/src/hooks/useSession.js` - Session & auth state management (calls /auth/me)
 
 ## Important Configuration Details
 
@@ -175,14 +208,46 @@ Critical version pins in `backend/requirements.txt`:
 - `httpx<0.28.0` - Version 0.28+ breaks OpenAI client
 - `openai>=1.56.0` - Earlier versions have httpx incompatibility
 - `pytesseract==0.3.10` - Python wrapper for tesseract-ocr (OCR capability)
+- `bcrypt<5.0.0` - **CRITICAL**: Version 5.x incompatible with passlib 1.7.4
+  - Passlib 1.7.4 cannot read bcrypt 5.x's `__about__` attribute
+  - Causes ValueError during password hashing initialization
+  - Must use bcrypt 4.x for compatibility
+- `passlib[bcrypt]==1.7.4` - Password hashing with bcrypt backend
+- `python-jose[cryptography]==3.3.0` - JWT token creation/validation
 
 ## Common Development Scenarios
+
+### Working with Authentication
+
+**Testing Auth Endpoints:**
+```bash
+# Register a new user
+curl -X POST http://localhost:8000/api/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{"name":"Test User","email":"test@example.com","password":"testpass123"}'
+
+# Login
+curl -X POST http://localhost:8000/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"test@example.com","password":"testpass123"}'
+
+# Get current user (requires token)
+curl http://localhost:8000/api/auth/me \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN_HERE"
+```
+
+**Important Notes:**
+- Passwords must be 8-72 characters (bcrypt limitation)
+- JWT tokens expire after 7 days
+- Frontend automatically includes auth token via axios interceptor
+- After login/register, use `window.location.href = '/'` to reload and initialize session
 
 ### Adding a New API Endpoint
 
 1. Add route to appropriate file in `backend/app/api/`
 2. Create schema in `backend/app/schemas/` if needed
-3. Restart backend: `docker compose restart backend`
+3. Add authentication dependency if needed: `current_user: User = Depends(get_current_user)`
+4. Restart backend: `docker compose restart backend`
 
 ### Modifying OpenAI Behavior
 
@@ -229,6 +294,19 @@ Access points after `docker compose up`:
 - **Frontend**: http://localhost:3001
 - **API Docs**: http://localhost:8000/docs (interactive Swagger UI)
 - **Health Check**: http://localhost:8000/health
+
+**First-time setup:**
+1. Navigate to http://localhost:3001
+2. Click "Create account" to register
+3. Fill in name, email, and password (8-72 characters)
+4. You'll be automatically logged in and redirected to the dashboard
+
+**UI Features:**
+- Professional header with logo and user avatar (shows first initial)
+- Color-coded feature cards (blue, green, purple, amber) with SVG icons
+- Hover effects with smooth transitions
+- Clear Session icon button (trash can) to delete conversation history
+- Logout button to sign out
 
 Sample medical text for testing (paste into Medical Summary):
 ```

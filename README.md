@@ -4,10 +4,13 @@ AretaCare is an AI-powered care advocate assistant that helps families navigate 
 
 ## Features
 
+- **User Authentication**: Secure registration and login with JWT-based authentication
 - **Medical Summary Generator**: Upload medical notes or paste text to get a clear, structured summary with key findings and recommended questions
 - **Jargon Translator**: Translate complex medical terminology into simple, understandable language
 - **Conversation Coach**: Prepare for healthcare appointments with suggested questions and conversation tips
 - **Care Assistant Chat**: Have a conversation with AretaCare about medical information and care navigation
+- **Session Management**: Temporary sessions tied to user accounts with conversation history
+- **Professional UI**: Clean, modern interface with intuitive navigation and professional design
 
 ## Safety Boundaries
 
@@ -135,20 +138,44 @@ Once the backend is running, visit:
 aretacare/
 ├── backend/
 │   ├── app/
-│   │   ├── api/           # API routes
-│   │   ├── core/          # Core configuration
-│   │   ├── models/        # Database models
-│   │   ├── schemas/       # Pydantic schemas
-│   │   └── services/      # Business logic services
+│   │   ├── api/
+│   │   │   ├── auth.py         # Authentication endpoints (register, login, /me)
+│   │   │   ├── sessions.py     # Session management
+│   │   │   ├── documents.py    # Document upload/management
+│   │   │   └── medical.py      # Medical AI features
+│   │   ├── core/
+│   │   │   ├── auth.py         # JWT & password hashing utilities
+│   │   │   ├── config.py       # Environment configuration
+│   │   │   └── database.py     # Database connection
+│   │   ├── models/
+│   │   │   ├── user.py         # User model with authentication
+│   │   │   ├── session.py      # Session model
+│   │   │   ├── document.py     # Document model
+│   │   │   └── conversation.py # Conversation history
+│   │   ├── schemas/
+│   │   │   ├── auth.py         # Auth request/response schemas
+│   │   │   └── ...             # Other schemas
+│   │   └── services/
+│   │       ├── openai_service.py    # GPT-4 integration (CRITICAL)
+│   │       ├── s3_service.py        # AWS S3 operations
+│   │       └── document_processor.py # PDF/OCR processing
 │   ├── Dockerfile         # Local development
 │   └── requirements.txt
 ├── frontend/
 │   ├── src/
-│   │   ├── components/    # React components
-│   │   ├── pages/         # Page components
-│   │   ├── services/      # API services
-│   │   ├── hooks/         # Custom React hooks
-│   │   └── styles/        # CSS styles
+│   │   ├── components/
+│   │   │   ├── Header.jsx      # Navigation with auth UI
+│   │   │   └── Disclaimer.jsx  # Safety disclaimer
+│   │   ├── pages/
+│   │   │   ├── Login.jsx       # Login page
+│   │   │   ├── Register.jsx    # Registration page
+│   │   │   ├── Home.jsx        # Dashboard
+│   │   │   └── ...             # Feature pages
+│   │   ├── services/
+│   │   │   └── api.js          # Axios instance with auth interceptors
+│   │   ├── hooks/
+│   │   │   └── useSession.js   # Session & auth state management
+│   │   └── styles/             # CSS styles
 │   ├── Dockerfile         # Local development
 │   └── package.json
 ├── Dockerfile             # Production backend (Render)
@@ -158,11 +185,13 @@ aretacare/
 
 ## Privacy & Security
 
-- Sessions are temporary and expire after 60 minutes of inactivity
-- Medical documents are stored securely in AWS S3
-- Conversation history is tied to sessions and can be cleared at any time
-- No persistent user accounts or long-term data storage
-- All data can be deleted by clearing the session
+- **User Authentication**: Secure JWT-based authentication with bcrypt password hashing
+- **Password Security**: 72-character maximum (bcrypt limit), minimum 8 characters required
+- **Session Management**: Sessions tied to user accounts, expire after 60 minutes of inactivity
+- **Medical Documents**: Stored securely in AWS S3 with encrypted transmission
+- **Conversation History**: Tied to user sessions and can be cleared at any time
+- **Data Control**: Users can clear their session data at any time via the "Clear Session" button
+- **Active Sessions**: 7-day JWT token expiration with automatic renewal
 
 ## Contributing
 
@@ -179,13 +208,33 @@ For support or questions about AretaCare:
 2. Review this README
 3. Contact the development team
 
+## First-Time Setup
+
+When you first access the application:
+
+1. **Register an Account**
+   - Navigate to the registration page
+   - Provide your name, email, and password (8-72 characters)
+   - Upon successful registration, you'll be automatically logged in
+
+2. **Login**
+   - Use your email and password to access your account
+   - JWT tokens are valid for 7 days
+
+3. **Start Using Features**
+   - Access all features from the navigation menu
+   - Your session and conversation history are saved to your account
+   - Use "Clear Session" to delete your current session data
+
 ## Acknowledgments
 
 Built with:
-- FastAPI
-- React
-- PostgreSQL
-- OpenAI GPT-4
-- AWS S3
-- Docker
-- Render
+- **Backend**: FastAPI, Python 3.11, SQLAlchemy
+- **Frontend**: React, Vite, TailwindCSS
+- **Database**: PostgreSQL
+- **Authentication**: JWT (python-jose), bcrypt (passlib)
+- **AI**: OpenAI GPT-4
+- **Storage**: AWS S3
+- **Infrastructure**: Docker, Render
+- **OCR**: Tesseract (pytesseract)
+- **PDF Processing**: PyPDF2
