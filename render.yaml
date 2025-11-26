@@ -3,7 +3,7 @@ databases:
   - name: aretacare-db
     databaseName: aretacare
     user: aretacare
-    plan: free
+    plan: starter
 
 services:
 
@@ -11,7 +11,7 @@ services:
   - type: web
     name: aretacare-backend
     env: docker
-    plan: free
+    plan: starter
     envVars:
       - key: DATABASE_URL
         fromDatabase:
