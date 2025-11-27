@@ -33,6 +33,8 @@ class JournalEntryResponse(BaseModel):
 
     class Config:
         from_attributes = True
+        # Ignore extra attributes from SQLAlchemy model (like metadata)
+        extra = "ignore"
 
 
 class JournalEntriesGrouped(BaseModel):
