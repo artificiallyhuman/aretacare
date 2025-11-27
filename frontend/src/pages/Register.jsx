@@ -199,6 +199,19 @@ function Register() {
           </div>
         </div>
       </div>
+
+      {/* Legal Links */}
+      <div className="mt-4 sm:mx-auto sm:w-full sm:max-w-md px-4 sm:px-0 text-center">
+        <div className="flex justify-center gap-4 text-xs text-gray-500">
+          <Link to="/terms" className="hover:text-gray-700 underline">
+            Terms of Service
+          </Link>
+          <span>•</span>
+          <Link to="/privacy" className="hover:text-gray-700 underline">
+            Privacy Policy
+          </Link>
+        </div>
+      </div>
     </div>
   );
 }

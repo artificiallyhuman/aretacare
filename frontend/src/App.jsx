@@ -2,6 +2,7 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { useSession } from './hooks/useSession';
 import Header from './components/Header';
+import Footer from './components/Footer';
 import Conversation from './pages/Conversation';
 import About from './pages/About';
 import JournalView from './pages/JournalView';
@@ -12,6 +13,8 @@ import ConversationCoach from './pages/tools/ConversationCoach';
 import Documents from './pages/tools/Documents';
 import Login from './pages/Login';
 import Register from './pages/Register';
+import TermsOfService from './pages/TermsOfService';
+import PrivacyPolicy from './pages/PrivacyPolicy';
 
 // Protected Route Component
 function ProtectedRoute({ children }) {
@@ -106,6 +109,14 @@ function App() {
               </PublicRoute>
             }
           />
+          <Route
+            path="/terms"
+            element={<TermsOfService />}
+          />
+          <Route
+            path="/privacy"
+            element={<PrivacyPolicy />}
+          />
 
           {/* Protected Routes */}
           <Route
@@ -175,18 +186,7 @@ function App() {
           />
         </Routes>
 
-        {user && (
-          <footer className="bg-white border-t border-gray-200 mt-8 sm:mt-12">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
-              <p className="text-center text-gray-600 text-xs sm:text-sm px-2">
-                AretaCare is an AI assistant. Always consult with your healthcare team for medical decisions.
-              </p>
-              <p className="text-center text-gray-500 text-xs mt-2 px-2">
-                © 2025 AretaCare. Your privacy is protected - sessions are temporary and not stored beyond your active use.
-              </p>
-            </div>
-          </footer>
-        )}
+        <Footer />
       </div>
     </Router>
   );
