@@ -37,9 +37,9 @@ const Conversation = () => {
     setShowScrollButton(!isNearBottom && messages.length > 0);
   };
 
-  // Auto-scroll only if user is near bottom
+  // Auto-scroll only if user is near bottom and there are messages
   useEffect(() => {
-    if (isNearBottomRef.current) {
+    if (messages.length > 0 && isNearBottomRef.current) {
       scrollToBottom('smooth');
     }
   }, [messages]);
