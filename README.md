@@ -555,7 +555,7 @@ For support or questions:
 
 ## License
 
-Proprietary - All rights reserved
+MIT License - See [LICENSE](LICENSE) file for details
 
 ## Acknowledgments
 
