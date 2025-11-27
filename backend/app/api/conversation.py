@@ -9,7 +9,7 @@ from app.services.journal_service import JournalService
 from app.services.s3_service import s3_service
 from app.api.auth import get_current_user
 from typing import Optional
-from datetime import datetime
+from datetime import datetime, date as date_type
 import uuid
 import logging
 import io
@@ -29,6 +29,7 @@ async def send_message(
     message_type: str = "text",
     document_id: Optional[int] = None,
     media_url: Optional[str] = None,
+    entry_date: Optional[str] = None,  # User's local date (YYYY-MM-DD)
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
@@ -105,12 +106,21 @@ async def send_message(
         db.commit()
         db.refresh(assistant_message)
 
+        # Parse user's local date if provided, otherwise use server date
+        user_date = None
+        if entry_date:
+            try:
+                user_date = date_type.fromisoformat(entry_date)
+            except ValueError:
+                logger.warning(f"Invalid entry_date format: {entry_date}, using server date")
+
         # Assess for journal synthesis (include document content)
         synthesis_result = await journal_service.assess_and_synthesize(
             user_message=complete_message,
             ai_response=ai_response_text,
             session_id=session_id,
-            conversation_id=user_message.id
+            conversation_id=user_message.id,
+            entry_date=user_date
         )
 
         # Mark messages as synthesized if entries were created

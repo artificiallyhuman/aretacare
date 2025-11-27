@@ -147,12 +147,17 @@ const Conversation = () => {
         }
       }
 
+      // Get user's current date in local timezone (YYYY-MM-DD)
+      const today = new Date();
+      const userDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+
       // Send message
       const response = await conversationAPI.sendMessage({
         content,
         session_id: sessionId,
         message_type: messageType,
-        document_id: documentId
+        document_id: documentId,
+        entry_date: userDate
       });
 
       // Add user message and AI response to messages

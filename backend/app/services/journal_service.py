@@ -81,7 +81,8 @@ IMPORTANT: Create entries for all substantive conversations. Only skip entries f
         user_message: str,
         ai_response: str,
         session_id: str,
-        conversation_id: Optional[int] = None
+        conversation_id: Optional[int] = None,
+        entry_date: Optional[date] = None
     ) -> JournalSynthesisResult:
         """Assess if conversation contains journal-worthy information"""
         try:
@@ -145,7 +146,8 @@ Create the entry now."""
                 suggested_entries=suggestions
             )
 
-            # Auto-save ALL suggested entries
+            # Auto-save ALL suggested entries with user's date
+            use_date = entry_date if entry_date else date.today()
             for suggestion in suggestions:
                 await self.create_entry(
                     session_id=session_id,
@@ -153,7 +155,7 @@ Create the entry now."""
                         title=suggestion.title,
                         content=suggestion.content,
                         entry_type=suggestion.entry_type,
-                        entry_date=date.today()
+                        entry_date=use_date
                     ),
                     created_by="ai",
                     source_message_ids=[conversation_id] if conversation_id else None
