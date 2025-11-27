@@ -106,6 +106,22 @@ export const audioRecordingsAPI = {
     api.get(`/audio-recordings/${sessionId}/${recordingId}/url`),
 };
 
+// Daily Plans API
+export const dailyPlanAPI = {
+  getAll: (sessionId) =>
+    api.get(`/daily-plans/${sessionId}`),
+  getLatest: (sessionId) =>
+    api.get(`/daily-plans/${sessionId}/latest`),
+  check: (sessionId) =>
+    api.get(`/daily-plans/${sessionId}/check`),
+  generate: (sessionId) =>
+    api.post(`/daily-plans/${sessionId}/generate`),
+  update: (planId, userEditedContent) =>
+    api.put(`/daily-plans/${planId}`, { user_edited_content: userEditedContent }),
+  markViewed: (planId, viewed = true) =>
+    api.put(`/daily-plans/${planId}/mark-viewed`, { viewed }),
+};
+
 // Tools API (new - standalone)
 export const toolsAPI = {
   generateSummary: (medicalText) =>

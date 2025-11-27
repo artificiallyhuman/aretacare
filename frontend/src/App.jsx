@@ -5,6 +5,7 @@ import Header from './components/Header';
 import Conversation from './pages/Conversation';
 import About from './pages/About';
 import JournalView from './pages/JournalView';
+import DailyPlan from './pages/DailyPlan';
 import AudioRecordings from './pages/AudioRecordings';
 import JargonTranslator from './pages/tools/JargonTranslator';
 import ConversationCoach from './pages/tools/ConversationCoach';
@@ -116,6 +117,14 @@ function App() {
             element={
               <ProtectedRoute>
                 <JournalView />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/daily-plan"
+            element={
+              <ProtectedRoute>
+                <DailyPlan />
               </ProtectedRoute>
             }
           />

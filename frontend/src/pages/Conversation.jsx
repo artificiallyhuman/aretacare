@@ -1,16 +1,17 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useSession } from '../hooks/useSession';
-import { conversationAPI, documentAPI, journalAPI } from '../services/api';
+import { conversationAPI, documentAPI, dailyPlanAPI } from '../services/api';
 import MessageBubble from '../components/MessageBubble';
 import MessageInput from '../components/MessageInput';
-import JournalPanel from '../components/Journal/JournalPanel';
+import DailyPlanPanel from '../components/DailyPlan/DailyPlanPanel';
 import Disclaimer from '../components/Disclaimer';
 
 const Conversation = () => {
   const { sessionId, loading: sessionLoading } = useSession();
   const [messages, setMessages] = useState([]);
-  const [journalEntries, setJournalEntries] = useState({});
-  const [journalPanelOpen, setJournalPanelOpen] = useState(false);
+  const [dailyPlanPanelOpen, setDailyPlanPanelOpen] = useState(false);
+  const [hasNewDailyPlan, setHasNewDailyPlan] = useState(false);
+  const [showBanner, setShowBanner] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [showScrollButton, setShowScrollButton] = useState(false);
@@ -47,7 +48,18 @@ const Conversation = () => {
   useEffect(() => {
     if (sessionId) {
       loadConversationHistory();
-      loadJournalEntries();
+      checkDailyPlan();
+    }
+  }, [sessionId]);
+
+  // Periodic check for daily plan (every 30 minutes)
+  useEffect(() => {
+    if (sessionId) {
+      const interval = setInterval(() => {
+        checkDailyPlan();
+      }, 30 * 60 * 1000); // 30 minutes
+
+      return () => clearInterval(interval);
     }
   }, [sessionId]);
 
@@ -60,12 +72,32 @@ const Conversation = () => {
     }
   };
 
-  const loadJournalEntries = async () => {
+  const checkDailyPlan = async () => {
     try {
-      const response = await journalAPI.getEntries(sessionId);
-      setJournalEntries(response.data.entries_by_date);
+      const response = await dailyPlanAPI.check(sessionId);
+
+      if (response.data.should_generate) {
+        // Check if more than 24 hours have passed
+        if (!response.data.latest_plan_date || response.data.hours_since_last_plan >= 24) {
+          // Auto-generate the plan
+          await dailyPlanAPI.generate(sessionId);
+          setHasNewDailyPlan(true);
+          setShowBanner(true);
+        }
+      } else {
+        // Check if latest plan has been viewed
+        try {
+          const latestPlan = await dailyPlanAPI.getLatest(sessionId);
+          if (!latestPlan.data.viewed) {
+            setHasNewDailyPlan(true);
+            setShowBanner(true);
+          }
+        } catch (err) {
+          // No plan exists yet, that's okay
+        }
+      }
     } catch (err) {
-      console.error('Error loading journal entries:', err);
+      console.error('Error checking daily plan:', err);
     }
   };
 
@@ -109,11 +141,6 @@ const Conversation = () => {
 
       // Add user message and AI response to messages
       await loadConversationHistory();
-
-      // Reload journal if new entries were created
-      if (response.data.journal_suggestion?.should_create) {
-        await loadJournalEntries();
-      }
     } catch (err) {
       console.error('Error sending message:', err);
       setError('Failed to send message. Please try again.');
@@ -122,9 +149,9 @@ const Conversation = () => {
     }
   };
 
-  const handleJournalUpdate = () => {
-    // Reload journal when user adds/edits/deletes entry
-    loadJournalEntries();
+  const handleDismissBanner = () => {
+    setShowBanner(false);
+    setHasNewDailyPlan(false);
   };
 
   if (sessionLoading) {
@@ -145,31 +172,27 @@ const Conversation = () => {
 
       {/* Main content area */}
       <div className="flex flex-1 overflow-hidden">
-        {/* Journal Panel (collapsible sidebar) */}
+        {/* Daily Plan Panel (collapsible sidebar) */}
         <div
           className={`${
-            journalPanelOpen ? 'w-80' : 'w-0'
+            dailyPlanPanelOpen ? 'w-80' : 'w-0'
           } hidden md:block transition-all duration-300 overflow-hidden border-r border-gray-200 bg-gray-50`}
         >
-          <JournalPanel
+          <DailyPlanPanel
             sessionId={sessionId}
-            entries={journalEntries}
-            isOpen={journalPanelOpen}
-            onToggle={() => setJournalPanelOpen(!journalPanelOpen)}
-            onUpdate={handleJournalUpdate}
+            isOpen={dailyPlanPanelOpen}
+            onToggle={() => setDailyPlanPanelOpen(!dailyPlanPanelOpen)}
           />
         </div>
 
-        {/* Mobile Journal Modal */}
-        {journalPanelOpen && (
+        {/* Mobile Daily Plan Modal */}
+        {dailyPlanPanelOpen && (
           <div className="md:hidden fixed inset-0 bg-black bg-opacity-50 z-50">
             <div className="absolute inset-y-0 right-0 w-full sm:w-96 bg-gray-50 shadow-xl">
-              <JournalPanel
+              <DailyPlanPanel
                 sessionId={sessionId}
-                entries={journalEntries}
-                isOpen={journalPanelOpen}
-                onToggle={() => setJournalPanelOpen(!journalPanelOpen)}
-                onUpdate={handleJournalUpdate}
+                isOpen={dailyPlanPanelOpen}
+                onToggle={() => setDailyPlanPanelOpen(!dailyPlanPanelOpen)}
               />
             </div>
           </div>
@@ -177,16 +200,47 @@ const Conversation = () => {
 
         {/* Conversation area */}
         <div className="flex-1 flex flex-col relative">
-          {/* Toggle journal button (mobile-friendly) */}
+          {/* New Daily Plan Banner */}
+          {showBanner && hasNewDailyPlan && (
+            <div className="bg-primary-600 text-white px-4 py-3 flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                </svg>
+                <span className="font-medium">Your daily plan is ready!</span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <button
+                  onClick={() => {
+                    setDailyPlanPanelOpen(true);
+                    handleDismissBanner();
+                  }}
+                  className="px-3 py-1 bg-white text-primary-600 rounded-md text-sm font-medium hover:bg-gray-100 transition"
+                >
+                  View Plan
+                </button>
+                <button
+                  onClick={handleDismissBanner}
+                  className="p-1 hover:bg-primary-700 rounded transition"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Toggle daily plan button (mobile-friendly) */}
           <div className="border-b border-gray-200 bg-white p-2 flex items-center">
             <button
-              onClick={() => setJournalPanelOpen(!journalPanelOpen)}
+              onClick={() => setDailyPlanPanelOpen(!dailyPlanPanelOpen)}
               className="text-sm text-gray-600 hover:text-primary-600 flex items-center space-x-1"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
               </svg>
-              <span>{journalPanelOpen ? 'Hide' : 'Show'} Journal</span>
+              <span>{dailyPlanPanelOpen ? 'Hide' : 'Show'} Daily Plan</span>
             </button>
           </div>
 
