@@ -67,47 +67,58 @@ class DailyPlanService:
             DailyPlan: The newly created daily plan
         """
         try:
-            logger.info(f"Generating daily plan for session {session_id}")
+            logger.info(f"Generating daily plan for session {session_id}, user_date={user_date}")
 
             # 1. Get today's date (use user's date if provided, otherwise server date)
             if user_date:
                 try:
                     today = date.fromisoformat(user_date)
                     logger.info(f"Using user-provided date: {today}")
-                except ValueError:
-                    logger.warning(f"Invalid user_date format: {user_date}, using server date")
+                except ValueError as ve:
+                    logger.warning(f"Invalid user_date format: {user_date}, using server date. Error: {ve}")
                     today = date.today()
             else:
+                logger.info(f"No user_date provided, using server date: {date.today()}")
                 today = date.today()
 
             # 2. Check if plan already exists for today
+            logger.info(f"Checking for existing plan for session {session_id}, date {today}")
             existing_plan = db.query(DailyPlan).filter(
                 DailyPlan.session_id == session_id,
                 DailyPlan.date == today
             ).first()
 
             if existing_plan:
-                logger.info(f"Daily plan already exists for {today}")
+                logger.info(f"Daily plan already exists for {today}, returning existing plan")
                 return existing_plan
 
             # 3. Gather all context
+            logger.info(f"Gathering context for session {session_id}")
             context = await DailyPlanService._gather_context(db, session_id)
+            logger.info(f"Context gathered: {len(context.get('journal_entries', []))} journal entries, "
+                       f"{len(context.get('conversations', []))} conversations, "
+                       f"{len(context.get('documents', []))} documents")
 
             # Add today's date to context for the prompt
             context['today'] = today.strftime('%B %d, %Y')
 
             # 4. Check if there's sufficient data to generate a plan
+            logger.info(f"Checking if sufficient data exists")
             if not DailyPlanService._has_sufficient_data(context):
+                logger.info(f"Insufficient data - raising 400 error")
                 from fastapi import HTTPException
                 raise HTTPException(
                     status_code=400,
                     detail="Insufficient data to generate daily plan. Please add journal entries or have conversations first."
                 )
 
-            # 5. Generate plan using GPT-5.1
+            # 5. Generate plan using GPT-4o
+            logger.info(f"Generating plan content via OpenAI")
             plan_content = await DailyPlanService._generate_plan_content(context)
+            logger.info(f"Plan content generated successfully, length: {len(plan_content)}")
 
             # 6. Create and save the plan
+            logger.info(f"Saving daily plan to database")
             daily_plan = DailyPlan(
                 session_id=session_id,
                 date=today,
@@ -118,16 +129,19 @@ class DailyPlanService:
             db.commit()
             db.refresh(daily_plan)
 
-            logger.info(f"Daily plan created successfully for {today}")
+            logger.info(f"Daily plan created successfully for {today}, ID: {daily_plan.id}")
             return daily_plan
 
         except Exception as e:
-            logger.error(f"Error generating daily plan: {str(e)}", exc_info=True)
+            logger.error(f"Error generating daily plan. Exception type: {type(e).__name__}, "
+                        f"message: '{str(e)}'", exc_info=True)
             db.rollback()
             # Don't catch HTTPException - let FastAPI handle it
             from fastapi import HTTPException
             if isinstance(e, HTTPException):
+                logger.info(f"Re-raising HTTPException with status {e.status_code}: {e.detail}")
                 raise
+            logger.error(f"Raising wrapped exception")
             raise Exception(f"Failed to generate daily plan: {str(e)}") from e
 
     @staticmethod
