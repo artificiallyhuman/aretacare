@@ -11,6 +11,16 @@ const MessageInput = ({ onSendMessage, onFileUpload, loading }) => {
   const fileInputRef = useRef(null);
   const mediaRecorderRef = useRef(null);
   const audioChunksRef = useRef([]);
+  const textareaRef = useRef(null);
+
+  // Auto-resize textarea as content grows
+  const handleTextareaChange = (e) => {
+    setMessage(e.target.value);
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto';
+      textareaRef.current.style.height = Math.min(textareaRef.current.scrollHeight, 200) + 'px';
+    }
+  };
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -20,6 +30,10 @@ const MessageInput = ({ onSendMessage, onFileUpload, loading }) => {
       setSelectedFile(null);
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
+      }
+      // Reset textarea height
+      if (textareaRef.current) {
+        textareaRef.current.style.height = 'auto';
       }
     }
   };
@@ -133,92 +147,99 @@ const MessageInput = ({ onSendMessage, onFileUpload, loading }) => {
       )}
 
       {/* Input area */}
-      <div className="flex items-end space-x-3 bg-white rounded-xl p-2 shadow-md border border-primary-200">
-        {/* File upload button */}
-        <input
-          type="file"
-          ref={fileInputRef}
-          onChange={handleFileSelect}
-          accept=".pdf,.txt,.jpg,.jpeg,.png"
-          className="hidden"
-          id="file-upload"
-        />
-        <label
-          htmlFor="file-upload"
-          className="cursor-pointer p-2 text-primary-600 hover:text-primary-700 hover:bg-primary-50 rounded-lg transition"
-          title="Upload document or image"
-        >
-          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
-          </svg>
-        </label>
-
-        {/* Audio recording button */}
-        {!isRecording && (
-          <button
-            type="button"
-            onClick={startRecording}
-            disabled={loading || isTranscribing}
-            className={`p-2 rounded-lg transition text-primary-600 hover:text-primary-700 hover:bg-primary-50 ${(loading || isTranscribing) ? 'opacity-50 cursor-not-allowed' : ''}`}
-            title="Start recording"
+      <div className="bg-white rounded-xl shadow-md border border-primary-200">
+        {/* Top row: Action buttons and textarea */}
+        <div className="flex items-end space-x-2 p-2">
+          {/* File upload button */}
+          <input
+            type="file"
+            ref={fileInputRef}
+            onChange={handleFileSelect}
+            accept=".pdf,.txt,.jpg,.jpeg,.png"
+            className="hidden"
+            id="file-upload"
+          />
+          <label
+            htmlFor="file-upload"
+            className="cursor-pointer p-2 text-primary-600 hover:text-primary-700 hover:bg-primary-50 rounded-lg transition flex-shrink-0"
+            title="Upload document or image"
           >
-            {isTranscribing ? (
-              <svg className="w-6 h-6 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+            </svg>
+          </label>
+
+          {/* Audio recording button */}
+          {!isRecording && (
+            <button
+              type="button"
+              onClick={startRecording}
+              disabled={loading || isTranscribing}
+              className={`p-2 rounded-lg transition text-primary-600 hover:text-primary-700 hover:bg-primary-50 flex-shrink-0 ${(loading || isTranscribing) ? 'opacity-50 cursor-not-allowed' : ''}`}
+              title="Start recording"
+            >
+              {isTranscribing ? (
+                <svg className="w-5 h-5 sm:w-6 sm:h-6 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+              ) : (
+                <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+                </svg>
+              )}
+            </button>
+          )}
+
+          {/* Stop recording button */}
+          {isRecording && (
+            <button
+              type="button"
+              onClick={stopRecording}
+              className="px-2 py-2 sm:px-3 rounded-lg transition bg-red-600 hover:bg-red-700 text-white font-medium text-xs sm:text-sm flex items-center gap-1 sm:gap-1.5 animate-pulse flex-shrink-0"
+              title="Stop recording"
+            >
+              <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="currentColor" viewBox="0 0 24 24">
+                <rect x="6" y="6" width="12" height="12" rx="1" />
               </svg>
+              <span className="hidden sm:inline">Stop</span>
+            </button>
+          )}
+
+          {/* Text input */}
+          <textarea
+            ref={textareaRef}
+            value={message}
+            onChange={handleTextareaChange}
+            onKeyPress={handleKeyPress}
+            placeholder="Type your message..."
+            className="flex-1 resize-none border-0 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500 bg-gray-50 max-h-[200px] overflow-y-auto"
+            rows={1}
+            disabled={loading}
+            style={{ minHeight: '44px' }}
+          />
+        </div>
+
+        {/* Bottom row: Send button (full width on mobile) */}
+        <div className="px-2 pb-2">
+          <button
+            type="submit"
+            disabled={loading || (!message.trim() && !selectedFile)}
+            className="btn-primary w-full py-2.5 disabled:opacity-50 disabled:cursor-not-allowed shadow-md hover:shadow-lg transition-shadow text-sm sm:text-base"
+          >
+            {loading ? (
+              <span className="flex items-center justify-center">
+                <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                Sending...
+              </span>
             ) : (
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
-              </svg>
+              'Send'
             )}
           </button>
-        )}
-
-        {/* Stop recording button */}
-        {isRecording && (
-          <button
-            type="button"
-            onClick={stopRecording}
-            className="px-3 py-2 rounded-lg transition bg-red-600 hover:bg-red-700 text-white font-medium text-sm flex items-center gap-1.5 animate-pulse"
-            title="Stop recording"
-          >
-            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-              <rect x="6" y="6" width="12" height="12" rx="1" />
-            </svg>
-            Stop
-          </button>
-        )}
-
-        {/* Text input */}
-        <textarea
-          value={message}
-          onChange={(e) => setMessage(e.target.value)}
-          onKeyPress={handleKeyPress}
-          placeholder="Type your message..."
-          className="flex-1 resize-none border-0 rounded-lg px-4 py-2 sm:py-3 focus:outline-none focus:ring-2 focus:ring-primary-500 bg-gray-50 min-h-[44px]"
-          rows={1}
-          disabled={loading}
-        />
-
-        {/* Send button */}
-        <button
-          type="submit"
-          disabled={loading || (!message.trim() && !selectedFile)}
-          className="btn-primary px-6 py-3 disabled:opacity-50 disabled:cursor-not-allowed shadow-md hover:shadow-lg transition-shadow"
-        >
-          {loading ? (
-            <span className="flex items-center">
-              <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-              </svg>
-              Sending...
-            </span>
-          ) : (
-            'Send'
-          )}
-        </button>
+        </div>
       </div>
     </form>
   );
