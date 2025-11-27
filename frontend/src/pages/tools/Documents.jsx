@@ -8,7 +8,9 @@ const Documents = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [previewDoc, setPreviewDoc] = useState(null);
+  const [previewUrl, setPreviewUrl] = useState(null);
   const [imageUrls, setImageUrls] = useState({});
+  const [thumbnailUrls, setThumbnailUrls] = useState({});
 
   useEffect(() => {
     if (sessionId) {
@@ -24,8 +26,9 @@ const Documents = () => {
       const docs = response.data;
       setDocuments(docs);
 
-      // Load preview URLs for images
+      // Load preview URLs for images and PDF thumbnails
       const urls = {};
+      const thumbUrls = {};
       for (const doc of docs) {
         if (doc.content_type?.includes('image')) {
           try {
@@ -34,9 +37,17 @@ const Documents = () => {
           } catch (err) {
             console.error('Failed to load image preview:', err);
           }
+        } else if (doc.content_type === 'application/pdf') {
+          try {
+            const thumbnailResponse = await documentAPI.getThumbnailUrl(doc.id);
+            thumbUrls[doc.id] = thumbnailResponse.data.thumbnail_url;
+          } catch (err) {
+            console.error('Failed to load PDF thumbnail:', err);
+          }
         }
       }
       setImageUrls(urls);
+      setThumbnailUrls(thumbUrls);
     } catch (err) {
       setError('Failed to load documents: ' + err.message);
     } finally {
@@ -68,8 +79,28 @@ const Documents = () => {
     }
   };
 
-  const handlePreview = (document) => {
+  const handlePreview = async (document) => {
     setPreviewDoc(document);
+
+    // Load document URL for preview
+    if (document.content_type?.includes('image')) {
+      // Use already loaded image URL
+      setPreviewUrl(imageUrls[document.id]);
+    } else if (document.content_type === 'application/pdf') {
+      // Load PDF URL
+      try {
+        const response = await documentAPI.getDownloadUrl(document.id);
+        setPreviewUrl(response.data.download_url);
+      } catch (err) {
+        console.error('Failed to load PDF URL:', err);
+        setPreviewUrl(null);
+      }
+    }
+  };
+
+  const closePreview = () => {
+    setPreviewDoc(null);
+    setPreviewUrl(null);
   };
 
   const formatFileSize = (bytes) => {
@@ -148,6 +179,14 @@ const Documents = () => {
                       className="max-w-full max-h-full object-contain"
                     />
                   </div>
+                ) : doc.content_type === 'application/pdf' && thumbnailUrls[doc.id] ? (
+                  <div className="w-full h-48 flex items-center justify-center bg-gray-100 rounded-lg overflow-hidden">
+                    <img
+                      src={thumbnailUrls[doc.id]}
+                      alt={`${doc.filename} thumbnail`}
+                      className="max-w-full max-h-full object-contain"
+                    />
+                  </div>
                 ) : (
                   getFileIcon(doc.content_type)
                 )}
@@ -170,14 +209,12 @@ const Documents = () => {
 
                 {/* Actions */}
                 <div className="mt-4 flex gap-2">
-                  {(doc.extracted_text || doc.content_type?.includes('image')) && (
-                    <button
-                      onClick={() => handlePreview(doc)}
-                      className="flex-1 px-3 py-2 text-sm font-medium text-primary-700 bg-primary-50 hover:bg-primary-100 rounded-md transition-colors"
-                    >
-                      Preview
-                    </button>
-                  )}
+                  <button
+                    onClick={() => handlePreview(doc)}
+                    className="flex-1 px-3 py-2 text-sm font-medium text-primary-700 bg-primary-50 hover:bg-primary-100 rounded-md transition-colors"
+                  >
+                    Preview
+                  </button>
                   <button
                     onClick={() => handleDownload(doc)}
                     className="flex-1 px-3 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors"
@@ -207,7 +244,7 @@ const Documents = () => {
             {/* Background overlay */}
             <div
               className="fixed inset-0 transition-opacity bg-gray-500 bg-opacity-75"
-              onClick={() => setPreviewDoc(null)}
+              onClick={closePreview}
             ></div>
 
             {/* Modal panel */}
@@ -219,7 +256,7 @@ const Documents = () => {
                     {previewDoc.filename}
                   </h3>
                   <button
-                    onClick={() => setPreviewDoc(null)}
+                    onClick={closePreview}
                     className="ml-3 text-gray-400 hover:text-gray-500"
                   >
                     <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -230,15 +267,23 @@ const Documents = () => {
 
                 {/* Preview Content */}
                 <div className="mt-4">
-                  {previewDoc.content_type?.includes('image') && imageUrls[previewDoc.id] ? (
+                  {previewDoc.content_type?.includes('image') && previewUrl ? (
                     <div className="bg-gray-50 rounded-lg p-4 flex items-center justify-center">
                       <img
-                        src={imageUrls[previewDoc.id]}
+                        src={previewUrl}
                         alt={previewDoc.filename}
                         className="max-w-full max-h-96 object-contain"
                       />
                     </div>
-                  ) : (
+                  ) : previewDoc.content_type === 'application/pdf' && previewUrl ? (
+                    <div className="bg-gray-50 rounded-lg overflow-hidden" style={{ height: '600px' }}>
+                      <iframe
+                        src={previewUrl}
+                        className="w-full h-full"
+                        title={previewDoc.filename}
+                      />
+                    </div>
+                  ) : previewDoc.extracted_text ? (
                     <>
                       <h4 className="text-sm font-medium text-gray-700 mb-2">Extracted Text:</h4>
                       <div className="bg-gray-50 rounded-lg p-4 max-h-96 overflow-y-auto">
@@ -247,6 +292,10 @@ const Documents = () => {
                         </pre>
                       </div>
                     </>
+                  ) : (
+                    <div className="bg-gray-50 rounded-lg p-4 text-center text-gray-500">
+                      <p>No preview available for this document.</p>
+                    </div>
                   )}
                 </div>
               </div>
@@ -260,7 +309,7 @@ const Documents = () => {
                   Download Original
                 </button>
                 <button
-                  onClick={() => setPreviewDoc(null)}
+                  onClick={closePreview}
                   className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 sm:mt-0 sm:w-auto sm:text-sm"
                 >
                   Close

@@ -58,6 +58,7 @@ export const documentAPI = {
   get: (documentId) => api.get(`/documents/${documentId}`),
   delete: (documentId) => api.delete(`/documents/${documentId}`),
   getDownloadUrl: (documentId) => api.get(`/documents/${documentId}/download-url`),
+  getThumbnailUrl: (documentId) => api.get(`/documents/${documentId}/thumbnail-url`),
 };
 
 // Conversation API (new)

@@ -2,6 +2,7 @@ from PyPDF2 import PdfReader
 from io import BytesIO
 from PIL import Image
 import pytesseract
+from pdf2image import convert_from_bytes
 from typing import Optional
 import logging
 
@@ -38,6 +39,34 @@ class DocumentProcessor:
             return text.strip() if text else None
         except Exception as e:
             logger.error(f"Failed to extract text from image: {e}")
+            return None
+
+    @staticmethod
+    def generate_pdf_thumbnail(file_content: bytes, max_width: int = 300) -> Optional[bytes]:
+        """Generate thumbnail image from first page of PDF"""
+        try:
+            # Convert first page to image
+            images = convert_from_bytes(file_content, first_page=1, last_page=1, dpi=150)
+            if not images:
+                return None
+
+            # Get first page
+            first_page = images[0]
+
+            # Resize to thumbnail size while maintaining aspect ratio
+            aspect_ratio = first_page.height / first_page.width
+            new_width = max_width
+            new_height = int(max_width * aspect_ratio)
+            thumbnail = first_page.resize((new_width, new_height), Image.Resampling.LANCZOS)
+
+            # Convert to bytes
+            thumbnail_bytes = BytesIO()
+            thumbnail.save(thumbnail_bytes, format='PNG', optimize=True)
+            thumbnail_bytes.seek(0)
+
+            return thumbnail_bytes.getvalue()
+        except Exception as e:
+            logger.error(f"Failed to generate PDF thumbnail: {e}")
             return None
 
     @staticmethod

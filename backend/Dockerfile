@@ -9,6 +9,7 @@ RUN apt-get update && apt-get install -y \
     libpq-dev \
     tesseract-ocr \
     ffmpeg \
+    poppler-utils \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements

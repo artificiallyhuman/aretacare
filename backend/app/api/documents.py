@@ -80,11 +80,27 @@ async def upload_document(
     # Extract text from document
     extracted_text = document_processor.extract_text(file_content, file.content_type)
 
+    # Generate and upload thumbnail for PDFs
+    thumbnail_s3_key = None
+    if file.content_type == "application/pdf":
+        thumbnail_bytes = document_processor.generate_pdf_thumbnail(file_content)
+        if thumbnail_bytes:
+            thumbnail_s3_key = f"thumbnails/{session_id}/{uuid.uuid4()}.png"
+            thumbnail_upload_success = await s3_service.upload_file(
+                thumbnail_bytes,
+                thumbnail_s3_key,
+                "image/png"
+            )
+            if not thumbnail_upload_success:
+                logger.warning(f"Failed to upload thumbnail for {file.filename}")
+                thumbnail_s3_key = None
+
     # Create document record
     document = DocumentModel(
         session_id=session_id,
         filename=file.filename,
         s3_key=s3_key,
+        thumbnail_s3_key=thumbnail_s3_key,
         content_type=file.content_type,
         extracted_text=extracted_text
     )
@@ -159,6 +175,10 @@ async def delete_document(
     # Delete from S3
     await s3_service.delete_file(document.s3_key)
 
+    # Delete thumbnail if exists
+    if document.thumbnail_s3_key:
+        await s3_service.delete_file(document.thumbnail_s3_key)
+
     # Delete from database
     db.delete(document)
     db.commit()
@@ -189,3 +209,31 @@ async def get_document_download_url(
         raise HTTPException(status_code=500, detail="Failed to generate download URL")
 
     return {"download_url": url}
+
+
+@router.get("/{document_id}/thumbnail-url")
+async def get_document_thumbnail_url(
+    document_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Get presigned URL for document thumbnail"""
+    document = db.query(DocumentModel).filter(DocumentModel.id == document_id).first()
+
+    if not document:
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    # Verify document belongs to current user
+    session = db.query(SessionModel).filter(SessionModel.id == document.session_id).first()
+    if not session or session.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    if not document.thumbnail_s3_key:
+        raise HTTPException(status_code=404, detail="No thumbnail available for this document")
+
+    url = s3_service.generate_presigned_url(document.thumbnail_s3_key)
+
+    if not url:
+        raise HTTPException(status_code=500, detail="Failed to generate thumbnail URL")
+
+    return {"thumbnail_url": url}

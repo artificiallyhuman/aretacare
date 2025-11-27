@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
 from app.core.database import engine, Base
+from app.core.migrations import run_migrations
 from app.api import api_router
 import logging
 import os
@@ -28,6 +29,8 @@ else:
     # Normal startup - only create missing tables
     Base.metadata.create_all(bind=engine)
     logger.info("✓ Database tables initialized")
+    # Run migrations for schema changes
+    run_migrations()
 
 app = FastAPI(
     title="AretaCare API",

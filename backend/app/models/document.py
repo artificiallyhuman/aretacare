@@ -11,6 +11,7 @@ class Document(Base):
     session_id = Column(String, ForeignKey("sessions.id", ondelete="CASCADE"), nullable=False)
     filename = Column(String, nullable=False)
     s3_key = Column(String, nullable=False)
+    thumbnail_s3_key = Column(String, nullable=True)  # For PDF thumbnails
     content_type = Column(String, nullable=False)
     extracted_text = Column(Text, nullable=True)
     uploaded_at = Column(DateTime, default=datetime.utcnow, nullable=False)
