@@ -195,8 +195,8 @@ const MessageInput = ({ onSendMessage, onFileUpload, loading }) => {
           value={message}
           onChange={(e) => setMessage(e.target.value)}
           onKeyPress={handleKeyPress}
-          placeholder="Type or record your message... (Shift+Enter for new line)"
-          className="flex-1 resize-none border-0 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary-500 bg-gray-50"
+          placeholder="Type your message..."
+          className="flex-1 resize-none border-0 rounded-lg px-4 py-2 sm:py-3 focus:outline-none focus:ring-2 focus:ring-primary-500 bg-gray-50 min-h-[44px]"
           rows={1}
           disabled={loading}
         />
