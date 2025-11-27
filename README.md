@@ -7,18 +7,9 @@ AretaCare is an AI-powered care advocate assistant that helps families navigate 
 ### Core Application
 - **Conversation Interface**: Primary chat interface with AI care advocate that maintains conversation history
 - **Enhanced Markdown Rendering**: Custom formatted messages with proper spacing, color-aware styling, and clean typography
-- **Daily Plan**: AI-generated daily summaries with priorities, reminders, and questions for care team
-  - Requires sufficient data (journal entries or conversations) before generation
-  - Auto-generates after 2 AM local time when no plan exists for today
-  - Manual generation available via "Generate Today's Plan" button
-  - Shows "Insufficient data" error when trying to generate without engagement
-  - Concise format (150-250 words) with 3 sections
-  - User editable with full history
-  - Delete and regenerate functionality for existing plans
-  - Banner notification when new plan is ready
-  - Replaces journal sidebar on conversation page
+- **Daily Plan**: AI-generated daily summaries with priorities, reminders, and questions for care team (auto-generates after 2 AM, user editable, delete/regenerate support)
 - **AI Journal Synthesis**: Automatically extracts and organizes key medical updates into a structured journal
-- **Document Upload & Analysis**: Upload PDFs, images, or text files for AI analysis with GPT-5.1 native file support
+- **Document Upload & Analysis**: Upload PDFs, images, or text files for AI analysis with native file support
 - **Smart Scrolling**: Auto-scroll behavior with manual scroll-to-bottom button for long conversations
 - **Audio Recording**: Voice input with clear start/stop buttons and real-time transcription
 
@@ -164,9 +155,9 @@ docker compose down -v
 **Backend**
 - **Framework**: FastAPI 0.104.1
 - **Database**: PostgreSQL 15 with SQLAlchemy 2.0
-- **AI**: OpenAI GPT-5.1 Responses API
+- **AI**: OpenAI GPT-4o with Responses API
 - **Storage**: AWS S3 with boto3
-- **Document Processing**: PyPDF2, Pillow, pytesseract (OCR)
+- **Document Processing**: PyPDF2, Pillow, pytesseract (OCR), ffmpeg (audio)
 - **Authentication**: JWT (python-jose), bcrypt (passlib)
 - **Server**: Uvicorn with async support
 
@@ -217,7 +208,7 @@ docker compose down -v
 - Text extraction happens on upload (PDF, images via OCR)
 - Extracted text stored in database for quick access
 - Presigned URLs generated for secure document access (24-hour expiration)
-- Native GPT-5.1 file support for PDFs and images
+- Native file support for PDFs and images via OpenAI API
 
 ### Key Architecture Features
 
@@ -239,11 +230,11 @@ docker compose down -v
 - Supports manual entry creation, editing, and deletion
 - Entry types: appointment, symptom, medication, test_result, milestone, note
 
-**GPT-5.1 Native File Support**
-- Documents and images passed directly to OpenAI API
+**Native File Support**
+- Documents and images passed directly to OpenAI API via Responses API
 - Presigned S3 URLs used for secure access
 - Supports PDFs, images (PNG, JPG), and text files
-- OCR text extraction as fallback for older models
+- OCR text extraction as fallback
 
 **Smart UI Behavior**
 - Click-away dropdown menus (tools menu)
@@ -331,7 +322,7 @@ aretacare/
 │   │   │   ├── journal.py       # Journal entry schemas
 │   │   │   └── ...              # Other schemas
 │   │   ├── services/
-│   │   │   ├── openai_service.py       # GPT-5.1 integration (CRITICAL)
+│   │   │   ├── openai_service.py       # OpenAI GPT-4o integration (CRITICAL)
 │   │   │   ├── journal_service.py      # Journal synthesis logic
 │   │   │   ├── daily_plan_service.py   # Daily plan generation
 │   │   │   ├── s3_service.py           # AWS S3 operations
@@ -420,7 +411,7 @@ docker compose up -d --build backend
 ### Environment Variables
 
 **Backend** (`backend/.env`):
-- `OPENAI_API_KEY` - For GPT-5.1 interactions
+- `OPENAI_API_KEY` - For OpenAI API interactions
 - `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `S3_BUCKET_NAME` - For document storage
 - `DATABASE_URL` - Auto-configured in Docker Compose
 - `SECRET_KEY` - For JWT signing
@@ -432,7 +423,11 @@ docker compose up -d --build backend
 
 ### Package Version Constraints
 
-Critical version pins in `backend/requirements.txt`:
+**System Dependencies** (in Dockerfile):
+- `tesseract-ocr` - OCR engine for extracting text from images
+- `ffmpeg` - Required for audio transcription
+
+**Python Packages** (in `backend/requirements.txt`):
 - `httpx<0.28.0` - Version 0.28+ breaks OpenAI client
 - `openai>=1.56.0` - Earlier versions have httpx incompatibility
 - `pytesseract==0.3.10` - Python wrapper for tesseract-ocr
@@ -597,4 +592,4 @@ MIT License - See [LICENSE](LICENSE) file for details
 
 Built with care for families navigating medical information.
 
-**Technologies**: FastAPI, React, PostgreSQL, OpenAI GPT-5.1, AWS S3, Docker, Render
+**Technologies**: FastAPI, React, PostgreSQL, OpenAI GPT-4o, AWS S3, Docker, Render
