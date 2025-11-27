@@ -83,12 +83,12 @@ const DailyPlanPanel = ({ sessionId, isOpen, onToggle }) => {
   return (
     <div className="h-full flex flex-col bg-gray-50">
       {/* Header */}
-      <div className="p-4 border-b border-gray-200 bg-white flex justify-between items-center">
+      <div className="p-3 md:p-4 border-b border-gray-200 bg-white flex justify-between items-center">
         <div className="flex items-center space-x-2">
-          <svg className="w-5 h-5 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg className="w-4 h-4 md:w-5 md:h-5 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
           </svg>
-          <h3 className="text-lg font-semibold text-gray-900">Daily Plan</h3>
+          <h3 className="text-base md:text-lg font-semibold text-gray-900">Daily Plan</h3>
         </div>
         <button
           onClick={onToggle}
@@ -102,7 +102,7 @@ const DailyPlanPanel = ({ sessionId, isOpen, onToggle }) => {
       </div>
 
       {/* Content */}
-      <div className="flex-1 overflow-y-auto p-4">
+      <div className="flex-1 overflow-y-auto p-3 md:p-4">
         {loading ? (
           <div className="flex items-center justify-center py-8">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
@@ -112,16 +112,16 @@ const DailyPlanPanel = ({ sessionId, isOpen, onToggle }) => {
             {error}
           </div>
         ) : !dailyPlan || !hasTodaysPlan() ? (
-          <div className="text-center py-8">
-            <svg className="w-12 h-12 text-gray-400 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div className="text-center py-6 md:py-8">
+            <svg className="w-10 h-10 md:w-12 md:h-12 text-gray-400 mx-auto mb-2 md:mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
             </svg>
-            <p className="text-sm text-gray-600 mb-4">
+            <p className="text-xs md:text-sm text-gray-600 mb-3 md:mb-4">
               {dailyPlan ? "No plan for today yet" : "No daily plan yet"}
             </p>
             <button
               onClick={handleGeneratePlan}
-              className="text-sm text-primary-600 hover:text-primary-700 font-medium"
+              className="text-xs md:text-sm text-primary-600 hover:text-primary-700 font-medium"
             >
               Generate Today's Plan
             </button>
@@ -129,9 +129,9 @@ const DailyPlanPanel = ({ sessionId, isOpen, onToggle }) => {
         ) : (
           <div>
             {/* Plan header */}
-            <div className="mb-4">
+            <div className="mb-3 md:mb-4">
               <div className="flex justify-between items-center mb-2">
-                <span className="text-sm font-medium text-primary-700">
+                <span className="text-xs md:text-sm font-medium text-primary-700">
                   {formatDate(dailyPlan.date)}
                 </span>
                 <Link

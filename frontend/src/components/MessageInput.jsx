@@ -111,35 +111,35 @@ const MessageInput = ({ onSendMessage, onFileUpload, loading }) => {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="border-t-2 border-primary-200 bg-gradient-to-r from-primary-50 to-blue-50 p-4 shadow-lg">
+    <form onSubmit={handleSubmit} className="border-t-2 border-primary-200 bg-gradient-to-r from-primary-50 to-blue-50 p-2 md:p-4 shadow-lg">
       {/* Recording/Transcribing status */}
       {isRecording && (
-        <div className="mb-3 flex items-center space-x-2 p-3 bg-red-100 rounded-lg border-2 border-red-300 shadow-sm">
-          <div className="w-3 h-3 bg-red-600 rounded-full animate-pulse"></div>
-          <span className="text-sm font-medium text-red-800">Recording... Click "Stop Recording" when finished</span>
+        <div className="mb-2 md:mb-3 flex items-center space-x-2 p-2 md:p-3 bg-red-100 rounded-lg border-2 border-red-300 shadow-sm">
+          <div className="w-2.5 h-2.5 md:w-3 md:h-3 bg-red-600 rounded-full animate-pulse"></div>
+          <span className="text-xs md:text-sm font-medium text-red-800">Recording... Click "Stop" when finished</span>
         </div>
       )}
       {isTranscribing && (
-        <div className="mb-3 flex items-center space-x-2 p-3 bg-blue-100 rounded-lg border-2 border-blue-300 shadow-sm">
-          <svg className="w-5 h-5 text-blue-700 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <div className="mb-2 md:mb-3 flex items-center space-x-2 p-2 md:p-3 bg-blue-100 rounded-lg border-2 border-blue-300 shadow-sm">
+          <svg className="w-4 h-4 md:w-5 md:h-5 text-blue-700 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
           </svg>
-          <span className="text-sm font-medium text-blue-800">Transcribing your audio...</span>
+          <span className="text-xs md:text-sm font-medium text-blue-800">Transcribing your audio...</span>
         </div>
       )}
 
       {/* File preview */}
       {selectedFile && (
-        <div className="mb-3 flex items-center space-x-2 p-3 bg-white rounded-lg border border-primary-200 shadow-sm">
-          <svg className="w-5 h-5 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <div className="mb-2 md:mb-3 flex items-center space-x-2 p-2 md:p-3 bg-white rounded-lg border border-primary-200 shadow-sm">
+          <svg className="w-4 h-4 md:w-5 md:h-5 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
           </svg>
-          <span className="text-sm text-gray-800 flex-1 font-medium">{selectedFile.name}</span>
+          <span className="text-xs md:text-sm text-gray-800 flex-1 font-medium truncate">{selectedFile.name}</span>
           <button
             type="button"
             onClick={removeFile}
-            className="text-red-600 hover:text-red-700 text-sm font-medium"
+            className="text-red-600 hover:text-red-700 text-xs md:text-sm font-medium"
           >
             Remove
           </button>
@@ -147,9 +147,9 @@ const MessageInput = ({ onSendMessage, onFileUpload, loading }) => {
       )}
 
       {/* Input area */}
-      <div className="bg-white rounded-xl shadow-md border border-primary-200">
+      <div className="bg-white rounded-lg md:rounded-xl shadow-md border border-primary-200">
         {/* Top row: Action buttons and textarea */}
-        <div className="flex items-end space-x-2 p-2">
+        <div className="flex items-end space-x-1.5 md:space-x-2 p-1.5 md:p-2">
           {/* File upload button */}
           <input
             type="file"
@@ -161,10 +161,10 @@ const MessageInput = ({ onSendMessage, onFileUpload, loading }) => {
           />
           <label
             htmlFor="file-upload"
-            className="cursor-pointer p-2 text-primary-600 hover:text-primary-700 hover:bg-primary-50 rounded-lg transition flex-shrink-0"
+            className="cursor-pointer p-1.5 md:p-2 text-primary-600 hover:text-primary-700 hover:bg-primary-50 rounded-lg transition flex-shrink-0"
             title="Upload document or image"
           >
-            <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-5 h-5 md:w-6 md:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
             </svg>
           </label>
@@ -175,16 +175,16 @@ const MessageInput = ({ onSendMessage, onFileUpload, loading }) => {
               type="button"
               onClick={startRecording}
               disabled={loading || isTranscribing}
-              className={`p-2 rounded-lg transition text-primary-600 hover:text-primary-700 hover:bg-primary-50 flex-shrink-0 ${(loading || isTranscribing) ? 'opacity-50 cursor-not-allowed' : ''}`}
+              className={`p-1.5 md:p-2 rounded-lg transition text-primary-600 hover:text-primary-700 hover:bg-primary-50 flex-shrink-0 ${(loading || isTranscribing) ? 'opacity-50 cursor-not-allowed' : ''}`}
               title="Start recording"
             >
               {isTranscribing ? (
-                <svg className="w-5 h-5 sm:w-6 sm:h-6 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-5 h-5 md:w-6 md:h-6 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                 </svg>
               ) : (
-                <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-5 h-5 md:w-6 md:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
                 </svg>
               )}
@@ -196,13 +196,13 @@ const MessageInput = ({ onSendMessage, onFileUpload, loading }) => {
             <button
               type="button"
               onClick={stopRecording}
-              className="px-2 py-2 sm:px-3 rounded-lg transition bg-red-600 hover:bg-red-700 text-white font-medium text-xs sm:text-sm flex items-center gap-1 sm:gap-1.5 animate-pulse flex-shrink-0"
+              className="px-2 py-1.5 md:py-2 rounded-lg transition bg-red-600 hover:bg-red-700 text-white font-medium text-xs flex items-center gap-1 animate-pulse flex-shrink-0"
               title="Stop recording"
             >
-              <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="currentColor" viewBox="0 0 24 24">
+              <svg className="w-3 h-3 md:w-4 md:h-4" fill="currentColor" viewBox="0 0 24 24">
                 <rect x="6" y="6" width="12" height="12" rx="1" />
               </svg>
-              <span className="hidden sm:inline">Stop</span>
+              <span>Stop</span>
             </button>
           )}
 
@@ -213,19 +213,19 @@ const MessageInput = ({ onSendMessage, onFileUpload, loading }) => {
             onChange={handleTextareaChange}
             onKeyPress={handleKeyPress}
             placeholder="Type your message..."
-            className="flex-1 resize-none border-0 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500 bg-gray-50 max-h-[200px] overflow-y-auto"
+            className="flex-1 resize-none border-0 rounded-lg px-2 py-2 md:px-3 focus:outline-none focus:ring-2 focus:ring-primary-500 bg-gray-50 max-h-[200px] overflow-y-auto text-sm md:text-base"
             rows={1}
             disabled={loading}
-            style={{ minHeight: '44px' }}
+            style={{ minHeight: '40px' }}
           />
         </div>
 
         {/* Bottom row: Send button (full width on mobile) */}
-        <div className="px-2 pb-2">
+        <div className="px-1.5 pb-1.5 md:px-2 md:pb-2">
           <button
             type="submit"
             disabled={loading || (!message.trim() && !selectedFile)}
-            className="btn-primary w-full py-2.5 disabled:opacity-50 disabled:cursor-not-allowed shadow-md hover:shadow-lg transition-shadow text-sm sm:text-base"
+            className="btn-primary w-full py-2 md:py-2.5 disabled:opacity-50 disabled:cursor-not-allowed shadow-md hover:shadow-lg transition-shadow text-sm md:text-base"
           >
             {loading ? (
               <span className="flex items-center justify-center">
