@@ -10,7 +10,7 @@ class DailyPlanBase(BaseModel):
 
 class DailyPlanCreate(BaseModel):
     """Schema for creating a new daily plan"""
-    pass  # Generation happens automatically
+    user_date: Optional[str] = None  # Optional YYYY-MM-DD date from user's timezone
 
 
 class DailyPlanUpdate(BaseModel):

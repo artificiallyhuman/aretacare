@@ -110,10 +110,15 @@ async def check_daily_plan_status(
 @router.post("/{session_id}/generate", response_model=DailyPlanResponse)
 async def generate_daily_plan(
     session_id: str,
+    user_date: str = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    """Generate a new daily plan for today"""
+    """Generate a new daily plan for today
+
+    Args:
+        user_date: Optional date in YYYY-MM-DD format from user's timezone
+    """
 
     # Verify session belongs to user
     session = db.query(UserSession).filter(
@@ -126,7 +131,7 @@ async def generate_daily_plan(
 
     # Generate the plan
     try:
-        plan = await DailyPlanService.generate_daily_plan(db, session_id)
+        plan = await DailyPlanService.generate_daily_plan(db, session_id, user_date)
         return plan
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to generate daily plan: {str(e)}")

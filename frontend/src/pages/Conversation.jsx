@@ -84,7 +84,10 @@ const Conversation = () => {
       if (response.data.should_generate && isAfter2AM) {
         // Auto-generate if it's after 2 AM and no plan exists yet
         try {
-          await dailyPlanAPI.generate(sessionId);
+          // Get today's date in user's local timezone (YYYY-MM-DD)
+          const today = new Date();
+          const userDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+          await dailyPlanAPI.generate(sessionId, userDate);
           setHasNewDailyPlan(true);
           setShowBanner(true);
         } catch (err) {

@@ -52,7 +52,8 @@ class DailyPlanService:
     @staticmethod
     async def generate_daily_plan(
         db: Session,
-        session_id: str
+        session_id: str,
+        user_date: str = None
     ) -> DailyPlan:
         """
         Generate a new daily plan for today based on all available context.
@@ -60,6 +61,7 @@ class DailyPlanService:
         Args:
             db: Database session
             session_id: The session ID to generate plan for
+            user_date: Optional date string (YYYY-MM-DD) from user's timezone
 
         Returns:
             DailyPlan: The newly created daily plan
@@ -67,8 +69,16 @@ class DailyPlanService:
         try:
             logger.info(f"Generating daily plan for session {session_id}")
 
-            # 1. Get today's date
-            today = date.today()
+            # 1. Get today's date (use user's date if provided, otherwise server date)
+            if user_date:
+                try:
+                    today = date.fromisoformat(user_date)
+                    logger.info(f"Using user-provided date: {today}")
+                except ValueError:
+                    logger.warning(f"Invalid user_date format: {user_date}, using server date")
+                    today = date.today()
+            else:
+                today = date.today()
 
             # 2. Check if plan already exists for today
             existing_plan = db.query(DailyPlan).filter(
@@ -82,6 +92,9 @@ class DailyPlanService:
 
             # 3. Gather all context
             context = await DailyPlanService._gather_context(db, session_id)
+
+            # Add today's date to context for the prompt
+            context['today'] = today.strftime('%B %d, %Y')
 
             # 4. Check if there's sufficient data to generate a plan
             if not DailyPlanService._has_sufficient_data(context):
@@ -232,7 +245,9 @@ class DailyPlanService:
     def _build_user_prompt(context: Dict) -> str:
         """Build the user prompt from gathered context"""
 
-        prompt_parts = [f"Today's date: {date.today().strftime('%B %d, %Y')}\n"]
+        # Get today's date from context if available, otherwise use server date
+        today_str = context.get('today', date.today().strftime('%B %d, %Y'))
+        prompt_parts = [f"Today's date: {today_str}\n"]
 
         # Add previous plans if available
         if context["previous_plans"]:

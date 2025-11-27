@@ -49,7 +49,10 @@ const DailyPlan = () => {
     try {
       setGenerating(true);
       setError(null);
-      const response = await dailyPlanAPI.generate(sessionId);
+      // Get today's date in user's local timezone (YYYY-MM-DD)
+      const today = new Date();
+      const userDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+      const response = await dailyPlanAPI.generate(sessionId, userDate);
 
       // Reload plans
       await loadDailyPlans();
@@ -58,7 +61,11 @@ const DailyPlan = () => {
       setSelectedPlan(response.data);
     } catch (err) {
       console.error('Error generating daily plan:', err);
-      setError(err.response?.data?.detail || 'Failed to generate daily plan');
+      const errorMessage = err.response?.data?.detail ||
+        (err.response?.status === 400
+          ? "Not enough information yet. Please add journal entries or have conversations first."
+          : 'Failed to generate daily plan');
+      setError(errorMessage);
     } finally {
       setGenerating(false);
     }
@@ -106,8 +113,10 @@ const DailyPlan = () => {
       // Delete the current plan
       await dailyPlanAPI.delete(selectedPlan.id);
 
-      // Generate a new one
-      const response = await dailyPlanAPI.generate(sessionId);
+      // Generate a new one with user's local date
+      const today = new Date();
+      const userDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+      const response = await dailyPlanAPI.generate(sessionId, userDate);
 
       // Reload plans
       await loadDailyPlans();
@@ -116,14 +125,20 @@ const DailyPlan = () => {
       setSelectedPlan(response.data);
     } catch (err) {
       console.error('Error regenerating plan:', err);
-      setError(err.response?.data?.detail || 'Failed to regenerate daily plan');
+      const errorMessage = err.response?.data?.detail ||
+        (err.response?.status === 400
+          ? "Not enough information yet. Please add journal entries or have conversations first."
+          : 'Failed to regenerate daily plan');
+      setError(errorMessage);
     } finally {
       setGenerating(false);
     }
   };
 
   const formatDate = (dateString) => {
-    const date = new Date(dateString);
+    // Parse as local date (YYYY-MM-DD)
+    const [year, month, day] = dateString.split('-').map(Number);
+    const date = new Date(year, month - 1, day);
     return date.toLocaleDateString('en-US', {
       weekday: 'long',
       year: 'numeric',
@@ -133,7 +148,9 @@ const DailyPlan = () => {
   };
 
   const isToday = (dateString) => {
-    const date = new Date(dateString);
+    // Parse as local date (YYYY-MM-DD) not UTC
+    const [year, month, day] = dateString.split('-').map(Number);
+    const date = new Date(year, month - 1, day);
     const today = new Date();
     return date.toDateString() === today.toDateString();
   };
@@ -241,14 +258,20 @@ const DailyPlan = () => {
                       <span className={`text-sm font-medium ${
                         isToday(plan.date) ? 'text-primary-700' : 'text-gray-700'
                       }`}>
-                        {isToday(plan.date) ? 'Today' : new Date(plan.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                        {isToday(plan.date) ? 'Today' : (() => {
+                          const [year, month, day] = plan.date.split('-').map(Number);
+                          return new Date(year, month - 1, day).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                        })()}
                       </span>
                       {!plan.viewed && (
                         <span className="w-2 h-2 bg-primary-600 rounded-full"></span>
                       )}
                     </div>
                     <div className="text-xs text-gray-500">
-                      {new Date(plan.date).toLocaleDateString('en-US', { weekday: 'long' })}
+                      {(() => {
+                        const [year, month, day] = plan.date.split('-').map(Number);
+                        return new Date(year, month - 1, day).toLocaleDateString('en-US', { weekday: 'long' });
+                      })()}
                     </div>
                   </button>
                 ))}

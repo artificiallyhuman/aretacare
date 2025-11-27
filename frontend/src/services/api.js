@@ -114,8 +114,10 @@ export const dailyPlanAPI = {
     api.get(`/daily-plans/${sessionId}/latest`),
   check: (sessionId) =>
     api.get(`/daily-plans/${sessionId}/check`),
-  generate: (sessionId) =>
-    api.post(`/daily-plans/${sessionId}/generate`),
+  generate: (sessionId, userDate = null) => {
+    const params = userDate ? { user_date: userDate } : {};
+    return api.post(`/daily-plans/${sessionId}/generate`, null, { params });
+  },
   update: (planId, userEditedContent) =>
     api.put(`/daily-plans/${planId}`, { user_edited_content: userEditedContent }),
   markViewed: (planId, viewed = true) =>

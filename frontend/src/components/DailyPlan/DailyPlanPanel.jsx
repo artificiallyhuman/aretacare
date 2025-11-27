@@ -41,17 +41,26 @@ const DailyPlanPanel = ({ sessionId, isOpen, onToggle }) => {
     try {
       setLoading(true);
       setError(null);
-      await dailyPlanAPI.generate(sessionId);
+      // Get today's date in user's local timezone (YYYY-MM-DD)
+      const today = new Date();
+      const userDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+      await dailyPlanAPI.generate(sessionId, userDate);
       await loadLatestPlan();
     } catch (err) {
       console.error('Error generating daily plan:', err);
-      setError(err.response?.data?.detail || 'Failed to generate daily plan');
+      const errorMessage = err.response?.data?.detail ||
+        (err.response?.status === 400
+          ? "Not enough information yet. Please add journal entries or have conversations first."
+          : 'Failed to generate daily plan');
+      setError(errorMessage);
       setLoading(false);
     }
   };
 
   const formatDate = (dateString) => {
-    const date = new Date(dateString);
+    // Parse as local date (YYYY-MM-DD) not UTC
+    const [year, month, day] = dateString.split('-').map(Number);
+    const date = new Date(year, month - 1, day);
     const today = new Date();
     if (date.toDateString() === today.toDateString()) {
       return 'Today';
@@ -60,7 +69,9 @@ const DailyPlanPanel = ({ sessionId, isOpen, onToggle }) => {
   };
 
   const isToday = (dateString) => {
-    const date = new Date(dateString);
+    // Parse as local date (YYYY-MM-DD) not UTC
+    const [year, month, day] = dateString.split('-').map(Number);
+    const date = new Date(year, month - 1, day);
     const today = new Date();
     return date.toDateString() === today.toDateString();
   };
