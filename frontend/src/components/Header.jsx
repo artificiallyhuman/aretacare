@@ -61,13 +61,6 @@ const Header = ({ onClearSession, onLogout, user }) => {
               {toolsDropdownOpen && (
                 <div className="absolute top-full left-0 mt-1 w-48 bg-white rounded-md shadow-lg border border-gray-200 py-1 z-10">
                   <Link
-                    to="/tools/summary"
-                    className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-primary-600"
-                    onClick={() => setToolsDropdownOpen(false)}
-                  >
-                    Medical Summary
-                  </Link>
-                  <Link
                     to="/tools/jargon"
                     className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-primary-600"
                     onClick={() => setToolsDropdownOpen(false)}
@@ -171,13 +164,6 @@ const Header = ({ onClearSession, onLogout, user }) => {
                   Tools
                 </p>
                 <div className="flex flex-col space-y-1 mt-1">
-                  <Link
-                    to="/tools/summary"
-                    className="block px-3 py-2 text-base font-medium text-gray-700 hover:text-primary-600 hover:bg-gray-50 rounded-md transition-colors"
-                    onClick={() => setMobileMenuOpen(false)}
-                  >
-                    Medical Summary
-                  </Link>
                   <Link
                     to="/tools/jargon"
                     className="block px-3 py-2 text-base font-medium text-gray-700 hover:text-primary-600 hover:bg-gray-50 rounded-md transition-colors"

@@ -4,7 +4,6 @@ import { useSession } from './hooks/useSession';
 import Header from './components/Header';
 import Conversation from './pages/Conversation';
 import JournalView from './pages/JournalView';
-import MedicalSummary from './pages/tools/MedicalSummary';
 import JargonTranslator from './pages/tools/JargonTranslator';
 import ConversationCoach from './pages/tools/ConversationCoach';
 import Documents from './pages/tools/Documents';
@@ -111,14 +110,6 @@ function App() {
             }
           />
           {/* Tools Routes */}
-          <Route
-            path="/tools/summary"
-            element={
-              <ProtectedRoute>
-                <MedicalSummary />
-              </ProtectedRoute>
-            }
-          />
           <Route
             path="/tools/jargon"
             element={

@@ -10,7 +10,7 @@ const Conversation = () => {
   const { sessionId, loading: sessionLoading } = useSession();
   const [messages, setMessages] = useState([]);
   const [journalEntries, setJournalEntries] = useState({});
-  const [journalPanelOpen, setJournalPanelOpen] = useState(true);
+  const [journalPanelOpen, setJournalPanelOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [showScrollButton, setShowScrollButton] = useState(false);
@@ -149,7 +149,7 @@ const Conversation = () => {
         <div
           className={`${
             journalPanelOpen ? 'w-80' : 'w-0'
-          } transition-all duration-300 overflow-hidden border-r border-gray-200 bg-gray-50`}
+          } hidden md:block transition-all duration-300 overflow-hidden border-r border-gray-200 bg-gray-50`}
         >
           <JournalPanel
             sessionId={sessionId}
@@ -159,6 +159,21 @@ const Conversation = () => {
             onUpdate={handleJournalUpdate}
           />
         </div>
+
+        {/* Mobile Journal Modal */}
+        {journalPanelOpen && (
+          <div className="md:hidden fixed inset-0 bg-black bg-opacity-50 z-50">
+            <div className="absolute inset-y-0 right-0 w-full sm:w-96 bg-gray-50 shadow-xl">
+              <JournalPanel
+                sessionId={sessionId}
+                entries={journalEntries}
+                isOpen={journalPanelOpen}
+                onToggle={() => setJournalPanelOpen(!journalPanelOpen)}
+                onUpdate={handleJournalUpdate}
+              />
+            </div>
+          </div>
+        )}
 
         {/* Conversation area */}
         <div className="flex-1 flex flex-col relative">
@@ -235,7 +250,7 @@ const Conversation = () => {
                     </li>
                   </ul>
                   <p className="text-sm text-gray-600">
-                    You can also upload medical documents, images, or test results by clicking the attachment icon below.
+                    You can also upload medical documents, images, or test results by clicking the attachment icon in the message box below.
                   </p>
                 </div>
 
@@ -265,7 +280,7 @@ const Conversation = () => {
                       <div>
                         <h4 className="font-medium text-gray-900 mb-1">Journal</h4>
                         <p className="text-sm text-gray-600">
-                          Your medical updates are automatically organized into a journal (see the panel on the left). This helps you track appointments, medications, symptoms, and test results over time.
+                          Your medical updates are automatically organized into a journal. Click "Show Journal" above to view your timeline of appointments, medications, symptoms, and test results.
                         </p>
                       </div>
                     </div>
@@ -279,7 +294,7 @@ const Conversation = () => {
                       <div>
                         <h4 className="font-medium text-gray-900 mb-1">Tools</h4>
                         <p className="text-sm text-gray-600">
-                          Access specialized tools from the menu: Medical Summary (for clinical notes), Jargon Translator (for medical terms), Conversation Coach (for appointment prep), and Documents (to manage uploads).
+                          Access specialized tools from the menu: Jargon Translator (for medical terms), Conversation Coach (for appointment prep), and Documents (to manage uploads).
                         </p>
                       </div>
                     </div>
