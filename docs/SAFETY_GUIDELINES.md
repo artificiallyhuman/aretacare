@@ -221,9 +221,22 @@ Every response should include contextual reminders that:
 
 ## Implementation in Code
 
-### System Prompt
+### System Prompts
 
-The OpenAI system prompt must include:
+All AI-generated content in AretaCare follows the same strict safety boundaries:
+
+1. **Conversation AI** (`openai_service.py`):
+   - Main conversational interface
+   - Enforces all safety boundaries via system prompt
+   - Used for chat, jargon translation, conversation coaching
+
+2. **Daily Plan Generation** (`daily_plan_service.py`):
+   - AI-generated daily summaries with priorities, reminders, and questions
+   - Has its own dedicated system prompt enforcing identical safety boundaries
+   - Never diagnoses, recommends treatments, or predicts outcomes
+   - Focuses on practical, actionable items for today only
+
+Each system prompt must include:
 - All safety boundaries
 - Required disclaimers
 - Tone requirements

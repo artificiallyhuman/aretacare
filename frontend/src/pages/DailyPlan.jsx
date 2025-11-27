@@ -94,6 +94,34 @@ const DailyPlan = () => {
     }
   };
 
+  const handleDeleteAndRegenerate = async () => {
+    if (!window.confirm('Delete this plan and generate a new one? This cannot be undone.')) {
+      return;
+    }
+
+    try {
+      setGenerating(true);
+      setError(null);
+
+      // Delete the current plan
+      await dailyPlanAPI.delete(selectedPlan.id);
+
+      // Generate a new one
+      const response = await dailyPlanAPI.generate(sessionId);
+
+      // Reload plans
+      await loadDailyPlans();
+
+      // Select the new plan
+      setSelectedPlan(response.data);
+    } catch (err) {
+      console.error('Error regenerating plan:', err);
+      setError(err.response?.data?.detail || 'Failed to regenerate daily plan');
+    } finally {
+      setGenerating(false);
+    }
+  };
+
   const formatDate = (dateString) => {
     const date = new Date(dateString);
     return date.toLocaleDateString('en-US', {
@@ -241,12 +269,21 @@ const DailyPlan = () => {
                       <p className="text-sm text-gray-600">{formatDate(selectedPlan.date)}</p>
                     </div>
                     {!isEditing ? (
-                      <button
-                        onClick={handleEditClick}
-                        className="px-4 py-2 text-sm font-medium text-primary-700 hover:text-primary-800 hover:bg-primary-50 rounded-md transition"
-                      >
-                        Edit
-                      </button>
+                      <div className="flex space-x-2">
+                        <button
+                          onClick={handleDeleteAndRegenerate}
+                          disabled={generating}
+                          className="px-4 py-2 text-sm font-medium text-red-700 hover:text-red-800 hover:bg-red-50 rounded-md transition disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          {generating ? 'Regenerating...' : 'Delete & Regenerate'}
+                        </button>
+                        <button
+                          onClick={handleEditClick}
+                          className="px-4 py-2 text-sm font-medium text-primary-700 hover:text-primary-800 hover:bg-primary-50 rounded-md transition"
+                        >
+                          Edit
+                        </button>
+                      </div>
                     ) : (
                       <div className="flex space-x-2">
                         <button

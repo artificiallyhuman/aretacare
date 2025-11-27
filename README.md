@@ -7,9 +7,18 @@ AretaCare is an AI-powered care advocate assistant that helps families navigate 
 ### Core Application
 - **Conversation Interface**: Primary chat interface with AI care advocate that maintains conversation history
 - **Enhanced Markdown Rendering**: Custom formatted messages with proper spacing, color-aware styling, and clean typography
+- **Daily Plan**: AI-generated daily summaries with priorities, reminders, and questions for care team
+  - Requires sufficient data (journal entries or conversations) before generation
+  - Auto-generates after 2 AM local time when no plan exists for today
+  - Manual generation available via "Generate Today's Plan" button
+  - Shows "Insufficient data" error when trying to generate without engagement
+  - Concise format (150-250 words) with 3 sections
+  - User editable with full history
+  - Delete and regenerate functionality for existing plans
+  - Banner notification when new plan is ready
+  - Replaces journal sidebar on conversation page
 - **AI Journal Synthesis**: Automatically extracts and organizes key medical updates into a structured journal
 - **Document Upload & Analysis**: Upload PDFs, images, or text files for AI analysis with GPT-5.1 native file support
-- **Collapsible Journal Panel**: Side panel showing organized entries by date with add/edit/delete capabilities
 - **Smart Scrolling**: Auto-scroll behavior with manual scroll-to-bottom button for long conversations
 - **Audio Recording**: Voice input with clear start/stop buttons and real-time transcription
 
@@ -195,10 +204,11 @@ docker compose down -v
 - Custom ReactMarkdown components for enhanced message rendering with color-aware styling
 
 **Database (PostgreSQL)**
-- Five main tables: `users`, `sessions`, `documents`, `conversations`, `journal_entries`
+- Six main tables: `users`, `sessions`, `documents`, `conversations`, `journal_entries`, `daily_plans`
 - User table stores authentication credentials (bcrypt hashed passwords)
 - Sessions tied to user accounts via foreign key
 - Journal entries with AI-generated content and metadata
+- Daily plans with AI-generated content, user edits, and viewed status
 - Cascading deletes: deleting user removes all associated data
 - Sessions expire after 60 minutes of inactivity
 
@@ -276,6 +286,15 @@ docker compose down -v
 - `PUT /api/journal/{entry_id}` - Update journal entry
 - `DELETE /api/journal/{entry_id}` - Delete journal entry
 
+### Daily Plans
+- `GET /api/daily-plans/{session_id}` - Get all daily plans (most recent first)
+- `GET /api/daily-plans/{session_id}/latest` - Get latest daily plan
+- `GET /api/daily-plans/{session_id}/check` - Check if new plan should be generated
+- `POST /api/daily-plans/{session_id}/generate` - Generate new daily plan (requires sufficient data)
+- `PUT /api/daily-plans/{plan_id}` - Update daily plan (user edits)
+- `PUT /api/daily-plans/{plan_id}/mark-viewed` - Mark plan as viewed
+- `DELETE /api/daily-plans/{plan_id}` - Delete daily plan
+
 ### Standalone Tools
 - `POST /api/tools/jargon-translator` - Translate medical jargon
 - `POST /api/tools/conversation-coach` - Get conversation coaching
@@ -293,6 +312,7 @@ aretacare/
 │   │   │   ├── documents.py     # Document upload/management
 │   │   │   ├── conversation.py  # Conversation endpoints
 │   │   │   ├── journal.py       # Journal CRUD operations
+│   │   │   ├── daily_plans.py   # Daily plan management
 │   │   │   └── tools.py         # Standalone tools
 │   │   ├── core/
 │   │   │   ├── auth.py          # JWT & password hashing
@@ -303,17 +323,19 @@ aretacare/
 │   │   │   ├── session.py       # Session model
 │   │   │   ├── document.py      # Document model
 │   │   │   ├── conversation.py  # Conversation history
-│   │   │   └── journal.py       # Journal entries
+│   │   │   ├── journal.py       # Journal entries
+│   │   │   └── daily_plan.py    # Daily plans
 │   │   ├── schemas/
 │   │   │   ├── auth.py          # Auth request/response schemas
 │   │   │   ├── conversation.py  # Message schemas with rich media
 │   │   │   ├── journal.py       # Journal entry schemas
 │   │   │   └── ...              # Other schemas
 │   │   ├── services/
-│   │   │   ├── openai_service.py     # GPT-5.1 integration (CRITICAL)
-│   │   │   ├── journal_service.py    # Journal synthesis logic
-│   │   │   ├── s3_service.py         # AWS S3 operations
-│   │   │   └── document_processor.py # PDF/OCR processing
+│   │   │   ├── openai_service.py       # GPT-5.1 integration (CRITICAL)
+│   │   │   ├── journal_service.py      # Journal synthesis logic
+│   │   │   ├── daily_plan_service.py   # Daily plan generation
+│   │   │   ├── s3_service.py           # AWS S3 operations
+│   │   │   └── document_processor.py   # PDF/OCR processing
 │   │   └── main.py              # FastAPI application
 │   ├── Dockerfile               # Local development
 │   ├── requirements.txt
@@ -335,6 +357,7 @@ aretacare/
 │   │   │   ├── Conversation.jsx     # Main conversation interface
 │   │   │   ├── About.jsx            # About page with feature descriptions
 │   │   │   ├── JournalView.jsx      # Full journal page view
+│   │   │   ├── DailyPlan.jsx        # Daily plan page with history
 │   │   │   ├── AudioRecordings.jsx  # Audio recordings manager
 │   │   │   └── tools/
 │   │   │       ├── JargonTranslator.jsx  # Jargon translator tool

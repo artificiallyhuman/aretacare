@@ -83,10 +83,18 @@ class DailyPlanService:
             # 3. Gather all context
             context = await DailyPlanService._gather_context(db, session_id)
 
-            # 4. Generate plan using GPT-5.1
+            # 4. Check if there's sufficient data to generate a plan
+            if not DailyPlanService._has_sufficient_data(context):
+                from fastapi import HTTPException
+                raise HTTPException(
+                    status_code=400,
+                    detail="Insufficient data to generate daily plan. Please add journal entries or have conversations first."
+                )
+
+            # 5. Generate plan using GPT-5.1
             plan_content = await DailyPlanService._generate_plan_content(context)
 
-            # 5. Create and save the plan
+            # 6. Create and save the plan
             daily_plan = DailyPlan(
                 session_id=session_id,
                 date=today,
@@ -268,6 +276,26 @@ class DailyPlanService:
         prompt_parts.append("\n\nBased on all this context, create a concise daily plan for TODAY.")
 
         return "\n".join(prompt_parts)
+
+    @staticmethod
+    def _has_sufficient_data(context: Dict) -> bool:
+        """
+        Check if there's sufficient data to generate a meaningful daily plan.
+
+        Args:
+            context: Dictionary containing all gathered context
+
+        Returns:
+            bool: True if there's enough data, False otherwise
+        """
+        # Check if there are any journal entries
+        has_journal_entries = len(context.get("journal_entries", [])) > 0
+
+        # Check if there are any conversations
+        has_conversations = len(context.get("conversations", [])) > 0
+
+        # Need at least one of these to generate a plan
+        return has_journal_entries or has_conversations
 
     @staticmethod
     def should_generate_new_plan(db: Session, session_id: str) -> tuple[bool, Optional[DailyPlan]]:

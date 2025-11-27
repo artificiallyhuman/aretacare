@@ -40,11 +40,12 @@ const DailyPlanPanel = ({ sessionId, isOpen, onToggle }) => {
   const handleGeneratePlan = async () => {
     try {
       setLoading(true);
+      setError(null);
       await dailyPlanAPI.generate(sessionId);
       await loadLatestPlan();
     } catch (err) {
       console.error('Error generating daily plan:', err);
-      setError('Failed to generate daily plan');
+      setError(err.response?.data?.detail || 'Failed to generate daily plan');
       setLoading(false);
     }
   };

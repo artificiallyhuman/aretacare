@@ -398,9 +398,12 @@ If you encounter issues:
 
 After successful setup:
 
-1. Test all features in the frontend
-2. Upload a sample medical document
-3. Try the jargon translator
-4. Test the conversation coach
-5. Monitor logs for any errors
-6. Set up monitoring for production
+1. Register a new user account
+2. Test the conversation interface
+3. Upload a sample medical document
+4. Try the jargon translator
+5. Test the conversation coach
+6. Generate a daily plan
+7. Create journal entries
+8. Monitor logs for any errors
+9. Set up monitoring for production

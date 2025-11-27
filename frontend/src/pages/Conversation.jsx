@@ -76,16 +76,25 @@ const Conversation = () => {
     try {
       const response = await dailyPlanAPI.check(sessionId);
 
-      if (response.data.should_generate) {
-        // Check if more than 24 hours have passed
-        if (!response.data.latest_plan_date || response.data.hours_since_last_plan >= 24) {
-          // Auto-generate the plan
+      // Auto-generate if it's after 2 AM and no plan exists for today
+      const now = new Date();
+      const currentHour = now.getHours();
+      const isAfter2AM = currentHour >= 2;
+
+      if (response.data.should_generate && isAfter2AM) {
+        // Auto-generate if it's after 2 AM and no plan exists yet
+        try {
           await dailyPlanAPI.generate(sessionId);
           setHasNewDailyPlan(true);
           setShowBanner(true);
+        } catch (err) {
+          // If insufficient data, silently ignore
+          if (err.response?.status !== 400) {
+            console.error('Error auto-generating daily plan:', err);
+          }
         }
       } else {
-        // Check if latest plan has been viewed
+        // Check if latest plan has been viewed (show banner if not)
         try {
           const latestPlan = await dailyPlanAPI.getLatest(sessionId);
           if (!latestPlan.data.viewed) {

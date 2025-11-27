@@ -9,12 +9,13 @@ AretaCare is an AI-powered medical care advocate assistant that helps families u
 **Key Features:**
 - **Conversation-first interface** with AI care advocate as the primary interaction model
 - **Enhanced markdown rendering** with custom ReactMarkdown components, color-aware styling, and clean typography
+- **Daily Plan** - AI-generated daily summaries with priorities, reminders, and questions for care team (requires sufficient data, auto-generates after 2 AM, user editable, delete and regenerate capability, replaces journal sidebar)
 - **AI Journal Synthesis** that automatically extracts and organizes medical updates from conversations
 - **GPT-5.1 native file support** for PDFs and images via Responses API
 - **Audio recording** with separate start/stop buttons, visual feedback, and real-time transcription
 - JWT-based user authentication with secure password hashing
 - Session-based conversation history tied to user accounts
-- Collapsible journal panel (hidden by default) with organized entries by date
+- Collapsible daily plan panel (replaces journal sidebar) showing current plan on conversation page
 - **About page** with comprehensive feature descriptions organized as intro sentences + bullet points
 - Professional UI with modern design and smart UI behaviors (click-away dropdowns, smart scrolling, mobile modals)
 - Mobile-responsive design with hamburger menu navigation (About after Tools) and full-screen journal modal
@@ -96,10 +97,11 @@ python -c "import secrets; print(secrets.token_urlsafe(32))"
 - Protected routes redirect to login if not authenticated
 
 **Database (PostgreSQL)**
-- Five main tables: `users`, `sessions`, `documents`, `conversations`, `journal_entries`
+- Six main tables: `users`, `sessions`, `documents`, `conversations`, `journal_entries`, `daily_plans`
 - User table stores authentication credentials (bcrypt hashed passwords)
 - Sessions tied to user accounts via foreign key
 - Journal entries with AI-generated content, metadata, and entry types
+- Daily plans with AI-generated content, user edits, viewed status, and date tracking
 - Conversations include rich media support (message_type, document_id, media_url fields)
 - Cascading deletes: deleting user removes all associated data
 - Sessions expire after 60 minutes of inactivity
@@ -199,6 +201,7 @@ STRICT SAFETY BOUNDARIES - YOU MUST NEVER:
 - `backend/app/api/documents.py` - Document upload/management with presigned URLs
 - `backend/app/api/conversation.py` - Conversation endpoints with rich media support
 - `backend/app/api/journal.py` - Journal CRUD operations
+- `backend/app/api/daily_plans.py` - **Daily plan management** (generate, list, update, mark viewed)
 - `backend/app/api/tools.py` - Standalone tools (Jargon Translator, Conversation Coach)
 - `backend/app/core/config.py` - Pydantic settings, environment variables
 - `backend/app/core/database.py` - SQLAlchemy session management
@@ -209,15 +212,18 @@ STRICT SAFETY BOUNDARIES - YOU MUST NEVER:
 - `backend/app/models/user.py` - User model with authentication fields
 - `backend/app/models/session.py` - Session model with user foreign key
 - `backend/app/models/journal.py` - Journal entries with AI-generated content
+- `backend/app/models/daily_plan.py` - **Daily plans** with content, user edits, viewed status
 - `backend/app/models/conversation.py` - Conversation messages with rich media support
 - `backend/app/schemas/auth.py` - Auth request/response schemas (UserRegister, UserLogin, TokenResponse)
 - `backend/app/schemas/journal.py` - Journal entry schemas with synthesis metadata
+- `backend/app/schemas/daily_plan.py` - Daily plan schemas (DailyPlanResponse, DailyPlanUpdate, DailyPlanCheckResponse)
 - `backend/app/schemas/conversation.py` - Message schemas with document/image support
 
 ### Service Layer (Business Logic)
 
 - `backend/app/services/openai_service.py` - **CRITICAL**: Contains safety prompt, GPT-5.1 integration, all LLM interactions
 - `backend/app/services/journal_service.py` - **Journal synthesis logic**: Analyzes conversations, creates journal entries
+- `backend/app/services/daily_plan_service.py` - **Daily plan generation**: Validates sufficient data (journal entries or conversations), gathers context, generates concise plans via GPT-5.1
 - `backend/app/services/s3_service.py` - Document upload/download/delete to S3, presigned URL generation
 - `backend/app/services/document_processor.py` - Text extraction (PDF, OCR for images)
 
@@ -227,15 +233,18 @@ STRICT SAFETY BOUNDARIES - YOU MUST NEVER:
 - `frontend/src/App.jsx` - Router configuration, protected/public routes, layout with responsive footer
 - `frontend/src/pages/Login.jsx` - Login page with professional styling, mobile-responsive
 - `frontend/src/pages/Register.jsx` - Registration page with professional styling, mobile-responsive
-- `frontend/src/pages/Conversation.jsx` - **Main conversation interface** with chat + journal panel, smart scrolling, welcome page with "How to Get Started"
-- `frontend/src/pages/About.jsx` - **About page** with comprehensive feature descriptions organized as intro sentences + bullet points (Conversation, Journal, Tools, Privacy)
+- `frontend/src/pages/Conversation.jsx` - **Main conversation interface** with chat + daily plan panel, smart scrolling, welcome page with "How to Get Started", banner notification for new plans, auto-generates after 2 AM with sufficient data
+- `frontend/src/pages/DailyPlan.jsx` - **Daily plan page** with full history list, edit mode, delete and regenerate functionality, enhanced markdown rendering
+- `frontend/src/pages/JournalView.jsx` - Full journal page view
+- `frontend/src/pages/About.jsx` - **About page** with comprehensive feature descriptions organized as intro sentences + bullet points (Conversation, Daily Plan, Journal, Tools, Privacy)
 - `frontend/src/pages/tools/` - Standalone tools (JargonTranslator with voice input, ConversationCoach with voice recording, Documents with image previews)
 - `frontend/src/components/Header.jsx` - **Mobile-responsive navigation** with hamburger menu (lg breakpoint), tools dropdown with click-away behavior, About link after Tools
 - `frontend/src/components/Disclaimer.jsx` - Responsive safety disclaimer component
+- `frontend/src/components/DailyPlan/DailyPlanPanel.jsx` - **Collapsible daily plan sidebar** (replaces journal panel on conversation page) with current plan, enhanced markdown rendering, generates with sufficient data check
 - `frontend/src/components/Journal/JournalPanel.jsx` - Collapsible journal sidebar with entries by date
 - `frontend/src/components/MessageBubble.jsx` - Chat message display with custom ReactMarkdown components and color-aware styling
 - `frontend/src/components/MessageInput.jsx` - Chat input with file upload (documents/images) and separate start/stop audio recording buttons
-- `frontend/src/services/api.js` - Axios instance with auth token interceptor, conversation/journal/tools APIs
+- `frontend/src/services/api.js` - Axios instance with auth token interceptor, conversation/journal/daily plan/tools APIs
 - `frontend/src/hooks/useSession.js` - Session & auth state management (calls /auth/me)
 - `frontend/src/styles/index.css` - Tailwind CSS with responsive custom components (.btn-primary, .card, .input, .textarea)
 
@@ -417,8 +426,10 @@ Access points after `docker compose up`:
 - **Conversation-first interface**: Main page is chat with AI care advocate
 - **Enhanced markdown rendering**: Custom ReactMarkdown components with color-aware styling (prose-invert for user, prose-gray for AI)
 - **Welcome page**: Clear onboarding with "How to Get Started" instructions and example topics directing to message box
-- **About page**: Comprehensive feature descriptions organized with intro sentences + color-coded bullet points (blue: Conversation, green: Journal, purple: Tools, gray: Privacy)
-- **Collapsible journal panel**: Hidden by default, sidebar on desktop, full-screen modal on mobile
+- **About page**: Comprehensive feature descriptions organized with intro sentences + color-coded bullet points (blue: Conversation, amber: Daily Plan, green: Journal, purple: Tools, gray: Privacy)
+- **Daily plan panel**: Replaces journal sidebar on conversation page, shows current plan with enhanced markdown rendering, banner notification when new plan is ready, auto-generates after 2 AM when user has journal entries or conversations
+- **Daily plan page**: Full history of all plans (most recent first), edit mode, delete and regenerate functionality, smart button states (disabled when today's plan exists, error message for insufficient data)
+- **Collapsible journal panel**: Available on Journal page, sidebar on desktop, full-screen modal on mobile
 - **Smart scrolling**: Auto-scroll when near bottom (only with messages), manual scroll-to-bottom button when scrolled up
 - **Audio recording**: Separate start (microphone icon) and stop (red "Stop Recording" button) with visual feedback and transcription status
 - **Click-away dropdowns**: Tools menu closes when clicking outside
@@ -440,9 +451,11 @@ Access points after `docker compose up`:
 3. **Audio recording**: Click microphone, speak, click red "Stop Recording" button when finished
 4. **Upload a document**: Click attach button, select PDF or image
 5. **View About page**: Navigate to About (after Tools in menu) to see comprehensive feature descriptions with organized bullet points
-6. **Journal synthesis**: Ask medical questions, click "Show Journal" to view auto-generated entries
-7. **Tools section**: Access Jargon Translator (with voice input), Conversation Coach (with voice recording), Documents (with image previews)
-8. **Clear session**: Click trash icon - see permanent deletion warning, confirm to delete all data (includes S3 files)
+6. **Daily Plan**: Navigate to Daily Plan page, click "Generate Today's Plan" to create AI-generated daily summary (requires journal entries or conversations), delete and regenerate existing plans with confirmation dialog
+7. **Daily Plan Panel**: View current plan in sidebar on conversation page, banner notification appears when new plan is ready, shows "insufficient information" if no engagement data exists
+8. **Journal synthesis**: Ask medical questions, click "Show Journal" to view auto-generated entries
+9. **Tools section**: Access Jargon Translator (with voice input), Conversation Coach (with voice recording), Documents (with image previews)
+10. **Clear session**: Click trash icon - see permanent deletion warning, confirm to delete all data (includes S3 files)
 
 Sample medical text for testing:
 ```

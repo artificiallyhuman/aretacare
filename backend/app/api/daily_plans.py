@@ -198,3 +198,33 @@ async def mark_plan_viewed(
     db.refresh(plan)
 
     return plan
+
+
+@router.delete("/{plan_id}")
+async def delete_daily_plan(
+    plan_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Delete a daily plan"""
+
+    # Get the plan
+    plan = db.query(DailyPlan).filter(DailyPlan.id == plan_id).first()
+
+    if not plan:
+        raise HTTPException(status_code=404, detail="Daily plan not found")
+
+    # Verify plan belongs to user's session
+    session = db.query(UserSession).filter(
+        UserSession.id == plan.session_id,
+        UserSession.user_id == current_user.id
+    ).first()
+
+    if not session:
+        raise HTTPException(status_code=403, detail="Not authorized to delete this plan")
+
+    # Delete the plan
+    db.delete(plan)
+    db.commit()
+
+    return {"message": "Daily plan deleted successfully"}

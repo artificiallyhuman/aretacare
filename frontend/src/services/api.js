@@ -120,6 +120,8 @@ export const dailyPlanAPI = {
     api.put(`/daily-plans/${planId}`, { user_edited_content: userEditedContent }),
   markViewed: (planId, viewed = true) =>
     api.put(`/daily-plans/${planId}/mark-viewed`, { viewed }),
+  delete: (planId) =>
+    api.delete(`/daily-plans/${planId}`),
 };
 
 // Tools API (new - standalone)
