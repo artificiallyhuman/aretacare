@@ -129,12 +129,9 @@ async def generate_daily_plan(
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
 
-    # Generate the plan
-    try:
-        plan = await DailyPlanService.generate_daily_plan(db, session_id, user_date)
-        return plan
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to generate daily plan: {str(e)}")
+    # Generate the plan (HTTPException will pass through to FastAPI)
+    plan = await DailyPlanService.generate_daily_plan(db, session_id, user_date)
+    return plan
 
 
 @router.put("/{plan_id}", response_model=DailyPlanResponse)

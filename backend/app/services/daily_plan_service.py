@@ -122,9 +122,13 @@ class DailyPlanService:
             return daily_plan
 
         except Exception as e:
-            logger.error(f"Error generating daily plan: {str(e)}")
+            logger.error(f"Error generating daily plan: {str(e)}", exc_info=True)
             db.rollback()
-            raise
+            # Don't catch HTTPException - let FastAPI handle it
+            from fastapi import HTTPException
+            if isinstance(e, HTTPException):
+                raise
+            raise Exception(f"Failed to generate daily plan: {str(e)}") from e
 
     @staticmethod
     async def _gather_context(db: Session, session_id: str) -> Dict:
