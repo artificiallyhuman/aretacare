@@ -95,11 +95,11 @@ const Header = ({ onClearSession, onLogout, user }) => {
               )}
             </div>
 
-            <Link to="/about" className="px-3 py-2 text-sm font-medium text-gray-700 hover:text-primary-600 hover:bg-gray-50 rounded-md transition-colors">
-              About
-            </Link>
-
             <div className="ml-4 pl-4 border-l border-gray-200 flex items-center space-x-3">
+              <Link to="/about" className="px-3 py-2 text-sm font-medium text-gray-700 hover:text-primary-600 hover:bg-gray-50 rounded-md transition-colors">
+                About
+              </Link>
+
               <div className="flex items-center space-x-2">
                 <div className="w-8 h-8 bg-primary-100 rounded-full flex items-center justify-center">
                   <span className="text-sm font-medium text-primary-700">
@@ -216,14 +216,6 @@ const Header = ({ onClearSession, onLogout, user }) => {
                 </div>
               </div>
 
-              <Link
-                to="/about"
-                className="px-3 py-2 text-base font-medium text-gray-700 hover:text-primary-600 hover:bg-gray-50 rounded-md transition-colors"
-                onClick={() => setMobileMenuOpen(false)}
-              >
-                About
-              </Link>
-
               <div className="border-t border-gray-200 pt-3 mt-3 space-y-2">
                 <div className="px-3 py-2 flex items-center space-x-2">
                   <div className="w-8 h-8 bg-primary-100 rounded-full flex items-center justify-center">
@@ -233,6 +225,14 @@ const Header = ({ onClearSession, onLogout, user }) => {
                   </div>
                   <span className="text-base font-medium text-gray-700">{user?.name}</span>
                 </div>
+
+                <Link
+                  to="/about"
+                  className="block px-3 py-2 text-base font-medium text-gray-700 hover:text-primary-600 hover:bg-gray-50 rounded-md transition-colors"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  About
+                </Link>
 
                 <button
                   onClick={() => {
