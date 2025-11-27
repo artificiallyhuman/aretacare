@@ -12,11 +12,12 @@ AretaCare is an AI-powered medical care advocate assistant that helps families u
 - **GPT-5.1 native file support** for PDFs and images via Responses API
 - JWT-based user authentication with secure password hashing
 - Session-based conversation history tied to user accounts
-- Collapsible journal panel with organized entries by date
-- Professional UI with modern design and smart UI behaviors (click-away dropdowns, smart scrolling)
-- Mobile-responsive design with hamburger menu navigation
-- Medical document upload with OCR support and S3 storage
-- Specialized tools: Medical Summary, Jargon Translator, Conversation Coach, Documents Manager
+- Collapsible journal panel (hidden by default) with organized entries by date
+- Professional UI with modern design and smart UI behaviors (click-away dropdowns, smart scrolling, mobile modals)
+- Mobile-responsive design with hamburger menu navigation and full-screen journal modal
+- Medical document upload with OCR support, S3 storage, and automatic cleanup on session clear
+- Image previews in Documents page with thumbnail grid
+- Specialized tools: Jargon Translator, Conversation Coach, Documents Manager
 
 ## Development Commands
 
@@ -129,9 +130,11 @@ STRICT SAFETY BOUNDARIES - YOU MUST NEVER:
 
 **Conversation-First Design**
 - Primary interface is a conversational chat with AI care advocate
-- Collapsible journal panel on the side shows organized medical updates
+- Journal panel hidden by default; opens as sidebar on desktop (md+) or full-screen modal on mobile
+- Welcome page with clear instructions directing users to start typing in message box
 - Messages can include text, uploaded documents (PDFs), and images
 - Smart scrolling: auto-scroll only when user is near bottom, manual scroll button otherwise
+- Compact message spacing (space-y-2) for better conversation flow
 - Conversation history persists across sessions
 
 **AI Journal Synthesis**
@@ -152,14 +155,15 @@ STRICT SAFETY BOUNDARIES - YOU MUST NEVER:
 - Supports PDFs, images (PNG, JPG), and text files
 - OCR text extraction stored as fallback for compatibility
 
-**Medical Summary Response Structure**
-Medical summaries follow a 4-part structure enforced by the OpenAI service:
-1. Summary of Update (2-3 sentences)
-2. Key Changes or Findings (bullet points)
-3. Recommended Questions for the Care Team (3-5 questions)
-4. Family Notes or Next Actions (brief guidance)
-
-This structure is parsed from LLM responses in `_parse_medical_summary()`.
+**Smart UI Behavior**
+- Click-away dropdown menus (tools menu closes when clicking outside)
+- Smart scrolling: auto-scroll only when near bottom and messages exist
+- Scroll-to-bottom button appears when user scrolls up in conversation
+- Responsive design with mobile hamburger menu (lg breakpoint)
+- Mobile journal as full-screen modal with backdrop overlay (md breakpoint)
+- Image thumbnails in Documents page with 192px height preview cards
+- S3 file cleanup on session deletion prevents orphaned files in storage
+- Compact message spacing (space-y-2) for better conversation flow
 
 ### Authentication & Privacy Model
 
@@ -185,6 +189,11 @@ This structure is parsed from LLM responses in `_parse_medical_summary()`.
 - `backend/app/main.py` - FastAPI application, CORS config, route mounting
 - `backend/app/api/__init__.py` - Combines all API routers
 - `backend/app/api/auth.py` - **Authentication endpoints** (register, login, /me)
+- `backend/app/api/sessions.py` - Session management with S3 cleanup on delete
+- `backend/app/api/documents.py` - Document upload/management with presigned URLs
+- `backend/app/api/conversation.py` - Conversation endpoints with rich media support
+- `backend/app/api/journal.py` - Journal CRUD operations
+- `backend/app/api/tools.py` - Standalone tools (Jargon Translator, Conversation Coach)
 - `backend/app/core/config.py` - Pydantic settings, environment variables
 - `backend/app/core/database.py` - SQLAlchemy session management
 - `backend/app/core/auth.py` - **JWT & password hashing utilities** (bcrypt, jose)
@@ -212,8 +221,8 @@ This structure is parsed from LLM responses in `_parse_medical_summary()`.
 - `frontend/src/App.jsx` - Router configuration, protected/public routes, layout with responsive footer
 - `frontend/src/pages/Login.jsx` - Login page with professional styling, mobile-responsive
 - `frontend/src/pages/Register.jsx` - Registration page with professional styling, mobile-responsive
-- `frontend/src/pages/Conversation.jsx` - **Main conversation interface** with chat + journal panel, smart scrolling
-- `frontend/src/pages/tools/` - Standalone tools (MedicalSummary, JargonTranslator, ConversationCoach, Documents)
+- `frontend/src/pages/Conversation.jsx` - **Main conversation interface** with chat + journal panel, smart scrolling, welcome page
+- `frontend/src/pages/tools/` - Standalone tools (JargonTranslator, ConversationCoach, Documents with image previews)
 - `frontend/src/components/Header.jsx` - **Mobile-responsive navigation** with hamburger menu (lg breakpoint), tools dropdown with click-away behavior
 - `frontend/src/components/Disclaimer.jsx` - Responsive safety disclaimer component
 - `frontend/src/components/Journal/JournalPanel.jsx` - Collapsible journal sidebar with entries by date
@@ -396,24 +405,28 @@ Access points after `docker compose up`:
 
 **UI Features:**
 - **Conversation-first interface**: Main page is chat with AI care advocate
-- **Collapsible journal panel**: Side panel with medical updates organized by date
-- **Smart scrolling**: Auto-scroll when near bottom, manual scroll-to-bottom button when scrolled up
+- **Welcome page**: Clear onboarding with intro, feature cards, and instructions directing to message box
+- **Collapsible journal panel**: Hidden by default, sidebar on desktop, full-screen modal on mobile
+- **Smart scrolling**: Auto-scroll when near bottom (only with messages), manual scroll-to-bottom button when scrolled up
 - **Click-away dropdowns**: Tools menu closes when clicking outside
 - **Mobile-responsive navigation**: Hamburger menu on mobile (<1024px), full nav on desktop
-- Professional header with logo, user avatar (shows first initial), and tools dropdown
+- Professional header with AretaCare branding, user avatar (shows first initial), and tools dropdown
 - File upload support: Upload PDFs, images (PNG, JPG), or text files in conversation
+- Compact message spacing for better conversation flow
 - Responsive design with Tailwind CSS breakpoints (sm, md, lg)
 - Professional login/register pages with consistent styling
-- Clear Session icon button (trash can) to delete conversation history
+- Clear Session icon button (trash can) to delete conversation history and S3 files
 - Logout button to sign out
-- Documents manager in Tools section to view and delete uploaded files
+- Documents manager with image previews (thumbnails) and full-size preview modal
 
 **Testing the Application:**
 
-1. **Start conversation**: Navigate to main page after login
-2. **Upload a document**: Click attach button, select PDF or image
-3. **Journal synthesis**: Ask medical questions, watch journal panel populate automatically
-4. **Tools section**: Access Medical Summary, Jargon Translator, Conversation Coach, Documents
+1. **Welcome page**: See clear onboarding with instructions to start typing
+2. **Start conversation**: Type in message box, send first message
+3. **Upload a document**: Click attach button, select PDF or image
+4. **Journal synthesis**: Ask medical questions, click "Show Journal" to view entries
+5. **Tools section**: Access Jargon Translator, Conversation Coach, Documents (with image previews)
+6. **Clear session**: Click trash icon to delete all data (includes S3 files)
 
 Sample medical text for testing:
 ```

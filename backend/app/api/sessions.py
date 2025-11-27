@@ -1,11 +1,15 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from app.core.database import get_db
-from app.models import Session as SessionModel, User
+from app.models import Session as SessionModel, User, Document
 from app.schemas import SessionCreate, SessionResponse
 from datetime import datetime, timedelta
 from app.core.config import settings
 from app.api.auth import get_current_user
+from app.services.s3_service import s3_service
+import logging
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/sessions", tags=["sessions"])
 
@@ -92,7 +96,17 @@ async def delete_session(
     if session.user_id != current_user.id:
         raise HTTPException(status_code=403, detail="Access denied")
 
-    # This will cascade delete all documents and conversations
+    # Delete all documents from S3 before deleting session
+    documents = db.query(Document).filter(Document.session_id == session_id).all()
+    for doc in documents:
+        try:
+            s3_service.delete_file(doc.s3_key)
+            logger.info(f"Deleted S3 file: {doc.s3_key}")
+        except Exception as e:
+            logger.error(f"Failed to delete S3 file {doc.s3_key}: {str(e)}")
+            # Continue deleting other files even if one fails
+
+    # This will cascade delete all documents and conversations from database
     db.delete(session)
     db.commit()
 
@@ -133,6 +147,15 @@ async def cleanup_expired_sessions(db: Session = Depends(get_db)):
     count = len(expired_sessions)
 
     for session in expired_sessions:
+        # Delete all documents from S3 for this session
+        documents = db.query(Document).filter(Document.session_id == session.id).all()
+        for doc in documents:
+            try:
+                s3_service.delete_file(doc.s3_key)
+                logger.info(f"Deleted S3 file during cleanup: {doc.s3_key}")
+            except Exception as e:
+                logger.error(f"Failed to delete S3 file {doc.s3_key} during cleanup: {str(e)}")
+
         db.delete(session)
 
     db.commit()

@@ -12,10 +12,9 @@ AretaCare is an AI-powered care advocate assistant that helps families navigate 
 - **Smart Scrolling**: Auto-scroll behavior with manual scroll-to-bottom button for long conversations
 
 ### Specialized Tools
-- **Medical Summary Generator**: Upload medical notes or paste text to get clear, structured summaries with key findings and recommended questions
 - **Jargon Translator**: Translate complex medical terminology into simple, understandable language
 - **Conversation Coach**: Prepare for healthcare appointments with suggested questions and conversation tips
-- **Documents Manager**: View, manage, and delete uploaded medical documents
+- **Documents Manager**: View, manage, and delete uploaded medical documents with image previews
 
 ### Security & Privacy
 - **User Authentication**: Secure JWT-based authentication with bcrypt password hashing
@@ -208,9 +207,11 @@ docker compose down -v
 
 **Conversation-First Design**
 - Main interface is a chat conversation with AI care advocate
-- Journal panel on the side (collapsible) shows organized medical updates
+- Journal panel hidden by default; opens as sidebar on desktop or modal on mobile
+- Welcome page with clear onboarding instructions directing users to message box
 - Messages can include text, documents, and images
-- Smart auto-scroll behavior with manual scroll button
+- Smart auto-scroll behavior with manual scroll button (only when messages exist)
+- Compact message spacing for better conversation flow
 - Conversation history persists across sessions
 
 **AI Journal Synthesis**
@@ -231,6 +232,9 @@ docker compose down -v
 - Smart scrolling: only auto-scroll if user is near bottom
 - Scroll-to-bottom button appears when user scrolls up
 - Responsive design with mobile hamburger menu (lg breakpoint)
+- Mobile journal appears as full-screen modal overlay
+- Image previews in Documents page with thumbnail grid
+- S3 cleanup when clearing session (deletes files from storage)
 
 ## API Endpoints
 
@@ -265,7 +269,6 @@ docker compose down -v
 - `DELETE /api/journal/{entry_id}` - Delete journal entry
 
 ### Standalone Tools
-- `POST /api/tools/medical-summary` - Generate medical summary
 - `POST /api/tools/jargon-translator` - Translate medical jargon
 - `POST /api/tools/conversation-coach` - Get conversation coaching
 
