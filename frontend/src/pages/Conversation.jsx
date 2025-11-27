@@ -194,7 +194,7 @@ const Conversation = () => {
           <div
             ref={messagesContainerRef}
             onScroll={handleScroll}
-            className="flex-1 overflow-y-auto p-4 space-y-4 scroll-smooth"
+            className="flex-1 overflow-y-auto p-4 space-y-2 scroll-smooth"
           >
             {messages.length === 0 ? (
               <div className="max-w-2xl mx-auto py-8 px-4">
