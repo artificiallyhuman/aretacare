@@ -1,18 +1,33 @@
 # AretaCare - Your Family's AI Care Advocate
 
-AretaCare is an AI-powered care advocate assistant that helps families navigate complex medical information with clarity, compassion, and confidence. It organizes medical updates, summarizes clinical notes, highlights key changes, and provides family-friendly questions to ask healthcare teams.
+AretaCare is an AI-powered care advocate assistant that helps families navigate complex medical information with clarity, compassion, and confidence. It provides an interactive conversation interface with AI-powered journal synthesis, medical document analysis, and specialized tools for understanding healthcare information.
 
 ## Features
 
-- **User Authentication**: Secure registration and login with JWT-based authentication
-- **Medical Summary Generator**: Upload medical notes or paste text to get a clear, structured summary with key findings and recommended questions
+### Core Application
+- **Conversation Interface**: Primary chat interface with AI care advocate that maintains conversation history
+- **AI Journal Synthesis**: Automatically extracts and organizes key medical updates into a structured journal
+- **Document Upload & Analysis**: Upload PDFs, images, or text files for AI analysis with GPT-5.1 native file support
+- **Collapsible Journal Panel**: Side panel showing organized entries by date with add/edit/delete capabilities
+- **Smart Scrolling**: Auto-scroll behavior with manual scroll-to-bottom button for long conversations
+
+### Specialized Tools
+- **Medical Summary Generator**: Upload medical notes or paste text to get clear, structured summaries with key findings and recommended questions
 - **Jargon Translator**: Translate complex medical terminology into simple, understandable language
 - **Conversation Coach**: Prepare for healthcare appointments with suggested questions and conversation tips
-- **Care Assistant Chat**: Have a conversation with AretaCare about medical information and care navigation
-- **Session Management**: Temporary sessions tied to user accounts with conversation history
-- **Professional UI**: Clean, modern interface with intuitive navigation and professional design
-- **Mobile Responsive**: Fully optimized for mobile devices with hamburger menu navigation and touch-friendly interface
-- **Accessibility**: Professional design system with consistent spacing, typography, and visual hierarchy
+- **Documents Manager**: View, manage, and delete uploaded medical documents
+
+### Security & Privacy
+- **User Authentication**: Secure JWT-based authentication with bcrypt password hashing
+- **Session Management**: User sessions with conversation history tied to accounts
+- **Secure Storage**: Medical documents stored in AWS S3 with encrypted transmission
+- **Data Control**: Users can clear session data or delete individual documents at any time
+
+### User Experience
+- **Professional UI**: Clean, modern interface with intuitive navigation
+- **Mobile Responsive**: Fully optimized for mobile devices with hamburger menu navigation
+- **Accessibility**: Professional design system with consistent spacing and typography
+- **Smart UI Behavior**: Click-away dropdown menus, smooth transitions, and responsive feedback
 
 ## Safety Boundaries
 
@@ -31,22 +46,15 @@ AretaCare maintains strict safety boundaries:
 - Maintains calm, respectful, and neutral tone
 - Only summarizes provided information - never invents medical facts
 
-## Architecture
+## Quick Start Guide
 
-- **Backend**: FastAPI (Python)
-- **Frontend**: React with Vite
-- **Database**: PostgreSQL
-- **Storage**: AWS S3
-- **AI**: OpenAI GPT-4
-- **Deployment**: Docker (local) / Render (production)
-
-## Local Development Setup
+Get AretaCare running locally in 5 minutes!
 
 ### Prerequisites
 
-- Docker and Docker Compose
+- Docker Desktop installed and running
 - OpenAI API Key
-- AWS Account with S3 bucket configured
+- AWS S3 bucket configured
 
 ### Setup Steps
 
@@ -62,85 +70,204 @@ AretaCare maintains strict safety boundaries:
    ```
 
    Edit `backend/.env` and add your credentials:
-   - `OPENAI_API_KEY`: Your OpenAI API key
-   - `AWS_ACCESS_KEY_ID`: Your AWS access key
-   - `AWS_SECRET_ACCESS_KEY`: Your AWS secret key
-   - `S3_BUCKET_NAME`: Your S3 bucket name
-   - `SECRET_KEY`: Generate a secure random string
+   ```env
+   OPENAI_API_KEY=sk-your-key-here
+   AWS_ACCESS_KEY_ID=your-key
+   AWS_SECRET_ACCESS_KEY=your-secret
+   S3_BUCKET_NAME=your-bucket
+   SECRET_KEY=generate-random-string
+   ```
 
-   **Important**: Your AWS IAM user must have the correct S3 permissions. See `docs/AWS_IAM_POLICY.md` for the required IAM policy configuration. The IAM user needs these permissions on your S3 bucket:
+   Generate a secret key:
+   ```bash
+   python -c "import secrets; print(secrets.token_urlsafe(32))"
+   ```
+
+   **Important**: Your AWS IAM user must have the correct S3 permissions. See `docs/AWS_IAM_POLICY.md` for the required policy. The IAM user needs these permissions:
    - `s3:PutObject` - Upload documents
    - `s3:GetObject` - Download documents
    - `s3:DeleteObject` - Delete documents
    - `s3:PutObjectAcl` - Set object permissions
 
-3. **Configure Frontend Environment**
+3. **Start the Application**
    ```bash
-   cp frontend/.env.example frontend/.env
+   docker compose up --build
    ```
 
-4. **Start the Application**
-   ```bash
-   docker-compose up --build
-   ```
+   Wait for all services to start (about 2-3 minutes).
 
-   The application will be available at:
-   - Frontend: http://localhost:3001
-   - Backend API: http://localhost:8000
-   - API Documentation: http://localhost:8000/docs
+4. **Access AretaCare**
+   - **Frontend**: http://localhost:3001
+   - **API Docs**: http://localhost:8000/docs
+   - **Health Check**: http://localhost:8000/health
 
-5. **Stop the Application**
-   ```bash
-   docker-compose down
-   ```
+5. **First-Time Setup**
+   - Navigate to http://localhost:3001
+   - Click "Create account" to register
+   - Fill in name, email, and password (8-72 characters)
+   - You'll be automatically logged in and redirected to the conversation interface
 
-## Deployment to Render
+### Sample Medical Text for Testing
 
-### Prerequisites
+Use this sample text to test the Medical Summary tool:
 
-- Render account
-- GitHub repository with your code
-- OpenAI API Key
-- AWS S3 bucket configured
+```
+Patient: John Doe
+Date: 2025-01-15
 
-### Deployment Steps
+Chief Complaint: Follow-up for hypertension
 
-1. **Push your code to GitHub**
+Vital Signs:
+- BP: 142/88 mmHg
+- HR: 78 bpm
+- Temp: 98.6°F
 
-2. **Deploy using Blueprint**
-   - Go to https://render.com
-   - Click "New +" → "Blueprint"
-   - Connect your GitHub repository
-   - Render will detect the `render.yaml` file and create:
-     - `aretacare-db` - PostgreSQL database (basic plan)
-     - `aretacare-backend` - FastAPI web service (starter plan)
-     - `aretacare-frontend` - React static site
+Assessment:
+Blood pressure remains elevated despite current medication (Lisinopril 10mg daily).
+Patient reports good medication compliance.
 
-3. **Configure Environment Variables**
+Plan:
+1. Increase Lisinopril to 20mg daily
+2. Continue low-sodium diet
+3. Follow-up in 4 weeks
+4. Home BP monitoring recommended
+```
 
-   In the Render dashboard for `aretacare-backend`, add these environment variables:
-   - `OPENAI_API_KEY`: Your OpenAI API key
-   - `AWS_ACCESS_KEY_ID`: Your AWS access key
-   - `AWS_SECRET_ACCESS_KEY`: Your AWS secret key
-   - `S3_BUCKET_NAME`: Your S3 bucket name
+### Stopping the Application
 
-   **Important**: Ensure your AWS IAM user has the correct S3 permissions. See `docs/AWS_IAM_POLICY.md` for the required policy. Without proper permissions, document uploads will fail with AccessDenied errors.
+```bash
+docker compose down
+```
 
-   The following are auto-configured:
-   - `DATABASE_URL`: Auto-injected from `aretacare-db`
-   - `SECRET_KEY`: Auto-generated
-   - `CORS_ORIGINS`: Set to frontend URL
+To reset the database completely:
+```bash
+docker compose down -v
+```
 
-4. **Deploy**
-   - Click "Apply" to deploy all services
-   - Wait for all services to be live
-   - Access your app at the frontend URL provided by Render
+## Architecture
 
-## API Documentation
+### Technology Stack
 
-Once the backend is running, visit:
-- Local: http://localhost:8000/docs
-- Production: https://your-backend-url.onrender.com/docs
+**Backend**
+- **Framework**: FastAPI 0.104.1
+- **Database**: PostgreSQL 15 with SQLAlchemy 2.0
+- **AI**: OpenAI GPT-5.1 Responses API
+- **Storage**: AWS S3 with boto3
+- **Document Processing**: PyPDF2, Pillow, pytesseract (OCR)
+- **Authentication**: JWT (python-jose), bcrypt (passlib)
+- **Server**: Uvicorn with async support
+
+**Frontend**
+- **Framework**: React 18
+- **Build Tool**: Vite 5
+- **Styling**: Tailwind CSS 3
+- **Routing**: React Router 6
+- **HTTP Client**: Axios
+- **Markdown**: react-markdown
+
+**Infrastructure**
+- **Database**: PostgreSQL 15
+- **Storage**: AWS S3
+- **Container**: Docker & Docker Compose
+- **Deployment**: Render (production)
+
+### Multi-Service Application
+
+**Backend (FastAPI)**
+- Lives in `backend/app/`
+- Auto-creates database tables on startup via SQLAlchemy
+- API routes mounted at `/api` prefix
+- All routes return JSON, documented at `/docs`
+- JWT-based authentication with Bearer token in Authorization header
+- Password hashing with bcrypt (version <5.0.0 for passlib compatibility)
+
+**Frontend (React + Vite)**
+- Lives in `frontend/src/`
+- Uses relative API URLs (`/api`) to leverage Vite's proxy in Docker
+- Session management via `useSession` hook stores session ID in localStorage
+- User authentication with JWT tokens stored in localStorage
+- Auth token automatically included in API requests via axios interceptor
+- Protected routes redirect to login if not authenticated
+
+**Database (PostgreSQL)**
+- Five main tables: `users`, `sessions`, `documents`, `conversations`, `journal_entries`
+- User table stores authentication credentials (bcrypt hashed passwords)
+- Sessions tied to user accounts via foreign key
+- Journal entries with AI-generated content and metadata
+- Cascading deletes: deleting user removes all associated data
+- Sessions expire after 60 minutes of inactivity
+
+**Storage (AWS S3)**
+- Medical documents uploaded to S3 with unique keys
+- Text extraction happens on upload (PDF, images via OCR)
+- Extracted text stored in database for quick access
+- Presigned URLs generated for secure document access (24-hour expiration)
+- Native GPT-5.1 file support for PDFs and images
+
+### Key Architecture Features
+
+**Conversation-First Design**
+- Main interface is a chat conversation with AI care advocate
+- Journal panel on the side (collapsible) shows organized medical updates
+- Messages can include text, documents, and images
+- Smart auto-scroll behavior with manual scroll button
+- Conversation history persists across sessions
+
+**AI Journal Synthesis**
+- Automatically analyzes conversations for medical significance
+- Creates structured journal entries with titles, content, and metadata
+- Organizes entries by date
+- Supports manual entry creation, editing, and deletion
+- Entry types: appointment, symptom, medication, test_result, milestone, note
+
+**GPT-5.1 Native File Support**
+- Documents and images passed directly to OpenAI API
+- Presigned S3 URLs used for secure access
+- Supports PDFs, images (PNG, JPG), and text files
+- OCR text extraction as fallback for older models
+
+**Smart UI Behavior**
+- Click-away dropdown menus (tools menu)
+- Smart scrolling: only auto-scroll if user is near bottom
+- Scroll-to-bottom button appears when user scrolls up
+- Responsive design with mobile hamburger menu (lg breakpoint)
+
+## API Endpoints
+
+### Authentication
+- `POST /api/auth/register` - Register new user
+- `POST /api/auth/login` - Login user
+- `GET /api/auth/me` - Get current user
+
+### Sessions
+- `POST /api/sessions/` - Create session
+- `POST /api/sessions/primary` - Get or create primary session
+- `GET /api/sessions/{id}` - Get session
+- `DELETE /api/sessions/{id}` - Delete session
+- `POST /api/sessions/{id}/cleanup` - Cleanup session data
+
+### Documents
+- `POST /api/documents/upload` - Upload document
+- `GET /api/documents/session/{id}` - Get session documents
+- `GET /api/documents/{id}` - Get document details
+- `DELETE /api/documents/{id}` - Delete document
+- `GET /api/documents/{id}/download-url` - Get presigned download URL
+
+### Conversation
+- `POST /api/conversation/message` - Send message (with optional document/image)
+- `GET /api/conversation/{session_id}/history` - Get conversation history with rich media
+
+### Journal
+- `GET /api/journal/{session_id}` - Get journal entries (grouped by date)
+- `GET /api/journal/{session_id}/date/{date}` - Get entries for specific date
+- `POST /api/journal/{session_id}` - Create journal entry
+- `PUT /api/journal/{entry_id}` - Update journal entry
+- `DELETE /api/journal/{entry_id}` - Delete journal entry
+
+### Standalone Tools
+- `POST /api/tools/medical-summary` - Generate medical summary
+- `POST /api/tools/jargon-translator` - Translate medical jargon
+- `POST /api/tools/conversation-coach` - Get conversation coaching
 
 ## Project Structure
 
@@ -149,106 +276,289 @@ aretacare/
 ├── backend/
 │   ├── app/
 │   │   ├── api/
-│   │   │   ├── auth.py         # Authentication endpoints (register, login, /me)
-│   │   │   ├── sessions.py     # Session management
-│   │   │   ├── documents.py    # Document upload/management
-│   │   │   └── medical.py      # Medical AI features
+│   │   │   ├── __init__.py      # API router aggregation
+│   │   │   ├── auth.py          # Authentication endpoints
+│   │   │   ├── sessions.py      # Session management
+│   │   │   ├── documents.py     # Document upload/management
+│   │   │   ├── conversation.py  # Conversation endpoints
+│   │   │   ├── journal.py       # Journal CRUD operations
+│   │   │   └── tools.py         # Standalone tools
 │   │   ├── core/
-│   │   │   ├── auth.py         # JWT & password hashing utilities
-│   │   │   ├── config.py       # Environment configuration
-│   │   │   └── database.py     # Database connection
+│   │   │   ├── auth.py          # JWT & password hashing
+│   │   │   ├── config.py        # Environment configuration
+│   │   │   └── database.py      # Database connection
 │   │   ├── models/
-│   │   │   ├── user.py         # User model with authentication
-│   │   │   ├── session.py      # Session model
-│   │   │   ├── document.py     # Document model
-│   │   │   └── conversation.py # Conversation history
+│   │   │   ├── user.py          # User model with authentication
+│   │   │   ├── session.py       # Session model
+│   │   │   ├── document.py      # Document model
+│   │   │   ├── conversation.py  # Conversation history
+│   │   │   └── journal.py       # Journal entries
 │   │   ├── schemas/
-│   │   │   ├── auth.py         # Auth request/response schemas
-│   │   │   └── ...             # Other schemas
-│   │   └── services/
-│   │       ├── openai_service.py    # GPT-4 integration (CRITICAL)
-│   │       ├── s3_service.py        # AWS S3 operations
-│   │       └── document_processor.py # PDF/OCR processing
-│   ├── Dockerfile         # Local development
-│   └── requirements.txt
+│   │   │   ├── auth.py          # Auth request/response schemas
+│   │   │   ├── conversation.py  # Message schemas with rich media
+│   │   │   ├── journal.py       # Journal entry schemas
+│   │   │   └── ...              # Other schemas
+│   │   ├── services/
+│   │   │   ├── openai_service.py     # GPT-5.1 integration (CRITICAL)
+│   │   │   ├── journal_service.py    # Journal synthesis logic
+│   │   │   ├── s3_service.py         # AWS S3 operations
+│   │   │   └── document_processor.py # PDF/OCR processing
+│   │   └── main.py              # FastAPI application
+│   ├── Dockerfile               # Local development
+│   ├── requirements.txt
+│   └── .env.example
 ├── frontend/
 │   ├── src/
 │   │   ├── components/
-│   │   │   ├── Header.jsx      # Responsive navigation with mobile hamburger menu
-│   │   │   └── Disclaimer.jsx  # Safety disclaimer component
+│   │   │   ├── Header.jsx           # Responsive nav with tools dropdown
+│   │   │   ├── Disclaimer.jsx       # Safety disclaimer
+│   │   │   ├── MessageBubble.jsx    # Chat message display
+│   │   │   ├── MessageInput.jsx     # Chat input with file upload
+│   │   │   └── Journal/
+│   │   │       ├── JournalPanel.jsx # Collapsible journal sidebar
+│   │   │       ├── JournalEntry.jsx # Individual entry display
+│   │   │       └── EntryForm.jsx    # Add/edit entry form
 │   │   ├── pages/
-│   │   │   ├── Login.jsx       # Login page with professional styling
-│   │   │   ├── Register.jsx    # Registration page
-│   │   │   ├── Home.jsx        # Dashboard with feature cards
-│   │   │   ├── MedicalSummary.jsx    # Medical summary generator
-│   │   │   ├── JargonTranslator.jsx  # Medical jargon translator
-│   │   │   ├── ConversationCoach.jsx # Conversation preparation coach
-│   │   │   └── Chat.jsx              # AI care assistant chat
+│   │   │   ├── Login.jsx            # Login page
+│   │   │   ├── Register.jsx         # Registration page
+│   │   │   ├── Conversation.jsx     # Main conversation interface
+│   │   │   └── tools/
+│   │   │       ├── MedicalSummary.jsx    # Medical summary tool
+│   │   │       ├── JargonTranslator.jsx  # Jargon translator tool
+│   │   │       ├── ConversationCoach.jsx # Conversation coach tool
+│   │   │       └── Documents.jsx         # Document manager
 │   │   ├── services/
-│   │   │   └── api.js          # Axios instance with auth token interceptors
+│   │   │   └── api.js               # Axios with auth interceptors
 │   │   ├── hooks/
-│   │   │   └── useSession.js   # Session & auth state management
-│   │   └── styles/
-│   │       └── index.css       # Tailwind CSS with custom components
-│   ├── Dockerfile         # Local development
-│   └── package.json
-├── Dockerfile             # Production backend (Render)
-├── docker-compose.yml     # Local development
-└── render.yaml            # Render Blueprint config
+│   │   │   └── useSession.js        # Session & auth state
+│   │   ├── styles/
+│   │   │   └── index.css            # Tailwind CSS
+│   │   ├── App.jsx                  # Router configuration
+│   │   └── main.jsx                 # Entry point
+│   ├── Dockerfile                   # Local development
+│   ├── package.json
+│   ├── vite.config.js
+│   └── tailwind.config.js
+├── docs/
+│   ├── SETUP_GUIDE.md               # Detailed setup instructions
+│   ├── API_USAGE.md                 # API endpoint examples
+│   ├── SAFETY_GUIDELINES.md         # Safety requirements
+│   └── AWS_IAM_POLICY.md            # S3 IAM policy config
+├── Dockerfile                       # Production backend (Render)
+├── docker-compose.yml               # Local development
+├── render.yaml                      # Render Blueprint
+├── CLAUDE.md                        # Claude Code guidance
+└── README.md                        # This file
 ```
 
-## Privacy & Security
+## Development
 
-- **User Authentication**: Secure JWT-based authentication with bcrypt password hashing
-- **Password Security**: 72-character maximum (bcrypt limit), minimum 8 characters required
-- **Session Management**: Sessions tied to user accounts, expire after 60 minutes of inactivity
-- **Medical Documents**: Stored securely in AWS S3 with encrypted transmission
-- **Conversation History**: Tied to user sessions and can be cleared at any time
-- **Data Control**: Users can clear their session data at any time via the "Clear Session" button
-- **Active Sessions**: 7-day JWT token expiration with automatic renewal
+### Docker Commands
 
-## Contributing
+```bash
+# Start all services
+docker compose up --build
 
-This is a private project. For questions or issues, contact the development team.
+# Start in detached mode
+docker compose up -d
+
+# Stop services
+docker compose down
+
+# Stop and remove volumes (reset database)
+docker compose down -v
+
+# View logs
+docker compose logs backend
+docker compose logs frontend
+docker compose logs -f backend    # Follow logs
+
+# Restart individual services
+docker compose restart backend
+docker compose restart frontend
+
+# Rebuild specific service
+docker compose up -d --build backend
+```
+
+### Environment Variables
+
+**Backend** (`backend/.env`):
+- `OPENAI_API_KEY` - For GPT-5.1 interactions
+- `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `S3_BUCKET_NAME` - For document storage
+- `DATABASE_URL` - Auto-configured in Docker Compose
+- `SECRET_KEY` - For JWT signing
+- `CORS_ORIGINS` - Comma-separated allowed origins
+- `RESET_DB` - Set to "true" to drop and recreate database on startup (development only)
+
+**Frontend** (`frontend/.env`):
+- `VITE_API_URL` - Override API URL (defaults to `/api`)
+
+### Package Version Constraints
+
+Critical version pins in `backend/requirements.txt`:
+- `httpx<0.28.0` - Version 0.28+ breaks OpenAI client
+- `openai>=1.56.0` - Earlier versions have httpx incompatibility
+- `pytesseract==0.3.10` - Python wrapper for tesseract-ocr
+- `bcrypt<5.0.0` - **CRITICAL**: Version 5.x incompatible with passlib 1.7.4
+- `passlib[bcrypt]==1.7.4` - Password hashing
+- `python-jose[cryptography]==3.3.0` - JWT token creation/validation
+
+## Production Deployment
+
+### Deploy to Render
+
+1. **Push code to GitHub**
+
+2. **Deploy using Blueprint**
+   - Go to https://render.com
+   - Click "New +" → "Blueprint"
+   - Connect your GitHub repository
+   - Render will detect `render.yaml` and create:
+     - `aretacare-db` - PostgreSQL database (basic plan)
+     - `aretacare-backend` - FastAPI web service (starter plan)
+     - `aretacare-frontend` - React static site
+
+3. **Configure Environment Variables**
+
+   In the Render dashboard for `aretacare-backend`, add:
+   - `OPENAI_API_KEY` - Your OpenAI API key
+   - `AWS_ACCESS_KEY_ID` - Your AWS access key
+   - `AWS_SECRET_ACCESS_KEY` - Your AWS secret key
+   - `S3_BUCKET_NAME` - Your S3 bucket name
+
+   Auto-configured variables:
+   - `DATABASE_URL` - Auto-injected from database
+   - `SECRET_KEY` - Auto-generated
+   - `CORS_ORIGINS` - Set to frontend URL
+
+4. **Deploy**
+   - Click "Apply" to deploy all services
+   - Wait for services to be live
+   - Access your app at the frontend URL
+
+### Database Management
+
+To reset the database schema in production:
+1. Add environment variable `RESET_DB=true` to backend service
+2. Redeploy backend service
+3. **IMPORTANT**: Remove `RESET_DB` variable after deployment completes
+4. Redeploy again to ensure normal operation
+
+**WARNING**: `RESET_DB=true` will delete ALL data in the database!
+
+### Important Files for Production
+- `Dockerfile` (root) - Production backend build
+- `backend/Dockerfile` - Local development only
+- `frontend/Dockerfile` - Local development only
+- `render.yaml` - Blueprint configuration
+
+## Troubleshooting
+
+### Services won't start
+```bash
+docker compose down -v
+docker system prune -a
+docker compose up --build
+```
+
+### Can't reach frontend
+```bash
+# Check if containers are running
+docker compose ps
+
+# Verify port is not in use
+lsof -i :3001
+```
+
+### Backend errors
+```bash
+# Check logs
+docker compose logs backend
+
+# Test backend directly
+curl http://localhost:8000/health
+```
+
+### Database issues
+```bash
+# Reset database
+docker compose down -v && docker compose up
+```
+
+### AWS S3 Permissions
+If you see AccessDenied errors:
+1. Check `docs/AWS_IAM_POLICY.md` for required IAM policy
+2. Verify your IAM user has all required S3 permissions
+3. Ensure S3 bucket name matches `.env` configuration
+
+## Security Features
+
+- **CORS Protection**: Restricted origins
+- **Input Validation**: Pydantic schemas
+- **File Type Validation**: Whitelist of allowed types
+- **File Size Limits**: 10MB maximum
+- **SQL Injection Protection**: SQLAlchemy ORM
+- **JWT Authentication**: Secure token-based auth
+- **Password Hashing**: bcrypt with salting
+- **Environment Variables**: Sensitive data in `.env`
+- **Session Expiration**: Automatic cleanup
+- **S3 Private Buckets**: No public access
+
+## Cost Considerations
+
+### Estimated Monthly Costs (Production)
+
+- **Render Services**: $25-50/month (Starter plans)
+- **PostgreSQL**: Included with Render
+- **AWS S3**: $1-5/month (based on usage)
+- **OpenAI API**: Variable ($10-100+ based on usage)
+- **Total**: ~$40-160/month
+
+### Cost Optimization
+- Set OpenAI usage limits
+- Clean up old sessions and documents
+- Optimize S3 lifecycle policies
+- Monitor API usage
+
+## Documentation
+
+- `README.md` - This file (project overview and setup)
+- `CLAUDE.md` - Guidance for Claude Code development
+- `docs/SETUP_GUIDE.md` - Detailed setup with AWS/OpenAI configuration
+- `docs/API_USAGE.md` - API endpoint examples and reference
+- `docs/SAFETY_GUIDELINES.md` - **Critical**: Safety requirements and boundaries
+- `docs/AWS_IAM_POLICY.md` - AWS S3 IAM policy configuration
+
+## Safety Guidelines
+
+**Read `docs/SAFETY_GUIDELINES.md` before modifying any LLM-related code.**
+
+The application's core value proposition is maintaining safety boundaries. Any code changes that:
+- Modify `openai_service.py`
+- Add new LLM features
+- Change how medical information is presented
+
+Must be reviewed against safety guidelines to ensure:
+- No diagnosis or treatment recommendations
+- No outcome predictions
+- Deference to medical professionals
+- Calm, professional tone maintained
+
+## Support
+
+For support or questions:
+1. Check API documentation at `/docs`
+2. Review this README and other documentation in `/docs`
+3. Check logs: `docker compose logs [service-name]`
+4. Contact the development team
 
 ## License
 
 Proprietary - All rights reserved
 
-## Support
-
-For support or questions about AretaCare:
-1. Check the API documentation at `/docs`
-2. Review this README
-3. Contact the development team
-
-## First-Time Setup
-
-When you first access the application:
-
-1. **Register an Account**
-   - Navigate to the registration page
-   - Provide your name, email, and password (8-72 characters)
-   - Upon successful registration, you'll be automatically logged in
-
-2. **Login**
-   - Use your email and password to access your account
-   - JWT tokens are valid for 7 days
-
-3. **Start Using Features**
-   - Access all features from the navigation menu
-   - Your session and conversation history are saved to your account
-   - Use "Clear Session" to delete your current session data
-
 ## Acknowledgments
 
-Built with:
-- **Backend**: FastAPI, Python 3.11, SQLAlchemy
-- **Frontend**: React, Vite, TailwindCSS
-- **Database**: PostgreSQL
-- **Authentication**: JWT (python-jose), bcrypt (passlib)
-- **AI**: OpenAI GPT-4
-- **Storage**: AWS S3
-- **Infrastructure**: Docker, Render
-- **OCR**: Tesseract (pytesseract)
-- **PDF Processing**: PyPDF2
+Built with care for families navigating medical information.
+
+**Technologies**: FastAPI, React, PostgreSQL, OpenAI GPT-5.1, AWS S3, Docker, Render

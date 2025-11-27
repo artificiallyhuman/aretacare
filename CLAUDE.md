@@ -7,12 +7,16 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 AretaCare is an AI-powered medical care advocate assistant that helps families understand complex medical information. It maintains **strict safety boundaries** - never diagnosing, recommending treatments, or predicting outcomes. The core function is to translate medical jargon, summarize clinical notes, and help families prepare questions for healthcare teams.
 
 **Key Features:**
+- **Conversation-first interface** with AI care advocate as the primary interaction model
+- **AI Journal Synthesis** that automatically extracts and organizes medical updates from conversations
+- **GPT-5.1 native file support** for PDFs and images via Responses API
 - JWT-based user authentication with secure password hashing
 - Session-based conversation history tied to user accounts
-- Professional UI with modern design and intuitive navigation
+- Collapsible journal panel with organized entries by date
+- Professional UI with modern design and smart UI behaviors (click-away dropdowns, smart scrolling)
 - Mobile-responsive design with hamburger menu navigation
-- Medical document upload with OCR support
-- AI-powered medical information translation and summarization
+- Medical document upload with OCR support and S3 storage
+- Specialized tools: Medical Summary, Jargon Translator, Conversation Coach, Documents Manager
 
 ## Development Commands
 
@@ -88,16 +92,21 @@ python -c "import secrets; print(secrets.token_urlsafe(32))"
 - Protected routes redirect to login if not authenticated
 
 **Database (PostgreSQL)**
-- Four main tables: `users`, `sessions`, `documents`, `conversations`
+- Five main tables: `users`, `sessions`, `documents`, `conversations`, `journal_entries`
 - User table stores authentication credentials (bcrypt hashed passwords)
 - Sessions tied to user accounts via foreign key
+- Journal entries with AI-generated content, metadata, and entry types
+- Conversations include rich media support (message_type, document_id, media_url fields)
 - Cascading deletes: deleting user removes all associated data
 - Sessions expire after 60 minutes of inactivity
+- Database can be reset with `RESET_DB=true` environment variable (development/production)
 
 **Storage (AWS S3)**
 - Medical documents uploaded to S3 with unique keys
 - Text extraction happens on upload (PDF, images via OCR)
 - Extracted text stored in database for quick access
+- Presigned URLs generated for secure document access (24-hour expiration)
+- Native GPT-5.1 file support via presigned URLs passed to OpenAI API
 
 ### Critical Safety Architecture
 
@@ -116,8 +125,34 @@ STRICT SAFETY BOUNDARIES - YOU MUST NEVER:
 
 **This prompt is the enforcement mechanism for all safety requirements.** Any changes to AI behavior must update this prompt while maintaining safety boundaries.
 
-### API Response Structure
+### Application Architecture
 
+**Conversation-First Design**
+- Primary interface is a conversational chat with AI care advocate
+- Collapsible journal panel on the side shows organized medical updates
+- Messages can include text, uploaded documents (PDFs), and images
+- Smart scrolling: auto-scroll only when user is near bottom, manual scroll button otherwise
+- Conversation history persists across sessions
+
+**AI Journal Synthesis**
+- `JournalService` analyzes user messages and AI responses for medical significance
+- Uses `assess_and_synthesize()` to determine if conversation warrants journal entries
+- Automatically creates structured entries with:
+  - Title (brief summary)
+  - Content (detailed information)
+  - Entry type (appointment, symptom, medication, test_result, milestone, note)
+  - Date and confidence score
+- Marks conversation messages as `synthesized_to_journal=True` when processed
+- Users can manually add, edit, or delete journal entries
+
+**GPT-5.1 Native File Support**
+- Uses OpenAI Responses API (`openai.beta.responses.create()`)
+- Documents and images passed via presigned S3 URLs
+- `document_url` and `document_type` parameters in `chat_with_journal()` method
+- Supports PDFs, images (PNG, JPG), and text files
+- OCR text extraction stored as fallback for compatibility
+
+**Medical Summary Response Structure**
 Medical summaries follow a 4-part structure enforced by the OpenAI service:
 1. Summary of Update (2-3 sentences)
 2. Key Changes or Findings (bullet points)
@@ -158,12 +193,17 @@ This structure is parsed from LLM responses in `_parse_medical_summary()`.
 
 - `backend/app/models/user.py` - User model with authentication fields
 - `backend/app/models/session.py` - Session model with user foreign key
+- `backend/app/models/journal.py` - Journal entries with AI-generated content
+- `backend/app/models/conversation.py` - Conversation messages with rich media support
 - `backend/app/schemas/auth.py` - Auth request/response schemas (UserRegister, UserLogin, TokenResponse)
+- `backend/app/schemas/journal.py` - Journal entry schemas with synthesis metadata
+- `backend/app/schemas/conversation.py` - Message schemas with document/image support
 
 ### Service Layer (Business Logic)
 
-- `backend/app/services/openai_service.py` - **CRITICAL**: Contains safety prompt and all LLM interactions
-- `backend/app/services/s3_service.py` - Document upload/download/delete to S3
+- `backend/app/services/openai_service.py` - **CRITICAL**: Contains safety prompt, GPT-5.1 integration, all LLM interactions
+- `backend/app/services/journal_service.py` - **Journal synthesis logic**: Analyzes conversations, creates journal entries
+- `backend/app/services/s3_service.py` - Document upload/download/delete to S3, presigned URL generation
 - `backend/app/services/document_processor.py` - Text extraction (PDF, OCR for images)
 
 ### Frontend Entry Points
@@ -172,9 +212,14 @@ This structure is parsed from LLM responses in `_parse_medical_summary()`.
 - `frontend/src/App.jsx` - Router configuration, protected/public routes, layout with responsive footer
 - `frontend/src/pages/Login.jsx` - Login page with professional styling, mobile-responsive
 - `frontend/src/pages/Register.jsx` - Registration page with professional styling, mobile-responsive
-- `frontend/src/components/Header.jsx` - **Mobile-responsive navigation** with hamburger menu (lg breakpoint), user avatar, auth UI
+- `frontend/src/pages/Conversation.jsx` - **Main conversation interface** with chat + journal panel, smart scrolling
+- `frontend/src/pages/tools/` - Standalone tools (MedicalSummary, JargonTranslator, ConversationCoach, Documents)
+- `frontend/src/components/Header.jsx` - **Mobile-responsive navigation** with hamburger menu (lg breakpoint), tools dropdown with click-away behavior
 - `frontend/src/components/Disclaimer.jsx` - Responsive safety disclaimer component
-- `frontend/src/services/api.js` - Axios instance with auth token interceptor
+- `frontend/src/components/Journal/JournalPanel.jsx` - Collapsible journal sidebar with entries by date
+- `frontend/src/components/MessageBubble.jsx` - Chat message display with rich media support
+- `frontend/src/components/MessageInput.jsx` - Chat input with file upload (documents/images)
+- `frontend/src/services/api.js` - Axios instance with auth token interceptor, conversation/journal/tools APIs
 - `frontend/src/hooks/useSession.js` - Session & auth state management (calls /auth/me)
 - `frontend/src/styles/index.css` - Tailwind CSS with responsive custom components (.btn-primary, .card, .input, .textarea)
 
@@ -196,11 +241,12 @@ Backend must allow the **actual browser origin** (not Docker internal):
 ### Environment Variables
 
 Backend requires (`backend/.env`):
-- `OPENAI_API_KEY` - For GPT-4 interactions
+- `OPENAI_API_KEY` - For GPT-5.1 interactions (Responses API)
 - `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `S3_BUCKET_NAME` - For document storage
 - `DATABASE_URL` - Auto-configured in Docker Compose
-- `SECRET_KEY` - For session security
+- `SECRET_KEY` - For JWT signing
 - `CORS_ORIGINS` - Comma-separated allowed origins
+- `RESET_DB` - Optional: Set to "true" to drop and recreate database on startup (development/production)
 
 Frontend optional (`frontend/.env`):
 - `VITE_API_URL` - Override API URL (defaults to `/api`)
@@ -349,21 +395,41 @@ Access points after `docker compose up`:
 4. You'll be automatically logged in and redirected to the dashboard
 
 **UI Features:**
+- **Conversation-first interface**: Main page is chat with AI care advocate
+- **Collapsible journal panel**: Side panel with medical updates organized by date
+- **Smart scrolling**: Auto-scroll when near bottom, manual scroll-to-bottom button when scrolled up
+- **Click-away dropdowns**: Tools menu closes when clicking outside
 - **Mobile-responsive navigation**: Hamburger menu on mobile (<1024px), full nav on desktop
-- Professional header with logo and user avatar (shows first initial)
-- Color-coded feature cards (blue, green, purple, amber) with SVG icons
-- Hover effects with smooth transitions
+- Professional header with logo, user avatar (shows first initial), and tools dropdown
+- File upload support: Upload PDFs, images (PNG, JPG), or text files in conversation
 - Responsive design with Tailwind CSS breakpoints (sm, md, lg)
 - Professional login/register pages with consistent styling
 - Clear Session icon button (trash can) to delete conversation history
 - Logout button to sign out
+- Documents manager in Tools section to view and delete uploaded files
 
-Sample medical text for testing (paste into Medical Summary):
+**Testing the Application:**
+
+1. **Start conversation**: Navigate to main page after login
+2. **Upload a document**: Click attach button, select PDF or image
+3. **Journal synthesis**: Ask medical questions, watch journal panel populate automatically
+4. **Tools section**: Access Medical Summary, Jargon Translator, Conversation Coach, Documents
+
+Sample medical text for testing:
 ```
+Patient: John Doe
+Date: 2025-01-15
+
 Chief Complaint: Follow-up for hypertension
+
 Vital Signs: BP 142/88 mmHg, HR 78 bpm
+
 Assessment: Blood pressure elevated despite Lisinopril 10mg daily
-Plan: Increase to 20mg daily, follow-up in 4 weeks
+
+Plan:
+1. Increase Lisinopril to 20mg daily
+2. Follow-up in 4 weeks
+3. Home BP monitoring
 ```
 
 ## Safety Guideline Enforcement
@@ -413,8 +479,8 @@ Deployment via `render.yaml` Blueprint to Render.com:
 
 ## Documentation
 
-- `README.md` - Project overview and setup
-- `QUICKSTART.md` - 5-minute local setup
+- `README.md` - **Comprehensive project documentation**: Overview, quick start guide, architecture, setup, deployment, API reference
+- `CLAUDE.md` - This file: Guidance for Claude Code when working with the codebase
 - `docs/SETUP_GUIDE.md` - Detailed setup with AWS/OpenAI configuration
 - `docs/API_USAGE.md` - API endpoint examples and reference
 - `docs/SAFETY_GUIDELINES.md` - **Critical**: Safety requirements and boundaries

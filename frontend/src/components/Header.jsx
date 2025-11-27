@@ -170,34 +170,36 @@ const Header = ({ onClearSession, onLogout, user }) => {
                 <p className="px-3 py-1 text-xs font-semibold text-gray-500 uppercase tracking-wider">
                   Tools
                 </p>
-                <Link
-                  to="/tools/summary"
-                  className="px-3 py-2 text-base font-medium text-gray-700 hover:text-primary-600 hover:bg-gray-50 rounded-md transition-colors"
-                  onClick={() => setMobileMenuOpen(false)}
-                >
-                  Medical Summary
-                </Link>
-                <Link
-                  to="/tools/jargon"
-                  className="px-3 py-2 text-base font-medium text-gray-700 hover:text-primary-600 hover:bg-gray-50 rounded-md transition-colors"
-                  onClick={() => setMobileMenuOpen(false)}
-                >
-                  Jargon Translator
-                </Link>
-                <Link
-                  to="/tools/coach"
-                  className="px-3 py-2 text-base font-medium text-gray-700 hover:text-primary-600 hover:bg-gray-50 rounded-md transition-colors"
-                  onClick={() => setMobileMenuOpen(false)}
-                >
-                  Conversation Coach
-                </Link>
-                <Link
-                  to="/tools/documents"
-                  className="px-3 py-2 text-base font-medium text-gray-700 hover:text-primary-600 hover:bg-gray-50 rounded-md transition-colors"
-                  onClick={() => setMobileMenuOpen(false)}
-                >
-                  Documents
-                </Link>
+                <div className="flex flex-col space-y-1 mt-1">
+                  <Link
+                    to="/tools/summary"
+                    className="block px-3 py-2 text-base font-medium text-gray-700 hover:text-primary-600 hover:bg-gray-50 rounded-md transition-colors"
+                    onClick={() => setMobileMenuOpen(false)}
+                  >
+                    Medical Summary
+                  </Link>
+                  <Link
+                    to="/tools/jargon"
+                    className="block px-3 py-2 text-base font-medium text-gray-700 hover:text-primary-600 hover:bg-gray-50 rounded-md transition-colors"
+                    onClick={() => setMobileMenuOpen(false)}
+                  >
+                    Jargon Translator
+                  </Link>
+                  <Link
+                    to="/tools/coach"
+                    className="block px-3 py-2 text-base font-medium text-gray-700 hover:text-primary-600 hover:bg-gray-50 rounded-md transition-colors"
+                    onClick={() => setMobileMenuOpen(false)}
+                  >
+                    Conversation Coach
+                  </Link>
+                  <Link
+                    to="/tools/documents"
+                    className="block px-3 py-2 text-base font-medium text-gray-700 hover:text-primary-600 hover:bg-gray-50 rounded-md transition-colors"
+                    onClick={() => setMobileMenuOpen(false)}
+                  >
+                    Documents
+                  </Link>
+                </div>
               </div>
 
               <div className="border-t border-gray-200 pt-3 mt-3 space-y-2">
