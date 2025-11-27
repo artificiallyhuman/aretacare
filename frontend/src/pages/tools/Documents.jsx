@@ -8,6 +8,7 @@ const Documents = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [previewDoc, setPreviewDoc] = useState(null);
+  const [imageUrls, setImageUrls] = useState({});
 
   useEffect(() => {
     if (sessionId) {
@@ -20,7 +21,22 @@ const Documents = () => {
     setError(null);
     try {
       const response = await documentAPI.getSessionDocuments(sessionId);
-      setDocuments(response.data);
+      const docs = response.data;
+      setDocuments(docs);
+
+      // Load preview URLs for images
+      const urls = {};
+      for (const doc of docs) {
+        if (doc.content_type?.includes('image')) {
+          try {
+            const urlResponse = await documentAPI.getDownloadUrl(doc.id);
+            urls[doc.id] = urlResponse.data.download_url;
+          } catch (err) {
+            console.error('Failed to load image preview:', err);
+          }
+        }
+      }
+      setImageUrls(urls);
     } catch (err) {
       setError('Failed to load documents: ' + err.message);
     } finally {
@@ -115,16 +131,26 @@ const Documents = () => {
           </svg>
           <h3 className="mt-2 text-sm font-medium text-gray-900">No documents</h3>
           <p className="mt-1 text-sm text-gray-500">
-            Upload documents through the Medical Summary tool or in conversations
+            Upload documents in conversations by clicking the attachment icon
           </p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {documents.map((doc) => (
             <div key={doc.id} className="card hover:shadow-lg transition-shadow">
-              {/* File Icon */}
+              {/* File Preview/Icon */}
               <div className="flex items-center justify-center py-4">
-                {getFileIcon(doc.content_type)}
+                {doc.content_type?.includes('image') && imageUrls[doc.id] ? (
+                  <div className="w-full h-48 flex items-center justify-center bg-gray-100 rounded-lg overflow-hidden">
+                    <img
+                      src={imageUrls[doc.id]}
+                      alt={doc.filename}
+                      className="max-w-full max-h-full object-contain"
+                    />
+                  </div>
+                ) : (
+                  getFileIcon(doc.content_type)
+                )}
               </div>
 
               {/* File Info */}
@@ -144,7 +170,7 @@ const Documents = () => {
 
                 {/* Actions */}
                 <div className="mt-4 flex gap-2">
-                  {doc.extracted_text && (
+                  {(doc.extracted_text || doc.content_type?.includes('image')) && (
                     <button
                       onClick={() => handlePreview(doc)}
                       className="flex-1 px-3 py-2 text-sm font-medium text-primary-700 bg-primary-50 hover:bg-primary-100 rounded-md transition-colors"
@@ -202,14 +228,26 @@ const Documents = () => {
                   </button>
                 </div>
 
-                {/* Extracted Text */}
+                {/* Preview Content */}
                 <div className="mt-4">
-                  <h4 className="text-sm font-medium text-gray-700 mb-2">Extracted Text:</h4>
-                  <div className="bg-gray-50 rounded-lg p-4 max-h-96 overflow-y-auto">
-                    <pre className="text-sm text-gray-700 whitespace-pre-wrap font-sans">
-                      {previewDoc.extracted_text}
-                    </pre>
-                  </div>
+                  {previewDoc.content_type?.includes('image') && imageUrls[previewDoc.id] ? (
+                    <div className="bg-gray-50 rounded-lg p-4 flex items-center justify-center">
+                      <img
+                        src={imageUrls[previewDoc.id]}
+                        alt={previewDoc.filename}
+                        className="max-w-full max-h-96 object-contain"
+                      />
+                    </div>
+                  ) : (
+                    <>
+                      <h4 className="text-sm font-medium text-gray-700 mb-2">Extracted Text:</h4>
+                      <div className="bg-gray-50 rounded-lg p-4 max-h-96 overflow-y-auto">
+                        <pre className="text-sm text-gray-700 whitespace-pre-wrap font-sans">
+                          {previewDoc.extracted_text}
+                        </pre>
+                      </div>
+                    </>
+                  )}
                 </div>
               </div>
 
