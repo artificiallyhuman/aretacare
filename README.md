@@ -5,12 +5,13 @@ AretaCare is an AI-powered care advocate assistant that helps families navigate 
 ## Features
 
 ### Core Application
-- **Conversation Interface**: Primary chat interface with AI care advocate that maintains conversation history
+- **Conversation Interface**: Primary chat interface with AI care advocate, "Thinking..." status during processing
 - **Enhanced Markdown Rendering**: Custom formatted messages with proper spacing, color-aware styling, and clean typography
 - **Daily Plan**: AI-generated daily summaries with priorities, reminders, and questions for care team (auto-generates after 2 AM, user editable, delete/regenerate support)
-- **AI Journal Synthesis**: Automatically extracts and organizes key medical updates into a structured journal
+- **AI Journal Synthesis**: Automatically extracts and organizes key medical updates with accurate timezone handling
+- **Journal with Date Navigation**: Reverse chronological order, sticky sidebar with date selector, scroll-to-date functionality
 - **Document Upload & Analysis**: Upload PDFs, images, or text files for AI analysis with GPT-5.1 native file support
-- **Smart Scrolling**: Auto-scroll behavior with manual scroll-to-bottom button for long conversations
+- **Smart Scrolling**: Auto-scroll stops at message input box (not footer), only when user is near bottom
 - **Audio Recording**: Voice input with clear start/stop buttons and real-time transcription
 
 ### Specialized Tools
@@ -27,8 +28,9 @@ AretaCare is an AI-powered care advocate assistant that helps families navigate 
 
 ### User Experience
 - **Professional UI**: Clean, modern interface with intuitive navigation and organized content structure
-- **Mobile Responsive**: Fully optimized for mobile devices with hamburger menu navigation
-- **Accessibility**: Professional design system with consistent spacing and typography
+- **Mobile Optimized**: Native app-like feel with compact sizing, touch-friendly buttons, and reduced padding throughout
+- **Disclaimer Placement**: Shown only on login/register screens, keeping the main interface clean and uncluttered
+- **Smart Navigation**: Red Clear Session button (dangerous action) vs. neutral Logout button, About in user section
 - **Smart UI Behavior**: Click-away dropdown menus, smooth transitions, and responsive feedback
 - **Enhanced Content Organization**: Feature descriptions with intro sentences followed by organized bullet points
 - **Clear Onboarding**: Welcome instructions directing users to conversation input with example topics

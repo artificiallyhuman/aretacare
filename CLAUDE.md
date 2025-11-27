@@ -7,18 +7,19 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 AretaCare is an AI-powered medical care advocate assistant that helps families understand complex medical information. It maintains **strict safety boundaries** - never diagnosing, recommending treatments, or predicting outcomes. The core function is to translate medical jargon, summarize clinical notes, and help families prepare questions for healthcare teams.
 
 **Key Features:**
-- **Conversation-first interface** with AI care advocate as the primary interaction model
+- **Conversation-first interface** with AI care advocate as the primary interaction model, "Thinking..." status during AI processing
 - **Enhanced markdown rendering** with custom ReactMarkdown components, color-aware styling, and clean typography
 - **Daily Plan** - AI-generated daily summaries with priorities, reminders, and questions for care team (requires sufficient data, auto-generates after 2 AM, user editable, delete and regenerate capability, replaces journal sidebar)
-- **AI Journal Synthesis** that automatically extracts and organizes medical updates from conversations
+- **AI Journal Synthesis** that automatically extracts and organizes medical updates from conversations with user's local timezone
+- **Journal with date navigation** - reverse chronological order, sticky sidebar with date selector, smooth scroll-to-date functionality
 - **GPT-5.1 native file support** for PDFs and images via Responses API
 - **Audio recording** with separate start/stop buttons, visual feedback, and real-time transcription
-- JWT-based user authentication with secure password hashing
+- JWT-based user authentication with secure password hashing, disclaimer shown on login/register screens
 - Session-based conversation history tied to user accounts
 - Collapsible daily plan panel (replaces journal sidebar) showing current plan on conversation page
 - **About page** with comprehensive feature descriptions organized as intro sentences + bullet points
-- Professional UI with modern design and smart UI behaviors (click-away dropdowns, smart scrolling, mobile modals)
-- Mobile-responsive design with hamburger menu navigation (About after Tools) and full-screen journal modal
+- Professional UI with modern design and smart UI behaviors (click-away dropdowns, smart scrolling, red Clear Session button)
+- **Mobile-optimized design** with compact sizing, native feel, hamburger menu navigation, and touch-friendly interfaces
 - Medical document upload with OCR support, S3 storage, and automatic cleanup on session clear
 - Image previews in Documents page with thumbnail grid
 - Specialized tools: Jargon Translator (with voice input), Conversation Coach (with voice recording), Documents Manager
@@ -135,26 +136,37 @@ STRICT SAFETY BOUNDARIES - YOU MUST NEVER:
 
 **Conversation-First Design**
 - Primary interface is a conversational chat with AI care advocate
+- "Thinking..." status indicator during AI response processing (replaces "Sending...")
 - Enhanced markdown rendering with custom ReactMarkdown components for clean, readable formatting
 - Color-aware styling: prose-invert for user messages, prose-gray for AI messages
-- Journal panel hidden by default; opens as sidebar on desktop (md+) or full-screen modal on mobile
+- Daily plan panel on conversation page; Journal has dedicated page with date navigation
 - Welcome page with "How to Get Started" instructions directing users to message box
 - Messages can include text, uploaded documents (PDFs), images, and voice recordings
-- Separate audio recording buttons: start (microphone icon) and stop (red button with "Stop Recording" text)
-- Smart scrolling: auto-scroll only when user is near bottom, manual scroll button otherwise
+- Separate audio recording buttons: start (microphone icon) and stop (red button with "Stop" text)
+- Smart scrolling: auto-scroll only when user is near bottom and messages exist, stops at message input (not footer)
 - Compact message spacing (space-y-2) for better conversation flow
+- Mobile-optimized: compact padding (p-2 md:p-4), smaller text sizes, touch-friendly buttons
 - Conversation history persists across sessions
 
 **AI Journal Synthesis**
 - `JournalService` analyzes user messages and AI responses for medical significance
 - Uses `assess_and_synthesize()` to determine if conversation warrants journal entries
+- **Uses user's local timezone** for accurate date recording (frontend sends `entry_date` in YYYY-MM-DD format)
 - Automatically creates structured entries with:
   - Title (brief summary)
   - Content (detailed information)
   - Entry type (appointment, symptom, medication, test_result, milestone, note)
-  - Date and confidence score
+  - Date (user's local date, not server time)
 - Marks conversation messages as `synthesized_to_journal=True` when processed
 - Users can manually add, edit, or delete journal entries
+
+**Journal Page Features**
+- **Reverse chronological order**: Most recent entries appear first
+- **Date selector sidebar**: Sticky navigation showing all dates with entry counts
+- **Scroll-to-date functionality**: Click any date to smoothly scroll to that section
+- **Proper date parsing**: Uses local timezone (YYYY-MM-DD split parsing, not UTC)
+- **Mobile-optimized**: Compact padding, smaller text, responsive date navigation
+- Search and filter capabilities by entry type
 
 **GPT-5.1 Native File Support**
 - Uses OpenAI Responses API (`openai.beta.responses.create()`)
@@ -165,13 +177,24 @@ STRICT SAFETY BOUNDARIES - YOU MUST NEVER:
 
 **Smart UI Behavior**
 - Click-away dropdown menus (tools menu closes when clicking outside)
-- Smart scrolling: auto-scroll only when near bottom and messages exist
+- Smart scrolling: auto-scroll only when near bottom and messages exist, stops at message input box (not footer)
 - Scroll-to-bottom button appears when user scrolls up in conversation
+- **Red Clear Session button** (dangerous action) vs. neutral Logout button
+- **Disclaimer on authentication screens only** (login/register), not cluttering logged-in interface
 - Responsive design with mobile hamburger menu (lg breakpoint)
-- Mobile journal as full-screen modal with backdrop overlay (md breakpoint)
 - Image thumbnails in Documents page with 192px height preview cards
 - S3 file cleanup on session deletion prevents orphaned files in storage
 - Compact message spacing (space-y-2) for better conversation flow
+
+**Mobile Optimization**
+- **Native app-like feel** with compact sizing and appropriate spacing
+- Reduced padding: `p-2 md:p-4`, `py-1.5 md:py-2` throughout
+- Smaller text: `text-xs md:text-sm`, `text-sm md:text-base` for better screen utilization
+- Touch-friendly buttons: adequate size with compact spacing
+- **Clear visual separation** between About link and dangerous actions (Clear Session/Logout) with border divider
+- Responsive welcome message with progressive disclosure (hidden breaks on mobile)
+- Compact disclaimer (mb-0, smaller padding) on auth screens
+- Mobile-friendly header with smaller user avatar (w-7 h-7 vs w-8 h-8)
 
 ### Authentication & Privacy Model
 
@@ -222,7 +245,7 @@ STRICT SAFETY BOUNDARIES - YOU MUST NEVER:
 ### Service Layer (Business Logic)
 
 - `backend/app/services/openai_service.py` - **CRITICAL**: Contains safety prompt, GPT-5.1 integration, all LLM interactions
-- `backend/app/services/journal_service.py` - **Journal synthesis logic**: Analyzes conversations, creates journal entries
+- `backend/app/services/journal_service.py` - **Journal synthesis logic**: Analyzes conversations, creates journal entries with user's local date (accepts `entry_date` parameter)
 - `backend/app/services/daily_plan_service.py` - **Daily plan generation**: Validates sufficient data (journal entries or conversations), gathers context, generates concise plans via GPT-5.1
 - `backend/app/services/s3_service.py` - Document upload/download/delete to S3, presigned URL generation
 - `backend/app/services/document_processor.py` - Text extraction (PDF, OCR for images)
@@ -231,20 +254,19 @@ STRICT SAFETY BOUNDARIES - YOU MUST NEVER:
 
 - `frontend/src/main.jsx` - React app entry point
 - `frontend/src/App.jsx` - Router configuration, protected/public routes, layout with responsive footer
-- `frontend/src/pages/Login.jsx` - Login page with professional styling, mobile-responsive
-- `frontend/src/pages/Register.jsx` - Registration page with professional styling, mobile-responsive
-- `frontend/src/pages/Conversation.jsx` - **Main conversation interface** with chat + daily plan panel, smart scrolling, welcome page with "How to Get Started", banner notification for new plans, auto-generates after 2 AM with sufficient data
+- `frontend/src/pages/Login.jsx` - Login page with disclaimer, professional styling, mobile-responsive (no "Welcome" heading)
+- `frontend/src/pages/Register.jsx` - Registration page with disclaimer, professional styling, mobile-responsive
+- `frontend/src/pages/Conversation.jsx` - **Main conversation interface** with chat + daily plan panel, smart scrolling (stops at message box), welcome page, "Thinking..." status, sends user's local date for journal entries
 - `frontend/src/pages/DailyPlan.jsx` - **Daily plan page** with full history list, edit mode, delete and regenerate functionality, enhanced markdown rendering
-- `frontend/src/pages/JournalView.jsx` - Full journal page view
+- `frontend/src/pages/JournalView.jsx` - **Journal page with date navigation** - reverse chronological, sticky sidebar with date selector, scroll-to-date, proper local timezone parsing
 - `frontend/src/pages/About.jsx` - **About page** with comprehensive feature descriptions organized as intro sentences + bullet points (Conversation, Daily Plan, Journal, Tools, Privacy)
-- `frontend/src/pages/tools/` - Standalone tools (JargonTranslator with voice input, ConversationCoach with voice recording, Documents with image previews)
-- `frontend/src/components/Header.jsx` - **Mobile-responsive navigation** with hamburger menu (lg breakpoint), tools dropdown with click-away behavior, About link after Tools
-- `frontend/src/components/Disclaimer.jsx` - Responsive safety disclaimer component
-- `frontend/src/components/DailyPlan/DailyPlanPanel.jsx` - **Collapsible daily plan sidebar** (replaces journal panel on conversation page) with current plan, enhanced markdown rendering, generates with sufficient data check
-- `frontend/src/components/Journal/JournalPanel.jsx` - Collapsible journal sidebar with entries by date
+- `frontend/src/pages/tools/` - Standalone tools (JargonTranslator, ConversationCoach, Documents) - disclaimer removed from individual tool pages
+- `frontend/src/components/Header.jsx` - **Mobile-responsive navigation** with hamburger menu, tools dropdown, About in user section, red Clear Session button, neutral Logout button
+- `frontend/src/components/Disclaimer.jsx` - Compact safety disclaimer shown only on login/register screens
+- `frontend/src/components/DailyPlan/DailyPlanPanel.jsx` - Collapsible daily plan sidebar with mobile-optimized padding and text sizes
 - `frontend/src/components/MessageBubble.jsx` - Chat message display with custom ReactMarkdown components and color-aware styling
-- `frontend/src/components/MessageInput.jsx` - Chat input with file upload (documents/images) and separate start/stop audio recording buttons
-- `frontend/src/services/api.js` - Axios instance with auth token interceptor, conversation/journal/daily plan/tools APIs
+- `frontend/src/components/MessageInput.jsx` - Chat input with "Thinking..." status, mobile-optimized sizing, separate start/stop audio recording buttons
+- `frontend/src/services/api.js` - Axios instance with auth token interceptor, conversation API includes entry_date parameter
 - `frontend/src/hooks/useSession.js` - Session & auth state management (calls /auth/me)
 - `frontend/src/styles/index.css` - Tailwind CSS with responsive custom components (.btn-primary, .card, .input, .textarea)
 
@@ -471,6 +493,34 @@ const [year, month, day] = dateString.split('-').map(Number);
 const date = new Date(year, month - 1, day); // Local timezone, not UTC
 ```
 
+**Journal Date Recording (Fixed)**
+
+Previously, journal entries used server's date (`date.today()` in Python), causing timezone issues where entries from "yesterday" appeared under "today."
+
+**Solution:** Frontend sends user's local date with every message:
+```javascript
+// In Conversation.jsx
+const today = new Date();
+const userDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+
+await conversationAPI.sendMessage({
+  content,
+  session_id: sessionId,
+  entry_date: userDate  // User's local date
+});
+```
+
+Backend uses this date for journal entries:
+```python
+# In conversation.py
+entry_date: Optional[str] = None  # User's local date (YYYY-MM-DD)
+
+# In journal_service.py
+use_date = entry_date if entry_date else date.today()  # Prefer user's date
+```
+
+This ensures journal entries always appear under the correct date in the user's timezone.
+
 ## Testing the Application
 
 Access points after `docker compose up`:
@@ -485,39 +535,36 @@ Access points after `docker compose up`:
 4. You'll be automatically logged in and redirected to the dashboard
 
 **UI Features:**
-- **Conversation-first interface**: Main page is chat with AI care advocate
+- **Login/Register**: Disclaimer shown on auth screens only, clean interface without redundant "Welcome" headings
+- **Conversation-first interface**: Main page is chat with AI care advocate, "Thinking..." status during AI processing
 - **Enhanced markdown rendering**: Custom ReactMarkdown components with color-aware styling (prose-invert for user, prose-gray for AI)
 - **Welcome page**: Clear onboarding with "How to Get Started" instructions and example topics directing to message box
-- **About page**: Comprehensive feature descriptions organized with intro sentences + color-coded bullet points (blue: Conversation, amber: Daily Plan, green: Journal, purple: Tools, gray: Privacy)
-- **Daily plan panel**: Replaces journal sidebar on conversation page, shows current plan with enhanced markdown rendering, banner notification when new plan is ready, auto-generates after 2 AM when user has journal entries or conversations
-- **Daily plan page**: Full history of all plans (most recent first), edit mode, delete and regenerate functionality, smart button states (disabled when today's plan exists, error message for insufficient data)
-- **Collapsible journal panel**: Available on Journal page, sidebar on desktop, full-screen modal on mobile
-- **Smart scrolling**: Auto-scroll when near bottom (only with messages), manual scroll-to-bottom button when scrolled up
-- **Audio recording**: Separate start (microphone icon) and stop (red "Stop Recording" button) with visual feedback and transcription status
-- **Click-away dropdowns**: Tools menu closes when clicking outside
-- **Mobile-responsive navigation**: Hamburger menu on mobile (<1024px), full nav on desktop, About link positioned after Tools
-- Professional header with AretaCare branding, user avatar (shows first initial), and tools dropdown
+- **Smart scrolling**: Auto-scroll when near bottom (only with messages), stops at message input box (not footer)
+- **About page**: Comprehensive feature descriptions organized with intro sentences + color-coded bullet points
+- **Daily plan panel**: Shows current plan on conversation page, banner notification when new plan is ready
+- **Daily plan page**: Full history (most recent first), edit mode, delete and regenerate functionality
+- **Journal page**: Reverse chronological order, date selector sidebar with scroll-to-date, proper timezone handling
+- **Audio recording**: Separate start (microphone icon) and stop (red "Stop" button) with visual feedback
+- **Navigation**: Red Clear Session button (dangerous action), neutral Logout button, About in user section
+- **Mobile-optimized**: Native app-like feel with compact sizing, touch-friendly buttons, reduced padding throughout
 - File upload support: Upload PDFs, images (PNG, JPG), or text files in conversation
 - Voice input support: Jargon Translator and Conversation Coach both have audio recording capabilities
-- Compact message spacing for better conversation flow
-- Responsive design with Tailwind CSS breakpoints (sm, md, lg)
-- Professional login/register pages with consistent styling
-- Clear Session icon button (trash can) to delete conversation history and S3 files - **permanent deletion warning emphasized**
-- Logout button to sign out
 - Documents manager with image previews (thumbnails) and full-size preview modal
 
 **Testing the Application:**
 
-1. **Welcome page**: See "How to Get Started" with instructions and example topics
-2. **Start conversation**: Type in message box or click microphone to record voice, send first message
-3. **Audio recording**: Click microphone, speak, click red "Stop Recording" button when finished
-4. **Upload a document**: Click attach button, select PDF or image
-5. **View About page**: Navigate to About (after Tools in menu) to see comprehensive feature descriptions with organized bullet points
-6. **Daily Plan**: Navigate to Daily Plan page, click "Generate Today's Plan" to create AI-generated daily summary (requires journal entries or conversations), delete and regenerate existing plans with confirmation dialog
-7. **Daily Plan Panel**: View current plan in sidebar on conversation page, banner notification appears when new plan is ready, shows "insufficient information" if no engagement data exists
-8. **Journal synthesis**: Ask medical questions, click "Show Journal" to view auto-generated entries
-9. **Tools section**: Access Jargon Translator (with voice input), Conversation Coach (with voice recording), Documents (with image previews)
-10. **Clear session**: Click trash icon - see permanent deletion warning, confirm to delete all data (includes S3 files)
+1. **Login**: See disclaimer on login screen, no redundant "Welcome" heading
+2. **Welcome page**: See "How to Get Started" with instructions and example topics
+3. **Start conversation**: Type in message box or click microphone to record voice, see "Thinking..." while AI processes
+4. **Audio recording**: Click microphone, speak, click red "Stop" button when finished
+5. **Upload a document**: Click attach button, select PDF or image
+6. **Smart scrolling**: Scroll stops at message input box (not footer), auto-scrolls only when near bottom
+7. **View About page**: Navigate to About in user section (right side of header)
+8. **Daily Plan**: Navigate to Daily Plan page, generate daily summary, edit or regenerate as needed
+9. **Journal page**: View entries in reverse chronological order, click dates in sidebar to scroll to specific dates, entries show correct dates in your timezone
+10. **Tools section**: Access Jargon Translator, Conversation Coach, Documents (no disclaimer clutter)
+11. **Clear session**: Click red trash icon in header, confirm permanent deletion
+12. **Mobile testing**: Resize browser to mobile width, experience compact native app-like interface
 
 Sample medical text for testing:
 ```
