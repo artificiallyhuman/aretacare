@@ -278,7 +278,11 @@ Frontend optional (`frontend/.env`):
 
 ### Package Version Constraints
 
-Critical version pins in `backend/requirements.txt`:
+**System Dependencies** (installed via apt in Dockerfile):
+- `tesseract-ocr` - OCR engine for extracting text from images
+- `ffmpeg` - Required for audio transcription (provides ffprobe for audio file processing)
+
+**Python Package Versions** (in `backend/requirements.txt`):
 - `httpx<0.28.0` - Version 0.28+ breaks OpenAI client
 - `openai>=1.56.0` - Earlier versions have httpx incompatibility
 - `pytesseract==0.3.10` - Python wrapper for tesseract-ocr (OCR capability)
@@ -408,6 +412,64 @@ User: arn:aws:iam::ACCOUNT_ID:user/USERNAME is not authorized to perform: s3:Put
 ```
 
 Replace `YOUR_BUCKET_NAME` with your actual S3 bucket name. See `docs/AWS_IAM_POLICY.md` for complete setup instructions.
+
+### Common Technical Issues
+
+**Journal API: Response Validation Error (metadata)**
+
+If you see:
+```
+ResponseValidationError: Input should be a valid dictionary
+'metadata': MetaData()
+```
+
+**Cause:** SQLAlchemy models have an internal `metadata` class attribute for schema information. Pydantic was trying to serialize this instead of ignoring it.
+
+**Fix:** Add `extra = "ignore"` to Pydantic schema Config in `backend/app/schemas/journal.py`:
+```python
+class Config:
+    from_attributes = True
+    extra = "ignore"  # Ignore SQLAlchemy internal attributes
+```
+
+**Audio Transcription: ffprobe not found**
+
+If you see:
+```
+ERROR - Error transcribing audio with OpenAI: ffprobe not found. Please install ffmpeg.
+```
+
+**Cause:** ffmpeg is missing from the Docker container.
+
+**Fix:** Add ffmpeg to system dependencies in `Dockerfile`:
+```dockerfile
+RUN apt-get update && apt-get install -y \
+    gcc \
+    postgresql-client \
+    libpq-dev \
+    tesseract-ocr \
+    ffmpeg \  # Add this line
+    && rm -rf /var/lib/apt/lists/*
+```
+
+**Daily Plan Timezone Issues**
+
+If daily plans show wrong dates (e.g., Nov 27 when locally Nov 26):
+
+**Cause:** JavaScript `new Date("2025-11-27")` interprets as midnight UTC, displaying as previous day in earlier timezones.
+
+**Fix:** Always pass user's local date to the API:
+```javascript
+const today = new Date();
+const userDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+await dailyPlanAPI.generate(sessionId, userDate);
+```
+
+And parse dates in local timezone on frontend:
+```javascript
+const [year, month, day] = dateString.split('-').map(Number);
+const date = new Date(year, month - 1, day); // Local timezone, not UTC
+```
 
 ## Testing the Application
 

@@ -419,13 +419,17 @@ curl -H "Authorization: Bearer <token>" \
 #### Generate New Daily Plan
 
 ```bash
-POST /api/daily-plans/{session_id}/generate
+POST /api/daily-plans/{session_id}/generate?user_date=YYYY-MM-DD
 Authorization: Bearer <token>
 ```
+
+**Query Parameters:**
+- `user_date` (optional): Date in YYYY-MM-DD format from user's local timezone. If not provided, uses server date.
 
 **Requirements:**
 - User must have journal entries OR conversations (sufficient data)
 - Returns HTTP 400 if insufficient data exists
+- Auto-generates after 2 AM local time when user becomes active (if no plan exists for today)
 
 **Response (Success):**
 ```json
@@ -450,7 +454,12 @@ Authorization: Bearer <token>
 
 **Example:**
 ```bash
+# Without user_date (uses server date)
 curl -X POST http://localhost:8000/api/daily-plans/{session_id}/generate \
+  -H "Authorization: Bearer <token>"
+
+# With user_date (recommended for timezone accuracy)
+curl -X POST "http://localhost:8000/api/daily-plans/{session_id}/generate?user_date=2025-01-16" \
   -H "Authorization: Bearer <token>"
 ```
 
@@ -727,10 +736,17 @@ console.log('Assistant:', reply.assistant_message.content);
 ### Daily Plans
 
 ```javascript
-// Generate today's plan
-const generateDailyPlan = async (sessionId) => {
-  const response = await api.post(`/daily-plans/${sessionId}/generate`);
+// Generate today's plan (with timezone support)
+const generateDailyPlan = async (sessionId, userDate = null) => {
+  const params = userDate ? { user_date: userDate } : {};
+  const response = await api.post(`/daily-plans/${sessionId}/generate`, null, { params });
   return response.data;
+};
+
+// Helper to get user's local date in YYYY-MM-DD format
+const getUserLocalDate = () => {
+  const today = new Date();
+  return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
 };
 
 // Get latest plan
@@ -767,11 +783,12 @@ const deleteDailyPlan = async (planId) => {
   return response.data;
 };
 
-// Usage
+// Usage - Generate plan with user's local timezone
 const status = await checkPlanStatus(sessionId);
 if (status.should_generate) {
   try {
-    const newPlan = await generateDailyPlan(sessionId);
+    const userDate = getUserLocalDate(); // Get user's local date
+    const newPlan = await generateDailyPlan(sessionId, userDate);
     console.log('New plan created:', newPlan.content);
   } catch (error) {
     if (error.response?.status === 400) {
@@ -783,9 +800,10 @@ if (status.should_generate) {
   console.log('Latest plan:', latestPlan.content);
 }
 
-// Delete and regenerate
+// Delete and regenerate with timezone support
 await deleteDailyPlan(oldPlanId);
-const newPlan = await generateDailyPlan(sessionId);
+const userDate = getUserLocalDate();
+const newPlan = await generateDailyPlan(sessionId, userDate);
 console.log('Regenerated plan:', newPlan.content);
 ```
 
