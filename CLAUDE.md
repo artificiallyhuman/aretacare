@@ -11,18 +11,20 @@ AretaCare is an AI-powered medical care advocate assistant that helps families u
 - **Enhanced markdown rendering** with custom ReactMarkdown components, color-aware styling, and clean typography
 - **Daily Plan** - AI-generated daily summaries with priorities, reminders, and questions for care team (requires sufficient data, auto-generates after 2 AM, user editable, delete and regenerate capability, replaces journal sidebar)
 - **AI Journal Synthesis** that automatically extracts and organizes medical updates from conversations with user's local timezone
-- **Journal with date navigation** - reverse chronological order, sticky sidebar with date selector, smooth scroll-to-date functionality
+- **Journal with date navigation** - reverse chronological order, sticky sidebar with date selector, smooth scroll-to-date functionality, entry types include: appointment, symptom, medication, test_result, milestone, note, other
 - **GPT-5.1 native file support** for PDFs and images via Responses API
-- **Audio recording** with separate start/stop buttons, visual feedback, and real-time transcription
+- **Audio recording** with live waveform visualization, separate start/stop buttons, visual feedback, and real-time transcription
 - JWT-based user authentication with secure password hashing, disclaimer shown on login/register screens
 - Session-based conversation history tied to user accounts
 - Collapsible daily plan panel (replaces journal sidebar) showing current plan on conversation page
 - **About page** with comprehensive feature descriptions organized as intro sentences + bullet points
+- **Legal pages** - Professional Terms of Service and Privacy Policy with gradient backgrounds, warning boxes, and GitHub repository links
 - Professional UI with modern design and smart UI behaviors (click-away dropdowns, smart scrolling, red Clear Session button)
 - **Mobile-optimized design** with compact sizing, native feel, hamburger menu navigation, and touch-friendly interfaces
-- Medical document upload with OCR support, S3 storage, and automatic cleanup on session clear
-- Image previews in Documents page with thumbnail grid
-- Specialized tools: Jargon Translator (with voice input), Conversation Coach (with voice recording), Documents Manager
+- Medical document upload with OCR support, S3 storage, PDF thumbnail generation, and complete cleanup on session clear
+- Image and PDF thumbnail previews in Documents page with thumbnail grid
+- **Complete data deletion** - Session deletion removes all PostgreSQL data and S3 files (documents, thumbnails, audio recordings) with zero orphaned files
+- Specialized tools: Jargon Translator (with voice input and waveform), Conversation Coach (with voice recording and waveform), Documents Manager
 
 ## Development Commands
 
@@ -220,7 +222,7 @@ STRICT SAFETY BOUNDARIES - YOU MUST NEVER:
 - `backend/app/main.py` - FastAPI application, CORS config, route mounting
 - `backend/app/api/__init__.py` - Combines all API routers
 - `backend/app/api/auth.py` - **Authentication endpoints** (register, login, /me)
-- `backend/app/api/sessions.py` - Session management with S3 cleanup on delete
+- `backend/app/api/sessions.py` - Session management with complete S3 cleanup on delete (documents, thumbnails, audio files)
 - `backend/app/api/documents.py` - Document upload/management with presigned URLs
 - `backend/app/api/conversation.py` - Conversation endpoints with rich media support
 - `backend/app/api/journal.py` - Journal CRUD operations
@@ -234,7 +236,7 @@ STRICT SAFETY BOUNDARIES - YOU MUST NEVER:
 
 - `backend/app/models/user.py` - User model with authentication fields
 - `backend/app/models/session.py` - Session model with user foreign key
-- `backend/app/models/journal.py` - Journal entries with AI-generated content
+- `backend/app/models/journal.py` - Journal entries with AI-generated content, EntryType enum includes: MEDICAL_UPDATE, TREATMENT_CHANGE, APPOINTMENT, INSIGHT, QUESTION, MILESTONE, OTHER
 - `backend/app/models/daily_plan.py` - **Daily plans** with content, user edits, viewed status
 - `backend/app/models/conversation.py` - Conversation messages with rich media support
 - `backend/app/schemas/auth.py` - Auth request/response schemas (UserRegister, UserLogin, TokenResponse)
@@ -248,7 +250,7 @@ STRICT SAFETY BOUNDARIES - YOU MUST NEVER:
 - `backend/app/services/journal_service.py` - **Journal synthesis logic**: Analyzes conversations, creates journal entries with user's local date (accepts `entry_date` parameter)
 - `backend/app/services/daily_plan_service.py` - **Daily plan generation**: Validates sufficient data (journal entries or conversations), gathers context, generates concise plans via GPT-5.1
 - `backend/app/services/s3_service.py` - Document upload/download/delete to S3, presigned URL generation
-- `backend/app/services/document_processor.py` - Text extraction (PDF, OCR for images)
+- `backend/app/services/document_processor.py` - Text extraction (PDF, OCR for images) and PDF thumbnail generation (first page, 150 DPI, max 300px width)
 
 ### Frontend Entry Points
 
@@ -260,12 +262,17 @@ STRICT SAFETY BOUNDARIES - YOU MUST NEVER:
 - `frontend/src/pages/DailyPlan.jsx` - **Daily plan page** with full history list, edit mode, delete and regenerate functionality, enhanced markdown rendering
 - `frontend/src/pages/JournalView.jsx` - **Journal page with date navigation** - reverse chronological, sticky sidebar with date selector, scroll-to-date, proper local timezone parsing
 - `frontend/src/pages/About.jsx` - **About page** with comprehensive feature descriptions organized as intro sentences + bullet points (Conversation, Daily Plan, Journal, Tools, Privacy)
+- `frontend/src/pages/TermsOfService.jsx` - **Terms of Service page** with professional formatting, gradient backgrounds, warning boxes with icons, and GitHub repository links
+- `frontend/src/pages/PrivacyPolicy.jsx` - **Privacy Policy page** with clear data handling explanation, formatted warning sections, and comprehensive privacy information
 - `frontend/src/pages/tools/` - Standalone tools (JargonTranslator, ConversationCoach, Documents) - disclaimer removed from individual tool pages
 - `frontend/src/components/Header.jsx` - **Mobile-responsive navigation** with hamburger menu, tools dropdown, About in user section, red Clear Session button, neutral Logout button
+- `frontend/src/components/Footer.jsx` - Footer with links to Terms of Service, Privacy Policy, GitHub repository, and Report Issue
 - `frontend/src/components/Disclaimer.jsx` - Compact safety disclaimer shown only on login/register screens
+- `frontend/src/components/WarningsContainer.jsx` - Reusable component for displaying multiple warnings, used on login/register pages
 - `frontend/src/components/DailyPlan/DailyPlanPanel.jsx` - Collapsible daily plan sidebar with mobile-optimized padding and text sizes
 - `frontend/src/components/MessageBubble.jsx` - Chat message display with custom ReactMarkdown components and color-aware styling
-- `frontend/src/components/MessageInput.jsx` - Chat input with "Thinking..." status, mobile-optimized sizing, separate start/stop audio recording buttons
+- `frontend/src/components/MessageInput.jsx` - Chat input with "Thinking..." status, mobile-optimized sizing, separate start/stop audio recording buttons with live waveform visualization
+- `frontend/src/components/AudioWaveform.jsx` - **Real-time audio waveform visualization** using Web Audio API and canvas-based drawing, provides immediate visual feedback during recording
 - `frontend/src/services/api.js` - Axios instance with auth token interceptor, conversation API includes entry_date parameter
 - `frontend/src/hooks/useSession.js` - Session & auth state management (calls /auth/me)
 - `frontend/src/styles/index.css` - Tailwind CSS with responsive custom components (.btn-primary, .card, .input, .textarea)
@@ -302,12 +309,14 @@ Frontend optional (`frontend/.env`):
 
 **System Dependencies** (installed via apt in Dockerfile):
 - `tesseract-ocr` - OCR engine for extracting text from images
+- `poppler-utils` - Required for PDF thumbnail generation (provides pdftoppm)
 - `ffmpeg` - Required for audio transcription (provides ffprobe for audio file processing)
 
 **Python Package Versions** (in `backend/requirements.txt`):
 - `httpx<0.28.0` - Version 0.28+ breaks OpenAI client
 - `openai>=1.56.0` - Earlier versions have httpx incompatibility
 - `pytesseract==0.3.10` - Python wrapper for tesseract-ocr (OCR capability)
+- `pdf2image==1.16.3` - PDF to image conversion for thumbnail generation
 - `bcrypt<5.0.0` - **CRITICAL**: Version 5.x incompatible with passlib 1.7.4
   - Passlib 1.7.4 cannot read bcrypt 5.x's `__about__` attribute
   - Causes ValueError during password hashing initialization

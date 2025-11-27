@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from app.core.database import get_db
-from app.models import Session as SessionModel, User, Document
+from app.models import Session as SessionModel, User, Document, AudioRecording
 from app.schemas import SessionCreate, SessionResponse
 from datetime import datetime, timedelta
 from app.core.config import settings
@@ -96,9 +96,10 @@ async def delete_session(
     if session.user_id != current_user.id:
         raise HTTPException(status_code=403, detail="Access denied")
 
-    # Delete all documents from S3 before deleting session
+    # Delete all documents and their thumbnails from S3 before deleting session
     documents = db.query(Document).filter(Document.session_id == session_id).all()
     for doc in documents:
+        # Delete main document file
         try:
             s3_service.delete_file(doc.s3_key)
             logger.info(f"Deleted S3 file: {doc.s3_key}")
@@ -106,7 +107,25 @@ async def delete_session(
             logger.error(f"Failed to delete S3 file {doc.s3_key}: {str(e)}")
             # Continue deleting other files even if one fails
 
-    # This will cascade delete all documents and conversations from database
+        # Delete thumbnail file if it exists
+        if doc.thumbnail_s3_key:
+            try:
+                s3_service.delete_file(doc.thumbnail_s3_key)
+                logger.info(f"Deleted S3 thumbnail: {doc.thumbnail_s3_key}")
+            except Exception as e:
+                logger.error(f"Failed to delete S3 thumbnail {doc.thumbnail_s3_key}: {str(e)}")
+
+    # Delete all audio recordings from S3
+    audio_recordings = db.query(AudioRecording).filter(AudioRecording.session_id == session_id).all()
+    for audio in audio_recordings:
+        try:
+            s3_service.delete_file(audio.s3_key)
+            logger.info(f"Deleted S3 audio file: {audio.s3_key}")
+        except Exception as e:
+            logger.error(f"Failed to delete S3 audio file {audio.s3_key}: {str(e)}")
+
+    # This will cascade delete all database records (documents, conversations, journal entries,
+    # audio recordings, daily plans) but keep the user account
     db.delete(session)
     db.commit()
 
@@ -147,14 +166,32 @@ async def cleanup_expired_sessions(db: Session = Depends(get_db)):
     count = len(expired_sessions)
 
     for session in expired_sessions:
-        # Delete all documents from S3 for this session
+        # Delete all documents and their thumbnails from S3 for this session
         documents = db.query(Document).filter(Document.session_id == session.id).all()
         for doc in documents:
+            # Delete main document file
             try:
                 s3_service.delete_file(doc.s3_key)
                 logger.info(f"Deleted S3 file during cleanup: {doc.s3_key}")
             except Exception as e:
                 logger.error(f"Failed to delete S3 file {doc.s3_key} during cleanup: {str(e)}")
+
+            # Delete thumbnail file if it exists
+            if doc.thumbnail_s3_key:
+                try:
+                    s3_service.delete_file(doc.thumbnail_s3_key)
+                    logger.info(f"Deleted S3 thumbnail during cleanup: {doc.thumbnail_s3_key}")
+                except Exception as e:
+                    logger.error(f"Failed to delete S3 thumbnail {doc.thumbnail_s3_key} during cleanup: {str(e)}")
+
+        # Delete all audio recordings from S3 for this session
+        audio_recordings = db.query(AudioRecording).filter(AudioRecording.session_id == session.id).all()
+        for audio in audio_recordings:
+            try:
+                s3_service.delete_file(audio.s3_key)
+                logger.info(f"Deleted S3 audio file during cleanup: {audio.s3_key}")
+            except Exception as e:
+                logger.error(f"Failed to delete S3 audio file {audio.s3_key} during cleanup: {str(e)}")
 
         db.delete(session)
 

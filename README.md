@@ -9,22 +9,25 @@ AretaCare is an AI-powered care advocate assistant that helps families navigate 
 - **Enhanced Markdown Rendering**: Custom formatted messages with proper spacing, color-aware styling, and clean typography
 - **Daily Plan**: AI-generated daily summaries with priorities, reminders, and questions for care team (auto-generates after 2 AM, user editable, delete/regenerate support)
 - **AI Journal Synthesis**: Automatically extracts and organizes key medical updates with accurate timezone handling
-- **Journal with Date Navigation**: Reverse chronological order, sticky sidebar with date selector, scroll-to-date functionality
-- **Document Upload & Analysis**: Upload PDFs, images, or text files for AI analysis with GPT-5.1 native file support
+- **Journal with Date Navigation**: Reverse chronological order, sticky sidebar with date selector, scroll-to-date functionality, entry types include appointment, symptom, medication, test_result, milestone, note, and other
+- **Document Upload & Analysis**: Upload PDFs, images, or text files for AI analysis with GPT-5.1 native file support, PDF thumbnails for visual preview
 - **Smart Scrolling**: Auto-scroll stops at message input box (not footer), only when user is near bottom
-- **Audio Recording**: Voice input with clear start/stop buttons and real-time transcription
+- **Audio Recording**: Voice input with live waveform visualization, clear start/stop buttons, and real-time transcription
 
 ### Specialized Tools
-- **Jargon Translator**: Translate complex medical terminology into simple, understandable language with audio input support
-- **Conversation Coach**: Prepare for healthcare appointments with suggested questions, conversation tips, and voice recording
-- **Documents Manager**: View, manage, and delete uploaded medical documents with image previews
+- **Jargon Translator**: Translate complex medical terminology into simple, understandable language with audio input and waveform visualization
+- **Conversation Coach**: Prepare for healthcare appointments with suggested questions, conversation tips, voice recording, and live waveform feedback
+- **Documents Manager**: View, manage, and delete uploaded medical documents with image previews and PDF thumbnails
 - **About Page**: Comprehensive feature descriptions organized with clear sections and bullet points
+- **Legal Pages**: Professional Terms of Service and Privacy Policy with clear formatting, warning boxes, and GitHub repository links
 
 ### Security & Privacy
 - **User Authentication**: Secure JWT-based authentication with bcrypt password hashing
 - **Session Management**: User sessions with conversation history tied to accounts
 - **Secure Storage**: Medical documents stored in AWS S3 with encrypted transmission
+- **Complete Data Deletion**: Session deletion removes all PostgreSQL data and S3 files (documents, thumbnails, audio recordings) with zero orphaned files
 - **Data Control**: Users can clear session data or delete individual documents at any time
+- **Transparent Policies**: Clear Terms of Service and Privacy Policy available on all auth screens and in footer
 
 ### User Experience
 - **Professional UI**: Clean, modern interface with intuitive navigation and organized content structure
@@ -207,10 +210,13 @@ docker compose down -v
 
 **Storage (AWS S3)**
 - Medical documents uploaded to S3 with unique keys
+- PDF thumbnails automatically generated and stored for visual preview
+- Audio recordings stored with metadata for playback and transcription
 - Text extraction happens on upload (PDF, images via OCR)
 - Extracted text stored in database for quick access
 - Presigned URLs generated for secure document access (24-hour expiration)
 - Native GPT-5.1 file support for PDFs and images
+- Complete cleanup on session deletion (documents, thumbnails, audio files)
 
 ### Key Architecture Features
 
@@ -228,9 +234,9 @@ docker compose down -v
 **AI Journal Synthesis**
 - Automatically analyzes conversations for medical significance
 - Creates structured journal entries with titles, content, and metadata
-- Organizes entries by date
+- Organizes entries by date with reverse chronological display
 - Supports manual entry creation, editing, and deletion
-- Entry types: appointment, symptom, medication, test_result, milestone, note
+- Entry types: appointment, symptom, medication, test_result, milestone, note, other
 
 **GPT-5.1 Native File Support**
 - Documents and images passed directly to OpenAI API
@@ -244,8 +250,10 @@ docker compose down -v
 - Scroll-to-bottom button appears when user scrolls up
 - Responsive design with mobile hamburger menu (lg breakpoint)
 - Mobile journal appears as full-screen modal overlay
-- Image previews in Documents page with thumbnail grid
-- S3 cleanup when clearing session (deletes files from storage)
+- Image previews and PDF thumbnails in Documents page with thumbnail grid
+- Live audio waveform visualization during recording for immediate feedback
+- Complete S3 cleanup when clearing session (documents, thumbnails, audio files)
+- Professional legal pages with gradient backgrounds, warning boxes, and clear formatting
 
 ## API Endpoints
 
@@ -258,14 +266,15 @@ docker compose down -v
 - `POST /api/sessions/` - Create session
 - `POST /api/sessions/primary` - Get or create primary session
 - `GET /api/sessions/{id}` - Get session
-- `DELETE /api/sessions/{id}` - Delete session
+- `DELETE /api/sessions/{id}` - Delete session (removes all PostgreSQL data and S3 files: documents, thumbnails, audio recordings)
 - `POST /api/sessions/{id}/cleanup` - Cleanup session data
 
 ### Documents
-- `POST /api/documents/upload` - Upload document
+- `POST /api/documents/upload` - Upload document (auto-generates PDF thumbnails)
 - `GET /api/documents/session/{id}` - Get session documents
 - `GET /api/documents/{id}` - Get document details
-- `DELETE /api/documents/{id}` - Delete document
+- `GET /api/documents/{id}/thumbnail-url` - Get presigned thumbnail URL (for PDFs)
+- `DELETE /api/documents/{id}` - Delete document (removes document and thumbnail from S3)
 - `GET /api/documents/{id}/download-url` - Get presigned download URL
 
 ### Conversation
@@ -427,12 +436,14 @@ docker compose up -d --build backend
 
 **System Dependencies** (in Dockerfile):
 - `tesseract-ocr` - OCR engine for extracting text from images
-- `ffmpeg` - Required for audio transcription
+- `poppler-utils` - Required for PDF thumbnail generation
+- `ffmpeg` - Required for audio transcription and processing
 
 **Python Packages** (in `backend/requirements.txt`):
 - `httpx<0.28.0` - Version 0.28+ breaks OpenAI client
 - `openai>=1.56.0` - Earlier versions have httpx incompatibility
 - `pytesseract==0.3.10` - Python wrapper for tesseract-ocr
+- `pdf2image==1.16.3` - PDF to image conversion for thumbnail generation
 - `bcrypt<5.0.0` - **CRITICAL**: Version 5.x incompatible with passlib 1.7.4
 - `passlib[bcrypt]==1.7.4` - Password hashing
 - `python-jose[cryptography]==3.3.0` - JWT token creation/validation

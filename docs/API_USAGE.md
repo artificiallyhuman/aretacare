@@ -142,11 +142,25 @@ curl http://localhost:8000/api/sessions/{session_id}
 
 ```bash
 DELETE /api/sessions/{session_id}
+Authorization: Bearer <token>
+```
+
+**Important:** This endpoint performs a complete cleanup of all user data:
+- **PostgreSQL**: Deletes all conversations, journal entries, documents metadata, audio recordings metadata, and daily plans
+- **AWS S3**: Deletes all document files, PDF thumbnails, and audio recording files
+- **User Account**: Preserved (user can login and start a new session)
+
+**Response:**
+```json
+{
+  "message": "Session deleted successfully"
+}
 ```
 
 **Example:**
 ```bash
-curl -X DELETE http://localhost:8000/api/sessions/{session_id}
+curl -X DELETE http://localhost:8000/api/sessions/{session_id} \
+  -H "Authorization: Bearer <token>"
 ```
 
 ### Documents
@@ -155,12 +169,18 @@ curl -X DELETE http://localhost:8000/api/sessions/{session_id}
 
 ```bash
 POST /api/documents/upload
+Authorization: Bearer <token>
 Content-Type: multipart/form-data
 ```
 
 **Parameters:**
 - `file` (file): The document to upload
 - `session_id` (string, optional): Session ID to associate with
+
+**Processing:**
+- PDFs: Text extraction + thumbnail generation (first page at 150 DPI, max width 300px)
+- Images: OCR text extraction
+- All files: Text content stored in database
 
 **Response:**
 ```json
@@ -169,13 +189,15 @@ Content-Type: multipart/form-data
   "filename": "medical_report.pdf",
   "content_type": "application/pdf",
   "uploaded_at": "2025-01-15T10:00:00Z",
-  "extracted_text": "Extracted text content..."
+  "extracted_text": "Extracted text content...",
+  "thumbnail_s3_key": "thumbnails/uuid.png"
 }
 ```
 
 **Example:**
 ```bash
 curl -X POST http://localhost:8000/api/documents/upload \
+  -H "Authorization: Bearer <token>" \
   -F "file=@medical_report.pdf" \
   -F "session_id=your-session-id"
 ```
@@ -189,6 +211,28 @@ GET /api/documents/session/{session_id}
 **Example:**
 ```bash
 curl http://localhost:8000/api/documents/session/{session_id}
+```
+
+#### Get Document Thumbnail URL
+
+```bash
+GET /api/documents/{document_id}/thumbnail-url
+Authorization: Bearer <token>
+```
+
+**Note:** Only available for PDF documents. Returns a presigned S3 URL for the thumbnail image (24-hour expiration).
+
+**Response:**
+```json
+{
+  "url": "https://s3.amazonaws.com/bucket/thumbnails/..."
+}
+```
+
+**Example:**
+```bash
+curl -H "Authorization: Bearer <token>" \
+  http://localhost:8000/api/documents/1/thumbnail-url
 ```
 
 ### Conversation
@@ -322,6 +366,15 @@ Content-Type: application/json
   "entry_date": "2025-01-15"
 }
 ```
+
+**Valid Entry Types:**
+- `appointment` - Doctor visits, scheduled procedures
+- `symptom` - Physical symptoms or changes
+- `medication` - Medication changes or notes
+- `test_result` - Lab results, imaging results
+- `milestone` - Important health milestones
+- `note` - General notes
+- `other` - Any other health-related information
 
 **Example:**
 ```bash
@@ -697,10 +750,22 @@ const uploadDocument = async (file, sessionId) => {
   return response.data;
 };
 
+// Get PDF thumbnail URL
+const getDocumentThumbnail = async (documentId) => {
+  const response = await api.get(`/documents/${documentId}/thumbnail-url`);
+  return response.data.url; // Presigned S3 URL
+};
+
 // Usage
 const sessionId = await getSession();
 const document = await uploadDocument(myFile, sessionId);
 console.log('Extracted text:', document.extracted_text);
+
+// If it's a PDF, get the thumbnail
+if (document.content_type === 'application/pdf' && document.thumbnail_s3_key) {
+  const thumbnailUrl = await getDocumentThumbnail(document.id);
+  console.log('Thumbnail URL:', thumbnailUrl);
+}
 ```
 
 ### Conversation
@@ -831,6 +896,7 @@ const createJournalEntry = async (sessionId, title, content, entryType, date) =>
 const entries = await getJournalEntries(sessionId);
 console.log('Entries by date:', entries);
 
+// Valid entry types: 'appointment', 'symptom', 'medication', 'test_result', 'milestone', 'note', 'other'
 const newEntry = await createJournalEntry(
   sessionId,
   'Lab Results',
@@ -921,9 +987,11 @@ Currently, there are no rate limits implemented. However, be mindful of:
 
 1. **Session Management**: Create one session per user/browser session
 2. **Error Handling**: Always implement proper error handling
-3. **File Validation**: Validate file types and sizes before upload
-4. **Privacy**: Clear sessions when done to protect user privacy
+3. **File Validation**: Validate file types and sizes before upload (10MB max)
+4. **Privacy**: Clear sessions when done to protect user privacy - this removes ALL data from PostgreSQL and S3
 5. **Context**: Provide context when using the chat or translation features
+6. **Thumbnails**: Check for `thumbnail_s3_key` before requesting PDF thumbnails
+7. **Data Deletion**: Warn users that session deletion is permanent and removes all data including S3 files
 
 ## Health Check
 
