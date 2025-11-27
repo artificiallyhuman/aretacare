@@ -2,6 +2,7 @@ import React, { useState, useRef } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { toolsAPI, conversationAPI } from '../../services/api';
 import { useSession } from '../../hooks/useSession';
+import AudioWaveform from '../../components/AudioWaveform';
 
 const ConversationCoach = () => {
   const { sessionId } = useSession();
@@ -11,6 +12,7 @@ const ConversationCoach = () => {
   const [error, setError] = useState(null);
   const [isRecording, setIsRecording] = useState(false);
   const [isTranscribing, setIsTranscribing] = useState(false);
+  const [audioStream, setAudioStream] = useState(null);
   const mediaRecorderRef = useRef(null);
   const audioChunksRef = useRef([]);
 
@@ -36,6 +38,8 @@ const ConversationCoach = () => {
   const startRecording = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      setAudioStream(stream); // Save stream for waveform visualization
+
       const mediaRecorder = new MediaRecorder(stream);
       mediaRecorderRef.current = mediaRecorder;
       audioChunksRef.current = [];
@@ -50,6 +54,7 @@ const ConversationCoach = () => {
 
         // Stop all tracks to release the microphone
         stream.getTracks().forEach(track => track.stop());
+        setAudioStream(null); // Clear stream reference
       });
 
       mediaRecorder.start();
@@ -102,9 +107,13 @@ const ConversationCoach = () => {
 
           {/* Recording/Transcribing status */}
           {isRecording && (
-            <div className="mb-3 flex items-center space-x-2 p-3 bg-red-100 rounded-lg border-2 border-red-300 shadow-sm">
-              <div className="w-3 h-3 bg-red-600 rounded-full animate-pulse"></div>
-              <span className="text-sm font-medium text-red-800">Recording... Click "Stop Recording" when finished</span>
+            <div className="mb-3 p-3 bg-red-100 rounded-lg border-2 border-red-300 shadow-sm space-y-2">
+              <div className="flex items-center space-x-2">
+                <div className="w-3 h-3 bg-red-600 rounded-full animate-pulse"></div>
+                <span className="text-sm font-medium text-red-800">Recording... Click "Stop Recording" when finished</span>
+              </div>
+              {/* Live waveform visualization */}
+              <AudioWaveform stream={audioStream} isRecording={isRecording} />
             </div>
           )}
           {isTranscribing && (

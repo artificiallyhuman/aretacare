@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { conversationAPI } from '../services/api';
 import { useSession } from '../hooks/useSession';
+import AudioWaveform from './AudioWaveform';
 
 const MessageInput = ({ onSendMessage, onFileUpload, loading }) => {
   const { sessionId } = useSession();
@@ -8,6 +9,7 @@ const MessageInput = ({ onSendMessage, onFileUpload, loading }) => {
   const [selectedFile, setSelectedFile] = useState(null);
   const [isRecording, setIsRecording] = useState(false);
   const [isTranscribing, setIsTranscribing] = useState(false);
+  const [audioStream, setAudioStream] = useState(null);
   const fileInputRef = useRef(null);
   const mediaRecorderRef = useRef(null);
   const audioChunksRef = useRef([]);
@@ -62,6 +64,8 @@ const MessageInput = ({ onSendMessage, onFileUpload, loading }) => {
   const startRecording = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      setAudioStream(stream); // Save stream for waveform visualization
+
       const mediaRecorder = new MediaRecorder(stream);
       mediaRecorderRef.current = mediaRecorder;
       audioChunksRef.current = [];
@@ -76,6 +80,7 @@ const MessageInput = ({ onSendMessage, onFileUpload, loading }) => {
 
         // Stop all tracks to release the microphone
         stream.getTracks().forEach(track => track.stop());
+        setAudioStream(null); // Clear stream reference
       });
 
       mediaRecorder.start();
@@ -114,9 +119,13 @@ const MessageInput = ({ onSendMessage, onFileUpload, loading }) => {
     <form onSubmit={handleSubmit} className="border-t-2 border-primary-200 bg-gradient-to-r from-primary-50 to-blue-50 p-2 md:p-4 shadow-lg">
       {/* Recording/Transcribing status */}
       {isRecording && (
-        <div className="mb-2 md:mb-3 flex items-center space-x-2 p-2 md:p-3 bg-red-100 rounded-lg border-2 border-red-300 shadow-sm">
-          <div className="w-2.5 h-2.5 md:w-3 md:h-3 bg-red-600 rounded-full animate-pulse"></div>
-          <span className="text-xs md:text-sm font-medium text-red-800">Recording... Click "Stop" when finished</span>
+        <div className="mb-2 md:mb-3 p-2 md:p-3 bg-red-100 rounded-lg border-2 border-red-300 shadow-sm space-y-2">
+          <div className="flex items-center space-x-2">
+            <div className="w-2.5 h-2.5 md:w-3 md:h-3 bg-red-600 rounded-full animate-pulse"></div>
+            <span className="text-xs md:text-sm font-medium text-red-800">Recording... Click "Stop" when finished</span>
+          </div>
+          {/* Live waveform visualization */}
+          <AudioWaveform stream={audioStream} isRecording={isRecording} />
         </div>
       )}
       {isTranscribing && (
