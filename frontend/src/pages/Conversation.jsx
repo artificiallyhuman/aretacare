@@ -20,7 +20,12 @@ const Conversation = () => {
   const isNearBottomRef = useRef(true);
 
   const scrollToBottom = (behavior = 'smooth') => {
-    messagesEndRef.current?.scrollIntoView({ behavior });
+    if (messagesContainerRef.current) {
+      messagesContainerRef.current.scrollTo({
+        top: messagesContainerRef.current.scrollHeight,
+        behavior
+      });
+    }
   };
 
   // Check if user is near bottom of chat
