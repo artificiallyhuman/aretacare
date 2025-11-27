@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { toolsAPI } from '../../services/api';
-import Disclaimer from '../../components/Disclaimer';
 
 const JargonTranslator = () => {
   const [medicalTerm, setMedicalTerm] = useState('');
@@ -34,8 +33,6 @@ const JargonTranslator = () => {
       <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-4 sm:mb-6">
         Medical Jargon Translator
       </h1>
-
-      <Disclaimer />
 
       <div className="card mb-4 sm:mb-6">
         <h2 className="text-lg sm:text-xl font-semibold text-gray-900 mb-4">

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { authAPI } from '../services/api';
+import Disclaimer from '../components/Disclaimer';
 
 function Login() {
   const [email, setEmail] = useState('');
@@ -57,7 +58,12 @@ function Login() {
         </p>
       </div>
 
-      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
+      {/* Disclaimer */}
+      <div className="mt-6 sm:mx-auto sm:w-full sm:max-w-md px-4 sm:px-0">
+        <Disclaimer />
+      </div>
+
+      <div className="mt-6 sm:mx-auto sm:w-full sm:max-w-md">
         <div className="bg-white py-6 px-4 shadow-md sm:rounded-xl sm:px-10 border border-gray-200">
           {error && (
             <div className="mb-4 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">

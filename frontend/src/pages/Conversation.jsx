@@ -4,7 +4,6 @@ import { conversationAPI, documentAPI, dailyPlanAPI } from '../services/api';
 import MessageBubble from '../components/MessageBubble';
 import MessageInput from '../components/MessageInput';
 import DailyPlanPanel from '../components/DailyPlan/DailyPlanPanel';
-import Disclaimer from '../components/Disclaimer';
 
 const Conversation = () => {
   const { sessionId, loading: sessionLoading } = useSession();
@@ -184,9 +183,6 @@ const Conversation = () => {
 
   return (
     <div className="flex flex-col h-[calc(100vh-4rem)]">
-      {/* Disclaimer */}
-      <Disclaimer />
-
       {/* Main content area */}
       <div className="flex flex-1 overflow-hidden">
         {/* Daily Plan Panel (collapsible sidebar) */}

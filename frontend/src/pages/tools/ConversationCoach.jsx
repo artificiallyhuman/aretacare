@@ -2,7 +2,6 @@ import React, { useState, useRef } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { toolsAPI, conversationAPI } from '../../services/api';
 import { useSession } from '../../hooks/useSession';
-import Disclaimer from '../../components/Disclaimer';
 
 const ConversationCoach = () => {
   const { sessionId } = useSession();
@@ -90,8 +89,6 @@ const ConversationCoach = () => {
       <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-4 sm:mb-6">
         Conversation Coach
       </h1>
-
-      <Disclaimer />
 
       <div className="card mb-4 sm:mb-6">
         <h2 className="text-lg sm:text-xl font-semibold text-gray-900 mb-4">
