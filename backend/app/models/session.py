@@ -24,6 +24,7 @@ class Session(Base):
     documents = relationship("Document", back_populates="session", cascade="all, delete-orphan")
     conversations = relationship("Conversation", back_populates="session", cascade="all, delete-orphan")
     journal_entries = relationship("JournalEntry", back_populates="session", cascade="all, delete-orphan")
+    audio_recordings = relationship("AudioRecording", back_populates="session", cascade="all, delete-orphan")
 
     __table_args__ = (
         Index('idx_user_primary', 'user_id', 'is_primary', unique=True, postgresql_where=(is_primary == True)),

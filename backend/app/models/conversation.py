@@ -15,6 +15,7 @@ class MessageType(str, enum.Enum):
     TEXT = "text"
     DOCUMENT = "document"
     IMAGE = "image"
+    AUDIO = "audio"
 
 
 class Conversation(Base):

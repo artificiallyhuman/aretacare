@@ -6,15 +6,18 @@ AretaCare is an AI-powered care advocate assistant that helps families navigate 
 
 ### Core Application
 - **Conversation Interface**: Primary chat interface with AI care advocate that maintains conversation history
+- **Enhanced Markdown Rendering**: Custom formatted messages with proper spacing, color-aware styling, and clean typography
 - **AI Journal Synthesis**: Automatically extracts and organizes key medical updates into a structured journal
 - **Document Upload & Analysis**: Upload PDFs, images, or text files for AI analysis with GPT-5.1 native file support
 - **Collapsible Journal Panel**: Side panel showing organized entries by date with add/edit/delete capabilities
 - **Smart Scrolling**: Auto-scroll behavior with manual scroll-to-bottom button for long conversations
+- **Audio Recording**: Voice input with clear start/stop buttons and real-time transcription
 
 ### Specialized Tools
-- **Jargon Translator**: Translate complex medical terminology into simple, understandable language
-- **Conversation Coach**: Prepare for healthcare appointments with suggested questions and conversation tips
+- **Jargon Translator**: Translate complex medical terminology into simple, understandable language with audio input support
+- **Conversation Coach**: Prepare for healthcare appointments with suggested questions, conversation tips, and voice recording
 - **Documents Manager**: View, manage, and delete uploaded medical documents with image previews
+- **About Page**: Comprehensive feature descriptions organized with clear sections and bullet points
 
 ### Security & Privacy
 - **User Authentication**: Secure JWT-based authentication with bcrypt password hashing
@@ -23,10 +26,12 @@ AretaCare is an AI-powered care advocate assistant that helps families navigate 
 - **Data Control**: Users can clear session data or delete individual documents at any time
 
 ### User Experience
-- **Professional UI**: Clean, modern interface with intuitive navigation
+- **Professional UI**: Clean, modern interface with intuitive navigation and organized content structure
 - **Mobile Responsive**: Fully optimized for mobile devices with hamburger menu navigation
 - **Accessibility**: Professional design system with consistent spacing and typography
 - **Smart UI Behavior**: Click-away dropdown menus, smooth transitions, and responsive feedback
+- **Enhanced Content Organization**: Feature descriptions with intro sentences followed by organized bullet points
+- **Clear Onboarding**: Welcome instructions directing users to conversation input with example topics
 
 ## Safety Boundaries
 
@@ -187,6 +192,7 @@ docker compose down -v
 - User authentication with JWT tokens stored in localStorage
 - Auth token automatically included in API requests via axios interceptor
 - Protected routes redirect to login if not authenticated
+- Custom ReactMarkdown components for enhanced message rendering with color-aware styling
 
 **Database (PostgreSQL)**
 - Five main tables: `users`, `sessions`, `documents`, `conversations`, `journal_entries`
@@ -209,10 +215,12 @@ docker compose down -v
 - Main interface is a chat conversation with AI care advocate
 - Journal panel hidden by default; opens as sidebar on desktop or modal on mobile
 - Welcome page with clear onboarding instructions directing users to message box
-- Messages can include text, documents, and images
+- Messages can include text, documents, images, and voice recordings
+- Enhanced markdown rendering with custom components for clean, readable formatting
 - Smart auto-scroll behavior with manual scroll button (only when messages exist)
 - Compact message spacing for better conversation flow
 - Conversation history persists across sessions
+- Separate start/stop buttons for audio recording with visual feedback
 
 **AI Journal Synthesis**
 - Automatically analyzes conversations for medical significance
@@ -313,10 +321,10 @@ aretacare/
 ├── frontend/
 │   ├── src/
 │   │   ├── components/
-│   │   │   ├── Header.jsx           # Responsive nav with tools dropdown
+│   │   │   ├── Header.jsx           # Responsive nav with tools dropdown (About after Tools)
 │   │   │   ├── Disclaimer.jsx       # Safety disclaimer
-│   │   │   ├── MessageBubble.jsx    # Chat message display
-│   │   │   ├── MessageInput.jsx     # Chat input with file upload
+│   │   │   ├── MessageBubble.jsx    # Chat message display with custom markdown rendering
+│   │   │   ├── MessageInput.jsx     # Chat input with file upload and audio recording
 │   │   │   └── Journal/
 │   │   │       ├── JournalPanel.jsx # Collapsible journal sidebar
 │   │   │       ├── JournalEntry.jsx # Individual entry display
@@ -325,8 +333,10 @@ aretacare/
 │   │   │   ├── Login.jsx            # Login page
 │   │   │   ├── Register.jsx         # Registration page
 │   │   │   ├── Conversation.jsx     # Main conversation interface
+│   │   │   ├── About.jsx            # About page with feature descriptions
+│   │   │   ├── JournalView.jsx      # Full journal page view
+│   │   │   ├── AudioRecordings.jsx  # Audio recordings manager
 │   │   │   └── tools/
-│   │   │       ├── MedicalSummary.jsx    # Medical summary tool
 │   │   │       ├── JargonTranslator.jsx  # Jargon translator tool
 │   │   │       ├── ConversationCoach.jsx # Conversation coach tool
 │   │   │       └── Documents.jsx         # Document manager

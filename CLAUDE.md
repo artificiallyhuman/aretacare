@@ -8,16 +8,19 @@ AretaCare is an AI-powered medical care advocate assistant that helps families u
 
 **Key Features:**
 - **Conversation-first interface** with AI care advocate as the primary interaction model
+- **Enhanced markdown rendering** with custom ReactMarkdown components, color-aware styling, and clean typography
 - **AI Journal Synthesis** that automatically extracts and organizes medical updates from conversations
 - **GPT-5.1 native file support** for PDFs and images via Responses API
+- **Audio recording** with separate start/stop buttons, visual feedback, and real-time transcription
 - JWT-based user authentication with secure password hashing
 - Session-based conversation history tied to user accounts
 - Collapsible journal panel (hidden by default) with organized entries by date
+- **About page** with comprehensive feature descriptions organized as intro sentences + bullet points
 - Professional UI with modern design and smart UI behaviors (click-away dropdowns, smart scrolling, mobile modals)
-- Mobile-responsive design with hamburger menu navigation and full-screen journal modal
+- Mobile-responsive design with hamburger menu navigation (About after Tools) and full-screen journal modal
 - Medical document upload with OCR support, S3 storage, and automatic cleanup on session clear
 - Image previews in Documents page with thumbnail grid
-- Specialized tools: Jargon Translator, Conversation Coach, Documents Manager
+- Specialized tools: Jargon Translator (with voice input), Conversation Coach (with voice recording), Documents Manager
 
 ## Development Commands
 
@@ -130,9 +133,12 @@ STRICT SAFETY BOUNDARIES - YOU MUST NEVER:
 
 **Conversation-First Design**
 - Primary interface is a conversational chat with AI care advocate
+- Enhanced markdown rendering with custom ReactMarkdown components for clean, readable formatting
+- Color-aware styling: prose-invert for user messages, prose-gray for AI messages
 - Journal panel hidden by default; opens as sidebar on desktop (md+) or full-screen modal on mobile
-- Welcome page with clear instructions directing users to start typing in message box
-- Messages can include text, uploaded documents (PDFs), and images
+- Welcome page with "How to Get Started" instructions directing users to message box
+- Messages can include text, uploaded documents (PDFs), images, and voice recordings
+- Separate audio recording buttons: start (microphone icon) and stop (red button with "Stop Recording" text)
 - Smart scrolling: auto-scroll only when user is near bottom, manual scroll button otherwise
 - Compact message spacing (space-y-2) for better conversation flow
 - Conversation history persists across sessions
@@ -221,13 +227,14 @@ STRICT SAFETY BOUNDARIES - YOU MUST NEVER:
 - `frontend/src/App.jsx` - Router configuration, protected/public routes, layout with responsive footer
 - `frontend/src/pages/Login.jsx` - Login page with professional styling, mobile-responsive
 - `frontend/src/pages/Register.jsx` - Registration page with professional styling, mobile-responsive
-- `frontend/src/pages/Conversation.jsx` - **Main conversation interface** with chat + journal panel, smart scrolling, welcome page
-- `frontend/src/pages/tools/` - Standalone tools (JargonTranslator, ConversationCoach, Documents with image previews)
-- `frontend/src/components/Header.jsx` - **Mobile-responsive navigation** with hamburger menu (lg breakpoint), tools dropdown with click-away behavior
+- `frontend/src/pages/Conversation.jsx` - **Main conversation interface** with chat + journal panel, smart scrolling, welcome page with "How to Get Started"
+- `frontend/src/pages/About.jsx` - **About page** with comprehensive feature descriptions organized as intro sentences + bullet points (Conversation, Journal, Tools, Privacy)
+- `frontend/src/pages/tools/` - Standalone tools (JargonTranslator with voice input, ConversationCoach with voice recording, Documents with image previews)
+- `frontend/src/components/Header.jsx` - **Mobile-responsive navigation** with hamburger menu (lg breakpoint), tools dropdown with click-away behavior, About link after Tools
 - `frontend/src/components/Disclaimer.jsx` - Responsive safety disclaimer component
 - `frontend/src/components/Journal/JournalPanel.jsx` - Collapsible journal sidebar with entries by date
-- `frontend/src/components/MessageBubble.jsx` - Chat message display with rich media support
-- `frontend/src/components/MessageInput.jsx` - Chat input with file upload (documents/images)
+- `frontend/src/components/MessageBubble.jsx` - Chat message display with custom ReactMarkdown components and color-aware styling
+- `frontend/src/components/MessageInput.jsx` - Chat input with file upload (documents/images) and separate start/stop audio recording buttons
 - `frontend/src/services/api.js` - Axios instance with auth token interceptor, conversation/journal/tools APIs
 - `frontend/src/hooks/useSession.js` - Session & auth state management (calls /auth/me)
 - `frontend/src/styles/index.css` - Tailwind CSS with responsive custom components (.btn-primary, .card, .input, .textarea)
@@ -319,9 +326,12 @@ curl http://localhost:8000/api/auth/me \
 2. Ensure mobile responsiveness using Tailwind breakpoints (sm:, md:, lg:)
 3. Use consistent spacing: `py-6 sm:py-8 lg:py-12` for page padding
 4. Use responsive text sizes: `text-2xl sm:text-3xl` for headings
-5. Add route in `frontend/src/App.jsx`
-6. Add navigation link in `frontend/src/components/Header.jsx` (both desktop and mobile menus)
-7. Hot reload handles updates automatically
+5. For content-heavy pages, use intro sentences followed by bullet points for better organization
+6. Add route in `frontend/src/App.jsx`
+7. Add navigation link in `frontend/src/components/Header.jsx` (both desktop and mobile menus)
+   - Desktop: Links appear in nav order (Conversation → Journal → Tools dropdown → About → User section)
+   - Mobile: Same order within mobile menu
+8. Hot reload handles updates automatically
 
 ### Debugging Connection Issues
 
@@ -405,28 +415,34 @@ Access points after `docker compose up`:
 
 **UI Features:**
 - **Conversation-first interface**: Main page is chat with AI care advocate
-- **Welcome page**: Clear onboarding with intro, feature cards, and instructions directing to message box
+- **Enhanced markdown rendering**: Custom ReactMarkdown components with color-aware styling (prose-invert for user, prose-gray for AI)
+- **Welcome page**: Clear onboarding with "How to Get Started" instructions and example topics directing to message box
+- **About page**: Comprehensive feature descriptions organized with intro sentences + color-coded bullet points (blue: Conversation, green: Journal, purple: Tools, gray: Privacy)
 - **Collapsible journal panel**: Hidden by default, sidebar on desktop, full-screen modal on mobile
 - **Smart scrolling**: Auto-scroll when near bottom (only with messages), manual scroll-to-bottom button when scrolled up
+- **Audio recording**: Separate start (microphone icon) and stop (red "Stop Recording" button) with visual feedback and transcription status
 - **Click-away dropdowns**: Tools menu closes when clicking outside
-- **Mobile-responsive navigation**: Hamburger menu on mobile (<1024px), full nav on desktop
+- **Mobile-responsive navigation**: Hamburger menu on mobile (<1024px), full nav on desktop, About link positioned after Tools
 - Professional header with AretaCare branding, user avatar (shows first initial), and tools dropdown
 - File upload support: Upload PDFs, images (PNG, JPG), or text files in conversation
+- Voice input support: Jargon Translator and Conversation Coach both have audio recording capabilities
 - Compact message spacing for better conversation flow
 - Responsive design with Tailwind CSS breakpoints (sm, md, lg)
 - Professional login/register pages with consistent styling
-- Clear Session icon button (trash can) to delete conversation history and S3 files
+- Clear Session icon button (trash can) to delete conversation history and S3 files - **permanent deletion warning emphasized**
 - Logout button to sign out
 - Documents manager with image previews (thumbnails) and full-size preview modal
 
 **Testing the Application:**
 
-1. **Welcome page**: See clear onboarding with instructions to start typing
-2. **Start conversation**: Type in message box, send first message
-3. **Upload a document**: Click attach button, select PDF or image
-4. **Journal synthesis**: Ask medical questions, click "Show Journal" to view entries
-5. **Tools section**: Access Jargon Translator, Conversation Coach, Documents (with image previews)
-6. **Clear session**: Click trash icon to delete all data (includes S3 files)
+1. **Welcome page**: See "How to Get Started" with instructions and example topics
+2. **Start conversation**: Type in message box or click microphone to record voice, send first message
+3. **Audio recording**: Click microphone, speak, click red "Stop Recording" button when finished
+4. **Upload a document**: Click attach button, select PDF or image
+5. **View About page**: Navigate to About (after Tools in menu) to see comprehensive feature descriptions with organized bullet points
+6. **Journal synthesis**: Ask medical questions, click "Show Journal" to view auto-generated entries
+7. **Tools section**: Access Jargon Translator (with voice input), Conversation Coach (with voice recording), Documents (with image previews)
+8. **Clear session**: Click trash icon - see permanent deletion warning, confirm to delete all data (includes S3 files)
 
 Sample medical text for testing:
 ```

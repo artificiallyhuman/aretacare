@@ -81,9 +81,20 @@ const Header = ({ onClearSession, onLogout, user }) => {
                   >
                     Documents
                   </Link>
+                  <Link
+                    to="/audio-recordings"
+                    className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-primary-600"
+                    onClick={() => setToolsDropdownOpen(false)}
+                  >
+                    Audio Recordings
+                  </Link>
                 </div>
               )}
             </div>
+
+            <Link to="/about" className="px-3 py-2 text-sm font-medium text-gray-700 hover:text-primary-600 hover:bg-gray-50 rounded-md transition-colors">
+              About
+            </Link>
 
             <div className="ml-4 pl-4 border-l border-gray-200 flex items-center space-x-3">
               <div className="flex items-center space-x-2">
@@ -185,8 +196,23 @@ const Header = ({ onClearSession, onLogout, user }) => {
                   >
                     Documents
                   </Link>
+                  <Link
+                    to="/audio-recordings"
+                    className="block px-3 py-2 text-base font-medium text-gray-700 hover:text-primary-600 hover:bg-gray-50 rounded-md transition-colors"
+                    onClick={() => setMobileMenuOpen(false)}
+                  >
+                    Audio Recordings
+                  </Link>
                 </div>
               </div>
+
+              <Link
+                to="/about"
+                className="px-3 py-2 text-base font-medium text-gray-700 hover:text-primary-600 hover:bg-gray-50 rounded-md transition-colors"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                About
+              </Link>
 
               <div className="border-t border-gray-200 pt-3 mt-3 space-y-2">
                 <div className="px-3 py-2 flex items-center space-x-2">

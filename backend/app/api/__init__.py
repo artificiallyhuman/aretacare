@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from app.api import auth, sessions, documents, medical, journal, conversation, tools
+from app.api import auth, sessions, documents, medical, journal, conversation, tools, audio_recording
 
 api_router = APIRouter()
 
@@ -11,6 +11,9 @@ api_router.include_router(sessions.router)
 
 # Document management
 api_router.include_router(documents.router)
+
+# Audio recordings
+api_router.include_router(audio_recording.router)
 
 # Journal (new)
 api_router.include_router(journal.router)

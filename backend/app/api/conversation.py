@@ -1,7 +1,7 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
 from sqlalchemy.orm import Session
 from app.core.database import get_db
-from app.models import User, Session as SessionModel, Conversation, Document
+from app.models import User, Session as SessionModel, Conversation, Document, AudioRecording
 from app.models.conversation import MessageRole, MessageType
 from app.schemas.conversation import MessageRequest, MessageResponse, ConversationHistory
 from app.services.openai_service import openai_service
@@ -9,6 +9,15 @@ from app.services.journal_service import JournalService
 from app.services.s3_service import s3_service
 from app.api.auth import get_current_user
 from typing import Optional
+from datetime import datetime
+import uuid
+import logging
+import io
+import tempfile
+import os
+from pydub import AudioSegment
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/conversation", tags=["conversation"])
 
@@ -180,3 +189,130 @@ async def get_conversation_history(
         message_responses.append(MessageResponse(**msg_dict))
 
     return {"messages": message_responses}
+
+
+@router.post("/transcribe")
+async def transcribe_audio(
+    audio: UploadFile = File(...),
+    session_id: str = Form(...),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Transcribe audio file to text using OpenAI's speech-to-text"""
+    # Verify session belongs to current user
+    session = db.query(SessionModel).filter(SessionModel.id == session_id).first()
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+    if session.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    try:
+        # Validate audio file type
+        allowed_types = ['audio/mpeg', 'audio/mp4', 'audio/mpeg', 'audio/mpga', 'audio/m4a', 'audio/wav', 'audio/webm']
+        allowed_extensions = ['.mp3', '.mp4', '.mpeg', '.mpga', '.m4a', '.wav', '.webm']
+
+        file_ext = '.' + audio.filename.split('.')[-1].lower() if '.' in audio.filename else ''
+        if file_ext not in allowed_extensions and audio.content_type not in allowed_types:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid audio format. Supported formats: {', '.join(allowed_extensions)}"
+            )
+
+        # Generate unique filename for S3
+        timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
+        unique_id = str(uuid.uuid4())[:8]
+        s3_key = f"audio/{session_id}/{timestamp}_{unique_id}_{audio.filename}"
+
+        # Read audio file content
+        audio_content = await audio.read()
+
+        # Upload original to S3
+        await s3_service.upload_file(audio_content, s3_key, audio.content_type or 'audio/mpeg')
+        logger.info(f"Uploaded audio to S3: {s3_key}")
+
+        # Convert audio to mp3 for OpenAI using temporary files
+        audio_temp_path = None
+        mp3_temp_path = None
+        try:
+            # Debug: Check audio content
+            logger.info(f"Audio content size: {len(audio_content)} bytes")
+            logger.info(f"First 20 bytes: {audio_content[:20].hex() if len(audio_content) >= 20 else audio_content.hex()}")
+
+            # Write audio content to temporary file
+            with tempfile.NamedTemporaryFile(delete=False, suffix='.webm', mode='wb') as audio_temp:
+                bytes_written = audio_temp.write(audio_content)
+                audio_temp.flush()  # Ensure data is written to disk
+                os.fsync(audio_temp.fileno())  # Force write to disk
+                audio_temp_path = audio_temp.name
+                logger.info(f"Wrote {bytes_written} bytes to {audio_temp_path}")
+
+            # Verify file was written correctly
+            with open(audio_temp_path, 'rb') as verify:
+                file_size = os.path.getsize(audio_temp_path)
+                first_bytes = verify.read(20)
+                logger.info(f"Verified file size: {file_size} bytes, first 20 bytes: {first_bytes.hex()}")
+
+            # Create temporary file for mp3 output
+            mp3_temp_fd, mp3_temp_path = tempfile.mkstemp(suffix='.mp3')
+            os.close(mp3_temp_fd)  # Close file descriptor, pydub will open it
+
+            # Convert to mp3 (auto-detect input format)
+            audio_segment = AudioSegment.from_file(audio_temp_path)
+            duration_seconds = len(audio_segment) / 1000.0  # pydub returns milliseconds
+            audio_segment.export(mp3_temp_path, format="mp3")
+
+            # Read mp3 file into BytesIO for OpenAI
+            with open(mp3_temp_path, 'rb') as mp3_file:
+                mp3_buffer = io.BytesIO(mp3_file.read())
+                mp3_buffer.seek(0)
+
+            # Use mp3 filename for transcription
+            mp3_filename = audio.filename.rsplit('.', 1)[0] + '.mp3'
+            transcribed_text = await openai_service.transcribe_audio(mp3_buffer, mp3_filename)
+        except Exception as e:
+            logger.error(f"Error converting audio to mp3: {str(e)}")
+            raise HTTPException(status_code=500, detail=f"Error processing audio file: {str(e)}")
+        finally:
+            # Clean up temporary files
+            if audio_temp_path and os.path.exists(audio_temp_path):
+                os.unlink(audio_temp_path)
+            if mp3_temp_path and os.path.exists(mp3_temp_path):
+                os.unlink(mp3_temp_path)
+
+        if not transcribed_text:
+            raise HTTPException(status_code=500, detail="Failed to transcribe audio")
+
+        logger.info(f"Successfully transcribed audio for session {session_id}")
+
+        # Generate description from transcript
+        description = await openai_service.generate_recording_description(transcribed_text)
+        logger.info(f"Generated description: {description}")
+
+        # Save audio recording metadata to database
+        audio_recording = AudioRecording(
+            session_id=session_id,
+            filename=audio.filename,
+            s3_key=s3_key,
+            duration=duration_seconds,
+            transcribed_text=transcribed_text,
+            description=description
+        )
+        db.add(audio_recording)
+        db.commit()
+        db.refresh(audio_recording)
+
+        logger.info(f"Saved audio recording metadata to database: ID {audio_recording.id}")
+
+        return {
+            "transcribed_text": transcribed_text,
+            "audio_s3_key": s3_key,
+            "filename": audio.filename,
+            "recording_id": audio_recording.id,
+            "duration": duration_seconds
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error transcribing audio: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error transcribing audio: {str(e)}")

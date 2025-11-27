@@ -66,6 +66,16 @@ export const conversationAPI = {
     api.post('/conversation/message', null, { params: data }),
   getHistory: (sessionId, limit = 100) =>
     api.get(`/conversation/${sessionId}/history`, { params: { limit } }),
+  transcribeAudio: (audioFile, sessionId) => {
+    const formData = new FormData();
+    formData.append('audio', audioFile);
+    formData.append('session_id', sessionId);
+    return api.post('/conversation/transcribe', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+  },
 };
 
 // Journal API (new)
@@ -80,6 +90,20 @@ export const journalAPI = {
     api.put(`/journal/${entryId}`, updates),
   deleteEntry: (entryId) =>
     api.delete(`/journal/${entryId}`),
+};
+
+// Audio Recordings API
+export const audioRecordingsAPI = {
+  getRecordings: (sessionId) =>
+    api.get(`/audio-recordings/${sessionId}`),
+  getRecording: (sessionId, recordingId) =>
+    api.get(`/audio-recordings/${sessionId}/${recordingId}`),
+  updateRecording: (sessionId, recordingId, description) =>
+    api.patch(`/audio-recordings/${sessionId}/${recordingId}`, { description }),
+  deleteRecording: (sessionId, recordingId) =>
+    api.delete(`/audio-recordings/${sessionId}/${recordingId}`),
+  getAudioUrl: (sessionId, recordingId) =>
+    api.get(`/audio-recordings/${sessionId}/${recordingId}/url`),
 };
 
 // Tools API (new - standalone)

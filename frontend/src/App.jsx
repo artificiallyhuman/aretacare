@@ -3,7 +3,9 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { useSession } from './hooks/useSession';
 import Header from './components/Header';
 import Conversation from './pages/Conversation';
+import About from './pages/About';
 import JournalView from './pages/JournalView';
+import AudioRecordings from './pages/AudioRecordings';
 import JargonTranslator from './pages/tools/JargonTranslator';
 import ConversationCoach from './pages/tools/ConversationCoach';
 import Documents from './pages/tools/Documents';
@@ -102,10 +104,26 @@ function App() {
             }
           />
           <Route
+            path="/about"
+            element={
+              <ProtectedRoute>
+                <About />
+              </ProtectedRoute>
+            }
+          />
+          <Route
             path="/journal"
             element={
               <ProtectedRoute>
                 <JournalView />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/audio-recordings"
+            element={
+              <ProtectedRoute>
+                <AudioRecordings />
               </ProtectedRoute>
             }
           />

@@ -19,3 +19,4 @@ pillow==10.1.0
 pytesseract==0.3.10
 aiofiles==23.2.1
 httpx<0.28.0
+pydub==0.25.1

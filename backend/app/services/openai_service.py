@@ -9,7 +9,7 @@ logger = logging.getLogger(__name__)
 class OpenAIService:
     """Service for OpenAI API interactions with safety boundaries"""
 
-    SYSTEM_PROMPT = """You are AretaCare, an AI care-advocate assistant helping families navigate complex medical information.
+    SYSTEM_PROMPT = """You are AretaCare, an AI care-advocate assistant helping families navigate complex medical situations.
 
 CORE PRINCIPLES:
 - You provide clear, structured summaries of medical information
@@ -24,10 +24,8 @@ CONTEXT AWARENESS:
 - Reference past events naturally when relevant to help the caregiver
 
 STRICT SAFETY BOUNDARIES - YOU MUST NEVER:
-- Diagnose any medical condition (even with patient history in journal)
+- Dispute clinician decisions or recommendations 
 - Recommend or adjust medications (even with treatment timeline in journal)
-- Predict medical outcomes (even with accumulated context in journal)
-- Dispute clinician decisions
 - Give medical instructions (dosages, treatments, home care protocols)
 - Provide therapeutic counseling
 
@@ -37,12 +35,10 @@ Despite having extensive patient history via the journal, your fundamental limit
 ✓ DO: Help identify patterns for discussion with doctors
 ✓ DO: Suggest questions based on historical trends
 
-✗ NEVER: Use history to diagnose conditions
 ✗ NEVER: Use timeline to recommend treatment changes
-✗ NEVER: Use accumulated data to predict outcomes
 ✗ NEVER: Claim medical expertise based on patient-specific context
 
-Your role remains: Translate, organize, support. NOT: Diagnose, prescribe, predict.
+Your role remains: Translate, organize, support. NOT: Treat, prescribe, predict.
 
 YOU MUST ALWAYS:
 - Defer final authority to clinicians
@@ -423,6 +419,41 @@ When responding to conversational messages:
             if response
             else "I apologize, but I'm unable to respond at this moment. Please try again or consult with your healthcare team directly."
         )
+
+    async def transcribe_audio(self, audio_file, filename: str) -> Optional[str]:
+        """Transcribe audio file using OpenAI's speech-to-text API"""
+        try:
+            # OpenAI expects a tuple of (filename, file_content, content_type) for in-memory files
+            transcription = self.client.audio.transcriptions.create(
+                model="gpt-4o-transcribe",
+                file=(filename, audio_file, "audio/mpeg"),
+                response_format="text"
+            )
+            return transcription
+        except Exception as e:
+            logger.error(f"Audio transcription error: {e}")
+            return None
+
+    async def generate_recording_description(self, transcript: str) -> Optional[str]:
+        """Generate a concise description of an audio recording from its transcript"""
+        try:
+            prompt = f"""Provide a very brief 1-2 sentence summary of this audio recording transcript. Focus on the main topic or purpose.
+
+Transcript:
+{transcript}
+
+Summary:"""
+
+            messages = [
+                {"role": "system", "content": "You are a helpful assistant that creates concise summaries."},
+                {"role": "user", "content": prompt}
+            ]
+
+            response = self._create_chat_completion(messages, temperature=0.3)
+            return response if response else "Audio recording"
+        except Exception as e:
+            logger.error(f"Error generating recording description: {e}")
+            return "Audio recording"
 
 
 openai_service = OpenAIService()

@@ -86,7 +86,7 @@ const JournalEntry = ({ entry, colors, onEdit, onDelete }) => {
 
       {/* Metadata */}
       <div className="mt-2 text-xs text-gray-500">
-        {new Date(entry.created_at).toLocaleTimeString([], {
+        {new Date(entry.created_at + 'Z').toLocaleTimeString([], {
           hour: '2-digit',
           minute: '2-digit'
         })}
