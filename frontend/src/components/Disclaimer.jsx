@@ -12,7 +12,7 @@ const Disclaimer = () => {
         <div className="flex-1 min-w-0">
           <h3 className="text-xs font-semibold text-amber-900 mb-0.5">Important</h3>
           <p className="text-xs text-amber-800 leading-snug">
-            AretaCare is an AI assistant. It does not replace professional medical advice. Always consult your healthcare team for important medical decisions.
+            AretaCare is an AI assistant, not a medical professional. For any medical decisions, please consult your healthcare team.
           </p>
         </div>
       </div>

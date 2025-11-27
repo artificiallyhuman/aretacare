@@ -10,7 +10,8 @@ const ENTRY_TYPE_COLORS = {
   APPOINTMENT: 'bg-purple-100 text-purple-800',
   INSIGHT: 'bg-green-100 text-green-800',
   QUESTION: 'bg-yellow-100 text-yellow-800',
-  MILESTONE: 'bg-teal-100 text-teal-800'
+  MILESTONE: 'bg-teal-100 text-teal-800',
+  OTHER: 'bg-gray-100 text-gray-800'
 };
 
 const JournalView = () => {
@@ -208,6 +209,7 @@ const JournalView = () => {
               <option value="INSIGHT">Insight</option>
               <option value="QUESTION">Question</option>
               <option value="MILESTONE">Milestone</option>
+              <option value="OTHER">Other</option>
             </select>
           </div>
         </div>

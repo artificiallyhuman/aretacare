@@ -437,7 +437,7 @@ When responding to conversational messages:
     async def generate_recording_description(self, transcript: str) -> Optional[str]:
         """Generate a concise description of an audio recording from its transcript"""
         try:
-            prompt = f"""Provide a very brief 1-2 sentence summary of this audio recording transcript. Focus on the main topic or purpose.
+            prompt = f"""Summarize the content of this audio transcript in 1–2 sentences. Describe only the events, information, or situation, and do not refer to any people or speakers in any way. Do not use terms like “someone,” “a person,” “they,” “the speaker,” or similar. Focus only on the facts or circumstances described.
 
 Transcript:
 {transcript}

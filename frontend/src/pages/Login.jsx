@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { authAPI } from '../services/api';
-import Disclaimer from '../components/Disclaimer';
+import WarningsContainer from '../components/WarningsContainer';
 
 function Login() {
   const [email, setEmail] = useState('');
@@ -9,6 +9,17 @@ function Login() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+
+  const warnings = [
+    {
+      title: 'Important',
+      message: 'AretaCare is an AI assistant, not a medical professional. For any medical decisions, please consult your healthcare team.'
+    },
+    {
+      title: 'Beta Version',
+      message: 'This system is currently in beta and may be unstable. Users may experience data loss from time to time. Please do not rely on this system for critical medical information storage.'
+    }
+  ];
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -34,6 +45,11 @@ function Login() {
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-6 sm:py-12 px-4 sm:px-6 lg:px-8">
+      {/* Warnings Container - First thing user sees */}
+      <div className="sm:mx-auto sm:w-full sm:max-w-md px-4 sm:px-0 mb-6">
+        <WarningsContainer warnings={warnings} />
+      </div>
+
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
         {/* Logo */}
         <div className="flex justify-center">
@@ -49,11 +65,6 @@ function Login() {
             </div>
           </div>
         </div>
-      </div>
-
-      {/* Disclaimer */}
-      <div className="mt-6 sm:mx-auto sm:w-full sm:max-w-md px-4 sm:px-0">
-        <Disclaimer />
       </div>
 
       <div className="mt-6 sm:mx-auto sm:w-full sm:max-w-md">

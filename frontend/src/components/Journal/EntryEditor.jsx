@@ -7,7 +7,8 @@ const ENTRY_TYPES = [
   { value: 'APPOINTMENT', label: 'Appointment' },
   { value: 'INSIGHT', label: 'Insight' },
   { value: 'QUESTION', label: 'Question' },
-  { value: 'MILESTONE', label: 'Milestone' }
+  { value: 'MILESTONE', label: 'Milestone' },
+  { value: 'OTHER', label: 'Other' }
 ];
 
 const EntryEditor = ({ sessionId, entry, onClose, onSave }) => {

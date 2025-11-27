@@ -61,7 +61,19 @@ function App() {
   const { user, clearSession, logout } = useSession();
 
   const handleClearSession = async () => {
-    if (window.confirm('Are you sure you want to clear your session? This will remove all conversation history.')) {
+    const confirmMessage =
+      '⚠️ WARNING: PERMANENT DATA DELETION ⚠️\n\n' +
+      'This will PERMANENTLY DELETE ALL of your data including:\n' +
+      '• All conversations and messages\n' +
+      '• All journal entries\n' +
+      '• All uploaded documents\n' +
+      '• All daily plans\n' +
+      '• All audio recordings\n\n' +
+      'THIS ACTION CANNOT BE UNDONE.\n' +
+      'Your data is NOT recoverable after deletion.\n\n' +
+      'Are you absolutely sure you want to proceed?';
+
+    if (window.confirm(confirmMessage)) {
       await clearSession();
       window.location.reload();
     }

@@ -13,6 +13,7 @@ class EntryType(str, enum.Enum):
     INSIGHT = "INSIGHT"
     QUESTION = "QUESTION"
     MILESTONE = "MILESTONE"
+    OTHER = "OTHER"
 
 
 class JournalEntry(Base):
