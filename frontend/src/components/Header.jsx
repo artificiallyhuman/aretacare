@@ -83,7 +83,7 @@ const Header = ({ onLogout, user }) => {
                     className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-primary-600"
                     onClick={() => setToolsDropdownOpen(false)}
                   >
-                    Documents
+                    Documents Manager
                   </Link>
                   <Link
                     to="/audio-recordings"
@@ -212,7 +212,7 @@ const Header = ({ onLogout, user }) => {
                       className="block px-3 py-2.5 text-sm font-medium text-gray-700 hover:text-primary-600 hover:bg-gray-50 rounded-md transition-colors"
                       onClick={() => setMobileMenuOpen(false)}
                     >
-                      Documents
+                      Documents Manager
                     </Link>
                     <Link
                       to="/audio-recordings"
