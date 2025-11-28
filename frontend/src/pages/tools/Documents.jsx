@@ -45,7 +45,8 @@ const Documents = () => {
   const [previewUrl, setPreviewUrl] = useState(null);
   const [imageUrls, setImageUrls] = useState({});
   const [thumbnailUrls, setThumbnailUrls] = useState({});
-  const contentRef = useRef(null);
+  const [selectedDate, setSelectedDate] = useState(null);
+  const dateRefs = useRef({});
   const searchInputRef = useRef(null);
   const isSearchFocused = useRef(false);
   const [showSidebar, setShowSidebar] = useState(false);
@@ -133,14 +134,11 @@ const Documents = () => {
     return new Date(b) - new Date(a); // Most recent first
   });
 
-  const scrollToDate = (date) => {
-    const element = document.getElementById(`date-${date}`);
-    if (element && contentRef.current) {
-      const offsetTop = element.offsetTop - contentRef.current.offsetTop - 20;
-      contentRef.current.scrollTo({
-        top: offsetTop,
-        behavior: 'smooth'
-      });
+  const handleDateClick = (date) => {
+    setSelectedDate(date);
+    const element = dateRefs.current[date];
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
   };
 
@@ -336,10 +334,12 @@ const Documents = () => {
                       <button
                         key={date}
                         onClick={() => {
-                          scrollToDate(date);
+                          handleDateClick(date);
                           setShowSidebar(false); // Close sidebar on mobile after selection
                         }}
-                        className="w-full text-left p-3 md:p-4 transition hover:bg-gray-50"
+                        className={`w-full text-left p-3 md:p-4 transition hover:bg-gray-50 ${
+                          selectedDate === date ? 'bg-primary-50 border-l-4 border-primary-600' : ''
+                        }`}
                       >
                         <div className="flex items-center justify-between mb-1">
                           <span className={`text-xs md:text-sm font-medium ${
@@ -361,11 +361,11 @@ const Documents = () => {
               </div>
 
               {/* Main content: Documents by date */}
-              <div className="lg:col-span-3 space-y-6" ref={contentRef}>
+              <div className="lg:col-span-3 space-y-6">
                 {dates.map((date) => (
                   <div
                     key={date}
-                    id={`date-${date}`}
+                    ref={(el) => (dateRefs.current[date] = el)}
                     className="bg-white rounded-lg border border-gray-200 p-4 md:p-6 scroll-mt-4"
                   >
                     {/* Date Header */}
@@ -455,22 +455,22 @@ const Documents = () => {
                             </p>
 
                             {/* Actions */}
-                            <div className="mt-4 flex gap-2">
+                            <div className="mt-4 flex gap-1.5">
                               <button
                                 onClick={() => handlePreview(doc)}
-                                className="flex-1 px-3 py-2.5 text-xs sm:text-sm font-medium text-primary-700 bg-primary-50 hover:bg-primary-100 rounded-md transition-colors"
+                                className="flex-1 px-2 py-1.5 text-xs font-medium text-primary-700 bg-primary-50 hover:bg-primary-100 rounded-md transition-colors"
                               >
                                 Preview
                               </button>
                               <button
                                 onClick={() => handleDownload(doc)}
-                                className="flex-1 px-3 py-2.5 text-xs sm:text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors"
+                                className="flex-1 px-2 py-1.5 text-xs font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors"
                               >
                                 Download
                               </button>
                               <button
                                 onClick={() => handleDelete(doc.id)}
-                                className="px-3 py-2.5 text-sm font-medium text-red-600 bg-red-50 hover:bg-red-100 rounded-md transition-colors flex items-center justify-center min-w-[44px]"
+                                className="px-2 py-1.5 text-xs font-medium text-red-600 bg-red-50 hover:bg-red-100 rounded-md transition-colors flex items-center justify-center"
                                 title="Delete document"
                               >
                                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

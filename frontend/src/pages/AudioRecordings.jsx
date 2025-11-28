@@ -43,7 +43,8 @@ const AudioRecordings = () => {
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
   const [audioUrls, setAudioUrls] = useState({});
   const [expandedTranscripts, setExpandedTranscripts] = useState({});
-  const contentRef = useRef(null);
+  const [selectedDate, setSelectedDate] = useState(null);
+  const dateRefs = useRef({});
   const searchInputRef = useRef(null);
   const isSearchFocused = useRef(false);
   const [showSidebar, setShowSidebar] = useState(false);
@@ -159,14 +160,11 @@ const AudioRecordings = () => {
     return new Date(b) - new Date(a); // Most recent first
   });
 
-  const scrollToDate = (date) => {
-    const element = document.getElementById(`date-${date}`);
-    if (element && contentRef.current) {
-      const offsetTop = element.offsetTop - contentRef.current.offsetTop - 20;
-      contentRef.current.scrollTo({
-        top: offsetTop,
-        behavior: 'smooth'
-      });
+  const handleDateClick = (date) => {
+    setSelectedDate(date);
+    const element = dateRefs.current[date];
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
   };
 
@@ -296,10 +294,12 @@ const AudioRecordings = () => {
                     <button
                       key={date}
                       onClick={() => {
-                        scrollToDate(date);
+                        handleDateClick(date);
                         setShowSidebar(false); // Close sidebar on mobile after selection
                       }}
-                      className="w-full text-left p-3 md:p-4 transition hover:bg-gray-50"
+                      className={`w-full text-left p-3 md:p-4 transition hover:bg-gray-50 ${
+                        selectedDate === date ? 'bg-primary-50 border-l-4 border-primary-600' : ''
+                      }`}
                     >
                       <div className="flex items-center justify-between mb-1">
                         <span className={`text-xs md:text-sm font-medium ${
@@ -321,11 +321,11 @@ const AudioRecordings = () => {
             </div>
 
             {/* Main content: Recordings by date */}
-            <div className="lg:col-span-3 space-y-6" ref={contentRef}>
+            <div className="lg:col-span-3 space-y-6">
               {dates.map((date) => (
                 <div
                   key={date}
-                  id={`date-${date}`}
+                  ref={(el) => (dateRefs.current[date] = el)}
                   className="bg-white rounded-lg border border-gray-200 p-4 md:p-6 scroll-mt-4"
                 >
                   {/* Date Header */}
