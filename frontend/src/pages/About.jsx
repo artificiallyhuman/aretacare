@@ -1,6 +1,8 @@
-import React from 'react';
+import React, { useState } from 'react';
 
 const About = () => {
+  const [activeTab, setActiveTab] = useState('platform');
+
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 lg:py-12">
       <div className="text-center mb-8">
@@ -26,6 +28,35 @@ const About = () => {
         </p>
       </div>
 
+      {/* Tab Navigation */}
+      <div className="flex justify-center mb-8">
+        <div className="inline-flex rounded-lg border border-gray-200 bg-white p-1 shadow-sm">
+          <button
+            onClick={() => setActiveTab('platform')}
+            className={`px-6 py-2 rounded-md text-sm font-medium transition-all ${
+              activeTab === 'platform'
+                ? 'bg-primary-600 text-white shadow-sm'
+                : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+            }`}
+          >
+            The Platform
+          </button>
+          <button
+            onClick={() => setActiveTab('story')}
+            className={`px-6 py-2 rounded-md text-sm font-medium transition-all ${
+              activeTab === 'story'
+                ? 'bg-primary-600 text-white shadow-sm'
+                : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+            }`}
+          >
+            The Story
+          </button>
+        </div>
+      </div>
+
+      {/* The Platform Tab */}
+      {activeTab === 'platform' && (
+      <>
       <div className="grid md:grid-cols-2 gap-6">
         <div className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm hover:shadow-md transition">
           <div className="flex items-center mb-4">
@@ -178,6 +209,65 @@ const About = () => {
           </li>
         </ul>
       </div>
+      </>
+      )}
+
+      {/* The Story Tab */}
+      {activeTab === 'story' && (
+      <div className="bg-gradient-to-br from-primary-50 to-blue-50 rounded-lg border border-primary-200 p-8 shadow-sm">
+        <div className="max-w-3xl mx-auto">
+          <h3 className="text-2xl font-bold text-gray-900 mb-6 text-center">Why I Created AretaCare</h3>
+
+          <div className="prose prose-gray max-w-none text-gray-700 space-y-4 leading-relaxed">
+            <p>
+              AretaCare began for me on a late-night flight to San Antonio. I traveled because my mother was in the hospital, and I knew I needed to be there with her. When I arrived just before midnight, I walked through the quiet hallways and into her room, trying to understand the situation as clearly as possible.
+            </p>
+
+            <p>
+              My mother was alert and in excruciating pain. She had an NG tube in her nose and had not been allowed to drink any water. She was uncomfortable and frustrated, trying to stay steady as her care plan continued to evolve.
+            </p>
+
+            <p>
+              Not long after I walked in, she asked me if I could help her to the bathroom. She wanted to get up and walk on her own. Before I could move to help her, a nurse entered and told us, "Doctor's orders are not to move her."
+            </p>
+
+            <p>
+              This did not match what I had been told earlier. I knew she was supposed to move. That moment showed me how difficult it can be for families to navigate conflicting instructions. The nurse was doing her best with the information she had. I was trying to support my mother. Yet the details did not align, leaving me to try to understand what was actually safe and correct.
+            </p>
+
+            <p>
+              I stayed at her bedside. I slept in the chair next to her and woke whenever someone entered the room. Over the next hours and days, nurses came and went. Some explained things clearly. Others were moving quickly, balancing many patients. Doctors came through during rounds. Each specialist offered a piece of the overall picture, but the pieces did not always connect.
+            </p>
+
+            <p>
+              There were tests. Multiple CT scans. Multiple MRI scans. Each one produced radiology reports filled with technical language that raised new questions for us. There were medications to track, instructions that shifted between day and night shifts, and a whiteboard that tried to help but never captured the whole story.
+            </p>
+
+            <p>
+              My family worked hard to stay up to date. We shared group texts, exchanged notes, and tried to keep everyone on the same page, even though we were in different cities. Everyone wanted to make sure my mother felt supported and understood.
+            </p>
+
+            <p>
+              My cousin in Michigan is a nurse practitioner, and she helped guide us from afar. She reviewed every update, translated the medical terms, and helped us prepare questions. Her help was invaluable, but it also revealed something important. Families should not have to rely on a medical professional in the family to understand what is happening to someone they love.
+            </p>
+
+            <p>
+              During those days, I realized what I wished we had. I wanted a straightforward way to keep track of every change. I wanted someone who could explain updates in plain English, help organize the information, and guide us in preparing thoughtful questions for the care team. A steady presence. A calm partner. Someone who helps a family stay grounded during moments that can feel confusing and constant.
+            </p>
+
+            <p className="font-medium text-gray-900">
+              Not a doctor.<br />
+              Not someone giving medical advice.<br />
+              A guide. A companion who helps families understand what is happening and what to ask next.
+            </p>
+
+            <p>
+              This is why I created AretaCare. It grew from sitting beside my mother and seeing how easily information can scatter and become overwhelming. It grew from watching how hard families work to stay informed and united. My hope is that AretaCare will give families the clarity, organization, and support I wished we had during those long nights and complicated days.
+            </p>
+          </div>
+        </div>
+      </div>
+      )}
     </div>
   );
 };
