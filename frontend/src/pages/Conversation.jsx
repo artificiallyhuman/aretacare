@@ -14,6 +14,7 @@ const Conversation = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [showScrollButton, setShowScrollButton] = useState(false);
+  const [showScrollTopButton, setShowScrollTopButton] = useState(false);
   const messagesEndRef = useRef(null);
   const messagesContainerRef = useRef(null);
   const isNearBottomRef = useRef(true);
@@ -27,6 +28,15 @@ const Conversation = () => {
     }
   };
 
+  const scrollToTop = (behavior = 'smooth') => {
+    if (messagesContainerRef.current) {
+      messagesContainerRef.current.scrollTo({
+        top: 0,
+        behavior
+      });
+    }
+  };
+
   // Check if user is near bottom of chat
   const checkIfNearBottom = () => {
     if (!messagesContainerRef.current) return true;
@@ -35,11 +45,17 @@ const Conversation = () => {
     return scrollHeight - scrollTop - clientHeight < threshold;
   };
 
-  // Handle scroll events to show/hide scroll button
+  // Handle scroll events to show/hide scroll buttons
   const handleScroll = () => {
+    if (!messagesContainerRef.current) return;
+
     const isNearBottom = checkIfNearBottom();
     isNearBottomRef.current = isNearBottom;
     setShowScrollButton(!isNearBottom && messages.length > 0);
+
+    // Show scroll-to-top button when scrolled down more than 200px
+    const { scrollTop } = messagesContainerRef.current;
+    setShowScrollTopButton(scrollTop > 200 && messages.length > 0);
   };
 
   // Auto-scroll only if user is near bottom and there are messages
@@ -249,8 +265,8 @@ const Conversation = () => {
             </div>
           )}
 
-          {/* Toggle daily plan button (mobile-friendly) */}
-          <div className="border-b border-gray-200 bg-white px-2 py-1.5 md:p-2 flex items-center">
+          {/* Toggle daily plan button and scroll to top (mobile-friendly) */}
+          <div className="border-b border-gray-200 bg-white px-2 py-1.5 md:p-2 flex items-center justify-between relative">
             <button
               onClick={() => setDailyPlanPanelOpen(!dailyPlanPanelOpen)}
               className="text-xs md:text-sm text-gray-600 hover:text-primary-600 flex items-center space-x-1"
@@ -260,6 +276,19 @@ const Conversation = () => {
               </svg>
               <span>{dailyPlanPanelOpen ? 'Hide' : 'Show'} Daily Plan</span>
             </button>
+
+            {/* Scroll to top button (mobile-optimized) */}
+            {showScrollTopButton && (
+              <button
+                onClick={() => scrollToTop('smooth')}
+                className="md:hidden bg-primary-600 text-white rounded-full p-2 shadow-lg hover:bg-primary-700 transition-all transform hover:scale-110"
+                title="Scroll to top"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 10l7-7m0 0l7 7m-7-7v18" />
+                </svg>
+              </button>
+            )}
           </div>
 
           {/* Messages */}
