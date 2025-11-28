@@ -172,6 +172,9 @@ docker compose down -v
 - **Framework**: FastAPI 0.104.1
 - **Database**: PostgreSQL 15 with SQLAlchemy 2.0
 - **AI**: OpenAI GPT-5.1 with Responses API (GPT-4o for transcription)
+  - All AI configuration centralized in `backend/app/config/ai_config.py`
+  - Includes models, prompts, safety boundaries, temperatures, categories
+  - See `backend/app/config/README.md` for AI configuration guide
 - **Storage**: AWS S3 with boto3
 - **Document Processing**: PyPDF2, Pillow, pytesseract (OCR), ffmpeg (audio)
 - **Authentication**: JWT (python-jose), bcrypt (passlib)

@@ -123,9 +123,12 @@ python -c "import secrets; print(secrets.token_urlsafe(32))"
 
 ### Critical Safety Architecture
 
-The **OpenAI system prompt** in `backend/app/services/openai_service.py` enforces all safety boundaries:
+All AI configuration (models, prompts, safety boundaries) is centralized in `backend/app/config/ai_config.py` for easy maintenance.
+
+**The system prompt** enforces all safety boundaries:
 
 ```python
+# From backend/app/config/ai_config.py
 SYSTEM_PROMPT = """You are AretaCare...
 STRICT SAFETY BOUNDARIES - YOU MUST NEVER:
 - Diagnose any medical condition
@@ -136,7 +139,16 @@ STRICT SAFETY BOUNDARIES - YOU MUST NEVER:
 """
 ```
 
-**This prompt is the enforcement mechanism for all safety requirements.** Any changes to AI behavior must update this prompt while maintaining safety boundaries.
+**This prompt is the enforcement mechanism for all safety requirements.** Any changes to AI behavior must update this prompt in `ai_config.py` while maintaining safety boundaries.
+
+**AI Configuration Structure:**
+- **Models**: `CHAT_MODEL = "gpt-5.1"`, `TRANSCRIPTION_MODEL = "gpt-4o-transcribe"`
+- **All Prompts**: System prompt, conversation instructions, task-specific prompts (jargon translation, conversation coaching, document/audio categorization, journal synthesis, daily plan generation)
+- **Categories**: Document categories (12 types), Audio categories (12 types)
+- **Fallback Messages**: Error responses when AI calls fail
+- **All services use OpenAI Responses API**
+
+See `backend/app/config/README.md` for complete documentation on modifying AI behavior.
 
 ### Application Architecture
 
@@ -253,11 +265,16 @@ STRICT SAFETY BOUNDARIES - YOU MUST NEVER:
 - `backend/app/schemas/daily_plan.py` - Daily plan schemas (DailyPlanResponse, DailyPlanUpdate, DailyPlanCheckResponse)
 - `backend/app/schemas/conversation.py` - Message schemas with document/image support
 
+### AI Configuration
+
+- `backend/app/config/ai_config.py` - **CRITICAL**: Centralized AI configuration with all models, prompts, safety boundaries, temperatures, categories, and fallback messages
+- `backend/app/config/README.md` - Complete documentation for modifying AI behavior, changing models, and adjusting prompts
+
 ### Service Layer (Business Logic)
 
-- `backend/app/services/openai_service.py` - **CRITICAL**: Contains safety prompt, GPT-5.1 integration, all LLM interactions, includes `categorize_document()` and `categorize_audio_recording()` methods for AI-powered categorization
-- `backend/app/services/journal_service.py` - **Journal synthesis logic**: Analyzes conversations, creates journal entries with user's local date (accepts `entry_date` parameter)
-- `backend/app/services/daily_plan_service.py` - **Daily plan generation**: Validates sufficient data (journal entries or conversations), gathers context, generates concise plans via GPT-5.1
+- `backend/app/services/openai_service.py` - GPT-5.1 integration via Responses API, all LLM interactions, uses prompts from `ai_config.py`, includes `categorize_document()` and `categorize_audio_recording()` methods for AI-powered categorization
+- `backend/app/services/journal_service.py` - **Journal synthesis logic**: Analyzes conversations via Responses API, creates journal entries with user's local date (accepts `entry_date` parameter), uses `ai_config.py` for prompts and model settings
+- `backend/app/services/daily_plan_service.py` - **Daily plan generation**: Validates sufficient data (journal entries or conversations), gathers context, generates concise plans via Responses API, uses `ai_config.py` for prompts and model settings
 - `backend/app/services/s3_service.py` - Document upload/download/delete to S3, presigned URL generation
 - `backend/app/services/document_processor.py` - Text extraction (PDF, OCR for images) and PDF thumbnail generation (first page, 150 DPI, max 300px width)
 - `backend/app/services/email_service.py` - **Email service**: Sends password reset emails via Gmail SMTP with professional HTML templates, handles development mode (logs to console) and production mode (sends emails)
@@ -374,11 +391,18 @@ curl http://localhost:8000/api/auth/me \
 3. Add authentication dependency if needed: `current_user: User = Depends(get_current_user)`
 4. Restart backend: `docker compose restart backend`
 
-### Modifying OpenAI Behavior
+### Modifying AI Behavior
 
-1. Edit `SYSTEM_PROMPT` in `backend/app/services/openai_service.py`
-2. **Maintain all safety boundaries** - never diagnose, recommend treatments, etc.
-3. Test thoroughly with medical text samples
+All AI configuration is in `backend/app/config/ai_config.py`:
+
+1. **Change AI model**: Edit `CHAT_MODEL = "gpt-5.1"` to desired OpenAI model
+2. **Modify prompts**: Edit `SYSTEM_PROMPT` or any task-specific prompt functions
+3. **Update categories**: Edit `DOCUMENT_CATEGORIES` or `AUDIO_CATEGORIES` dictionaries
+4. **Maintain all safety boundaries** - never remove safety restrictions from prompts
+5. Test thoroughly with medical text samples
+6. Restart backend: `docker compose restart backend`
+
+See `backend/app/config/README.md` for detailed documentation on all available settings.
 
 ### Adding a New Frontend Page
 
@@ -624,10 +648,11 @@ Plan:
 
 ## Safety Guideline Enforcement
 
-**Read `docs/SAFETY_GUIDELINES.md` before modifying any LLM-related code.**
+**Read `docs/SAFETY_GUIDELINES.md` before modifying any AI-related code.**
 
 The application's core value proposition is maintaining safety boundaries. Any code changes that:
-- Modify `openai_service.py`
+- Modify `backend/app/config/ai_config.py` (AI prompts, models, or settings)
+- Modify AI service files (`openai_service.py`, `journal_service.py`, `daily_plan_service.py`)
 - Add new LLM features
 - Change how medical information is presented
 
@@ -636,6 +661,8 @@ Must be reviewed against the safety guidelines to ensure:
 - No outcome predictions
 - Deference to medical professionals
 - Calm, professional tone maintained
+
+**All AI prompts and safety boundaries are defined in `backend/app/config/ai_config.py`** - this is the primary file to review for safety compliance.
 
 ## Production Deployment
 

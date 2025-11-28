@@ -9,6 +9,7 @@ from ..models.conversation import Conversation
 from ..models.document import Document
 from ..models.session import Session as UserSession
 from ..core.config import settings
+from ..config import ai_config
 from .s3_service import S3Service
 
 logger = logging.getLogger(__name__)
@@ -16,34 +17,6 @@ logger = logging.getLogger(__name__)
 # Initialize OpenAI client
 client = openai.OpenAI(api_key=settings.OPENAI_API_KEY)
 s3_service = S3Service()
-
-
-DAILY_PLAN_SYSTEM_PROMPT = """You are AretaCare, an AI care advocate assistant. Your role is to create a concise daily plan for families managing medical care.
-
-TASK: Create a daily plan for today based on the provided context (journal entries, conversations, documents, and previous plans).
-
-STRICT REQUIREMENTS:
-- Keep the plan CONCISE and not overwhelming (aim for 150-250 words total)
-- Focus on TODAY's priorities, not long-term planning
-- Include 3 sections:
-  1. **Today's Priorities** (2-4 key items for today)
-  2. **Important Reminders** (2-3 critical things to remember)
-  3. **Questions for Care Team** (2-3 questions to ask at next appointment)
-
-SAFETY BOUNDARIES - YOU MUST NEVER:
-- Diagnose any medical condition
-- Recommend or adjust medications
-- Predict medical outcomes
-- Dispute clinician decisions
-- Give medical instructions
-
-ALWAYS:
-- Defer to medical professionals
-- Focus on practical, actionable items
-- Keep tone calm and supportive
-- Base recommendations on information provided, never invent medical facts
-
-Format the plan in markdown with clear sections and bullet points for easy reading."""
 
 
 class DailyPlanService:
@@ -241,19 +214,27 @@ class DailyPlanService:
             # Build the user prompt with all context
             user_prompt = DailyPlanService._build_user_prompt(context)
 
-            # Call OpenAI API
-            response = client.chat.completions.create(
-                model="gpt-4o",  # GPT-5.1
-                messages=[
-                    {"role": "system", "content": DAILY_PLAN_SYSTEM_PROMPT},
+            # Call OpenAI Responses API
+            response = client.responses.create(
+                model=ai_config.CHAT_MODEL,
+                input=[
+                    {"role": "system", "content": ai_config.DAILY_PLAN_SYSTEM_PROMPT},
                     {"role": "user", "content": user_prompt}
-                ],
-                temperature=0.7,
-                max_tokens=800  # Keep response concise
+                ]
             )
 
-            plan_content = response.choices[0].message.content.strip()
-            return plan_content
+            # Extract text from Responses API
+            text = getattr(response, "output_text", None)
+            if text is None and getattr(response, "output", None):
+                first_item = response.output[0]
+                if getattr(first_item, "content", None):
+                    first_content = first_item.content[0]
+                    text = getattr(first_content, "text", None)
+
+            if not text:
+                raise Exception("No response from AI")
+
+            return text.strip()
 
         except Exception as e:
             logger.error(f"Error calling OpenAI API: {str(e)}")

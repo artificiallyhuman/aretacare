@@ -1,5 +1,6 @@
 from openai import OpenAI
 from app.core.config import settings
+from app.config import ai_config
 from app.models.journal import JournalEntry, EntryType
 from app.schemas.journal import (
     JournalEntryCreate,
@@ -54,27 +55,10 @@ class JournalService:
         "additionalProperties": False
     }
 
-    SYNTHESIS_PROMPT = """You are creating journal entries for a caregiver's daily diary. For EVERY conversation, create at least one journal entry capturing what was discussed.
-
-Entry types to use:
-- MEDICAL_UPDATE: Any medical information, test results, symptoms, conditions
-- TREATMENT_CHANGE: Medication changes, new therapies, care plan adjustments
-- APPOINTMENT: Upcoming or past medical appointments
-- QUESTION: Important questions the caregiver needs answered
-- INSIGHT: Observations, patterns, concerns about the journey
-- MILESTONE: Significant moments in the care journey
-
-CONTENT DETAIL GUIDELINES:
-- For IMPORTANT topics (test results, new diagnoses, treatment changes): Write detailed entries with context and specifics
-- For ROUTINE topics (general questions, simple updates): Write brief, concise entries (1-2 sentences)
-- For SIGNIFICANT moments (milestones, major decisions): Write thoughtful entries capturing the emotional and practical aspects
-
-IMPORTANT: Create entries for all substantive conversations. Only skip entries for pure greetings like "hi" or "thanks"."""
-
     def __init__(self, db: Session):
         self.db = db
         self.client = OpenAI(api_key=settings.OPENAI_API_KEY)
-        self.model = "gpt-5.1"
+        self.model = ai_config.CHAT_MODEL
 
     async def assess_and_synthesize(
         self,
@@ -105,29 +89,54 @@ Adjust detail level based on importance:
 - Routine topics (general questions, simple updates) = brief entry (1-2 sentences)
 - Significant moments (milestones, major decisions) = thoughtful entry
 
-Create the entry now."""
+IMPORTANT: Respond with ONLY a valid JSON object in this exact format, with no additional text before or after:
+{{
+  "should_create": true or false,
+  "reasoning": "brief explanation",
+  "suggested_entries": [
+    {{
+      "title": "entry title (max 100 chars)",
+      "content": "entry content",
+      "entry_type": "MEDICAL_UPDATE or TREATMENT_CHANGE or APPOINTMENT or QUESTION or INSIGHT or MILESTONE"
+    }}
+  ]
+}}"""
 
             messages = [
-                {"role": "system", "content": self.SYNTHESIS_PROMPT},
+                {"role": "system", "content": ai_config.JOURNAL_SYNTHESIS_PROMPT},
                 {"role": "user", "content": prompt}
             ]
 
-            # Use structured output with JSON schema
-            response = self.client.chat.completions.create(
+            # Use Responses API
+            response = self.client.responses.create(
                 model=self.model,
-                messages=messages,
-                response_format={
-                    "type": "json_schema",
-                    "json_schema": {
-                        "name": "journal_synthesis",
-                        "strict": True,
-                        "schema": self.JOURNAL_SYNTHESIS_SCHEMA
-                    }
-                },
-                temperature=0.3
+                input=messages
             )
 
-            result_json = json.loads(response.choices[0].message.content)
+            # Extract text from Responses API
+            text = getattr(response, "output_text", None)
+            if text is None and getattr(response, "output", None):
+                first_item = response.output[0]
+                if getattr(first_item, "content", None):
+                    first_content = first_item.content[0]
+                    text = getattr(first_content, "text", None)
+
+            if not text:
+                raise Exception("No response from AI")
+
+            # Clean up the response - remove markdown code blocks if present
+            cleaned_text = text.strip()
+            if cleaned_text.startswith("```"):
+                # Remove markdown code blocks
+                lines = cleaned_text.split("\n")
+                # Remove first line (```json or ```)
+                lines = lines[1:]
+                # Remove last line (```)
+                if lines and lines[-1].strip() == "```":
+                    lines = lines[:-1]
+                cleaned_text = "\n".join(lines).strip()
+
+            result_json = json.loads(cleaned_text)
 
             # Convert to Pydantic models
             suggestions = [
@@ -163,8 +172,16 @@ Create the entry now."""
 
             return synthesis_result
 
+        except json.JSONDecodeError as e:
+            logger.error(f"JSON decode error during journal synthesis: {e}")
+            logger.error(f"Response text: {text if 'text' in locals() else 'No text'}")
+            return JournalSynthesisResult(
+                should_create=False,
+                reasoning="Error parsing AI response",
+                suggested_entries=[]
+            )
         except Exception as e:
-            logger.error(f"Journal synthesis error: {e}")
+            logger.error(f"Journal synthesis error: {e}", exc_info=True)
             return JournalSynthesisResult(
                 should_create=False,
                 reasoning="Error during synthesis",
