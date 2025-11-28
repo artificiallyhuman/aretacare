@@ -23,6 +23,15 @@ class Settings(BaseSettings):
     # Session
     SESSION_TIMEOUT_MINUTES: int = 60
 
+    # Email (for password reset)
+    SMTP_HOST: str = "smtp.gmail.com"
+    SMTP_PORT: int = 587
+    SMTP_USER: str = "aretacare@gmail.com"
+    SMTP_PASSWORD: str = ""  # Gmail App Password
+    SMTP_FROM_EMAIL: str = "aretacare@gmail.com"
+    SMTP_FROM_NAME: str = "AretaCare"
+    FRONTEND_URL: str = "http://localhost:3001"
+
     @property
     def cors_origins_list(self) -> List[str]:
         return [origin.strip() for origin in self.CORS_ORIGINS.split(",")]

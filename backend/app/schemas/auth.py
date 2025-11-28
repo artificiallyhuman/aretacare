@@ -32,3 +32,37 @@ class TokenResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
     user: UserResponse
+
+
+class UpdateName(BaseModel):
+    """Schema for updating user name."""
+    name: str = Field(..., min_length=1, max_length=255)
+    current_password: str
+
+
+class UpdateEmail(BaseModel):
+    """Schema for updating user email."""
+    email: EmailStr
+    current_password: str
+
+
+class UpdatePassword(BaseModel):
+    """Schema for updating user password."""
+    current_password: str
+    new_password: str = Field(..., min_length=8, max_length=72)
+
+
+class DeleteAccount(BaseModel):
+    """Schema for deleting user account."""
+    password: str
+
+
+class PasswordResetRequest(BaseModel):
+    """Schema for requesting password reset."""
+    email: EmailStr
+
+
+class PasswordReset(BaseModel):
+    """Schema for resetting password."""
+    token: str
+    new_password: str = Field(..., min_length=8, max_length=72)

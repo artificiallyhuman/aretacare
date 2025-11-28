@@ -1,7 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 from app.core.database import get_db
-from app.models import Session as SessionModel, User, Document, AudioRecording
+from app.models import Session as SessionModel, User, Document, AudioRecording, JournalEntry, Conversation
 from app.schemas import SessionCreate, SessionResponse
 from datetime import datetime, timedelta
 from app.core.config import settings
@@ -78,6 +79,51 @@ async def get_session(
     db.commit()
 
     return session
+
+
+@router.get("/{session_id}/statistics")
+async def get_session_statistics(
+    session_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Get statistics about session data (documents, journal entries, audio recordings, conversations)"""
+    session = db.query(SessionModel).filter(SessionModel.id == session_id).first()
+
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    # Verify session belongs to current user
+    if session.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    # Count journal entries
+    journal_count = db.query(func.count(JournalEntry.id)).filter(
+        JournalEntry.session_id == session_id
+    ).scalar()
+
+    # Count documents
+    document_count = db.query(func.count(Document.id)).filter(
+        Document.session_id == session_id
+    ).scalar()
+
+    # Count audio recordings
+    audio_count = db.query(func.count(AudioRecording.id)).filter(
+        AudioRecording.session_id == session_id
+    ).scalar()
+
+    # Count conversations/messages
+    conversation_count = db.query(func.count(Conversation.id)).filter(
+        Conversation.session_id == session_id
+    ).scalar()
+
+    return {
+        "session_id": session_id,
+        "journal_entries": journal_count,
+        "documents": document_count,
+        "audio_recordings": audio_count,
+        "conversations": conversation_count
+    }
 
 
 @router.delete("/{session_id}")

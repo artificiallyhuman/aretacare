@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 
-const Header = ({ onClearSession, onLogout, user }) => {
+const Header = ({ onLogout, user }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [toolsDropdownOpen, setToolsDropdownOpen] = useState(false);
+  const [mobileToolsOpen, setMobileToolsOpen] = useState(false);
   const dropdownRef = useRef(null);
 
   // Close dropdown when clicking outside
@@ -100,24 +101,18 @@ const Header = ({ onClearSession, onLogout, user }) => {
                 About
               </Link>
 
-              <div className="flex items-center space-x-2">
+              <Link
+                to="/settings"
+                className="flex items-center space-x-2 pl-2 px-3 py-2 rounded-md hover:bg-gray-50 transition-colors"
+                title="Account Settings"
+              >
                 <div className="w-8 h-8 bg-primary-100 rounded-full flex items-center justify-center">
                   <span className="text-sm font-medium text-primary-700">
                     {user?.name?.charAt(0).toUpperCase()}
                   </span>
                 </div>
                 <span className="text-sm font-medium text-gray-700">{user?.name?.split(' ')[0]}</span>
-              </div>
-
-              <button
-                onClick={onClearSession}
-                className="p-2 text-red-400 hover:text-red-600 transition-colors"
-                title="⚠️ WARNING: Permanently deletes ALL your data (conversations, journal, documents, etc.). This action CANNOT be undone!"
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                </svg>
-              </button>
+              </Link>
 
               <button
                 onClick={onLogout}
@@ -179,52 +174,71 @@ const Header = ({ onClearSession, onLogout, user }) => {
                 Daily Plan
               </Link>
 
-              {/* Tools Section */}
+              {/* Tools Section - Collapsible */}
               <div className="border-t border-gray-200 pt-2 mt-2">
-                <p className="px-3 py-1 text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                  Tools
-                </p>
-                <div className="flex flex-col space-y-0.5 mt-1">
-                  <Link
-                    to="/tools/jargon"
-                    className="block px-3 py-2.5 text-sm font-medium text-gray-700 hover:text-primary-600 hover:bg-gray-50 rounded-md transition-colors"
-                    onClick={() => setMobileMenuOpen(false)}
+                <button
+                  onClick={() => setMobileToolsOpen(!mobileToolsOpen)}
+                  className="w-full flex items-center justify-between px-3 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 rounded-md transition-colors"
+                >
+                  <span>Tools</span>
+                  <svg
+                    className={`w-4 h-4 transition-transform ${mobileToolsOpen ? 'rotate-180' : ''}`}
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
                   >
-                    Jargon Translator
-                  </Link>
-                  <Link
-                    to="/tools/coach"
-                    className="block px-3 py-2.5 text-sm font-medium text-gray-700 hover:text-primary-600 hover:bg-gray-50 rounded-md transition-colors"
-                    onClick={() => setMobileMenuOpen(false)}
-                  >
-                    Conversation Coach
-                  </Link>
-                  <Link
-                    to="/tools/documents"
-                    className="block px-3 py-2.5 text-sm font-medium text-gray-700 hover:text-primary-600 hover:bg-gray-50 rounded-md transition-colors"
-                    onClick={() => setMobileMenuOpen(false)}
-                  >
-                    Documents
-                  </Link>
-                  <Link
-                    to="/audio-recordings"
-                    className="block px-3 py-2.5 text-sm font-medium text-gray-700 hover:text-primary-600 hover:bg-gray-50 rounded-md transition-colors"
-                    onClick={() => setMobileMenuOpen(false)}
-                  >
-                    Audio Recordings
-                  </Link>
-                </div>
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+
+                {mobileToolsOpen && (
+                  <div className="flex flex-col space-y-0.5 mt-1 ml-4">
+                    <Link
+                      to="/tools/jargon"
+                      className="block px-3 py-2.5 text-sm font-medium text-gray-700 hover:text-primary-600 hover:bg-gray-50 rounded-md transition-colors"
+                      onClick={() => setMobileMenuOpen(false)}
+                    >
+                      Jargon Translator
+                    </Link>
+                    <Link
+                      to="/tools/coach"
+                      className="block px-3 py-2.5 text-sm font-medium text-gray-700 hover:text-primary-600 hover:bg-gray-50 rounded-md transition-colors"
+                      onClick={() => setMobileMenuOpen(false)}
+                    >
+                      Conversation Coach
+                    </Link>
+                    <Link
+                      to="/tools/documents"
+                      className="block px-3 py-2.5 text-sm font-medium text-gray-700 hover:text-primary-600 hover:bg-gray-50 rounded-md transition-colors"
+                      onClick={() => setMobileMenuOpen(false)}
+                    >
+                      Documents
+                    </Link>
+                    <Link
+                      to="/audio-recordings"
+                      className="block px-3 py-2.5 text-sm font-medium text-gray-700 hover:text-primary-600 hover:bg-gray-50 rounded-md transition-colors"
+                      onClick={() => setMobileMenuOpen(false)}
+                    >
+                      Audio Recordings
+                    </Link>
+                  </div>
+                )}
               </div>
 
               <div className="border-t border-gray-200 pt-2 mt-2 space-y-1">
-                <div className="px-3 py-2 flex items-center space-x-2">
+                <Link
+                  to="/settings"
+                  className="flex items-center space-x-2 px-3 py-2 hover:bg-gray-50 rounded-md transition-colors"
+                  onClick={() => setMobileMenuOpen(false)}
+                  title="Account Settings"
+                >
                   <div className="w-7 h-7 bg-primary-100 rounded-full flex items-center justify-center">
                     <span className="text-xs font-medium text-primary-700">
                       {user?.name?.charAt(0).toUpperCase()}
                     </span>
                   </div>
                   <span className="text-sm font-medium text-gray-700">{user?.name}</span>
-                </div>
+                </Link>
 
                 <Link
                   to="/about"
@@ -234,21 +248,8 @@ const Header = ({ onClearSession, onLogout, user }) => {
                   About
                 </Link>
 
-                {/* Separation before dangerous actions */}
+                {/* Separation before logout */}
                 <div className="pt-2 border-t border-gray-200 mt-2"></div>
-
-                <button
-                  onClick={() => {
-                    onClearSession();
-                    setMobileMenuOpen(false);
-                  }}
-                  className="w-full text-left px-3 py-2.5 text-sm font-medium text-red-600 hover:text-red-700 hover:bg-red-50 rounded-md transition-colors flex items-center space-x-2"
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                  </svg>
-                  <span>Clear Session</span>
-                </button>
 
                 <button
                   onClick={() => {

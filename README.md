@@ -24,17 +24,19 @@ AretaCare is an AI-powered care advocate assistant that helps families navigate 
 
 ### Security & Privacy
 - **User Authentication**: Secure JWT-based authentication with bcrypt password hashing
+- **Settings Page**: Secure account management with password-verified updates (name, email, password), password reset via email with time-limited tokens, clear session with data statistics, and complete account deletion
 - **Session Management**: User sessions with conversation history tied to accounts
 - **Secure Storage**: Medical documents stored in AWS S3 with encrypted transmission
 - **Complete Data Deletion**: Session deletion removes all PostgreSQL data and S3 files (documents, thumbnails, audio recordings) with zero orphaned files
 - **Data Control**: Users can clear session data or delete individual documents at any time
+- **Password Reset**: Secure email-based password reset with 1-hour token expiration
 - **Transparent Policies**: Clear Terms of Service and Privacy Policy available on all auth screens and in footer
 
 ### User Experience
 - **Professional UI**: Clean, modern interface with intuitive navigation and organized content structure
-- **Mobile Optimized**: Native app-like feel with compact sizing, touch-friendly buttons, collapsible sidebars on Documents and Audio pages, and reduced padding throughout
+- **Mobile Optimized**: Native app-like feel with compact sizing, touch-friendly buttons, collapsible sidebars on Documents and Audio pages, collapsible Tools submenu, and reduced padding throughout
 - **Disclaimer Placement**: Shown only on login/register screens, keeping the main interface clean and uncluttered
-- **Smart Navigation**: Red Clear Session button (dangerous action) vs. neutral Logout button, About in user section
+- **Smart Navigation**: Clickable user name/avatar in header accesses Settings, collapsible Tools submenu on mobile
 - **Smart UI Behavior**: Click-away dropdown menus, smooth transitions, and responsive feedback
 - **Enhanced Content Organization**: Feature descriptions with intro sentences followed by organized bullet points
 - **Clear Onboarding**: Welcome instructions directing users to conversation input with example topics
@@ -98,6 +100,14 @@ Get AretaCare running locally in 5 minutes!
    - `s3:GetObject` - Download documents
    - `s3:DeleteObject` - Delete documents
    - `s3:PutObjectAcl` - Set object permissions
+
+   **Optional - Email Configuration**: To enable password reset emails, configure SMTP settings in `backend/.env`:
+   ```env
+   SMTP_PASSWORD=your_gmail_app_password_here
+   FRONTEND_URL=http://localhost:3001
+   ```
+
+   See `docs/EMAIL_SETUP.md` for complete Gmail App Password setup instructions. Without this configuration, password reset links will be logged to backend console (development mode).
 
 3. **Start the Application**
    ```bash

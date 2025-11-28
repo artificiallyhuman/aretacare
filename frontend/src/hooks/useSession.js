@@ -64,5 +64,5 @@ export const useSession = () => {
     setSessionId(null);
   };
 
-  return { sessionId, user, loading, error, clearSession, logout };
+  return { sessionId, user, setUser, loading, error, clearSession, logout };
 };
