@@ -15,5 +15,9 @@ class User(Base):
     is_active = Column(Boolean, default=True, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
+    # Password reset fields
+    reset_token = Column(String, nullable=True)
+    reset_token_expires = Column(DateTime, nullable=True)
+
     # Relationships
     sessions = relationship("Session", back_populates="user", cascade="all, delete-orphan")

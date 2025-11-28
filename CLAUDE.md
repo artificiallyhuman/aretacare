@@ -15,11 +15,12 @@ AretaCare is an AI-powered medical care advocate assistant that helps families u
 - **GPT-5.1 native file support** for PDFs and images via Responses API
 - **Audio recording** with live waveform visualization, separate start/stop buttons, visual feedback, and real-time transcription
 - JWT-based user authentication with secure password hashing, disclaimer shown on login/register screens
+- **Settings page** - Secure account management with password-verified updates (name, email, password), password reset via email with time-limited tokens, clear session with statistics (keeps account), and complete account deletion
 - Session-based conversation history tied to user accounts
 - Collapsible daily plan panel (replaces journal sidebar) showing current plan on conversation page
 - **About page** with comprehensive feature descriptions organized as intro sentences + bullet points
 - **Legal pages** - Professional Terms of Service and Privacy Policy with gradient backgrounds, warning boxes, and GitHub repository links
-- Professional UI with modern design and smart UI behaviors (click-away dropdowns, smart scrolling, red Clear Session button)
+- Professional UI with modern design and smart UI behaviors (click-away dropdowns, smart scrolling, collapsible mobile Tools submenu)
 - **Mobile-optimized design** with compact sizing, native feel, hamburger menu navigation, touch-friendly interfaces, and collapsible sidebars
 - **AI-powered Documents Manager** with automatic categorization (12 categories), AI-generated descriptions (user-editable, up to 200 characters), searchable text extraction, date-based organization with sticky sidebar, scroll-to-date navigation (matching Journal page), mobile-responsive collapsible sidebar, and thumbnail previews
 - **AI-powered Audio Recordings** with automatic transcription, AI categorization (12 categories), AI-generated summaries (user-editable, up to 150 characters), date-based organization with sticky sidebar, scroll-to-date navigation (matching Journal page), and mobile-responsive collapsible sidebar
@@ -101,7 +102,7 @@ python -c "import secrets; print(secrets.token_urlsafe(32))"
 
 **Database (PostgreSQL)**
 - Seven main tables: `users`, `sessions`, `documents`, `audio_recordings`, `conversations`, `journal_entries`, `daily_plans`
-- User table stores authentication credentials (bcrypt hashed passwords)
+- User table stores authentication credentials (bcrypt hashed passwords) and password reset tokens (time-limited, 1-hour expiration)
 - Sessions tied to user accounts via foreign key
 - **Documents table** with AI categorization (12 categories), AI-generated descriptions (user-editable, up to 200 characters), text extraction, and thumbnail support
 - **Audio recordings table** with AI categorization (12 categories), AI-generated summaries (user-editable, up to 150 characters), transcription, and duration tracking
@@ -224,8 +225,8 @@ STRICT SAFETY BOUNDARIES - YOU MUST NEVER:
 
 - `backend/app/main.py` - FastAPI application, CORS config, route mounting
 - `backend/app/api/__init__.py` - Combines all API routers
-- `backend/app/api/auth.py` - **Authentication endpoints** (register, login, /me)
-- `backend/app/api/sessions.py` - Session management with complete S3 cleanup on delete (documents, thumbnails, audio files)
+- `backend/app/api/auth.py` - **Authentication endpoints** (register, login, /me) and **user management** (update name/email/password with password verification, password reset via email, account deletion)
+- `backend/app/api/sessions.py` - Session management with complete S3 cleanup on delete (documents, thumbnails, audio files), statistics endpoint for session data counts
 - `backend/app/api/documents.py` - Document upload/management with AI categorization, filtering, search, and presigned URLs
 - `backend/app/api/audio_recording.py` - Audio recording management with AI categorization, filtering, and search
 - `backend/app/api/conversation.py` - Conversation endpoints with rich media support
@@ -238,14 +239,14 @@ STRICT SAFETY BOUNDARIES - YOU MUST NEVER:
 
 ### Models & Schemas
 
-- `backend/app/models/user.py` - User model with authentication fields
+- `backend/app/models/user.py` - User model with authentication fields and password reset tokens (time-limited, 1-hour expiration)
 - `backend/app/models/session.py` - Session model with user foreign key
 - `backend/app/models/document.py` - Document model with DocumentCategory enum (12 categories: lab_results, imaging_reports, clinic_notes, medication_records, discharge_summary, treatment_plan, test_results, referral, insurance_billing, consent_form, care_instructions, other), AI-generated descriptions
 - `backend/app/models/audio_recording.py` - Audio recording model with AudioRecordingCategory enum (12 categories: symptom_update, appointment_recap, medication_note, question_for_doctor, daily_reflection, progress_update, side_effects, care_instruction, emergency_note, family_update, treatment_observation, other), AI-generated summaries
 - `backend/app/models/journal.py` - Journal entries with AI-generated content, EntryType enum includes: MEDICAL_UPDATE, TREATMENT_CHANGE, APPOINTMENT, INSIGHT, QUESTION, MILESTONE, OTHER
 - `backend/app/models/daily_plan.py` - **Daily plans** with content, user edits, viewed status
 - `backend/app/models/conversation.py` - Conversation messages with rich media support
-- `backend/app/schemas/auth.py` - Auth request/response schemas (UserRegister, UserLogin, TokenResponse)
+- `backend/app/schemas/auth.py` - Auth request/response schemas (UserRegister, UserLogin, TokenResponse, UpdateName, UpdateEmail, UpdatePassword, DeleteAccount, PasswordResetRequest, PasswordReset)
 - `backend/app/schemas/document.py` - Document schemas with category serialization for backward compatibility
 - `backend/app/schemas/audio_recording.py` - Audio recording schemas with category serialization for backward compatibility
 - `backend/app/schemas/journal.py` - Journal entry schemas with synthesis metadata
@@ -259,14 +260,17 @@ STRICT SAFETY BOUNDARIES - YOU MUST NEVER:
 - `backend/app/services/daily_plan_service.py` - **Daily plan generation**: Validates sufficient data (journal entries or conversations), gathers context, generates concise plans via GPT-5.1
 - `backend/app/services/s3_service.py` - Document upload/download/delete to S3, presigned URL generation
 - `backend/app/services/document_processor.py` - Text extraction (PDF, OCR for images) and PDF thumbnail generation (first page, 150 DPI, max 300px width)
-- `backend/app/core/migrations.py` - **Database migrations**: Automatically adds new columns (category, ai_description for documents; category, ai_summary for audio_recordings) without requiring database reset
+- `backend/app/services/email_service.py` - **Email service**: Sends password reset emails via Gmail SMTP with professional HTML templates, handles development mode (logs to console) and production mode (sends emails)
+- `backend/app/core/migrations.py` - **Database migrations**: Automatically adds new columns (category, ai_description for documents; category, ai_summary for audio_recordings; reset_token, reset_token_expires for users) without requiring database reset
 
 ### Frontend Entry Points
 
 - `frontend/src/main.jsx` - React app entry point
 - `frontend/src/App.jsx` - Router configuration, protected/public routes, layout with responsive footer
-- `frontend/src/pages/Login.jsx` - Login page with disclaimer, professional styling, mobile-responsive (no "Welcome" heading)
+- `frontend/src/pages/Login.jsx` - Login page with disclaimer, professional styling, mobile-responsive (no "Welcome" heading), password reset link
 - `frontend/src/pages/Register.jsx` - Registration page with disclaimer, professional styling, mobile-responsive
+- `frontend/src/pages/PasswordReset.jsx` - **Password reset page** with two-step flow (request reset via email, then reset with token), professional styling, secure token handling (no display to client)
+- `frontend/src/pages/Settings.jsx` - **Settings page** with collapsible accordion sections for account management (update name/email/password with password verification, clear session with statistics, delete account), displays data counts before deletion
 - `frontend/src/pages/Conversation.jsx` - **Main conversation interface** with chat + daily plan panel, smart scrolling (stops at message box), welcome page, "Thinking..." status, sends user's local date for journal entries
 - `frontend/src/pages/DailyPlan.jsx` - **Daily plan page** with full history list, edit mode, delete and regenerate functionality, enhanced markdown rendering
 - `frontend/src/pages/JournalView.jsx` - **Journal page with date navigation** - reverse chronological, sticky sidebar with date selector, scroll-to-date, proper local timezone parsing
@@ -276,7 +280,7 @@ STRICT SAFETY BOUNDARIES - YOU MUST NEVER:
 - `frontend/src/pages/tools/Documents.jsx` - **AI-powered Documents Manager** with 12 categories, AI descriptions, search/filter, sticky sidebar with date selector, scroll-to-date functionality (matching Journal page behavior), mobile-responsive collapsible sidebar, thumbnail previews
 - `frontend/src/pages/AudioRecordings.jsx` - **AI-powered Audio Recordings** with 12 categories, AI summaries, search/filter, sticky sidebar with date selector, scroll-to-date functionality (matching Journal page behavior), mobile-responsive collapsible sidebar, audio playback
 - `frontend/src/pages/tools/` - Standalone tools (JargonTranslator, ConversationCoach) - disclaimer removed from individual tool pages
-- `frontend/src/components/Header.jsx` - **Mobile-responsive navigation** with hamburger menu, tools dropdown, About in user section, red Clear Session button, neutral Logout button
+- `frontend/src/components/Header.jsx` - **Mobile-responsive navigation** with hamburger menu, tools dropdown (collapsible submenu on mobile), clickable user name/avatar for Settings access
 - `frontend/src/components/Footer.jsx` - Footer with links to Terms of Service, Privacy Policy, GitHub repository, and Report Issue
 - `frontend/src/components/Disclaimer.jsx` - Compact safety disclaimer shown only on login/register screens
 - `frontend/src/components/WarningsContainer.jsx` - Reusable component for displaying multiple warnings, used on login/register pages
@@ -285,7 +289,7 @@ STRICT SAFETY BOUNDARIES - YOU MUST NEVER:
 - `frontend/src/components/MessageInput.jsx` - Chat input with "Thinking..." status, mobile-optimized sizing, separate start/stop audio recording buttons with live waveform visualization
 - `frontend/src/components/AudioWaveform.jsx` - **Real-time audio waveform visualization** using Web Audio API and canvas-based drawing, provides immediate visual feedback during recording
 - `frontend/src/services/api.js` - Axios instance with auth token interceptor, conversation API includes entry_date parameter
-- `frontend/src/hooks/useSession.js` - Session & auth state management (calls /auth/me)
+- `frontend/src/hooks/useSession.js` - Session & auth state management (calls /auth/me), exposes setUser for updating user state after account changes
 - `frontend/src/styles/index.css` - Tailwind CSS with responsive custom components (.btn-primary, .card, .input, .textarea)
 
 ## Important Configuration Details
@@ -311,6 +315,7 @@ Backend requires (`backend/.env`):
 - `DATABASE_URL` - Auto-configured in Docker Compose
 - `SECRET_KEY` - For JWT signing
 - `CORS_ORIGINS` - Comma-separated allowed origins
+- `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM_EMAIL`, `SMTP_FROM_NAME`, `FRONTEND_URL` - For password reset emails (see docs/EMAIL_SETUP.md)
 - `RESET_DB` - Optional: Set to "true" to drop and recreate database on startup (development/production)
 
 Frontend optional (`frontend/.env`):
@@ -573,8 +578,9 @@ Access points after `docker compose up`:
 - **Daily plan page**: Full history (most recent first), edit mode, delete and regenerate functionality
 - **Journal page**: Reverse chronological order, date selector sidebar with scroll-to-date, proper timezone handling
 - **Audio recording**: Separate start (microphone icon) and stop (red "Stop" button) with visual feedback
-- **Navigation**: Red Clear Session button (dangerous action), neutral Logout button, About in user section
-- **Mobile-optimized**: Native app-like feel with compact sizing, touch-friendly buttons, collapsible sidebars on Documents and Audio pages
+- **Settings page**: Clickable user name/avatar in header accesses Settings, secure account management with password verification, clear session with data statistics, password reset via email, complete account deletion
+- **Navigation**: Collapsible Tools submenu on mobile, clickable user name/avatar for Settings access
+- **Mobile-optimized**: Native app-like feel with compact sizing, touch-friendly buttons, collapsible sidebars on Documents/Audio pages, collapsible Tools submenu
 - **Documents Manager**: AI-categorized uploads (12 categories), searchable descriptions, sticky sidebar with scroll-to-date navigation, mobile-responsive collapsible sidebar
 - **Audio Recordings**: AI-categorized transcriptions (12 categories), searchable summaries, sticky sidebar with scroll-to-date navigation, mobile-responsive collapsible sidebar, audio playback
 - File upload support: Upload PDFs, images (PNG, JPG), or text files in conversation
@@ -593,9 +599,11 @@ Access points after `docker compose up`:
 9. **Journal page**: View entries in reverse chronological order, click dates in sidebar to scroll to specific dates, entries show correct dates in your timezone
 10. **Documents Manager**: Upload files, see AI categorization, search and filter by category, click dates in sidebar to scroll to that date section (same as Journal)
 11. **Audio Recordings**: View transcribed recordings, AI categories and summaries, search and filter, click dates in sidebar to scroll to that date section, play audio
-12. **Tools section**: Access Jargon Translator and Conversation Coach
-13. **Clear session**: Click red trash icon in header, confirm permanent deletion
-14. **Mobile testing**: Resize browser to mobile width, test collapsible sidebars on Documents/Audio pages
+12. **Tools section**: Access Jargon Translator and Conversation Coach (collapsible on mobile)
+13. **Settings page**: Click user name/avatar in header, test updating name/email/password (requires current password), view session statistics
+14. **Clear session**: In Settings page, clear session with confirmation, see data statistics (keeps account, deletes conversations/journal/documents/audio)
+15. **Password reset**: Log out, click "Forgot password?" on login page, enter email, check backend logs for reset link (development mode) or email (production)
+16. **Mobile testing**: Resize browser to mobile width, test collapsible sidebars on Documents/Audio pages, test collapsible Tools submenu
 
 Sample medical text for testing:
 ```

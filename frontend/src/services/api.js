@@ -29,6 +29,24 @@ export const authAPI = {
 
   getMe: () => api.get('/auth/me'),
 
+  updateName: (name, currentPassword) =>
+    api.put('/auth/name', { name, current_password: currentPassword }),
+
+  updateEmail: (email, currentPassword) =>
+    api.put('/auth/email', { email, current_password: currentPassword }),
+
+  updatePassword: (currentPassword, newPassword) =>
+    api.put('/auth/password', { current_password: currentPassword, new_password: newPassword }),
+
+  deleteAccount: (password) =>
+    api.delete('/auth/account', { data: { password } }),
+
+  requestPasswordReset: (email) =>
+    api.post('/auth/password-reset/request', { email }),
+
+  resetPassword: (token, newPassword) =>
+    api.post('/auth/password-reset/reset', { token, new_password: newPassword }),
+
   logout: () => {
     localStorage.removeItem('auth_token');
     localStorage.removeItem('user');
@@ -41,6 +59,7 @@ export const sessionAPI = {
   create: () => api.post('/sessions/'),
   getPrimary: () => api.post('/sessions/primary'),
   get: (sessionId) => api.get(`/sessions/${sessionId}`),
+  getStatistics: (sessionId) => api.get(`/sessions/${sessionId}/statistics`),
   delete: (sessionId) => api.delete(`/sessions/${sessionId}`),
   cleanup: (sessionId) => api.post(`/sessions/${sessionId}/cleanup`),
 };

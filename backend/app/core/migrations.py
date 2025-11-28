@@ -108,3 +108,37 @@ def run_migrations():
                     conn.rollback()
             else:
                 logger.info("description column already removed")
+
+        # Check if users table exists
+        if 'users' in inspector.get_table_names():
+            columns = [col['name'] for col in inspector.get_columns('users')]
+
+            # Add reset_token column if it doesn't exist
+            if 'reset_token' not in columns:
+                logger.info("Adding reset_token column to users table...")
+                try:
+                    conn.execute(text(
+                        "ALTER TABLE users ADD COLUMN reset_token VARCHAR NULL"
+                    ))
+                    conn.commit()
+                    logger.info("Successfully added reset_token column")
+                except Exception as e:
+                    logger.error(f"Failed to add reset_token column: {e}")
+                    conn.rollback()
+            else:
+                logger.info("reset_token column already exists")
+
+            # Add reset_token_expires column if it doesn't exist
+            if 'reset_token_expires' not in columns:
+                logger.info("Adding reset_token_expires column to users table...")
+                try:
+                    conn.execute(text(
+                        "ALTER TABLE users ADD COLUMN reset_token_expires TIMESTAMP NULL"
+                    ))
+                    conn.commit()
+                    logger.info("Successfully added reset_token_expires column")
+                except Exception as e:
+                    logger.error(f"Failed to add reset_token_expires column: {e}")
+                    conn.rollback()
+            else:
+                logger.info("reset_token_expires column already exists")

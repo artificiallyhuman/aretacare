@@ -8,11 +8,13 @@ import About from './pages/About';
 import JournalView from './pages/JournalView';
 import DailyPlan from './pages/DailyPlan';
 import AudioRecordings from './pages/AudioRecordings';
+import Settings from './pages/Settings';
 import JargonTranslator from './pages/tools/JargonTranslator';
 import ConversationCoach from './pages/tools/ConversationCoach';
 import Documents from './pages/tools/Documents';
 import Login from './pages/Login';
 import Register from './pages/Register';
+import PasswordReset from './pages/PasswordReset';
 import TermsOfService from './pages/TermsOfService';
 import PrivacyPolicy from './pages/PrivacyPolicy';
 
@@ -61,26 +63,7 @@ function PublicRoute({ children }) {
 }
 
 function App() {
-  const { user, clearSession, logout } = useSession();
-
-  const handleClearSession = async () => {
-    const confirmMessage =
-      '⚠️ WARNING: PERMANENT DATA DELETION ⚠️\n\n' +
-      'This will PERMANENTLY DELETE ALL of your data including:\n' +
-      '• All conversations and messages\n' +
-      '• All journal entries\n' +
-      '• All uploaded documents\n' +
-      '• All daily plans\n' +
-      '• All audio recordings\n\n' +
-      'THIS ACTION CANNOT BE UNDONE.\n' +
-      'Your data is NOT recoverable after deletion.\n\n' +
-      'Are you absolutely sure you want to proceed?';
-
-    if (window.confirm(confirmMessage)) {
-      await clearSession();
-      window.location.reload();
-    }
-  };
+  const { user, logout } = useSession();
 
   const handleLogout = () => {
     logout();
@@ -90,7 +73,7 @@ function App() {
   return (
     <Router>
       <div className="min-h-screen bg-gray-50">
-        {user && <Header onClearSession={handleClearSession} onLogout={handleLogout} user={user} />}
+        {user && <Header onLogout={handleLogout} user={user} />}
         <Routes>
           {/* Public Routes */}
           <Route
@@ -106,6 +89,14 @@ function App() {
             element={
               <PublicRoute>
                 <Register />
+              </PublicRoute>
+            }
+          />
+          <Route
+            path="/password-reset"
+            element={
+              <PublicRoute>
+                <PasswordReset />
               </PublicRoute>
             }
           />
@@ -132,6 +123,14 @@ function App() {
             element={
               <ProtectedRoute>
                 <About />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/settings"
+            element={
+              <ProtectedRoute>
+                <Settings />
               </ProtectedRoute>
             }
           />
