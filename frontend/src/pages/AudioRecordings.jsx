@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback, memo } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useSession } from '../hooks/useSession';
 import { audioRecordingsAPI } from '../services/api';
 
@@ -33,49 +33,6 @@ const getCategoryLabel = (category) => {
   return cat ? cat.label : 'Other';
 };
 
-// Memoized search input component to prevent mobile focus loss
-const SearchInput = memo(({ value, onChange, onClear, placeholder }) => {
-  const searchInputRef = useRef(null);
-
-  const handleClear = useCallback(() => {
-    onClear();
-    // Use setTimeout to ensure state update happens before focus
-    setTimeout(() => {
-      searchInputRef.current?.focus();
-    }, 0);
-  }, [onClear]);
-
-  return (
-    <div className="relative">
-      <input
-        ref={searchInputRef}
-        type="text"
-        inputMode="search"
-        value={value}
-        onChange={onChange}
-        placeholder={placeholder}
-        className="input w-full pr-10"
-      />
-      {value && (
-        <button
-          onClick={handleClear}
-          onMouseDown={(e) => e.preventDefault()}
-          onTouchStart={(e) => e.preventDefault()}
-          className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 p-1"
-          aria-label="Clear search"
-          type="button"
-        >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-          </svg>
-        </button>
-      )}
-    </div>
-  );
-});
-
-SearchInput.displayName = 'SearchInput';
-
 const AudioRecordings = () => {
   const { sessionId, loading: sessionLoading } = useSession();
   const [recordings, setRecordings] = useState([]);
@@ -91,6 +48,15 @@ const AudioRecordings = () => {
   const [selectedDate, setSelectedDate] = useState(null);
   const dateRefs = useRef({});
   const [showSidebar, setShowSidebar] = useState(false);
+  const searchInputRef = useRef(null);
+  const isSearchFocused = useRef(false);
+
+  // Restore focus to search input if it was focused before re-render
+  useEffect(() => {
+    if (isSearchFocused.current && searchInputRef.current && document.activeElement !== searchInputRef.current) {
+      searchInputRef.current.focus();
+    }
+  });
 
   // Debounce search query to avoid API calls on every keystroke
   useEffect(() => {
@@ -100,15 +66,6 @@ const AudioRecordings = () => {
 
     return () => clearTimeout(timer);
   }, [searchQuery]);
-
-  // Memoized search input handlers to prevent recreation on every render
-  const handleSearchChange = useCallback((e) => {
-    setSearchQuery(e.target.value);
-  }, []);
-
-  const handleClearSearch = useCallback(() => {
-    setSearchQuery('');
-  }, []);
 
   useEffect(() => {
     if (sessionId) {
@@ -266,12 +223,34 @@ const AudioRecordings = () => {
         {/* Controls */}
         <div className="mb-6 space-y-3 sm:space-y-4">
           {/* Search */}
-          <SearchInput
-            value={searchQuery}
-            onChange={handleSearchChange}
-            onClear={handleClearSearch}
-            placeholder="Search recordings by summary or transcription..."
-          />
+          <div className="relative">
+            <input
+              ref={searchInputRef}
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              onFocus={() => { isSearchFocused.current = true; }}
+              onBlur={() => { isSearchFocused.current = false; }}
+              placeholder="Search recordings by summary or transcription..."
+              className="input w-full pr-10"
+            />
+            {searchQuery && (
+              <button
+                onClick={() => {
+                  setSearchQuery('');
+                  searchInputRef.current?.focus();
+                }}
+                onMouseDown={(e) => e.preventDefault()}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 p-1"
+                aria-label="Clear search"
+                type="button"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            )}
+          </div>
 
           {/* Filter by category */}
           <div className="flex items-center gap-3">
