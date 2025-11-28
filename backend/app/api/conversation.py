@@ -298,14 +298,36 @@ async def transcribe_audio(
         description = await openai_service.generate_recording_description(transcribed_text)
         logger.info(f"Generated description: {description}")
 
-        # Save audio recording metadata to database
+        # Use AI to categorize recording and generate summary
+        # Wrapped in try/except for backward compatibility - if AI fails, recording still saves
+        recording_category = None
+        ai_summary = None
+        try:
+            categorization = await openai_service.categorize_audio_recording(
+                transcribed_text or "",
+                duration_seconds
+            )
+            # Convert category string to enum (with fallback to OTHER)
+            try:
+                from app.models import AudioRecordingCategory
+                recording_category = AudioRecordingCategory(categorization["category"])
+            except (ValueError, KeyError):
+                recording_category = AudioRecordingCategory.OTHER
+            ai_summary = categorization.get("summary", "")
+        except Exception as e:
+            logger.warning(f"AI categorization failed for audio recording: {e}. Recording will save without category.")
+            # Leave recording_category and ai_summary as None for backward compatibility
+
+        # Save audio recording metadata to database with AI metadata (or None if AI failed)
         audio_recording = AudioRecording(
             session_id=session_id,
             filename=audio.filename,
             s3_key=s3_key,
             duration=duration_seconds,
             transcribed_text=transcribed_text,
-            description=description
+            description=description,
+            category=recording_category,
+            ai_summary=ai_summary
         )
         db.add(audio_recording)
         db.commit()

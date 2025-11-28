@@ -204,25 +204,43 @@ Remember to:
             "family_notes": '\n'.join(family_notes).strip()
         }
 
-    async def translate_jargon(self, medical_term: str, context: str = "") -> Dict:
-        """Translate medical jargon into plain language"""
+    async def translate_jargon(self, medical_term: str, context: str = "", journal_context: Optional[str] = None) -> Dict:
+        """Translate medical jargon into plain language with optional journal context"""
 
         prompt = f"""Please explain the following medical term in simple, clear language:
 
-Term: {medical_term}
-{f"Context: {context}" if context else ""}
+**Term:** {medical_term}
+{f"**Additional Context:** {context}" if context else ""}
 
-Provide:
-1. A simple, non-alarmist definition
-2. Brief context about what this term usually refers to
-3. A note encouraging the family to confirm the specific meaning with their healthcare provider
+Provide a well-formatted markdown explanation with:
 
-Keep the tone calm and professional."""
+## What It Means
+
+A simple, non-alarmist definition in 1-2 sentences.
+
+## Common Context
+
+Brief explanation (2-3 sentences) about what this term usually refers to in medical care.
+
+## Relevance to This Patient
+
+If the patient's journal contains relevant history, briefly note how this term might relate to their specific situation. If no relevant history exists, acknowledge this is general information.
+
+## Next Steps
+
+A brief note encouraging the family to confirm the specific meaning with their healthcare provider.
+
+Keep the tone calm, professional, and reassuring."""
 
         messages = [
-            {"role": "system", "content": self.SYSTEM_PROMPT},
-            {"role": "user", "content": prompt}
+            {"role": "system", "content": self.SYSTEM_PROMPT}
         ]
+
+        # Add journal context if available
+        if journal_context:
+            messages.append({"role": "system", "content": f"PATIENT JOURNAL:\n{journal_context}"})
+
+        messages.append({"role": "user", "content": prompt})
 
         response = self._create_chat_completion(messages)
 
@@ -242,28 +260,42 @@ Keep the tone calm and professional."""
     async def generate_conversation_coaching(
         self,
         situation: str,
-        context: List[Dict[str, str]] = None
+        journal_context: Optional[str] = None
     ) -> Dict:
-        """Help families prepare for healthcare conversations"""
+        """Help families prepare for healthcare conversations with optional journal context"""
 
         prompt = f"""A family member is preparing for the following healthcare interaction:
 
 {situation}
 
-Please provide:
-1. 3-5 concise, respectful questions they could ask
-2. 2-3 brief preparation tips
+Please provide conversation coaching in well-formatted markdown with the following structure:
+
+## Questions to Ask
+
+Provide 3-5 concise, respectful questions they could ask. If the patient's journal contains relevant history (past appointments, treatments, test results), tailor questions to reference that context specifically.
+
+Format as a bulleted list with:
+- Clear, direct questions
+- Brief context in parentheses when relevant to journal history
+
+## Preparation Tips
+
+Provide 2-3 brief, actionable preparation tips. Consider relevant past appointments or treatments from the journal when applicable.
+
+Format as a bulleted list.
 
 Focus on:
 - Encouraging cooperative communication with the care team
 - Avoiding implications of clinical judgment
 - Keeping questions clear and focused
-- Supporting the family's role as advocates, not medical decision-makers"""
+- Supporting the family's role as advocates, not medical decision-makers
+- Referencing specific journal history to make guidance more relevant and personalized"""
 
         messages = [{"role": "system", "content": self.SYSTEM_PROMPT}]
 
-        if context:
-            messages.extend(context[-3:])
+        # Add journal context if available
+        if journal_context:
+            messages.append({"role": "system", "content": f"PATIENT JOURNAL:\n{journal_context}"})
 
         messages.append({"role": "user", "content": prompt})
 
@@ -273,6 +305,161 @@ Focus on:
             return {"content": response}
         else:
             return {"content": "Unable to generate coaching at this time. Please write down your questions and concerns for your healthcare team."}
+
+    async def categorize_document(self, extracted_text: str, filename: str) -> Dict:
+        """Categorize a document and generate a brief description using AI"""
+
+        # Take first 2000 characters for categorization to avoid token limits
+        text_sample = extracted_text[:2000] if extracted_text else ""
+
+        prompt = f"""Analyze this medical document and provide categorization.
+
+Document Filename: {filename}
+
+Document Content Sample:
+{text_sample if text_sample else "[No text could be extracted from this document]"}
+
+Please provide your response in this EXACT JSON format (no additional text):
+{{
+  "category": "<category_value>",
+  "description": "<brief description>"
+}}
+
+Available categories (use the exact value shown):
+- lab_results: Laboratory test results (CBC, metabolic panels, etc.)
+- imaging_reports: Radiology reports (X-rays, CT scans, MRIs, ultrasounds)
+- clinic_notes: Visit notes, progress notes, consultation notes
+- medication_records: Prescription records, medication lists
+- discharge_summary: Hospital discharge summaries
+- treatment_plan: Treatment plans, care plans
+- test_results: Non-lab diagnostic tests (EKG, pulmonary function, etc.)
+- referral: Referral letters to specialists
+- insurance_billing: Insurance forms, billing statements, EOBs
+- consent_form: Consent forms, authorization forms
+- care_instructions: Home care instructions, patient education materials
+- other: Anything that doesn't fit the above categories
+
+For the description:
+- Write 1-2 sentences (max 150 characters)
+- Focus on what the document contains (e.g., "Blood work results from 3/15/2024" or "Cardiology consultation note")
+- Be specific if dates or key findings are visible
+- If no text extracted, describe based on filename"""
+
+        messages = [
+            {"role": "system", "content": "You are a medical document classifier. Always respond with valid JSON only."},
+            {"role": "user", "content": prompt}
+        ]
+
+        response = self._create_chat_completion(messages, temperature=0.3)
+
+        if response:
+            try:
+                # Try to parse JSON response
+                import json
+                # Strip any markdown code blocks if present
+                cleaned_response = response.strip()
+                if cleaned_response.startswith("```"):
+                    # Remove markdown code blocks
+                    cleaned_response = cleaned_response.split("```")[1]
+                    if cleaned_response.startswith("json"):
+                        cleaned_response = cleaned_response[4:]
+                    cleaned_response = cleaned_response.strip()
+
+                data = json.loads(cleaned_response)
+                return {
+                    "category": data.get("category", "other"),
+                    "description": data.get("description", "Document uploaded")[:200]  # Limit length
+                }
+            except (json.JSONDecodeError, KeyError) as e:
+                logger.error(f"Failed to parse document categorization response: {e}, Response: {response}")
+                return {
+                    "category": "other",
+                    "description": f"Document: {filename}"[:200]
+                }
+        else:
+            return {
+                "category": "other",
+                "description": f"Document: {filename}"[:200]
+            }
+
+    async def categorize_audio_recording(self, transcribed_text: str, duration: float = None) -> Dict:
+        """Categorize an audio recording and generate a brief summary using AI"""
+
+        # Take first 1500 characters for categorization to avoid token limits
+        text_sample = transcribed_text[:1500] if transcribed_text else ""
+
+        duration_info = f"Duration: {int(duration)} seconds" if duration else "Duration: Unknown"
+
+        prompt = f"""Analyze this transcribed audio recording and provide categorization.
+
+{duration_info}
+
+Transcription:
+{text_sample if text_sample else "[No transcription available]"}
+
+Please provide your response in this EXACT JSON format (no additional text):
+{{
+  "category": "<category_value>",
+  "summary": "<brief summary>"
+}}
+
+Available categories (use the exact value shown):
+- symptom_update: Recording describing symptoms, pain levels, or physical changes
+- appointment_recap: Summary or notes from a medical appointment
+- medication_note: Notes about medications, dosages, or medication changes
+- question_for_doctor: Questions to ask healthcare providers
+- daily_reflection: General reflections on daily health or well-being
+- progress_update: Updates on treatment progress or recovery
+- side_effects: Reports of medication or treatment side effects
+- care_instruction: Notes about care instructions or treatment procedures
+- emergency_note: Urgent concerns or emergency-related notes
+- family_update: Updates or notes for family members
+- treatment_observation: Observations about ongoing treatment
+- other: Anything that doesn't fit the above categories
+
+For the summary:
+- Write 1-2 sentences (max 150 characters)
+- Focus on the main topic or purpose of the recording
+- Be specific if key information is mentioned
+- If no transcription, write "Audio recording"
+"""
+
+        messages = [
+            {"role": "system", "content": "You are a medical audio recording classifier. Always respond with valid JSON only."},
+            {"role": "user", "content": prompt}
+        ]
+
+        response = self._create_chat_completion(messages, temperature=0.3)
+
+        if response:
+            try:
+                # Try to parse JSON response
+                import json
+                # Strip any markdown code blocks if present
+                cleaned_response = response.strip()
+                if cleaned_response.startswith("```"):
+                    # Remove markdown code blocks
+                    cleaned_response = cleaned_response.split("```")[1]
+                    if cleaned_response.startswith("json"):
+                        cleaned_response = cleaned_response[4:]
+                    cleaned_response = cleaned_response.strip()
+
+                data = json.loads(cleaned_response)
+                return {
+                    "category": data.get("category", "other"),
+                    "summary": data.get("summary", "Audio recording")[:200]  # Limit length
+                }
+            except (json.JSONDecodeError, KeyError) as e:
+                logger.error(f"Failed to parse audio categorization response: {e}, Response: {response}")
+                return {
+                    "category": "other",
+                    "summary": "Audio recording"
+                }
+        else:
+            return {
+                "category": "other",
+                "summary": "Audio recording"
+            }
 
     def _parse_coaching_response(self, response: str) -> Dict:
         """Parse coaching response into structured format, preserving markdown"""

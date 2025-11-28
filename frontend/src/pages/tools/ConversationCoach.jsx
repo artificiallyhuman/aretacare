@@ -26,7 +26,7 @@ const ConversationCoach = () => {
     setError(null);
 
     try {
-      const response = await toolsAPI.getConversationCoach(situation);
+      const response = await toolsAPI.getConversationCoach(situation, sessionId);
       setCoaching(response.data);
     } catch (err) {
       setError('Failed to get coaching: ' + err.message);
@@ -196,8 +196,28 @@ const ConversationCoach = () => {
           <h2 className="text-lg sm:text-xl font-semibold text-gray-900 mb-4">
             Conversation Coaching
           </h2>
-          <div className="prose prose-sm sm:prose-base max-w-none">
-            <ReactMarkdown>{coaching.content}</ReactMarkdown>
+          <div className="prose prose-sm max-w-none prose-gray prose-headings:text-gray-900 prose-p:text-gray-800">
+            <ReactMarkdown
+              components={{
+                p: ({node, ...props}) => <p className="mb-2 leading-relaxed" {...props} />,
+                h1: ({node, ...props}) => <h1 className="text-xl font-bold mb-3 mt-4" {...props} />,
+                h2: ({node, ...props}) => <h2 className="text-lg font-semibold mb-2 mt-3" {...props} />,
+                h3: ({node, ...props}) => <h3 className="text-base font-semibold mb-2 mt-3" {...props} />,
+                ul: ({node, ...props}) => <ul className="mb-3 space-y-1 pl-5" {...props} />,
+                ol: ({node, ...props}) => <ol className="mb-3 space-y-1 pl-5" {...props} />,
+                li: ({node, ...props}) => <li className="leading-relaxed" {...props} />,
+                code: ({node, inline, ...props}) =>
+                  inline
+                    ? <code className="bg-gray-200 px-1.5 py-0.5 rounded text-sm" {...props} />
+                    : <code className="block bg-gray-200 p-3 rounded my-2 text-sm overflow-x-auto" {...props} />,
+                blockquote: ({node, ...props}) => (
+                  <blockquote className="border-l-4 border-primary-400 pl-4 my-2 italic" {...props} />
+                ),
+                strong: ({node, ...props}) => <strong className="font-bold" {...props} />,
+              }}
+            >
+              {coaching.content}
+            </ReactMarkdown>
           </div>
         </div>
       )}

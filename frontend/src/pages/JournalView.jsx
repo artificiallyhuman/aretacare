@@ -25,12 +25,21 @@ const JournalView = () => {
   const [loading, setLoading] = useState(false);
   const [selectedDate, setSelectedDate] = useState(null);
   const dateRefs = useRef({});
+  const searchInputRef = useRef(null);
+  const isSearchFocused = useRef(false);
 
   useEffect(() => {
     if (sessionId) {
       loadJournalEntries();
     }
   }, [sessionId]);
+
+  // Restore focus to search input if it was focused before re-render
+  useEffect(() => {
+    if (isSearchFocused.current && searchInputRef.current && document.activeElement !== searchInputRef.current) {
+      searchInputRef.current.focus();
+    }
+  });
 
   useEffect(() => {
     applyFilters();
@@ -181,14 +190,33 @@ const JournalView = () => {
         {/* Controls */}
         <div className="mb-6 space-y-3 sm:space-y-4">
           {/* Search */}
-          <div className="flex-1">
+          <div className="flex-1 relative">
             <input
+              ref={searchInputRef}
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
+              onFocus={() => { isSearchFocused.current = true; }}
+              onBlur={() => { isSearchFocused.current = false; }}
               placeholder="Search journal entries..."
-              className="input w-full"
+              className="input w-full pr-10"
             />
+            {searchQuery && (
+              <button
+                onClick={() => {
+                  setSearchQuery('');
+                  searchInputRef.current?.focus();
+                }}
+                onMouseDown={(e) => e.preventDefault()}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 p-1"
+                aria-label="Clear search"
+                type="button"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            )}
           </div>
 
           {/* Filter by type */}

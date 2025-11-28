@@ -130,19 +130,19 @@ const About = () => {
           <ul className="text-gray-600 space-y-2 leading-relaxed">
             <li className="flex items-start">
               <span className="text-purple-600 mr-2 mt-1">•</span>
-              <span><strong>Jargon Translator:</strong> Explains medical terms in plain language</span>
+              <span>Jargon Translator explains medical terms in plain language</span>
             </li>
             <li className="flex items-start">
               <span className="text-purple-600 mr-2 mt-1">•</span>
-              <span><strong>Conversation Coach:</strong> Helps you prepare questions and talking points before appointments</span>
+              <span>Conversation Coach helps you prepare questions and talking points before appointments</span>
             </li>
             <li className="flex items-start">
               <span className="text-purple-600 mr-2 mt-1">•</span>
-              <span><strong>Documents Manager:</strong> Upload and organize medical files with text extraction</span>
+              <span>Documents Manager uploads medical files with AI categorization, automatic descriptions, and searchable text extraction</span>
             </li>
             <li className="flex items-start">
               <span className="text-purple-600 mr-2 mt-1">•</span>
-              <span><strong>Audio Recordings:</strong> Store and transcribe voice notes from appointments or thoughts</span>
+              <span>Audio Recordings captures voice notes with automatic transcription, AI categorization, and searchable summaries</span>
             </li>
           </ul>
         </div>
@@ -170,11 +170,11 @@ const About = () => {
           </li>
           <li className="flex items-start">
             <span className="text-gray-600 mr-2 mt-1">•</span>
-            <span><strong>Clearing permanently deletes all conversations, journal entries, uploaded documents, and audio recordings</strong></span>
+            <span>Clearing <strong>permanently deletes</strong> all conversations, journal entries, uploaded documents, and audio recordings</span>
           </li>
           <li className="flex items-start">
             <span className="text-gray-600 mr-2 mt-1">•</span>
-            <span><strong>Once cleared, your data cannot be recovered</strong></span>
+            <span>Once cleared, your data <strong>cannot be recovered</strong></span>
           </li>
         </ul>
       </div>

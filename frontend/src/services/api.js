@@ -54,7 +54,12 @@ export const documentAPI = {
       },
     });
   },
-  getSessionDocuments: (sessionId) => api.get(`/documents/session/${sessionId}`),
+  getSessionDocuments: (sessionId, category = null, search = null) => {
+    const params = {};
+    if (category) params.category = category;
+    if (search) params.search = search;
+    return api.get(`/documents/session/${sessionId}`, { params });
+  },
   get: (documentId) => api.get(`/documents/${documentId}`),
   delete: (documentId) => api.delete(`/documents/${documentId}`),
   getDownloadUrl: (documentId) => api.get(`/documents/${documentId}/download-url`),
@@ -95,8 +100,12 @@ export const journalAPI = {
 
 // Audio Recordings API
 export const audioRecordingsAPI = {
-  getRecordings: (sessionId) =>
-    api.get(`/audio-recordings/${sessionId}`),
+  getRecordings: (sessionId, category = null, search = null) => {
+    const params = {};
+    if (category) params.category = category;
+    if (search) params.search = search;
+    return api.get(`/audio-recordings/${sessionId}`, { params });
+  },
   getRecording: (sessionId, recordingId) =>
     api.get(`/audio-recordings/${sessionId}/${recordingId}`),
   updateRecording: (sessionId, recordingId, description) =>
@@ -127,14 +136,14 @@ export const dailyPlanAPI = {
     api.delete(`/daily-plans/${planId}`),
 };
 
-// Tools API (new - standalone)
+// Tools API (new - standalone with optional journal context)
 export const toolsAPI = {
   generateSummary: (medicalText) =>
     api.post('/tools/medical-summary', null, { params: { medical_text: medicalText } }),
-  translateJargon: (medicalTerm, context = '') =>
-    api.post('/tools/jargon-translator', null, { params: { medical_term: medicalTerm, context } }),
-  getConversationCoach: (situation) =>
-    api.post('/tools/conversation-coach', null, { params: { situation } }),
+  translateJargon: (medicalTerm, context = '', sessionId = null) =>
+    api.post('/tools/jargon-translator', null, { params: { medical_term: medicalTerm, context, session_id: sessionId } }),
+  getConversationCoach: (situation, sessionId = null) =>
+    api.post('/tools/conversation-coach', null, { params: { situation, session_id: sessionId } }),
 };
 
 // Medical API

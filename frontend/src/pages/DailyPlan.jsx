@@ -358,9 +358,9 @@ const DailyPlan = () => {
 
                 <div className="px-6 py-4 bg-gray-50 border-t border-gray-200 text-xs text-gray-500">
                   {selectedPlan.user_edited_content ? (
-                    <p>Last edited: {new Date(selectedPlan.updated_at).toLocaleString()}</p>
+                    <p>Last edited: {new Date(selectedPlan.updated_at.endsWith('Z') ? selectedPlan.updated_at : selectedPlan.updated_at + 'Z').toLocaleString()}</p>
                   ) : (
-                    <p>Generated: {new Date(selectedPlan.created_at).toLocaleString()}</p>
+                    <p>Generated: {new Date(selectedPlan.created_at.endsWith('Z') ? selectedPlan.created_at : selectedPlan.created_at + 'Z').toLocaleString()}</p>
                   )}
                 </div>
               </div>
