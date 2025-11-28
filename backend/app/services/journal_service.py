@@ -191,9 +191,11 @@ IMPORTANT: Respond with ONLY a valid JSON object in this exact format, with no a
     async def format_journal_context(
         self,
         session_id: str,
-        max_tokens: int = 2000
+        max_tokens: int = None
     ) -> str:
         """Format journal context for conversation with tiered loading"""
+        if max_tokens is None:
+            max_tokens = ai_config.MAX_JOURNAL_TOKENS
         try:
             entries = self.db.query(JournalEntry).filter(
                 JournalEntry.session_id == session_id
@@ -377,7 +379,8 @@ IMPORTANT: Respond with ONLY a valid JSON object in this exact format, with no a
             if end_date:
                 query = query.filter(JournalEntry.entry_date <= end_date)
 
-            entries = query.order_by(desc(JournalEntry.entry_date)).all()
+            # Sort by date descending, then by created_at descending (most recent first within each date)
+            entries = query.order_by(desc(JournalEntry.entry_date), desc(JournalEntry.created_at)).all()
 
             # Group by date
             grouped = defaultdict(list)
@@ -403,7 +406,7 @@ IMPORTANT: Respond with ONLY a valid JSON object in this exact format, with no a
                     JournalEntry.session_id == session_id,
                     JournalEntry.entry_date == target_date
                 )
-            ).order_by(JournalEntry.created_at).all()
+            ).order_by(desc(JournalEntry.created_at)).all()
 
             return entries
 

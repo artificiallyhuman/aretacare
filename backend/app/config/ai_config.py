@@ -342,5 +342,8 @@ MAX_CONVERSATION_CONTEXT = 10
 # Maximum number of messages for medical summary context
 MAX_SUMMARY_CONTEXT = 5
 
+# Maximum tokens for journal context (approximate: 1 token ≈ 4 characters)
+MAX_JOURNAL_TOKENS = 10000
+
 # Journal context marker (used to detect empty journal)
 EMPTY_JOURNAL_MARKER = "# Care Journal\n\nNo journal entries yet."

@@ -31,6 +31,16 @@ Located at the top of `ai_config.py`:
 
 **Note:** All services use the OpenAI Responses API.
 
+### Context Settings
+
+Control how much information is sent to the AI:
+
+- `MAX_CONVERSATION_CONTEXT` - Number of recent conversation messages (default: 10)
+- `MAX_SUMMARY_CONTEXT` - Messages for medical summary context (default: 5)
+- `MAX_JOURNAL_TOKENS` - Maximum tokens for journal context (default: 10,000)
+  - Uses tiered loading: last 7 days full detail, 8-30 days summarized, 30+ days titles only
+  - 1 token ≈ 4 characters
+
 ### Core Prompts
 
 #### System Prompt (`SYSTEM_PROMPT`)
