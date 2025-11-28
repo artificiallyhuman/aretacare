@@ -37,7 +37,9 @@ const AudioRecordings = () => {
   const { sessionId, loading: sessionLoading } = useSession();
   const [recordings, setRecordings] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [searching, setSearching] = useState(false);
   const [error, setError] = useState(null);
+  const hasLoadedRef = useRef(false);
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
@@ -74,7 +76,12 @@ const AudioRecordings = () => {
   }, [sessionId, selectedCategory, debouncedSearchQuery]);
 
   const loadRecordings = async () => {
-    setLoading(true);
+    // Use different loading states for initial load vs search/filter
+    if (!hasLoadedRef.current) {
+      setLoading(true);
+    } else {
+      setSearching(true);
+    }
     setError(null);
     try {
       const response = await audioRecordingsAPI.getRecordings(
@@ -83,11 +90,13 @@ const AudioRecordings = () => {
         debouncedSearchQuery || null
       );
       setRecordings(response.data.recordings);
+      hasLoadedRef.current = true;
     } catch (err) {
       console.error('Error loading recordings:', err);
       setError('Failed to load recordings: ' + err.message);
     } finally {
       setLoading(false);
+      setSearching(false);
     }
   };
 
@@ -202,7 +211,18 @@ const AudioRecordings = () => {
     return date.toDateString() === today.toDateString();
   };
 
-  if (sessionLoading || loading) {
+  if (sessionLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">

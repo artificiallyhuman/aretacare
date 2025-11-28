@@ -37,7 +37,9 @@ const Documents = () => {
   const { sessionId, loading: sessionLoading } = useSession();
   const [documents, setDocuments] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [searching, setSearching] = useState(false);
   const [error, setError] = useState(null);
+  const hasLoadedRef = useRef(false);
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
@@ -77,7 +79,12 @@ const Documents = () => {
   }, [sessionId, selectedCategory, debouncedSearchQuery]);
 
   const loadDocuments = async () => {
-    setLoading(true);
+    // Use different loading states for initial load vs search/filter
+    if (!hasLoadedRef.current) {
+      setLoading(true);
+    } else {
+      setSearching(true);
+    }
     setError(null);
     try {
       const response = await documentAPI.getSessionDocuments(
@@ -87,6 +94,7 @@ const Documents = () => {
       );
       const docs = response.data;
       setDocuments(docs);
+      hasLoadedRef.current = true;
 
       // Load preview URLs for images and PDF thumbnails
       const urls = {};
@@ -114,6 +122,7 @@ const Documents = () => {
       setError('Failed to load documents: ' + err.message);
     } finally {
       setLoading(false);
+      setSearching(false);
     }
   };
 
@@ -250,7 +259,18 @@ const Documents = () => {
     }
   };
 
-  if (sessionLoading || loading) {
+  if (sessionLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
