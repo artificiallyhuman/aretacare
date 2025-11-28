@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.models import User, Session as SessionModel, AudioRecording
-from app.schemas.audio_recording import AudioRecordingResponse, AudioRecordingUpdate, AudioRecordingListResponse
+from app.schemas.audio_recording import AudioRecordingResponse, AudioRecordingListResponse, AudioRecordingUpdate
 from app.services.s3_service import s3_service
 from app.api.auth import get_current_user
 from typing import List
@@ -42,11 +42,10 @@ async def get_audio_recordings(
             # Invalid category, ignore filter
             pass
 
-    # Search by description, AI summary, or transcribed text if provided
+    # Search by AI summary or transcribed text if provided
     if search:
         search_term = f"%{search}%"
         query = query.filter(
-            (AudioRecording.description.ilike(search_term)) |
             (AudioRecording.ai_summary.ilike(search_term)) |
             (AudioRecording.transcribed_text.ilike(search_term))
         )
@@ -92,7 +91,7 @@ async def update_audio_recording(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """Update an audio recording's description"""
+    """Update an audio recording's AI summary"""
     # Verify session belongs to current user
     session = db.query(SessionModel).filter(SessionModel.id == session_id).first()
     if not session:
@@ -109,9 +108,9 @@ async def update_audio_recording(
     if not recording:
         raise HTTPException(status_code=404, detail="Recording not found")
 
-    # Update description
-    if update_data.description is not None:
-        recording.description = update_data.description
+    # Update AI summary
+    if update_data.ai_summary is not None:
+        recording.ai_summary = update_data.ai_summary
 
     db.commit()
     db.refresh(recording)

@@ -30,7 +30,6 @@ class AudioRecording(Base):
     s3_key = Column(String, nullable=False)
     duration = Column(Float, nullable=True)  # Duration in seconds
     transcribed_text = Column(Text, nullable=True)
-    description = Column(Text, nullable=True)  # User-editable description
     category = Column(SQLEnum(AudioRecordingCategory), nullable=True)  # AI-generated category
     ai_summary = Column(Text, nullable=True)  # AI-generated brief summary
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)

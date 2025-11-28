@@ -10,7 +10,6 @@ class AudioRecordingResponse(BaseModel):
     s3_key: str
     duration: Optional[float] = None
     transcribed_text: Optional[str] = None
-    description: Optional[str] = None
     category: Optional[str] = None
     ai_summary: Optional[str] = None
     created_at: datetime
@@ -27,7 +26,7 @@ class AudioRecordingResponse(BaseModel):
 
 
 class AudioRecordingUpdate(BaseModel):
-    description: Optional[str] = None
+    ai_summary: Optional[str] = None
 
 
 class AudioRecordingListResponse(BaseModel):

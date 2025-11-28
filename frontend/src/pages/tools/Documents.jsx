@@ -45,6 +45,9 @@ const Documents = () => {
   const [previewUrl, setPreviewUrl] = useState(null);
   const [imageUrls, setImageUrls] = useState({});
   const [thumbnailUrls, setThumbnailUrls] = useState({});
+  const [expandedDescriptions, setExpandedDescriptions] = useState({});
+  const [editingDescription, setEditingDescription] = useState({});
+  const [editedDescriptions, setEditedDescriptions] = useState({});
   const [selectedDate, setSelectedDate] = useState(null);
   const dateRefs = useRef({});
   const searchInputRef = useRef(null);
@@ -173,6 +176,34 @@ const Documents = () => {
       loadDocuments();
     } catch (err) {
       setError('Failed to delete document: ' + err.message);
+    }
+  };
+
+  const toggleDescription = (documentId) => {
+    setExpandedDescriptions(prev => ({
+      ...prev,
+      [documentId]: !prev[documentId]
+    }));
+  };
+
+  const handleEditDescription = (documentId, currentDescription) => {
+    setEditingDescription(prev => ({ ...prev, [documentId]: true }));
+    setEditedDescriptions(prev => ({ ...prev, [documentId]: currentDescription || '' }));
+  };
+
+  const handleCancelEditDescription = (documentId) => {
+    setEditingDescription(prev => ({ ...prev, [documentId]: false }));
+    setEditedDescriptions(prev => ({ ...prev, [documentId]: '' }));
+  };
+
+  const handleSaveDescription = async (documentId) => {
+    try {
+      await documentAPI.update(documentId, editedDescriptions[documentId]);
+      setEditingDescription(prev => ({ ...prev, [documentId]: false }));
+      loadDocuments(); // Reload to get updated data
+    } catch (err) {
+      console.error('Error updating description:', err);
+      setError('Failed to update description');
     }
   };
 
@@ -438,10 +469,59 @@ const Documents = () => {
                             </h3>
 
                             {/* AI Description */}
-                            {doc.ai_description && (
-                              <p className="text-xs text-gray-600 mt-2 line-clamp-2">
-                                {doc.ai_description}
-                              </p>
+                            {(doc.ai_description || editingDescription[doc.id]) && (
+                              <div className="mt-2">
+                                {editingDescription[doc.id] ? (
+                                  <div className="space-y-2">
+                                    <textarea
+                                      value={editedDescriptions[doc.id] || ''}
+                                      onChange={(e) => setEditedDescriptions(prev => ({ ...prev, [doc.id]: e.target.value }))}
+                                      className="w-full px-2 py-1.5 text-xs border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                                      rows="3"
+                                      placeholder="Enter description..."
+                                    />
+                                    <div className="flex gap-1.5">
+                                      <button
+                                        onClick={() => handleSaveDescription(doc.id)}
+                                        className="px-2 py-1 text-xs font-medium text-white bg-primary-600 hover:bg-primary-700 rounded-md transition-colors"
+                                      >
+                                        Save
+                                      </button>
+                                      <button
+                                        onClick={() => handleCancelEditDescription(doc.id)}
+                                        className="px-2 py-1 text-xs font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors"
+                                      >
+                                        Cancel
+                                      </button>
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <div className="group">
+                                    <div className="flex items-start gap-1">
+                                      <p className={`text-xs text-gray-600 font-medium flex-1 ${!expandedDescriptions[doc.id] ? 'line-clamp-2' : ''}`}>
+                                        {doc.ai_description}
+                                      </p>
+                                      <button
+                                        onClick={() => handleEditDescription(doc.id, doc.ai_description)}
+                                        className="opacity-0 group-hover:opacity-100 p-0.5 text-gray-400 hover:text-gray-600 transition-opacity flex-shrink-0"
+                                        title="Edit description"
+                                      >
+                                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                                        </svg>
+                                      </button>
+                                    </div>
+                                    {doc.ai_description && doc.ai_description.length > 60 && (
+                                      <button
+                                        onClick={() => toggleDescription(doc.id)}
+                                        className="text-xs text-primary-600 hover:text-primary-700 mt-1"
+                                      >
+                                        {expandedDescriptions[doc.id] ? 'Show less' : 'Show more'}
+                                      </button>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
                             )}
 
                             <p className="text-xs text-gray-500 mt-2">

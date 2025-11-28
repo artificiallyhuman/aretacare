@@ -340,7 +340,7 @@ Available categories (use the exact value shown):
 - other: Anything that doesn't fit the above categories
 
 For the description:
-- Write 1-2 sentences (max 150 characters)
+- Write 2-3 sentences (max 200 characters)
 - Focus on what the document contains (e.g., "Blood work results from 3/15/2024" or "Cardiology consultation note")
 - Be specific if dates or key findings are visible
 - If no text extracted, describe based on filename"""
@@ -419,8 +419,10 @@ Available categories (use the exact value shown):
 
 For the summary:
 - Write 1-2 sentences (max 150 characters)
-- Focus on the main topic or purpose of the recording
-- Be specific if key information is mentioned
+- Describe only the events, information, or situation
+- Do NOT refer to any people or speakers in any way
+- Do NOT use terms like "someone," "a person," "they," "the speaker," or similar
+- Focus only on the facts or circumstances described
 - If no transcription, write "Audio recording"
 """
 
@@ -620,27 +622,5 @@ When responding to conversational messages:
         except Exception as e:
             logger.error(f"Audio transcription error: {e}")
             return None
-
-    async def generate_recording_description(self, transcript: str) -> Optional[str]:
-        """Generate a concise description of an audio recording from its transcript"""
-        try:
-            prompt = f"""Summarize the content of this audio transcript in 1–2 sentences. Describe only the events, information, or situation, and do not refer to any people or speakers in any way. Do not use terms like “someone,” “a person,” “they,” “the speaker,” or similar. Focus only on the facts or circumstances described.
-
-Transcript:
-{transcript}
-
-Summary:"""
-
-            messages = [
-                {"role": "system", "content": "You are a helpful assistant that creates concise summaries."},
-                {"role": "user", "content": prompt}
-            ]
-
-            response = self._create_chat_completion(messages, temperature=0.3)
-            return response if response else "Audio recording"
-        except Exception as e:
-            logger.error(f"Error generating recording description: {e}")
-            return "Audio recording"
-
 
 openai_service = OpenAIService()

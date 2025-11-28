@@ -43,6 +43,8 @@ const AudioRecordings = () => {
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
   const [audioUrls, setAudioUrls] = useState({});
   const [expandedTranscripts, setExpandedTranscripts] = useState({});
+  const [editingSummary, setEditingSummary] = useState({});
+  const [editedSummaries, setEditedSummaries] = useState({});
   const [selectedDate, setSelectedDate] = useState(null);
   const dateRefs = useRef({});
   const searchInputRef = useRef(null);
@@ -124,6 +126,27 @@ const AudioRecordings = () => {
       ...prev,
       [recordingId]: !prev[recordingId]
     }));
+  };
+
+  const handleEditSummary = (recordingId, currentSummary) => {
+    setEditingSummary(prev => ({ ...prev, [recordingId]: true }));
+    setEditedSummaries(prev => ({ ...prev, [recordingId]: currentSummary || '' }));
+  };
+
+  const handleCancelEditSummary = (recordingId) => {
+    setEditingSummary(prev => ({ ...prev, [recordingId]: false }));
+    setEditedSummaries(prev => ({ ...prev, [recordingId]: '' }));
+  };
+
+  const handleSaveSummary = async (recordingId) => {
+    try {
+      await audioRecordingsAPI.updateRecording(sessionId, recordingId, editedSummaries[recordingId]);
+      setEditingSummary(prev => ({ ...prev, [recordingId]: false }));
+      loadRecordings(); // Reload to get updated data
+    } catch (err) {
+      console.error('Error updating summary:', err);
+      setError('Failed to update summary');
+    }
   };
 
   const formatDuration = (seconds) => {
@@ -208,7 +231,7 @@ const AudioRecordings = () => {
               onChange={(e) => setSearchQuery(e.target.value)}
               onFocus={() => { isSearchFocused.current = true; }}
               onBlur={() => { isSearchFocused.current = false; }}
-              placeholder="Search recordings by description, summary, or transcription..."
+              placeholder="Search recordings by summary or transcription..."
               className="input w-full pr-10"
             />
             <button
@@ -392,16 +415,46 @@ const AudioRecordings = () => {
                           </div>
 
                           {/* AI Summary */}
-                          {recording.ai_summary && (
+                          {(recording.ai_summary || editingSummary[recording.id]) && (
                             <div className="mb-3">
-                              <p className="text-sm text-gray-900 font-medium">{recording.ai_summary}</p>
-                            </div>
-                          )}
-
-                          {/* User Description */}
-                          {recording.description && (
-                            <div className="mb-3">
-                              <p className="text-sm text-gray-700">{recording.description}</p>
+                              {editingSummary[recording.id] ? (
+                                <div className="space-y-2">
+                                  <textarea
+                                    value={editedSummaries[recording.id] || ''}
+                                    onChange={(e) => setEditedSummaries(prev => ({ ...prev, [recording.id]: e.target.value }))}
+                                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                                    rows="2"
+                                    placeholder="Enter summary..."
+                                  />
+                                  <div className="flex gap-2">
+                                    <button
+                                      onClick={() => handleSaveSummary(recording.id)}
+                                      className="px-3 py-1 text-xs font-medium text-white bg-primary-600 hover:bg-primary-700 rounded-md transition-colors"
+                                    >
+                                      Save
+                                    </button>
+                                    <button
+                                      onClick={() => handleCancelEditSummary(recording.id)}
+                                      className="px-3 py-1 text-xs font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors"
+                                    >
+                                      Cancel
+                                    </button>
+                                  </div>
+                                </div>
+                              ) : (
+                                <div className="flex items-start gap-2 group">
+                                  <p className="text-sm text-gray-900 font-semibold flex-1">{recording.ai_summary}</p>
+                                  <button
+                                    onClick={() => handleEditSummary(recording.id, recording.ai_summary)}
+                                    className="opacity-0 group-hover:opacity-100 p-1 text-gray-400 hover:text-gray-600 transition-opacity"
+                                    title="Edit summary"
+                                  >
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                                    </svg>
+                                  </button>
+                                </div>
+                              )}
                             </div>
                           )}
 

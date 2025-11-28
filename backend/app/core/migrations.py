@@ -93,3 +93,18 @@ def run_migrations():
                     conn.rollback()
             else:
                 logger.info("ai_summary column already exists")
+
+            # Drop description column if it exists (merged into ai_summary)
+            if 'description' in columns:
+                logger.info("Dropping description column from audio_recordings table (merged into ai_summary)...")
+                try:
+                    conn.execute(text(
+                        "ALTER TABLE audio_recordings DROP COLUMN description"
+                    ))
+                    conn.commit()
+                    logger.info("Successfully dropped description column")
+                except Exception as e:
+                    logger.error(f"Failed to drop description column: {e}")
+                    conn.rollback()
+            else:
+                logger.info("description column already removed")

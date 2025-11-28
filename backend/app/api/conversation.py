@@ -294,10 +294,6 @@ async def transcribe_audio(
 
         logger.info(f"Successfully transcribed audio for session {session_id}")
 
-        # Generate description from transcript
-        description = await openai_service.generate_recording_description(transcribed_text)
-        logger.info(f"Generated description: {description}")
-
         # Use AI to categorize recording and generate summary
         # Wrapped in try/except for backward compatibility - if AI fails, recording still saves
         recording_category = None
@@ -325,7 +321,6 @@ async def transcribe_audio(
             s3_key=s3_key,
             duration=duration_seconds,
             transcribed_text=transcribed_text,
-            description=description,
             category=recording_category,
             ai_summary=ai_summary
         )

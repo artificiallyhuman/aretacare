@@ -42,3 +42,7 @@ class DocumentResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class DocumentUpdate(BaseModel):
+    ai_description: Optional[str] = None

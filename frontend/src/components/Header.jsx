@@ -42,11 +42,11 @@ const Header = ({ onClearSession, onLogout, user }) => {
             <Link to="/" className="px-3 py-2 text-sm font-medium text-gray-700 hover:text-primary-600 hover:bg-gray-50 rounded-md transition-colors">
               Conversation
             </Link>
-            <Link to="/daily-plan" className="px-3 py-2 text-sm font-medium text-gray-700 hover:text-primary-600 hover:bg-gray-50 rounded-md transition-colors">
-              Daily Plan
-            </Link>
             <Link to="/journal" className="px-3 py-2 text-sm font-medium text-gray-700 hover:text-primary-600 hover:bg-gray-50 rounded-md transition-colors">
               Journal
+            </Link>
+            <Link to="/daily-plan" className="px-3 py-2 text-sm font-medium text-gray-700 hover:text-primary-600 hover:bg-gray-50 rounded-md transition-colors">
+              Daily Plan
             </Link>
 
             {/* Tools Dropdown */}
@@ -165,18 +165,18 @@ const Header = ({ onClearSession, onLogout, user }) => {
                 Conversation
               </Link>
               <Link
-                to="/daily-plan"
-                className="px-3 py-2.5 text-sm font-medium text-gray-700 hover:text-primary-600 hover:bg-gray-50 rounded-md transition-colors"
-                onClick={() => setMobileMenuOpen(false)}
-              >
-                Daily Plan
-              </Link>
-              <Link
                 to="/journal"
                 className="px-3 py-2.5 text-sm font-medium text-gray-700 hover:text-primary-600 hover:bg-gray-50 rounded-md transition-colors"
                 onClick={() => setMobileMenuOpen(false)}
               >
                 Journal
+              </Link>
+              <Link
+                to="/daily-plan"
+                className="px-3 py-2.5 text-sm font-medium text-gray-700 hover:text-primary-600 hover:bg-gray-50 rounded-md transition-colors"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                Daily Plan
               </Link>
 
               {/* Tools Section */}

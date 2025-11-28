@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.models import Document as DocumentModel, DocumentCategory, Session as SessionModel, User
-from app.schemas import DocumentUploadResponse, DocumentResponse
+from app.schemas import DocumentUploadResponse, DocumentResponse, DocumentUpdate
 from app.services import s3_service, document_processor
 from app.services.openai_service import openai_service
 from app.api.auth import get_current_user
@@ -192,6 +192,34 @@ async def get_document(
     session = db.query(SessionModel).filter(SessionModel.id == document.session_id).first()
     if not session or session.user_id != current_user.id:
         raise HTTPException(status_code=403, detail="Access denied")
+
+    return document
+
+
+@router.patch("/{document_id}", response_model=DocumentResponse)
+async def update_document(
+    document_id: int,
+    update_data: DocumentUpdate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Update a document's AI description"""
+    document = db.query(DocumentModel).filter(DocumentModel.id == document_id).first()
+
+    if not document:
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    # Verify document belongs to current user
+    session = db.query(SessionModel).filter(SessionModel.id == document.session_id).first()
+    if not session or session.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    # Update AI description
+    if update_data.ai_description is not None:
+        document.ai_description = update_data.ai_description
+
+    db.commit()
+    db.refresh(document)
 
     return document
 

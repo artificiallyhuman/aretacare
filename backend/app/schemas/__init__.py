@@ -1,5 +1,5 @@
 from app.schemas.session import SessionCreate, SessionResponse
-from app.schemas.document import DocumentUploadResponse, DocumentResponse
+from app.schemas.document import DocumentUploadResponse, DocumentResponse, DocumentUpdate
 from app.schemas.conversation import (
     MessageRequest,
     MessageResponse,
@@ -17,6 +17,7 @@ __all__ = [
     "SessionResponse",
     "DocumentUploadResponse",
     "DocumentResponse",
+    "DocumentUpdate",
     "MessageRequest",
     "MessageResponse",
     "ConversationHistory",

@@ -61,6 +61,7 @@ export const documentAPI = {
     return api.get(`/documents/session/${sessionId}`, { params });
   },
   get: (documentId) => api.get(`/documents/${documentId}`),
+  update: (documentId, ai_description) => api.patch(`/documents/${documentId}`, { ai_description }),
   delete: (documentId) => api.delete(`/documents/${documentId}`),
   getDownloadUrl: (documentId) => api.get(`/documents/${documentId}/download-url`),
   getThumbnailUrl: (documentId) => api.get(`/documents/${documentId}/thumbnail-url`),
@@ -108,8 +109,8 @@ export const audioRecordingsAPI = {
   },
   getRecording: (sessionId, recordingId) =>
     api.get(`/audio-recordings/${sessionId}/${recordingId}`),
-  updateRecording: (sessionId, recordingId, description) =>
-    api.patch(`/audio-recordings/${sessionId}/${recordingId}`, { description }),
+  updateRecording: (sessionId, recordingId, ai_summary) =>
+    api.patch(`/audio-recordings/${sessionId}/${recordingId}`, { ai_summary }),
   deleteRecording: (sessionId, recordingId) =>
     api.delete(`/audio-recordings/${sessionId}/${recordingId}`),
   getAudioUrl: (sessionId, recordingId) =>
