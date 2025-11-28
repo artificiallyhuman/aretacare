@@ -222,7 +222,7 @@ const MessageInput = ({ onSendMessage, onFileUpload, loading }) => {
             onChange={handleTextareaChange}
             onKeyPress={handleKeyPress}
             placeholder="Type your message..."
-            className="flex-1 resize-none border-0 rounded-lg px-2 py-2 md:px-3 focus:outline-none focus:ring-2 focus:ring-primary-500 bg-gray-50 max-h-[200px] overflow-y-auto text-sm md:text-base"
+            className="flex-1 resize-none border-0 rounded-lg px-2 py-2 md:px-3 focus:outline-none focus:ring-2 focus:ring-primary-500 bg-gray-50 max-h-[200px] overflow-y-auto text-base"
             rows={1}
             disabled={loading}
             style={{ minHeight: '40px' }}
