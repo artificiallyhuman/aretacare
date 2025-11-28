@@ -49,6 +49,7 @@ const AudioRecordings = () => {
   const dateRefs = useRef({});
   const searchInputRef = useRef(null);
   const isSearchFocused = useRef(false);
+  const blurTimeoutRef = useRef(null);
   const [showSidebar, setShowSidebar] = useState(false);
 
   // Debounce search query to avoid API calls on every keystroke
@@ -229,8 +230,20 @@ const AudioRecordings = () => {
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              onFocus={() => { isSearchFocused.current = true; }}
-              onBlur={() => { isSearchFocused.current = false; }}
+              onFocus={() => {
+                // Clear any pending blur timeout
+                if (blurTimeoutRef.current) {
+                  clearTimeout(blurTimeoutRef.current);
+                  blurTimeoutRef.current = null;
+                }
+                isSearchFocused.current = true;
+              }}
+              onBlur={() => {
+                // Delay setting focus to false to handle mobile keyboard blur events
+                blurTimeoutRef.current = setTimeout(() => {
+                  isSearchFocused.current = false;
+                }, 100);
+              }}
               placeholder="Search recordings by summary or transcription..."
               className="input w-full pr-10"
             />
