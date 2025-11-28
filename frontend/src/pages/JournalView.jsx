@@ -228,7 +228,7 @@ const JournalView = () => {
               id="filter-type"
               value={filterType}
               onChange={(e) => setFilterType(e.target.value)}
-              className="input w-full sm:w-auto text-sm"
+              className="input w-full sm:w-auto"
             >
               <option value="ALL">All Types</option>
               <option value="MEDICAL_UPDATE">Medical Update</option>

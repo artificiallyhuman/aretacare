@@ -329,7 +329,7 @@ const Documents = () => {
                 id="category-filter"
                 value={selectedCategory}
                 onChange={(e) => setSelectedCategory(e.target.value)}
-                className="input w-full sm:w-auto text-sm"
+                className="input w-full sm:w-auto"
               >
                 {CATEGORIES.map((cat) => (
                   <option key={cat.value} value={cat.value}>
