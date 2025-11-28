@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useSession } from '../../hooks/useSession';
 import { documentAPI } from '../../services/api';
 
@@ -64,12 +64,33 @@ const Documents = () => {
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
-  // Restore focus to search input if it was focused before re-render
+  // Cleanup blur timeout on unmount
   useEffect(() => {
-    if (isSearchFocused.current && searchInputRef.current && document.activeElement !== searchInputRef.current) {
-      searchInputRef.current.focus();
+    return () => {
+      if (blurTimeoutRef.current) {
+        clearTimeout(blurTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  // Memoized search input handlers to prevent recreation on every render
+  const handleSearchChange = useCallback((e) => {
+    setSearchQuery(e.target.value);
+  }, []);
+
+  const handleSearchFocus = useCallback(() => {
+    if (blurTimeoutRef.current) {
+      clearTimeout(blurTimeoutRef.current);
+      blurTimeoutRef.current = null;
     }
-  });
+    isSearchFocused.current = true;
+  }, []);
+
+  const handleSearchBlur = useCallback(() => {
+    blurTimeoutRef.current = setTimeout(() => {
+      isSearchFocused.current = false;
+    }, 100);
+  }, []);
 
   useEffect(() => {
     if (sessionId) {
@@ -276,22 +297,11 @@ const Documents = () => {
               <input
                 ref={searchInputRef}
                 type="text"
+                inputMode="search"
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                onFocus={() => {
-                  // Clear any pending blur timeout
-                  if (blurTimeoutRef.current) {
-                    clearTimeout(blurTimeoutRef.current);
-                    blurTimeoutRef.current = null;
-                  }
-                  isSearchFocused.current = true;
-                }}
-                onBlur={() => {
-                  // Delay setting focus to false to handle mobile keyboard blur events
-                  blurTimeoutRef.current = setTimeout(() => {
-                    isSearchFocused.current = false;
-                  }, 100);
-                }}
+                onChange={handleSearchChange}
+                onFocus={handleSearchFocus}
+                onBlur={handleSearchBlur}
                 placeholder="Search documents by name or description..."
                 className="input w-full pr-10"
               />
