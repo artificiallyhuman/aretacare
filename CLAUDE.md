@@ -21,8 +21,8 @@ AretaCare is an AI-powered medical care advocate assistant that helps families u
 - **Legal pages** - Professional Terms of Service and Privacy Policy with gradient backgrounds, warning boxes, and GitHub repository links
 - Professional UI with modern design and smart UI behaviors (click-away dropdowns, smart scrolling, red Clear Session button)
 - **Mobile-optimized design** with compact sizing, native feel, hamburger menu navigation, touch-friendly interfaces, and collapsible sidebars
-- **AI-powered Documents Manager** with automatic categorization (12 categories), AI-generated descriptions, searchable text extraction, date-based organization, mobile-responsive sidebar, and thumbnail previews
-- **AI-powered Audio Recordings** with automatic transcription, AI categorization (12 categories), searchable summaries, date-based organization, and mobile-responsive layout
+- **AI-powered Documents Manager** with automatic categorization (12 categories), AI-generated descriptions, searchable text extraction, date-based organization with sticky sidebar, scroll-to-date navigation (matching Journal page), mobile-responsive collapsible sidebar, and thumbnail previews
+- **AI-powered Audio Recordings** with automatic transcription, AI categorization (12 categories), searchable summaries, date-based organization with sticky sidebar, scroll-to-date navigation (matching Journal page), and mobile-responsive collapsible sidebar
 - **Complete data deletion** - Session deletion removes all PostgreSQL data and S3 files (documents, thumbnails, audio recordings) with zero orphaned files
 - Specialized tools: Jargon Translator (with voice input and waveform), Conversation Coach (with voice recording and waveform)
 
@@ -273,8 +273,8 @@ STRICT SAFETY BOUNDARIES - YOU MUST NEVER:
 - `frontend/src/pages/About.jsx` - **About page** with comprehensive feature descriptions organized as intro sentences + bullet points (Conversation, Daily Plan, Journal, Tools, Privacy)
 - `frontend/src/pages/TermsOfService.jsx` - **Terms of Service page** with professional formatting, gradient backgrounds, warning boxes with icons, and GitHub repository links
 - `frontend/src/pages/PrivacyPolicy.jsx` - **Privacy Policy page** with clear data handling explanation, formatted warning sections, and comprehensive privacy information
-- `frontend/src/pages/tools/Documents.jsx` - **AI-powered Documents Manager** with 12 categories, AI descriptions, search/filter, date navigation, mobile-responsive collapsible sidebar, thumbnail previews
-- `frontend/src/pages/AudioRecordings.jsx` - **AI-powered Audio Recordings** with 12 categories, AI summaries, search/filter, date navigation, mobile-responsive collapsible sidebar, audio playback
+- `frontend/src/pages/tools/Documents.jsx` - **AI-powered Documents Manager** with 12 categories, AI descriptions, search/filter, sticky sidebar with date selector, scroll-to-date functionality (matching Journal page behavior), mobile-responsive collapsible sidebar, thumbnail previews
+- `frontend/src/pages/AudioRecordings.jsx` - **AI-powered Audio Recordings** with 12 categories, AI summaries, search/filter, sticky sidebar with date selector, scroll-to-date functionality (matching Journal page behavior), mobile-responsive collapsible sidebar, audio playback
 - `frontend/src/pages/tools/` - Standalone tools (JargonTranslator, ConversationCoach) - disclaimer removed from individual tool pages
 - `frontend/src/components/Header.jsx` - **Mobile-responsive navigation** with hamburger menu, tools dropdown, About in user section, red Clear Session button, neutral Logout button
 - `frontend/src/components/Footer.jsx` - Footer with links to Terms of Service, Privacy Policy, GitHub repository, and Report Issue
@@ -575,8 +575,8 @@ Access points after `docker compose up`:
 - **Audio recording**: Separate start (microphone icon) and stop (red "Stop" button) with visual feedback
 - **Navigation**: Red Clear Session button (dangerous action), neutral Logout button, About in user section
 - **Mobile-optimized**: Native app-like feel with compact sizing, touch-friendly buttons, collapsible sidebars on Documents and Audio pages
-- **Documents Manager**: AI-categorized uploads (12 categories), searchable descriptions, date navigation, mobile-responsive sidebar
-- **Audio Recordings**: AI-categorized transcriptions (12 categories), searchable summaries, date navigation, audio playback
+- **Documents Manager**: AI-categorized uploads (12 categories), searchable descriptions, sticky sidebar with scroll-to-date navigation, mobile-responsive collapsible sidebar
+- **Audio Recordings**: AI-categorized transcriptions (12 categories), searchable summaries, sticky sidebar with scroll-to-date navigation, mobile-responsive collapsible sidebar, audio playback
 - File upload support: Upload PDFs, images (PNG, JPG), or text files in conversation
 - Voice input support: Record audio in conversations, automatically transcribed and categorized
 
@@ -591,8 +591,8 @@ Access points after `docker compose up`:
 7. **View About page**: Navigate to About in user section (right side of header)
 8. **Daily Plan**: Navigate to Daily Plan page, generate daily summary, edit or regenerate as needed
 9. **Journal page**: View entries in reverse chronological order, click dates in sidebar to scroll to specific dates, entries show correct dates in your timezone
-10. **Documents Manager**: Upload files, see AI categorization, search and filter by category, navigate by date
-11. **Audio Recordings**: View transcribed recordings, AI categories and summaries, search and filter, play audio
+10. **Documents Manager**: Upload files, see AI categorization, search and filter by category, click dates in sidebar to scroll to that date section (same as Journal)
+11. **Audio Recordings**: View transcribed recordings, AI categories and summaries, search and filter, click dates in sidebar to scroll to that date section, play audio
 12. **Tools section**: Access Jargon Translator and Conversation Coach
 13. **Clear session**: Click red trash icon in header, confirm permanent deletion
 14. **Mobile testing**: Resize browser to mobile width, test collapsible sidebars on Documents/Audio pages

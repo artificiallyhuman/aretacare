@@ -10,15 +10,15 @@ AretaCare is an AI-powered care advocate assistant that helps families navigate 
 - **Daily Plan**: AI-generated daily summaries with priorities, reminders, and questions for care team (auto-generates after 2 AM, user editable, delete/regenerate support)
 - **AI Journal Synthesis**: Automatically extracts and organizes key medical updates with accurate timezone handling
 - **Journal with Date Navigation**: Reverse chronological order, sticky sidebar with date selector, scroll-to-date functionality, entry types include appointment, symptom, medication, test_result, milestone, note, and other
-- **AI-Powered Documents Manager**: Upload PDFs, images, or text files with automatic AI categorization (12 categories), searchable AI-generated descriptions, date-based organization, and mobile-responsive sidebar navigation
-- **AI-Powered Audio Recordings**: Voice notes with automatic transcription, AI categorization (12 categories), searchable summaries, date-based organization, and audio playback
+- **AI-Powered Documents Manager**: Upload PDFs, images, or text files with automatic AI categorization (12 categories), searchable AI-generated descriptions, date-based organization with sticky sidebar, scroll-to-date navigation (matching Journal page), mobile-responsive collapsible sidebar, and thumbnail previews
+- **AI-Powered Audio Recordings**: Voice notes with automatic transcription, AI categorization (12 categories), searchable summaries, date-based organization with sticky sidebar, scroll-to-date navigation (matching Journal page), mobile-responsive collapsible sidebar, and audio playback
 - **Smart Scrolling**: Auto-scroll stops at message input box (not footer), only when user is near bottom
 
 ### Specialized Tools
 - **Jargon Translator**: Translate complex medical terminology into simple, understandable language with audio input and waveform visualization
 - **Conversation Coach**: Prepare for healthcare appointments with suggested questions, conversation tips, voice recording, and live waveform feedback
-- **Documents Manager**: AI-categorized document library with search, filtering by 12 categories (lab results, imaging reports, clinic notes, etc.), and date navigation
-- **Audio Recordings**: Transcribed voice notes with AI categorization by 12 types (symptom updates, appointment recaps, medication notes, etc.), search, and filtering
+- **Documents Manager**: AI-categorized document library with search, filtering by 12 categories (lab results, imaging reports, clinic notes, etc.), sticky sidebar with date selector, and scroll-to-date navigation
+- **Audio Recordings**: Transcribed voice notes with AI categorization by 12 types (symptom updates, appointment recaps, medication notes, etc.), search, filtering, sticky sidebar with date selector, and scroll-to-date navigation
 - **About Page**: Comprehensive feature descriptions organized with clear sections and bullet points
 - **Legal Pages**: Professional Terms of Service and Privacy Policy with clear formatting, warning boxes, and GitHub repository links
 
