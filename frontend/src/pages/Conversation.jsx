@@ -277,11 +277,11 @@ const Conversation = () => {
               <span>{dailyPlanPanelOpen ? 'Hide' : 'Show'} Daily Plan</span>
             </button>
 
-            {/* Scroll to top button (mobile-optimized) */}
+            {/* Scroll to top button */}
             {showScrollTopButton && (
               <button
                 onClick={() => scrollToTop('smooth')}
-                className="md:hidden bg-primary-600 text-white rounded-full p-2 shadow-lg hover:bg-primary-700 transition-all transform hover:scale-110"
+                className="bg-primary-600 text-white rounded-full p-2 shadow-lg hover:bg-primary-700 transition-all transform hover:scale-110"
                 title="Scroll to top"
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
