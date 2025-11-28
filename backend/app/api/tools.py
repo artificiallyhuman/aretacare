@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from app.core.database import get_db
-from app.models import User
+from app.models import User, Session as SessionModel
 from app.schemas.conversation import (
     MedicalSummaryRequest,
     MedicalSummaryResponse,
@@ -11,7 +11,9 @@ from app.schemas.conversation import (
     ConversationCoachResponse
 )
 from app.services.openai_service import openai_service
+from app.services.journal_service import JournalService
 from app.api.auth import get_current_user
+from typing import Optional
 import logging
 
 logger = logging.getLogger(__name__)
@@ -40,14 +42,25 @@ async def generate_medical_summary(
 async def translate_medical_jargon(
     medical_term: str,
     context: str = "",
+    session_id: Optional[str] = None,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """Translate medical jargon into plain language (standalone tool)"""
+    """Translate medical jargon into plain language with journal context"""
+
+    # Get journal context if session_id provided
+    journal_context = None
+    if session_id:
+        # Verify session belongs to current user
+        session = db.query(SessionModel).filter(SessionModel.id == session_id).first()
+        if session and session.user_id == current_user.id:
+            journal_service = JournalService(db)
+            journal_context = await journal_service.format_journal_context(session_id)
 
     translation = await openai_service.translate_jargon(
         medical_term,
-        context
+        context,
+        journal_context=journal_context
     )
 
     return JargonTranslationResponse(**translation)
@@ -56,15 +69,25 @@ async def translate_medical_jargon(
 @router.post("/conversation-coach", response_model=ConversationCoachResponse)
 async def get_conversation_coaching(
     situation: str,
+    session_id: Optional[str] = None,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """Get coaching for healthcare conversations (standalone tool)"""
+    """Get coaching for healthcare conversations with journal context"""
 
-    # Generate coaching without conversation context (standalone mode)
+    # Get journal context if session_id provided
+    journal_context = None
+    if session_id:
+        # Verify session belongs to current user
+        session = db.query(SessionModel).filter(SessionModel.id == session_id).first()
+        if session and session.user_id == current_user.id:
+            journal_service = JournalService(db)
+            journal_context = await journal_service.format_journal_context(session_id)
+
+    # Generate coaching with journal context
     coaching_data = await openai_service.generate_conversation_coaching(
         situation,
-        context=None  # No conversation context for standalone tool
+        journal_context=journal_context
     )
 
     return ConversationCoachResponse(**coaching_data)

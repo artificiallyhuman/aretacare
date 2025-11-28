@@ -10,14 +10,15 @@ AretaCare is an AI-powered care advocate assistant that helps families navigate 
 - **Daily Plan**: AI-generated daily summaries with priorities, reminders, and questions for care team (auto-generates after 2 AM, user editable, delete/regenerate support)
 - **AI Journal Synthesis**: Automatically extracts and organizes key medical updates with accurate timezone handling
 - **Journal with Date Navigation**: Reverse chronological order, sticky sidebar with date selector, scroll-to-date functionality, entry types include appointment, symptom, medication, test_result, milestone, note, and other
-- **Document Upload & Analysis**: Upload PDFs, images, or text files for AI analysis with GPT-5.1 native file support, PDF thumbnails for visual preview
+- **AI-Powered Documents Manager**: Upload PDFs, images, or text files with automatic AI categorization (12 categories), searchable AI-generated descriptions, date-based organization, and mobile-responsive sidebar navigation
+- **AI-Powered Audio Recordings**: Voice notes with automatic transcription, AI categorization (12 categories), searchable summaries, date-based organization, and audio playback
 - **Smart Scrolling**: Auto-scroll stops at message input box (not footer), only when user is near bottom
-- **Audio Recording**: Voice input with live waveform visualization, clear start/stop buttons, and real-time transcription
 
 ### Specialized Tools
 - **Jargon Translator**: Translate complex medical terminology into simple, understandable language with audio input and waveform visualization
 - **Conversation Coach**: Prepare for healthcare appointments with suggested questions, conversation tips, voice recording, and live waveform feedback
-- **Documents Manager**: View, manage, and delete uploaded medical documents with image previews and PDF thumbnails
+- **Documents Manager**: AI-categorized document library with search, filtering by 12 categories (lab results, imaging reports, clinic notes, etc.), and date navigation
+- **Audio Recordings**: Transcribed voice notes with AI categorization by 12 types (symptom updates, appointment recaps, medication notes, etc.), search, and filtering
 - **About Page**: Comprehensive feature descriptions organized with clear sections and bullet points
 - **Legal Pages**: Professional Terms of Service and Privacy Policy with clear formatting, warning boxes, and GitHub repository links
 
@@ -31,7 +32,7 @@ AretaCare is an AI-powered care advocate assistant that helps families navigate 
 
 ### User Experience
 - **Professional UI**: Clean, modern interface with intuitive navigation and organized content structure
-- **Mobile Optimized**: Native app-like feel with compact sizing, touch-friendly buttons, and reduced padding throughout
+- **Mobile Optimized**: Native app-like feel with compact sizing, touch-friendly buttons, collapsible sidebars on Documents and Audio pages, and reduced padding throughout
 - **Disclaimer Placement**: Shown only on login/register screens, keeping the main interface clean and uncluttered
 - **Smart Navigation**: Red Clear Session button (dangerous action) vs. neutral Logout button, About in user section
 - **Smart UI Behavior**: Click-away dropdown menus, smooth transitions, and responsive feedback

@@ -1,7 +1,7 @@
 from app.models.user import User
 from app.models.session import Session
-from app.models.document import Document
+from app.models.document import Document, DocumentCategory
 from app.models.conversation import Conversation, MessageRole
-from app.models.audio_recording import AudioRecording
+from app.models.audio_recording import AudioRecording, AudioRecordingCategory
 
-__all__ = ["User", "Session", "Document", "Conversation", "MessageRole", "AudioRecording"]
+__all__ = ["User", "Session", "Document", "DocumentCategory", "Conversation", "MessageRole", "AudioRecording", "AudioRecordingCategory"]

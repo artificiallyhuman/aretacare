@@ -26,7 +26,7 @@ const ConversationCoach = () => {
     setError(null);
 
     try {
-      const response = await toolsAPI.getConversationCoach(situation);
+      const response = await toolsAPI.getConversationCoach(situation, sessionId);
       setCoaching(response.data);
     } catch (err) {
       setError('Failed to get coaching: ' + err.message);

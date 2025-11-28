@@ -20,11 +20,11 @@ AretaCare is an AI-powered medical care advocate assistant that helps families u
 - **About page** with comprehensive feature descriptions organized as intro sentences + bullet points
 - **Legal pages** - Professional Terms of Service and Privacy Policy with gradient backgrounds, warning boxes, and GitHub repository links
 - Professional UI with modern design and smart UI behaviors (click-away dropdowns, smart scrolling, red Clear Session button)
-- **Mobile-optimized design** with compact sizing, native feel, hamburger menu navigation, and touch-friendly interfaces
-- Medical document upload with OCR support, S3 storage, PDF thumbnail generation, and complete cleanup on session clear
-- Image and PDF thumbnail previews in Documents page with thumbnail grid
+- **Mobile-optimized design** with compact sizing, native feel, hamburger menu navigation, touch-friendly interfaces, and collapsible sidebars
+- **AI-powered Documents Manager** with automatic categorization (12 categories), AI-generated descriptions, searchable text extraction, date-based organization, mobile-responsive sidebar, and thumbnail previews
+- **AI-powered Audio Recordings** with automatic transcription, AI categorization (12 categories), searchable summaries, date-based organization, and mobile-responsive layout
 - **Complete data deletion** - Session deletion removes all PostgreSQL data and S3 files (documents, thumbnails, audio recordings) with zero orphaned files
-- Specialized tools: Jargon Translator (with voice input and waveform), Conversation Coach (with voice recording and waveform), Documents Manager
+- Specialized tools: Jargon Translator (with voice input and waveform), Conversation Coach (with voice recording and waveform)
 
 ## Development Commands
 
@@ -100,14 +100,17 @@ python -c "import secrets; print(secrets.token_urlsafe(32))"
 - Protected routes redirect to login if not authenticated
 
 **Database (PostgreSQL)**
-- Six main tables: `users`, `sessions`, `documents`, `conversations`, `journal_entries`, `daily_plans`
+- Seven main tables: `users`, `sessions`, `documents`, `audio_recordings`, `conversations`, `journal_entries`, `daily_plans`
 - User table stores authentication credentials (bcrypt hashed passwords)
 - Sessions tied to user accounts via foreign key
+- **Documents table** with AI categorization (12 categories), AI-generated descriptions, text extraction, and thumbnail support
+- **Audio recordings table** with AI categorization (12 categories), AI-generated summaries, transcription, and duration tracking
 - Journal entries with AI-generated content, metadata, and entry types
 - Daily plans with AI-generated content, user edits, viewed status, and date tracking
 - Conversations include rich media support (message_type, document_id, media_url fields)
 - Cascading deletes: deleting user removes all associated data
 - Sessions expire after 60 minutes of inactivity
+- **Database migrations** run automatically on startup via `run_migrations()` in `backend/app/core/migrations.py`
 - Database can be reset with `RESET_DB=true` environment variable (development/production)
 
 **Storage (AWS S3)**
@@ -223,7 +226,8 @@ STRICT SAFETY BOUNDARIES - YOU MUST NEVER:
 - `backend/app/api/__init__.py` - Combines all API routers
 - `backend/app/api/auth.py` - **Authentication endpoints** (register, login, /me)
 - `backend/app/api/sessions.py` - Session management with complete S3 cleanup on delete (documents, thumbnails, audio files)
-- `backend/app/api/documents.py` - Document upload/management with presigned URLs
+- `backend/app/api/documents.py` - Document upload/management with AI categorization, filtering, search, and presigned URLs
+- `backend/app/api/audio_recording.py` - Audio recording management with AI categorization, filtering, and search
 - `backend/app/api/conversation.py` - Conversation endpoints with rich media support
 - `backend/app/api/journal.py` - Journal CRUD operations
 - `backend/app/api/daily_plans.py` - **Daily plan management** (generate, list, update, mark viewed)
@@ -236,21 +240,26 @@ STRICT SAFETY BOUNDARIES - YOU MUST NEVER:
 
 - `backend/app/models/user.py` - User model with authentication fields
 - `backend/app/models/session.py` - Session model with user foreign key
+- `backend/app/models/document.py` - Document model with DocumentCategory enum (12 categories: lab_results, imaging_reports, clinic_notes, medication_records, discharge_summary, treatment_plan, test_results, referral, insurance_billing, consent_form, care_instructions, other), AI-generated descriptions
+- `backend/app/models/audio_recording.py` - Audio recording model with AudioRecordingCategory enum (12 categories: symptom_update, appointment_recap, medication_note, question_for_doctor, daily_reflection, progress_update, side_effects, care_instruction, emergency_note, family_update, treatment_observation, other), AI-generated summaries
 - `backend/app/models/journal.py` - Journal entries with AI-generated content, EntryType enum includes: MEDICAL_UPDATE, TREATMENT_CHANGE, APPOINTMENT, INSIGHT, QUESTION, MILESTONE, OTHER
 - `backend/app/models/daily_plan.py` - **Daily plans** with content, user edits, viewed status
 - `backend/app/models/conversation.py` - Conversation messages with rich media support
 - `backend/app/schemas/auth.py` - Auth request/response schemas (UserRegister, UserLogin, TokenResponse)
+- `backend/app/schemas/document.py` - Document schemas with category serialization for backward compatibility
+- `backend/app/schemas/audio_recording.py` - Audio recording schemas with category serialization for backward compatibility
 - `backend/app/schemas/journal.py` - Journal entry schemas with synthesis metadata
 - `backend/app/schemas/daily_plan.py` - Daily plan schemas (DailyPlanResponse, DailyPlanUpdate, DailyPlanCheckResponse)
 - `backend/app/schemas/conversation.py` - Message schemas with document/image support
 
 ### Service Layer (Business Logic)
 
-- `backend/app/services/openai_service.py` - **CRITICAL**: Contains safety prompt, GPT-5.1 integration, all LLM interactions
+- `backend/app/services/openai_service.py` - **CRITICAL**: Contains safety prompt, GPT-5.1 integration, all LLM interactions, includes `categorize_document()` and `categorize_audio_recording()` methods for AI-powered categorization
 - `backend/app/services/journal_service.py` - **Journal synthesis logic**: Analyzes conversations, creates journal entries with user's local date (accepts `entry_date` parameter)
 - `backend/app/services/daily_plan_service.py` - **Daily plan generation**: Validates sufficient data (journal entries or conversations), gathers context, generates concise plans via GPT-5.1
 - `backend/app/services/s3_service.py` - Document upload/download/delete to S3, presigned URL generation
 - `backend/app/services/document_processor.py` - Text extraction (PDF, OCR for images) and PDF thumbnail generation (first page, 150 DPI, max 300px width)
+- `backend/app/core/migrations.py` - **Database migrations**: Automatically adds new columns (category, ai_description for documents; category, ai_summary for audio_recordings) without requiring database reset
 
 ### Frontend Entry Points
 
@@ -264,7 +273,9 @@ STRICT SAFETY BOUNDARIES - YOU MUST NEVER:
 - `frontend/src/pages/About.jsx` - **About page** with comprehensive feature descriptions organized as intro sentences + bullet points (Conversation, Daily Plan, Journal, Tools, Privacy)
 - `frontend/src/pages/TermsOfService.jsx` - **Terms of Service page** with professional formatting, gradient backgrounds, warning boxes with icons, and GitHub repository links
 - `frontend/src/pages/PrivacyPolicy.jsx` - **Privacy Policy page** with clear data handling explanation, formatted warning sections, and comprehensive privacy information
-- `frontend/src/pages/tools/` - Standalone tools (JargonTranslator, ConversationCoach, Documents) - disclaimer removed from individual tool pages
+- `frontend/src/pages/tools/Documents.jsx` - **AI-powered Documents Manager** with 12 categories, AI descriptions, search/filter, date navigation, mobile-responsive collapsible sidebar, thumbnail previews
+- `frontend/src/pages/AudioRecordings.jsx` - **AI-powered Audio Recordings** with 12 categories, AI summaries, search/filter, date navigation, mobile-responsive collapsible sidebar, audio playback
+- `frontend/src/pages/tools/` - Standalone tools (JargonTranslator, ConversationCoach) - disclaimer removed from individual tool pages
 - `frontend/src/components/Header.jsx` - **Mobile-responsive navigation** with hamburger menu, tools dropdown, About in user section, red Clear Session button, neutral Logout button
 - `frontend/src/components/Footer.jsx` - Footer with links to Terms of Service, Privacy Policy, GitHub repository, and Report Issue
 - `frontend/src/components/Disclaimer.jsx` - Compact safety disclaimer shown only on login/register screens
@@ -400,8 +411,16 @@ curl http://localhost:8000/api/sessions/ -X POST
 ### Database Schema Changes
 
 1. Models are in `backend/app/models/`
-2. Database auto-creates tables on startup (no migrations currently)
-3. To reset schema: `docker compose down -v && docker compose up -d`
+2. Database auto-creates tables on startup via SQLAlchemy
+3. **Migrations** run automatically on startup via `run_migrations()` in `backend/app/core/migrations.py`
+   - Adds new columns without requiring database reset
+   - Checks if column exists before adding
+   - Backward compatible - safe to run multiple times
+4. To add a new column:
+   - Add column to model in `backend/app/models/`
+   - Add migration in `backend/app/core/migrations.py` to check and add column
+   - Restart backend: `docker compose restart backend`
+5. To reset schema entirely: `docker compose down -v && docker compose up -d`
 
 ### AWS S3 Permissions Troubleshooting
 
@@ -555,10 +574,11 @@ Access points after `docker compose up`:
 - **Journal page**: Reverse chronological order, date selector sidebar with scroll-to-date, proper timezone handling
 - **Audio recording**: Separate start (microphone icon) and stop (red "Stop" button) with visual feedback
 - **Navigation**: Red Clear Session button (dangerous action), neutral Logout button, About in user section
-- **Mobile-optimized**: Native app-like feel with compact sizing, touch-friendly buttons, reduced padding throughout
+- **Mobile-optimized**: Native app-like feel with compact sizing, touch-friendly buttons, collapsible sidebars on Documents and Audio pages
+- **Documents Manager**: AI-categorized uploads (12 categories), searchable descriptions, date navigation, mobile-responsive sidebar
+- **Audio Recordings**: AI-categorized transcriptions (12 categories), searchable summaries, date navigation, audio playback
 - File upload support: Upload PDFs, images (PNG, JPG), or text files in conversation
-- Voice input support: Jargon Translator and Conversation Coach both have audio recording capabilities
-- Documents manager with image previews (thumbnails) and full-size preview modal
+- Voice input support: Record audio in conversations, automatically transcribed and categorized
 
 **Testing the Application:**
 
@@ -571,9 +591,11 @@ Access points after `docker compose up`:
 7. **View About page**: Navigate to About in user section (right side of header)
 8. **Daily Plan**: Navigate to Daily Plan page, generate daily summary, edit or regenerate as needed
 9. **Journal page**: View entries in reverse chronological order, click dates in sidebar to scroll to specific dates, entries show correct dates in your timezone
-10. **Tools section**: Access Jargon Translator, Conversation Coach, Documents (no disclaimer clutter)
-11. **Clear session**: Click red trash icon in header, confirm permanent deletion
-12. **Mobile testing**: Resize browser to mobile width, experience compact native app-like interface
+10. **Documents Manager**: Upload files, see AI categorization, search and filter by category, navigate by date
+11. **Audio Recordings**: View transcribed recordings, AI categories and summaries, search and filter, play audio
+12. **Tools section**: Access Jargon Translator and Conversation Coach
+13. **Clear session**: Click red trash icon in header, confirm permanent deletion
+14. **Mobile testing**: Resize browser to mobile width, test collapsible sidebars on Documents/Audio pages
 
 Sample medical text for testing:
 ```
@@ -630,6 +652,7 @@ Deployment via `render.yaml` Blueprint to Render.com:
    - `SECRET_KEY` - Auto-generated
    - `CORS_ORIGINS` - Set to frontend URL
 6. Click "Apply" to deploy all services
+7. **Database migrations run automatically** on first backend startup - no manual intervention needed
 
 ### Important Files for Production
 - `Dockerfile` (root) - Production backend build, copies from `backend/`

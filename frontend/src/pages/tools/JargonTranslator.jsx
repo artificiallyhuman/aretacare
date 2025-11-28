@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { toolsAPI } from '../../services/api';
+import { useSession } from '../../hooks/useSession';
 
 const JargonTranslator = () => {
+  const { sessionId } = useSession();
   const [medicalTerm, setMedicalTerm] = useState('');
   const [context, setContext] = useState('');
   const [translation, setTranslation] = useState(null);
@@ -19,7 +21,7 @@ const JargonTranslator = () => {
     setError(null);
 
     try {
-      const response = await toolsAPI.translateJargon(medicalTerm, context);
+      const response = await toolsAPI.translateJargon(medicalTerm, context, sessionId);
       setTranslation(response.data);
     } catch (err) {
       setError('Failed to translate term: ' + err.message);

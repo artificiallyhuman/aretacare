@@ -1,28 +1,86 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useSession } from '../../hooks/useSession';
 import { documentAPI } from '../../services/api';
+
+// Document categories with labels and colors
+const CATEGORIES = [
+  { value: 'all', label: 'All Documents', color: 'gray' },
+  { value: 'lab_results', label: 'Lab Results', color: 'blue' },
+  { value: 'imaging_reports', label: 'Imaging Reports', color: 'purple' },
+  { value: 'clinic_notes', label: 'Clinic Notes', color: 'green' },
+  { value: 'medication_records', label: 'Medications', color: 'orange' },
+  { value: 'discharge_summary', label: 'Discharge Summary', color: 'red' },
+  { value: 'treatment_plan', label: 'Treatment Plan', color: 'indigo' },
+  { value: 'test_results', label: 'Test Results', color: 'cyan' },
+  { value: 'referral', label: 'Referrals', color: 'pink' },
+  { value: 'insurance_billing', label: 'Insurance/Billing', color: 'yellow' },
+  { value: 'consent_form', label: 'Consent Forms', color: 'teal' },
+  { value: 'care_instructions', label: 'Care Instructions', color: 'lime' },
+  { value: 'other', label: 'Other', color: 'gray' },
+];
+
+const getCategoryColor = (category) => {
+  // Handle null/undefined for backward compatibility
+  if (!category) return 'gray';
+  const cat = CATEGORIES.find(c => c.value === category);
+  return cat ? cat.color : 'gray';
+};
+
+const getCategoryLabel = (category) => {
+  // Handle null/undefined for backward compatibility
+  if (!category) return 'Other';
+  const cat = CATEGORIES.find(c => c.value === category);
+  return cat ? cat.label : 'Other';
+};
 
 const Documents = () => {
   const { sessionId, loading: sessionLoading } = useSession();
   const [documents, setDocuments] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [selectedCategory, setSelectedCategory] = useState('all');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
   const [previewDoc, setPreviewDoc] = useState(null);
   const [previewUrl, setPreviewUrl] = useState(null);
   const [imageUrls, setImageUrls] = useState({});
   const [thumbnailUrls, setThumbnailUrls] = useState({});
+  const contentRef = useRef(null);
+  const searchInputRef = useRef(null);
+  const isSearchFocused = useRef(false);
+  const [showSidebar, setShowSidebar] = useState(false);
+
+  // Debounce search query to avoid API calls on every keystroke
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery);
+    }, 300); // Wait 300ms after user stops typing
+
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  // Restore focus to search input if it was focused before re-render
+  useEffect(() => {
+    if (isSearchFocused.current && searchInputRef.current && document.activeElement !== searchInputRef.current) {
+      searchInputRef.current.focus();
+    }
+  });
 
   useEffect(() => {
     if (sessionId) {
       loadDocuments();
     }
-  }, [sessionId]);
+  }, [sessionId, selectedCategory, debouncedSearchQuery]);
 
   const loadDocuments = async () => {
     setLoading(true);
     setError(null);
     try {
-      const response = await documentAPI.getSessionDocuments(sessionId);
+      const response = await documentAPI.getSessionDocuments(
+        sessionId,
+        selectedCategory === 'all' ? null : selectedCategory,
+        debouncedSearchQuery || null
+      );
       const docs = response.data;
       setDocuments(docs);
 
@@ -55,11 +113,52 @@ const Documents = () => {
     }
   };
 
+  // Group documents by date (parse as UTC by appending 'Z')
+  const groupedDocuments = documents.reduce((groups, doc) => {
+    // Ensure timestamp is parsed as UTC
+    const timestamp = doc.uploaded_at.endsWith('Z') ? doc.uploaded_at : doc.uploaded_at + 'Z';
+    const date = new Date(timestamp).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
+    if (!groups[date]) {
+      groups[date] = [];
+    }
+    groups[date].push(doc);
+    return groups;
+  }, {});
+
+  const dates = Object.keys(groupedDocuments).sort((a, b) => {
+    return new Date(b) - new Date(a); // Most recent first
+  });
+
+  const scrollToDate = (date) => {
+    const element = document.getElementById(`date-${date}`);
+    if (element && contentRef.current) {
+      const offsetTop = element.offsetTop - contentRef.current.offsetTop - 20;
+      contentRef.current.scrollTo({
+        top: offsetTop,
+        behavior: 'smooth'
+      });
+    }
+  };
+
+  const formatDateShort = (dateString) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  };
+
+  const isToday = (dateString) => {
+    const date = new Date(dateString);
+    const today = new Date();
+    return date.toDateString() === today.toDateString();
+  };
+
   const handleDownload = async (document) => {
     try {
       const response = await documentAPI.getDownloadUrl(document.id);
       const url = response.data.download_url;
-      // Open in new tab
       window.open(url, '_blank');
     } catch (err) {
       setError('Failed to download document: ' + err.message);
@@ -73,7 +172,7 @@ const Documents = () => {
 
     try {
       await documentAPI.delete(documentId);
-      loadDocuments(); // Reload list
+      loadDocuments();
     } catch (err) {
       setError('Failed to delete document: ' + err.message);
     }
@@ -82,12 +181,9 @@ const Documents = () => {
   const handlePreview = async (document) => {
     setPreviewDoc(document);
 
-    // Load document URL for preview
     if (document.content_type?.includes('image')) {
-      // Use already loaded image URL
       setPreviewUrl(imageUrls[document.id]);
     } else if (document.content_type === 'application/pdf') {
-      // Load PDF URL
       try {
         const response = await documentAPI.getDownloadUrl(document.id);
         setPreviewUrl(response.data.download_url);
@@ -101,13 +197,6 @@ const Documents = () => {
   const closePreview = () => {
     setPreviewDoc(null);
     setPreviewUrl(null);
-  };
-
-  const formatFileSize = (bytes) => {
-    if (!bytes) return 'Unknown';
-    const kb = bytes / 1024;
-    if (kb < 1024) return `${kb.toFixed(1)} KB`;
-    return `${(kb / 1024).toFixed(1)} MB`;
   };
 
   const getFileIcon = (contentType) => {
@@ -145,100 +234,264 @@ const Documents = () => {
 
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 lg:py-12">
-      <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-4 sm:mb-6">
-        Documents
-      </h1>
+      <div>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-4 sm:mb-6">
+            Documents
+          </h1>
 
-      {error && (
-        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-4">
-          {error}
-        </div>
-      )}
+          {/* Controls */}
+          <div className="mb-6 space-y-3 sm:space-y-4">
+            {/* Search */}
+            <div className="flex-1 relative">
+              <input
+                ref={searchInputRef}
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onFocus={() => { isSearchFocused.current = true; }}
+                onBlur={() => { isSearchFocused.current = false; }}
+                placeholder="Search documents by name or description..."
+                className="input w-full pr-10"
+              />
+              {searchQuery && (
+                <button
+                  onClick={() => {
+                    setSearchQuery('');
+                    searchInputRef.current?.focus();
+                  }}
+                  onMouseDown={(e) => e.preventDefault()}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 p-1"
+                  aria-label="Clear search"
+                  type="button"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              )}
+            </div>
 
-      {documents.length === 0 ? (
-        <div className="card text-center py-12">
-          <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-          </svg>
-          <h3 className="mt-2 text-sm font-medium text-gray-900">No documents</h3>
-          <p className="mt-1 text-sm text-gray-500">
-            Upload documents in conversations by clicking the attachment icon
-          </p>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {documents.map((doc) => (
-            <div key={doc.id} className="card hover:shadow-lg transition-shadow">
-              {/* File Preview/Icon */}
-              <div className="flex items-center justify-center py-4">
-                {doc.content_type?.includes('image') && imageUrls[doc.id] ? (
-                  <div className="w-full h-48 flex items-center justify-center bg-gray-100 rounded-lg overflow-hidden">
-                    <img
-                      src={imageUrls[doc.id]}
-                      alt={doc.filename}
-                      className="max-w-full max-h-full object-contain"
-                    />
-                  </div>
-                ) : doc.content_type === 'application/pdf' && thumbnailUrls[doc.id] ? (
-                  <div className="w-full h-48 flex items-center justify-center bg-gray-100 rounded-lg overflow-hidden">
-                    <img
-                      src={thumbnailUrls[doc.id]}
-                      alt={`${doc.filename} thumbnail`}
-                      className="max-w-full max-h-full object-contain"
-                    />
-                  </div>
-                ) : (
-                  getFileIcon(doc.content_type)
-                )}
+            {/* Filter by category */}
+            <div className="flex items-center gap-3">
+              <label htmlFor="category-filter" className="text-xs sm:text-sm text-gray-600 whitespace-nowrap">
+                Category:
+              </label>
+              <select
+                id="category-filter"
+                value={selectedCategory}
+                onChange={(e) => setSelectedCategory(e.target.value)}
+                className="input w-full sm:w-auto text-sm"
+              >
+                {CATEGORIES.map((cat) => (
+                  <option key={cat.value} value={cat.value}>
+                    {cat.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {error && (
+            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-4">
+              {error}
+            </div>
+          )}
+
+          {documents.length === 0 ? (
+            <div className="text-center py-12 bg-white rounded-lg border border-gray-200">
+              <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+              <h3 className="mt-2 text-sm font-medium text-gray-900">No documents found</h3>
+              <p className="mt-1 text-sm text-gray-500">
+                {searchQuery || selectedCategory !== 'all'
+                  ? 'Try adjusting your filters or search term'
+                  : 'Upload documents in conversations by clicking the attachment icon'
+                }
+              </p>
+            </div>
+          ) : (
+            <div className="lg:grid lg:grid-cols-4 lg:gap-6">
+              {/* Mobile: Date filter button */}
+              <div className="lg:hidden mb-4">
+                <button
+                  onClick={() => setShowSidebar(!showSidebar)}
+                  className="w-full flex items-center justify-between px-4 py-3 bg-white border border-gray-200 rounded-lg shadow-sm"
+                >
+                  <span className="text-sm font-medium text-gray-900">Jump to Date</span>
+                  <svg className={`w-5 h-5 text-gray-500 transition-transform ${showSidebar ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
               </div>
 
-              {/* File Info */}
-              <div className="border-t border-gray-200 pt-4">
-                <h3 className="text-sm font-medium text-gray-900 truncate" title={doc.filename}>
-                  {doc.filename}
-                </h3>
-                <p className="text-xs text-gray-500 mt-1">
-                  {new Date(doc.uploaded_at).toLocaleDateString('en-US', {
-                    year: 'numeric',
-                    month: 'short',
-                    day: 'numeric',
-                    hour: '2-digit',
-                    minute: '2-digit'
-                  })}
-                </p>
-
-                {/* Actions */}
-                <div className="mt-4 flex gap-2">
-                  <button
-                    onClick={() => handlePreview(doc)}
-                    className="flex-1 px-3 py-2 text-sm font-medium text-primary-700 bg-primary-50 hover:bg-primary-100 rounded-md transition-colors"
-                  >
-                    Preview
-                  </button>
-                  <button
-                    onClick={() => handleDownload(doc)}
-                    className="flex-1 px-3 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors"
-                  >
-                    Download
-                  </button>
-                  <button
-                    onClick={() => handleDelete(doc.id)}
-                    className="px-3 py-2 text-sm font-medium text-red-600 bg-red-50 hover:bg-red-100 rounded-md transition-colors"
-                    title="Delete document"
-                  >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                    </svg>
-                  </button>
+              {/* Sidebar: Date navigation */}
+              <div className={`lg:col-span-1 ${showSidebar ? 'block mb-4' : 'hidden lg:block'}`}>
+                <div className="bg-white rounded-lg border border-gray-200 shadow-sm lg:sticky lg:top-4">
+                  <div className="p-3 md:p-4 border-b border-gray-200">
+                    <h2 className="text-base md:text-lg font-semibold text-gray-900">Dates</h2>
+                  </div>
+                  <div className="divide-y divide-gray-200 max-h-64 lg:max-h-[calc(100vh-12rem)] overflow-y-auto">
+                    {dates.map((date) => (
+                      <button
+                        key={date}
+                        onClick={() => {
+                          scrollToDate(date);
+                          setShowSidebar(false); // Close sidebar on mobile after selection
+                        }}
+                        className="w-full text-left p-3 md:p-4 transition hover:bg-gray-50"
+                      >
+                        <div className="flex items-center justify-between mb-1">
+                          <span className={`text-xs md:text-sm font-medium ${
+                            isToday(date) ? 'text-primary-700' : 'text-gray-700'
+                          }`}>
+                            {isToday(date) ? 'Today' : formatDateShort(date)}
+                          </span>
+                          <span className="text-xs text-gray-500">
+                            {groupedDocuments[date].length}
+                          </span>
+                        </div>
+                        <div className="text-xs text-gray-500">
+                          {new Date(date).toLocaleDateString('en-US', { weekday: 'long' })}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
-        </div>
-      )}
 
-      {/* Preview Modal */}
-      {previewDoc && (
+              {/* Main content: Documents by date */}
+              <div className="lg:col-span-3 space-y-6" ref={contentRef}>
+                {dates.map((date) => (
+                  <div
+                    key={date}
+                    id={`date-${date}`}
+                    className="bg-white rounded-lg border border-gray-200 p-4 md:p-6 scroll-mt-4"
+                  >
+                    {/* Date Header */}
+                    <h2 className="text-base md:text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                      <svg className="w-4 h-4 md:w-5 md:h-5 mr-2 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                      </svg>
+                      {date}
+                      <span className="ml-2 text-xs text-gray-500 font-normal">
+                        ({groupedDocuments[date].length} document{groupedDocuments[date].length !== 1 ? 's' : ''})
+                      </span>
+                    </h2>
+
+                    {/* Documents Grid */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+                    {groupedDocuments[date].map((doc) => {
+                      const categoryColor = getCategoryColor(doc.category);
+                      const categoryLabel = getCategoryLabel(doc.category);
+                      const badgeClasses = {
+                        gray: 'bg-gray-100 text-gray-800',
+                        blue: 'bg-blue-100 text-blue-800',
+                        purple: 'bg-purple-100 text-purple-800',
+                        green: 'bg-green-100 text-green-800',
+                        orange: 'bg-orange-100 text-orange-800',
+                        red: 'bg-red-100 text-red-800',
+                        indigo: 'bg-indigo-100 text-indigo-800',
+                        cyan: 'bg-cyan-100 text-cyan-800',
+                        pink: 'bg-pink-100 text-pink-800',
+                        yellow: 'bg-yellow-100 text-yellow-800',
+                        teal: 'bg-teal-100 text-teal-800',
+                        lime: 'bg-lime-100 text-lime-800',
+                      };
+
+                      return (
+                        <div key={doc.id} className="card hover:shadow-lg transition-shadow">
+                          {/* Category Badge */}
+                          <div className="mb-2">
+                            <span className={`inline-block px-2 py-1 text-xs font-medium rounded ${badgeClasses[categoryColor]}`}>
+                              {categoryLabel}
+                            </span>
+                          </div>
+
+                          {/* File Preview/Icon */}
+                          <div className="flex items-center justify-center py-4">
+                            {doc.content_type?.includes('image') && imageUrls[doc.id] ? (
+                              <div className="w-full h-48 flex items-center justify-center bg-gray-100 rounded-lg overflow-hidden">
+                                <img
+                                  src={imageUrls[doc.id]}
+                                  alt={doc.filename}
+                                  className="max-w-full max-h-full object-contain"
+                                />
+                              </div>
+                            ) : doc.content_type === 'application/pdf' && thumbnailUrls[doc.id] ? (
+                              <div className="w-full h-48 flex items-center justify-center bg-gray-100 rounded-lg overflow-hidden">
+                                <img
+                                  src={thumbnailUrls[doc.id]}
+                                  alt={`${doc.filename} thumbnail`}
+                                  className="max-w-full max-h-full object-contain"
+                                />
+                              </div>
+                            ) : (
+                              getFileIcon(doc.content_type)
+                            )}
+                          </div>
+
+                          {/* File Info */}
+                          <div className="border-t border-gray-200 pt-4">
+                            <h3 className="text-sm font-medium text-gray-900 truncate" title={doc.filename}>
+                              {doc.filename}
+                            </h3>
+
+                            {/* AI Description */}
+                            {doc.ai_description && (
+                              <p className="text-xs text-gray-600 mt-2 line-clamp-2">
+                                {doc.ai_description}
+                              </p>
+                            )}
+
+                            <p className="text-xs text-gray-500 mt-2">
+                              {(() => {
+                                const timestamp = doc.uploaded_at.endsWith('Z') ? doc.uploaded_at : doc.uploaded_at + 'Z';
+                                return new Date(timestamp).toLocaleTimeString('en-US', {
+                                  hour: '2-digit',
+                                  minute: '2-digit'
+                                });
+                              })()}
+                            </p>
+
+                            {/* Actions */}
+                            <div className="mt-4 flex gap-2">
+                              <button
+                                onClick={() => handlePreview(doc)}
+                                className="flex-1 px-3 py-2.5 text-xs sm:text-sm font-medium text-primary-700 bg-primary-50 hover:bg-primary-100 rounded-md transition-colors"
+                              >
+                                Preview
+                              </button>
+                              <button
+                                onClick={() => handleDownload(doc)}
+                                className="flex-1 px-3 py-2.5 text-xs sm:text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors"
+                              >
+                                Download
+                              </button>
+                              <button
+                                onClick={() => handleDelete(doc.id)}
+                                className="px-3 py-2.5 text-sm font-medium text-red-600 bg-red-50 hover:bg-red-100 rounded-md transition-colors flex items-center justify-center min-w-[44px]"
+                                title="Delete document"
+                              >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                </svg>
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Preview Modal */}
+        {previewDoc && (
         <div className="fixed inset-0 z-50 overflow-y-auto">
           <div className="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
             {/* Background overlay */}
@@ -252,9 +505,14 @@ const Documents = () => {
               {/* Header */}
               <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
                 <div className="flex items-start justify-between">
-                  <h3 className="text-lg font-medium text-gray-900">
-                    {previewDoc.filename}
-                  </h3>
+                  <div>
+                    <h3 className="text-lg font-medium text-gray-900">
+                      {previewDoc.filename}
+                    </h3>
+                    {previewDoc.ai_description && (
+                      <p className="text-sm text-gray-600 mt-1">{previewDoc.ai_description}</p>
+                    )}
+                  </div>
                   <button
                     onClick={closePreview}
                     className="ml-3 text-gray-400 hover:text-gray-500"
