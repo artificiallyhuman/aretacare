@@ -19,7 +19,7 @@ AretaCare is an AI-powered care advocate assistant that helps families navigate 
 - **Conversation Coach**: Prepare for healthcare appointments with suggested questions, conversation tips, voice recording, and live waveform feedback
 - **Documents Manager**: AI-categorized document library with search, filtering by 12 categories (lab results, imaging reports, clinic notes, etc.), sticky sidebar with date selector, and scroll-to-date navigation
 - **Audio Recordings**: Transcribed voice notes with AI categorization by 12 types (symptom updates, appointment recaps, medication notes, etc.), search, filtering, sticky sidebar with date selector, and scroll-to-date navigation
-- **About Page**: Comprehensive feature descriptions organized with clear sections and bullet points
+- **About Page**: Tabbed interface with "The Platform" (feature descriptions) and "The Story" (origin story) sections
 - **Legal Pages**: Professional Terms of Service and Privacy Policy with clear formatting, warning boxes, and GitHub repository links
 
 ### Security & Privacy
@@ -173,7 +173,7 @@ docker compose down -v
 - **Database**: PostgreSQL 15 with SQLAlchemy 2.0
 - **AI**: OpenAI GPT-5.1 with Responses API (GPT-4o for transcription)
   - All AI configuration centralized in `backend/app/config/ai_config.py`
-  - Includes models, prompts, safety boundaries, temperatures, categories
+  - Includes models, prompts, safety boundaries, categories, and context limits
   - See `backend/app/config/README.md` for AI configuration guide
 - **Storage**: AWS S3 with boto3
 - **Document Processing**: PyPDF2, Pillow, pytesseract (OCR), ffmpeg (audio)

@@ -18,7 +18,7 @@ AretaCare is an AI-powered medical care advocate assistant that helps families u
 - **Settings page** - Secure account management with password-verified updates (name, email, password), password reset via email with time-limited tokens, clear session with statistics (keeps account), and complete account deletion
 - Session-based conversation history tied to user accounts
 - Collapsible daily plan panel (replaces journal sidebar) showing current plan on conversation page
-- **About page** with comprehensive feature descriptions organized as intro sentences + bullet points
+- **About page** with tabbed interface: "The Platform" tab with feature descriptions, "The Story" tab with origin story
 - **Legal pages** - Professional Terms of Service and Privacy Policy with gradient backgrounds, warning boxes, and GitHub repository links
 - Professional UI with modern design and smart UI behaviors (click-away dropdowns, smart scrolling, collapsible mobile Tools submenu)
 - **Mobile-optimized design** with compact sizing, native feel, hamburger menu navigation, touch-friendly interfaces, and collapsible sidebars
@@ -267,7 +267,7 @@ See `backend/app/config/README.md` for complete documentation on modifying AI be
 
 ### AI Configuration
 
-- `backend/app/config/ai_config.py` - **CRITICAL**: Centralized AI configuration with all models, prompts, safety boundaries, temperatures, categories, and fallback messages
+- `backend/app/config/ai_config.py` - **CRITICAL**: Centralized AI configuration with all models, prompts, safety boundaries, categories, context limits, and fallback messages
 - `backend/app/config/README.md` - Complete documentation for modifying AI behavior, changing models, and adjusting prompts
 
 ### Service Layer (Business Logic)
@@ -290,8 +290,8 @@ See `backend/app/config/README.md` for complete documentation on modifying AI be
 - `frontend/src/pages/Settings.jsx` - **Settings page** with collapsible accordion sections for account management (update name/email/password with password verification, clear session with statistics, delete account), displays data counts before deletion
 - `frontend/src/pages/Conversation.jsx` - **Main conversation interface** with chat + daily plan panel, smart scrolling (stops at message box), welcome page, "Thinking..." status, sends user's local date for journal entries
 - `frontend/src/pages/DailyPlan.jsx` - **Daily plan page** with full history list, edit mode, delete and regenerate functionality, enhanced markdown rendering
-- `frontend/src/pages/JournalView.jsx` - **Journal page with date navigation** - reverse chronological, sticky sidebar with date selector, scroll-to-date, proper local timezone parsing
-- `frontend/src/pages/About.jsx` - **About page** with comprehensive feature descriptions organized as intro sentences + bullet points (Conversation, Journal, Daily Plan, Tools, Privacy)
+- `frontend/src/pages/JournalView.jsx` - **Journal page with date navigation** - reverse chronological (newest first within each date), sticky sidebar with date selector, scroll-to-date, proper local timezone parsing
+- `frontend/src/pages/About.jsx` - **About page** with tabbed interface ("The Platform" and "The Story" tabs), feature descriptions, and origin story
 - `frontend/src/pages/TermsOfService.jsx` - **Terms of Service page** with professional formatting, gradient backgrounds, warning boxes with icons, and GitHub repository links
 - `frontend/src/pages/PrivacyPolicy.jsx` - **Privacy Policy page** with clear data handling explanation, formatted warning sections, and comprehensive privacy information
 - `frontend/src/pages/tools/Documents.jsx` - **AI-powered Documents Manager** with 12 categories, AI descriptions, search/filter, sticky sidebar with date selector, scroll-to-date functionality (matching Journal page behavior), mobile-responsive collapsible sidebar, thumbnail previews
@@ -618,9 +618,9 @@ Access points after `docker compose up`:
 4. **Audio recording**: Click microphone, speak, click red "Stop" button when finished
 5. **Upload a document**: Click attach button, select PDF or image
 6. **Smart scrolling**: Scroll stops at message input box (not footer), auto-scrolls only when near bottom
-7. **View About page**: Navigate to About in user section (right side of header)
+7. **View About page**: Navigate to About in user section, switch between "The Platform" and "The Story" tabs
 8. **Daily Plan**: Navigate to Daily Plan page, generate daily summary, edit or regenerate as needed
-9. **Journal page**: View entries in reverse chronological order, click dates in sidebar to scroll to specific dates, entries show correct dates in your timezone
+9. **Journal page**: View entries in reverse chronological order (newest first within each date), click dates in sidebar to scroll to specific dates, entries show correct dates in your timezone
 10. **Documents Manager**: Upload files, see AI categorization, search and filter by category, click dates in sidebar to scroll to that date section (same as Journal)
 11. **Audio Recordings**: View transcribed recordings, AI categories and summaries, search and filter, click dates in sidebar to scroll to that date section, play audio
 12. **Tools section**: Access Jargon Translator and Conversation Coach (collapsible on mobile)
