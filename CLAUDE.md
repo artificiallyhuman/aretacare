@@ -21,8 +21,8 @@ AretaCare is an AI-powered medical care advocate assistant that helps families u
 - **Legal pages** - Professional Terms of Service and Privacy Policy with gradient backgrounds, warning boxes, and GitHub repository links
 - Professional UI with modern design and smart UI behaviors (click-away dropdowns, smart scrolling, red Clear Session button)
 - **Mobile-optimized design** with compact sizing, native feel, hamburger menu navigation, touch-friendly interfaces, and collapsible sidebars
-- **AI-powered Documents Manager** with automatic categorization (12 categories), AI-generated descriptions, searchable text extraction, date-based organization with sticky sidebar, scroll-to-date navigation (matching Journal page), mobile-responsive collapsible sidebar, and thumbnail previews
-- **AI-powered Audio Recordings** with automatic transcription, AI categorization (12 categories), searchable summaries, date-based organization with sticky sidebar, scroll-to-date navigation (matching Journal page), and mobile-responsive collapsible sidebar
+- **AI-powered Documents Manager** with automatic categorization (12 categories), AI-generated descriptions (user-editable, up to 200 characters), searchable text extraction, date-based organization with sticky sidebar, scroll-to-date navigation (matching Journal page), mobile-responsive collapsible sidebar, and thumbnail previews
+- **AI-powered Audio Recordings** with automatic transcription, AI categorization (12 categories), AI-generated summaries (user-editable, up to 150 characters), date-based organization with sticky sidebar, scroll-to-date navigation (matching Journal page), and mobile-responsive collapsible sidebar
 - **Complete data deletion** - Session deletion removes all PostgreSQL data and S3 files (documents, thumbnails, audio recordings) with zero orphaned files
 - Specialized tools: Jargon Translator (with voice input and waveform), Conversation Coach (with voice recording and waveform)
 
@@ -103,8 +103,8 @@ python -c "import secrets; print(secrets.token_urlsafe(32))"
 - Seven main tables: `users`, `sessions`, `documents`, `audio_recordings`, `conversations`, `journal_entries`, `daily_plans`
 - User table stores authentication credentials (bcrypt hashed passwords)
 - Sessions tied to user accounts via foreign key
-- **Documents table** with AI categorization (12 categories), AI-generated descriptions, text extraction, and thumbnail support
-- **Audio recordings table** with AI categorization (12 categories), AI-generated summaries, transcription, and duration tracking
+- **Documents table** with AI categorization (12 categories), AI-generated descriptions (user-editable, up to 200 characters), text extraction, and thumbnail support
+- **Audio recordings table** with AI categorization (12 categories), AI-generated summaries (user-editable, up to 150 characters), transcription, and duration tracking
 - Journal entries with AI-generated content, metadata, and entry types
 - Daily plans with AI-generated content, user edits, viewed status, and date tracking
 - Conversations include rich media support (message_type, document_id, media_url fields)
@@ -270,7 +270,7 @@ STRICT SAFETY BOUNDARIES - YOU MUST NEVER:
 - `frontend/src/pages/Conversation.jsx` - **Main conversation interface** with chat + daily plan panel, smart scrolling (stops at message box), welcome page, "Thinking..." status, sends user's local date for journal entries
 - `frontend/src/pages/DailyPlan.jsx` - **Daily plan page** with full history list, edit mode, delete and regenerate functionality, enhanced markdown rendering
 - `frontend/src/pages/JournalView.jsx` - **Journal page with date navigation** - reverse chronological, sticky sidebar with date selector, scroll-to-date, proper local timezone parsing
-- `frontend/src/pages/About.jsx` - **About page** with comprehensive feature descriptions organized as intro sentences + bullet points (Conversation, Daily Plan, Journal, Tools, Privacy)
+- `frontend/src/pages/About.jsx` - **About page** with comprehensive feature descriptions organized as intro sentences + bullet points (Conversation, Journal, Daily Plan, Tools, Privacy)
 - `frontend/src/pages/TermsOfService.jsx` - **Terms of Service page** with professional formatting, gradient backgrounds, warning boxes with icons, and GitHub repository links
 - `frontend/src/pages/PrivacyPolicy.jsx` - **Privacy Policy page** with clear data handling explanation, formatted warning sections, and comprehensive privacy information
 - `frontend/src/pages/tools/Documents.jsx` - **AI-powered Documents Manager** with 12 categories, AI descriptions, search/filter, sticky sidebar with date selector, scroll-to-date functionality (matching Journal page behavior), mobile-responsive collapsible sidebar, thumbnail previews
