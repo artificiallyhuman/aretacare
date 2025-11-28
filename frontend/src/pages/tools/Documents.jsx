@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, memo } from 'react';
 import { useSession } from '../../hooks/useSession';
 import { documentAPI } from '../../services/api';
 
@@ -33,6 +33,49 @@ const getCategoryLabel = (category) => {
   return cat ? cat.label : 'Other';
 };
 
+// Memoized search input component to prevent mobile focus loss
+const SearchInput = memo(({ value, onChange, onClear, placeholder }) => {
+  const searchInputRef = useRef(null);
+
+  const handleClear = useCallback(() => {
+    onClear();
+    // Use setTimeout to ensure state update happens before focus
+    setTimeout(() => {
+      searchInputRef.current?.focus();
+    }, 0);
+  }, [onClear]);
+
+  return (
+    <div className="relative">
+      <input
+        ref={searchInputRef}
+        type="text"
+        inputMode="search"
+        value={value}
+        onChange={onChange}
+        placeholder={placeholder}
+        className="input w-full pr-10"
+      />
+      {value && (
+        <button
+          onClick={handleClear}
+          onMouseDown={(e) => e.preventDefault()}
+          onTouchStart={(e) => e.preventDefault()}
+          className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 p-1"
+          aria-label="Clear search"
+          type="button"
+        >
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      )}
+    </div>
+  );
+});
+
+SearchInput.displayName = 'SearchInput';
+
 const Documents = () => {
   const { sessionId, loading: sessionLoading } = useSession();
   const [documents, setDocuments] = useState([]);
@@ -50,9 +93,6 @@ const Documents = () => {
   const [editedDescriptions, setEditedDescriptions] = useState({});
   const [selectedDate, setSelectedDate] = useState(null);
   const dateRefs = useRef({});
-  const searchInputRef = useRef(null);
-  const isSearchFocused = useRef(false);
-  const blurTimeoutRef = useRef(null);
   const [showSidebar, setShowSidebar] = useState(false);
 
   // Debounce search query to avoid API calls on every keystroke
@@ -64,32 +104,13 @@ const Documents = () => {
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
-  // Cleanup blur timeout on unmount
-  useEffect(() => {
-    return () => {
-      if (blurTimeoutRef.current) {
-        clearTimeout(blurTimeoutRef.current);
-      }
-    };
-  }, []);
-
   // Memoized search input handlers to prevent recreation on every render
   const handleSearchChange = useCallback((e) => {
     setSearchQuery(e.target.value);
   }, []);
 
-  const handleSearchFocus = useCallback(() => {
-    if (blurTimeoutRef.current) {
-      clearTimeout(blurTimeoutRef.current);
-      blurTimeoutRef.current = null;
-    }
-    isSearchFocused.current = true;
-  }, []);
-
-  const handleSearchBlur = useCallback(() => {
-    blurTimeoutRef.current = setTimeout(() => {
-      isSearchFocused.current = false;
-    }, 100);
+  const handleClearSearch = useCallback(() => {
+    setSearchQuery('');
   }, []);
 
   useEffect(() => {
@@ -293,35 +314,12 @@ const Documents = () => {
           {/* Controls */}
           <div className="mb-6 space-y-3 sm:space-y-4">
             {/* Search */}
-            <div className="flex-1 relative">
-              <input
-                ref={searchInputRef}
-                type="text"
-                inputMode="search"
-                value={searchQuery}
-                onChange={handleSearchChange}
-                onFocus={handleSearchFocus}
-                onBlur={handleSearchBlur}
-                placeholder="Search documents by name or description..."
-                className="input w-full pr-10"
-              />
-              {searchQuery && (
-                <button
-                  onClick={() => {
-                    setSearchQuery('');
-                    searchInputRef.current?.focus();
-                  }}
-                  onMouseDown={(e) => e.preventDefault()}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 p-1"
-                  aria-label="Clear search"
-                  type="button"
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              )}
-            </div>
+            <SearchInput
+              value={searchQuery}
+              onChange={handleSearchChange}
+              onClear={handleClearSearch}
+              placeholder="Search documents by name or description..."
+            />
 
             {/* Filter by category */}
             <div className="flex items-center gap-3">
