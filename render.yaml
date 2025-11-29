@@ -32,7 +32,7 @@ services:
       - key: DEBUG
         value: false
       - key: CORS_ORIGINS
-        value: https://aretacare-frontend.onrender.com
+        value: https://aretacare.com
       - key: SMTP_HOST
         value: smtp.gmail.com
       - key: SMTP_PORT
@@ -46,7 +46,7 @@ services:
       - key: SMTP_FROM_NAME
         value: AretaCare
       - key: FRONTEND_URL
-        value: https://aretacare-frontend.onrender.com
+        value: https://aretacare.com
 
   # Frontend
   - type: web
