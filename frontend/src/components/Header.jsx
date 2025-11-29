@@ -396,8 +396,11 @@ const Header = ({ onLogout, user }) => {
                   </div>
                 </div>
               )}
+            </div>
 
-              <div className="mt-1 space-y-0.5">
+            {/* About & Settings Links */}
+            <div className="py-2 bg-white">
+              <div className="flex flex-col space-y-0.5">
                 <Link
                   to="/about"
                   className="block px-3 py-2.5 text-sm font-medium text-gray-700 hover:text-primary-600 hover:bg-primary-50 transition-colors"
