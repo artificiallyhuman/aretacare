@@ -7,6 +7,9 @@ class UserRegister(BaseModel):
     name: str = Field(..., min_length=1, max_length=255)
     email: EmailStr
     password: str = Field(..., min_length=8, max_length=72)
+    acknowledge_not_medical_advice: bool = Field(..., description="User acknowledges AretaCare is not medical advice")
+    acknowledge_beta_version: bool = Field(..., description="User acknowledges beta status and potential data loss")
+    acknowledge_email_communications: bool = Field(..., description="User acknowledges they will receive email communications")
 
 
 class UserLogin(BaseModel):

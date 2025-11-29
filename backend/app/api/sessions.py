@@ -632,6 +632,30 @@ async def share_session(
     db.commit()
     db.refresh(new_collab)
 
+    # Get owner information
+    owner = db.query(User).filter(User.id == session.owner_id).first()
+
+    # Send email notifications
+    # 1. Notify the owner that a collaborator was added
+    if owner:
+        from app.services.email_service import email_service
+        email_service.send_collaborator_added_to_owner_email(
+            owner_email=owner.email,
+            owner_name=owner.name,
+            session_name=session.name,
+            collaborator_name=target_user.name,
+            collaborator_email=target_user.email
+        )
+
+    # 2. Notify the new collaborator that they were added
+    if owner:
+        email_service.send_collaborator_invitation_email(
+            collaborator_email=target_user.email,
+            collaborator_name=target_user.name,
+            session_name=session.name,
+            owner_name=owner.name
+        )
+
     collaborator_info = CollaboratorInfo(
         user_id=target_user.id,
         email=target_user.email,
@@ -662,7 +686,7 @@ async def revoke_access(
     # Only owner can revoke access
     check_session_access(session, current_user.id, db, require_owner=True)
 
-    # Find and delete collaboration
+    # Find collaboration
     collab = db.query(SessionCollaborator).filter(
         SessionCollaborator.session_id == session_id,
         SessionCollaborator.user_id == user_id
@@ -671,8 +695,24 @@ async def revoke_access(
     if not collab:
         raise HTTPException(status_code=404, detail="Collaborator not found")
 
+    # Get collaborator and owner information before deletion
+    collaborator = db.query(User).filter(User.id == user_id).first()
+    owner = db.query(User).filter(User.id == session.owner_id).first()
+
+    # Delete collaboration
     db.delete(collab)
     db.commit()
+
+    # Send email notification to removed collaborator
+    if collaborator and owner:
+        from app.services.email_service import email_service
+        email_service.send_collaborator_removed_email(
+            collaborator_email=collaborator.email,
+            collaborator_name=collaborator.name,
+            session_name=session.name,
+            owner_name=owner.name,
+            owner_email=owner.email
+        )
 
     return {"message": "Access revoked successfully"}
 

@@ -15,7 +15,8 @@ AretaCare is an AI-powered medical care advocate assistant that helps families u
 - Journal with date navigation - reverse chronological, sticky sidebar, scroll-to-date functionality
 - GPT-5.1 native file support for PDFs and images via Responses API
 - Audio recording with live waveform visualization and real-time transcription
-- JWT-based authentication with bcrypt password hashing
+- JWT-based authentication with bcrypt password hashing, registration requires three acknowledgement checkboxes
+- Email notifications - password changes, email changes, collaborator management (sent via Gmail SMTP)
 - Settings page - account management, password reset via email, manage sessions, account deletion
 - AI-powered Documents Manager (12 categories, AI descriptions, searchable, date navigation)
 - AI-powered Audio Recordings (12 categories, AI summaries, searchable, date navigation)
@@ -131,8 +132,10 @@ See `backend/app/config/README.md` for complete documentation on modifying AI be
 - JWT-based authentication with 7-day token expiration
 - Passwords hashed with bcrypt (72-byte maximum due to bcrypt limitation)
 - Minimum password length: 8 characters
+- Registration requires three acknowledgements: not medical advice, beta version, email communications
 - Auth token stored in localStorage, included in API requests via Authorization header
 - Protected routes on both frontend (React Router) and backend (FastAPI dependencies)
+- Email notifications sent for password changes, email changes, and collaborator actions
 
 **Session Management:**
 - **Multi-session support**: Each user can have up to 3 active sessions (owned + collaborations combined)
@@ -181,7 +184,7 @@ See `backend/app/config/README.md` for complete documentation on modifying AI be
 - `daily_plan_service.py` - Daily plan generation
 - `s3_service.py` - S3 upload/download/delete, presigned URLs
 - `document_processor.py` - Text extraction (PDF, OCR), thumbnail generation
-- `email_service.py` - Password reset emails via Gmail SMTP
+- `email_service.py` - Email notifications via Gmail SMTP (password changes, email changes, collaborator management, password reset)
 
 **Core** (`backend/app/core/`):
 - `migrations.py` - Database migrations (auto-adds columns)
@@ -234,7 +237,7 @@ Backend requires (`backend/.env`):
 - `DATABASE_URL` - Auto-configured in Docker Compose
 - `SECRET_KEY` - For JWT signing
 - `CORS_ORIGINS` - Comma-separated allowed origins
-- `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM_EMAIL`, `SMTP_FROM_NAME`, `FRONTEND_URL` - For password reset emails (see docs/EMAIL_SETUP.md)
+- `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM_EMAIL`, `SMTP_FROM_NAME`, `FRONTEND_URL` - For email notifications: password reset, password changes, email changes, collaborator management (see docs/EMAIL_SETUP.md)
 - `RESET_DB` - Optional: Set to "true" to drop and recreate database on startup (development/production)
 
 Frontend optional (`frontend/.env`):
@@ -305,13 +308,15 @@ Edit `backend/app/config/ai_config.py`:
 
 **First-time Setup:**
 1. Navigate to http://localhost:3001
-2. Create account (8-72 character password)
+2. Create account (8-72 character password, check three acknowledgement boxes)
 3. Auto-logged in and redirected
 
 **Key Features to Test:**
+- Registration with three required acknowledgements
 - Conversation interface with text/voice/document input
 - Multi-session management (up to 3 sessions, rename, switch)
 - Session sharing (share by email, collaborator access, leave session)
+- Email notifications (password changes, email changes, collaborator actions)
 - Journal with date navigation and timezone handling
 - Daily Plan generation and editing
 - Documents/Audio with AI categorization

@@ -82,14 +82,63 @@ const PrivacyPolicy = () => {
                 <li>Generate journal entries and daily plans</li>
                 <li>Store and organize your medical documents</li>
                 <li>Maintain your account and session</li>
+                <li>Send you important email notifications about your account</li>
                 <li>Improve the application and fix bugs</li>
               </ul>
             </div>
           </section>
 
-          {/* Section 4 - Session Sharing */}
+          {/* Section 4 - Email Communications */}
           <section>
-            <h2 className="text-2xl font-bold text-gray-900 mb-4 pb-2 border-b-2 border-primary-200">4. Session Sharing</h2>
+            <h2 className="text-2xl font-bold text-gray-900 mb-4 pb-2 border-b-2 border-primary-200">4. Email Communications</h2>
+            <div className="space-y-6">
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-3">Automated Email Notifications</h3>
+                <p className="text-gray-700 leading-relaxed text-base mb-3">
+                  AretaCare will send you automated email notifications to protect your account security and keep you informed of important activities. These emails are sent to the email address associated with your account.
+                </p>
+                <p className="text-gray-700 leading-relaxed text-base mb-3">You will receive emails when:</p>
+                <ul className="list-disc list-inside space-y-2 text-gray-700 pl-4">
+                  <li><strong>Password Changes:</strong> Notification when your password is changed (either through account settings or password reset)</li>
+                  <li><strong>Email Changes:</strong> Notification sent to your old email address when your account email is updated</li>
+                  <li><strong>Collaborator Added (Owner):</strong> Notification when you add someone as a collaborator to one of your sessions</li>
+                  <li><strong>Added as Collaborator:</strong> Notification when someone adds you as a collaborator to their session</li>
+                  <li><strong>Removed as Collaborator:</strong> Notification when you are removed from a shared session</li>
+                  <li><strong>Password Reset:</strong> Password reset link when requested</li>
+                </ul>
+              </div>
+
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-3">Email Service Provider</h3>
+                <p className="text-gray-700 leading-relaxed text-base mb-3">
+                  Emails are sent via SMTP using Gmail. Your email address is shared with Gmail for the purpose of delivering these notifications. Email delivery is subject to Gmail's terms of service and privacy policy.
+                </p>
+              </div>
+
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-3">Required Communications</h3>
+                <div className="bg-blue-50 border-l-4 border-blue-500 p-5 rounded-r-lg">
+                  <p className="text-blue-900">
+                    <strong>Important:</strong> Email notifications related to account security (password changes, email changes) cannot be disabled as they are essential for protecting your account. By creating an account, you consent to receive these communications.
+                  </p>
+                </div>
+              </div>
+
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-3">Email Content and Security</h3>
+                <ul className="list-disc list-inside space-y-2 text-gray-700 pl-4">
+                  <li>Emails contain minimal personal information (your name and email address)</li>
+                  <li>Emails do not contain sensitive medical information from your sessions</li>
+                  <li>Security-related emails include instructions for contacting support if the change was unauthorized</li>
+                  <li>All emails are sent from AretaCare's designated sending address</li>
+                </ul>
+              </div>
+            </div>
+          </section>
+
+          {/* Section 5 - Session Sharing */}
+          <section>
+            <h2 className="text-2xl font-bold text-gray-900 mb-4 pb-2 border-b-2 border-primary-200">5. Session Sharing</h2>
             <div className="space-y-4">
               <p className="text-gray-700 leading-relaxed text-base">
                 AretaCare allows you to share sessions with other registered users (up to 5 people per session, including yourself). When you share a session:
@@ -108,9 +157,9 @@ const PrivacyPolicy = () => {
             </div>
           </section>
 
-          {/* Section 5 */}
+          {/* Section 6 */}
           <section>
-            <h2 className="text-2xl font-bold text-gray-900 mb-4 pb-2 border-b-2 border-primary-200">5. Third-Party Services</h2>
+            <h2 className="text-2xl font-bold text-gray-900 mb-4 pb-2 border-b-2 border-primary-200">6. Third-Party Services</h2>
             <div className="space-y-4">
               <p className="text-gray-700 leading-relaxed text-base">
                 AretaCare uses the following third-party services that may access your data:
@@ -138,9 +187,9 @@ const PrivacyPolicy = () => {
             </div>
           </section>
 
-          {/* Section 5 */}
+          {/* Section 7 */}
           <section>
-            <h2 className="text-2xl font-bold text-gray-900 mb-4 pb-2 border-b-2 border-primary-200">6. Data Storage and Security</h2>
+            <h2 className="text-2xl font-bold text-gray-900 mb-4 pb-2 border-b-2 border-primary-200">7. Data Storage and Security</h2>
             <div className="space-y-6">
               <div>
                 <h3 className="text-lg font-semibold text-gray-900 mb-3">Where Your Data is Stored</h3>
@@ -193,9 +242,9 @@ const PrivacyPolicy = () => {
             </div>
           </section>
 
-          {/* Section 6 */}
+          {/* Section 8 */}
           <section>
-            <h2 className="text-2xl font-bold text-gray-900 mb-4 pb-2 border-b-2 border-primary-200">7. Data Retention and Deletion</h2>
+            <h2 className="text-2xl font-bold text-gray-900 mb-4 pb-2 border-b-2 border-primary-200">8. Data Retention and Deletion</h2>
             <div className="space-y-6">
               <div>
                 <h3 className="text-lg font-semibold text-gray-900 mb-3">Session Data</h3>
@@ -247,9 +296,9 @@ const PrivacyPolicy = () => {
             </div>
           </section>
 
-          {/* Section 7 */}
+          {/* Section 9 */}
           <section>
-            <h2 className="text-2xl font-bold text-gray-900 mb-4 pb-2 border-b-2 border-primary-200">8. Your Rights and Choices</h2>
+            <h2 className="text-2xl font-bold text-gray-900 mb-4 pb-2 border-b-2 border-primary-200">9. Your Rights and Choices</h2>
             <div className="space-y-6">
               <div>
                 <h3 className="text-lg font-semibold text-gray-900 mb-3">Access and Control</h3>
@@ -275,17 +324,17 @@ const PrivacyPolicy = () => {
             </div>
           </section>
 
-          {/* Section 8 */}
+          {/* Section 10 */}
           <section>
-            <h2 className="text-2xl font-bold text-gray-900 mb-4 pb-2 border-b-2 border-primary-200">9. Children's Privacy</h2>
+            <h2 className="text-2xl font-bold text-gray-900 mb-4 pb-2 border-b-2 border-primary-200">10. Children's Privacy</h2>
             <p className="text-gray-700 leading-relaxed text-base">
               AretaCare is not intended for users under the age of 18. We do not knowingly collect information from children. If you believe a child has provided us with personal information, please contact us via GitHub.
             </p>
           </section>
 
-          {/* Section 9 - Beta Software Warning */}
+          {/* Section 11 - Beta Software Warning */}
           <section>
-            <h2 className="text-2xl font-bold text-gray-900 mb-4 pb-2 border-b-2 border-primary-200">10. Beta Software and Data Loss</h2>
+            <h2 className="text-2xl font-bold text-gray-900 mb-4 pb-2 border-b-2 border-primary-200">11. Beta Software and Data Loss</h2>
             <div className="bg-amber-50 border-l-4 border-amber-500 p-5 rounded-r-lg">
               <p className="text-amber-900 font-semibold">
                 AretaCare is beta software. You may experience data loss from time to time. We are not responsible for any lost data. Do not rely on this system as your only source of medical records.
@@ -293,17 +342,17 @@ const PrivacyPolicy = () => {
             </div>
           </section>
 
-          {/* Section 10 */}
+          {/* Section 12 */}
           <section>
-            <h2 className="text-2xl font-bold text-gray-900 mb-4 pb-2 border-b-2 border-primary-200">11. Changes to Privacy Policy</h2>
+            <h2 className="text-2xl font-bold text-gray-900 mb-4 pb-2 border-b-2 border-primary-200">12. Changes to Privacy Policy</h2>
             <p className="text-gray-700 leading-relaxed text-base">
               We may update this Privacy Policy from time to time. Changes will be posted on this page with an updated "Last Updated" date. Your continued use of AretaCare constitutes acceptance of any changes.
             </p>
           </section>
 
-          {/* Section 11 */}
+          {/* Section 13 */}
           <section>
-            <h2 className="text-2xl font-bold text-gray-900 mb-4 pb-2 border-b-2 border-primary-200">12. Open Source and Community</h2>
+            <h2 className="text-2xl font-bold text-gray-900 mb-4 pb-2 border-b-2 border-primary-200">13. Open Source and Community</h2>
             <div className="space-y-4">
               <p className="text-gray-700 leading-relaxed text-base">As an open source project:</p>
               <ul className="list-disc list-inside space-y-2 text-gray-700 pl-4">
@@ -315,17 +364,17 @@ const PrivacyPolicy = () => {
             </div>
           </section>
 
-          {/* Section 12 */}
+          {/* Section 14 */}
           <section>
-            <h2 className="text-2xl font-bold text-gray-900 mb-4 pb-2 border-b-2 border-primary-200">13. International Users</h2>
+            <h2 className="text-2xl font-bold text-gray-900 mb-4 pb-2 border-b-2 border-primary-200">14. International Users</h2>
             <p className="text-gray-700 leading-relaxed text-base">
               AretaCare may be accessed from anywhere in the world. By using this application, you consent to the transfer of your information to the United States (where our servers may be located) and other countries where our service providers operate.
             </p>
           </section>
 
-          {/* Section 13 */}
+          {/* Section 15 */}
           <section>
-            <h2 className="text-2xl font-bold text-gray-900 mb-4 pb-2 border-b-2 border-primary-200">14. California Privacy Rights</h2>
+            <h2 className="text-2xl font-bold text-gray-900 mb-4 pb-2 border-b-2 border-primary-200">15. California Privacy Rights</h2>
             <div className="space-y-4">
               <p className="text-gray-700 leading-relaxed text-base">
                 California residents have specific rights under the California Consumer Privacy Act (CCPA), including the right to:
@@ -338,9 +387,9 @@ const PrivacyPolicy = () => {
             </div>
           </section>
 
-          {/* Section 14 */}
+          {/* Section 16 */}
           <section>
-            <h2 className="text-2xl font-bold text-gray-900 mb-4 pb-2 border-b-2 border-primary-200">15. Contact and Questions</h2>
+            <h2 className="text-2xl font-bold text-gray-900 mb-4 pb-2 border-b-2 border-primary-200">16. Contact and Questions</h2>
             <p className="text-gray-700 leading-relaxed text-base">
               For privacy questions, concerns, or data requests, please open an issue on our GitHub repository:{' '}
               <a href="https://github.com/artificiallyhuman/aretacare" target="_blank" rel="noopener noreferrer" className="text-primary-600 hover:text-primary-700 font-medium underline">

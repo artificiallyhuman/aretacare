@@ -15,7 +15,7 @@ const TermsOfService = () => {
           </Link>
           <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-6 sm:p-8">
             <h1 className="text-4xl sm:text-5xl font-bold text-gray-900 mb-2">Terms of Service</h1>
-            <p className="text-sm text-gray-500">Last Updated: November 27, 2025</p>
+            <p className="text-sm text-gray-500">Last Updated: November 29, 2025</p>
           </div>
         </div>
 
@@ -136,9 +136,48 @@ const TermsOfService = () => {
             </div>
           </section>
 
-          {/* Section 7 */}
+          {/* Section 7 - Email Communications */}
           <section>
-            <h2 className="text-2xl font-bold text-gray-900 mb-4 pb-2 border-b-2 border-primary-200">7. Limitation of Liability</h2>
+            <h2 className="text-2xl font-bold text-gray-900 mb-4 pb-2 border-b-2 border-primary-200">7. Email Communications</h2>
+            <div className="space-y-4">
+              <p className="text-gray-700 leading-relaxed text-base">
+                By creating an account, you consent to receive automated email notifications from AretaCare. These emails are essential for account security and session management.
+              </p>
+              <div className="bg-gray-50 rounded-lg p-5">
+                <p className="text-gray-700 font-medium mb-3">You will receive emails for:</p>
+                <ul className="space-y-2 text-gray-700">
+                  <li className="flex items-start">
+                    <span className="text-primary-600 mr-2 mt-1">•</span>
+                    <span><strong>Password changes:</strong> Security notification when your password is changed</span>
+                  </li>
+                  <li className="flex items-start">
+                    <span className="text-primary-600 mr-2 mt-1">•</span>
+                    <span><strong>Email changes:</strong> Notification to your old email when your account email is updated</span>
+                  </li>
+                  <li className="flex items-start">
+                    <span className="text-primary-600 mr-2 mt-1">•</span>
+                    <span><strong>Session collaboration:</strong> Notifications when collaborators are added or removed from sessions</span>
+                  </li>
+                  <li className="flex items-start">
+                    <span className="text-primary-600 mr-2 mt-1">•</span>
+                    <span><strong>Password reset:</strong> Password reset links when requested</span>
+                  </li>
+                </ul>
+              </div>
+              <div className="bg-blue-50 border-l-4 border-blue-500 p-5 rounded-r-lg">
+                <p className="text-blue-900">
+                  <strong>Important:</strong> Security-related email notifications (password changes, email changes) cannot be disabled as they are essential for protecting your account from unauthorized access.
+                </p>
+              </div>
+              <p className="text-gray-700 leading-relaxed text-base">
+                Emails do not contain sensitive medical information from your sessions. They contain only basic account information necessary for security notifications.
+              </p>
+            </div>
+          </section>
+
+          {/* Section 8 */}
+          <section>
+            <h2 className="text-2xl font-bold text-gray-900 mb-4 pb-2 border-b-2 border-primary-200">8. Limitation of Liability</h2>
             <div className="space-y-4">
               <p className="text-gray-700 leading-relaxed text-base">
                 To the maximum extent permitted by law, the developers, contributors, and maintainers of AretaCare shall not be liable for any indirect, incidental, special, consequential, or punitive damages, or any loss of profits or revenues, whether incurred directly or indirectly, or any loss of data, use, goodwill, or other intangible losses resulting from:
@@ -153,9 +192,9 @@ const TermsOfService = () => {
             </div>
           </section>
 
-          {/* Section 8 */}
+          {/* Section 9 */}
           <section>
-            <h2 className="text-2xl font-bold text-gray-900 mb-4 pb-2 border-b-2 border-primary-200">8. Third-Party Services</h2>
+            <h2 className="text-2xl font-bold text-gray-900 mb-4 pb-2 border-b-2 border-primary-200">9. Third-Party Services</h2>
             <div className="space-y-4">
               <p className="text-gray-700 leading-relaxed text-base">AretaCare uses third-party services including:</p>
               <div className="grid gap-4 sm:grid-cols-2">
@@ -176,28 +215,28 @@ const TermsOfService = () => {
 
           {/* Remaining sections with simpler formatting */}
           <section>
-            <h2 className="text-2xl font-bold text-gray-900 mb-4 pb-2 border-b-2 border-primary-200">9. Modifications to Terms</h2>
+            <h2 className="text-2xl font-bold text-gray-900 mb-4 pb-2 border-b-2 border-primary-200">10. Modifications to Terms</h2>
             <p className="text-gray-700 leading-relaxed text-base">
               We reserve the right to modify these Terms of Service at any time. Changes will be effective immediately upon posting. Your continued use of AretaCare after changes constitutes acceptance of the modified terms.
             </p>
           </section>
 
           <section>
-            <h2 className="text-2xl font-bold text-gray-900 mb-4 pb-2 border-b-2 border-primary-200">10. Termination</h2>
+            <h2 className="text-2xl font-bold text-gray-900 mb-4 pb-2 border-b-2 border-primary-200">11. Termination</h2>
             <p className="text-gray-700 leading-relaxed text-base">
               We reserve the right to terminate or suspend your access to AretaCare at any time, without notice, for any reason, including violation of these terms.
             </p>
           </section>
 
           <section>
-            <h2 className="text-2xl font-bold text-gray-900 mb-4 pb-2 border-b-2 border-primary-200">11. Governing Law</h2>
+            <h2 className="text-2xl font-bold text-gray-900 mb-4 pb-2 border-b-2 border-primary-200">12. Governing Law</h2>
             <p className="text-gray-700 leading-relaxed text-base">
               These Terms of Service shall be governed by and construed in accordance with the laws of the jurisdiction in which you reside, without regard to its conflict of law provisions.
             </p>
           </section>
 
           <section>
-            <h2 className="text-2xl font-bold text-gray-900 mb-4 pb-2 border-b-2 border-primary-200">12. Contact and Questions</h2>
+            <h2 className="text-2xl font-bold text-gray-900 mb-4 pb-2 border-b-2 border-primary-200">13. Contact and Questions</h2>
             <p className="text-gray-700 leading-relaxed text-base">
               For questions, issues, or contributions, please visit the GitHub repository at{' '}
               <a href="https://github.com/artificiallyhuman/aretacare" target="_blank" rel="noopener noreferrer" className="text-primary-600 hover:text-primary-700 font-medium underline">

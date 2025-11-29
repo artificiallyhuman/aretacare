@@ -26,7 +26,9 @@ AretaCare was built from exactly this experience—sitting beside a loved one in
 
 **Documents & Recordings** — Upload PDFs and images of medical records. Record voice notes during appointments. Everything is automatically categorized, transcribed, and made searchable.
 
-**Session Sharing** — Invite family members to collaborate on a session. Up to 5 people can share the same view, keeping everyone informed and aligned even when you're in different cities.
+**Session Sharing** — Invite family members to collaborate on a session. Up to 5 people can share the same view, keeping everyone informed and aligned even when you're in different cities. Receive email notifications when collaborators are added or removed.
+
+**Account Security** — Email notifications keep you informed of important account changes including password updates, email changes, and session sharing activities.
 
 ---
 
@@ -81,7 +83,10 @@ python -c "import secrets; print(secrets.token_urlsafe(32))"
 docker compose up --build
 ```
 
-Open http://localhost:3001 and create an account.
+Open http://localhost:3001 and create an account. You'll need to acknowledge three important notices during registration:
+- AretaCare is not medical advice
+- The system is in beta (potential data loss)
+- You'll receive email notifications for account security
 
 ### Stop
 
@@ -136,7 +141,7 @@ aretacare/
 | [docs/API_USAGE.md](docs/API_USAGE.md) | API endpoint reference |
 | [docs/SAFETY_GUIDELINES.md](docs/SAFETY_GUIDELINES.md) | AI safety requirements |
 | [docs/AWS_IAM_POLICY.md](docs/AWS_IAM_POLICY.md) | Required S3 permissions |
-| [docs/EMAIL_SETUP.md](docs/EMAIL_SETUP.md) | Password reset email configuration |
+| [docs/EMAIL_SETUP.md](docs/EMAIL_SETUP.md) | Email notification configuration (SMTP setup) |
 
 ---
 

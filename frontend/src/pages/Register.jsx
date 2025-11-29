@@ -8,6 +8,9 @@ function Register() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [acknowledgeNotMedicalAdvice, setAcknowledgeNotMedicalAdvice] = useState(false);
+  const [acknowledgeBetaVersion, setAcknowledgeBetaVersion] = useState(false);
+  const [acknowledgeEmailCommunications, setAcknowledgeEmailCommunications] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
@@ -39,10 +42,33 @@ function Register() {
       return;
     }
 
+    // Validate acknowledgements
+    if (!acknowledgeNotMedicalAdvice) {
+      setError('You must acknowledge that AretaCare is not medical advice');
+      return;
+    }
+
+    if (!acknowledgeBetaVersion) {
+      setError('You must acknowledge the beta version status and potential data loss');
+      return;
+    }
+
+    if (!acknowledgeEmailCommunications) {
+      setError('You must acknowledge that you will receive email communications');
+      return;
+    }
+
     setLoading(true);
 
     try {
-      const response = await authAPI.register(name, email, password);
+      const response = await authAPI.register(
+        name,
+        email,
+        password,
+        acknowledgeNotMedicalAdvice,
+        acknowledgeBetaVersion,
+        acknowledgeEmailCommunications
+      );
       const { access_token, user } = response.data;
 
       // Store auth token and user info
@@ -165,6 +191,58 @@ function Register() {
                 maxLength={72}
                 className="input"
               />
+            </div>
+
+            {/* Acknowledgement Checkboxes */}
+            <div className="space-y-3 pt-2 border-t border-gray-200">
+              <p className="text-sm font-medium text-gray-700 mb-3">
+                Please acknowledge the following:
+              </p>
+
+              <div className="flex items-start">
+                <input
+                  type="checkbox"
+                  id="acknowledgeNotMedicalAdvice"
+                  checked={acknowledgeNotMedicalAdvice}
+                  onChange={(e) => setAcknowledgeNotMedicalAdvice(e.target.checked)}
+                  disabled={loading}
+                  className="mt-1 h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded cursor-pointer"
+                  required
+                />
+                <label htmlFor="acknowledgeNotMedicalAdvice" className="ml-3 text-sm text-gray-700 cursor-pointer">
+                  I understand that AretaCare is an AI assistant, not a medical professional, and I should consult my healthcare team for any medical decisions.
+                </label>
+              </div>
+
+              <div className="flex items-start">
+                <input
+                  type="checkbox"
+                  id="acknowledgeBetaVersion"
+                  checked={acknowledgeBetaVersion}
+                  onChange={(e) => setAcknowledgeBetaVersion(e.target.checked)}
+                  disabled={loading}
+                  className="mt-1 h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded cursor-pointer"
+                  required
+                />
+                <label htmlFor="acknowledgeBetaVersion" className="ml-3 text-sm text-gray-700 cursor-pointer">
+                  I understand this system is in beta and may be unstable. I acknowledge there may be data loss from time to time, and I will not rely on this system for critical medical information storage.
+                </label>
+              </div>
+
+              <div className="flex items-start">
+                <input
+                  type="checkbox"
+                  id="acknowledgeEmailCommunications"
+                  checked={acknowledgeEmailCommunications}
+                  onChange={(e) => setAcknowledgeEmailCommunications(e.target.checked)}
+                  disabled={loading}
+                  className="mt-1 h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded cursor-pointer"
+                  required
+                />
+                <label htmlFor="acknowledgeEmailCommunications" className="ml-3 text-sm text-gray-700 cursor-pointer">
+                  I understand I will receive email communications from AretaCare, including notifications about password changes, account updates, and session sharing activities.
+                </label>
+              </div>
             </div>
 
             <div className="pt-2">

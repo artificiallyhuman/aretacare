@@ -21,8 +21,15 @@ api.interceptors.request.use((config) => {
 
 // Auth API
 export const authAPI = {
-  register: (name, email, password) =>
-    api.post('/auth/register', { name, email, password }),
+  register: (name, email, password, acknowledgeNotMedicalAdvice, acknowledgeBetaVersion, acknowledgeEmailCommunications) =>
+    api.post('/auth/register', {
+      name,
+      email,
+      password,
+      acknowledge_not_medical_advice: acknowledgeNotMedicalAdvice,
+      acknowledge_beta_version: acknowledgeBetaVersion,
+      acknowledge_email_communications: acknowledgeEmailCommunications
+    }),
 
   login: (email, password) =>
     api.post('/auth/login', { email, password }),

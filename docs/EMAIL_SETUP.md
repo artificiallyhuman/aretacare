@@ -1,6 +1,16 @@
-# Email Setup for Password Reset
+# Email Notification Setup
 
-This guide explains how to configure email functionality for password reset using Gmail SMTP.
+This guide explains how to configure email notifications for AretaCare using Gmail SMTP.
+
+## Email Notification Types
+
+AretaCare sends automated emails for:
+- **Password changes** - Security notification when password is updated
+- **Email changes** - Notification to old address when email is changed
+- **Collaborator added** - Notification to session owner when collaborator is added
+- **Collaborator invitation** - Notification when added as a collaborator
+- **Collaborator removed** - Notification when removed from a session
+- **Password reset** - Password reset link when requested
 
 ## Gmail App Password Setup
 
@@ -66,17 +76,17 @@ SMTP_FROM_NAME=AretaCare
 FRONTEND_URL=http://localhost:3001  # Used for reset link
 ```
 
-## Testing Password Reset
+## Testing Email Notifications
 
 ### Development Mode (No Email Configured)
 
 If `SMTP_PASSWORD` is not set:
 - Password reset tokens are still generated and stored in the database
 - The reset link is logged to the backend console/logs (check Docker logs)
-- No actual email is sent
-- The API returns a success message but no token (security)
+- No actual emails are sent for any notification type
+- The API returns success messages but no emails are delivered
 
-**To test in development mode:**
+**To test password reset in development mode:**
 1. Check backend logs for the reset URL:
    ```bash
    docker compose logs backend --tail 50
@@ -87,44 +97,37 @@ If `SMTP_PASSWORD` is not set:
 ### Production Mode (Email Configured)
 
 Once `SMTP_PASSWORD` is set:
-- Password reset emails are sent via Gmail SMTP
-- Users receive a professional HTML email with a reset link
-- The link expires in 1 hour
+- All email notifications are sent via Gmail SMTP
+- Users receive professional HTML emails for all notification types
+- Password reset links expire in 1 hour
 - Tokens are never exposed to the client
 
-### Test the Flow
+### Testing Different Email Types
 
-1. **Request Password Reset**
-   - Go to: http://localhost:3001/login
-   - Click "Forgot password?"
-   - Enter your email address
-   - Click "Send Reset Link"
+1. **Password Reset**
+   - Go to: http://localhost:3001/login → "Forgot password?"
+   - Check email inbox for reset link
 
-2. **Development Mode** (SMTP_PASSWORD not set)
-   - Check backend logs: `docker compose logs backend --tail 50`
-   - Copy the reset URL from the logs
-   - Paste it into your browser to test
+2. **Password Changed**
+   - Go to Settings → Change password
+   - Check email inbox for security notification
 
-3. **Production Mode** (SMTP_PASSWORD configured)
-   - Check the email inbox
-   - Click the "Reset Password" button in the email
-   - Or copy/paste the URL from the email
+3. **Email Changed**
+   - Go to Settings → Change email
+   - Check OLD email inbox for change notification
 
-4. **Reset Password**
-   - Enter your new password (8+ characters)
-   - Confirm the new password
-   - Click "Reset Password"
-   - You'll be redirected to login
+4. **Collaborator Notifications**
+   - Share a session with another user
+   - Both owner and collaborator receive email notifications
 
-## Email Template
+## Email Templates
 
-The password reset email includes:
+All emails include:
 
 - **Professional HTML design** with AretaCare branding
-- **Primary action button** for easy password reset
-- **Plain text URL** as fallback
-- **Warning box** showing 1-hour expiration
-- **Security notice** for users who didn't request reset
+- **Clear action buttons** where applicable
+- **Plain text fallback** for compatibility
+- **Security notices** with instructions for unauthorized changes
 - **Responsive design** that works on all devices
 
 ## Troubleshooting
@@ -142,9 +145,9 @@ The password reset email includes:
 
 ### "Email not sent" in logs
 
-**Problem:** Backend logs show "Email not sent. Using development mode."
+**Problem:** Backend logs show "SMTP_PASSWORD not configured. Email not sent. Using development mode."
 
-**Solution:** This means `SMTP_PASSWORD` is empty. Set the App Password in `.env` and restart backend.
+**Solution:** This means `SMTP_PASSWORD` is empty. Set the App Password in `.env` and restart backend. All email notifications will be suppressed until configured.
 
 ### Password reset token expired
 

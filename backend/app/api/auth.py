@@ -70,6 +70,25 @@ def get_current_user(
 @router.post("/register", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
 def register(user_data: UserRegister, db: DBSession = Depends(get_db)):
     """Register a new user."""
+    # Validate acknowledgements - all must be True
+    if not user_data.acknowledge_not_medical_advice:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="You must acknowledge that AretaCare is not medical advice"
+        )
+
+    if not user_data.acknowledge_beta_version:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="You must acknowledge the beta version status and potential data loss"
+        )
+
+    if not user_data.acknowledge_email_communications:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="You must acknowledge that you will receive email communications"
+        )
+
     # Check if user already exists
     existing_user = db.query(User).filter(User.email == user_data.email).first()
     if existing_user:
@@ -183,10 +202,16 @@ def update_email(
             detail="Email already registered"
         )
 
+    # Store old email for notification
+    old_email = current_user.email
+
     # Update email
     current_user.email = data.email
     db.commit()
     db.refresh(current_user)
+
+    # Send notification to old email address
+    email_service.send_email_changed_notification(old_email, data.email, current_user.name)
 
     return UserResponse.model_validate(current_user)
 
@@ -209,6 +234,9 @@ def update_password(
     current_user.password_hash = get_password_hash(data.new_password)
     db.commit()
     db.refresh(current_user)
+
+    # Send password changed notification email
+    email_service.send_password_changed_email(current_user.email, current_user.name)
 
     return UserResponse.model_validate(current_user)
 
@@ -317,5 +345,8 @@ def reset_password(data: PasswordReset, db: DBSession = Depends(get_db)):
     user.reset_token_expires = None
 
     db.commit()
+
+    # Send password changed notification email
+    email_service.send_password_changed_email(user.email, user.name)
 
     return {"message": "Password reset successful"}
