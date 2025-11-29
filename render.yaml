@@ -46,7 +46,7 @@ services:
       - key: SMTP_FROM_NAME
         value: AretaCare
       - key: FRONTEND_URL
-        value: https://aretacare.com
+        value: https://www.aretacare.com
 
   # Frontend
   - type: web
