@@ -15,7 +15,7 @@ const PrivacyPolicy = () => {
           </Link>
           <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-6 sm:p-8">
             <h1 className="text-4xl sm:text-5xl font-bold text-gray-900 mb-2">Privacy Policy</h1>
-            <p className="text-sm text-gray-500">Last Updated: November 27, 2025</p>
+            <p className="text-sm text-gray-500">Last Updated: November 29, 2025</p>
           </div>
         </div>
 
@@ -87,9 +87,30 @@ const PrivacyPolicy = () => {
             </div>
           </section>
 
-          {/* Section 4 */}
+          {/* Section 4 - Session Sharing */}
           <section>
-            <h2 className="text-2xl font-bold text-gray-900 mb-4 pb-2 border-b-2 border-primary-200">4. Third-Party Services</h2>
+            <h2 className="text-2xl font-bold text-gray-900 mb-4 pb-2 border-b-2 border-primary-200">4. Session Sharing</h2>
+            <div className="space-y-4">
+              <p className="text-gray-700 leading-relaxed text-base">
+                AretaCare allows you to share sessions with other registered users (up to 5 people per session, including yourself). When you share a session:
+              </p>
+              <ul className="list-disc list-inside space-y-2 text-gray-700 pl-4">
+                <li>Collaborators have full access to all session data including conversations, journal entries, documents, audio recordings, and daily plans</li>
+                <li>Collaborators can add, edit, and delete content within the shared session</li>
+                <li>Only the session owner can share with additional users or revoke access</li>
+                <li>Collaborators can leave a shared session at any time</li>
+              </ul>
+              <div className="bg-blue-50 border-l-4 border-blue-500 p-5 rounded-r-lg">
+                <p className="text-blue-900">
+                  <strong>Important:</strong> Only share sessions with people you trust. Once shared, collaborators can view all existing content in that session.
+                </p>
+              </div>
+            </div>
+          </section>
+
+          {/* Section 5 */}
+          <section>
+            <h2 className="text-2xl font-bold text-gray-900 mb-4 pb-2 border-b-2 border-primary-200">5. Third-Party Services</h2>
             <div className="space-y-4">
               <p className="text-gray-700 leading-relaxed text-base">
                 AretaCare uses the following third-party services that may access your data:
@@ -119,7 +140,7 @@ const PrivacyPolicy = () => {
 
           {/* Section 5 */}
           <section>
-            <h2 className="text-2xl font-bold text-gray-900 mb-4 pb-2 border-b-2 border-primary-200">5. Data Storage and Security</h2>
+            <h2 className="text-2xl font-bold text-gray-900 mb-4 pb-2 border-b-2 border-primary-200">6. Data Storage and Security</h2>
             <div className="space-y-6">
               <div>
                 <h3 className="text-lg font-semibold text-gray-900 mb-3">Where Your Data is Stored</h3>
@@ -174,7 +195,7 @@ const PrivacyPolicy = () => {
 
           {/* Section 6 */}
           <section>
-            <h2 className="text-2xl font-bold text-gray-900 mb-4 pb-2 border-b-2 border-primary-200">6. Data Retention and Deletion</h2>
+            <h2 className="text-2xl font-bold text-gray-900 mb-4 pb-2 border-b-2 border-primary-200">7. Data Retention and Deletion</h2>
             <div className="space-y-6">
               <div>
                 <h3 className="text-lg font-semibold text-gray-900 mb-3">Session Data</h3>
@@ -191,12 +212,13 @@ const PrivacyPolicy = () => {
               <div>
                 <h3 className="text-lg font-semibold text-gray-900 mb-3">Account Deletion</h3>
                 <p className="text-gray-700 leading-relaxed text-base mb-3">
-                  You can contact us via the GitHub repository to request account deletion. This will permanently delete:
+                  You can delete your account at any time from the Settings page. This will permanently delete:
                 </p>
                 <ul className="list-disc list-inside space-y-2 text-gray-700 pl-4">
                   <li>Your account and profile information</li>
-                  <li>All associated sessions and data</li>
-                  <li>All documents and files in storage</li>
+                  <li>All sessions you own and their associated data</li>
+                  <li>All documents, audio recordings, and files in storage</li>
+                  <li>Your access to any sessions shared with you (the shared sessions remain for other collaborators)</li>
                 </ul>
               </div>
 
@@ -227,7 +249,7 @@ const PrivacyPolicy = () => {
 
           {/* Section 7 */}
           <section>
-            <h2 className="text-2xl font-bold text-gray-900 mb-4 pb-2 border-b-2 border-primary-200">7. Your Rights and Choices</h2>
+            <h2 className="text-2xl font-bold text-gray-900 mb-4 pb-2 border-b-2 border-primary-200">8. Your Rights and Choices</h2>
             <div className="space-y-6">
               <div>
                 <h3 className="text-lg font-semibold text-gray-900 mb-3">Access and Control</h3>
@@ -235,9 +257,9 @@ const PrivacyPolicy = () => {
                 <ul className="list-disc list-inside space-y-2 text-gray-700 pl-4">
                   <li>View all your data within the application</li>
                   <li>Edit or delete journal entries</li>
-                  <li>Delete uploaded documents</li>
-                  <li>Clear your session data at any time</li>
-                  <li>Request account deletion via GitHub</li>
+                  <li>Delete uploaded documents and audio recordings</li>
+                  <li>Delete individual sessions at any time</li>
+                  <li>Delete your entire account from the Settings page</li>
                 </ul>
               </div>
 
@@ -255,7 +277,7 @@ const PrivacyPolicy = () => {
 
           {/* Section 8 */}
           <section>
-            <h2 className="text-2xl font-bold text-gray-900 mb-4 pb-2 border-b-2 border-primary-200">8. Children's Privacy</h2>
+            <h2 className="text-2xl font-bold text-gray-900 mb-4 pb-2 border-b-2 border-primary-200">9. Children's Privacy</h2>
             <p className="text-gray-700 leading-relaxed text-base">
               AretaCare is not intended for users under the age of 18. We do not knowingly collect information from children. If you believe a child has provided us with personal information, please contact us via GitHub.
             </p>
@@ -263,7 +285,7 @@ const PrivacyPolicy = () => {
 
           {/* Section 9 - Beta Software Warning */}
           <section>
-            <h2 className="text-2xl font-bold text-gray-900 mb-4 pb-2 border-b-2 border-primary-200">9. Beta Software and Data Loss</h2>
+            <h2 className="text-2xl font-bold text-gray-900 mb-4 pb-2 border-b-2 border-primary-200">10. Beta Software and Data Loss</h2>
             <div className="bg-amber-50 border-l-4 border-amber-500 p-5 rounded-r-lg">
               <p className="text-amber-900 font-semibold">
                 AretaCare is beta software. You may experience data loss from time to time. We are not responsible for any lost data. Do not rely on this system as your only source of medical records.
@@ -273,7 +295,7 @@ const PrivacyPolicy = () => {
 
           {/* Section 10 */}
           <section>
-            <h2 className="text-2xl font-bold text-gray-900 mb-4 pb-2 border-b-2 border-primary-200">10. Changes to Privacy Policy</h2>
+            <h2 className="text-2xl font-bold text-gray-900 mb-4 pb-2 border-b-2 border-primary-200">11. Changes to Privacy Policy</h2>
             <p className="text-gray-700 leading-relaxed text-base">
               We may update this Privacy Policy from time to time. Changes will be posted on this page with an updated "Last Updated" date. Your continued use of AretaCare constitutes acceptance of any changes.
             </p>
@@ -281,7 +303,7 @@ const PrivacyPolicy = () => {
 
           {/* Section 11 */}
           <section>
-            <h2 className="text-2xl font-bold text-gray-900 mb-4 pb-2 border-b-2 border-primary-200">11. Open Source and Community</h2>
+            <h2 className="text-2xl font-bold text-gray-900 mb-4 pb-2 border-b-2 border-primary-200">12. Open Source and Community</h2>
             <div className="space-y-4">
               <p className="text-gray-700 leading-relaxed text-base">As an open source project:</p>
               <ul className="list-disc list-inside space-y-2 text-gray-700 pl-4">
@@ -295,7 +317,7 @@ const PrivacyPolicy = () => {
 
           {/* Section 12 */}
           <section>
-            <h2 className="text-2xl font-bold text-gray-900 mb-4 pb-2 border-b-2 border-primary-200">12. International Users</h2>
+            <h2 className="text-2xl font-bold text-gray-900 mb-4 pb-2 border-b-2 border-primary-200">13. International Users</h2>
             <p className="text-gray-700 leading-relaxed text-base">
               AretaCare may be accessed from anywhere in the world. By using this application, you consent to the transfer of your information to the United States (where our servers may be located) and other countries where our service providers operate.
             </p>
@@ -303,7 +325,7 @@ const PrivacyPolicy = () => {
 
           {/* Section 13 */}
           <section>
-            <h2 className="text-2xl font-bold text-gray-900 mb-4 pb-2 border-b-2 border-primary-200">13. California Privacy Rights</h2>
+            <h2 className="text-2xl font-bold text-gray-900 mb-4 pb-2 border-b-2 border-primary-200">14. California Privacy Rights</h2>
             <div className="space-y-4">
               <p className="text-gray-700 leading-relaxed text-base">
                 California residents have specific rights under the California Consumer Privacy Act (CCPA), including the right to:
@@ -318,7 +340,7 @@ const PrivacyPolicy = () => {
 
           {/* Section 14 */}
           <section>
-            <h2 className="text-2xl font-bold text-gray-900 mb-4 pb-2 border-b-2 border-primary-200">14. Contact and Questions</h2>
+            <h2 className="text-2xl font-bold text-gray-900 mb-4 pb-2 border-b-2 border-primary-200">15. Contact and Questions</h2>
             <p className="text-gray-700 leading-relaxed text-base">
               For privacy questions, concerns, or data requests, please open an issue on our GitHub repository:{' '}
               <a href="https://github.com/artificiallyhuman/aretacare" target="_blank" rel="noopener noreferrer" className="text-primary-600 hover:text-primary-700 font-medium underline">
