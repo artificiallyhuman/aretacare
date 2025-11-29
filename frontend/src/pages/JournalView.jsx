@@ -25,6 +25,7 @@ const JournalView = () => {
   const [loading, setLoading] = useState(false);
   const [selectedDate, setSelectedDate] = useState(null);
   const dateRefs = useRef({});
+  const [showSidebar, setShowSidebar] = useState(false);
   const searchInputRef = useRef(null);
   const isSearchFocused = useRef(false);
 
@@ -110,6 +111,7 @@ const JournalView = () => {
 
   const handleDateClick = (date) => {
     setSelectedDate(date);
+    setShowSidebar(false); // Close sidebar on mobile after selection
     const element = dateRefs.current[date];
     if (element) {
       element.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -270,14 +272,27 @@ const JournalView = () => {
             </p>
           </div>
         ) : (
-          <div className="grid lg:grid-cols-4 gap-6">
+          <div className="lg:grid lg:grid-cols-4 lg:gap-6">
+            {/* Mobile: Date filter button */}
+            <div className="lg:hidden mb-4">
+              <button
+                onClick={() => setShowSidebar(!showSidebar)}
+                className="w-full flex items-center justify-between px-4 py-3 bg-white border border-gray-200 rounded-lg shadow-sm"
+              >
+                <span className="text-sm font-medium text-gray-900">Jump to Date</span>
+                <svg className={`w-5 h-5 text-gray-500 transition-transform ${showSidebar ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+            </div>
+
             {/* Sidebar: Date navigation */}
-            <div className="lg:col-span-1">
-              <div className="bg-white rounded-lg border border-gray-200 shadow-sm sticky top-4">
+            <div className={`lg:col-span-1 ${showSidebar ? 'block mb-4' : 'hidden lg:block'}`}>
+              <div className="bg-white rounded-lg border border-gray-200 shadow-sm lg:sticky lg:top-4">
                 <div className="p-3 md:p-4 border-b border-gray-200">
                   <h2 className="text-base md:text-lg font-semibold text-gray-900">Dates</h2>
                 </div>
-                <div className="divide-y divide-gray-200 max-h-[calc(100vh-12rem)] overflow-y-auto">
+                <div className="divide-y divide-gray-200 max-h-64 lg:max-h-[calc(100vh-12rem)] overflow-y-auto">
                   {sortedDates.map((date) => (
                     <button
                       key={date}
