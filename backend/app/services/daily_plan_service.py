@@ -106,15 +106,14 @@ class DailyPlanService:
             return daily_plan
 
         except Exception as e:
-            logger.error(f"Error generating daily plan. Exception type: {type(e).__name__}, "
-                        f"message: '{str(e)}'", exc_info=True)
             db.rollback()
-            # Don't catch HTTPException - let FastAPI handle it
+            # Don't log HTTPException as error - it's intentional (e.g., insufficient data)
             from fastapi import HTTPException
             if isinstance(e, HTTPException):
-                logger.info(f"Re-raising HTTPException with status {e.status_code}: {e.detail}")
                 raise
-            logger.error(f"Raising wrapped exception")
+            # Log actual errors
+            logger.error(f"Error generating daily plan. Exception type: {type(e).__name__}, "
+                        f"message: '{str(e)}'", exc_info=True)
             raise Exception(f"Failed to generate daily plan: {str(e)}") from e
 
     @staticmethod
