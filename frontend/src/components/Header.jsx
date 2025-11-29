@@ -276,10 +276,10 @@ const Header = ({ onLogout, user }) => {
             </div>
 
             {/* Tools Section */}
-            <div className="py-2 bg-gray-50 border-t border-b border-gray-200">
+            <div className="py-2 bg-white border-t border-b border-gray-200">
               <button
                 onClick={() => setMobileToolsOpen(!mobileToolsOpen)}
-                className="w-full flex items-center justify-between px-3 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-100 transition-colors"
+                className="w-full flex items-center justify-between px-3 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors"
               >
                 <span>Tools</span>
                 <svg

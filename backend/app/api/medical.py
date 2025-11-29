@@ -13,6 +13,7 @@ from app.schemas import (
     MessageResponse,
     ConversationHistory,
 )
+from app.api.permissions import check_session_access
 from app.services import openai_service
 from app.api.auth import get_current_user
 from typing import List
@@ -49,8 +50,7 @@ async def generate_medical_summary(
         raise HTTPException(status_code=404, detail="Session not found")
 
     # Verify session belongs to current user
-    if session.user_id != current_user.id:
-        raise HTTPException(status_code=403, detail="Access denied")
+    check_session_access(session, current_user.id, db)
 
     # Get conversation context
     context = get_conversation_context(request.session_id, db)
@@ -110,8 +110,7 @@ async def get_conversation_coaching(
         raise HTTPException(status_code=404, detail="Session not found")
 
     # Verify session belongs to current user
-    if session.user_id != current_user.id:
-        raise HTTPException(status_code=403, detail="Access denied")
+    check_session_access(session, current_user.id, db)
 
     # Get conversation context
     context = get_conversation_context(request.session_id, db)
@@ -155,8 +154,7 @@ async def chat(
         raise HTTPException(status_code=404, detail="Session not found")
 
     # Verify session belongs to current user
-    if session.user_id != current_user.id:
-        raise HTTPException(status_code=403, detail="Access denied")
+    check_session_access(session, current_user.id, db)
 
     # Get conversation history
     context = get_conversation_context(request.session_id, db)
@@ -201,8 +199,7 @@ async def get_conversation_history(
         raise HTTPException(status_code=404, detail="Session not found")
 
     # Verify session belongs to current user
-    if session.user_id != current_user.id:
-        raise HTTPException(status_code=403, detail="Access denied")
+    check_session_access(session, current_user.id, db)
 
     conversations = db.query(Conversation).filter(
         Conversation.session_id == session_id

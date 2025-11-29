@@ -305,10 +305,20 @@ IMPORTANT: Respond with ONLY a valid JSON object in this exact format, with no a
             if not entry:
                 return None
 
-            # Verify user owns this session
+            # Verify user has access to this session (owner or collaborator)
             from app.models.session import Session
+            from app.models.session_collaborator import SessionCollaborator
             session = self.db.query(Session).filter(Session.id == entry.session_id).first()
-            if not session or session.user_id != user_id:
+            if not session:
+                return None
+
+            is_owner = session.owner_id == user_id
+            is_collaborator = self.db.query(SessionCollaborator).filter(
+                SessionCollaborator.session_id == session.id,
+                SessionCollaborator.user_id == user_id
+            ).first() is not None
+
+            if not (is_owner or is_collaborator):
                 return None
 
             # Apply updates
@@ -344,10 +354,20 @@ IMPORTANT: Respond with ONLY a valid JSON object in this exact format, with no a
             if not entry:
                 return False
 
-            # Verify user owns this session
+            # Verify user has access to this session (owner or collaborator)
             from app.models.session import Session
+            from app.models.session_collaborator import SessionCollaborator
             session = self.db.query(Session).filter(Session.id == entry.session_id).first()
-            if not session or session.user_id != user_id:
+            if not session:
+                return False
+
+            is_owner = session.owner_id == user_id
+            is_collaborator = self.db.query(SessionCollaborator).filter(
+                SessionCollaborator.session_id == session.id,
+                SessionCollaborator.user_id == user_id
+            ).first() is not None
+
+            if not (is_owner or is_collaborator):
                 return False
 
             self.db.delete(entry)

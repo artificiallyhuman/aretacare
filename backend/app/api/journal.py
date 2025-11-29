@@ -10,6 +10,7 @@ from app.schemas.journal import (
 )
 from app.services.journal_service import JournalService
 from app.api.auth import get_current_user
+from app.api.permissions import check_session_access
 from datetime import date
 from typing import Optional
 
@@ -29,8 +30,7 @@ async def get_journal_entries(
     session = db.query(SessionModel).filter(SessionModel.id == session_id).first()
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
-    if session.user_id != current_user.id:
-        raise HTTPException(status_code=403, detail="Access denied")
+    check_session_access(session, current_user.id, db)
 
     # Parse dates
     start = date.fromisoformat(start_date) if start_date else None
@@ -59,8 +59,7 @@ async def get_entries_for_date(
     session = db.query(SessionModel).filter(SessionModel.id == session_id).first()
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
-    if session.user_id != current_user.id:
-        raise HTTPException(status_code=403, detail="Access denied")
+    check_session_access(session, current_user.id, db)
 
     # Parse date
     try:
@@ -90,8 +89,7 @@ async def create_journal_entry(
     session = db.query(SessionModel).filter(SessionModel.id == session_id).first()
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
-    if session.user_id != current_user.id:
-        raise HTTPException(status_code=403, detail="Access denied")
+    check_session_access(session, current_user.id, db)
 
     # Create entry
     journal_service = JournalService(db)

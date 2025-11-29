@@ -64,6 +64,12 @@ export const sessionAPI = {
   getStatistics: (sessionId) => api.get(`/sessions/${sessionId}/statistics`),
   delete: (sessionId) => api.delete(`/sessions/${sessionId}`),
   cleanup: (sessionId) => api.post(`/sessions/${sessionId}/cleanup`),
+
+  // Collaboration endpoints
+  checkUser: (sessionId, email) => api.post(`/sessions/${sessionId}/check-user`, { email }),
+  share: (sessionId, email) => api.post(`/sessions/${sessionId}/share`, { email }),
+  revokeAccess: (sessionId, userId) => api.delete(`/sessions/${sessionId}/collaborators/${userId}`),
+  leave: (sessionId) => api.post(`/sessions/${sessionId}/leave`),
 };
 
 // Document API

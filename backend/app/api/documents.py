@@ -6,6 +6,7 @@ from app.schemas import DocumentUploadResponse, DocumentResponse, DocumentUpdate
 from app.services import s3_service, document_processor
 from app.services.openai_service import openai_service
 from app.api.auth import get_current_user
+from app.api.permissions import check_session_access
 from typing import List, Optional
 import uuid
 import logging
@@ -41,11 +42,13 @@ async def upload_document(
         if not session:
             raise HTTPException(status_code=404, detail="Session not found")
         # Verify session belongs to current user
-        if session.user_id != current_user.id:
-            raise HTTPException(status_code=403, detail="Access denied")
+        check_session_access(session, current_user.id, db)
     else:
         # Create new session if none provided
-        session = SessionModel(user_id=current_user.id)
+        session = SessionModel(
+            user_id=current_user.id,
+            owner_id=current_user.id
+        )
         db.add(session)
         db.commit()
         db.refresh(session)
@@ -148,9 +151,8 @@ async def get_session_documents(
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
 
-    # Verify session belongs to current user
-    if session.user_id != current_user.id:
-        raise HTTPException(status_code=403, detail="Access denied")
+    # Verify user has access to session (owner or collaborator)
+    check_session_access(session, current_user.id, db)
 
     query = db.query(DocumentModel).filter(DocumentModel.session_id == session_id)
 
@@ -190,8 +192,9 @@ async def get_document(
 
     # Verify document belongs to current user
     session = db.query(SessionModel).filter(SessionModel.id == document.session_id).first()
-    if not session or session.user_id != current_user.id:
-        raise HTTPException(status_code=403, detail="Access denied")
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+    check_session_access(session, current_user.id, db)
 
     return document
 
@@ -211,8 +214,9 @@ async def update_document(
 
     # Verify document belongs to current user
     session = db.query(SessionModel).filter(SessionModel.id == document.session_id).first()
-    if not session or session.user_id != current_user.id:
-        raise HTTPException(status_code=403, detail="Access denied")
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+    check_session_access(session, current_user.id, db)
 
     # Update AI description
     if update_data.ai_description is not None:
@@ -238,8 +242,9 @@ async def delete_document(
 
     # Verify document belongs to current user
     session = db.query(SessionModel).filter(SessionModel.id == document.session_id).first()
-    if not session or session.user_id != current_user.id:
-        raise HTTPException(status_code=403, detail="Access denied")
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+    check_session_access(session, current_user.id, db)
 
     # Delete from S3
     await s3_service.delete_file(document.s3_key)
@@ -269,8 +274,9 @@ async def get_document_download_url(
 
     # Verify document belongs to current user
     session = db.query(SessionModel).filter(SessionModel.id == document.session_id).first()
-    if not session or session.user_id != current_user.id:
-        raise HTTPException(status_code=403, detail="Access denied")
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+    check_session_access(session, current_user.id, db)
 
     url = s3_service.generate_presigned_url(document.s3_key)
 
@@ -294,8 +300,9 @@ async def get_document_thumbnail_url(
 
     # Verify document belongs to current user
     session = db.query(SessionModel).filter(SessionModel.id == document.session_id).first()
-    if not session or session.user_id != current_user.id:
-        raise HTTPException(status_code=403, detail="Access denied")
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+    check_session_access(session, current_user.id, db)
 
     if not document.thumbnail_s3_key:
         raise HTTPException(status_code=404, detail="No thumbnail available for this document")

@@ -5,6 +5,7 @@ from datetime import datetime, date, timedelta
 
 from ..core.database import get_db
 from ..api.auth import get_current_user
+from ..api.permissions import check_session_access
 from ..models.user import User
 from ..models.daily_plan import DailyPlan
 from ..models.session import Session as UserSession
@@ -27,14 +28,13 @@ async def get_all_daily_plans(
 ):
     """Get all daily plans for a session, ordered by date (most recent first)"""
 
-    # Verify session belongs to user
-    session = db.query(UserSession).filter(
-        UserSession.id == session_id,
-        UserSession.user_id == current_user.id
-    ).first()
+    # Verify user has access to session (owner or collaborator)
+    session = db.query(UserSession).filter(UserSession.id == session_id).first()
 
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
+
+    check_session_access(session, current_user.id, db)
 
     # Get all daily plans
     plans = db.query(DailyPlan).filter(
@@ -52,14 +52,13 @@ async def get_latest_daily_plan(
 ):
     """Get the latest daily plan for a session"""
 
-    # Verify session belongs to user
-    session = db.query(UserSession).filter(
-        UserSession.id == session_id,
-        UserSession.user_id == current_user.id
-    ).first()
+    # Verify user has access to session (owner or collaborator)
+    session = db.query(UserSession).filter(UserSession.id == session_id).first()
 
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
+
+    check_session_access(session, current_user.id, db)
 
     # Get latest plan
     plan = db.query(DailyPlan).filter(
@@ -80,14 +79,13 @@ async def check_daily_plan_status(
 ):
     """Check if a new daily plan should be generated (24 hours have passed)"""
 
-    # Verify session belongs to user
-    session = db.query(UserSession).filter(
-        UserSession.id == session_id,
-        UserSession.user_id == current_user.id
-    ).first()
+    # Verify user has access to session (owner or collaborator)
+    session = db.query(UserSession).filter(UserSession.id == session_id).first()
 
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
+
+    check_session_access(session, current_user.id, db)
 
     # Check if should generate
     should_generate, latest_plan = DailyPlanService.should_generate_new_plan(db, session_id)
@@ -120,14 +118,13 @@ async def generate_daily_plan(
         user_date: Optional date in YYYY-MM-DD format from user's timezone
     """
 
-    # Verify session belongs to user
-    session = db.query(UserSession).filter(
-        UserSession.id == session_id,
-        UserSession.user_id == current_user.id
-    ).first()
+    # Verify user has access to session (owner or collaborator)
+    session = db.query(UserSession).filter(UserSession.id == session_id).first()
 
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
+
+    check_session_access(session, current_user.id, db)
 
     # Generate the plan (HTTPException will pass through to FastAPI)
     plan = await DailyPlanService.generate_daily_plan(db, session_id, user_date)
@@ -149,14 +146,13 @@ async def update_daily_plan(
     if not plan:
         raise HTTPException(status_code=404, detail="Daily plan not found")
 
-    # Verify plan belongs to user's session
-    session = db.query(UserSession).filter(
-        UserSession.id == plan.session_id,
-        UserSession.user_id == current_user.id
-    ).first()
+    # Verify user has access to plan's session (owner or collaborator)
+    session = db.query(UserSession).filter(UserSession.id == plan.session_id).first()
 
     if not session:
-        raise HTTPException(status_code=403, detail="Not authorized to update this plan")
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    check_session_access(session, current_user.id, db)
 
     # Update the plan
     plan.user_edited_content = plan_update.user_edited_content
@@ -183,14 +179,13 @@ async def mark_plan_viewed(
     if not plan:
         raise HTTPException(status_code=404, detail="Daily plan not found")
 
-    # Verify plan belongs to user's session
-    session = db.query(UserSession).filter(
-        UserSession.id == plan.session_id,
-        UserSession.user_id == current_user.id
-    ).first()
+    # Verify user has access to plan's session (owner or collaborator)
+    session = db.query(UserSession).filter(UserSession.id == plan.session_id).first()
 
     if not session:
-        raise HTTPException(status_code=403, detail="Not authorized to update this plan")
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    check_session_access(session, current_user.id, db)
 
     # Mark as viewed
     plan.viewed = mark_viewed.viewed
@@ -216,14 +211,13 @@ async def delete_daily_plan(
     if not plan:
         raise HTTPException(status_code=404, detail="Daily plan not found")
 
-    # Verify plan belongs to user's session
-    session = db.query(UserSession).filter(
-        UserSession.id == plan.session_id,
-        UserSession.user_id == current_user.id
-    ).first()
+    # Verify user has access to plan's session (owner or collaborator)
+    session = db.query(UserSession).filter(UserSession.id == plan.session_id).first()
 
     if not session:
-        raise HTTPException(status_code=403, detail="Not authorized to delete this plan")
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    check_session_access(session, current_user.id, db)
 
     # Delete the plan
     db.delete(plan)

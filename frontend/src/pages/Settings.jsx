@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { authAPI, sessionAPI } from '../services/api';
 import { useSessionContext } from '../contexts/SessionContext';
+import CollaborationModal from '../components/CollaborationModal';
 
 export default function Settings() {
   const navigate = useNavigate();
@@ -12,6 +13,7 @@ export default function Settings() {
   const [loadingStats, setLoadingStats] = useState({});
   const [editingSessionId, setEditingSessionId] = useState(null);
   const [editingSessionName, setEditingSessionName] = useState('');
+  const [collaborationModalSession, setCollaborationModalSession] = useState(null);
 
   // Form states
   const [nameForm, setNameForm] = useState({
@@ -608,27 +610,46 @@ export default function Settings() {
                           ) : (
                             <div className="flex items-center justify-between">
                               <div>
-                                <h3 className="font-semibold text-gray-900 flex items-center space-x-2">
+                                <h3 className="font-semibold text-gray-900 flex items-center space-x-2 flex-wrap">
                                   <span>{session.name}</span>
                                   {session.id === activeSessionId && (
                                     <span className="text-xs bg-primary-100 text-primary-700 px-2 py-0.5 rounded">
                                       Active
                                     </span>
                                   )}
+                                  {!session.is_owner && (
+                                    <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded">
+                                      Shared
+                                    </span>
+                                  )}
+                                  {session.is_owner && session.collaborators && session.collaborators.length > 0 && (
+                                    <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded">
+                                      {session.collaborators.length} {session.collaborators.length === 1 ? 'Collaborator' : 'Collaborators'}
+                                    </span>
+                                  )}
                                 </h3>
                                 <p className="text-xs text-gray-500">
                                   Created {new Date(session.created_at).toLocaleDateString()}
+                                  {!session.is_owner && ' • You are a collaborator'}
                                 </p>
                               </div>
                               <div className="flex items-center space-x-2">
+                                {session.is_owner && (
+                                  <button
+                                    onClick={() => {
+                                      setEditingSessionId(session.id);
+                                      setEditingSessionName(session.name);
+                                    }}
+                                    className="text-sm text-primary-600 hover:text-primary-700"
+                                  >
+                                    Rename
+                                  </button>
+                                )}
                                 <button
-                                  onClick={() => {
-                                    setEditingSessionId(session.id);
-                                    setEditingSessionName(session.name);
-                                  }}
-                                  className="text-sm text-primary-600 hover:text-primary-700"
+                                  onClick={() => setCollaborationModalSession(session)}
+                                  className="text-sm text-blue-600 hover:text-blue-700"
                                 >
-                                  Rename
+                                  Collaborate
                                 </button>
                                 <button
                                   onClick={() => toggleSessionDetails(session.id)}
@@ -686,26 +707,37 @@ export default function Settings() {
                                 </div>
                               </div>
 
-                              {/* Warning Box */}
-                              <div className="bg-orange-50 border border-orange-200 rounded px-2 py-2 mb-3">
-                                <p className="text-xs text-orange-800">
-                                  <strong>Warning:</strong> Deleting this session will permanently delete all data shown above. This action cannot be undone.
-                                </p>
-                              </div>
+                              {/* Owner vs Collaborator */}
+                              {session.is_owner ? (
+                                <>
+                                  {/* Warning Box */}
+                                  <div className="bg-orange-50 border border-orange-200 rounded px-2 py-2 mb-3">
+                                    <p className="text-xs text-orange-800">
+                                      <strong>Warning:</strong> Deleting this session will permanently delete all data shown above. This action cannot be undone.
+                                    </p>
+                                  </div>
 
-                              {errors[`session-${session.id}`] && (
-                                <div className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded mb-3">
-                                  {errors[`session-${session.id}`]}
+                                  {errors[`session-${session.id}`] && (
+                                    <div className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded mb-3">
+                                      {errors[`session-${session.id}`]}
+                                    </div>
+                                  )}
+
+                                  <button
+                                    onClick={() => handleDeleteSession(session.id)}
+                                    disabled={loading[`session-${session.id}`]}
+                                    className="w-full px-4 py-2 bg-orange-600 text-white rounded hover:bg-orange-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-sm transition-colors"
+                                  >
+                                    {loading[`session-${session.id}`] ? 'Deleting...' : 'Delete This Session'}
+                                  </button>
+                                </>
+                              ) : (
+                                <div className="bg-blue-50 border border-blue-200 rounded px-2 py-2 mb-3">
+                                  <p className="text-xs text-blue-800">
+                                    <strong>Note:</strong> You are a collaborator on this session. Use the "Collaborate" button to leave this session. Only the owner can delete it.
+                                  </p>
                                 </div>
                               )}
-
-                              <button
-                                onClick={() => handleDeleteSession(session.id)}
-                                disabled={loading[`session-${session.id}`]}
-                                className="w-full px-4 py-2 bg-orange-600 text-white rounded hover:bg-orange-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-sm transition-colors"
-                              >
-                                {loading[`session-${session.id}`] ? 'Deleting...' : 'Delete This Session'}
-                              </button>
                             </>
                           ) : null}
                         </div>
@@ -796,6 +828,19 @@ export default function Settings() {
           </div>
         </div>
       </div>
+
+      {/* Collaboration Modal */}
+      {collaborationModalSession && (
+        <CollaborationModal
+          session={collaborationModalSession}
+          onClose={() => setCollaborationModalSession(null)}
+          onSuccess={() => {
+            refreshSessions();
+            setSuccess({ ...success, sessions: 'Collaboration updated successfully' });
+            setTimeout(() => clearMessages('sessions'), 2000);
+          }}
+        />
+      )}
     </div>
   );
 }

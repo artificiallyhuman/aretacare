@@ -6,7 +6,8 @@ AretaCare is an AI-powered care advocate assistant that helps families navigate 
 
 ### Core Application
 - **Conversation Interface**: Primary chat interface with AI care advocate, "Thinking..." status during processing
-- **Multi-Session Support**: Each user can have up to 3 active sessions to organize different care scenarios, with session switcher in header dropdown, automatic naming "Session 1/2/3" (renameable up to 15 characters with character counter), and instant session switching
+- **Multi-Session Support**: Each user can have up to 3 active sessions (including shared sessions) to organize different care scenarios, with session switcher in header dropdown, automatic naming "Session 1/2/3" (renameable up to 15 characters with character counter), and instant session switching
+- **Session Sharing**: Share sessions with family members or caregivers by email (up to 5 people per session), collaborators have full access to session data, owners control sharing permissions
 - **Enhanced Markdown Rendering**: Custom formatted messages with proper spacing, color-aware styling, and clean typography
 - **Daily Plan**: AI-generated daily summaries with priorities, reminders, and questions for care team (auto-generates after 2 AM, user editable, delete/regenerate support)
 - **AI Journal Synthesis**: Automatically extracts and organizes key medical updates with accurate timezone handling
@@ -26,7 +27,8 @@ AretaCare is an AI-powered care advocate assistant that helps families navigate 
 ### Security & Privacy
 - **User Authentication**: Secure JWT-based authentication with bcrypt password hashing
 - **Settings Page**: Secure account management with password-verified updates (name, email, password), password reset via email with time-limited tokens, manage sessions (rename/view statistics/delete individual sessions), and complete account deletion
-- **Multi-Session Management**: Up to 3 sessions per user, each with isolated data (conversations, journal, documents, audio, daily plans), session switcher in header dropdown, smart session naming with gap-filling
+- **Multi-Session Management**: Up to 3 sessions per user (owned + shared), each with isolated data (conversations, journal, documents, audio, daily plans), session switcher in header dropdown, smart session naming with gap-filling
+- **Session Sharing Controls**: Only session owners can share, rename, or delete sessions; collaborators can view and contribute to shared data; users can leave shared sessions at any time
 - **Secure Storage**: Medical documents stored in AWS S3 with encrypted transmission
 - **Complete Data Deletion**: Individual session deletion removes all PostgreSQL data and S3 files (documents, thumbnails, audio recordings), account deletion removes all sessions and files with zero orphaned data
 - **Data Control**: Users can delete individual sessions or entire account at any time
@@ -215,9 +217,10 @@ docker compose down -v
 - Custom ReactMarkdown components for enhanced message rendering with color-aware styling
 
 **Database (PostgreSQL)**
-- Six main tables: `users`, `sessions`, `documents`, `conversations`, `journal_entries`, `daily_plans`
+- Eight main tables: `users`, `sessions`, `session_collaborators`, `documents`, `audio_recordings`, `conversations`, `journal_entries`, `daily_plans`
 - User table stores authentication credentials (bcrypt hashed passwords)
-- Sessions tied to user accounts via foreign key
+- Sessions tied to user accounts via foreign key with separate `owner_id` for ownership tracking
+- Session collaborators table for sharing sessions between users
 - Journal entries with AI-generated content and metadata
 - Daily plans with AI-generated content, user edits, and viewed status
 - Cascading deletes: deleting user removes all associated data
@@ -281,8 +284,13 @@ docker compose down -v
 - `POST /api/sessions/` - Create session
 - `POST /api/sessions/primary` - Get or create primary session
 - `GET /api/sessions/{id}` - Get session
-- `DELETE /api/sessions/{id}` - Delete session (removes all PostgreSQL data and S3 files: documents, thumbnails, audio recordings)
+- `PATCH /api/sessions/{id}/rename` - Rename session (owner only)
+- `DELETE /api/sessions/{id}` - Delete session (owner only, removes all PostgreSQL data and S3 files)
 - `POST /api/sessions/{id}/cleanup` - Cleanup session data
+- `POST /api/sessions/{id}/check-user` - Check if user exists for sharing
+- `POST /api/sessions/{id}/share` - Share session with another user (owner only)
+- `DELETE /api/sessions/{id}/collaborators/{user_id}` - Revoke collaborator access (owner only)
+- `POST /api/sessions/{id}/leave` - Leave a shared session (collaborators only)
 
 ### Documents
 - `POST /api/documents/upload` - Upload document (auto-generates PDF thumbnails)
@@ -325,7 +333,8 @@ aretacare/
 │   │   ├── api/
 │   │   │   ├── __init__.py      # API router aggregation
 │   │   │   ├── auth.py          # Authentication endpoints
-│   │   │   ├── sessions.py      # Session management
+│   │   │   ├── sessions.py      # Session management & sharing
+│   │   │   ├── permissions.py   # Permission checking helpers
 │   │   │   ├── documents.py     # Document upload/management
 │   │   │   ├── conversation.py  # Conversation endpoints
 │   │   │   ├── journal.py       # Journal CRUD operations
@@ -337,7 +346,8 @@ aretacare/
 │   │   │   └── database.py      # Database connection
 │   │   ├── models/
 │   │   │   ├── user.py          # User model with authentication
-│   │   │   ├── session.py       # Session model
+│   │   │   ├── session.py       # Session model with owner tracking
+│   │   │   ├── session_collaborator.py  # Session sharing model
 │   │   │   ├── document.py      # Document model
 │   │   │   ├── conversation.py  # Conversation history
 │   │   │   ├── journal.py       # Journal entries
@@ -364,6 +374,7 @@ aretacare/
 │   │   │   ├── Disclaimer.jsx       # Safety disclaimer
 │   │   │   ├── MessageBubble.jsx    # Chat message display with custom markdown rendering
 │   │   │   ├── MessageInput.jsx     # Chat input with file upload and audio recording
+│   │   │   ├── CollaborationModal.jsx  # Session sharing UI
 │   │   │   └── Journal/
 │   │   │       ├── JournalPanel.jsx # Collapsible journal sidebar
 │   │   │       ├── JournalEntry.jsx # Individual entry display
