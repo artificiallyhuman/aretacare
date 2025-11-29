@@ -112,6 +112,10 @@ function AppContent() {
             path="/privacy"
             element={<PrivacyPolicy />}
           />
+          <Route
+            path="/about"
+            element={<About />}
+          />
 
           {/* Protected Routes */}
           <Route
@@ -119,14 +123,6 @@ function AppContent() {
             element={
               <ProtectedRoute>
                 <Conversation />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/about"
-            element={
-              <ProtectedRoute>
-                <About />
               </ProtectedRoute>
             }
           />

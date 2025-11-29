@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 
 const About = () => {
-  const [activeTab, setActiveTab] = useState('platform');
+  const [activeTab, setActiveTab] = useState('story');
 
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 lg:py-12">
@@ -32,16 +32,6 @@ const About = () => {
       <div className="flex justify-center mb-8">
         <div className="inline-flex rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-1 shadow-sm">
           <button
-            onClick={() => setActiveTab('platform')}
-            className={`px-6 py-2 rounded-md text-sm font-medium transition-all ${
-              activeTab === 'platform'
-                ? 'bg-primary-600 text-white shadow-sm'
-                : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-700'
-            }`}
-          >
-            The Platform
-          </button>
-          <button
             onClick={() => setActiveTab('story')}
             className={`px-6 py-2 rounded-md text-sm font-medium transition-all ${
               activeTab === 'story'
@@ -50,6 +40,16 @@ const About = () => {
             }`}
           >
             The Story
+          </button>
+          <button
+            onClick={() => setActiveTab('platform')}
+            className={`px-6 py-2 rounded-md text-sm font-medium transition-all ${
+              activeTab === 'platform'
+                ? 'bg-primary-600 text-white shadow-sm'
+                : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-700'
+            }`}
+          >
+            The Platform
           </button>
         </div>
       </div>

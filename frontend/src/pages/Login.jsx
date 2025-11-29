@@ -157,13 +157,25 @@ function Login() {
               </div>
             </div>
 
-            <div className="mt-6 text-center">
-              <Link
-                to="/register"
-                className="text-sm font-medium text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 transition-colors"
-              >
-                Create a new account
-              </Link>
+            <div className="mt-6 text-center space-y-3">
+              <div>
+                <Link
+                  to="/about"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-sm font-medium text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 transition-colors"
+                >
+                  Learn about AretaCare
+                </Link>
+              </div>
+              <div>
+                <Link
+                  to="/register"
+                  className="text-sm font-medium text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 transition-colors"
+                >
+                  Create a new account
+                </Link>
+              </div>
             </div>
           </div>
         </div>
