@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { toolsAPI } from '../../services/api';
-import { useSession } from '../../hooks/useSession';
+import { useSessionContext } from '../../contexts/SessionContext';
 
 const JargonTranslator = () => {
-  const { sessionId } = useSession();
+  const { activeSessionId: sessionId } = useSessionContext();
   const [medicalTerm, setMedicalTerm] = useState('');
   const [context, setContext] = useState('');
   const [translation, setTranslation] = useState(null);

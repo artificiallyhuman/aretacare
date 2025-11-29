@@ -56,9 +56,11 @@ export const authAPI = {
 
 // Session API
 export const sessionAPI = {
-  create: () => api.post('/sessions/'),
+  list: () => api.get('/sessions/'),
+  create: (name = null) => api.post('/sessions/', { name }),
   getPrimary: () => api.post('/sessions/primary'),
   get: (sessionId) => api.get(`/sessions/${sessionId}`),
+  rename: (sessionId, name) => api.patch(`/sessions/${sessionId}/rename`, { name }),
   getStatistics: (sessionId) => api.get(`/sessions/${sessionId}/statistics`),
   delete: (sessionId) => api.delete(`/sessions/${sessionId}`),
   cleanup: (sessionId) => api.post(`/sessions/${sessionId}/cleanup`),

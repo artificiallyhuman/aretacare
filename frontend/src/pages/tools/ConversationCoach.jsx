@@ -1,11 +1,11 @@
 import React, { useState, useRef } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { toolsAPI, conversationAPI } from '../../services/api';
-import { useSession } from '../../hooks/useSession';
+import { useSessionContext } from '../../contexts/SessionContext';
 import AudioWaveform from '../../components/AudioWaveform';
 
 const ConversationCoach = () => {
-  const { sessionId } = useSession();
+  const { activeSessionId: sessionId } = useSessionContext();
   const [situation, setSituation] = useState('');
   const [coaching, setCoaching] = useState(null);
   const [loading, setLoading] = useState(false);

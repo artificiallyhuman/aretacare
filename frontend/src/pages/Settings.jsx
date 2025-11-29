@@ -1,15 +1,17 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { authAPI, sessionAPI } from '../services/api';
-import { useSession } from '../hooks/useSession';
+import { useSessionContext } from '../contexts/SessionContext';
 
 export default function Settings() {
   const navigate = useNavigate();
-  const { user, setUser, sessionId } = useSession();
+  const { user, setUser, sessions, activeSessionId, deleteSession, renameSession, refreshSessions } = useSessionContext();
 
-  // Session statistics
-  const [statistics, setStatistics] = useState(null);
-  const [loadingStats, setLoadingStats] = useState(false);
+  // Session statistics - map of sessionId to statistics
+  const [sessionStatistics, setSessionStatistics] = useState({});
+  const [loadingStats, setLoadingStats] = useState({});
+  const [editingSessionId, setEditingSessionId] = useState(null);
+  const [editingSessionName, setEditingSessionName] = useState('');
 
   // Form states
   const [nameForm, setNameForm] = useState({
@@ -37,25 +39,28 @@ export default function Settings() {
 
   // Section expansion states
   const [expandedSection, setExpandedSection] = useState(null);
+  const [expandedSessionId, setExpandedSessionId] = useState(null);
 
-  // Fetch session statistics on mount
+  // Fetch all session statistics on mount
   useEffect(() => {
-    const fetchStatistics = async () => {
-      if (!sessionId) return;
-
-      setLoadingStats(true);
-      try {
-        const response = await sessionAPI.getStatistics(sessionId);
-        setStatistics(response.data);
-      } catch (error) {
-        console.error('Failed to fetch statistics:', error);
-      } finally {
-        setLoadingStats(false);
+    const fetchAllStatistics = async () => {
+      for (const session of sessions) {
+        setLoadingStats((prev) => ({ ...prev, [session.id]: true }));
+        try {
+          const response = await sessionAPI.getStatistics(session.id);
+          setSessionStatistics((prev) => ({ ...prev, [session.id]: response.data }));
+        } catch (error) {
+          console.error(`Failed to fetch statistics for session ${session.id}:`, error);
+        } finally {
+          setLoadingStats((prev) => ({ ...prev, [session.id]: false }));
+        }
       }
     };
 
-    fetchStatistics();
-  }, [sessionId]);
+    if (sessions.length > 0) {
+      fetchAllStatistics();
+    }
+  }, [sessions]);
 
   const clearMessages = (section) => {
     setErrors((prev) => ({ ...prev, [section]: null }));
@@ -145,43 +150,69 @@ export default function Settings() {
     }
   };
 
-  const handleClearSession = async () => {
-    if (!sessionId) return;
+  const handleDeleteSession = async (sessionId) => {
+    const stats = sessionStatistics[sessionId];
 
     const confirmMessage =
       '⚠️ WARNING: PERMANENT DATA DELETION ⚠️\n\n' +
-      'This will PERMANENTLY DELETE ALL of your session data including:\n' +
-      `• All conversations and messages (${statistics?.conversations || 0})\n` +
-      `• All journal entries (${statistics?.journal_entries || 0})\n` +
-      `• All uploaded documents (${statistics?.documents || 0})\n` +
-      `• All audio recordings (${statistics?.audio_recordings || 0})\n` +
+      'This will PERMANENTLY DELETE ALL of this session\'s data including:\n' +
+      `• All conversations and messages (${stats?.conversations || 0})\n` +
+      `• All journal entries (${stats?.journal_entries || 0})\n` +
+      `• All uploaded documents (${stats?.documents || 0})\n` +
+      `• All audio recordings (${stats?.audio_recordings || 0})\n` +
       '• All daily plans\n\n' +
       'THIS ACTION CANNOT BE UNDONE.\n' +
       'Your data is NOT recoverable after deletion.\n\n' +
-      'Your account will remain active and you can create a new session.\n\n' +
+      'Your account will remain active.\n\n' +
       'Are you absolutely sure you want to proceed?';
 
     const confirmed = window.confirm(confirmMessage);
 
     if (!confirmed) return;
 
-    clearMessages('session');
-    setLoading((prev) => ({ ...prev, session: true }));
+    clearMessages(`session-${sessionId}`);
+    setLoading((prev) => ({ ...prev, [`session-${sessionId}`]: true }));
 
     try {
-      await sessionAPI.delete(sessionId);
-      localStorage.removeItem('session_id');
-      setSuccess((prev) => ({ ...prev, session: 'Session cleared successfully' }));
-      setTimeout(() => {
-        window.location.href = '/';
-      }, 1500);
+      await deleteSession(sessionId);
+      setSuccess((prev) => ({ ...prev, sessions: 'Session deleted successfully' }));
+      // Refresh sessions and redirect if necessary
+      await refreshSessions();
+      if (sessionId === activeSessionId) {
+        navigate('/');
+      }
     } catch (error) {
       setErrors((prev) => ({
         ...prev,
-        session: error.response?.data?.detail || 'Failed to clear session',
+        [`session-${sessionId}`]: error.response?.data?.detail || 'Failed to delete session',
       }));
     } finally {
-      setLoading((prev) => ({ ...prev, session: false }));
+      setLoading((prev) => ({ ...prev, [`session-${sessionId}`]: false }));
+    }
+  };
+
+  const handleRenameSession = async (sessionId) => {
+    if (!editingSessionName.trim()) {
+      setErrors((prev) => ({ ...prev, [`rename-${sessionId}`]: 'Session name cannot be empty' }));
+      return;
+    }
+
+    clearMessages(`rename-${sessionId}`);
+    setLoading((prev) => ({ ...prev, [`rename-${sessionId}`]: true }));
+
+    try {
+      await renameSession(sessionId, editingSessionName);
+      setSuccess((prev) => ({ ...prev, [`rename-${sessionId}`]: 'Session renamed successfully' }));
+      setEditingSessionId(null);
+      setEditingSessionName('');
+      setTimeout(() => clearMessages(`rename-${sessionId}`), 2000);
+    } catch (error) {
+      setErrors((prev) => ({
+        ...prev,
+        [`rename-${sessionId}`]: error.response?.data?.detail || 'Failed to rename session',
+      }));
+    } finally {
+      setLoading((prev) => ({ ...prev, [`rename-${sessionId}`]: false }));
     }
   };
 
@@ -194,15 +225,26 @@ export default function Settings() {
       return;
     }
 
+    // Calculate total statistics across all sessions
+    const totalStats = sessions.reduce((totals, session) => {
+      const stats = sessionStatistics[session.id] || {};
+      return {
+        conversations: totals.conversations + (stats.conversations || 0),
+        journal_entries: totals.journal_entries + (stats.journal_entries || 0),
+        documents: totals.documents + (stats.documents || 0),
+        audio_recordings: totals.audio_recordings + (stats.audio_recordings || 0),
+      };
+    }, { conversations: 0, journal_entries: 0, documents: 0, audio_recordings: 0 });
+
     const confirmMessage =
       '⚠️ FINAL WARNING: ACCOUNT AND DATA DELETION ⚠️\n\n' +
       'This will PERMANENTLY DELETE:\n' +
       '• Your user account\n' +
-      '• All your sessions\n' +
-      `• All conversations and messages (${statistics?.conversations || 0})\n` +
-      `• All journal entries (${statistics?.journal_entries || 0})\n` +
-      `• All uploaded documents (${statistics?.documents || 0})\n` +
-      `• All audio recordings (${statistics?.audio_recordings || 0})\n` +
+      `• All your sessions (${sessions.length})\n` +
+      `• All conversations and messages (${totalStats.conversations})\n` +
+      `• All journal entries (${totalStats.journal_entries})\n` +
+      `• All uploaded documents (${totalStats.documents})\n` +
+      `• All audio recordings (${totalStats.audio_recordings})\n` +
       '• All daily plans\n' +
       '• All account settings\n\n' +
       'THIS ACTION CANNOT BE UNDONE.\n' +
@@ -235,6 +277,10 @@ export default function Settings() {
       setExpandedSection(section);
       clearMessages(section);
     }
+  };
+
+  const toggleSessionDetails = (sessionId) => {
+    setExpandedSessionId(expandedSessionId === sessionId ? null : sessionId);
   };
 
   return (
@@ -487,76 +533,188 @@ export default function Settings() {
             )}
           </div>
 
-          {/* Clear Session */}
+          {/* Manage Sessions */}
           <div className="bg-white rounded-lg shadow-sm border border-orange-300">
-            <div className="px-4 sm:px-6 py-4">
-              <h2 className="text-base sm:text-lg font-semibold text-orange-600">Clear Session</h2>
-              <p className="text-xs sm:text-sm text-gray-600 mt-1">
-                Permanently delete all session data except your account
-              </p>
+            <button
+              onClick={() => toggleSection('sessions')}
+              className="w-full px-4 sm:px-6 py-4 flex items-center justify-between hover:bg-orange-50 transition-colors"
+            >
+              <div className="text-left">
+                <h2 className="text-base sm:text-lg font-semibold text-orange-600">Manage Sessions</h2>
+                <p className="text-xs sm:text-sm text-gray-600">
+                  View, rename, and delete your sessions ({sessions.length}/3)
+                </p>
+              </div>
+              <svg
+                className={`w-5 h-5 text-gray-400 transition-transform ${
+                  expandedSection === 'sessions' ? 'rotate-180' : ''
+                }`}
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
 
-              {/* Warning Box */}
-              <div className="bg-orange-50 border border-orange-200 rounded-lg px-3 py-3 mt-3">
-                <div className="flex items-start">
-                  <svg className="w-5 h-5 text-orange-600 mt-0.5 mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                  </svg>
-                  <div className="flex-1">
-                    <p className="font-semibold text-sm text-orange-800">
-                      WARNING: PERMANENT DATA DELETION
-                    </p>
-                    <p className="text-xs text-orange-700 mt-1">
-                      This will permanently delete ALL of the following data. This action CANNOT be undone.
-                    </p>
-                  </div>
+            {expandedSection === 'sessions' && (
+              <div className="px-4 sm:px-6 pb-4 border-t border-orange-100">
+                <div className="mt-4 space-y-3">
+                  {success.sessions && (
+                    <div className="text-sm text-green-600 bg-green-50 px-3 py-2 rounded">
+                      {success.sessions}
+                    </div>
+                  )}
+
+                  {sessions.map((session) => (
+                    <div key={session.id} className="border border-gray-200 rounded-lg overflow-hidden">
+                      <div className="bg-gray-50 px-4 py-3 flex items-center justify-between">
+                        <div className="flex-1">
+                          {editingSessionId === session.id ? (
+                            <div className="space-y-1">
+                              <div className="flex items-center space-x-2">
+                                <div className="flex-1">
+                                  <input
+                                    type="text"
+                                    value={editingSessionName}
+                                    onChange={(e) => setEditingSessionName(e.target.value)}
+                                    className="input text-sm w-full"
+                                    maxLength={15}
+                                    placeholder="Session name"
+                                  />
+                                  <div className="text-xs text-gray-500 mt-1">
+                                    {editingSessionName.length}/15 characters
+                                  </div>
+                                </div>
+                                <button
+                                  onClick={() => handleRenameSession(session.id)}
+                                  disabled={loading[`rename-${session.id}`]}
+                                  className="px-3 py-1.5 bg-primary-600 text-white rounded hover:bg-primary-700 text-sm disabled:opacity-50"
+                                >
+                                  Save
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    setEditingSessionId(null);
+                                    setEditingSessionName('');
+                                    clearMessages(`rename-${session.id}`);
+                                  }}
+                                  className="px-3 py-1.5 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 text-sm"
+                                >
+                                  Cancel
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <h3 className="font-semibold text-gray-900 flex items-center space-x-2">
+                                  <span>{session.name}</span>
+                                  {session.id === activeSessionId && (
+                                    <span className="text-xs bg-primary-100 text-primary-700 px-2 py-0.5 rounded">
+                                      Active
+                                    </span>
+                                  )}
+                                </h3>
+                                <p className="text-xs text-gray-500">
+                                  Created {new Date(session.created_at).toLocaleDateString()}
+                                </p>
+                              </div>
+                              <div className="flex items-center space-x-2">
+                                <button
+                                  onClick={() => {
+                                    setEditingSessionId(session.id);
+                                    setEditingSessionName(session.name);
+                                  }}
+                                  className="text-sm text-primary-600 hover:text-primary-700"
+                                >
+                                  Rename
+                                </button>
+                                <button
+                                  onClick={() => toggleSessionDetails(session.id)}
+                                  className="text-sm text-gray-600 hover:text-gray-700"
+                                >
+                                  {expandedSessionId === session.id ? 'Hide' : 'Details'}
+                                </button>
+                              </div>
+                            </div>
+                          )}
+
+                          {errors[`rename-${session.id}`] && (
+                            <div className="text-sm text-red-600 mt-2">
+                              {errors[`rename-${session.id}`]}
+                            </div>
+                          )}
+                          {success[`rename-${session.id}`] && (
+                            <div className="text-sm text-green-600 mt-2">
+                              {success[`rename-${session.id}`]}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {expandedSessionId === session.id && (
+                        <div className="px-4 py-3 bg-white border-t border-gray-200">
+                          {loadingStats[session.id] ? (
+                            <div className="text-xs text-gray-600">Loading statistics...</div>
+                          ) : sessionStatistics[session.id] ? (
+                            <>
+                              <div className="space-y-1.5 mb-3">
+                                <div className="flex items-center justify-between text-sm">
+                                  <span className="text-gray-700">Conversations</span>
+                                  <span className="font-semibold text-gray-900">
+                                    {sessionStatistics[session.id].conversations}
+                                  </span>
+                                </div>
+                                <div className="flex items-center justify-between text-sm">
+                                  <span className="text-gray-700">Journal Entries</span>
+                                  <span className="font-semibold text-gray-900">
+                                    {sessionStatistics[session.id].journal_entries}
+                                  </span>
+                                </div>
+                                <div className="flex items-center justify-between text-sm">
+                                  <span className="text-gray-700">Documents</span>
+                                  <span className="font-semibold text-gray-900">
+                                    {sessionStatistics[session.id].documents}
+                                  </span>
+                                </div>
+                                <div className="flex items-center justify-between text-sm">
+                                  <span className="text-gray-700">Audio Recordings</span>
+                                  <span className="font-semibold text-gray-900">
+                                    {sessionStatistics[session.id].audio_recordings}
+                                  </span>
+                                </div>
+                              </div>
+
+                              {/* Warning Box */}
+                              <div className="bg-orange-50 border border-orange-200 rounded px-2 py-2 mb-3">
+                                <p className="text-xs text-orange-800">
+                                  <strong>Warning:</strong> Deleting this session will permanently delete all data shown above. This action cannot be undone.
+                                </p>
+                              </div>
+
+                              {errors[`session-${session.id}`] && (
+                                <div className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded mb-3">
+                                  {errors[`session-${session.id}`]}
+                                </div>
+                              )}
+
+                              <button
+                                onClick={() => handleDeleteSession(session.id)}
+                                disabled={loading[`session-${session.id}`]}
+                                className="w-full px-4 py-2 bg-orange-600 text-white rounded hover:bg-orange-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-sm transition-colors"
+                              >
+                                {loading[`session-${session.id}`] ? 'Deleting...' : 'Delete This Session'}
+                              </button>
+                            </>
+                          ) : null}
+                        </div>
+                      )}
+                    </div>
+                  ))}
                 </div>
               </div>
-
-              {/* Statistics Display */}
-              {loadingStats ? (
-                <div className="mt-3 px-3 py-2 bg-gray-50 rounded text-xs text-gray-600">
-                  Loading statistics...
-                </div>
-              ) : statistics ? (
-                <div className="mt-3 space-y-1.5">
-                  <div className="flex items-center justify-between px-3 py-2 bg-gray-50 rounded text-sm">
-                    <span className="text-gray-700">Conversations</span>
-                    <span className="font-semibold text-gray-900">{statistics.conversations}</span>
-                  </div>
-                  <div className="flex items-center justify-between px-3 py-2 bg-gray-50 rounded text-sm">
-                    <span className="text-gray-700">Journal Entries</span>
-                    <span className="font-semibold text-gray-900">{statistics.journal_entries}</span>
-                  </div>
-                  <div className="flex items-center justify-between px-3 py-2 bg-gray-50 rounded text-sm">
-                    <span className="text-gray-700">Documents</span>
-                    <span className="font-semibold text-gray-900">{statistics.documents}</span>
-                  </div>
-                  <div className="flex items-center justify-between px-3 py-2 bg-gray-50 rounded text-sm">
-                    <span className="text-gray-700">Audio Recordings</span>
-                    <span className="font-semibold text-gray-900">{statistics.audio_recordings}</span>
-                  </div>
-                </div>
-              ) : null}
-
-              {errors.session && (
-                <div className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded mt-3">
-                  {errors.session}
-                </div>
-              )}
-              {success.session && (
-                <div className="text-sm text-green-600 bg-green-50 px-3 py-2 rounded mt-3">
-                  {success.session}
-                </div>
-              )}
-
-              <button
-                onClick={handleClearSession}
-                disabled={loading.session || !sessionId}
-                className="mt-3 px-4 py-2 bg-orange-600 text-white rounded hover:bg-orange-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-sm sm:text-base transition-colors"
-              >
-                {loading.session ? 'Clearing...' : 'Clear Session'}
-              </button>
-            </div>
+            )}
           </div>
 
           {/* Delete Account */}
@@ -588,7 +746,7 @@ export default function Settings() {
                 <div className="mt-4 space-y-4">
                   <div className="bg-red-50 border border-red-200 rounded-lg px-3 py-2">
                     <p className="text-sm text-red-800">
-                      <strong>Warning:</strong> This action is permanent and cannot be undone. Your account AND all associated data (conversations, journal entries, documents, audio recordings, daily plans) will be permanently deleted. You will need to create a new account to use AretaCare again.
+                      <strong>Warning:</strong> This action is permanent and cannot be undone. Your account AND all associated data from all sessions (conversations, journal entries, documents, audio recordings, daily plans) will be permanently deleted. You will need to create a new account to use AretaCare again.
                     </p>
                   </div>
 

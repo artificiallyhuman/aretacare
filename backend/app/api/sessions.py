@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func
 from app.core.database import get_db
 from app.models import Session as SessionModel, User, Document, AudioRecording, JournalEntry, Conversation
-from app.schemas import SessionCreate, SessionResponse
+from app.schemas import SessionCreate, SessionResponse, SessionRename
 from datetime import datetime, timedelta
 from app.core.config import settings
 from app.api.auth import get_current_user
@@ -15,13 +15,63 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/sessions", tags=["sessions"])
 
 
-@router.post("/", response_model=SessionResponse)
-async def create_session(
+@router.get("/", response_model=list[SessionResponse])
+async def list_sessions(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """Create a new session for the authenticated user"""
-    new_session = SessionModel(user_id=current_user.id)
+    """List all sessions for the authenticated user"""
+    sessions = db.query(SessionModel).filter(
+        SessionModel.user_id == current_user.id
+    ).order_by(SessionModel.created_at.desc()).all()
+    return sessions
+
+
+@router.post("/", response_model=SessionResponse)
+async def create_session(
+    session_data: SessionCreate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Create a new session for the authenticated user (max 3 sessions per user)"""
+    # Check session limit
+    session_count = db.query(func.count(SessionModel.id)).filter(
+        SessionModel.user_id == current_user.id
+    ).scalar()
+
+    if session_count >= 3:
+        raise HTTPException(
+            status_code=400,
+            detail="Maximum of 3 sessions allowed. Please delete a session in Settings → Manage Sessions before creating a new one."
+        )
+
+    # Generate default name if not provided
+    if not session_data.name:
+        # Find the next available session number
+        existing_sessions = db.query(SessionModel).filter(
+            SessionModel.user_id == current_user.id
+        ).order_by(SessionModel.created_at).all()
+
+        # Get all existing session numbers from names like "Session 1", "Session 2", etc.
+        used_numbers = set()
+        for session in existing_sessions:
+            if session.name.startswith("Session "):
+                try:
+                    num = int(session.name.split("Session ")[1])
+                    used_numbers.add(num)
+                except (ValueError, IndexError):
+                    pass
+
+        # Find the smallest available number starting from 1
+        next_number = 1
+        while next_number in used_numbers:
+            next_number += 1
+
+        default_name = f"Session {next_number}"
+    else:
+        default_name = session_data.name
+
+    new_session = SessionModel(user_id=current_user.id, name=default_name)
     db.add(new_session)
     db.commit()
     db.refresh(new_session)
@@ -77,6 +127,30 @@ async def get_session(
     # Update last activity
     session.last_activity = datetime.utcnow()
     db.commit()
+
+    return session
+
+
+@router.patch("/{session_id}/rename", response_model=SessionResponse)
+async def rename_session(
+    session_id: str,
+    rename_data: SessionRename,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Rename a session"""
+    session = db.query(SessionModel).filter(SessionModel.id == session_id).first()
+
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    # Verify session belongs to current user
+    if session.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    session.name = rename_data.name
+    db.commit()
+    db.refresh(session)
 
     return session
 

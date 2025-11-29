@@ -3,21 +3,21 @@ import { Link } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
 import { dailyPlanAPI } from '../../services/api';
 
-const DailyPlanPanel = ({ sessionId, isOpen, onToggle }) => {
+const DailyPlanPanel = ({ activeSessionId, isOpen, onToggle }) => {
   const [dailyPlan, setDailyPlan] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    if (sessionId && isOpen) {
+    if (activeSessionId && isOpen) {
       loadLatestPlan();
     }
-  }, [sessionId, isOpen]);
+  }, [activeSessionId, isOpen]);
 
   const loadLatestPlan = async () => {
     try {
       setLoading(true);
-      const response = await dailyPlanAPI.getLatest(sessionId);
+      const response = await dailyPlanAPI.getLatest(activeSessionId);
       setDailyPlan(response.data);
 
       // Mark as viewed if not already
@@ -44,7 +44,7 @@ const DailyPlanPanel = ({ sessionId, isOpen, onToggle }) => {
       // Get today's date in user's local timezone (YYYY-MM-DD)
       const today = new Date();
       const userDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-      await dailyPlanAPI.generate(sessionId, userDate);
+      await dailyPlanAPI.generate(activeSessionId, userDate);
       await loadLatestPlan();
     } catch (err) {
       console.error('Error generating daily plan:', err);
@@ -151,9 +151,9 @@ const DailyPlanPanel = ({ sessionId, isOpen, onToggle }) => {
                   h2: ({node, ...props}) => <h2 className="text-base font-bold text-gray-900 mt-4 mb-2" {...props} />,
                   h3: ({node, ...props}) => <h3 className="text-sm font-semibold text-gray-800 mt-3 mb-2" {...props} />,
                   p: ({node, ...props}) => <p className="text-gray-700 mb-3 leading-relaxed text-sm" {...props} />,
-                  ul: ({node, ...props}) => <ul className="list-disc list-inside space-y-1.5 mb-3 text-gray-700 text-sm" {...props} />,
-                  ol: ({node, ...props}) => <ol className="list-decimal list-inside space-y-1.5 mb-3 text-gray-700 text-sm" {...props} />,
-                  li: ({node, ...props}) => <li className="ml-3" {...props} />,
+                  ul: ({node, ...props}) => <ul className="list-disc pl-5 space-y-1.5 mb-3 text-gray-700 text-sm" {...props} />,
+                  ol: ({node, ...props}) => <ol className="list-decimal pl-5 space-y-1.5 mb-3 text-gray-700 text-sm" {...props} />,
+                  li: ({node, ...props}) => <li className="leading-relaxed" {...props} />,
                   strong: ({node, ...props}) => <strong className="font-bold text-gray-900" {...props} />,
                   em: ({node, ...props}) => <em className="italic text-gray-800" {...props} />,
                 }}

@@ -6,6 +6,7 @@ AretaCare is an AI-powered care advocate assistant that helps families navigate 
 
 ### Core Application
 - **Conversation Interface**: Primary chat interface with AI care advocate, "Thinking..." status during processing
+- **Multi-Session Support**: Each user can have up to 3 active sessions to organize different care scenarios, with session switcher in header dropdown, automatic naming "Session 1/2/3" (renameable up to 15 characters with character counter), and instant session switching
 - **Enhanced Markdown Rendering**: Custom formatted messages with proper spacing, color-aware styling, and clean typography
 - **Daily Plan**: AI-generated daily summaries with priorities, reminders, and questions for care team (auto-generates after 2 AM, user editable, delete/regenerate support)
 - **AI Journal Synthesis**: Automatically extracts and organizes key medical updates with accurate timezone handling
@@ -24,11 +25,11 @@ AretaCare is an AI-powered care advocate assistant that helps families navigate 
 
 ### Security & Privacy
 - **User Authentication**: Secure JWT-based authentication with bcrypt password hashing
-- **Settings Page**: Secure account management with password-verified updates (name, email, password), password reset via email with time-limited tokens, clear session with data statistics, and complete account deletion
-- **Session Management**: User sessions with conversation history tied to accounts
+- **Settings Page**: Secure account management with password-verified updates (name, email, password), password reset via email with time-limited tokens, manage sessions (rename/view statistics/delete individual sessions), and complete account deletion
+- **Multi-Session Management**: Up to 3 sessions per user, each with isolated data (conversations, journal, documents, audio, daily plans), session switcher in header dropdown, smart session naming with gap-filling
 - **Secure Storage**: Medical documents stored in AWS S3 with encrypted transmission
-- **Complete Data Deletion**: Session deletion removes all PostgreSQL data and S3 files (documents, thumbnails, audio recordings) with zero orphaned files
-- **Data Control**: Users can clear session data or delete individual documents at any time
+- **Complete Data Deletion**: Individual session deletion removes all PostgreSQL data and S3 files (documents, thumbnails, audio recordings), account deletion removes all sessions and files with zero orphaned data
+- **Data Control**: Users can delete individual sessions or entire account at any time
 - **Password Reset**: Secure email-based password reset with 1-hour token expiration
 - **Transparent Policies**: Clear Terms of Service and Privacy Policy available on all auth screens and in footer
 
@@ -36,7 +37,7 @@ AretaCare is an AI-powered care advocate assistant that helps families navigate 
 - **Professional UI**: Clean, modern interface with intuitive navigation and organized content structure
 - **Mobile Optimized**: Native app-like feel with compact sizing, touch-friendly buttons, collapsible sidebars on Documents and Audio pages, collapsible Tools submenu, and reduced padding throughout
 - **Disclaimer Placement**: Shown only on login/register screens, keeping the main interface clean and uncluttered
-- **Smart Navigation**: Clickable user name/avatar in header accesses Settings, collapsible Tools submenu on mobile
+- **Smart Navigation**: Clickable user name/avatar in header opens session dropdown with all sessions, "New Session" button, and Settings access, collapsible Tools submenu on mobile
 - **Smart UI Behavior**: Click-away dropdown menus, smooth transitions, and responsive feedback
 - **Enhanced Content Organization**: Feature descriptions with intro sentences followed by organized bullet points
 - **Clear Onboarding**: Welcome instructions directing users to conversation input with example topics

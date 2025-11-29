@@ -1,6 +1,6 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { useSession } from './hooks/useSession';
+import { SessionProvider, useSessionContext } from './contexts/SessionContext';
 import Header from './components/Header';
 import Footer from './components/Footer';
 import Conversation from './pages/Conversation';
@@ -20,7 +20,7 @@ import PrivacyPolicy from './pages/PrivacyPolicy';
 
 // Protected Route Component
 function ProtectedRoute({ children }) {
-  const { user, loading } = useSession();
+  const { user, loading } = useSessionContext();
 
   if (loading) {
     return (
@@ -42,7 +42,7 @@ function ProtectedRoute({ children }) {
 
 // Public Route Component (redirects to home if already logged in)
 function PublicRoute({ children }) {
-  const { user, loading } = useSession();
+  const { user, loading } = useSessionContext();
 
   if (loading) {
     return (
@@ -62,8 +62,8 @@ function PublicRoute({ children }) {
   return children;
 }
 
-function App() {
-  const { user, logout } = useSession();
+function AppContent() {
+  const { user, logout } = useSessionContext();
 
   const handleLogout = () => {
     logout();
@@ -71,10 +71,9 @@ function App() {
   };
 
   return (
-    <Router>
-      <div className="min-h-screen bg-gray-50">
-        {user && <Header onLogout={handleLogout} user={user} />}
-        <Routes>
+    <div className="min-h-screen bg-gray-50">
+      {user && <Header onLogout={handleLogout} user={user} />}
+      <Routes>
           {/* Public Routes */}
           <Route
             path="/login"
@@ -183,10 +182,19 @@ function App() {
               </ProtectedRoute>
             }
           />
-        </Routes>
+      </Routes>
 
-        <Footer />
-      </div>
+      <Footer />
+    </div>
+  );
+}
+
+function App() {
+  return (
+    <Router>
+      <SessionProvider>
+        <AppContent />
+      </SessionProvider>
     </Router>
   );
 }
