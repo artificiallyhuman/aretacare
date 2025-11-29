@@ -1,10 +1,10 @@
 import React, { useState, useRef } from 'react';
 import { conversationAPI } from '../services/api';
-import { useSession } from '../hooks/useSession';
+import { useSessionContext } from '../contexts/SessionContext';
 import AudioWaveform from './AudioWaveform';
 
 const MessageInput = ({ onSendMessage, onFileUpload, loading }) => {
-  const { sessionId } = useSession();
+  const { activeSessionId: sessionId } = useSessionContext();
   const [message, setMessage] = useState('');
   const [selectedFile, setSelectedFile] = useState(null);
   const [isRecording, setIsRecording] = useState(false);

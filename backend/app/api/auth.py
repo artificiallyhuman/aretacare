@@ -11,12 +11,15 @@ from app.core.auth import verify_password, get_password_hash, create_access_toke
 from app.core.config import settings
 from app.models.user import User
 from app.models.session import Session
+from app.models.document import Document
+from app.models.audio_recording import AudioRecording
 from app.schemas.auth import (
     UserRegister, UserLogin, TokenResponse, UserResponse,
     UpdateName, UpdateEmail, UpdatePassword, DeleteAccount,
     PasswordResetRequest, PasswordReset
 )
 from app.services.email_service import email_service
+from app.services.s3_service import s3_service
 
 logger = logging.getLogger(__name__)
 
@@ -224,7 +227,41 @@ def delete_account(
             detail="Incorrect password"
         )
 
-    # Delete user (cascades to all related data)
+    # Get all sessions for this user
+    user_sessions = db.query(Session).filter(Session.user_id == current_user.id).all()
+
+    # Delete all S3 files for all sessions before deleting database records
+    for session in user_sessions:
+        # Delete all documents and their thumbnails from S3
+        documents = db.query(Document).filter(Document.session_id == session.id).all()
+        for doc in documents:
+            # Delete main document file
+            try:
+                s3_service.delete_file(doc.s3_key)
+                logger.info(f"Deleted S3 file during account deletion: {doc.s3_key}")
+            except Exception as e:
+                logger.error(f"Failed to delete S3 file {doc.s3_key} during account deletion: {str(e)}")
+                # Continue deleting other files even if one fails
+
+            # Delete thumbnail file if it exists
+            if doc.thumbnail_s3_key:
+                try:
+                    s3_service.delete_file(doc.thumbnail_s3_key)
+                    logger.info(f"Deleted S3 thumbnail during account deletion: {doc.thumbnail_s3_key}")
+                except Exception as e:
+                    logger.error(f"Failed to delete S3 thumbnail {doc.thumbnail_s3_key} during account deletion: {str(e)}")
+
+        # Delete all audio recordings from S3
+        audio_recordings = db.query(AudioRecording).filter(AudioRecording.session_id == session.id).all()
+        for audio in audio_recordings:
+            try:
+                s3_service.delete_file(audio.s3_key)
+                logger.info(f"Deleted S3 audio file during account deletion: {audio.s3_key}")
+            except Exception as e:
+                logger.error(f"Failed to delete S3 audio file {audio.s3_key} during account deletion: {str(e)}")
+
+    # Delete user (cascades to all related data in database: sessions, documents, conversations,
+    # journal entries, audio recordings, daily plans)
     db.delete(current_user)
     db.commit()
 

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { useSession } from '../../hooks/useSession';
+import { useSessionContext } from '../../contexts/SessionContext';
 import { documentAPI } from '../../services/api';
 
 // Document categories with labels and colors
@@ -34,7 +34,7 @@ const getCategoryLabel = (category) => {
 };
 
 const Documents = () => {
-  const { sessionId, loading: sessionLoading } = useSession();
+  const { activeSessionId: sessionId, loading: sessionLoading } = useSessionContext();
   const [documents, setDocuments] = useState([]);
   const [loading, setLoading] = useState(false);
   const [searching, setSearching] = useState(false);

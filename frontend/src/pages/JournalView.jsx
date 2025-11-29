@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useSession } from '../hooks/useSession';
+import { useSessionContext } from '../contexts/SessionContext';
 import { journalAPI } from '../services/api';
 import JournalEntry from '../components/Journal/JournalEntry';
 import EntryEditor from '../components/Journal/EntryEditor';
@@ -15,7 +15,7 @@ const ENTRY_TYPE_COLORS = {
 };
 
 const JournalView = () => {
-  const { sessionId, loading: sessionLoading } = useSession();
+  const { activeSessionId: sessionId, loading: sessionLoading } = useSessionContext();
   const [entries, setEntries] = useState({});
   const [filteredEntries, setFilteredEntries] = useState({});
   const [filterType, setFilterType] = useState('ALL');

@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useSession } from '../hooks/useSession';
+import { useSessionContext } from '../contexts/SessionContext';
 import { conversationAPI, documentAPI, dailyPlanAPI } from '../services/api';
 import MessageBubble from '../components/MessageBubble';
 import MessageInput from '../components/MessageInput';
 import DailyPlanPanel from '../components/DailyPlan/DailyPlanPanel';
 
 const Conversation = () => {
-  const { sessionId, loading: sessionLoading } = useSession();
+  const { activeSessionId, loading: sessionLoading } = useSessionContext();
   const [messages, setMessages] = useState([]);
   const [dailyPlanPanelOpen, setDailyPlanPanelOpen] = useState(false);
   const [hasNewDailyPlan, setHasNewDailyPlan] = useState(false);
@@ -66,26 +66,26 @@ const Conversation = () => {
   }, [messages]);
 
   useEffect(() => {
-    if (sessionId) {
+    if (activeSessionId) {
       loadConversationHistory();
       checkDailyPlan();
     }
-  }, [sessionId]);
+  }, [activeSessionId]);
 
   // Periodic check for daily plan (every 30 minutes)
   useEffect(() => {
-    if (sessionId) {
+    if (activeSessionId) {
       const interval = setInterval(() => {
         checkDailyPlan();
       }, 30 * 60 * 1000); // 30 minutes
 
       return () => clearInterval(interval);
     }
-  }, [sessionId]);
+  }, [activeSessionId]);
 
   const loadConversationHistory = async () => {
     try {
-      const response = await conversationAPI.getHistory(sessionId);
+      const response = await conversationAPI.getHistory(activeSessionId);
       setMessages(response.data.messages);
     } catch (err) {
       console.error('Error loading conversation history:', err);
@@ -94,7 +94,7 @@ const Conversation = () => {
 
   const checkDailyPlan = async () => {
     try {
-      const response = await dailyPlanAPI.check(sessionId);
+      const response = await dailyPlanAPI.check(activeSessionId);
 
       // Auto-generate if it's after 2 AM and no plan exists for today
       const now = new Date();
@@ -107,7 +107,7 @@ const Conversation = () => {
           // Get today's date in user's local timezone (YYYY-MM-DD)
           const today = new Date();
           const userDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-          await dailyPlanAPI.generate(sessionId, userDate);
+          await dailyPlanAPI.generate(activeSessionId, userDate);
           setHasNewDailyPlan(true);
           setShowBanner(true);
         } catch (err) {
@@ -119,7 +119,7 @@ const Conversation = () => {
       } else {
         // Check if latest plan has been viewed (show banner if not)
         try {
-          const latestPlan = await dailyPlanAPI.getLatest(sessionId);
+          const latestPlan = await dailyPlanAPI.getLatest(activeSessionId);
           if (!latestPlan.data.viewed) {
             setHasNewDailyPlan(true);
             setShowBanner(true);
@@ -134,7 +134,7 @@ const Conversation = () => {
   };
 
   const handleSendMessage = async (content, file) => {
-    if (!sessionId) return;
+    if (!activeSessionId) return;
 
     setLoading(true);
     setError('');
@@ -151,7 +151,7 @@ const Conversation = () => {
         const formData = new FormData();
         formData.append('file', file);
 
-        const uploadResponse = await documentAPI.upload(formData, sessionId);
+        const uploadResponse = await documentAPI.upload(formData, activeSessionId);
         documentId = uploadResponse.data.id;
         messageType = file.type.startsWith('image/') ? 'image' : 'document';
 
@@ -170,7 +170,7 @@ const Conversation = () => {
       // Send message
       const response = await conversationAPI.sendMessage({
         content,
-        session_id: sessionId,
+        session_id: activeSessionId,
         message_type: messageType,
         document_id: documentId,
         entry_date: userDate
@@ -213,7 +213,7 @@ const Conversation = () => {
           } hidden md:block transition-all duration-300 overflow-hidden border-r border-gray-200 bg-gray-50`}
         >
           <DailyPlanPanel
-            sessionId={sessionId}
+            activeSessionId={activeSessionId}
             isOpen={dailyPlanPanelOpen}
             onToggle={() => setDailyPlanPanelOpen(!dailyPlanPanelOpen)}
           />
@@ -224,7 +224,7 @@ const Conversation = () => {
           <div className="md:hidden fixed inset-0 bg-black bg-opacity-50 z-50">
             <div className="absolute inset-y-0 right-0 w-full sm:w-96 bg-gray-50 shadow-xl">
               <DailyPlanPanel
-                sessionId={sessionId}
+                activeSessionId={activeSessionId}
                 isOpen={dailyPlanPanelOpen}
                 onToggle={() => setDailyPlanPanelOpen(!dailyPlanPanelOpen)}
               />

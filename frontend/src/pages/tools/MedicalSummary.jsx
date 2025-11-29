@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { toolsAPI, documentAPI } from '../../services/api';
-import { useSession } from '../../hooks/useSession';
+import { useSessionContext } from '../../contexts/SessionContext';
 
 const MedicalSummary = () => {
-  const { sessionId, loading: sessionLoading } = useSession();
+  const { activeSessionId: sessionId, loading: sessionLoading } = useSessionContext();
   const [medicalText, setMedicalText] = useState('');
   const [uploadedFile, setUploadedFile] = useState(null);
   const [summary, setSummary] = useState(null);

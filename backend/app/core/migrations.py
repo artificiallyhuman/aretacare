@@ -142,3 +142,50 @@ def run_migrations():
                     conn.rollback()
             else:
                 logger.info("reset_token_expires column already exists")
+
+        # Check if sessions table exists
+        if 'sessions' in inspector.get_table_names():
+            columns = [col['name'] for col in inspector.get_columns('sessions')]
+
+            # Add name column if it doesn't exist
+            if 'name' not in columns:
+                logger.info("Adding name column to sessions table...")
+                try:
+                    # Add the column with a default value
+                    conn.execute(text(
+                        "ALTER TABLE sessions ADD COLUMN name VARCHAR NOT NULL DEFAULT 'New Session'"
+                    ))
+                    conn.commit()
+                    logger.info("Successfully added name column to sessions")
+
+                    # Now update existing sessions with proper default names based on created_at order
+                    logger.info("Updating existing sessions with default names...")
+                    try:
+                        # Get all sessions grouped by user, ordered by created_at
+                        result = conn.execute(text("""
+                            SELECT id, user_id, created_at,
+                                   ROW_NUMBER() OVER (PARTITION BY user_id ORDER BY created_at) as session_number
+                            FROM sessions
+                            ORDER BY user_id, created_at
+                        """))
+
+                        sessions = result.fetchall()
+                        for session in sessions:
+                            session_id, user_id, created_at, session_number = session
+                            new_name = f"Session {session_number}"
+                            conn.execute(
+                                text("UPDATE sessions SET name = :name WHERE id = :id"),
+                                {"name": new_name, "id": session_id}
+                            )
+
+                        conn.commit()
+                        logger.info(f"Updated {len(sessions)} existing sessions with default names")
+                    except Exception as e:
+                        logger.error(f"Failed to update session names: {e}")
+                        conn.rollback()
+
+                except Exception as e:
+                    logger.error(f"Failed to add name column to sessions: {e}")
+                    conn.rollback()
+            else:
+                logger.info("name column already exists in sessions")

@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
-import { useSession } from '../hooks/useSession';
+import { useSessionContext } from '../contexts/SessionContext';
 import { dailyPlanAPI } from '../services/api';
 
 const DailyPlan = () => {
-  const { sessionId } = useSession();
+  const { activeSessionId: sessionId } = useSessionContext();
   const [plans, setPlans] = useState([]);
   const [selectedPlan, setSelectedPlan] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
@@ -343,9 +343,9 @@ const DailyPlan = () => {
                           h2: ({node, ...props}) => <h2 className="text-xl font-bold text-gray-900 mt-6 mb-3" {...props} />,
                           h3: ({node, ...props}) => <h3 className="text-lg font-semibold text-gray-800 mt-4 mb-2" {...props} />,
                           p: ({node, ...props}) => <p className="text-gray-700 mb-4 leading-relaxed" {...props} />,
-                          ul: ({node, ...props}) => <ul className="list-disc list-inside space-y-2 mb-4 text-gray-700" {...props} />,
-                          ol: ({node, ...props}) => <ol className="list-decimal list-inside space-y-2 mb-4 text-gray-700" {...props} />,
-                          li: ({node, ...props}) => <li className="ml-4" {...props} />,
+                          ul: ({node, ...props}) => <ul className="list-disc pl-6 space-y-2 mb-4 text-gray-700" {...props} />,
+                          ol: ({node, ...props}) => <ol className="list-decimal pl-6 space-y-2 mb-4 text-gray-700" {...props} />,
+                          li: ({node, ...props}) => <li className="leading-relaxed" {...props} />,
                           strong: ({node, ...props}) => <strong className="font-bold text-gray-900" {...props} />,
                           em: ({node, ...props}) => <em className="italic text-gray-800" {...props} />,
                         }}
