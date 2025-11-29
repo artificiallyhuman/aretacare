@@ -159,18 +159,18 @@ Focus on:
 # ============================================================================
 
 DOCUMENT_CATEGORIES = {
-    "lab_results": "Laboratory test results (CBC, metabolic panels, etc.)",
-    "imaging_reports": "Radiology reports (X-rays, CT scans, MRIs, ultrasounds)",
-    "clinic_notes": "Visit notes, progress notes, consultation notes",
-    "medication_records": "Prescription records, medication lists",
-    "discharge_summary": "Hospital discharge summaries",
-    "treatment_plan": "Treatment plans, care plans",
-    "test_results": "Non-lab diagnostic tests (EKG, pulmonary function, etc.)",
-    "referral": "Referral letters to specialists",
-    "insurance_billing": "Insurance forms, billing statements, EOBs",
-    "consent_form": "Consent forms, authorization forms",
-    "care_instructions": "Home care instructions, patient education materials",
-    "other": "Anything that doesn't fit the above categories"
+    "lab_results": "Results from analyzing samples taken from the body: blood tests (CBC, metabolic panel, A1C, cholesterol), COVID/flu/strep rapid tests, urinalysis, stool samples, cultures, biopsies, pathology reports, genetic/DNA tests, allergy panels, hormone levels, tumor markers",
+    "imaging_reports": "Visual scans of the body: X-rays, CT scans, MRIs, ultrasounds, mammograms, PET scans, bone density scans (DEXA), echocardiograms, fluoroscopy",
+    "clinic_notes": "Notes from medical visits: office visit summaries, progress notes, consultation notes, telehealth visit notes, specialist evaluations, history and physical (H&P)",
+    "medication_records": "Medication-related documents: prescription records, medication lists, pharmacy printouts, medication reconciliation forms, prior authorization for medications",
+    "discharge_summary": "Hospital departure documents: discharge summaries, after-visit summaries (AVS), hospital stay reports, post-operative instructions from inpatient stays",
+    "treatment_plan": "Planned care documents: treatment plans, care plans, therapy schedules, chemotherapy protocols, radiation therapy plans, rehabilitation plans, disease management plans",
+    "test_results": "Results from functional/diagnostic tests (not lab samples): EKG/ECG, stress tests, pulmonary function tests (PFT), sleep studies, hearing tests (audiograms), vision tests, nerve conduction studies, EEG, cardiac monitoring (Holter), colonoscopy/endoscopy reports",
+    "referral": "Provider-to-provider documents: referral letters, specialist referrals, second opinion requests, transfer summaries",
+    "insurance_billing": "Financial and insurance documents: insurance forms, billing statements, EOBs (Explanation of Benefits), itemized bills, prior authorization forms, claims, medical receipts",
+    "consent_form": "Authorization documents: informed consent forms, procedure consent, HIPAA forms, release of information, advance directives, DNR orders, power of attorney",
+    "care_instructions": "Educational/instruction documents for patients: home care instructions, wound care guides, physical therapy exercises, dietary guidelines, post-procedure instructions, patient education handouts",
+    "other": "Documents that don't fit the above categories"
 }
 
 
