@@ -4,6 +4,7 @@ import { conversationAPI, documentAPI, dailyPlanAPI } from '../services/api';
 import MessageBubble from '../components/MessageBubble';
 import MessageInput from '../components/MessageInput';
 import DailyPlanPanel from '../components/DailyPlan/DailyPlanPanel';
+import TypingIndicator from '../components/TypingIndicator';
 
 const Conversation = () => {
   const { activeSessionId, loading: sessionLoading } = useSessionContext();
@@ -12,6 +13,7 @@ const Conversation = () => {
   const [hasNewDailyPlan, setHasNewDailyPlan] = useState(false);
   const [showBanner, setShowBanner] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [isAITyping, setIsAITyping] = useState(false);
   const [error, setError] = useState('');
   const [showScrollButton, setShowScrollButton] = useState(false);
   const [showScrollTopButton, setShowScrollTopButton] = useState(false);
@@ -64,6 +66,13 @@ const Conversation = () => {
       scrollToBottom('smooth');
     }
   }, [messages]);
+
+  // Auto-scroll when typing indicator appears
+  useEffect(() => {
+    if (isAITyping && isNearBottomRef.current) {
+      setTimeout(() => scrollToBottom('smooth'), 100);
+    }
+  }, [isAITyping]);
 
   useEffect(() => {
     if (activeSessionId) {
@@ -139,6 +148,21 @@ const Conversation = () => {
     setLoading(true);
     setError('');
 
+    // Create temporary user message to display immediately
+    const tempUserMessage = {
+      id: `temp-${Date.now()}`,
+      role: 'user',
+      content: content || (file?.type.startsWith('image/') ? 'I uploaded an image' : 'I uploaded a document'),
+      message_type: file ? (file.type.startsWith('image/') ? 'image' : 'document') : 'text',
+      created_at: new Date().toISOString().slice(0, -1), // Remove 'Z' for consistent formatting
+      document_id: null,
+      media_url: null,
+      extracted_text: null
+    };
+
+    // Add user message immediately to UI
+    setMessages(prevMessages => [...prevMessages, tempUserMessage]);
+
     // Scroll to bottom when sending a message
     setTimeout(() => scrollToBottom('smooth'), 100);
 
@@ -167,6 +191,9 @@ const Conversation = () => {
       const today = new Date();
       const userDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
 
+      // Show typing indicator
+      setIsAITyping(true);
+
       // Send message
       const response = await conversationAPI.sendMessage({
         content,
@@ -176,13 +203,16 @@ const Conversation = () => {
         entry_date: userDate
       });
 
-      // Add user message and AI response to messages
+      // Reload conversation history to get the real messages (user + AI response)
       await loadConversationHistory();
     } catch (err) {
       console.error('Error sending message:', err);
       setError('Failed to send message. Please try again.');
+      // Remove the temporary message on error
+      setMessages(prevMessages => prevMessages.filter(msg => msg.id !== tempUserMessage.id));
     } finally {
       setLoading(false);
+      setIsAITyping(false);
     }
   };
 
@@ -358,9 +388,12 @@ const Conversation = () => {
                 </div>
               </div>
             ) : (
-              messages.map((message) => (
-                <MessageBubble key={message.id} message={message} />
-              ))
+              <>
+                {messages.map((message) => (
+                  <MessageBubble key={message.id} message={message} />
+                ))}
+                {isAITyping && <TypingIndicator />}
+              </>
             )}
             <div ref={messagesEndRef} />
           </div>
