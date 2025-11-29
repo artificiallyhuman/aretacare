@@ -75,8 +75,20 @@ export const SessionProvider = ({ children }) => {
         if (sessionToActivate) {
           setActiveSessionId(sessionToActivate);
           localStorage.setItem('active_session_id', sessionToActivate);
+        } else if (userSessions.length === 0) {
+          // No sessions exist - auto-create one for the user
+          // This handles users who registered before auto-session creation was added
+          try {
+            const response = await sessionAPI.create('Session 1');
+            const newSession = response.data;
+            setSessions([newSession]);
+            setActiveSessionId(newSession.id);
+            localStorage.setItem('active_session_id', newSession.id);
+          } catch (err) {
+            console.error('Failed to auto-create session:', err);
+            setError('Failed to create initial session');
+          }
         }
-        // If no sessions, activeSessionId stays null and user sees welcome screen
       } catch (err) {
         console.error('Failed to initialize session:', err);
         setError(err.message);
