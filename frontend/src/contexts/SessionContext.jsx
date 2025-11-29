@@ -159,7 +159,7 @@ export const SessionProvider = ({ children }) => {
       const remainingSessions = sessions.filter(s => s.id !== sessionId);
       setSessions(remainingSessions);
 
-      // If we deleted the active session, switch to another one or null
+      // If we deleted the active session, switch to another one or create new
       if (sessionId === activeSessionId) {
         if (remainingSessions.length > 0) {
           // Switch to the most recent remaining session
@@ -172,9 +172,18 @@ export const SessionProvider = ({ children }) => {
           setActiveSessionId(mostRecent.id);
           localStorage.setItem('active_session_id', mostRecent.id);
         } else {
-          // No sessions left
-          setActiveSessionId(null);
-          localStorage.removeItem('active_session_id');
+          // No sessions left - auto-create a new one
+          try {
+            const response = await sessionAPI.create('Session 1');
+            const newSession = response.data;
+            setSessions([newSession]);
+            setActiveSessionId(newSession.id);
+            localStorage.setItem('active_session_id', newSession.id);
+          } catch (createErr) {
+            console.error('Failed to auto-create session after deletion:', createErr);
+            setActiveSessionId(null);
+            localStorage.removeItem('active_session_id');
+          }
         }
       }
     } catch (err) {
