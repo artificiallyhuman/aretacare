@@ -186,7 +186,7 @@ Your AretaCare account password was recently changed.
 
 If you made this change, no further action is needed.
 
-If you did NOT make this change, please contact AretaCare support immediately at support@aretacare.com to secure your account.
+If you did NOT make this change, please contact AretaCare support immediately at aretacare@gmail.com to secure your account.
 
 Best regards,
 The AretaCare Team
@@ -234,7 +234,7 @@ The AretaCare Team
                         <td style="padding: 0 40px 40px;">
                             <div style="background-color: #fef3c7; border-left: 4px solid #f59e0b; padding: 16px; border-radius: 4px;">
                                 <p style="margin: 0; color: #92400e; font-size: 14px; line-height: 20px;">
-                                    <strong>Important:</strong> If you did NOT make this change, please contact AretaCare support immediately at <a href="mailto:support@aretacare.com" style="color: #92400e; text-decoration: underline;">support@aretacare.com</a> to secure your account.
+                                    <strong>Important:</strong> If you did NOT make this change, please contact AretaCare support immediately at <a href="mailto:aretacare@gmail.com" style="color: #92400e; text-decoration: underline;">aretacare@gmail.com</a> to secure your account.
                                 </p>
                             </div>
                         </td>
@@ -309,7 +309,7 @@ Your AretaCare account email address was recently changed from {old_email} to {n
 
 If you made this change, no further action is needed.
 
-If you did NOT make this change, please contact AretaCare support immediately at support@aretacare.com to secure your account.
+If you did NOT make this change, please contact AretaCare support immediately at aretacare@gmail.com to secure your account.
 
 Best regards,
 The AretaCare Team
@@ -357,7 +357,7 @@ The AretaCare Team
                         <td style="padding: 0 40px 40px;">
                             <div style="background-color: #fef3c7; border-left: 4px solid #f59e0b; padding: 16px; border-radius: 4px;">
                                 <p style="margin: 0; color: #92400e; font-size: 14px; line-height: 20px;">
-                                    <strong>Important:</strong> If you did NOT make this change, please contact AretaCare support immediately at <a href="mailto:support@aretacare.com" style="color: #92400e; text-decoration: underline;">support@aretacare.com</a> to secure your account.
+                                    <strong>Important:</strong> If you did NOT make this change, please contact AretaCare support immediately at <a href="mailto:aretacare@gmail.com" style="color: #92400e; text-decoration: underline;">aretacare@gmail.com</a> to secure your account.
                                 </p>
                             </div>
                         </td>
@@ -446,7 +446,7 @@ This collaborator now has full access to the session data.
 
 If you made this change, no further action is needed.
 
-If you did NOT add this collaborator, please contact AretaCare support immediately at support@aretacare.com.
+If you did NOT add this collaborator, please contact AretaCare support immediately at aretacare@gmail.com.
 
 Best regards,
 The AretaCare Team
@@ -509,7 +509,7 @@ The AretaCare Team
                         <td style="padding: 0 40px 40px;">
                             <div style="background-color: #fef3c7; border-left: 4px solid #f59e0b; padding: 16px; border-radius: 4px;">
                                 <p style="margin: 0; color: #92400e; font-size: 14px; line-height: 20px;">
-                                    <strong>Important:</strong> If you did NOT add this collaborator, please contact AretaCare support immediately at <a href="mailto:support@aretacare.com" style="color: #92400e; text-decoration: underline;">support@aretacare.com</a>.
+                                    <strong>Important:</strong> If you did NOT add this collaborator, please contact AretaCare support immediately at <a href="mailto:aretacare@gmail.com" style="color: #92400e; text-decoration: underline;">aretacare@gmail.com</a>.
                                 </p>
                             </div>
                         </td>
