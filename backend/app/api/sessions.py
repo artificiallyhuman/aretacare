@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from sqlalchemy import func, or_
+from sqlalchemy import func
 from app.core.database import get_db
 from app.models import Session as SessionModel, User, Document, AudioRecording, JournalEntry, Conversation, SessionCollaborator
 from app.schemas import (
@@ -145,7 +145,16 @@ async def create_session(
     current_user.last_active_session_id = new_session.id
     db.commit()
 
-    return new_session
+    return SessionResponse(
+        id=new_session.id,
+        name=new_session.name,
+        created_at=new_session.created_at,
+        last_activity=new_session.last_activity,
+        is_active=new_session.is_active,
+        owner_id=new_session.owner_id,
+        is_owner=True,
+        collaborators=[]
+    )
 
 
 @router.post("/primary", response_model=SessionResponse)
@@ -165,7 +174,33 @@ async def get_or_create_primary_session(
         primary_session.last_activity = datetime.utcnow()
         db.commit()
         db.refresh(primary_session)
-        return primary_session
+
+        # Get collaborators for response
+        collaborators = db.query(SessionCollaborator).filter(
+            SessionCollaborator.session_id == primary_session.id
+        ).all()
+
+        collaborator_infos = []
+        for collab in collaborators:
+            collab_user = db.query(User).filter(User.id == collab.user_id).first()
+            if collab_user:
+                collaborator_infos.append(CollaboratorInfo(
+                    user_id=collab_user.id,
+                    email=collab_user.email,
+                    name=collab_user.name,
+                    added_at=collab.added_at
+                ))
+
+        return SessionResponse(
+            id=primary_session.id,
+            name=primary_session.name,
+            created_at=primary_session.created_at,
+            last_activity=primary_session.last_activity,
+            is_active=primary_session.is_active,
+            owner_id=primary_session.owner_id,
+            is_owner=True,
+            collaborators=collaborator_infos
+        )
 
     # Create new primary session
     new_primary_session = SessionModel(
@@ -176,7 +211,17 @@ async def get_or_create_primary_session(
     db.add(new_primary_session)
     db.commit()
     db.refresh(new_primary_session)
-    return new_primary_session
+
+    return SessionResponse(
+        id=new_primary_session.id,
+        name=new_primary_session.name,
+        created_at=new_primary_session.created_at,
+        last_activity=new_primary_session.last_activity,
+        is_active=new_primary_session.is_active,
+        owner_id=new_primary_session.owner_id,
+        is_owner=True,
+        collaborators=[]
+    )
 
 
 @router.get("/{session_id}", response_model=SessionResponse)
@@ -192,7 +237,7 @@ async def get_session(
         raise HTTPException(status_code=404, detail="Session not found")
 
     # Verify user has access (owner or collaborator)
-    is_owner = session.user_id == current_user.id
+    is_owner = session.owner_id == current_user.id
     is_collaborator = db.query(SessionCollaborator).filter(
         SessionCollaborator.session_id == session_id,
         SessionCollaborator.user_id == current_user.id
@@ -392,9 +437,8 @@ async def cleanup_session(
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
 
-    # Verify session belongs to current user
-    if session.user_id != current_user.id:
-        raise HTTPException(status_code=403, detail="Access denied")
+    # Only owner can cleanup session
+    check_session_access(session, current_user.id, db, require_owner=True)
 
     session.is_active = False
     db.commit()

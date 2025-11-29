@@ -45,7 +45,10 @@ async def upload_document(
         check_session_access(session, current_user.id, db)
     else:
         # Create new session if none provided
-        session = SessionModel(user_id=current_user.id)
+        session = SessionModel(
+            user_id=current_user.id,
+            owner_id=current_user.id
+        )
         db.add(session)
         db.commit()
         db.refresh(session)
