@@ -32,7 +32,7 @@ services:
       - key: DEBUG
         value: false
       - key: CORS_ORIGINS
-        value: https://aretacare.com
+        value: https://aretacare.com,https://www.aretacare.com
       - key: SMTP_HOST
         value: smtp.gmail.com
       - key: SMTP_PORT
