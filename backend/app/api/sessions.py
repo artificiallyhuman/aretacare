@@ -409,7 +409,7 @@ async def delete_session(
     for doc in documents:
         # Delete main document file
         try:
-            s3_service.delete_file(doc.s3_key)
+            await s3_service.delete_file(doc.s3_key)
             logger.info(f"Deleted S3 file: {doc.s3_key}")
         except Exception as e:
             logger.error(f"Failed to delete S3 file {doc.s3_key}: {str(e)}")
@@ -418,7 +418,7 @@ async def delete_session(
         # Delete thumbnail file if it exists
         if doc.thumbnail_s3_key:
             try:
-                s3_service.delete_file(doc.thumbnail_s3_key)
+                await s3_service.delete_file(doc.thumbnail_s3_key)
                 logger.info(f"Deleted S3 thumbnail: {doc.thumbnail_s3_key}")
             except Exception as e:
                 logger.error(f"Failed to delete S3 thumbnail {doc.thumbnail_s3_key}: {str(e)}")
@@ -427,7 +427,7 @@ async def delete_session(
     audio_recordings = db.query(AudioRecording).filter(AudioRecording.session_id == session_id).all()
     for audio in audio_recordings:
         try:
-            s3_service.delete_file(audio.s3_key)
+            await s3_service.delete_file(audio.s3_key)
             logger.info(f"Deleted S3 audio file: {audio.s3_key}")
         except Exception as e:
             logger.error(f"Failed to delete S3 audio file {audio.s3_key}: {str(e)}")
@@ -478,7 +478,7 @@ async def cleanup_expired_sessions(db: Session = Depends(get_db)):
         for doc in documents:
             # Delete main document file
             try:
-                s3_service.delete_file(doc.s3_key)
+                await s3_service.delete_file(doc.s3_key)
                 logger.info(f"Deleted S3 file during cleanup: {doc.s3_key}")
             except Exception as e:
                 logger.error(f"Failed to delete S3 file {doc.s3_key} during cleanup: {str(e)}")
@@ -486,7 +486,7 @@ async def cleanup_expired_sessions(db: Session = Depends(get_db)):
             # Delete thumbnail file if it exists
             if doc.thumbnail_s3_key:
                 try:
-                    s3_service.delete_file(doc.thumbnail_s3_key)
+                    await s3_service.delete_file(doc.thumbnail_s3_key)
                     logger.info(f"Deleted S3 thumbnail during cleanup: {doc.thumbnail_s3_key}")
                 except Exception as e:
                     logger.error(f"Failed to delete S3 thumbnail {doc.thumbnail_s3_key} during cleanup: {str(e)}")
@@ -495,7 +495,7 @@ async def cleanup_expired_sessions(db: Session = Depends(get_db)):
         audio_recordings = db.query(AudioRecording).filter(AudioRecording.session_id == session.id).all()
         for audio in audio_recordings:
             try:
-                s3_service.delete_file(audio.s3_key)
+                await s3_service.delete_file(audio.s3_key)
                 logger.info(f"Deleted S3 audio file during cleanup: {audio.s3_key}")
             except Exception as e:
                 logger.error(f"Failed to delete S3 audio file {audio.s3_key} during cleanup: {str(e)}")

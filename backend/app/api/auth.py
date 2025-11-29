@@ -255,7 +255,7 @@ def update_password(
 
 
 @router.delete("/account", status_code=status.HTTP_204_NO_CONTENT)
-def delete_account(
+async def delete_account(
     data: DeleteAccount,
     current_user: User = Depends(get_current_user),
     db: DBSession = Depends(get_db)
@@ -278,7 +278,7 @@ def delete_account(
         for doc in documents:
             # Delete main document file
             try:
-                s3_service.delete_file(doc.s3_key)
+                await s3_service.delete_file(doc.s3_key)
                 logger.info(f"Deleted S3 file during account deletion: {doc.s3_key}")
             except Exception as e:
                 logger.error(f"Failed to delete S3 file {doc.s3_key} during account deletion: {str(e)}")
@@ -287,7 +287,7 @@ def delete_account(
             # Delete thumbnail file if it exists
             if doc.thumbnail_s3_key:
                 try:
-                    s3_service.delete_file(doc.thumbnail_s3_key)
+                    await s3_service.delete_file(doc.thumbnail_s3_key)
                     logger.info(f"Deleted S3 thumbnail during account deletion: {doc.thumbnail_s3_key}")
                 except Exception as e:
                     logger.error(f"Failed to delete S3 thumbnail {doc.thumbnail_s3_key} during account deletion: {str(e)}")
@@ -296,7 +296,7 @@ def delete_account(
         audio_recordings = db.query(AudioRecording).filter(AudioRecording.session_id == session.id).all()
         for audio in audio_recordings:
             try:
-                s3_service.delete_file(audio.s3_key)
+                await s3_service.delete_file(audio.s3_key)
                 logger.info(f"Deleted S3 audio file during account deletion: {audio.s3_key}")
             except Exception as e:
                 logger.error(f"Failed to delete S3 audio file {audio.s3_key} during account deletion: {str(e)}")
