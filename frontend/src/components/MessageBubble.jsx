@@ -1,9 +1,10 @@
-import React from 'react';
+import React, { memo } from 'react';
 import ReactMarkdown from 'react-markdown';
 import DocumentMessage from './DocumentMessage';
 import ImageMessage from './ImageMessage';
 
-const MessageBubble = ({ message }) => {
+// Memoized to prevent re-renders when parent updates but message hasn't changed
+const MessageBubble = memo(({ message }) => {
   const isUser = message.role === 'user';
   const messageType = message.message_type || 'text';
 
@@ -79,6 +80,9 @@ const MessageBubble = ({ message }) => {
       </div>
     </div>
   );
-};
+});
+
+// Display name for React DevTools
+MessageBubble.displayName = 'MessageBubble';
 
 export default MessageBubble;

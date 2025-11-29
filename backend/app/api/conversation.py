@@ -175,13 +175,23 @@ async def get_conversation_history(
         Conversation.session_id == session_id
     ).order_by(Conversation.created_at).limit(limit).all()
 
+    # Batch load all documents for image messages in ONE query (fixes N+1)
+    image_doc_ids = [
+        msg.document_id for msg in messages
+        if msg.message_type == MessageType.IMAGE and msg.document_id
+    ]
+    docs_by_id = {}
+    if image_doc_ids:
+        docs = db.query(Document).filter(Document.id.in_(image_doc_ids)).all()
+        docs_by_id = {doc.id: doc for doc in docs}
+
     # Convert to response format (including rich media fields)
     message_responses = []
     for msg in messages:
         # Regenerate presigned URL for images (they expire after 24h)
         media_url = msg.media_url
         if msg.message_type == MessageType.IMAGE and msg.document_id:
-            doc = db.query(Document).filter(Document.id == msg.document_id).first()
+            doc = docs_by_id.get(msg.document_id)
             if doc:
                 media_url = s3_service.generate_presigned_url(doc.s3_key, expiration=86400)
 

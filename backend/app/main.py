@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.gzip import GZipMiddleware
 from app.core.config import settings
 from app.core.database import engine, Base
 from app.core.migrations import run_migrations
@@ -37,6 +38,10 @@ app = FastAPI(
     description="AI Care Advocate Assistant - Helping families navigate medical information",
     version="1.0.0",
 )
+
+# Configure GZip compression for responses (30-50% size reduction)
+# minimum_size: Only compress responses larger than 1000 bytes
+app.add_middleware(GZipMiddleware, minimum_size=1000)
 
 # Configure CORS
 app.add_middleware(

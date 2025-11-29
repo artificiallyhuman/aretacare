@@ -263,3 +263,79 @@ def run_migrations():
                 conn.rollback()
         else:
             logger.info("session_collaborators table already exists")
+
+        # ==========================================
+        # PERFORMANCE INDEXES
+        # ==========================================
+
+        # Add index on conversations (session_id, created_at) for efficient history queries
+        try:
+            conn.execute(text("""
+                CREATE INDEX IF NOT EXISTS idx_conversations_session_created
+                ON conversations (session_id, created_at)
+            """))
+            conn.commit()
+            logger.info("Created index idx_conversations_session_created")
+        except Exception as e:
+            logger.warning(f"Index idx_conversations_session_created may already exist: {e}")
+            conn.rollback()
+
+        # Add index on documents (session_id, uploaded_at) for efficient listing
+        try:
+            conn.execute(text("""
+                CREATE INDEX IF NOT EXISTS idx_documents_session_uploaded
+                ON documents (session_id, uploaded_at)
+            """))
+            conn.commit()
+            logger.info("Created index idx_documents_session_uploaded")
+        except Exception as e:
+            logger.warning(f"Index idx_documents_session_uploaded may already exist: {e}")
+            conn.rollback()
+
+        # Add index on audio_recordings (session_id, created_at) for efficient listing
+        try:
+            conn.execute(text("""
+                CREATE INDEX IF NOT EXISTS idx_audio_recordings_session_created
+                ON audio_recordings (session_id, created_at)
+            """))
+            conn.commit()
+            logger.info("Created index idx_audio_recordings_session_created")
+        except Exception as e:
+            logger.warning(f"Index idx_audio_recordings_session_created may already exist: {e}")
+            conn.rollback()
+
+        # Add index on daily_plans (session_id, date) for efficient queries
+        try:
+            conn.execute(text("""
+                CREATE INDEX IF NOT EXISTS idx_daily_plans_session_date
+                ON daily_plans (session_id, date)
+            """))
+            conn.commit()
+            logger.info("Created index idx_daily_plans_session_date")
+        except Exception as e:
+            logger.warning(f"Index idx_daily_plans_session_date may already exist: {e}")
+            conn.rollback()
+
+        # Add index on session_collaborators (user_id) for finding user's collaborations
+        try:
+            conn.execute(text("""
+                CREATE INDEX IF NOT EXISTS idx_session_collaborators_user
+                ON session_collaborators (user_id)
+            """))
+            conn.commit()
+            logger.info("Created index idx_session_collaborators_user")
+        except Exception as e:
+            logger.warning(f"Index idx_session_collaborators_user may already exist: {e}")
+            conn.rollback()
+
+        # Add index on journal_entries (session_id, entry_date) for efficient queries
+        try:
+            conn.execute(text("""
+                CREATE INDEX IF NOT EXISTS idx_journal_entries_session_date
+                ON journal_entries (session_id, entry_date DESC)
+            """))
+            conn.commit()
+            logger.info("Created index idx_journal_entries_session_date")
+        except Exception as e:
+            logger.warning(f"Index idx_journal_entries_session_date may already exist: {e}")
+            conn.rollback()

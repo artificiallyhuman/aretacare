@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func
 from app.core.database import get_db
 from app.models import Session as SessionModel, User, Document, AudioRecording, JournalEntry, Conversation, SessionCollaborator
@@ -47,17 +47,32 @@ async def list_sessions(
         if s.id not in all_sessions:
             all_sessions[s.id] = s
 
+    # Batch load all collaborators for all sessions in ONE query (fixes N+1)
+    session_ids = list(all_sessions.keys())
+    all_collaborators = db.query(SessionCollaborator).filter(
+        SessionCollaborator.session_id.in_(session_ids)
+    ).all() if session_ids else []
+
+    # Batch load all collaborator users in ONE query (fixes N+1)
+    collaborator_user_ids = list(set(c.user_id for c in all_collaborators))
+    collaborator_users = db.query(User).filter(
+        User.id.in_(collaborator_user_ids)
+    ).all() if collaborator_user_ids else []
+    users_by_id = {u.id: u for u in collaborator_users}
+
+    # Group collaborators by session_id
+    collaborators_by_session = {}
+    for collab in all_collaborators:
+        if collab.session_id not in collaborators_by_session:
+            collaborators_by_session[collab.session_id] = []
+        collaborators_by_session[collab.session_id].append(collab)
+
     # Build response with collaborator information
     response = []
     for session in sorted(all_sessions.values(), key=lambda x: x.created_at, reverse=True):
-        # Get collaborators for this session
-        collaborators = db.query(SessionCollaborator).filter(
-            SessionCollaborator.session_id == session.id
-        ).all()
-
         collaborator_infos = []
-        for collab in collaborators:
-            collab_user = db.query(User).filter(User.id == collab.user_id).first()
+        for collab in collaborators_by_session.get(session.id, []):
+            collab_user = users_by_id.get(collab.user_id)
             if collab_user:
                 collaborator_infos.append(CollaboratorInfo(
                     user_id=collab_user.id,
