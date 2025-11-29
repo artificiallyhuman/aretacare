@@ -109,6 +109,19 @@ def register(user_data: UserRegister, db: DBSession = Depends(get_db)):
     db.commit()
     db.refresh(new_user)
 
+    # Create initial session for the new user
+    initial_session = Session(
+        user_id=new_user.id,
+        owner_id=new_user.id,
+        name="Session 1"
+    )
+    db.add(initial_session)
+
+    # Set as user's last active session
+    new_user.last_active_session_id = initial_session.id
+    db.commit()
+    db.refresh(new_user)
+
     # Create access token
     access_token = create_access_token(data={"sub": new_user.id})
 
