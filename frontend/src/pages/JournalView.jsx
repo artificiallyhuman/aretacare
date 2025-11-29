@@ -5,13 +5,13 @@ import JournalEntry from '../components/Journal/JournalEntry';
 import EntryEditor from '../components/Journal/EntryEditor';
 
 const ENTRY_TYPE_COLORS = {
-  MEDICAL_UPDATE: 'bg-blue-100 text-blue-800',
-  TREATMENT_CHANGE: 'bg-orange-100 text-orange-800',
-  APPOINTMENT: 'bg-purple-100 text-purple-800',
-  INSIGHT: 'bg-green-100 text-green-800',
-  QUESTION: 'bg-yellow-100 text-yellow-800',
-  MILESTONE: 'bg-teal-100 text-teal-800',
-  OTHER: 'bg-gray-100 text-gray-800'
+  MEDICAL_UPDATE: 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300',
+  TREATMENT_CHANGE: 'bg-orange-100 dark:bg-orange-900/30 text-orange-800 dark:text-orange-300',
+  APPOINTMENT: 'bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-300',
+  INSIGHT: 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300',
+  QUESTION: 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300',
+  MILESTONE: 'bg-teal-100 dark:bg-teal-900/30 text-teal-800 dark:text-teal-300',
+  OTHER: 'bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-300'
 };
 
 const JournalView = () => {
@@ -159,21 +159,21 @@ const JournalView = () => {
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading journal...</p>
+          <p className="mt-4 text-gray-600 dark:text-gray-400">Loading journal...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 lg:py-12">
         {/* Header */}
         <div className="mb-6 sm:mb-8">
           <div className="flex justify-between items-center">
             <div>
-              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">Care Journal</h1>
-              <p className="text-sm sm:text-base text-gray-600">
+              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-gray-100 mb-2">Care Journal</h1>
+              <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400">
                 Your ongoing care diary with {totalEntries} {totalEntries === 1 ? 'entry' : 'entries'}
               </p>
             </div>
@@ -210,7 +210,7 @@ const JournalView = () => {
                   searchInputRef.current?.focus();
                 }}
                 onMouseDown={(e) => e.preventDefault()}
-                className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 p-1"
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-400 p-1"
                 aria-label="Clear search"
                 type="button"
               >
@@ -223,7 +223,7 @@ const JournalView = () => {
 
           {/* Filter by type */}
           <div className="flex items-center gap-3">
-            <label htmlFor="filter-type" className="text-xs sm:text-sm text-gray-600 whitespace-nowrap">
+            <label htmlFor="filter-type" className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 whitespace-nowrap">
               Filter:
             </label>
             <select
@@ -246,9 +246,9 @@ const JournalView = () => {
 
         {/* Timeline */}
         {sortedDates.length === 0 ? (
-          <div className="text-center py-12 bg-white rounded-lg border border-gray-200">
+          <div className="text-center py-12 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
             <svg
-              className="mx-auto h-12 w-12 text-gray-400"
+              className="mx-auto h-12 w-12 text-gray-400 dark:text-gray-500"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -260,12 +260,12 @@ const JournalView = () => {
                 d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"
               />
             </svg>
-            <p className="mt-2 text-sm text-gray-500">
+            <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
               {searchQuery || filterType !== 'ALL'
                 ? 'No entries match your filters'
                 : 'No journal entries yet'}
             </p>
-            <p className="text-xs text-gray-400 mt-1">
+            <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
               {searchQuery || filterType !== 'ALL'
                 ? 'Try adjusting your search or filter'
                 : 'Click "New Entry" to add your first entry'}
@@ -277,10 +277,10 @@ const JournalView = () => {
             <div className="lg:hidden mb-4">
               <button
                 onClick={() => setShowSidebar(!showSidebar)}
-                className="w-full flex items-center justify-between px-4 py-3 bg-white border border-gray-200 rounded-lg shadow-sm"
+                className="w-full flex items-center justify-between px-4 py-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm"
               >
-                <span className="text-sm font-medium text-gray-900">Jump to Date</span>
-                <svg className={`w-5 h-5 text-gray-500 transition-transform ${showSidebar ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <span className="text-sm font-medium text-gray-900 dark:text-gray-100">Jump to Date</span>
+                <svg className={`w-5 h-5 text-gray-500 dark:text-gray-400 transition-transform ${showSidebar ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                 </svg>
               </button>
@@ -288,30 +288,30 @@ const JournalView = () => {
 
             {/* Sidebar: Date navigation */}
             <div className={`lg:col-span-1 ${showSidebar ? 'block mb-4' : 'hidden lg:block'}`}>
-              <div className="bg-white rounded-lg border border-gray-200 shadow-sm lg:sticky lg:top-4">
-                <div className="p-3 md:p-4 border-b border-gray-200">
-                  <h2 className="text-base md:text-lg font-semibold text-gray-900">Dates</h2>
+              <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm lg:sticky lg:top-4">
+                <div className="p-3 md:p-4 border-b border-gray-200 dark:border-gray-700">
+                  <h2 className="text-base md:text-lg font-semibold text-gray-900 dark:text-gray-100">Dates</h2>
                 </div>
-                <div className="divide-y divide-gray-200 max-h-64 lg:max-h-[calc(100vh-12rem)] overflow-y-auto">
+                <div className="divide-y divide-gray-200 dark:divide-gray-700 max-h-64 lg:max-h-[calc(100vh-12rem)] overflow-y-auto">
                   {sortedDates.map((date) => (
                     <button
                       key={date}
                       onClick={() => handleDateClick(date)}
-                      className={`w-full text-left p-3 md:p-4 transition hover:bg-gray-50 ${
-                        selectedDate === date ? 'bg-primary-50 border-l-4 border-primary-600' : ''
+                      className={`w-full text-left p-3 md:p-4 transition hover:bg-gray-50 dark:hover:bg-gray-700 ${
+                        selectedDate === date ? 'bg-primary-50 dark:bg-primary-900/30 border-l-4 border-primary-600 dark:border-primary-400' : ''
                       }`}
                     >
                       <div className="flex items-center justify-between mb-1">
                         <span className={`text-xs md:text-sm font-medium ${
-                          isToday(date) ? 'text-primary-700' : 'text-gray-700'
+                          isToday(date) ? 'text-primary-700 dark:text-primary-400' : 'text-gray-700 dark:text-gray-300'
                         }`}>
                           {isToday(date) ? 'Today' : formatDateShort(date)}
                         </span>
-                        <span className="text-xs text-gray-500">
+                        <span className="text-xs text-gray-500 dark:text-gray-400">
                           {filteredEntries[date].length}
                         </span>
                       </div>
-                      <div className="text-xs text-gray-500">
+                      <div className="text-xs text-gray-500 dark:text-gray-400">
                         {(() => {
                           const [year, month, day] = date.split('-').map(Number);
                           return new Date(year, month - 1, day).toLocaleDateString('en-US', { weekday: 'long' });
@@ -329,11 +329,11 @@ const JournalView = () => {
                 <div
                   key={date}
                   ref={(el) => (dateRefs.current[date] = el)}
-                  className="bg-white rounded-lg border border-gray-200 p-4 md:p-6 scroll-mt-4"
+                  className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 md:p-6 scroll-mt-4"
                 >
                   {/* Date header */}
-                  <h2 className="text-base md:text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                    <svg className="w-4 h-4 md:w-5 md:h-5 mr-2 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <h2 className="text-base md:text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4 flex items-center">
+                    <svg className="w-4 h-4 md:w-5 md:h-5 mr-2 text-primary-600 dark:text-primary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                     </svg>
                     {formatDate(date)}

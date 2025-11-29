@@ -286,25 +286,25 @@ export default function Settings() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 py-6 sm:py-8 lg:py-12">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-6 sm:py-8 lg:py-12 transition-colors duration-200">
       <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="mb-6 sm:mb-8">
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Account Settings</h1>
-          <p className="mt-2 text-sm sm:text-base text-gray-600">
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">Account Settings</h1>
+          <p className="mt-2 text-sm sm:text-base text-gray-600 dark:text-gray-400">
             Manage your account information and preferences
           </p>
         </div>
 
         <div className="space-y-4">
           {/* Update Name */}
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 transition-colors duration-200">
             <button
               onClick={() => toggleSection('name')}
-              className="w-full px-4 sm:px-6 py-4 flex items-center justify-between hover:bg-gray-50 transition-colors"
+              className="w-full px-4 sm:px-6 py-4 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
             >
               <div className="text-left">
-                <h2 className="text-base sm:text-lg font-semibold text-gray-900">Update Name</h2>
-                <p className="text-xs sm:text-sm text-gray-600">Change your display name</p>
+                <h2 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white">Update Name</h2>
+                <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Change your display name</p>
               </div>
               <svg
                 className={`w-5 h-5 text-gray-400 transition-transform ${
@@ -319,10 +319,10 @@ export default function Settings() {
             </button>
 
             {expandedSection === 'name' && (
-              <form onSubmit={handleUpdateName} className="px-4 sm:px-6 pb-4 border-t border-gray-100">
+              <form onSubmit={handleUpdateName} className="px-4 sm:px-6 pb-4 border-t border-gray-100 dark:border-gray-700">
                 <div className="mt-4 space-y-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                       New Name
                     </label>
                     <input
@@ -334,7 +334,7 @@ export default function Settings() {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                       Current Password (required for security)
                     </label>
                     <input
@@ -347,12 +347,12 @@ export default function Settings() {
                   </div>
 
                   {errors.name && (
-                    <div className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded">
+                    <div className="text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/30 px-3 py-2 rounded">
                       {errors.name}
                     </div>
                   )}
                   {success.name && (
-                    <div className="text-sm text-green-600 bg-green-50 px-3 py-2 rounded">
+                    <div className="text-sm text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/30 px-3 py-2 rounded">
                       {success.name}
                     </div>
                   )}
@@ -370,14 +370,14 @@ export default function Settings() {
           </div>
 
           {/* Update Email */}
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 transition-colors duration-200">
             <button
               onClick={() => toggleSection('email')}
-              className="w-full px-4 sm:px-6 py-4 flex items-center justify-between hover:bg-gray-50 transition-colors"
+              className="w-full px-4 sm:px-6 py-4 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
             >
               <div className="text-left">
-                <h2 className="text-base sm:text-lg font-semibold text-gray-900">Update Email</h2>
-                <p className="text-xs sm:text-sm text-gray-600">Change your email address</p>
+                <h2 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white">Update Email</h2>
+                <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Change your email address</p>
               </div>
               <svg
                 className={`w-5 h-5 text-gray-400 transition-transform ${
@@ -392,10 +392,10 @@ export default function Settings() {
             </button>
 
             {expandedSection === 'email' && (
-              <form onSubmit={handleUpdateEmail} className="px-4 sm:px-6 pb-4 border-t border-gray-100">
+              <form onSubmit={handleUpdateEmail} className="px-4 sm:px-6 pb-4 border-t border-gray-100 dark:border-gray-700">
                 <div className="mt-4 space-y-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                       New Email
                     </label>
                     <input
@@ -407,7 +407,7 @@ export default function Settings() {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                       Current Password (required for security)
                     </label>
                     <input
@@ -420,12 +420,12 @@ export default function Settings() {
                   </div>
 
                   {errors.email && (
-                    <div className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded">
+                    <div className="text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/30 px-3 py-2 rounded">
                       {errors.email}
                     </div>
                   )}
                   {success.email && (
-                    <div className="text-sm text-green-600 bg-green-50 px-3 py-2 rounded">
+                    <div className="text-sm text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/30 px-3 py-2 rounded">
                       {success.email}
                     </div>
                   )}
@@ -443,14 +443,14 @@ export default function Settings() {
           </div>
 
           {/* Update Password */}
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 transition-colors duration-200">
             <button
               onClick={() => toggleSection('password')}
-              className="w-full px-4 sm:px-6 py-4 flex items-center justify-between hover:bg-gray-50 transition-colors"
+              className="w-full px-4 sm:px-6 py-4 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
             >
               <div className="text-left">
-                <h2 className="text-base sm:text-lg font-semibold text-gray-900">Change Password</h2>
-                <p className="text-xs sm:text-sm text-gray-600">Update your account password</p>
+                <h2 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white">Change Password</h2>
+                <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Update your account password</p>
               </div>
               <svg
                 className={`w-5 h-5 text-gray-400 transition-transform ${
@@ -465,10 +465,10 @@ export default function Settings() {
             </button>
 
             {expandedSection === 'password' && (
-              <form onSubmit={handleUpdatePassword} className="px-4 sm:px-6 pb-4 border-t border-gray-100">
+              <form onSubmit={handleUpdatePassword} className="px-4 sm:px-6 pb-4 border-t border-gray-100 dark:border-gray-700">
                 <div className="mt-4 space-y-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                       Current Password
                     </label>
                     <input
@@ -482,7 +482,7 @@ export default function Settings() {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                       New Password (8+ characters)
                     </label>
                     <input
@@ -497,7 +497,7 @@ export default function Settings() {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                       Confirm New Password
                     </label>
                     <input
@@ -513,12 +513,12 @@ export default function Settings() {
                   </div>
 
                   {errors.password && (
-                    <div className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded">
+                    <div className="text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/30 px-3 py-2 rounded">
                       {errors.password}
                     </div>
                   )}
                   {success.password && (
-                    <div className="text-sm text-green-600 bg-green-50 px-3 py-2 rounded">
+                    <div className="text-sm text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/30 px-3 py-2 rounded">
                       {success.password}
                     </div>
                   )}
@@ -536,14 +536,14 @@ export default function Settings() {
           </div>
 
           {/* Manage Sessions */}
-          <div className="bg-white rounded-lg shadow-sm border border-orange-300">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-orange-300 dark:border-orange-700 transition-colors duration-200">
             <button
               onClick={() => toggleSection('sessions')}
-              className="w-full px-4 sm:px-6 py-4 flex items-center justify-between hover:bg-orange-50 transition-colors"
+              className="w-full px-4 sm:px-6 py-4 flex items-center justify-between hover:bg-orange-50 dark:hover:bg-orange-900/20 transition-colors"
             >
               <div className="text-left">
-                <h2 className="text-base sm:text-lg font-semibold text-orange-600">Manage Sessions</h2>
-                <p className="text-xs sm:text-sm text-gray-600">
+                <h2 className="text-base sm:text-lg font-semibold text-orange-600 dark:text-orange-400">Manage Sessions</h2>
+                <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
                   View, rename, and delete your sessions ({sessions.length}/3)
                 </p>
               </div>
@@ -560,17 +560,17 @@ export default function Settings() {
             </button>
 
             {expandedSection === 'sessions' && (
-              <div className="px-4 sm:px-6 pb-4 border-t border-orange-100">
+              <div className="px-4 sm:px-6 pb-4 border-t border-orange-100 dark:border-orange-900/30">
                 <div className="mt-4 space-y-3">
                   {success.sessions && (
-                    <div className="text-sm text-green-600 bg-green-50 px-3 py-2 rounded">
+                    <div className="text-sm text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/30 px-3 py-2 rounded">
                       {success.sessions}
                     </div>
                   )}
 
                   {sessions.map((session) => (
-                    <div key={session.id} className="border border-gray-200 rounded-lg overflow-hidden">
-                      <div className="bg-gray-50 px-4 py-3 flex items-center justify-between">
+                    <div key={session.id} className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
+                      <div className="bg-gray-50 dark:bg-gray-700 px-4 py-3 flex items-center justify-between">
                         <div className="flex-1">
                           {editingSessionId === session.id ? (
                             <div className="space-y-1">
@@ -584,7 +584,7 @@ export default function Settings() {
                                     maxLength={15}
                                     placeholder="Session name"
                                   />
-                                  <div className="text-xs text-gray-500 mt-1">
+                                  <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                                     {editingSessionName.length}/15 characters
                                   </div>
                                 </div>
@@ -601,7 +601,7 @@ export default function Settings() {
                                     setEditingSessionName('');
                                     clearMessages(`rename-${session.id}`);
                                   }}
-                                  className="px-3 py-1.5 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 text-sm"
+                                  className="px-3 py-1.5 bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-200 rounded hover:bg-gray-300 dark:hover:bg-gray-500 text-sm"
                                 >
                                   Cancel
                                 </button>
@@ -610,25 +610,25 @@ export default function Settings() {
                           ) : (
                             <div className="flex items-center justify-between">
                               <div>
-                                <h3 className="font-semibold text-gray-900 flex items-center space-x-2 flex-wrap">
+                                <h3 className="font-semibold text-gray-900 dark:text-white flex items-center space-x-2 flex-wrap">
                                   <span>{session.name}</span>
                                   {session.id === activeSessionId && (
-                                    <span className="text-xs bg-primary-100 text-primary-700 px-2 py-0.5 rounded">
+                                    <span className="text-xs bg-primary-100 dark:bg-primary-900/50 text-primary-700 dark:text-primary-300 px-2 py-0.5 rounded">
                                       Active
                                     </span>
                                   )}
                                   {!session.is_owner && (
-                                    <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded">
+                                    <span className="text-xs bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 px-2 py-0.5 rounded">
                                       Shared
                                     </span>
                                   )}
                                   {session.is_owner && session.collaborators && session.collaborators.length > 0 && (
-                                    <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded">
+                                    <span className="text-xs bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-300 px-2 py-0.5 rounded">
                                       {session.collaborators.length} {session.collaborators.length === 1 ? 'Collaborator' : 'Collaborators'}
                                     </span>
                                   )}
                                 </h3>
-                                <p className="text-xs text-gray-500">
+                                <p className="text-xs text-gray-500 dark:text-gray-400">
                                   Created {new Date(session.created_at).toLocaleDateString()}
                                   {!session.is_owner && ' • You are a collaborator'}
                                 </p>
@@ -640,20 +640,20 @@ export default function Settings() {
                                       setEditingSessionId(session.id);
                                       setEditingSessionName(session.name);
                                     }}
-                                    className="text-sm text-primary-600 hover:text-primary-700"
+                                    className="text-sm text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300"
                                   >
                                     Rename
                                   </button>
                                 )}
                                 <button
                                   onClick={() => setCollaborationModalSession(session)}
-                                  className="text-sm text-blue-600 hover:text-blue-700"
+                                  className="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300"
                                 >
                                   Collaborate
                                 </button>
                                 <button
                                   onClick={() => toggleSessionDetails(session.id)}
-                                  className="text-sm text-gray-600 hover:text-gray-700"
+                                  className="text-sm text-gray-600 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"
                                 >
                                   {expandedSessionId === session.id ? 'Hide' : 'Details'}
                                 </button>
@@ -675,33 +675,33 @@ export default function Settings() {
                       </div>
 
                       {expandedSessionId === session.id && (
-                        <div className="px-4 py-3 bg-white border-t border-gray-200">
+                        <div className="px-4 py-3 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700">
                           {loadingStats[session.id] ? (
-                            <div className="text-xs text-gray-600">Loading statistics...</div>
+                            <div className="text-xs text-gray-600 dark:text-gray-400">Loading statistics...</div>
                           ) : sessionStatistics[session.id] ? (
                             <>
                               <div className="space-y-1.5 mb-3">
                                 <div className="flex items-center justify-between text-sm">
-                                  <span className="text-gray-700">Conversations</span>
-                                  <span className="font-semibold text-gray-900">
+                                  <span className="text-gray-700 dark:text-gray-300">Conversations</span>
+                                  <span className="font-semibold text-gray-900 dark:text-white">
                                     {sessionStatistics[session.id].conversations}
                                   </span>
                                 </div>
                                 <div className="flex items-center justify-between text-sm">
-                                  <span className="text-gray-700">Journal Entries</span>
-                                  <span className="font-semibold text-gray-900">
+                                  <span className="text-gray-700 dark:text-gray-300">Journal Entries</span>
+                                  <span className="font-semibold text-gray-900 dark:text-white">
                                     {sessionStatistics[session.id].journal_entries}
                                   </span>
                                 </div>
                                 <div className="flex items-center justify-between text-sm">
-                                  <span className="text-gray-700">Documents</span>
-                                  <span className="font-semibold text-gray-900">
+                                  <span className="text-gray-700 dark:text-gray-300">Documents</span>
+                                  <span className="font-semibold text-gray-900 dark:text-white">
                                     {sessionStatistics[session.id].documents}
                                   </span>
                                 </div>
                                 <div className="flex items-center justify-between text-sm">
-                                  <span className="text-gray-700">Audio Recordings</span>
-                                  <span className="font-semibold text-gray-900">
+                                  <span className="text-gray-700 dark:text-gray-300">Audio Recordings</span>
+                                  <span className="font-semibold text-gray-900 dark:text-white">
                                     {sessionStatistics[session.id].audio_recordings}
                                   </span>
                                 </div>
@@ -711,14 +711,14 @@ export default function Settings() {
                               {session.is_owner ? (
                                 <>
                                   {/* Warning Box */}
-                                  <div className="bg-orange-50 border border-orange-200 rounded px-2 py-2 mb-3">
-                                    <p className="text-xs text-orange-800">
+                                  <div className="bg-orange-50 dark:bg-orange-900/30 border border-orange-200 dark:border-orange-800 rounded px-2 py-2 mb-3">
+                                    <p className="text-xs text-orange-800 dark:text-orange-300">
                                       <strong>Warning:</strong> Deleting this session will permanently delete all data shown above. This action cannot be undone.
                                     </p>
                                   </div>
 
                                   {errors[`session-${session.id}`] && (
-                                    <div className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded mb-3">
+                                    <div className="text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/30 px-3 py-2 rounded mb-3">
                                       {errors[`session-${session.id}`]}
                                     </div>
                                   )}
@@ -726,14 +726,14 @@ export default function Settings() {
                                   <button
                                     onClick={() => handleDeleteSession(session.id)}
                                     disabled={loading[`session-${session.id}`]}
-                                    className="w-full px-4 py-2 bg-orange-600 text-white rounded hover:bg-orange-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-sm transition-colors"
+                                    className="w-full px-4 py-2 bg-orange-600 text-white rounded hover:bg-orange-700 disabled:bg-gray-300 dark:disabled:bg-gray-600 disabled:cursor-not-allowed text-sm transition-colors"
                                   >
                                     {loading[`session-${session.id}`] ? 'Deleting...' : 'Delete This Session'}
                                   </button>
                                 </>
                               ) : (
-                                <div className="bg-blue-50 border border-blue-200 rounded px-2 py-2 mb-3">
-                                  <p className="text-xs text-blue-800">
+                                <div className="bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 rounded px-2 py-2 mb-3">
+                                  <p className="text-xs text-blue-800 dark:text-blue-300">
                                     <strong>Note:</strong> You are a collaborator on this session. Use the "Collaborate" button to leave this session. Only the owner can delete it.
                                   </p>
                                 </div>
@@ -750,14 +750,14 @@ export default function Settings() {
           </div>
 
           {/* Delete Account */}
-          <div className="bg-white rounded-lg shadow-sm border border-red-300">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-red-300 dark:border-red-700 transition-colors duration-200">
             <button
               onClick={() => toggleSection('delete')}
-              className="w-full px-4 sm:px-6 py-4 flex items-center justify-between hover:bg-red-50 transition-colors"
+              className="w-full px-4 sm:px-6 py-4 flex items-center justify-between hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
             >
               <div className="text-left">
-                <h2 className="text-base sm:text-lg font-semibold text-red-600">Delete Account</h2>
-                <p className="text-xs sm:text-sm text-gray-600">
+                <h2 className="text-base sm:text-lg font-semibold text-red-600 dark:text-red-400">Delete Account</h2>
+                <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
                   Permanently delete your account and all data
                 </p>
               </div>
@@ -774,16 +774,16 @@ export default function Settings() {
             </button>
 
             {expandedSection === 'delete' && (
-              <form onSubmit={handleDeleteAccount} className="px-4 sm:px-6 pb-4 border-t border-red-100">
+              <form onSubmit={handleDeleteAccount} className="px-4 sm:px-6 pb-4 border-t border-red-100 dark:border-red-900/30">
                 <div className="mt-4 space-y-4">
-                  <div className="bg-red-50 border border-red-200 rounded-lg px-3 py-2">
-                    <p className="text-sm text-red-800">
+                  <div className="bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-lg px-3 py-2">
+                    <p className="text-sm text-red-800 dark:text-red-300">
                       <strong>Warning:</strong> This action is permanent and cannot be undone. Your account AND all associated data from all sessions (conversations, journal entries, documents, audio recordings, daily plans) will be permanently deleted. You will need to create a new account to use AretaCare again.
                     </p>
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                       Type <span className="font-mono font-bold">DELETE</span> to confirm
                     </label>
                     <input
@@ -797,7 +797,7 @@ export default function Settings() {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                       Your Password
                     </label>
                     <input
@@ -810,7 +810,7 @@ export default function Settings() {
                   </div>
 
                   {errors.delete && (
-                    <div className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded">
+                    <div className="text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/30 px-3 py-2 rounded">
                       {errors.delete}
                     </div>
                   )}
@@ -818,7 +818,7 @@ export default function Settings() {
                   <button
                     type="submit"
                     disabled={loading.delete}
-                    className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-sm sm:text-base transition-colors"
+                    className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 disabled:bg-gray-300 dark:disabled:bg-gray-600 disabled:cursor-not-allowed text-sm sm:text-base transition-colors"
                   >
                     {loading.delete ? 'Deleting...' : 'Delete My Account'}
                   </button>

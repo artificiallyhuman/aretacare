@@ -13,7 +13,7 @@ const MessageBubble = ({ message }) => {
         className={`max-w-[85%] sm:max-w-md md:max-w-2xl lg:max-w-3xl rounded-lg px-4 py-3 ${
           isUser
             ? 'bg-primary-600 text-white'
-            : 'bg-gray-100 text-gray-900'
+            : 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100'
         }`}
       >
         {/* Render based on message type */}
@@ -38,8 +38,8 @@ const MessageBubble = ({ message }) => {
                 // Code blocks
                 code: ({node, inline, ...props}) =>
                   inline
-                    ? <code className={`${isUser ? 'bg-primary-700' : 'bg-gray-200'} px-1.5 py-0.5 rounded text-sm`} {...props} />
-                    : <code className={`block ${isUser ? 'bg-primary-700' : 'bg-gray-200'} p-3 rounded my-2 text-sm overflow-x-auto`} {...props} />,
+                    ? <code className={`${isUser ? 'bg-primary-700' : 'bg-gray-200 dark:bg-gray-700'} px-1.5 py-0.5 rounded text-sm`} {...props} />
+                    : <code className={`block ${isUser ? 'bg-primary-700' : 'bg-gray-200 dark:bg-gray-700'} p-3 rounded my-2 text-sm overflow-x-auto`} {...props} />,
                 // Blockquotes
                 blockquote: ({node, ...props}) => (
                   <blockquote className={`border-l-4 ${isUser ? 'border-white' : 'border-primary-400'} pl-4 my-2 italic`} {...props} />

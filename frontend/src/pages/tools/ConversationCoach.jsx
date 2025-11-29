@@ -91,38 +91,38 @@ const ConversationCoach = () => {
 
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 lg:py-12">
-      <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-4 sm:mb-6">
+      <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white mb-4 sm:mb-6">
         Conversation Coach
       </h1>
 
       <div className="card mb-4 sm:mb-6">
-        <h2 className="text-lg sm:text-xl font-semibold text-gray-900 mb-4">
+        <h2 className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white mb-4">
           Prepare for Healthcare Conversations
         </h2>
 
         <div className="mb-4">
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
             Describe the Upcoming Conversation or Appointment
           </label>
 
           {/* Recording/Transcribing status */}
           {isRecording && (
-            <div className="mb-3 p-3 bg-red-100 rounded-lg border-2 border-red-300 shadow-sm space-y-2">
+            <div className="mb-3 p-3 bg-red-100 dark:bg-red-900/40 rounded-lg border-2 border-red-300 dark:border-red-700 shadow-sm space-y-2">
               <div className="flex items-center space-x-2">
                 <div className="w-3 h-3 bg-red-600 rounded-full animate-pulse"></div>
-                <span className="text-sm font-medium text-red-800">Recording... Click "Stop Recording" when finished</span>
+                <span className="text-sm font-medium text-red-800 dark:text-red-300">Recording... Click "Stop Recording" when finished</span>
               </div>
               {/* Live waveform visualization */}
               <AudioWaveform stream={audioStream} isRecording={isRecording} />
             </div>
           )}
           {isTranscribing && (
-            <div className="mb-3 flex items-center space-x-2 p-3 bg-blue-100 rounded-lg border-2 border-blue-300 shadow-sm">
-              <svg className="w-5 h-5 text-blue-700 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="mb-3 flex items-center space-x-2 p-3 bg-blue-100 dark:bg-blue-900/40 rounded-lg border-2 border-blue-300 dark:border-blue-700 shadow-sm">
+              <svg className="w-5 h-5 text-blue-700 dark:text-blue-400 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
               </svg>
-              <span className="text-sm font-medium text-blue-800">Transcribing your audio...</span>
+              <span className="text-sm font-medium text-blue-800 dark:text-blue-300">Transcribing your audio...</span>
             </div>
           )}
 
@@ -137,7 +137,7 @@ const ConversationCoach = () => {
         </div>
 
         {error && (
-          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-4">
+          <div className="bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300 px-4 py-3 rounded mb-4">
             {error}
           </div>
         )}
@@ -149,7 +149,7 @@ const ConversationCoach = () => {
               type="button"
               onClick={startRecording}
               disabled={loading || isTranscribing}
-              className={`p-3 rounded-lg transition border text-primary-600 hover:text-primary-700 hover:bg-primary-50 border-primary-200 ${(loading || isTranscribing) ? 'opacity-50 cursor-not-allowed' : ''}`}
+              className={`p-3 rounded-lg transition border text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 hover:bg-primary-50 dark:hover:bg-primary-900/30 border-primary-200 dark:border-primary-700 ${(loading || isTranscribing) ? 'opacity-50 cursor-not-allowed' : ''}`}
               title="Start recording"
             >
               {isTranscribing ? (
@@ -193,27 +193,27 @@ const ConversationCoach = () => {
 
       {coaching && (
         <div className="card">
-          <h2 className="text-lg sm:text-xl font-semibold text-gray-900 mb-4">
+          <h2 className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white mb-4">
             Conversation Coaching
           </h2>
-          <div className="prose prose-sm max-w-none prose-gray prose-headings:text-gray-900 prose-p:text-gray-800">
+          <div className="prose prose-sm max-w-none prose-gray dark:prose-invert prose-headings:text-gray-900 dark:prose-headings:text-white prose-p:text-gray-800 dark:prose-p:text-gray-200">
             <ReactMarkdown
               components={{
-                p: ({node, ...props}) => <p className="mb-2 leading-relaxed" {...props} />,
-                h1: ({node, ...props}) => <h1 className="text-xl font-bold mb-3 mt-4" {...props} />,
-                h2: ({node, ...props}) => <h2 className="text-lg font-semibold mb-2 mt-3" {...props} />,
-                h3: ({node, ...props}) => <h3 className="text-base font-semibold mb-2 mt-3" {...props} />,
-                ul: ({node, ...props}) => <ul className="mb-3 space-y-1 pl-5" {...props} />,
-                ol: ({node, ...props}) => <ol className="mb-3 space-y-1 pl-5" {...props} />,
+                p: ({node, ...props}) => <p className="mb-2 leading-relaxed text-gray-800 dark:text-gray-200" {...props} />,
+                h1: ({node, ...props}) => <h1 className="text-xl font-bold mb-3 mt-4 text-gray-900 dark:text-white" {...props} />,
+                h2: ({node, ...props}) => <h2 className="text-lg font-semibold mb-2 mt-3 text-gray-900 dark:text-white" {...props} />,
+                h3: ({node, ...props}) => <h3 className="text-base font-semibold mb-2 mt-3 text-gray-900 dark:text-white" {...props} />,
+                ul: ({node, ...props}) => <ul className="mb-3 space-y-1 pl-5 text-gray-800 dark:text-gray-200" {...props} />,
+                ol: ({node, ...props}) => <ol className="mb-3 space-y-1 pl-5 text-gray-800 dark:text-gray-200" {...props} />,
                 li: ({node, ...props}) => <li className="leading-relaxed" {...props} />,
                 code: ({node, inline, ...props}) =>
                   inline
-                    ? <code className="bg-gray-200 px-1.5 py-0.5 rounded text-sm" {...props} />
-                    : <code className="block bg-gray-200 p-3 rounded my-2 text-sm overflow-x-auto" {...props} />,
+                    ? <code className="bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 px-1.5 py-0.5 rounded text-sm" {...props} />
+                    : <code className="block bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 p-3 rounded my-2 text-sm overflow-x-auto" {...props} />,
                 blockquote: ({node, ...props}) => (
-                  <blockquote className="border-l-4 border-primary-400 pl-4 my-2 italic" {...props} />
+                  <blockquote className="border-l-4 border-primary-400 pl-4 my-2 italic text-gray-700 dark:text-gray-300" {...props} />
                 ),
-                strong: ({node, ...props}) => <strong className="font-bold" {...props} />,
+                strong: ({node, ...props}) => <strong className="font-bold text-gray-900 dark:text-white" {...props} />,
               }}
             >
               {coaching.content}

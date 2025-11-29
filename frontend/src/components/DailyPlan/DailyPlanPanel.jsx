@@ -81,18 +81,18 @@ const DailyPlanPanel = ({ activeSessionId, isOpen, onToggle }) => {
   };
 
   return (
-    <div className="h-full flex flex-col bg-gray-50">
+    <div className="h-full flex flex-col bg-gray-50 dark:bg-gray-900">
       {/* Header */}
-      <div className="p-3 md:p-4 border-b border-gray-200 bg-white flex justify-between items-center">
+      <div className="p-3 md:p-4 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 flex justify-between items-center">
         <div className="flex items-center space-x-2">
-          <svg className="w-4 h-4 md:w-5 md:h-5 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg className="w-4 h-4 md:w-5 md:h-5 text-primary-600 dark:text-primary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
           </svg>
-          <h3 className="text-base md:text-lg font-semibold text-gray-900">Daily Plan</h3>
+          <h3 className="text-base md:text-lg font-semibold text-gray-900 dark:text-gray-100">Daily Plan</h3>
         </div>
         <button
           onClick={onToggle}
-          className="p-1 text-gray-400 hover:text-gray-600 transition"
+          className="p-1 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-400 transition"
           title="Hide Daily Plan"
         >
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -108,20 +108,20 @@ const DailyPlanPanel = ({ activeSessionId, isOpen, onToggle }) => {
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
           </div>
         ) : error ? (
-          <div className="bg-red-50 border border-red-200 text-red-700 px-3 py-2 rounded text-sm">
+          <div className="bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300 px-3 py-2 rounded text-sm">
             {error}
           </div>
         ) : !dailyPlan || !hasTodaysPlan() ? (
           <div className="text-center py-6 md:py-8">
-            <svg className="w-10 h-10 md:w-12 md:h-12 text-gray-400 mx-auto mb-2 md:mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-10 h-10 md:w-12 md:h-12 text-gray-400 dark:text-gray-500 mx-auto mb-2 md:mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
             </svg>
-            <p className="text-xs md:text-sm text-gray-600 mb-3 md:mb-4">
+            <p className="text-xs md:text-sm text-gray-600 dark:text-gray-400 mb-3 md:mb-4">
               {dailyPlan ? "No plan for today yet" : "No daily plan yet"}
             </p>
             <button
               onClick={handleGeneratePlan}
-              className="text-xs md:text-sm text-primary-600 hover:text-primary-700 font-medium"
+              className="text-xs md:text-sm text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 font-medium"
             >
               Generate Today's Plan
             </button>
@@ -131,12 +131,12 @@ const DailyPlanPanel = ({ activeSessionId, isOpen, onToggle }) => {
             {/* Plan header */}
             <div className="mb-3 md:mb-4">
               <div className="flex justify-between items-center mb-2">
-                <span className="text-xs md:text-sm font-medium text-primary-700">
+                <span className="text-xs md:text-sm font-medium text-primary-700 dark:text-primary-400">
                   {formatDate(dailyPlan.date)}
                 </span>
                 <Link
                   to="/daily-plan"
-                  className="text-xs text-primary-600 hover:text-primary-700 font-medium"
+                  className="text-xs text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 font-medium"
                 >
                   View All →
                 </Link>
@@ -147,15 +147,15 @@ const DailyPlanPanel = ({ activeSessionId, isOpen, onToggle }) => {
             <div className="prose prose-sm max-w-none">
               <ReactMarkdown
                 components={{
-                  h1: ({node, ...props}) => <h1 className="text-lg font-bold text-gray-900 mt-4 mb-3" {...props} />,
-                  h2: ({node, ...props}) => <h2 className="text-base font-bold text-gray-900 mt-4 mb-2" {...props} />,
-                  h3: ({node, ...props}) => <h3 className="text-sm font-semibold text-gray-800 mt-3 mb-2" {...props} />,
-                  p: ({node, ...props}) => <p className="text-gray-700 mb-3 leading-relaxed text-sm" {...props} />,
-                  ul: ({node, ...props}) => <ul className="list-disc pl-5 space-y-1.5 mb-3 text-gray-700 text-sm" {...props} />,
-                  ol: ({node, ...props}) => <ol className="list-decimal pl-5 space-y-1.5 mb-3 text-gray-700 text-sm" {...props} />,
+                  h1: ({node, ...props}) => <h1 className="text-lg font-bold text-gray-900 dark:text-gray-100 mt-4 mb-3" {...props} />,
+                  h2: ({node, ...props}) => <h2 className="text-base font-bold text-gray-900 dark:text-gray-100 mt-4 mb-2" {...props} />,
+                  h3: ({node, ...props}) => <h3 className="text-sm font-semibold text-gray-800 dark:text-gray-200 mt-3 mb-2" {...props} />,
+                  p: ({node, ...props}) => <p className="text-gray-700 dark:text-gray-300 mb-3 leading-relaxed text-sm" {...props} />,
+                  ul: ({node, ...props}) => <ul className="list-disc pl-5 space-y-1.5 mb-3 text-gray-700 dark:text-gray-300 text-sm" {...props} />,
+                  ol: ({node, ...props}) => <ol className="list-decimal pl-5 space-y-1.5 mb-3 text-gray-700 dark:text-gray-300 text-sm" {...props} />,
                   li: ({node, ...props}) => <li className="leading-relaxed" {...props} />,
-                  strong: ({node, ...props}) => <strong className="font-bold text-gray-900" {...props} />,
-                  em: ({node, ...props}) => <em className="italic text-gray-800" {...props} />,
+                  strong: ({node, ...props}) => <strong className="font-bold text-gray-900 dark:text-gray-100" {...props} />,
+                  em: ({node, ...props}) => <em className="italic text-gray-800 dark:text-gray-200" {...props} />,
                 }}
               >
                 {dailyPlan.user_edited_content || dailyPlan.content}

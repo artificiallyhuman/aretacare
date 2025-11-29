@@ -1,6 +1,7 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { SessionProvider, useSessionContext } from './contexts/SessionContext';
+import { ThemeProvider } from './contexts/ThemeContext';
 import Header from './components/Header';
 import Footer from './components/Footer';
 import Conversation from './pages/Conversation';
@@ -75,7 +76,7 @@ function AppContent() {
   const showFooter = location.pathname !== '/';
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-200">
       {user && <Header onLogout={handleLogout} user={user} />}
       <Routes>
           {/* Public Routes */}
@@ -195,11 +196,13 @@ function AppContent() {
 
 function App() {
   return (
-    <Router>
-      <SessionProvider>
-        <AppContent />
-      </SessionProvider>
-    </Router>
+    <ThemeProvider>
+      <Router>
+        <SessionProvider>
+          <AppContent />
+        </SessionProvider>
+      </Router>
+    </ThemeProvider>
   );
 }
 

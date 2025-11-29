@@ -165,7 +165,7 @@ const DailyPlan = () => {
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading daily plans...</p>
+          <p className="mt-4 text-gray-600 dark:text-gray-400">Loading daily plans...</p>
         </div>
       </div>
     );
@@ -174,7 +174,7 @@ const DailyPlan = () => {
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 lg:py-12">
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Daily Plans</h1>
+        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">Daily Plans</h1>
         <button
           onClick={handleGenerateNew}
           disabled={generating || hasTodaysPlan()}
@@ -208,19 +208,19 @@ const DailyPlan = () => {
       </div>
 
       {error && (
-        <div className="mb-6 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
+        <div className="mb-6 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300 px-4 py-3 rounded">
           {error}
         </div>
       )}
 
       {plans.length === 0 ? (
         <div className="text-center py-12">
-          <div className="bg-gradient-to-r from-primary-50 to-blue-50 rounded-lg border-2 border-primary-200 px-6 py-8 max-w-2xl mx-auto">
-            <svg className="w-16 h-16 text-primary-600 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div className="bg-gradient-to-r from-primary-50 to-blue-50 dark:from-gray-800 dark:to-gray-900 rounded-lg border-2 border-primary-200 dark:border-gray-700 px-6 py-8 max-w-2xl mx-auto">
+            <svg className="w-16 h-16 text-primary-600 dark:text-primary-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
             </svg>
-            <h3 className="text-xl font-bold text-gray-900 mb-2">No Daily Plans Yet</h3>
-            <p className="text-gray-700 mb-4">
+            <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">No Daily Plans Yet</h3>
+            <p className="text-gray-700 dark:text-gray-300 mb-4">
               Daily plans help you stay organized by summarizing priorities, reminders, and questions for your care team.
             </p>
             <button
@@ -238,10 +238,10 @@ const DailyPlan = () => {
           <div className="lg:hidden mb-4">
             <button
               onClick={() => setShowSidebar(!showSidebar)}
-              className="w-full flex items-center justify-between px-4 py-3 bg-white border border-gray-200 rounded-lg shadow-sm"
+              className="w-full flex items-center justify-between px-4 py-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm"
             >
-              <span className="text-sm font-medium text-gray-900">Jump to Date</span>
-              <svg className={`w-5 h-5 text-gray-500 transition-transform ${showSidebar ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <span className="text-sm font-medium text-gray-900 dark:text-white">Jump to Date</span>
+              <svg className={`w-5 h-5 text-gray-500 dark:text-gray-400 transition-transform ${showSidebar ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
               </svg>
             </button>
@@ -249,11 +249,11 @@ const DailyPlan = () => {
 
           {/* Sidebar: List of plans */}
           <div className={`lg:col-span-1 ${showSidebar ? 'block mb-4' : 'hidden lg:block'}`}>
-            <div className="bg-white rounded-lg border border-gray-200 shadow-sm lg:sticky lg:top-4">
-              <div className="p-3 md:p-4 border-b border-gray-200">
-                <h2 className="text-base md:text-lg font-semibold text-gray-900">All Plans</h2>
+            <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm lg:sticky lg:top-4">
+              <div className="p-3 md:p-4 border-b border-gray-200 dark:border-gray-700">
+                <h2 className="text-base md:text-lg font-semibold text-gray-900 dark:text-white">All Plans</h2>
               </div>
-              <div className="divide-y divide-gray-200 max-h-64 lg:max-h-[calc(100vh-12rem)] overflow-y-auto">
+              <div className="divide-y divide-gray-200 dark:divide-gray-700 max-h-64 lg:max-h-[calc(100vh-12rem)] overflow-y-auto">
                 {plans.map((plan) => (
                   <button
                     key={plan.id}
@@ -265,13 +265,13 @@ const DailyPlan = () => {
                       }
                       setIsEditing(false);
                     }}
-                    className={`w-full text-left p-3 md:p-4 transition hover:bg-gray-50 ${
-                      selectedPlan?.id === plan.id ? 'bg-primary-50 border-l-4 border-primary-600' : ''
+                    className={`w-full text-left p-3 md:p-4 transition hover:bg-gray-50 dark:hover:bg-gray-700 ${
+                      selectedPlan?.id === plan.id ? 'bg-primary-50 dark:bg-primary-900/30 border-l-4 border-primary-600' : ''
                     }`}
                   >
                     <div className="flex items-center justify-between mb-1">
                       <span className={`text-xs md:text-sm font-medium ${
-                        isToday(plan.date) ? 'text-primary-700' : 'text-gray-700'
+                        isToday(plan.date) ? 'text-primary-700 dark:text-primary-400' : 'text-gray-700 dark:text-gray-300'
                       }`}>
                         {isToday(plan.date) ? 'Today' : (() => {
                           const [year, month, day] = plan.date.split('-').map(Number);
@@ -282,7 +282,7 @@ const DailyPlan = () => {
                         <span className="w-2 h-2 bg-primary-600 rounded-full"></span>
                       )}
                     </div>
-                    <div className="text-xs text-gray-500">
+                    <div className="text-xs text-gray-500 dark:text-gray-400">
                       {(() => {
                         const [year, month, day] = plan.date.split('-').map(Number);
                         return new Date(year, month - 1, day).toLocaleDateString('en-US', { weekday: 'long' });
@@ -297,27 +297,27 @@ const DailyPlan = () => {
           {/* Main content: Selected plan */}
           <div className="lg:col-span-3">
             {selectedPlan && (
-              <div className="bg-white rounded-lg border border-gray-200 shadow-sm">
-                <div className="p-6 border-b border-gray-200">
+              <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm">
+                <div className="p-6 border-b border-gray-200 dark:border-gray-700">
                   <div className="flex justify-between items-start">
                     <div>
-                      <h2 className="text-2xl font-bold text-gray-900 mb-1">
+                      <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-1">
                         {isToday(selectedPlan.date) ? "Today's Plan" : 'Daily Plan'}
                       </h2>
-                      <p className="text-sm text-gray-600">{formatDate(selectedPlan.date)}</p>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">{formatDate(selectedPlan.date)}</p>
                     </div>
                     {!isEditing ? (
                       <div className="flex space-x-2">
                         <button
                           onClick={handleDeleteAndRegenerate}
                           disabled={generating}
-                          className="px-4 py-2 text-sm font-medium text-red-700 hover:text-red-800 hover:bg-red-50 rounded-md transition disabled:opacity-50 disabled:cursor-not-allowed"
+                          className="px-4 py-2 text-sm font-medium text-red-700 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-md transition disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                           {generating ? 'Regenerating...' : 'Delete & Regenerate'}
                         </button>
                         <button
                           onClick={handleEditClick}
-                          className="px-4 py-2 text-sm font-medium text-primary-700 hover:text-primary-800 hover:bg-primary-50 rounded-md transition"
+                          className="px-4 py-2 text-sm font-medium text-primary-700 dark:text-primary-400 hover:text-primary-800 dark:hover:text-primary-300 hover:bg-primary-50 dark:hover:bg-primary-900/30 rounded-md transition"
                         >
                           Edit
                         </button>
@@ -326,7 +326,7 @@ const DailyPlan = () => {
                       <div className="flex space-x-2">
                         <button
                           onClick={handleCancelEdit}
-                          className="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-md transition"
+                          className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md transition"
                         >
                           Cancel
                         </button>
@@ -351,18 +351,18 @@ const DailyPlan = () => {
                       placeholder="Edit your daily plan..."
                     />
                   ) : (
-                    <div className="prose prose-lg max-w-none">
+                    <div className="prose prose-lg dark:prose-invert max-w-none">
                       <ReactMarkdown
                         components={{
-                          h1: ({node, ...props}) => <h1 className="text-2xl font-bold text-gray-900 mt-6 mb-4" {...props} />,
-                          h2: ({node, ...props}) => <h2 className="text-xl font-bold text-gray-900 mt-6 mb-3" {...props} />,
-                          h3: ({node, ...props}) => <h3 className="text-lg font-semibold text-gray-800 mt-4 mb-2" {...props} />,
-                          p: ({node, ...props}) => <p className="text-gray-700 mb-4 leading-relaxed" {...props} />,
-                          ul: ({node, ...props}) => <ul className="list-disc pl-6 space-y-2 mb-4 text-gray-700" {...props} />,
-                          ol: ({node, ...props}) => <ol className="list-decimal pl-6 space-y-2 mb-4 text-gray-700" {...props} />,
+                          h1: ({node, ...props}) => <h1 className="text-2xl font-bold text-gray-900 dark:text-white mt-6 mb-4" {...props} />,
+                          h2: ({node, ...props}) => <h2 className="text-xl font-bold text-gray-900 dark:text-white mt-6 mb-3" {...props} />,
+                          h3: ({node, ...props}) => <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mt-4 mb-2" {...props} />,
+                          p: ({node, ...props}) => <p className="text-gray-700 dark:text-gray-300 mb-4 leading-relaxed" {...props} />,
+                          ul: ({node, ...props}) => <ul className="list-disc pl-6 space-y-2 mb-4 text-gray-700 dark:text-gray-300" {...props} />,
+                          ol: ({node, ...props}) => <ol className="list-decimal pl-6 space-y-2 mb-4 text-gray-700 dark:text-gray-300" {...props} />,
                           li: ({node, ...props}) => <li className="leading-relaxed" {...props} />,
-                          strong: ({node, ...props}) => <strong className="font-bold text-gray-900" {...props} />,
-                          em: ({node, ...props}) => <em className="italic text-gray-800" {...props} />,
+                          strong: ({node, ...props}) => <strong className="font-bold text-gray-900 dark:text-white" {...props} />,
+                          em: ({node, ...props}) => <em className="italic text-gray-800 dark:text-gray-200" {...props} />,
                         }}
                       >
                         {selectedPlan.user_edited_content || selectedPlan.content}
@@ -371,7 +371,7 @@ const DailyPlan = () => {
                   )}
                 </div>
 
-                <div className="px-6 py-4 bg-gray-50 border-t border-gray-200 text-xs text-gray-500">
+                <div className="px-6 py-4 bg-gray-50 dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700 text-xs text-gray-500 dark:text-gray-400">
                   {selectedPlan.user_edited_content ? (
                     <p>Last edited: {new Date(selectedPlan.updated_at.endsWith('Z') ? selectedPlan.updated_at : selectedPlan.updated_at + 'Z').toLocaleString()}</p>
                   ) : (

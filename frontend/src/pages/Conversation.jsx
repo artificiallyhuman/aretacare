@@ -196,7 +196,7 @@ const Conversation = () => {
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading...</p>
+          <p className="mt-4 text-gray-600 dark:text-gray-400">Loading...</p>
         </div>
       </div>
     );
@@ -210,7 +210,7 @@ const Conversation = () => {
         <div
           className={`${
             dailyPlanPanelOpen ? 'w-80' : 'w-0'
-          } hidden md:block transition-all duration-300 overflow-hidden border-r border-gray-200 bg-gray-50`}
+          } hidden md:block transition-all duration-300 overflow-hidden border-r border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800`}
         >
           <DailyPlanPanel
             activeSessionId={activeSessionId}
@@ -222,7 +222,7 @@ const Conversation = () => {
         {/* Mobile Daily Plan Modal */}
         {dailyPlanPanelOpen && (
           <div className="md:hidden fixed inset-0 bg-black bg-opacity-50 z-50">
-            <div className="absolute inset-y-0 right-0 w-full sm:w-96 bg-gray-50 shadow-xl">
+            <div className="absolute inset-y-0 right-0 w-full sm:w-96 bg-gray-50 dark:bg-gray-800 shadow-xl">
               <DailyPlanPanel
                 activeSessionId={activeSessionId}
                 isOpen={dailyPlanPanelOpen}
@@ -266,10 +266,10 @@ const Conversation = () => {
           )}
 
           {/* Toggle daily plan button and scroll to top (mobile-friendly) */}
-          <div className="border-b border-gray-200 bg-white px-2 py-1.5 md:p-2 flex items-center justify-between relative">
+          <div className="border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-2 py-1.5 md:p-2 flex items-center justify-between relative">
             <button
               onClick={() => setDailyPlanPanelOpen(!dailyPlanPanelOpen)}
-              className="text-xs md:text-sm text-gray-600 hover:text-primary-600 flex items-center space-x-1"
+              className="text-xs md:text-sm text-gray-600 dark:text-gray-400 hover:text-primary-600 dark:hover:text-primary-400 flex items-center space-x-1"
             >
               <svg className="w-4 h-4 md:w-5 md:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
@@ -300,48 +300,48 @@ const Conversation = () => {
             {messages.length === 0 ? (
               <div className="flex items-center justify-center h-full">
                 <div className="max-w-2xl mx-auto px-3 md:px-4">
-                  <div className="bg-gradient-to-r from-primary-50 to-blue-50 rounded-lg border-2 border-primary-200 px-3 py-3 md:px-6 md:py-4">
+                  <div className="bg-gradient-to-r from-primary-50 to-blue-50 dark:from-gray-800 dark:to-gray-800 rounded-lg border-2 border-primary-200 dark:border-gray-700 px-3 py-3 md:px-6 md:py-4">
                     <div className="flex items-start mb-2 md:mb-3">
                       <div className="flex-shrink-0">
-                        <svg className="w-5 h-5 md:w-6 md:h-6 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg className="w-5 h-5 md:w-6 md:h-6 text-primary-600 dark:text-primary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 9l3 3m0 0l-3 3m3-3H8m13 0a9 9 0 11-18 0 9 9 0 0118 0z" />
                         </svg>
                       </div>
                       <div className="ml-2 md:ml-3">
-                        <h3 className="text-base md:text-lg font-bold text-gray-900 mb-1 md:mb-2">Type or speak your message below</h3>
-                        <p className="text-xs md:text-sm text-gray-700 mb-2 md:mb-3">
+                        <h3 className="text-base md:text-lg font-bold text-gray-900 dark:text-gray-100 mb-1 md:mb-2">Type or speak your message below</h3>
+                        <p className="text-xs md:text-sm text-gray-700 dark:text-gray-300 mb-2 md:mb-3">
                           You can type in the text box, click the microphone{' '}
-                          <svg className="w-3 h-3 md:w-4 md:h-4 inline text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <svg className="w-3 h-3 md:w-4 md:h-4 inline text-gray-600 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
                           </svg>
                           {' '}to record audio, or the paperclip{' '}
-                          <svg className="w-3 h-3 md:w-4 md:h-4 inline text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <svg className="w-3 h-3 md:w-4 md:h-4 inline text-gray-600 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
                           </svg>
                           {' '}to upload documents and images.
                           <br className="hidden md:block"/><br className="hidden md:block"/>Share information like:
                         </p>
-                        <ul className="space-y-1 md:space-y-2 text-xs md:text-sm text-gray-700">
+                        <ul className="space-y-1 md:space-y-2 text-xs md:text-sm text-gray-700 dark:text-gray-300">
                           <li className="flex items-start">
-                            <svg className="w-4 h-4 md:w-5 md:h-5 text-primary-600 mr-1.5 md:mr-2 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                            <svg className="w-4 h-4 md:w-5 md:h-5 text-primary-600 dark:text-primary-400 mr-1.5 md:mr-2 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
                               <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                             </svg>
                             <span>Health conditions or diagnoses</span>
                           </li>
                           <li className="flex items-start">
-                            <svg className="w-4 h-4 md:w-5 md:h-5 text-primary-600 mr-1.5 md:mr-2 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                            <svg className="w-4 h-4 md:w-5 md:h-5 text-primary-600 dark:text-primary-400 mr-1.5 md:mr-2 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
                               <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                             </svg>
                             <span>Current medications</span>
                           </li>
                           <li className="flex items-start">
-                            <svg className="w-4 h-4 md:w-5 md:h-5 text-primary-600 mr-1.5 md:mr-2 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                            <svg className="w-4 h-4 md:w-5 md:h-5 text-primary-600 dark:text-primary-400 mr-1.5 md:mr-2 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
                               <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                             </svg>
                             <span>Recent appointments or test results</span>
                           </li>
                           <li className="flex items-start">
-                            <svg className="w-4 h-4 md:w-5 md:h-5 text-primary-600 mr-1.5 md:mr-2 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                            <svg className="w-4 h-4 md:w-5 md:h-5 text-primary-600 dark:text-primary-400 mr-1.5 md:mr-2 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
                               <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                             </svg>
                             <span>Questions or concerns</span>
@@ -350,7 +350,7 @@ const Conversation = () => {
                       </div>
                     </div>
                     <div className="flex items-center justify-center pt-1 md:pt-2">
-                      <svg className="w-5 h-5 md:w-6 md:h-6 text-primary-600 animate-bounce" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg className="w-5 h-5 md:w-6 md:h-6 text-primary-600 dark:text-primary-400 animate-bounce" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
                       </svg>
                     </div>
@@ -382,7 +382,7 @@ const Conversation = () => {
 
           {/* Error message */}
           {error && (
-            <div className="px-4 py-2 bg-red-50 border-t border-red-200 text-red-700 text-sm">
+            <div className="px-4 py-2 bg-red-50 dark:bg-red-900/30 border-t border-red-200 dark:border-red-800 text-red-700 dark:text-red-300 text-sm">
               {error}
             </div>
           )}

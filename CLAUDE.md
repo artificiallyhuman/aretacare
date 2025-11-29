@@ -22,6 +22,7 @@ AretaCare is an AI-powered medical care advocate assistant that helps families u
 - AI-powered Audio Recordings (12 categories, AI summaries, searchable, date navigation)
 - Complete data deletion - removes PostgreSQL data and S3 files (zero orphaned files)
 - Mobile-optimized design with responsive layouts
+- Dark mode support via Tailwind CSS and ThemeContext
 - Specialized tools: Jargon Translator, Conversation Coach
 
 ## Development Commands
@@ -281,7 +282,18 @@ Edit `backend/app/config/ai_config.py`:
 ### Adding a Frontend Page
 1. Create in `frontend/src/pages/`
 2. Use Tailwind breakpoints (sm:, md:, lg:) for responsiveness
-3. Add route in `App.jsx`, nav link in `Header.jsx`
+3. Add dark mode classes (see Dark Mode Styling below)
+4. Add route in `App.jsx`, nav link in `Header.jsx`
+
+### Dark Mode Styling
+Use Tailwind `dark:` prefix for all UI elements:
+- Backgrounds: `bg-white dark:bg-gray-800`, `bg-gray-50 dark:bg-gray-700`
+- Text: `text-gray-900 dark:text-white`, `text-gray-600 dark:text-gray-400`
+- Borders: `border-gray-200 dark:border-gray-700`
+- Colored badges: `bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-300`
+- Hover states: `hover:bg-gray-50 dark:hover:bg-gray-700`
+
+Theme managed via `ThemeContext.jsx`, persisted to localStorage.
 
 ### Database Schema Changes
 1. Add column to model in `backend/app/models/`

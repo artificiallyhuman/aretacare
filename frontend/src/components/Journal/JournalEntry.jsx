@@ -26,7 +26,7 @@ const JournalEntry = ({ entry, colors, onEdit, onDelete }) => {
   const isAI = entry.created_by === 'ai';
 
   return (
-    <div className="bg-white rounded-lg border border-gray-200 p-3 hover:shadow-sm transition">
+    <div className="bg-white dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600 p-3 hover:shadow-sm transition">
       {/* Header */}
       <div className="flex items-start justify-between mb-2">
         <div className="flex-1">
@@ -37,19 +37,19 @@ const JournalEntry = ({ entry, colors, onEdit, onDelete }) => {
             </span>
             {/* AI badge if created by AI */}
             {isAI && (
-              <span className="text-xs px-2 py-0.5 rounded bg-purple-100 text-purple-700">
+              <span className="text-xs px-2 py-0.5 rounded bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300">
                 AI
               </span>
             )}
           </div>
-          <h4 className="text-sm font-medium text-gray-900">{entry.title}</h4>
+          <h4 className="text-sm font-medium text-gray-900 dark:text-gray-100">{entry.title}</h4>
         </div>
 
         {/* Actions */}
         <div className="flex items-center space-x-1 ml-2">
           <button
             onClick={onEdit}
-            className="text-gray-400 hover:text-gray-600 p-1"
+            className="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-400 p-1"
             title="Edit entry"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -59,7 +59,7 @@ const JournalEntry = ({ entry, colors, onEdit, onDelete }) => {
           <button
             onClick={handleDelete}
             disabled={deleting}
-            className="text-gray-400 hover:text-red-600 p-1 disabled:opacity-50"
+            className="text-gray-400 dark:text-gray-500 hover:text-red-600 dark:hover:text-red-400 p-1 disabled:opacity-50"
             title="Delete entry"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -70,7 +70,7 @@ const JournalEntry = ({ entry, colors, onEdit, onDelete }) => {
       </div>
 
       {/* Content preview/full */}
-      <p className={`text-sm text-gray-700 ${!expanded && entry.content.length > 100 ? 'line-clamp-2' : ''}`}>
+      <p className={`text-sm text-gray-700 dark:text-gray-300 ${!expanded && entry.content.length > 100 ? 'line-clamp-2' : ''}`}>
         {entry.content}
       </p>
 
@@ -78,14 +78,14 @@ const JournalEntry = ({ entry, colors, onEdit, onDelete }) => {
       {entry.content.length > 100 && (
         <button
           onClick={() => setExpanded(!expanded)}
-          className="text-xs text-primary-600 hover:text-primary-700 mt-1"
+          className="text-xs text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 mt-1"
         >
           {expanded ? 'Show less' : 'Show more'}
         </button>
       )}
 
       {/* Metadata */}
-      <div className="mt-2 text-xs text-gray-500">
+      <div className="mt-2 text-xs text-gray-500 dark:text-gray-400">
         {new Date(entry.created_at + 'Z').toLocaleTimeString([], {
           hour: '2-digit',
           minute: '2-digit'

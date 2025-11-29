@@ -264,7 +264,7 @@ const Documents = () => {
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading...</p>
+          <p className="mt-4 text-gray-600 dark:text-gray-400">Loading...</p>
         </div>
       </div>
     );
@@ -275,7 +275,7 @@ const Documents = () => {
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading documents...</p>
+          <p className="mt-4 text-gray-600 dark:text-gray-400">Loading documents...</p>
         </div>
       </div>
     );
@@ -284,7 +284,7 @@ const Documents = () => {
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 lg:py-12">
       <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-4 sm:mb-6">
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white mb-4 sm:mb-6">
             Documents Manager
           </h1>
 
@@ -309,7 +309,7 @@ const Documents = () => {
                     searchInputRef.current?.focus();
                   }}
                   onMouseDown={(e) => e.preventDefault()}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 p-1"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300 p-1"
                   aria-label="Clear search"
                   type="button"
                 >
@@ -322,7 +322,7 @@ const Documents = () => {
 
             {/* Filter by category */}
             <div className="flex items-center gap-3">
-              <label htmlFor="category-filter" className="text-xs sm:text-sm text-gray-600 whitespace-nowrap">
+              <label htmlFor="category-filter" className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 whitespace-nowrap">
                 Category:
               </label>
               <select
@@ -341,18 +341,18 @@ const Documents = () => {
           </div>
 
           {error && (
-            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-4">
+            <div className="bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300 px-4 py-3 rounded mb-4">
               {error}
             </div>
           )}
 
           {documents.length === 0 ? (
-            <div className="text-center py-12 bg-white rounded-lg border border-gray-200">
-              <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="text-center py-12 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+              <svg className="mx-auto h-12 w-12 text-gray-400 dark:text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
               </svg>
-              <h3 className="mt-2 text-sm font-medium text-gray-900">No documents found</h3>
-              <p className="mt-1 text-sm text-gray-500">
+              <h3 className="mt-2 text-sm font-medium text-gray-900 dark:text-white">No documents found</h3>
+              <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
                 {searchQuery || selectedCategory !== 'all'
                   ? 'Try adjusting your filters or search term'
                   : 'Upload documents in conversations by clicking the attachment icon'
@@ -365,10 +365,10 @@ const Documents = () => {
               <div className="lg:hidden mb-4">
                 <button
                   onClick={() => setShowSidebar(!showSidebar)}
-                  className="w-full flex items-center justify-between px-4 py-3 bg-white border border-gray-200 rounded-lg shadow-sm"
+                  className="w-full flex items-center justify-between px-4 py-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm"
                 >
-                  <span className="text-sm font-medium text-gray-900">Jump to Date</span>
-                  <svg className={`w-5 h-5 text-gray-500 transition-transform ${showSidebar ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <span className="text-sm font-medium text-gray-900 dark:text-white">Jump to Date</span>
+                  <svg className={`w-5 h-5 text-gray-500 dark:text-gray-400 transition-transform ${showSidebar ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                   </svg>
                 </button>
@@ -376,11 +376,11 @@ const Documents = () => {
 
               {/* Sidebar: Date navigation */}
               <div className={`lg:col-span-1 ${showSidebar ? 'block mb-4' : 'hidden lg:block'}`}>
-                <div className="bg-white rounded-lg border border-gray-200 shadow-sm lg:sticky lg:top-4">
-                  <div className="p-3 md:p-4 border-b border-gray-200">
-                    <h2 className="text-base md:text-lg font-semibold text-gray-900">Dates</h2>
+                <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm lg:sticky lg:top-4">
+                  <div className="p-3 md:p-4 border-b border-gray-200 dark:border-gray-700">
+                    <h2 className="text-base md:text-lg font-semibold text-gray-900 dark:text-white">Dates</h2>
                   </div>
-                  <div className="divide-y divide-gray-200 max-h-64 lg:max-h-[calc(100vh-12rem)] overflow-y-auto">
+                  <div className="divide-y divide-gray-200 dark:divide-gray-700 max-h-64 lg:max-h-[calc(100vh-12rem)] overflow-y-auto">
                     {dates.map((date) => (
                       <button
                         key={date}
@@ -388,21 +388,21 @@ const Documents = () => {
                           handleDateClick(date);
                           setShowSidebar(false); // Close sidebar on mobile after selection
                         }}
-                        className={`w-full text-left p-3 md:p-4 transition hover:bg-gray-50 ${
-                          selectedDate === date ? 'bg-primary-50 border-l-4 border-primary-600' : ''
+                        className={`w-full text-left p-3 md:p-4 transition hover:bg-gray-50 dark:hover:bg-gray-700 ${
+                          selectedDate === date ? 'bg-primary-50 dark:bg-primary-900/30 border-l-4 border-primary-600' : ''
                         }`}
                       >
                         <div className="flex items-center justify-between mb-1">
                           <span className={`text-xs md:text-sm font-medium ${
-                            isToday(date) ? 'text-primary-700' : 'text-gray-700'
+                            isToday(date) ? 'text-primary-700 dark:text-primary-400' : 'text-gray-700 dark:text-gray-300'
                           }`}>
                             {isToday(date) ? 'Today' : formatDateShort(date)}
                           </span>
-                          <span className="text-xs text-gray-500">
+                          <span className="text-xs text-gray-500 dark:text-gray-400">
                             {groupedDocuments[date].length}
                           </span>
                         </div>
-                        <div className="text-xs text-gray-500">
+                        <div className="text-xs text-gray-500 dark:text-gray-400">
                           {new Date(date).toLocaleDateString('en-US', { weekday: 'long' })}
                         </div>
                       </button>
@@ -417,15 +417,15 @@ const Documents = () => {
                   <div
                     key={date}
                     ref={(el) => (dateRefs.current[date] = el)}
-                    className="bg-white rounded-lg border border-gray-200 p-4 md:p-6 scroll-mt-4"
+                    className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 md:p-6 scroll-mt-4"
                   >
                     {/* Date Header */}
-                    <h2 className="text-base md:text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                      <svg className="w-4 h-4 md:w-5 md:h-5 mr-2 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <h2 className="text-base md:text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
+                      <svg className="w-4 h-4 md:w-5 md:h-5 mr-2 text-primary-600 dark:text-primary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                       </svg>
                       {date}
-                      <span className="ml-2 text-xs text-gray-500 font-normal">
+                      <span className="ml-2 text-xs text-gray-500 dark:text-gray-400 font-normal">
                         ({groupedDocuments[date].length} document{groupedDocuments[date].length !== 1 ? 's' : ''})
                       </span>
                     </h2>
@@ -436,18 +436,18 @@ const Documents = () => {
                       const categoryColor = getCategoryColor(doc.category);
                       const categoryLabel = getCategoryLabel(doc.category);
                       const badgeClasses = {
-                        gray: 'bg-gray-100 text-gray-800',
-                        blue: 'bg-blue-100 text-blue-800',
-                        purple: 'bg-purple-100 text-purple-800',
-                        green: 'bg-green-100 text-green-800',
-                        orange: 'bg-orange-100 text-orange-800',
-                        red: 'bg-red-100 text-red-800',
-                        indigo: 'bg-indigo-100 text-indigo-800',
-                        cyan: 'bg-cyan-100 text-cyan-800',
-                        pink: 'bg-pink-100 text-pink-800',
-                        yellow: 'bg-yellow-100 text-yellow-800',
-                        teal: 'bg-teal-100 text-teal-800',
-                        lime: 'bg-lime-100 text-lime-800',
+                        gray: 'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200',
+                        blue: 'bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-300',
+                        purple: 'bg-purple-100 dark:bg-purple-900/50 text-purple-800 dark:text-purple-300',
+                        green: 'bg-green-100 dark:bg-green-900/50 text-green-800 dark:text-green-300',
+                        orange: 'bg-orange-100 dark:bg-orange-900/50 text-orange-800 dark:text-orange-300',
+                        red: 'bg-red-100 dark:bg-red-900/50 text-red-800 dark:text-red-300',
+                        indigo: 'bg-indigo-100 dark:bg-indigo-900/50 text-indigo-800 dark:text-indigo-300',
+                        cyan: 'bg-cyan-100 dark:bg-cyan-900/50 text-cyan-800 dark:text-cyan-300',
+                        pink: 'bg-pink-100 dark:bg-pink-900/50 text-pink-800 dark:text-pink-300',
+                        yellow: 'bg-yellow-100 dark:bg-yellow-900/50 text-yellow-800 dark:text-yellow-300',
+                        teal: 'bg-teal-100 dark:bg-teal-900/50 text-teal-800 dark:text-teal-300',
+                        lime: 'bg-lime-100 dark:bg-lime-900/50 text-lime-800 dark:text-lime-300',
                       };
 
                       return (
@@ -462,7 +462,7 @@ const Documents = () => {
                           {/* File Preview/Icon */}
                           <div className="flex items-center justify-center py-4">
                             {doc.content_type?.includes('image') && imageUrls[doc.id] ? (
-                              <div className="w-full h-48 flex items-center justify-center bg-gray-100 rounded-lg overflow-hidden">
+                              <div className="w-full h-48 flex items-center justify-center bg-gray-100 dark:bg-gray-700 rounded-lg overflow-hidden">
                                 <img
                                   src={imageUrls[doc.id]}
                                   alt={doc.filename}
@@ -470,7 +470,7 @@ const Documents = () => {
                                 />
                               </div>
                             ) : doc.content_type === 'application/pdf' && thumbnailUrls[doc.id] ? (
-                              <div className="w-full h-48 flex items-center justify-center bg-gray-100 rounded-lg overflow-hidden">
+                              <div className="w-full h-48 flex items-center justify-center bg-gray-100 dark:bg-gray-700 rounded-lg overflow-hidden">
                                 <img
                                   src={thumbnailUrls[doc.id]}
                                   alt={`${doc.filename} thumbnail`}
@@ -483,8 +483,8 @@ const Documents = () => {
                           </div>
 
                           {/* File Info */}
-                          <div className="border-t border-gray-200 pt-4">
-                            <h3 className="text-sm font-medium text-gray-900 truncate" title={doc.filename}>
+                          <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
+                            <h3 className="text-sm font-medium text-gray-900 dark:text-white truncate" title={doc.filename}>
                               {doc.filename}
                             </h3>
 
@@ -496,7 +496,7 @@ const Documents = () => {
                                     <textarea
                                       value={editedDescriptions[doc.id] || ''}
                                       onChange={(e) => setEditedDescriptions(prev => ({ ...prev, [doc.id]: e.target.value }))}
-                                      className="w-full px-2 py-1.5 text-xs border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                                      className="w-full px-2 py-1.5 text-xs border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                                       rows="3"
                                       placeholder="Enter description..."
                                     />
@@ -509,7 +509,7 @@ const Documents = () => {
                                       </button>
                                       <button
                                         onClick={() => handleCancelEditDescription(doc.id)}
-                                        className="px-2 py-1 text-xs font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors"
+                                        className="px-2 py-1 text-xs font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-md transition-colors"
                                       >
                                         Cancel
                                       </button>
@@ -518,12 +518,12 @@ const Documents = () => {
                                 ) : (
                                   <div className="group">
                                     <div className="flex items-start gap-1">
-                                      <p className={`text-xs text-gray-600 font-medium flex-1 ${!expandedDescriptions[doc.id] ? 'line-clamp-2' : ''}`}>
+                                      <p className={`text-xs text-gray-600 dark:text-gray-400 font-medium flex-1 ${!expandedDescriptions[doc.id] ? 'line-clamp-2' : ''}`}>
                                         {doc.ai_description}
                                       </p>
                                       <button
                                         onClick={() => handleEditDescription(doc.id, doc.ai_description)}
-                                        className="opacity-0 group-hover:opacity-100 p-0.5 text-gray-400 hover:text-gray-600 transition-opacity flex-shrink-0"
+                                        className="opacity-0 group-hover:opacity-100 p-0.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-opacity flex-shrink-0"
                                         title="Edit description"
                                       >
                                         <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -534,7 +534,7 @@ const Documents = () => {
                                     {doc.ai_description && doc.ai_description.length > 60 && (
                                       <button
                                         onClick={() => toggleDescription(doc.id)}
-                                        className="text-xs text-primary-600 hover:text-primary-700 mt-1"
+                                        className="text-xs text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 mt-1"
                                       >
                                         {expandedDescriptions[doc.id] ? 'Show less' : 'Show more'}
                                       </button>
@@ -544,7 +544,7 @@ const Documents = () => {
                               </div>
                             )}
 
-                            <p className="text-xs text-gray-500 mt-2">
+                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
                               {(() => {
                                 const timestamp = doc.uploaded_at.endsWith('Z') ? doc.uploaded_at : doc.uploaded_at + 'Z';
                                 return new Date(timestamp).toLocaleTimeString('en-US', {
@@ -558,19 +558,19 @@ const Documents = () => {
                             <div className="mt-4 flex gap-1.5">
                               <button
                                 onClick={() => handlePreview(doc)}
-                                className="flex-1 px-2 py-1.5 text-xs font-medium text-primary-700 bg-primary-50 hover:bg-primary-100 rounded-md transition-colors"
+                                className="flex-1 px-2 py-1.5 text-xs font-medium text-primary-700 dark:text-primary-300 bg-primary-50 dark:bg-primary-900/30 hover:bg-primary-100 dark:hover:bg-primary-900/50 rounded-md transition-colors"
                               >
                                 Preview
                               </button>
                               <button
                                 onClick={() => handleDownload(doc)}
-                                className="flex-1 px-2 py-1.5 text-xs font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors"
+                                className="flex-1 px-2 py-1.5 text-xs font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-md transition-colors"
                               >
                                 Download
                               </button>
                               <button
                                 onClick={() => handleDelete(doc.id)}
-                                className="px-2 py-1.5 text-xs font-medium text-red-600 bg-red-50 hover:bg-red-100 rounded-md transition-colors flex items-center justify-center"
+                                className="px-2 py-1.5 text-xs font-medium text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/30 hover:bg-red-100 dark:hover:bg-red-900/50 rounded-md transition-colors flex items-center justify-center"
                                 title="Delete document"
                               >
                                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -601,21 +601,21 @@ const Documents = () => {
             ></div>
 
             {/* Modal panel */}
-            <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-3xl sm:w-full">
+            <div className="inline-block align-bottom bg-white dark:bg-gray-800 rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-3xl sm:w-full">
               {/* Header */}
-              <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+              <div className="bg-white dark:bg-gray-800 px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
                 <div className="flex items-start justify-between">
                   <div>
-                    <h3 className="text-lg font-medium text-gray-900">
+                    <h3 className="text-lg font-medium text-gray-900 dark:text-white">
                       {previewDoc.filename}
                     </h3>
                     {previewDoc.ai_description && (
-                      <p className="text-sm text-gray-600 mt-1">{previewDoc.ai_description}</p>
+                      <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">{previewDoc.ai_description}</p>
                     )}
                   </div>
                   <button
                     onClick={closePreview}
-                    className="ml-3 text-gray-400 hover:text-gray-500"
+                    className="ml-3 text-gray-400 hover:text-gray-500 dark:text-gray-500 dark:hover:text-gray-400"
                   >
                     <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -626,7 +626,7 @@ const Documents = () => {
                 {/* Preview Content */}
                 <div className="mt-4">
                   {previewDoc.content_type?.includes('image') && previewUrl ? (
-                    <div className="bg-gray-50 rounded-lg p-4 flex items-center justify-center">
+                    <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 flex items-center justify-center">
                       <img
                         src={previewUrl}
                         alt={previewDoc.filename}
@@ -634,7 +634,7 @@ const Documents = () => {
                       />
                     </div>
                   ) : previewDoc.content_type === 'application/pdf' && previewUrl ? (
-                    <div className="bg-gray-50 rounded-lg overflow-hidden" style={{ height: '600px' }}>
+                    <div className="bg-gray-50 dark:bg-gray-700 rounded-lg overflow-hidden" style={{ height: '600px' }}>
                       <iframe
                         src={previewUrl}
                         className="w-full h-full"
@@ -643,15 +643,15 @@ const Documents = () => {
                     </div>
                   ) : previewDoc.extracted_text ? (
                     <>
-                      <h4 className="text-sm font-medium text-gray-700 mb-2">Extracted Text:</h4>
-                      <div className="bg-gray-50 rounded-lg p-4 max-h-96 overflow-y-auto">
-                        <pre className="text-sm text-gray-700 whitespace-pre-wrap font-sans">
+                      <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Extracted Text:</h4>
+                      <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 max-h-96 overflow-y-auto">
+                        <pre className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap font-sans">
                           {previewDoc.extracted_text}
                         </pre>
                       </div>
                     </>
                   ) : (
-                    <div className="bg-gray-50 rounded-lg p-4 text-center text-gray-500">
+                    <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 text-center text-gray-500 dark:text-gray-400">
                       <p>No preview available for this document.</p>
                     </div>
                   )}
@@ -659,7 +659,7 @@ const Documents = () => {
               </div>
 
               {/* Footer */}
-              <div className="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+              <div className="bg-gray-50 dark:bg-gray-900 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
                 <button
                   onClick={() => handleDownload(previewDoc)}
                   className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-primary-600 text-base font-medium text-white hover:bg-primary-700 sm:ml-3 sm:w-auto sm:text-sm"
@@ -668,7 +668,7 @@ const Documents = () => {
                 </button>
                 <button
                   onClick={closePreview}
-                  className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 sm:mt-0 sm:w-auto sm:text-sm"
+                  className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 dark:border-gray-600 shadow-sm px-4 py-2 bg-white dark:bg-gray-800 text-base font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 sm:mt-0 sm:w-auto sm:text-sm"
                 >
                   Close
                 </button>

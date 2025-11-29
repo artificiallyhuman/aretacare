@@ -67,7 +67,7 @@ export default function PasswordReset() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-6 sm:py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex flex-col justify-center py-6 sm:py-12 px-4 sm:px-6 lg:px-8 transition-colors duration-200">
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
         {/* Logo */}
         <div className="flex justify-center">
@@ -78,16 +78,16 @@ export default function PasswordReset() {
               </svg>
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">AretaCare</h1>
-              <p className="text-xs text-gray-500">AI Care Advocate</p>
+              <h1 className="text-2xl font-bold text-gray-900 dark:text-white">AretaCare</h1>
+              <p className="text-xs text-gray-500 dark:text-gray-400">AI Care Advocate</p>
             </div>
           </div>
         </div>
 
-        <h2 className="mt-6 text-center text-2xl font-bold text-gray-900">
+        <h2 className="mt-6 text-center text-2xl font-bold text-gray-900 dark:text-white">
           {token ? 'Reset Your Password' : 'Forgot Your Password?'}
         </h2>
-        <p className="mt-2 text-center text-sm text-gray-600">
+        <p className="mt-2 text-center text-sm text-gray-600 dark:text-gray-400">
           {token
             ? 'Enter your new password below'
             : 'Enter your email and we\'ll send you a reset link'}
@@ -95,13 +95,13 @@ export default function PasswordReset() {
       </div>
 
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
-        <div className="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10">
+        <div className="bg-white dark:bg-gray-800 py-8 px-4 shadow sm:rounded-lg sm:px-10">
           {!token ? (
             // Step 1: Request password reset
             <>
               {requestSuccess ? (
                 <div className="space-y-4">
-                  <div className="bg-green-50 border border-green-200 text-green-800 px-4 py-3 rounded-lg">
+                  <div className="bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-800 text-green-800 dark:text-green-300 px-4 py-3 rounded-lg">
                     <p className="font-medium">Check your email!</p>
                     <p className="text-sm mt-1">
                       If an account exists with this email, we've sent password reset instructions.
@@ -120,13 +120,13 @@ export default function PasswordReset() {
               ) : (
                 <form onSubmit={handleRequestReset} className="space-y-6">
                   {requestError && (
-                    <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
+                    <div className="bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300 px-4 py-3 rounded-lg text-sm">
                       {requestError}
                     </div>
                   )}
 
                   <div>
-                    <label htmlFor="email" className="block text-sm font-medium text-gray-700">
+                    <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                       Email address
                     </label>
                     <input
@@ -164,7 +164,7 @@ export default function PasswordReset() {
             <>
               {resetSuccess ? (
                 <div className="space-y-4">
-                  <div className="bg-green-50 border border-green-200 text-green-800 px-4 py-3 rounded-lg">
+                  <div className="bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-800 text-green-800 dark:text-green-300 px-4 py-3 rounded-lg">
                     <p className="font-medium">Password reset successful!</p>
                     <p className="text-sm mt-1">Redirecting to login...</p>
                   </div>
@@ -172,13 +172,13 @@ export default function PasswordReset() {
               ) : (
                 <form onSubmit={handleResetPassword} className="space-y-6">
                   {resetError && (
-                    <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
+                    <div className="bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300 px-4 py-3 rounded-lg text-sm">
                       {resetError}
                     </div>
                   )}
 
                   <div>
-                    <label htmlFor="newPassword" className="block text-sm font-medium text-gray-700">
+                    <label htmlFor="newPassword" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                       New Password
                     </label>
                     <input
@@ -194,7 +194,7 @@ export default function PasswordReset() {
                   </div>
 
                   <div>
-                    <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700">
+                    <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                       Confirm New Password
                     </label>
                     <input
