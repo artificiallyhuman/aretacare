@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { SessionProvider, useSessionContext } from './contexts/SessionContext';
 import Header from './components/Header';
 import Footer from './components/Footer';
@@ -64,11 +64,15 @@ function PublicRoute({ children }) {
 
 function AppContent() {
   const { user, logout } = useSessionContext();
+  const location = useLocation();
 
   const handleLogout = () => {
     logout();
     window.location.href = '/login';
   };
+
+  // Hide footer on Conversation page for full-screen chat experience
+  const showFooter = location.pathname !== '/';
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -184,7 +188,7 @@ function AppContent() {
           />
       </Routes>
 
-      <Footer />
+      {showFooter && <Footer />}
     </div>
   );
 }

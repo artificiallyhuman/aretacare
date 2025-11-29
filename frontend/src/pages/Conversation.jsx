@@ -367,13 +367,13 @@ const Conversation = () => {
 
           {/* Scroll to bottom button */}
           {showScrollButton && (
-            <div className="absolute bottom-20 right-6 z-10">
+            <div className="absolute bottom-32 sm:bottom-28 md:bottom-24 right-3 sm:right-4 md:right-6 z-10">
               <button
                 onClick={() => scrollToBottom('smooth')}
-                className="bg-primary-600 text-white rounded-full p-3 shadow-lg hover:bg-primary-700 transition-all transform hover:scale-110"
+                className="bg-primary-600 text-white rounded-full p-2 md:p-3 shadow-lg hover:bg-primary-700 transition-all transform hover:scale-110"
                 title="Scroll to bottom"
               >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-4 h-4 md:w-5 md:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
                 </svg>
               </button>

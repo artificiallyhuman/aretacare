@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, DateTime, Boolean
+from sqlalchemy import Column, String, DateTime, Boolean, ForeignKey
 from sqlalchemy.orm import relationship
 from datetime import datetime
 from app.core.database import Base
@@ -18,6 +18,9 @@ class User(Base):
     # Password reset fields
     reset_token = Column(String, nullable=True)
     reset_token_expires = Column(DateTime, nullable=True)
+
+    # Track last active session for user
+    last_active_session_id = Column(String, nullable=True)
 
     # Relationships
     sessions = relationship("Session", back_populates="user", cascade="all, delete-orphan")

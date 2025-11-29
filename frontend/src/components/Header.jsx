@@ -46,8 +46,8 @@ const Header = ({ onLogout, user }) => {
     }
   };
 
-  const handleSwitchSession = (sessionId) => {
-    switchSession(sessionId);
+  const handleSwitchSession = async (sessionId) => {
+    await switchSession(sessionId);
     setUserDropdownOpen(false);
     setMobileSessionsOpen(false);
     setMobileMenuOpen(false);

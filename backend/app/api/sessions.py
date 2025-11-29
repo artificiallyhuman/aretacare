@@ -75,6 +75,11 @@ async def create_session(
     db.add(new_session)
     db.commit()
     db.refresh(new_session)
+
+    # Set this as the user's last active session
+    current_user.last_active_session_id = new_session.id
+    db.commit()
+
     return new_session
 
 
@@ -126,6 +131,10 @@ async def get_session(
 
     # Update last activity
     session.last_activity = datetime.utcnow()
+
+    # Update user's last active session
+    current_user.last_active_session_id = session_id
+
     db.commit()
 
     return session

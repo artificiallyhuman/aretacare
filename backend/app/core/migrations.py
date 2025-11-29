@@ -143,6 +143,21 @@ def run_migrations():
             else:
                 logger.info("reset_token_expires column already exists")
 
+            # Add last_active_session_id column if it doesn't exist
+            if 'last_active_session_id' not in columns:
+                logger.info("Adding last_active_session_id column to users table...")
+                try:
+                    conn.execute(text(
+                        "ALTER TABLE users ADD COLUMN last_active_session_id VARCHAR NULL"
+                    ))
+                    conn.commit()
+                    logger.info("Successfully added last_active_session_id column")
+                except Exception as e:
+                    logger.error(f"Failed to add last_active_session_id column: {e}")
+                    conn.rollback()
+            else:
+                logger.info("last_active_session_id column already exists")
+
         # Check if sessions table exists
         if 'sessions' in inspector.get_table_names():
             columns = [col['name'] for col in inspector.get_columns('sessions')]

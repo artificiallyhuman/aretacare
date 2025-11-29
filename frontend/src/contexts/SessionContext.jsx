@@ -30,9 +30,11 @@ export const SessionProvider = ({ children }) => {
         }
 
         // Get user info
+        let userData;
         try {
           const userResponse = await authAPI.getMe();
-          setUser(userResponse.data);
+          userData = userResponse.data;
+          setUser(userData);
         } catch (err) {
           // Token invalid, clear auth data
           authAPI.logout();
@@ -45,22 +47,34 @@ export const SessionProvider = ({ children }) => {
         const userSessions = sessionsResponse.data;
         setSessions(userSessions);
 
-        // Try to restore active session from localStorage
-        const savedSessionId = localStorage.getItem('active_session_id');
+        // Priority order for determining active session:
+        // 1. User's last_active_session_id (persisted on backend)
+        // 2. localStorage saved session (client-side cache)
+        // 3. Most recent session by last_activity
+        let sessionToActivate = null;
 
-        if (savedSessionId && userSessions.find(s => s.id === savedSessionId)) {
-          // Saved session exists, use it
-          setActiveSessionId(savedSessionId);
-        } else if (userSessions.length > 0) {
-          // Use the most recent session
-          const mostRecent = userSessions.reduce((latest, session) => {
-            return new Date(session.last_activity) > new Date(latest.last_activity)
-              ? session
-              : latest;
-          }, userSessions[0]);
+        // Check if user's last active session exists
+        if (userData.last_active_session_id && userSessions.find(s => s.id === userData.last_active_session_id)) {
+          sessionToActivate = userData.last_active_session_id;
+        } else {
+          // Try localStorage as fallback
+          const savedSessionId = localStorage.getItem('active_session_id');
+          if (savedSessionId && userSessions.find(s => s.id === savedSessionId)) {
+            sessionToActivate = savedSessionId;
+          } else if (userSessions.length > 0) {
+            // Use the most recent session
+            const mostRecent = userSessions.reduce((latest, session) => {
+              return new Date(session.last_activity) > new Date(latest.last_activity)
+                ? session
+                : latest;
+            }, userSessions[0]);
+            sessionToActivate = mostRecent.id;
+          }
+        }
 
-          setActiveSessionId(mostRecent.id);
-          localStorage.setItem('active_session_id', mostRecent.id);
+        if (sessionToActivate) {
+          setActiveSessionId(sessionToActivate);
+          localStorage.setItem('active_session_id', sessionToActivate);
         }
         // If no sessions, activeSessionId stays null and user sees welcome screen
       } catch (err) {
@@ -96,9 +110,17 @@ export const SessionProvider = ({ children }) => {
     }
   };
 
-  const switchSession = (sessionId) => {
+  const switchSession = async (sessionId) => {
     setActiveSessionId(sessionId);
     localStorage.setItem('active_session_id', sessionId);
+
+    // Notify backend to update user's last_active_session_id
+    try {
+      await sessionAPI.get(sessionId);
+    } catch (err) {
+      console.error('Failed to update last active session on backend:', err);
+      // Non-critical error, don't throw
+    }
   };
 
   const renameSession = async (sessionId, newName) => {
