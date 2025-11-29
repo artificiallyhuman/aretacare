@@ -145,7 +145,7 @@ DELETE /api/sessions/{session_id}
 Authorization: Bearer <token>
 ```
 
-**Important:** This endpoint performs a complete cleanup of all user data:
+**Important:** Only the session owner can delete a session. This endpoint performs a complete cleanup of all session data:
 - **PostgreSQL**: Deletes all conversations, journal entries, documents metadata, audio recordings metadata, and daily plans
 - **AWS S3**: Deletes all document files, PDF thumbnails, and audio recording files
 - **User Account**: Preserved (user can login and start a new session)
@@ -160,6 +160,130 @@ Authorization: Bearer <token>
 **Example:**
 ```bash
 curl -X DELETE http://localhost:8000/api/sessions/{session_id} \
+  -H "Authorization: Bearer <token>"
+```
+
+#### Check User for Sharing
+
+```bash
+POST /api/sessions/{session_id}/check-user
+Authorization: Bearer <token>
+Content-Type: application/json
+```
+
+**Request Body:**
+```json
+{
+  "email": "collaborator@example.com"
+}
+```
+
+**Response (User Found):**
+```json
+{
+  "exists": true,
+  "user_id": "uuid-string",
+  "name": "Jane Doe",
+  "message": null
+}
+```
+
+**Response (User Not Found or Cannot Be Added):**
+```json
+{
+  "exists": false,
+  "message": "No AretaCare account found with this email address."
+}
+```
+
+**Example:**
+```bash
+curl -X POST http://localhost:8000/api/sessions/{session_id}/check-user \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{"email": "collaborator@example.com"}'
+```
+
+#### Share Session
+
+```bash
+POST /api/sessions/{session_id}/share
+Authorization: Bearer <token>
+Content-Type: application/json
+```
+
+**Note:** Only the session owner can share. Maximum 5 people per session (1 owner + 4 collaborators).
+
+**Request Body:**
+```json
+{
+  "email": "collaborator@example.com"
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Session shared with Jane Doe",
+  "collaborator": {
+    "user_id": "uuid-string",
+    "email": "collaborator@example.com",
+    "name": "Jane Doe",
+    "added_at": "2025-01-15T10:00:00Z"
+  }
+}
+```
+
+**Example:**
+```bash
+curl -X POST http://localhost:8000/api/sessions/{session_id}/share \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{"email": "collaborator@example.com"}'
+```
+
+#### Revoke Collaborator Access
+
+```bash
+DELETE /api/sessions/{session_id}/collaborators/{user_id}
+Authorization: Bearer <token>
+```
+
+**Note:** Only the session owner can revoke access.
+
+**Response:**
+```json
+{
+  "message": "Access revoked successfully"
+}
+```
+
+**Example:**
+```bash
+curl -X DELETE http://localhost:8000/api/sessions/{session_id}/collaborators/{user_id} \
+  -H "Authorization: Bearer <token>"
+```
+
+#### Leave Shared Session
+
+```bash
+POST /api/sessions/{session_id}/leave
+Authorization: Bearer <token>
+```
+
+**Note:** Only collaborators can leave. Session owners must delete the session instead.
+
+**Response:**
+```json
+{
+  "message": "Left session successfully"
+}
+```
+
+**Example:**
+```bash
+curl -X POST http://localhost:8000/api/sessions/{session_id}/leave \
   -H "Authorization: Bearer <token>"
 ```
 
@@ -726,14 +850,68 @@ const getCurrentUser = async () => {
 };
 ```
 
-### Create Session and Upload Document
+### Session Management and Sharing
 
 ```javascript
 // Create or get primary session
 const getSession = async () => {
   const response = await api.post('/sessions/primary');
-  return response.data.id;
+  return response.data;
 };
+
+// List all sessions (owned and shared)
+const listSessions = async () => {
+  const response = await api.get('/sessions/');
+  return response.data; // Includes is_owner flag and collaborators array
+};
+
+// Check if user can be added as collaborator
+const checkUserForSharing = async (sessionId, email) => {
+  const response = await api.post(`/sessions/${sessionId}/check-user`, { email });
+  return response.data;
+};
+
+// Share session with another user
+const shareSession = async (sessionId, email) => {
+  const response = await api.post(`/sessions/${sessionId}/share`, { email });
+  return response.data;
+};
+
+// Revoke collaborator access (owner only)
+const revokeAccess = async (sessionId, userId) => {
+  const response = await api.delete(`/sessions/${sessionId}/collaborators/${userId}`);
+  return response.data;
+};
+
+// Leave a shared session (collaborators only)
+const leaveSession = async (sessionId) => {
+  const response = await api.post(`/sessions/${sessionId}/leave`);
+  return response.data;
+};
+
+// Usage - Share a session
+const session = await getSession();
+if (session.is_owner) {
+  const check = await checkUserForSharing(session.id, 'family@example.com');
+  if (check.exists) {
+    const result = await shareSession(session.id, 'family@example.com');
+    console.log(result.message); // "Session shared with Family Member"
+  } else {
+    console.log(check.message); // Error message explaining why
+  }
+}
+
+// Usage - Leave a shared session
+const sessions = await listSessions();
+const sharedSession = sessions.find(s => !s.is_owner);
+if (sharedSession) {
+  await leaveSession(sharedSession.id);
+}
+```
+
+### Upload Document
+
+```javascript
 
 // Upload document
 const uploadDocument = async (file, sessionId) => {

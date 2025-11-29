@@ -182,6 +182,54 @@ const About = () => {
 
       <div className="mt-6 bg-white rounded-lg border border-gray-200 p-6 shadow-sm hover:shadow-md transition">
         <div className="flex items-center mb-4">
+          <div className="flex items-center justify-center w-12 h-12 bg-indigo-100 rounded-lg mr-4">
+            <svg className="w-7 h-7 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+            </svg>
+          </div>
+          <h4 className="text-lg font-semibold text-gray-900">Sessions & Sharing</h4>
+        </div>
+        <p className="text-gray-600 mb-3">Organize different care situations and collaborate with family members:</p>
+        <div className="grid md:grid-cols-2 gap-6">
+          <div>
+            <h5 className="font-medium text-gray-800 mb-2">Multiple Sessions</h5>
+            <ul className="text-gray-600 space-y-2 leading-relaxed">
+              <li className="flex items-start">
+                <span className="text-indigo-600 mr-2 mt-1">•</span>
+                <span>Create up to 3 sessions to organize different care situations or family members</span>
+              </li>
+              <li className="flex items-start">
+                <span className="text-indigo-600 mr-2 mt-1">•</span>
+                <span>Each session has its own conversations, journal, documents, audio recordings, and daily plans</span>
+              </li>
+              <li className="flex items-start">
+                <span className="text-indigo-600 mr-2 mt-1">•</span>
+                <span>Switch between sessions instantly using the dropdown in the header</span>
+              </li>
+            </ul>
+          </div>
+          <div>
+            <h5 className="font-medium text-gray-800 mb-2">Share with Family</h5>
+            <ul className="text-gray-600 space-y-2 leading-relaxed">
+              <li className="flex items-start">
+                <span className="text-indigo-600 mr-2 mt-1">•</span>
+                <span>Invite family members or caregivers to collaborate on a session by email</span>
+              </li>
+              <li className="flex items-start">
+                <span className="text-indigo-600 mr-2 mt-1">•</span>
+                <span>Up to 5 people can share a session, keeping everyone informed and aligned</span>
+              </li>
+              <li className="flex items-start">
+                <span className="text-indigo-600 mr-2 mt-1">•</span>
+                <span>Collaborators have full access to add, edit, and view all session content</span>
+              </li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-6 bg-white rounded-lg border border-gray-200 p-6 shadow-sm hover:shadow-md transition">
+        <div className="flex items-center mb-4">
           <div className="flex items-center justify-center w-12 h-12 bg-gray-100 rounded-lg mr-4">
             <svg className="w-7 h-7 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />

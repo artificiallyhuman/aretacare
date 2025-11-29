@@ -8,7 +8,8 @@ AretaCare is an AI-powered medical care advocate assistant that helps families u
 
 **Key Features:**
 - Conversation-first interface with AI care advocate, "Thinking..." status, enhanced markdown rendering
-- Multi-session support (up to 3 sessions per user) with session switcher, rename (15-char limit), and separate data per session
+- Multi-session support (up to 3 sessions per user, including collaborations) with session switcher, rename (15-char limit), and separate data per session
+- Session sharing - share sessions with up to 4 collaborators (5 people total), collaborators have full access to session data
 - Daily Plan - AI-generated summaries, user editable, delete and regenerate capability
 - AI Journal Synthesis - extracts medical updates from conversations with local timezone support
 - Journal with date navigation - reverse chronological, sticky sidebar, scroll-to-date functionality
@@ -54,9 +55,10 @@ python -c "import secrets; print(secrets.token_urlsafe(32))"  # Generate secret 
 - Protected routes redirect to login if not authenticated
 
 **Database (PostgreSQL)**
-- Seven main tables: `users`, `sessions`, `documents`, `audio_recordings`, `conversations`, `journal_entries`, `daily_plans`
+- Eight main tables: `users`, `sessions`, `session_collaborators`, `documents`, `audio_recordings`, `conversations`, `journal_entries`, `daily_plans`
 - User table stores authentication credentials (bcrypt hashed passwords) and password reset tokens (time-limited, 1-hour expiration)
-- **Sessions table** tied to user accounts via foreign key, supports up to 3 sessions per user, includes name field (15-character limit, default "Session N"), created_at for automatic numbering
+- **Sessions table** tied to user accounts via foreign key, supports up to 3 sessions per user (owned + collaborations), includes `owner_id` for session ownership, name field (15-character limit, default "Session N"), created_at for automatic numbering
+- **Session collaborators table** links users to shared sessions with unique constraint on (session_id, user_id), cascading deletes when session or user is deleted
 - **Documents table** with AI categorization (12 categories), AI-generated descriptions (user-editable, up to 200 characters), text extraction, and thumbnail support
 - **Audio recordings table** with AI categorization (12 categories), AI-generated summaries (user-editable, up to 150 characters), transcription, and duration tracking
 - Journal entries with AI-generated content, metadata, and entry types
@@ -133,23 +135,33 @@ See `backend/app/config/README.md` for complete documentation on modifying AI be
 - Protected routes on both frontend (React Router) and backend (FastAPI dependencies)
 
 **Session Management:**
-- **Multi-session support**: Each user can have up to 3 active sessions
+- **Multi-session support**: Each user can have up to 3 active sessions (owned + collaborations combined)
 - Sessions created via header dropdown "New Session" button (shows error if 3 sessions already exist)
 - Active session ID stored in browser localStorage
 - All data (documents, conversations, journal, daily plans, audio) tied to both user account and session ID
-- Sessions belong to specific users (foreign key relationship)
-- Session naming: Default "Session 1/2/3" with smart numbering (fills gaps if sessions deleted), renameable up to 15 characters
-- Session switching: Click user name in header to see session dropdown with all sessions, active session indicator, and "New Session" button
-- Deleting individual session removes all session data (database + S3 files: documents, thumbnails, audio)
-- Deleting user account removes all sessions and all associated data (database + S3 files)
+- Sessions have both `user_id` (creator) and `owner_id` (current owner) for ownership tracking
+- Session naming: Default "Session 1/2/3" with smart numbering (fills gaps if sessions deleted), renameable up to 15 characters (owner only)
+- Session switching: Click user name in header to see session dropdown with all sessions (owned and shared), active session indicator, and "New Session" button
+- Deleting individual session removes all session data (database + S3 files: documents, thumbnails, audio) - owner only
+- Deleting user account removes all owned sessions and leaves all collaborations
 - Sessions auto-expire via `SESSION_TIMEOUT_MINUTES` (default: 60)
+
+**Session Sharing:**
+- Session owners can share sessions with other AretaCare users by email
+- Maximum 5 people per session (1 owner + 4 collaborators)
+- Collaborators have full access to session data (documents, conversations, journal, daily plans, audio)
+- Only session owners can: rename session, delete session, share with others, revoke collaborator access
+- Collaborators can leave shared sessions at any time
+- Shared sessions count toward the collaborator's 3-session limit
+- Permission checking via `check_session_access()` in `backend/app/api/permissions.py`
 
 ## Key Files and Their Roles
 
 ### Backend
 **API Routes** (`backend/app/api/`):
 - `auth.py` - Authentication (register, login, /me) and user management (update account, password reset, deletion)
-- `sessions.py` - Multi-session management (3-session limit, rename, delete with S3 cleanup)
+- `sessions.py` - Multi-session management (3-session limit, rename, delete with S3 cleanup, sharing/collaboration)
+- `permissions.py` - Shared permission checking (`check_session_access()` for owner/collaborator validation)
 - `documents.py` - Document upload/management with AI categorization
 - `audio_recording.py` - Audio recording management with AI categorization
 - `conversation.py` - Conversation endpoints with rich media support
@@ -157,7 +169,7 @@ See `backend/app/config/README.md` for complete documentation on modifying AI be
 - `daily_plans.py` - Daily plan management (generate, list, update)
 - `tools.py` - Standalone tools (Jargon Translator, Conversation Coach)
 
-**Models** (`backend/app/models/`): `user.py`, `session.py`, `document.py`, `audio_recording.py`, `journal.py`, `daily_plan.py`, `conversation.py`
+**Models** (`backend/app/models/`): `user.py`, `session.py`, `session_collaborator.py`, `document.py`, `audio_recording.py`, `journal.py`, `daily_plan.py`, `conversation.py`
 
 **AI Configuration** (CRITICAL):
 - `backend/app/config/ai_config.py` - All models, prompts, safety boundaries, categories
@@ -193,6 +205,7 @@ See `backend/app/config/README.md` for complete documentation on modifying AI be
 - `MessageInput.jsx` - Chat input with audio recording
 - `AudioWaveform.jsx` - Real-time waveform visualization
 - `DailyPlan/DailyPlanPanel.jsx` - Collapsible daily plan sidebar
+- `CollaborationModal.jsx` - Session sharing modal (add/remove collaborators)
 
 **Context & Services**:
 - `contexts/SessionContext.jsx` - Multi-session state management
@@ -298,6 +311,7 @@ Edit `backend/app/config/ai_config.py`:
 **Key Features to Test:**
 - Conversation interface with text/voice/document input
 - Multi-session management (up to 3 sessions, rename, switch)
+- Session sharing (share by email, collaborator access, leave session)
 - Journal with date navigation and timezone handling
 - Daily Plan generation and editing
 - Documents/Audio with AI categorization
