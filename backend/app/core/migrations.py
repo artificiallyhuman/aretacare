@@ -204,3 +204,62 @@ def run_migrations():
                     conn.rollback()
             else:
                 logger.info("name column already exists in sessions")
+
+            # Add owner_id column if it doesn't exist
+            if 'owner_id' not in columns:
+                logger.info("Adding owner_id column to sessions table...")
+                try:
+                    # Add the column
+                    conn.execute(text(
+                        "ALTER TABLE sessions ADD COLUMN owner_id VARCHAR NULL"
+                    ))
+                    conn.commit()
+                    logger.info("Successfully added owner_id column to sessions")
+
+                    # Set owner_id to user_id for all existing sessions
+                    logger.info("Setting owner_id for existing sessions...")
+                    conn.execute(text(
+                        "UPDATE sessions SET owner_id = user_id WHERE owner_id IS NULL"
+                    ))
+                    conn.commit()
+                    logger.info("Successfully set owner_id for existing sessions")
+
+                    # Make owner_id NOT NULL and add foreign key
+                    logger.info("Making owner_id NOT NULL and adding foreign key...")
+                    conn.execute(text(
+                        "ALTER TABLE sessions ALTER COLUMN owner_id SET NOT NULL"
+                    ))
+                    conn.execute(text(
+                        "ALTER TABLE sessions ADD CONSTRAINT fk_sessions_owner FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE CASCADE"
+                    ))
+                    conn.commit()
+                    logger.info("Successfully configured owner_id column")
+
+                except Exception as e:
+                    logger.error(f"Failed to add owner_id column to sessions: {e}")
+                    conn.rollback()
+            else:
+                logger.info("owner_id column already exists in sessions")
+
+        # Create session_collaborators table if it doesn't exist
+        if 'session_collaborators' not in inspector.get_table_names():
+            logger.info("Creating session_collaborators table...")
+            try:
+                conn.execute(text("""
+                    CREATE TABLE session_collaborators (
+                        id VARCHAR PRIMARY KEY,
+                        session_id VARCHAR NOT NULL,
+                        user_id VARCHAR NOT NULL,
+                        added_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                        CONSTRAINT fk_session_collaborators_session FOREIGN KEY (session_id) REFERENCES sessions(id) ON DELETE CASCADE,
+                        CONSTRAINT fk_session_collaborators_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+                        CONSTRAINT unique_session_user UNIQUE (session_id, user_id)
+                    )
+                """))
+                conn.commit()
+                logger.info("Successfully created session_collaborators table")
+            except Exception as e:
+                logger.error(f"Failed to create session_collaborators table: {e}")
+                conn.rollback()
+        else:
+            logger.info("session_collaborators table already exists")

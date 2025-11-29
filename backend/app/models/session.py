@@ -10,6 +10,7 @@ class Session(Base):
 
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     user_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    owner_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     name = Column(String(15), nullable=False, default="New Session")
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     last_activity = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
@@ -21,7 +22,9 @@ class Session(Base):
     last_journal_synthesis = Column(DateTime, nullable=True)
 
     # Relationships
-    user = relationship("User", back_populates="sessions")
+    user = relationship("User", back_populates="sessions", foreign_keys=[user_id])
+    owner = relationship("User", foreign_keys=[owner_id])
+    collaborators = relationship("SessionCollaborator", back_populates="session", cascade="all, delete-orphan")
     documents = relationship("Document", back_populates="session", cascade="all, delete-orphan")
     conversations = relationship("Conversation", back_populates="session", cascade="all, delete-orphan")
     journal_entries = relationship("JournalEntry", back_populates="session", cascade="all, delete-orphan")

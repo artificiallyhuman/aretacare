@@ -23,4 +23,9 @@ class User(Base):
     last_active_session_id = Column(String, nullable=True)
 
     # Relationships
-    sessions = relationship("Session", back_populates="user", cascade="all, delete-orphan")
+    sessions = relationship(
+        "Session",
+        back_populates="user",
+        cascade="all, delete-orphan",
+        foreign_keys="Session.user_id"
+    )

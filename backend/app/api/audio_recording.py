@@ -5,6 +5,7 @@ from app.models import User, Session as SessionModel, AudioRecording
 from app.schemas.audio_recording import AudioRecordingResponse, AudioRecordingListResponse, AudioRecordingUpdate
 from app.services.s3_service import s3_service
 from app.api.auth import get_current_user
+from app.api.permissions import check_session_access
 from typing import List
 import logging
 
@@ -26,8 +27,7 @@ async def get_audio_recordings(
     session = db.query(SessionModel).filter(SessionModel.id == session_id).first()
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
-    if session.user_id != current_user.id:
-        raise HTTPException(status_code=403, detail="Access denied")
+    check_session_access(session, current_user.id, db)
 
     # Build query with filters
     query = db.query(AudioRecording).filter(AudioRecording.session_id == session_id)
@@ -68,8 +68,7 @@ async def get_audio_recording(
     session = db.query(SessionModel).filter(SessionModel.id == session_id).first()
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
-    if session.user_id != current_user.id:
-        raise HTTPException(status_code=403, detail="Access denied")
+    check_session_access(session, current_user.id, db)
 
     # Get the recording
     recording = db.query(AudioRecording).filter(
@@ -96,8 +95,7 @@ async def update_audio_recording(
     session = db.query(SessionModel).filter(SessionModel.id == session_id).first()
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
-    if session.user_id != current_user.id:
-        raise HTTPException(status_code=403, detail="Access denied")
+    check_session_access(session, current_user.id, db)
 
     # Get the recording
     recording = db.query(AudioRecording).filter(
@@ -130,8 +128,7 @@ async def delete_audio_recording(
     session = db.query(SessionModel).filter(SessionModel.id == session_id).first()
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
-    if session.user_id != current_user.id:
-        raise HTTPException(status_code=403, detail="Access denied")
+    check_session_access(session, current_user.id, db)
 
     # Get the recording
     recording = db.query(AudioRecording).filter(
@@ -169,8 +166,7 @@ async def get_audio_url(
     session = db.query(SessionModel).filter(SessionModel.id == session_id).first()
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
-    if session.user_id != current_user.id:
-        raise HTTPException(status_code=403, detail="Access denied")
+    check_session_access(session, current_user.id, db)
 
     # Get the recording
     recording = db.query(AudioRecording).filter(

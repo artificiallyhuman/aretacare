@@ -1,14 +1,19 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from sqlalchemy import func
+from sqlalchemy import func, or_
 from app.core.database import get_db
-from app.models import Session as SessionModel, User, Document, AudioRecording, JournalEntry, Conversation
-from app.schemas import SessionCreate, SessionResponse, SessionRename
+from app.models import Session as SessionModel, User, Document, AudioRecording, JournalEntry, Conversation, SessionCollaborator
+from app.schemas import (
+    SessionCreate, SessionResponse, SessionRename, SessionShareRequest,
+    SessionShareResponse, UserExistsResponse, CollaboratorInfo
+)
 from datetime import datetime, timedelta
 from app.core.config import settings
 from app.api.auth import get_current_user
+from app.api.permissions import check_session_access
 from app.services.s3_service import s3_service
 import logging
+import uuid
 
 logger = logging.getLogger(__name__)
 
@@ -20,11 +25,60 @@ async def list_sessions(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """List all sessions for the authenticated user"""
-    sessions = db.query(SessionModel).filter(
+    """List all sessions for the authenticated user (owned and shared)"""
+    # Get sessions where user is owner or collaborator
+    owned_sessions = db.query(SessionModel).filter(
         SessionModel.user_id == current_user.id
-    ).order_by(SessionModel.created_at.desc()).all()
-    return sessions
+    ).all()
+
+    # Get sessions where user is a collaborator
+    collaborator_records = db.query(SessionCollaborator).filter(
+        SessionCollaborator.user_id == current_user.id
+    ).all()
+
+    shared_session_ids = [c.session_id for c in collaborator_records]
+    shared_sessions = db.query(SessionModel).filter(
+        SessionModel.id.in_(shared_session_ids)
+    ).all() if shared_session_ids else []
+
+    # Combine and deduplicate
+    all_sessions = {s.id: s for s in owned_sessions}
+    for s in shared_sessions:
+        if s.id not in all_sessions:
+            all_sessions[s.id] = s
+
+    # Build response with collaborator information
+    response = []
+    for session in sorted(all_sessions.values(), key=lambda x: x.created_at, reverse=True):
+        # Get collaborators for this session
+        collaborators = db.query(SessionCollaborator).filter(
+            SessionCollaborator.session_id == session.id
+        ).all()
+
+        collaborator_infos = []
+        for collab in collaborators:
+            collab_user = db.query(User).filter(User.id == collab.user_id).first()
+            if collab_user:
+                collaborator_infos.append(CollaboratorInfo(
+                    user_id=collab_user.id,
+                    email=collab_user.email,
+                    name=collab_user.name,
+                    added_at=collab.added_at
+                ))
+
+        session_response = SessionResponse(
+            id=session.id,
+            name=session.name,
+            created_at=session.created_at,
+            last_activity=session.last_activity,
+            is_active=session.is_active,
+            owner_id=session.owner_id,
+            is_owner=(session.owner_id == current_user.id),
+            collaborators=collaborator_infos
+        )
+        response.append(session_response)
+
+    return response
 
 
 @router.post("/", response_model=SessionResponse)
@@ -34,15 +88,22 @@ async def create_session(
     db: Session = Depends(get_db)
 ):
     """Create a new session for the authenticated user (max 3 sessions per user)"""
-    # Check session limit
-    session_count = db.query(func.count(SessionModel.id)).filter(
+    # Check session limit (count owned sessions + collaborations)
+    owned_session_count = db.query(func.count(SessionModel.id)).filter(
         SessionModel.user_id == current_user.id
     ).scalar()
 
-    if session_count >= 3:
+    # Count collaborations
+    collaboration_count = db.query(func.count(SessionCollaborator.id)).filter(
+        SessionCollaborator.user_id == current_user.id
+    ).scalar()
+
+    total_session_count = owned_session_count + collaboration_count
+
+    if total_session_count >= 3:
         raise HTTPException(
             status_code=400,
-            detail="Maximum of 3 sessions allowed. Please delete a session in Settings → Manage Sessions before creating a new one."
+            detail="Maximum of 3 sessions allowed (including collaborations). Please delete a session or leave a collaboration in Settings → Manage Sessions before creating a new one."
         )
 
     # Generate default name if not provided
@@ -71,7 +132,11 @@ async def create_session(
     else:
         default_name = session_data.name
 
-    new_session = SessionModel(user_id=current_user.id, name=default_name)
+    new_session = SessionModel(
+        user_id=current_user.id,
+        owner_id=current_user.id,
+        name=default_name
+    )
     db.add(new_session)
     db.commit()
     db.refresh(new_session)
@@ -105,6 +170,7 @@ async def get_or_create_primary_session(
     # Create new primary session
     new_primary_session = SessionModel(
         user_id=current_user.id,
+        owner_id=current_user.id,
         is_primary=True
     )
     db.add(new_primary_session)
@@ -125,8 +191,14 @@ async def get_session(
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
 
-    # Verify session belongs to current user
-    if session.user_id != current_user.id:
+    # Verify user has access (owner or collaborator)
+    is_owner = session.user_id == current_user.id
+    is_collaborator = db.query(SessionCollaborator).filter(
+        SessionCollaborator.session_id == session_id,
+        SessionCollaborator.user_id == current_user.id
+    ).first() is not None
+
+    if not (is_owner or is_collaborator):
         raise HTTPException(status_code=403, detail="Access denied")
 
     # Update last activity
@@ -137,7 +209,32 @@ async def get_session(
 
     db.commit()
 
-    return session
+    # Get collaborators for response
+    collaborators = db.query(SessionCollaborator).filter(
+        SessionCollaborator.session_id == session.id
+    ).all()
+
+    collaborator_infos = []
+    for collab in collaborators:
+        collab_user = db.query(User).filter(User.id == collab.user_id).first()
+        if collab_user:
+            collaborator_infos.append(CollaboratorInfo(
+                user_id=collab_user.id,
+                email=collab_user.email,
+                name=collab_user.name,
+                added_at=collab.added_at
+            ))
+
+    return SessionResponse(
+        id=session.id,
+        name=session.name,
+        created_at=session.created_at,
+        last_activity=session.last_activity,
+        is_active=session.is_active,
+        owner_id=session.owner_id,
+        is_owner=is_owner,
+        collaborators=collaborator_infos
+    )
 
 
 @router.patch("/{session_id}/rename", response_model=SessionResponse)
@@ -147,21 +244,45 @@ async def rename_session(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """Rename a session"""
+    """Rename a session (owner only)"""
     session = db.query(SessionModel).filter(SessionModel.id == session_id).first()
 
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
 
-    # Verify session belongs to current user
-    if session.user_id != current_user.id:
-        raise HTTPException(status_code=403, detail="Access denied")
+    # Only owner can rename
+    check_session_access(session, current_user.id, db, require_owner=True)
 
     session.name = rename_data.name
     db.commit()
     db.refresh(session)
 
-    return session
+    # Get collaborators for response
+    collaborators = db.query(SessionCollaborator).filter(
+        SessionCollaborator.session_id == session.id
+    ).all()
+
+    collaborator_infos = []
+    for collab in collaborators:
+        collab_user = db.query(User).filter(User.id == collab.user_id).first()
+        if collab_user:
+            collaborator_infos.append(CollaboratorInfo(
+                user_id=collab_user.id,
+                email=collab_user.email,
+                name=collab_user.name,
+                added_at=collab.added_at
+            ))
+
+    return SessionResponse(
+        id=session.id,
+        name=session.name,
+        created_at=session.created_at,
+        last_activity=session.last_activity,
+        is_active=session.is_active,
+        owner_id=session.owner_id,
+        is_owner=True,
+        collaborators=collaborator_infos
+    )
 
 
 @router.get("/{session_id}/statistics")
@@ -176,9 +297,8 @@ async def get_session_statistics(
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
 
-    # Verify session belongs to current user
-    if session.user_id != current_user.id:
-        raise HTTPException(status_code=403, detail="Access denied")
+    # Verify user has access (owner or collaborator)
+    check_session_access(session, current_user.id, db)
 
     # Count journal entries
     journal_count = db.query(func.count(JournalEntry.id)).filter(
@@ -215,15 +335,14 @@ async def delete_session(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """Delete a session and all associated data"""
+    """Delete a session and all associated data (owner only)"""
     session = db.query(SessionModel).filter(SessionModel.id == session_id).first()
 
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
 
-    # Verify session belongs to current user
-    if session.user_id != current_user.id:
-        raise HTTPException(status_code=403, detail="Access denied")
+    # Only owner can delete
+    check_session_access(session, current_user.id, db, require_owner=True)
 
     # Delete all documents and their thumbnails from S3 before deleting session
     documents = db.query(Document).filter(Document.session_id == session_id).all()
@@ -327,3 +446,222 @@ async def cleanup_expired_sessions(db: Session = Depends(get_db)):
     db.commit()
 
     return {"message": f"Cleaned up {count} expired sessions"}
+
+
+@router.post("/{session_id}/check-user", response_model=UserExistsResponse)
+async def check_user_exists(
+    session_id: str,
+    email_data: SessionShareRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Check if a user exists by email and can be added to the session"""
+    session = db.query(SessionModel).filter(SessionModel.id == session_id).first()
+
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    # Only owner can share
+    check_session_access(session, current_user.id, db, require_owner=True)
+
+    # Look up user by email
+    target_user = db.query(User).filter(User.email == email_data.email).first()
+
+    if not target_user:
+        return UserExistsResponse(
+            exists=False,
+            message="No AretaCare account found with this email address."
+        )
+
+    # Check if user is already the owner
+    if target_user.id == session.owner_id:
+        return UserExistsResponse(
+            exists=False,
+            message="This is your own session. You cannot share it with yourself."
+        )
+
+    # Check if user is already a collaborator
+    existing_collab = db.query(SessionCollaborator).filter(
+        SessionCollaborator.session_id == session_id,
+        SessionCollaborator.user_id == target_user.id
+    ).first()
+
+    if existing_collab:
+        return UserExistsResponse(
+            exists=False,
+            message=f"{target_user.name} is already a collaborator on this session."
+        )
+
+    # Count user's current sessions (owned + collaborations)
+    user_owned_count = db.query(func.count(SessionModel.id)).filter(
+        SessionModel.user_id == target_user.id
+    ).scalar()
+
+    user_collab_count = db.query(func.count(SessionCollaborator.id)).filter(
+        SessionCollaborator.user_id == target_user.id
+    ).scalar()
+
+    user_total_sessions = user_owned_count + user_collab_count
+
+    if user_total_sessions >= 3:
+        return UserExistsResponse(
+            exists=False,
+            message=f"{target_user.name} already has 3 active sessions. They must delete or leave a session before joining this one."
+        )
+
+    return UserExistsResponse(
+        exists=True,
+        user_id=target_user.id,
+        name=target_user.name,
+        message=None
+    )
+
+
+@router.post("/{session_id}/share", response_model=SessionShareResponse)
+async def share_session(
+    session_id: str,
+    share_data: SessionShareRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Share a session with another user"""
+    session = db.query(SessionModel).filter(SessionModel.id == session_id).first()
+
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    # Only owner can share
+    check_session_access(session, current_user.id, db, require_owner=True)
+
+    # Check collaborator limit (max 5 total including owner means max 4 additional collaborators)
+    current_collab_count = db.query(func.count(SessionCollaborator.id)).filter(
+        SessionCollaborator.session_id == session_id
+    ).scalar()
+
+    if current_collab_count >= 4:
+        raise HTTPException(
+            status_code=400,
+            detail="Maximum of 5 people (including owner) can collaborate on a session. Please remove a collaborator first."
+        )
+
+    # Look up user by email
+    target_user = db.query(User).filter(User.email == share_data.email).first()
+
+    if not target_user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    # Check if user is the owner
+    if target_user.id == session.owner_id:
+        raise HTTPException(status_code=400, detail="Cannot share session with yourself")
+
+    # Check if already a collaborator
+    existing_collab = db.query(SessionCollaborator).filter(
+        SessionCollaborator.session_id == session_id,
+        SessionCollaborator.user_id == target_user.id
+    ).first()
+
+    if existing_collab:
+        raise HTTPException(status_code=400, detail="User is already a collaborator")
+
+    # Check target user's session count
+    user_owned_count = db.query(func.count(SessionModel.id)).filter(
+        SessionModel.user_id == target_user.id
+    ).scalar()
+
+    user_collab_count = db.query(func.count(SessionCollaborator.id)).filter(
+        SessionCollaborator.user_id == target_user.id
+    ).scalar()
+
+    if user_owned_count + user_collab_count >= 3:
+        raise HTTPException(
+            status_code=400,
+            detail="Target user already has 3 active sessions"
+        )
+
+    # Create collaboration
+    new_collab = SessionCollaborator(
+        id=str(uuid.uuid4()),
+        session_id=session_id,
+        user_id=target_user.id
+    )
+    db.add(new_collab)
+    db.commit()
+    db.refresh(new_collab)
+
+    collaborator_info = CollaboratorInfo(
+        user_id=target_user.id,
+        email=target_user.email,
+        name=target_user.name,
+        added_at=new_collab.added_at
+    )
+
+    return SessionShareResponse(
+        success=True,
+        message=f"Session shared with {target_user.name}",
+        collaborator=collaborator_info
+    )
+
+
+@router.delete("/{session_id}/collaborators/{user_id}")
+async def revoke_access(
+    session_id: str,
+    user_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Revoke a collaborator's access to a session (owner only)"""
+    session = db.query(SessionModel).filter(SessionModel.id == session_id).first()
+
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    # Only owner can revoke access
+    check_session_access(session, current_user.id, db, require_owner=True)
+
+    # Find and delete collaboration
+    collab = db.query(SessionCollaborator).filter(
+        SessionCollaborator.session_id == session_id,
+        SessionCollaborator.user_id == user_id
+    ).first()
+
+    if not collab:
+        raise HTTPException(status_code=404, detail="Collaborator not found")
+
+    db.delete(collab)
+    db.commit()
+
+    return {"message": "Access revoked successfully"}
+
+
+@router.post("/{session_id}/leave")
+async def leave_session(
+    session_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Leave a shared session (collaborators only)"""
+    session = db.query(SessionModel).filter(SessionModel.id == session_id).first()
+
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    # Check if user is the owner
+    if session.owner_id == current_user.id:
+        raise HTTPException(
+            status_code=400,
+            detail="Session owners cannot leave. You must delete the session instead."
+        )
+
+    # Find and delete collaboration
+    collab = db.query(SessionCollaborator).filter(
+        SessionCollaborator.session_id == session_id,
+        SessionCollaborator.user_id == current_user.id
+    ).first()
+
+    if not collab:
+        raise HTTPException(status_code=404, detail="You are not a collaborator on this session")
+
+    db.delete(collab)
+    db.commit()
+
+    return {"message": "Left session successfully"}

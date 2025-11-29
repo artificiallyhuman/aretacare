@@ -8,6 +8,7 @@ from app.services.openai_service import openai_service
 from app.services.journal_service import JournalService
 from app.services.s3_service import s3_service
 from app.api.auth import get_current_user
+from app.api.permissions import check_session_access
 from typing import Optional
 from datetime import datetime, date as date_type
 import uuid
@@ -34,12 +35,11 @@ async def send_message(
     db: Session = Depends(get_db)
 ):
     """Send a message in the conversation (with optional rich media)"""
-    # Verify session belongs to current user
+    # Verify user has access to session (owner or collaborator)
     session = db.query(SessionModel).filter(SessionModel.id == session_id).first()
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
-    if session.user_id != current_user.id:
-        raise HTTPException(status_code=403, detail="Access denied")
+    check_session_access(session, current_user.id, db)
 
     try:
         # Get extracted text and media URL if document/image message
@@ -164,12 +164,11 @@ async def get_conversation_history(
     db: Session = Depends(get_db)
 ):
     """Get conversation history with rich media"""
-    # Verify session belongs to current user
+    # Verify user has access to session (owner or collaborator)
     session = db.query(SessionModel).filter(SessionModel.id == session_id).first()
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
-    if session.user_id != current_user.id:
-        raise HTTPException(status_code=403, detail="Access denied")
+    check_session_access(session, current_user.id, db)
 
     # Get messages
     messages = db.query(Conversation).filter(
@@ -209,12 +208,11 @@ async def transcribe_audio(
     db: Session = Depends(get_db)
 ):
     """Transcribe audio file to text using OpenAI's speech-to-text"""
-    # Verify session belongs to current user
+    # Verify user has access to session (owner or collaborator)
     session = db.query(SessionModel).filter(SessionModel.id == session_id).first()
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
-    if session.user_id != current_user.id:
-        raise HTTPException(status_code=403, detail="Access denied")
+    check_session_access(session, current_user.id, db)
 
     try:
         # Validate audio file type
