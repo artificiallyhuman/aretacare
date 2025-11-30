@@ -449,8 +449,8 @@ class AdminService:
                 recent_documents.append({
                     "id": str(doc.id),
                     "filename": doc.filename,
-                    "category": doc.category,
-                    "description": doc.description,
+                    "category": doc.category.value if doc.category else None,
+                    "description": doc.ai_description,
                     "uploaded_at": doc.uploaded_at,
                     "session_name": session_name
                 })
@@ -466,9 +466,9 @@ class AdminService:
                 recent_audio.append({
                     "id": str(audio.id),
                     "filename": audio.filename,
-                    "category": audio.category,
-                    "summary": audio.summary,
-                    "duration_seconds": audio.duration_seconds,
+                    "category": audio.category.value if audio.category else None,
+                    "summary": audio.ai_summary,
+                    "duration_seconds": audio.duration,
                     "created_at": audio.created_at,
                     "session_name": session_name
                 })
@@ -485,8 +485,8 @@ class AdminService:
                     "id": str(journal.id),
                     "title": journal.title,
                     "content": journal.content[:200] + "..." if len(journal.content) > 200 else journal.content,
-                    "entry_type": journal.entry_type,
-                    "entry_date": journal.entry_date,
+                    "entry_type": journal.entry_type.value if journal.entry_type else None,
+                    "entry_date": str(journal.entry_date) if journal.entry_date else None,
                     "created_at": journal.created_at,
                     "session_name": session_name
                 })
