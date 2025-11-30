@@ -26,8 +26,10 @@ const EntryEditor = ({ sessionId, entry, onClose, onSave }) => {
       setEntryType(entry.entry_type);
       setEntryDate(entry.entry_date);
     } else {
-      // Default to today for new entries
-      setEntryDate(new Date().toISOString().split('T')[0]);
+      // Default to today for new entries (use local date, not UTC)
+      const today = new Date();
+      const localDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+      setEntryDate(localDate);
     }
   }, [entry]);
 
@@ -70,16 +72,16 @@ const EntryEditor = ({ sessionId, entry, onClose, onSave }) => {
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+      <div className="bg-white dark:bg-gray-800 rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
         {/* Header */}
-        <div className="p-6 border-b border-gray-200">
+        <div className="p-6 border-b border-gray-200 dark:border-gray-700">
           <div className="flex items-center justify-between">
-            <h2 className="text-xl font-semibold text-gray-900">
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
               {entry ? 'Edit Journal Entry' : 'New Journal Entry'}
             </h2>
             <button
               onClick={onClose}
-              className="text-gray-400 hover:text-gray-600"
+              className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
             >
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -92,7 +94,7 @@ const EntryEditor = ({ sessionId, entry, onClose, onSave }) => {
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           {/* Title */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               Title <span className="text-red-500">*</span>
             </label>
             <input
@@ -104,14 +106,14 @@ const EntryEditor = ({ sessionId, entry, onClose, onSave }) => {
               placeholder="Brief headline (max 100 characters)"
               required
             />
-            <p className="text-xs text-gray-500 mt-1">
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
               {title.length}/100 characters
             </p>
           </div>
 
           {/* Content */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               Content <span className="text-red-500">*</span>
             </label>
             <textarea
@@ -126,7 +128,7 @@ const EntryEditor = ({ sessionId, entry, onClose, onSave }) => {
 
           {/* Entry Type */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               Entry Type
             </label>
             <select
@@ -144,7 +146,7 @@ const EntryEditor = ({ sessionId, entry, onClose, onSave }) => {
 
           {/* Date */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               Date
             </label>
             <input
@@ -158,7 +160,7 @@ const EntryEditor = ({ sessionId, entry, onClose, onSave }) => {
 
           {/* Error */}
           {error && (
-            <div className="p-3 bg-red-50 border border-red-200 rounded text-red-700 text-sm">
+            <div className="p-3 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded text-red-700 dark:text-red-300 text-sm">
               {error}
             </div>
           )}
@@ -168,7 +170,7 @@ const EntryEditor = ({ sessionId, entry, onClose, onSave }) => {
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+              className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
               disabled={saving}
             >
               Cancel
