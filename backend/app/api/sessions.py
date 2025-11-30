@@ -461,52 +461,6 @@ async def cleanup_session(
     return {"message": "Session marked as inactive"}
 
 
-@router.post("/cleanup-expired")
-async def cleanup_expired_sessions(db: Session = Depends(get_db)):
-    """Clean up expired sessions (for privacy protection)"""
-    expiration_time = datetime.utcnow() - timedelta(minutes=settings.SESSION_TIMEOUT_MINUTES)
-
-    expired_sessions = db.query(SessionModel).filter(
-        SessionModel.last_activity < expiration_time
-    ).all()
-
-    count = len(expired_sessions)
-
-    for session in expired_sessions:
-        # Delete all documents and their thumbnails from S3 for this session
-        documents = db.query(Document).filter(Document.session_id == session.id).all()
-        for doc in documents:
-            # Delete main document file
-            try:
-                await s3_service.delete_file(doc.s3_key)
-                logger.info(f"Deleted S3 file during cleanup: {doc.s3_key}")
-            except Exception as e:
-                logger.error(f"Failed to delete S3 file {doc.s3_key} during cleanup: {str(e)}")
-
-            # Delete thumbnail file if it exists
-            if doc.thumbnail_s3_key:
-                try:
-                    await s3_service.delete_file(doc.thumbnail_s3_key)
-                    logger.info(f"Deleted S3 thumbnail during cleanup: {doc.thumbnail_s3_key}")
-                except Exception as e:
-                    logger.error(f"Failed to delete S3 thumbnail {doc.thumbnail_s3_key} during cleanup: {str(e)}")
-
-        # Delete all audio recordings from S3 for this session
-        audio_recordings = db.query(AudioRecording).filter(AudioRecording.session_id == session.id).all()
-        for audio in audio_recordings:
-            try:
-                await s3_service.delete_file(audio.s3_key)
-                logger.info(f"Deleted S3 audio file during cleanup: {audio.s3_key}")
-            except Exception as e:
-                logger.error(f"Failed to delete S3 audio file {audio.s3_key} during cleanup: {str(e)}")
-
-        db.delete(session)
-
-    db.commit()
-
-    return {"message": f"Cleaned up {count} expired sessions"}
-
-
 @router.post("/{session_id}/check-user", response_model=UserExistsResponse)
 async def check_user_exists(
     session_id: str,

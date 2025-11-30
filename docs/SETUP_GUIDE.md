@@ -70,9 +70,6 @@ SECRET_KEY=your-secret-key-here-use-long-random-string
 DEBUG=True
 CORS_ORIGINS=http://localhost:3000
 
-# Session Configuration
-SESSION_TIMEOUT_MINUTES=60
-
 # Admin Configuration
 ADMIN_EMAILS=your-email@example.com
 AUDIT_LOG_RETENTION_DAYS=90

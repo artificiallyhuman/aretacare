@@ -132,7 +132,7 @@ AretaCare **NEVER**:
 
 ### Data Handling
 
-1. **No Long-term Storage**: Sessions expire after 60 minutes of inactivity
+1. **User-Controlled Storage**: Users can delete their sessions at any time
 2. **No Personal Identifiers**: Warn users not to share unnecessary personal information
 3. **No Data References**: Don't reference past conversations as if stored
 4. **Clear Deletion**: Users can clear sessions at any time

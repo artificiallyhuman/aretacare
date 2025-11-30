@@ -21,9 +21,6 @@ class Settings(BaseSettings):
     DEBUG: bool = False
     CORS_ORIGINS: str = "http://localhost:3000"
 
-    # Session
-    SESSION_TIMEOUT_MINUTES: int = 60
-
     # Admin
     ADMIN_EMAILS: str = ""  # Comma-separated list of admin email addresses
     AUDIT_LOG_RETENTION_DAYS: int = 90  # GDPR compliance: auto-delete audit logs older than this

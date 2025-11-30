@@ -68,7 +68,6 @@ python -c "import secrets; print(secrets.token_urlsafe(32))"  # Generate secret 
 - Daily plans with AI-generated content, user edits, viewed status, and date tracking
 - Conversations include rich media support (message_type, document_id, media_url fields)
 - Cascading deletes: deleting user removes all sessions and associated data (including S3 files), deleting individual session removes all session data
-- Sessions expire after 60 minutes of inactivity
 - **Database migrations** run automatically on startup via `run_migrations()` in `backend/app/core/migrations.py`
 - Database can be reset with `RESET_DB=true` environment variable (development/production)
 
@@ -149,7 +148,6 @@ See `backend/app/config/README.md` for complete documentation on modifying AI be
 - Session switching: Click user name in header to see session dropdown with all sessions (owned and shared), active session indicator, and "New Session" button
 - Deleting individual session removes all session data (database + S3 files: documents, thumbnails, audio) - owner only
 - Deleting user account removes all owned sessions and leaves all collaborations
-- Sessions auto-expire via `SESSION_TIMEOUT_MINUTES` (default: 60)
 
 **Session Sharing:**
 - Session owners can share sessions with other AretaCare users by email
