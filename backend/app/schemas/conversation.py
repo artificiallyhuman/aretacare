@@ -25,6 +25,8 @@ class MessageResponse(BaseModel):
 
 class ConversationHistory(BaseModel):
     messages: list[MessageResponse]
+    total_count: int
+    has_more: bool
 
 
 class MedicalSummaryRequest(BaseModel):

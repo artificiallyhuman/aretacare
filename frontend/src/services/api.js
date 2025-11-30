@@ -126,8 +126,8 @@ export const documentAPI = {
 export const conversationAPI = {
   sendMessage: (data) =>
     api.post('/conversation/message', null, { params: data }),
-  getHistory: (sessionId, limit = 100) =>
-    api.get(`/conversation/${sessionId}/history`, { params: { limit } }),
+  getHistory: (sessionId, limit = 50, offset = 0) =>
+    api.get(`/conversation/${sessionId}/history`, { params: { limit, offset } }),
   transcribeAudio: (audioFile, sessionId) => {
     const formData = new FormData();
     formData.append('audio', audioFile);

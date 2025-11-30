@@ -6,6 +6,8 @@ import MessageInput from '../components/MessageInput';
 import DailyPlanPanel from '../components/DailyPlan/DailyPlanPanel';
 import TypingIndicator from '../components/TypingIndicator';
 
+const MESSAGE_PAGE_SIZE = 50;
+
 const Conversation = () => {
   const { activeSessionId, loading: sessionLoading } = useSessionContext();
   const [messages, setMessages] = useState([]);
@@ -17,6 +19,9 @@ const Conversation = () => {
   const [error, setError] = useState('');
   const [showScrollButton, setShowScrollButton] = useState(false);
   const [showScrollTopButton, setShowScrollTopButton] = useState(false);
+  const [hasMoreMessages, setHasMoreMessages] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [currentOffset, setCurrentOffset] = useState(0);
   const messagesEndRef = useRef(null);
   const messagesContainerRef = useRef(null);
   const isNearBottomRef = useRef(true);
@@ -92,13 +97,48 @@ const Conversation = () => {
     }
   }, [activeSessionId]);
 
-  const loadConversationHistory = async (sessionId = activeSessionId) => {
+  const loadConversationHistory = async (sessionId = activeSessionId, resetPagination = true) => {
     if (!sessionId) return;
     try {
-      const response = await conversationAPI.getHistory(sessionId);
+      const response = await conversationAPI.getHistory(sessionId, MESSAGE_PAGE_SIZE, 0);
       setMessages(response.data.messages || []);
+      setHasMoreMessages(response.data.has_more || false);
+      if (resetPagination) {
+        setCurrentOffset(MESSAGE_PAGE_SIZE);
+      }
     } catch (err) {
       console.error('Error loading conversation history:', err);
+    }
+  };
+
+  const loadMoreMessages = async () => {
+    if (!activeSessionId || loadingMore || !hasMoreMessages) return;
+
+    setLoadingMore(true);
+    try {
+      // Save scroll position before loading more messages
+      const container = messagesContainerRef.current;
+      const previousScrollHeight = container?.scrollHeight || 0;
+
+      const response = await conversationAPI.getHistory(activeSessionId, MESSAGE_PAGE_SIZE, currentOffset);
+      const olderMessages = response.data.messages || [];
+
+      // Prepend older messages to the beginning
+      setMessages(prevMessages => [...olderMessages, ...prevMessages]);
+      setHasMoreMessages(response.data.has_more || false);
+      setCurrentOffset(prev => prev + MESSAGE_PAGE_SIZE);
+
+      // Restore scroll position after messages are added
+      requestAnimationFrame(() => {
+        if (container) {
+          const newScrollHeight = container.scrollHeight;
+          container.scrollTop = newScrollHeight - previousScrollHeight;
+        }
+      });
+    } catch (err) {
+      console.error('Error loading more messages:', err);
+    } finally {
+      setLoadingMore(false);
     }
   };
 
@@ -390,6 +430,33 @@ const Conversation = () => {
               </div>
             ) : (
               <>
+                {/* Load More button at top */}
+                {hasMoreMessages && (
+                  <div className="flex justify-center pb-4">
+                    <button
+                      onClick={loadMoreMessages}
+                      disabled={loadingMore}
+                      className="px-4 py-2 text-sm font-medium text-primary-600 dark:text-primary-400 bg-primary-50 dark:bg-primary-900/30 hover:bg-primary-100 dark:hover:bg-primary-900/50 rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
+                    >
+                      {loadingMore ? (
+                        <>
+                          <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                          </svg>
+                          <span>Loading...</span>
+                        </>
+                      ) : (
+                        <>
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 10l7-7m0 0l7 7m-7-7v18" />
+                          </svg>
+                          <span>Load older messages</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                )}
                 {messages.map((message) => (
                   <MessageBubble key={message.id} message={message} />
                 ))}

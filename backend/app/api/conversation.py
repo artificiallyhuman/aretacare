@@ -159,21 +159,28 @@ async def send_message(
 @router.get("/{session_id}/history", response_model=ConversationHistory)
 async def get_conversation_history(
     session_id: str,
-    limit: int = 100,
+    limit: int = 50,
+    offset: int = 0,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """Get conversation history with rich media"""
+    """Get conversation history with rich media and pagination"""
     # Verify user has access to session (owner or collaborator)
     session = db.query(SessionModel).filter(SessionModel.id == session_id).first()
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
     check_session_access(session, current_user.id, db)
 
-    # Get messages - order by created_at descending to get newest first, then reverse for display
+    # Get total message count for pagination
+    total_count = db.query(Conversation).filter(
+        Conversation.session_id == session_id
+    ).count()
+
+    # Get messages - order by created_at descending to get newest first
+    # offset=0 means get the newest messages, offset=50 means skip 50 newest and get the next batch
     messages = db.query(Conversation).filter(
         Conversation.session_id == session_id
-    ).order_by(Conversation.created_at.desc()).limit(limit).all()
+    ).order_by(Conversation.created_at.desc()).offset(offset).limit(limit).all()
     # Reverse to get chronological order for display
     messages = list(reversed(messages))
 
@@ -209,7 +216,10 @@ async def get_conversation_history(
         }
         message_responses.append(MessageResponse(**msg_dict))
 
-    return {"messages": message_responses}
+    # Calculate if there are more messages to load
+    has_more = (offset + limit) < total_count
+
+    return {"messages": message_responses, "total_count": total_count, "has_more": has_more}
 
 
 @router.post("/transcribe")
