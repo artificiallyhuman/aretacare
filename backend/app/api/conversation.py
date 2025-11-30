@@ -170,10 +170,12 @@ async def get_conversation_history(
         raise HTTPException(status_code=404, detail="Session not found")
     check_session_access(session, current_user.id, db)
 
-    # Get messages
+    # Get messages - order by created_at descending to get newest first, then reverse for display
     messages = db.query(Conversation).filter(
         Conversation.session_id == session_id
-    ).order_by(Conversation.created_at).limit(limit).all()
+    ).order_by(Conversation.created_at.desc()).limit(limit).all()
+    # Reverse to get chronological order for display
+    messages = list(reversed(messages))
 
     # Batch load all documents for image messages in ONE query (fixes N+1)
     image_doc_ids = [

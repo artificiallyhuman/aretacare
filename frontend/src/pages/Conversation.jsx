@@ -92,15 +92,11 @@ const Conversation = () => {
     }
   }, [activeSessionId]);
 
-  const loadConversationHistory = async () => {
+  const loadConversationHistory = async (sessionId = activeSessionId) => {
+    if (!sessionId) return;
     try {
-      console.log('[DEBUG] Loading history for session:', activeSessionId);
-      const response = await conversationAPI.getHistory(activeSessionId);
-      const newMessages = response.data.messages;
-      console.log('[DEBUG] Received messages:', newMessages.length, 'messages');
-      console.log('[DEBUG] Last message:', newMessages[newMessages.length - 1]?.content?.substring(0, 50));
-      // Use spread to ensure React detects the state change (Safari fix)
-      setMessages([...newMessages]);
+      const response = await conversationAPI.getHistory(sessionId);
+      setMessages(response.data.messages || []);
     } catch (err) {
       console.error('Error loading conversation history:', err);
     }
@@ -209,11 +205,9 @@ const Conversation = () => {
       });
 
       // Reload conversation history to get the real messages (user + AI response)
-      console.log('[DEBUG] Message sent successfully, reloading history...');
-      await loadConversationHistory();
-      console.log('[DEBUG] History reloaded successfully');
+      await loadConversationHistory(activeSessionId);
     } catch (err) {
-      console.error('[DEBUG] Error in handleSendMessage:', err);
+      console.error('Error sending message:', err);
       setError('Failed to send message. Please try again.');
       // Remove the temporary message on error
       setMessages(prevMessages => prevMessages.filter(msg => msg.id !== tempUserMessage.id));

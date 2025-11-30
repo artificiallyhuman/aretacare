@@ -56,7 +56,6 @@ export const SessionProvider = ({ children }) => {
         // Clean up any stale session ID from localStorage if it's not in the user's sessions
         const savedSessionId = localStorage.getItem('active_session_id');
         if (savedSessionId && !userSessions.find(s => s.id === savedSessionId)) {
-          console.log('[SessionContext] Removing stale session ID from localStorage:', savedSessionId);
           localStorage.removeItem('active_session_id');
         }
 
