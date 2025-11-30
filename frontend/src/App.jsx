@@ -2,6 +2,7 @@ import React, { Suspense, lazy } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { SessionProvider, useSessionContext } from './contexts/SessionContext';
 import { ThemeProvider } from './contexts/ThemeContext';
+import { AdminProvider, useAdmin } from './contexts/AdminContext';
 import Header from './components/Header';
 import Footer from './components/Footer';
 
@@ -22,6 +23,14 @@ const Documents = lazy(() => import('./pages/tools/Documents'));
 const PasswordReset = lazy(() => import('./pages/PasswordReset'));
 const TermsOfService = lazy(() => import('./pages/TermsOfService'));
 const PrivacyPolicy = lazy(() => import('./pages/PrivacyPolicy'));
+
+// Admin pages
+const AdminDashboard = lazy(() => import('./pages/admin/AdminDashboard'));
+const AdminUsers = lazy(() => import('./pages/admin/AdminUsers'));
+const AdminAccounts = lazy(() => import('./pages/admin/AdminAccounts'));
+const AdminS3Cleanup = lazy(() => import('./pages/admin/AdminS3Cleanup'));
+const AdminAuditLog = lazy(() => import('./pages/admin/AdminAuditLog'));
+const AdminHealth = lazy(() => import('./pages/admin/AdminHealth'));
 
 // Loading fallback component for lazy-loaded routes
 const PageLoadingFallback = () => (
@@ -71,6 +80,33 @@ function PublicRoute({ children }) {
   }
 
   if (user) {
+    return <Navigate to="/" replace />;
+  }
+
+  return children;
+}
+
+// Admin Route Component (requires admin access)
+function AdminRoute({ children }) {
+  const { user, loading: userLoading } = useSessionContext();
+  const { isAdmin, loading: adminLoading } = useAdmin();
+
+  if (userLoading || adminLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="spinner"></div>
+          <p className="mt-4 text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
+
+  if (!isAdmin) {
     return <Navigate to="/" replace />;
   }
 
@@ -198,6 +234,56 @@ function AppContent() {
               </ProtectedRoute>
             }
           />
+
+          {/* Admin Routes */}
+          <Route
+            path="/admin"
+            element={
+              <AdminRoute>
+                <AdminDashboard />
+              </AdminRoute>
+            }
+          />
+          <Route
+            path="/admin/users"
+            element={
+              <AdminRoute>
+                <AdminUsers />
+              </AdminRoute>
+            }
+          />
+          <Route
+            path="/admin/accounts"
+            element={
+              <AdminRoute>
+                <AdminAccounts />
+              </AdminRoute>
+            }
+          />
+          <Route
+            path="/admin/s3-cleanup"
+            element={
+              <AdminRoute>
+                <AdminS3Cleanup />
+              </AdminRoute>
+            }
+          />
+          <Route
+            path="/admin/audit-log"
+            element={
+              <AdminRoute>
+                <AdminAuditLog />
+              </AdminRoute>
+            }
+          />
+          <Route
+            path="/admin/health"
+            element={
+              <AdminRoute>
+                <AdminHealth />
+              </AdminRoute>
+            }
+          />
         </Routes>
       </Suspense>
 
@@ -211,7 +297,9 @@ function App() {
     <ThemeProvider>
       <Router>
         <SessionProvider>
-          <AppContent />
+          <AdminProvider>
+            <AppContent />
+          </AdminProvider>
         </SessionProvider>
       </Router>
     </ThemeProvider>

@@ -71,9 +71,9 @@ async def upload_document(
             detail=f"File size exceeds maximum allowed size of {MAX_FILE_SIZE / 1024 / 1024}MB"
         )
 
-    # Generate unique S3 key
+    # Generate unique S3 key (with optional environment prefix for shared buckets)
     file_extension = file.filename.split('.')[-1] if '.' in file.filename else 'bin'
-    s3_key = f"documents/{session_id}/{uuid.uuid4()}.{file_extension}"
+    s3_key = s3_service.get_prefixed_key(f"documents/{session_id}/{uuid.uuid4()}.{file_extension}")
 
     # Upload to S3
     upload_success = await s3_service.upload_file(file_content, s3_key, file.content_type)
@@ -89,7 +89,7 @@ async def upload_document(
     if file.content_type == "application/pdf":
         thumbnail_bytes = document_processor.generate_pdf_thumbnail(file_content)
         if thumbnail_bytes:
-            thumbnail_s3_key = f"thumbnails/{session_id}/{uuid.uuid4()}.png"
+            thumbnail_s3_key = s3_service.get_prefixed_key(f"thumbnails/{session_id}/{uuid.uuid4()}.png")
             thumbnail_upload_success = await s3_service.upload_file(
                 thumbnail_bytes,
                 thumbnail_s3_key,

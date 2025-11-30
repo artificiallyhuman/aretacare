@@ -236,10 +236,10 @@ async def transcribe_audio(
                 detail=f"Invalid audio format. Supported formats: {', '.join(allowed_extensions)}"
             )
 
-        # Generate unique filename for S3
+        # Generate unique filename for S3 (with optional environment prefix for shared buckets)
         timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
         unique_id = str(uuid.uuid4())[:8]
-        s3_key = f"audio/{session_id}/{timestamp}_{unique_id}_{audio.filename}"
+        s3_key = s3_service.get_prefixed_key(f"audio/{session_id}/{timestamp}_{unique_id}_{audio.filename}")
 
         # Read audio file content
         audio_content = await audio.read()
