@@ -339,3 +339,48 @@ def run_migrations():
         except Exception as e:
             logger.warning(f"Index idx_journal_entries_session_date may already exist: {e}")
             conn.rollback()
+
+        # ==========================================
+        # ADMIN AUDIT LOG TABLE
+        # ==========================================
+
+        # Create admin_audit_logs table if it doesn't exist
+        if 'admin_audit_logs' not in inspector.get_table_names():
+            logger.info("Creating admin_audit_logs table...")
+            try:
+                conn.execute(text("""
+                    CREATE TABLE admin_audit_logs (
+                        id SERIAL PRIMARY KEY,
+                        admin_user_id VARCHAR REFERENCES users(id) ON DELETE SET NULL,
+                        admin_email VARCHAR NOT NULL,
+                        action VARCHAR NOT NULL,
+                        target_type VARCHAR,
+                        target_id VARCHAR,
+                        details JSONB,
+                        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+                    )
+                """))
+                conn.commit()
+                logger.info("Successfully created admin_audit_logs table")
+
+                # Create index for efficient queries by date
+                conn.execute(text("""
+                    CREATE INDEX IF NOT EXISTS idx_admin_audit_logs_created_at
+                    ON admin_audit_logs (created_at DESC)
+                """))
+                conn.commit()
+                logger.info("Created index idx_admin_audit_logs_created_at")
+
+                # Create index for filtering by action
+                conn.execute(text("""
+                    CREATE INDEX IF NOT EXISTS idx_admin_audit_logs_action
+                    ON admin_audit_logs (action)
+                """))
+                conn.commit()
+                logger.info("Created index idx_admin_audit_logs_action")
+
+            except Exception as e:
+                logger.error(f"Failed to create admin_audit_logs table: {e}")
+                conn.rollback()
+        else:
+            logger.info("admin_audit_logs table already exists")

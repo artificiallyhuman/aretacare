@@ -16,6 +16,19 @@ class S3Service:
             region_name=settings.AWS_REGION
         )
         self.bucket_name = settings.S3_BUCKET_NAME
+        self.key_prefix = settings.S3_KEY_PREFIX  # e.g., "dev/" or "prod/"
+
+    def get_prefixed_key(self, key: str) -> str:
+        """Add environment prefix to S3 key for multi-environment bucket sharing."""
+        if self.key_prefix:
+            return f"{self.key_prefix}{key}"
+        return key
+
+    def get_prefixed_path(self, path: str) -> str:
+        """Add environment prefix to S3 path/prefix for listing operations."""
+        if self.key_prefix:
+            return f"{self.key_prefix}{path}"
+        return path
 
     async def upload_file(self, file_content: bytes, key: str, content_type: str) -> bool:
         """Upload file to S3 bucket"""

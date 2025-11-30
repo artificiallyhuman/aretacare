@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from app.api import auth, sessions, documents, medical, journal, conversation, tools, audio_recording, daily_plans
+from app.api import auth, sessions, documents, medical, journal, conversation, tools, audio_recording, daily_plans, admin
 
 api_router = APIRouter()
 
@@ -29,3 +29,6 @@ api_router.include_router(tools.router)
 
 # Medical (legacy - keep for backwards compatibility during transition)
 api_router.include_router(medical.router)
+
+# Admin console
+api_router.include_router(admin.router)

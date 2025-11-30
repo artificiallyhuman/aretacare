@@ -1,7 +1,9 @@
 """Shared permission checking functions for API endpoints"""
-from fastapi import HTTPException
+from fastapi import HTTPException, Depends, status
 from sqlalchemy.orm import Session
 from app.models import Session as SessionModel, SessionCollaborator
+from app.models.user import User
+from app.core.config import settings
 
 
 def check_session_access(session: SessionModel, user_id: str, db: Session, require_owner: bool = False):
@@ -33,3 +35,43 @@ def check_session_access(session: SessionModel, user_id: str, db: Session, requi
         raise HTTPException(status_code=403, detail="Access denied")
 
     return is_owner
+
+
+def check_is_admin(user: User) -> bool:
+    """
+    Check if a user is an admin.
+
+    Args:
+        user: The user to check
+
+    Returns:
+        bool: True if user is admin
+    """
+    admin_emails = settings.admin_emails_list
+    if not admin_emails:
+        return False
+    return user.email.lower() in admin_emails
+
+
+def require_admin(current_user: User) -> User:
+    """
+    Verify that the current user is an admin.
+
+    This is NOT a FastAPI dependency - use get_admin_user instead.
+    This is a helper function for use within endpoints.
+
+    Args:
+        current_user: The authenticated user
+
+    Returns:
+        User: The admin user if authorized
+
+    Raises:
+        HTTPException: 403 if user is not an admin
+    """
+    if not check_is_admin(current_user):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin access required"
+        )
+    return current_user

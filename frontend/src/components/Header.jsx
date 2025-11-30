@@ -2,11 +2,13 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useSessionContext } from '../contexts/SessionContext';
 import { useTheme } from '../contexts/ThemeContext';
+import { useAdmin } from '../contexts/AdminContext';
 
 const Header = ({ onLogout, user }) => {
   const navigate = useNavigate();
   const { sessions, activeSession, switchSession, createSession } = useSessionContext();
   const { isDark, toggleTheme } = useTheme();
+  const { isAdmin } = useAdmin();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [toolsDropdownOpen, setToolsDropdownOpen] = useState(false);
   const [userDropdownOpen, setUserDropdownOpen] = useState(false);
@@ -213,6 +215,15 @@ const Header = ({ onLogout, user }) => {
                     </button>
 
                     <div className="border-t border-gray-200 dark:border-gray-700 mt-1 pt-1">
+                      {isAdmin && (
+                        <Link
+                          to="/admin"
+                          className="block px-4 py-2 text-sm text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/30 font-medium"
+                          onClick={() => setUserDropdownOpen(false)}
+                        >
+                          Admin Console
+                        </Link>
+                      )}
                       <Link
                         to="/settings"
                         className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700"
@@ -444,6 +455,16 @@ const Header = ({ onLogout, user }) => {
                 >
                   About
                 </Link>
+
+                {isAdmin && (
+                  <Link
+                    to="/admin"
+                    className="block px-3 py-2.5 text-sm font-medium text-purple-600 dark:text-purple-400 hover:text-purple-700 dark:hover:text-purple-300 hover:bg-purple-50 dark:hover:bg-purple-900/30 transition-colors"
+                    onClick={() => setMobileMenuOpen(false)}
+                  >
+                    Admin Console
+                  </Link>
+                )}
 
                 <Link
                   to="/settings"

@@ -181,6 +181,47 @@ export const toolsAPI = {
     api.post('/tools/conversation-coach', null, { params: { situation, session_id: sessionId } }),
 };
 
+// Admin API
+export const adminAPI = {
+  // Check if current user is admin
+  checkAdmin: () => api.get('/admin/check'),
+
+  // Platform metrics
+  getMetrics: () => api.get('/admin/metrics'),
+  getMetricsTrend: (metric, days = 30) =>
+    api.get('/admin/metrics/trends', { params: { metric, days } }),
+
+  // Account analysis
+  getInactiveAccounts: (days = 30) =>
+    api.get('/admin/accounts/inactive', { params: { days } }),
+  getUnusualAccounts: (zThreshold = 2.0) =>
+    api.get('/admin/accounts/unusual', { params: { z_threshold: zThreshold } }),
+
+  // User administration
+  searchUsers: (email, limit = 50) =>
+    api.get('/admin/users/search', { params: { email, limit } }),
+  getUserDetail: (userId) => api.get(`/admin/users/${userId}`),
+  resetUserPassword: (userId) => api.post(`/admin/users/${userId}/reset-password`),
+  deleteUser: (userId) => api.delete(`/admin/users/${userId}`),
+
+  // Session administration
+  transferSession: (sessionId, newOwnerEmail) =>
+    api.post(`/admin/sessions/${sessionId}/transfer`, { new_owner_email: newOwnerEmail }),
+  deleteSession: (sessionId) => api.delete(`/admin/sessions/${sessionId}`),
+
+  // S3 orphan management
+  getOrphanedFiles: () => api.get('/admin/s3/orphans'),
+  deleteOrphanedFiles: (keys) => api.delete('/admin/s3/orphans', { data: { keys } }),
+
+  // Audit log
+  getAuditLog: (page = 1, limit = 50, action = null, adminEmail = null) =>
+    api.get('/admin/audit-log', { params: { page, limit, action, admin_email: adminEmail } }),
+  cleanupAuditLog: () => api.post('/admin/audit-log/cleanup'),
+
+  // System health
+  getSystemHealth: () => api.get('/admin/health'),
+};
+
 // Medical API
 export const medicalAPI = {
   generateSummary: (medicalText, sessionId) =>

@@ -14,6 +14,7 @@ class Settings(BaseSettings):
     AWS_SECRET_ACCESS_KEY: str
     AWS_REGION: str = "us-east-1"
     S3_BUCKET_NAME: str
+    S3_KEY_PREFIX: str = ""  # Environment prefix (e.g., "dev/" or "prod/") to separate files in shared bucket
 
     # Application
     SECRET_KEY: str
@@ -22,6 +23,16 @@ class Settings(BaseSettings):
 
     # Session
     SESSION_TIMEOUT_MINUTES: int = 60
+
+    # Admin
+    ADMIN_EMAILS: str = ""  # Comma-separated list of admin email addresses
+    AUDIT_LOG_RETENTION_DAYS: int = 90  # GDPR compliance: auto-delete audit logs older than this
+
+    @property
+    def admin_emails_list(self) -> List[str]:
+        if not self.ADMIN_EMAILS:
+            return []
+        return [email.strip().lower() for email in self.ADMIN_EMAILS.split(",") if email.strip()]
 
     # Email (for password reset)
     SMTP_HOST: str = "smtp.gmail.com"
