@@ -422,75 +422,6 @@ class AdminService:
                 "collaborator_count": collab_count
             })
 
-        # Get recent conversations (last 10 user messages)
-        recent_conversations = []
-        if session_ids:
-            convs = db.query(Conversation).filter(
-                Conversation.session_id.in_(session_ids),
-                Conversation.role == "user"
-            ).order_by(Conversation.created_at.desc()).limit(10).all()
-            for conv in convs:
-                session_name = next((s.name for s in all_sessions if s.id == conv.session_id), "Unknown")
-                recent_conversations.append({
-                    "id": str(conv.id),
-                    "content": conv.content[:200] + "..." if len(conv.content) > 200 else conv.content,
-                    "created_at": conv.created_at,
-                    "session_name": session_name
-                })
-
-        # Get recent documents (last 10)
-        recent_documents = []
-        if session_ids:
-            docs = db.query(Document).filter(
-                Document.session_id.in_(session_ids)
-            ).order_by(Document.uploaded_at.desc()).limit(10).all()
-            for doc in docs:
-                session_name = next((s.name for s in all_sessions if s.id == doc.session_id), "Unknown")
-                recent_documents.append({
-                    "id": str(doc.id),
-                    "filename": doc.filename,
-                    "category": doc.category.value if doc.category else None,
-                    "description": doc.ai_description,
-                    "uploaded_at": doc.uploaded_at,
-                    "session_name": session_name
-                })
-
-        # Get recent audio recordings (last 10)
-        recent_audio = []
-        if session_ids:
-            audios = db.query(AudioRecording).filter(
-                AudioRecording.session_id.in_(session_ids)
-            ).order_by(AudioRecording.created_at.desc()).limit(10).all()
-            for audio in audios:
-                session_name = next((s.name for s in all_sessions if s.id == audio.session_id), "Unknown")
-                recent_audio.append({
-                    "id": str(audio.id),
-                    "filename": audio.filename,
-                    "category": audio.category.value if audio.category else None,
-                    "summary": audio.ai_summary,
-                    "duration_seconds": audio.duration,
-                    "created_at": audio.created_at,
-                    "session_name": session_name
-                })
-
-        # Get recent journal entries (last 10)
-        recent_journals = []
-        if session_ids:
-            journals = db.query(JournalEntry).filter(
-                JournalEntry.session_id.in_(session_ids)
-            ).order_by(JournalEntry.created_at.desc()).limit(10).all()
-            for journal in journals:
-                session_name = next((s.name for s in all_sessions if s.id == journal.session_id), "Unknown")
-                recent_journals.append({
-                    "id": str(journal.id),
-                    "title": journal.title,
-                    "content": journal.content[:200] + "..." if len(journal.content) > 200 else journal.content,
-                    "entry_type": journal.entry_type.value if journal.entry_type else None,
-                    "entry_date": str(journal.entry_date) if journal.entry_date else None,
-                    "created_at": journal.created_at,
-                    "session_name": session_name
-                })
-
         return {
             "id": str(user.id),
             "email": user.email,
@@ -502,11 +433,7 @@ class AdminService:
             "total_documents": total_docs,
             "total_audio": total_audio,
             "total_conversations": total_convs,
-            "total_journals": total_journals,
-            "recent_conversations": recent_conversations,
-            "recent_documents": recent_documents,
-            "recent_audio": recent_audio,
-            "recent_journals": recent_journals
+            "total_journals": total_journals
         }
 
     # ==========================================
