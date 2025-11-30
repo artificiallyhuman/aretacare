@@ -30,6 +30,8 @@ AretaCare was built from exactly this experience—sitting beside a loved one in
 
 **Account Security** — Email notifications keep you informed of important account changes including password updates, email changes, and session sharing activities.
 
+**Admin Console** — For administrators: user metrics dashboard, system health monitoring, S3 orphan file cleanup, and audit logging with GDPR-compliant retention.
+
 ---
 
 ## Safety Boundaries
@@ -65,17 +67,30 @@ cp backend/.env.example backend/.env
 Edit `backend/.env` with your credentials:
 
 ```env
+# Required
 OPENAI_API_KEY=sk-your-key
 AWS_ACCESS_KEY_ID=your-key
 AWS_SECRET_ACCESS_KEY=your-secret
+AWS_REGION=us-east-1
 S3_BUCKET_NAME=your-bucket
 SECRET_KEY=generate-with-python-secrets
+
+# Email (for password reset and notifications)
+SMTP_USER=your-email@gmail.com
+SMTP_PASSWORD=your-gmail-app-password
+SMTP_FROM_EMAIL=your-email@gmail.com
+SMTP_FROM_NAME=AretaCare
+
+# Admin (your email to access admin console)
+ADMIN_EMAILS=your-email@example.com
 ```
 
 Generate a secret key:
 ```bash
 python -c "import secrets; print(secrets.token_urlsafe(32))"
 ```
+
+See [docs/EMAIL_SETUP.md](docs/EMAIL_SETUP.md) for Gmail app password setup.
 
 ### Run
 
