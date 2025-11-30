@@ -151,7 +151,7 @@ AretaCare deploys to Render using the included `render.yaml` blueprint:
 
 1. Push to GitHub
 2. Connect repository in Render dashboard
-3. Add environment variables: `OPENAI_API_KEY`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `S3_BUCKET_NAME`
+3. Add environment variables: `OPENAI_API_KEY`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `S3_BUCKET_NAME`, `ADMIN_EMAILS`
 4. Deploy
 
 ---

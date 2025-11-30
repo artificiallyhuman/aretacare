@@ -72,6 +72,13 @@ CORS_ORIGINS=http://localhost:3000
 
 # Session Configuration
 SESSION_TIMEOUT_MINUTES=60
+
+# Admin Configuration
+ADMIN_EMAILS=your-email@example.com
+AUDIT_LOG_RETENTION_DAYS=90
+
+# S3 Key Prefix (optional, for shared buckets between environments)
+S3_KEY_PREFIX=dev/
 ```
 
 **Generate a Secret Key:**
@@ -211,6 +218,8 @@ In the Render dashboard, set these environment variables for the backend service
 - `AWS_ACCESS_KEY_ID`: Your AWS access key
 - `AWS_SECRET_ACCESS_KEY`: Your AWS secret key
 - `S3_BUCKET_NAME`: Your S3 bucket name
+- `ADMIN_EMAILS`: Comma-separated admin email addresses
+- `S3_KEY_PREFIX`: Environment prefix (e.g., `prod/`) if sharing bucket with dev
 
 #### 5. Update S3 CORS
 

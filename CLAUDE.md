@@ -21,6 +21,7 @@ AretaCare is an AI-powered medical care advocate assistant that helps families u
 - AI-powered Documents Manager (12 categories, AI descriptions, searchable, date navigation)
 - AI-powered Audio Recordings (12 categories, AI summaries, searchable, date navigation)
 - Complete data deletion - removes PostgreSQL data and S3 files (zero orphaned files)
+- Admin console - user metrics, system health, S3 orphan cleanup, audit logging with GDPR retention
 - Mobile-optimized design with responsive layouts
 - Dark mode support via Tailwind CSS and ThemeContext
 - Specialized tools: Jargon Translator, Conversation Coach
@@ -57,7 +58,7 @@ python -c "import secrets; print(secrets.token_urlsafe(32))"  # Generate secret 
 - Protected routes redirect to login if not authenticated
 
 **Database (PostgreSQL)**
-- Eight main tables: `users`, `sessions`, `session_collaborators`, `documents`, `audio_recordings`, `conversations`, `journal_entries`, `daily_plans`
+- Nine main tables: `users`, `sessions`, `session_collaborators`, `documents`, `audio_recordings`, `conversations`, `journal_entries`, `daily_plans`, `admin_audit_logs`
 - User table stores authentication credentials (bcrypt hashed passwords) and password reset tokens (time-limited, 1-hour expiration)
 - **Sessions table** tied to user accounts via foreign key, supports up to 3 sessions per user (owned + collaborations), includes `owner_id` for session ownership, name field (15-character limit, default "Session N"), created_at for automatic numbering
 - **Session collaborators table** links users to shared sessions with unique constraint on (session_id, user_id), cascading deletes when session or user is deleted
@@ -172,8 +173,9 @@ See `backend/app/config/README.md` for complete documentation on modifying AI be
 - `journal.py` - Journal CRUD operations
 - `daily_plans.py` - Daily plan management (generate, list, update)
 - `tools.py` - Standalone tools (Jargon Translator, Conversation Coach)
+- `admin.py` - Admin console (metrics, health, S3 cleanup, audit log)
 
-**Models** (`backend/app/models/`): `user.py`, `session.py`, `session_collaborator.py`, `document.py`, `audio_recording.py`, `journal.py`, `daily_plan.py`, `conversation.py`
+**Models** (`backend/app/models/`): `user.py`, `session.py`, `session_collaborator.py`, `document.py`, `audio_recording.py`, `journal.py`, `daily_plan.py`, `conversation.py`, `admin_audit_log.py`
 
 **AI Configuration** (CRITICAL):
 - `backend/app/config/ai_config.py` - All models, prompts, safety boundaries, categories
@@ -186,6 +188,7 @@ See `backend/app/config/README.md` for complete documentation on modifying AI be
 - `s3_service.py` - S3 upload/download/delete, presigned URLs
 - `document_processor.py` - Text extraction (PDF, OCR), thumbnail generation
 - `email_service.py` - Email notifications via Gmail SMTP (password changes, email changes, collaborator management, password reset)
+- `admin_service.py` - Admin metrics, S3 orphan detection, audit log management
 
 **Core** (`backend/app/core/`):
 - `migrations.py` - Database migrations (auto-adds columns)
@@ -202,6 +205,7 @@ See `backend/app/config/README.md` for complete documentation on modifying AI be
 - `AudioRecordings.jsx` - AI-powered audio manager
 - `Login.jsx`, `Register.jsx`, `PasswordReset.jsx` - Authentication
 - `About.jsx`, `TermsOfService.jsx`, `PrivacyPolicy.jsx` - Info pages
+- `admin/` - Admin console pages (Dashboard, Health, S3Cleanup, AuditLog)
 
 **Components** (`frontend/src/components/`):
 - `Header.jsx` - Navigation with session switcher
@@ -213,6 +217,7 @@ See `backend/app/config/README.md` for complete documentation on modifying AI be
 
 **Context & Services**:
 - `contexts/SessionContext.jsx` - Multi-session state management
+- `contexts/AdminContext.jsx` - Admin authorization state
 - `services/api.js` - Axios instance with auth interceptor
 
 ## Important Configuration Details
@@ -239,6 +244,9 @@ Backend requires (`backend/.env`):
 - `SECRET_KEY` - For JWT signing
 - `CORS_ORIGINS` - Comma-separated allowed origins
 - `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM_EMAIL`, `SMTP_FROM_NAME`, `FRONTEND_URL` - For email notifications: password reset, password changes, email changes, collaborator management (see docs/EMAIL_SETUP.md)
+- `ADMIN_EMAILS` - Comma-separated list of admin email addresses (e.g., `admin@example.com,other@example.com`)
+- `AUDIT_LOG_RETENTION_DAYS` - GDPR compliance: auto-delete audit logs older than this (default: 90)
+- `S3_KEY_PREFIX` - Environment prefix for shared S3 buckets (e.g., `dev/` or `prod/`)
 - `RESET_DB` - Optional: Set to "true" to drop and recreate database on startup (development/production)
 
 Frontend optional (`frontend/.env`):
@@ -333,6 +341,7 @@ Theme managed via `ThemeContext.jsx`, persisted to localStorage.
 - Daily Plan generation and editing
 - Documents/Audio with AI categorization
 - Settings: account updates, session management, password reset
+- Admin console (requires email in ADMIN_EMAILS): metrics, health, S3 cleanup, audit log
 - Mobile responsiveness
 
 ## Safety Guideline Enforcement
@@ -359,7 +368,9 @@ Must be reviewed against the safety guidelines to ensure:
 
 Services: PostgreSQL DB, FastAPI backend, React static site
 
-Required env vars: `OPENAI_API_KEY`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `S3_BUCKET_NAME`
+Required env vars: `OPENAI_API_KEY`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `S3_BUCKET_NAME`, `ADMIN_EMAILS`
+
+Optional: `S3_KEY_PREFIX` (for shared buckets), `AUDIT_LOG_RETENTION_DAYS` (default: 90)
 
 Auto-configured: `DATABASE_URL`, `SECRET_KEY`, `CORS_ORIGINS`
 
