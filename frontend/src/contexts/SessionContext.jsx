@@ -53,14 +53,21 @@ export const SessionProvider = ({ children }) => {
         // 3. Most recent session by last_activity
         let sessionToActivate = null;
 
+        // Clean up any stale session ID from localStorage if it's not in the user's sessions
+        const savedSessionId = localStorage.getItem('active_session_id');
+        if (savedSessionId && !userSessions.find(s => s.id === savedSessionId)) {
+          console.log('[SessionContext] Removing stale session ID from localStorage:', savedSessionId);
+          localStorage.removeItem('active_session_id');
+        }
+
         // Check if user's last active session exists
         if (userData.last_active_session_id && userSessions.find(s => s.id === userData.last_active_session_id)) {
           sessionToActivate = userData.last_active_session_id;
         } else {
-          // Try localStorage as fallback
-          const savedSessionId = localStorage.getItem('active_session_id');
-          if (savedSessionId && userSessions.find(s => s.id === savedSessionId)) {
-            sessionToActivate = savedSessionId;
+          // Try localStorage as fallback (only if it wasn't just removed as stale)
+          const currentSavedId = localStorage.getItem('active_session_id');
+          if (currentSavedId && userSessions.find(s => s.id === currentSavedId)) {
+            sessionToActivate = currentSavedId;
           } else if (userSessions.length > 0) {
             // Use the most recent session
             const mostRecent = userSessions.reduce((latest, session) => {

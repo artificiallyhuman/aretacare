@@ -86,12 +86,19 @@ export const NetworkProvider = ({ children }) => {
       // Don't show error, let the auth flow handle it
       return;
     } else if (error.response.status === 403) {
-      // Forbidden
-      showErrorMessage(
-        'You do not have permission to perform this action.',
-        'permission',
-        false
-      );
+      // Forbidden - only show for user-initiated actions, not background requests
+      // Background requests like daily-plans/check should fail silently
+      const url = error.config?.url || '';
+      const isBackgroundRequest = url.includes('/check') ||
+                                   url.includes('/latest') ||
+                                   url.includes('/admin/');
+      if (!isBackgroundRequest) {
+        showErrorMessage(
+          'You do not have permission to perform this action.',
+          'permission',
+          false
+        );
+      }
     }
     // For other errors (4xx), let the component handle it
   }, [showErrorMessage]);

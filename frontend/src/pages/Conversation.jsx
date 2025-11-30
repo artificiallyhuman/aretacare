@@ -96,9 +96,11 @@ const Conversation = () => {
     try {
       console.log('[DEBUG] Loading history for session:', activeSessionId);
       const response = await conversationAPI.getHistory(activeSessionId);
-      console.log('[DEBUG] Received messages:', response.data.messages.length, 'messages');
-      console.log('[DEBUG] Last message:', response.data.messages[response.data.messages.length - 1]?.content?.substring(0, 50));
-      setMessages(response.data.messages);
+      const newMessages = response.data.messages;
+      console.log('[DEBUG] Received messages:', newMessages.length, 'messages');
+      console.log('[DEBUG] Last message:', newMessages[newMessages.length - 1]?.content?.substring(0, 50));
+      // Use spread to ensure React detects the state change (Safari fix)
+      setMessages([...newMessages]);
     } catch (err) {
       console.error('Error loading conversation history:', err);
     }
