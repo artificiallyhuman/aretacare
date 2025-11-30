@@ -39,6 +39,7 @@ function ConfirmModal({ isOpen, onClose, onConfirm, title, message, confirmText 
 function UserDetail({ user, onClose, onAction }) {
   const [loading, setLoading] = useState(false);
   const [confirmModal, setConfirmModal] = useState(null);
+  const [activeTab, setActiveTab] = useState('sessions');
 
   const handleResetPassword = async () => {
     setLoading(true);
@@ -67,12 +68,20 @@ function UserDetail({ user, onClose, onAction }) {
     }
   };
 
+  const tabs = [
+    { id: 'sessions', label: 'Sessions', count: user.sessions?.length || 0 },
+    { id: 'conversations', label: 'Conversations', count: user.total_conversations || 0 },
+    { id: 'documents', label: 'Documents', count: user.total_documents || 0 },
+    { id: 'audio', label: 'Audio', count: user.total_audio || 0 },
+    { id: 'journals', label: 'Journals', count: user.total_journals || 0 },
+  ];
+
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto">
-      <div className="flex items-center justify-center min-h-screen px-4">
+      <div className="flex items-center justify-center min-h-screen px-4 py-4">
         <div className="fixed inset-0 bg-black/50" onClick={onClose}></div>
-        <div className="relative bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-          <div className="p-6">
+        <div className="relative bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-3xl w-full max-h-[90vh] overflow-y-auto">
+          <div className="p-4 md:p-6">
             <div className="flex justify-between items-start">
               <div>
                 <h2 className="text-xl font-bold text-gray-900 dark:text-white">{user.name}</h2>
@@ -85,13 +94,30 @@ function UserDetail({ user, onClose, onAction }) {
               </button>
             </div>
 
-            <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-3">
-                <p className="text-xs text-gray-500 dark:text-gray-400">User ID</p>
-                <p className="text-sm font-mono text-gray-900 dark:text-white truncate">{user.id}</p>
+            {/* Stats Grid */}
+            <div className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-2">
+              <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-2 text-center">
+                <p className="text-lg font-bold text-gray-900 dark:text-white">{user.sessions?.length || 0}</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">Sessions</p>
               </div>
-              <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-3">
-                <p className="text-xs text-gray-500 dark:text-gray-400">Status</p>
+              <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-2 text-center">
+                <p className="text-lg font-bold text-gray-900 dark:text-white">{user.total_conversations || 0}</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">Messages</p>
+              </div>
+              <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-2 text-center">
+                <p className="text-lg font-bold text-gray-900 dark:text-white">{user.total_documents || 0}</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">Documents</p>
+              </div>
+              <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-2 text-center">
+                <p className="text-lg font-bold text-gray-900 dark:text-white">{user.total_journals || 0}</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">Journals</p>
+              </div>
+            </div>
+
+            {/* User Info */}
+            <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-2 text-sm">
+              <div className="flex items-center gap-2">
+                <span className="text-gray-500 dark:text-gray-400">Status:</span>
                 <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
                   user.is_active
                     ? 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300'
@@ -100,23 +126,39 @@ function UserDetail({ user, onClose, onAction }) {
                   {user.is_active ? 'Active' : 'Inactive'}
                 </span>
               </div>
-              <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-3">
-                <p className="text-xs text-gray-500 dark:text-gray-400">Created</p>
-                <p className="text-sm text-gray-900 dark:text-white">
-                  {new Date(user.created_at).toLocaleDateString()}
-                </p>
+              <div className="text-gray-500 dark:text-gray-400">
+                Created: <span className="text-gray-900 dark:text-white">{new Date(user.created_at).toLocaleDateString()}</span>
               </div>
-              <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-3">
-                <p className="text-xs text-gray-500 dark:text-gray-400">Sessions</p>
-                <p className="text-sm text-gray-900 dark:text-white">{user.sessions?.length || 0}</p>
+              <div className="text-gray-500 dark:text-gray-400 truncate" title={user.id}>
+                ID: <span className="font-mono text-gray-900 dark:text-white text-xs">{user.id}</span>
               </div>
             </div>
 
-            {user.sessions && user.sessions.length > 0 && (
-              <div className="mt-6">
-                <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">Sessions</h3>
+            {/* Tabs */}
+            <div className="mt-4 border-b border-gray-200 dark:border-gray-700">
+              <div className="flex gap-1 overflow-x-auto">
+                {tabs.map((tab) => (
+                  <button
+                    key={tab.id}
+                    onClick={() => setActiveTab(tab.id)}
+                    className={`px-3 py-2 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
+                      activeTab === tab.id
+                        ? 'border-primary-600 text-primary-600 dark:text-primary-400'
+                        : 'border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+                    }`}
+                  >
+                    {tab.label} ({tab.count})
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Tab Content */}
+            <div className="mt-4 max-h-64 overflow-y-auto">
+              {/* Sessions Tab */}
+              {activeTab === 'sessions' && (
                 <div className="space-y-2">
-                  {user.sessions.map((session) => (
+                  {user.sessions?.length > 0 ? user.sessions.map((session) => (
                     <div key={session.id} className="bg-gray-50 dark:bg-gray-700 rounded-lg p-3">
                       <div className="flex justify-between items-start">
                         <div>
@@ -126,19 +168,127 @@ function UserDetail({ user, onClose, onAction }) {
                           </p>
                         </div>
                         <div className="text-right text-xs text-gray-500 dark:text-gray-400">
-                          <p>{session.document_count} docs</p>
-                          <p>{session.conversation_count} msgs</p>
+                          <p>{session.document_count} docs, {session.audio_count} audio</p>
+                          <p>{session.conversation_count} msgs, {session.journal_count} journals</p>
                         </div>
                       </div>
                     </div>
-                  ))}
+                  )) : (
+                    <p className="text-gray-500 dark:text-gray-400 text-sm">No sessions</p>
+                  )}
                 </div>
-              </div>
-            )}
+              )}
 
+              {/* Conversations Tab */}
+              {activeTab === 'conversations' && (
+                <div className="space-y-2">
+                  {user.recent_conversations?.length > 0 ? user.recent_conversations.map((conv) => (
+                    <div key={conv.id} className="bg-gray-50 dark:bg-gray-700 rounded-lg p-3">
+                      <div className="flex justify-between items-start gap-2">
+                        <p className="text-sm text-gray-900 dark:text-white flex-1">{conv.content}</p>
+                        <div className="text-right text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">
+                          <p>{conv.session_name}</p>
+                          <p>{new Date(conv.created_at).toLocaleDateString()}</p>
+                        </div>
+                      </div>
+                    </div>
+                  )) : (
+                    <p className="text-gray-500 dark:text-gray-400 text-sm">No conversations</p>
+                  )}
+                  {user.total_conversations > 10 && (
+                    <p className="text-xs text-gray-500 dark:text-gray-400 text-center">Showing 10 most recent of {user.total_conversations}</p>
+                  )}
+                </div>
+              )}
+
+              {/* Documents Tab */}
+              {activeTab === 'documents' && (
+                <div className="space-y-2">
+                  {user.recent_documents?.length > 0 ? user.recent_documents.map((doc) => (
+                    <div key={doc.id} className="bg-gray-50 dark:bg-gray-700 rounded-lg p-3">
+                      <div className="flex justify-between items-start gap-2">
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium text-gray-900 dark:text-white truncate">{doc.filename}</p>
+                          <p className="text-xs text-gray-500 dark:text-gray-400">{doc.category}</p>
+                          {doc.description && (
+                            <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">{doc.description}</p>
+                          )}
+                        </div>
+                        <div className="text-right text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">
+                          <p>{doc.session_name}</p>
+                          <p>{new Date(doc.uploaded_at).toLocaleDateString()}</p>
+                        </div>
+                      </div>
+                    </div>
+                  )) : (
+                    <p className="text-gray-500 dark:text-gray-400 text-sm">No documents</p>
+                  )}
+                  {user.total_documents > 10 && (
+                    <p className="text-xs text-gray-500 dark:text-gray-400 text-center">Showing 10 most recent of {user.total_documents}</p>
+                  )}
+                </div>
+              )}
+
+              {/* Audio Tab */}
+              {activeTab === 'audio' && (
+                <div className="space-y-2">
+                  {user.recent_audio?.length > 0 ? user.recent_audio.map((audio) => (
+                    <div key={audio.id} className="bg-gray-50 dark:bg-gray-700 rounded-lg p-3">
+                      <div className="flex justify-between items-start gap-2">
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium text-gray-900 dark:text-white truncate">{audio.filename}</p>
+                          <p className="text-xs text-gray-500 dark:text-gray-400">
+                            {audio.category} - {audio.duration_seconds ? `${Math.round(audio.duration_seconds)}s` : 'Unknown duration'}
+                          </p>
+                          {audio.summary && (
+                            <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">{audio.summary}</p>
+                          )}
+                        </div>
+                        <div className="text-right text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">
+                          <p>{audio.session_name}</p>
+                          <p>{new Date(audio.created_at).toLocaleDateString()}</p>
+                        </div>
+                      </div>
+                    </div>
+                  )) : (
+                    <p className="text-gray-500 dark:text-gray-400 text-sm">No audio recordings</p>
+                  )}
+                  {user.total_audio > 10 && (
+                    <p className="text-xs text-gray-500 dark:text-gray-400 text-center">Showing 10 most recent of {user.total_audio}</p>
+                  )}
+                </div>
+              )}
+
+              {/* Journals Tab */}
+              {activeTab === 'journals' && (
+                <div className="space-y-2">
+                  {user.recent_journals?.length > 0 ? user.recent_journals.map((journal) => (
+                    <div key={journal.id} className="bg-gray-50 dark:bg-gray-700 rounded-lg p-3">
+                      <div className="flex justify-between items-start gap-2">
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium text-gray-900 dark:text-white">{journal.title}</p>
+                          <p className="text-xs text-gray-500 dark:text-gray-400">{journal.entry_type} - {journal.entry_date}</p>
+                          <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">{journal.content}</p>
+                        </div>
+                        <div className="text-right text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">
+                          <p>{journal.session_name}</p>
+                        </div>
+                      </div>
+                    </div>
+                  )) : (
+                    <p className="text-gray-500 dark:text-gray-400 text-sm">No journal entries</p>
+                  )}
+                  {user.total_journals > 10 && (
+                    <p className="text-xs text-gray-500 dark:text-gray-400 text-center">Showing 10 most recent of {user.total_journals}</p>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Actions */}
             <div className="mt-6 pt-4 border-t border-gray-200 dark:border-gray-700">
               <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">Actions</h3>
-              <div className="flex gap-3">
+              <div className="flex flex-wrap gap-3">
                 <button
                   onClick={() => setConfirmModal('reset')}
                   disabled={loading}
