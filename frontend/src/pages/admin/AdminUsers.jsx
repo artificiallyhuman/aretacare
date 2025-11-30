@@ -134,11 +134,11 @@ function UserDetail({ user, onClose, onAction }) {
               <div className="mt-4">
                 <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-2">Sessions</h3>
                 <div className="space-y-2 max-h-48 overflow-y-auto">
-                  {user.sessions.map((session) => (
+                  {user.sessions.map((session, index) => (
                     <div key={session.id} className="bg-gray-50 dark:bg-gray-700 rounded-lg p-3">
                       <div className="flex justify-between items-start">
                         <div>
-                          <p className="font-medium text-gray-900 dark:text-white">{session.name}</p>
+                          <p className="font-medium text-gray-900 dark:text-white">Session {index + 1}</p>
                           <p className="text-xs text-gray-500 dark:text-gray-400">
                             {session.is_owner ? 'Owner' : 'Collaborator'} - Created {new Date(session.created_at).toLocaleDateString()}
                           </p>
