@@ -174,51 +174,80 @@ class AdminService:
         """
         Get accounts with no activity in the specified number of days.
 
-        Activity is determined by the most recent session activity.
+        Activity is determined by the most recent of:
+        - Conversation created
+        - Document uploaded
+        - Audio recording created
+        - Session last_activity timestamp
         """
         cutoff = datetime.utcnow() - timedelta(days=days)
 
-        # Subquery to get the latest activity per user
-        latest_activity_subq = db.query(
-            SessionModel.user_id,
-            func.max(SessionModel.last_activity).label('last_activity')
-        ).group_by(SessionModel.user_id).subquery()
-
-        # Get users with no recent activity or no sessions at all
-        inactive_users = db.query(
-            User,
-            latest_activity_subq.c.last_activity,
-            func.count(SessionModel.id).label('session_count')
-        ).outerjoin(
-            latest_activity_subq,
-            User.id == latest_activity_subq.c.user_id
-        ).outerjoin(
-            SessionModel,
-            User.id == SessionModel.user_id
-        ).filter(
-            (latest_activity_subq.c.last_activity < cutoff) |
-            (latest_activity_subq.c.last_activity.is_(None))
-        ).group_by(
-            User.id,
-            latest_activity_subq.c.last_activity
-        ).all()
-
+        # Get all users with their session IDs
+        users = db.query(User).all()
         result = []
-        for user, last_activity, session_count in inactive_users:
+
+        for user in users:
+            # Get all session IDs for this user (owned or collaborated)
+            owned_sessions = db.query(SessionModel.id).filter(
+                SessionModel.owner_id == user.id
+            ).all()
+            collab_sessions = db.query(SessionCollaborator.session_id).filter(
+                SessionCollaborator.user_id == user.id
+            ).all()
+            session_ids = [s[0] for s in owned_sessions] + [s[0] for s in collab_sessions]
+
+            if not session_ids:
+                # User has no sessions - inactive since account creation
+                days_inactive = (datetime.utcnow() - user.created_at).days
+                if days_inactive >= days:
+                    result.append({
+                        "user_id": str(user.id),
+                        "email": user.email,
+                        "name": user.name,
+                        "last_activity": None,
+                        "days_inactive": days_inactive,
+                        "session_count": 0,
+                        "created_at": user.created_at
+                    })
+                continue
+
+            # Find the most recent activity across all activity types
+            latest_conversation = db.query(func.max(Conversation.created_at)).filter(
+                Conversation.session_id.in_(session_ids)
+            ).scalar()
+
+            latest_document = db.query(func.max(Document.uploaded_at)).filter(
+                Document.session_id.in_(session_ids)
+            ).scalar()
+
+            latest_audio = db.query(func.max(AudioRecording.created_at)).filter(
+                AudioRecording.session_id.in_(session_ids)
+            ).scalar()
+
+            latest_session_activity = db.query(func.max(SessionModel.last_activity)).filter(
+                SessionModel.id.in_(session_ids)
+            ).scalar()
+
+            # Get the most recent activity
+            activity_dates = [d for d in [latest_conversation, latest_document, latest_audio, latest_session_activity] if d]
+            last_activity = max(activity_dates) if activity_dates else None
+
             if last_activity:
                 days_inactive = (datetime.utcnow() - last_activity).days
             else:
                 days_inactive = (datetime.utcnow() - user.created_at).days
 
-            result.append({
-                "user_id": str(user.id),
-                "email": user.email,
-                "name": user.name,
-                "last_activity": last_activity,
-                "days_inactive": days_inactive,
-                "session_count": session_count,
-                "created_at": user.created_at
-            })
+            # Only include if actually inactive
+            if days_inactive >= days:
+                result.append({
+                    "user_id": str(user.id),
+                    "email": user.email,
+                    "name": user.name,
+                    "last_activity": last_activity,
+                    "days_inactive": days_inactive,
+                    "session_count": len(session_ids),
+                    "created_at": user.created_at
+                })
 
         # Sort by days inactive descending
         result.sort(key=lambda x: x["days_inactive"], reverse=True)
