@@ -94,7 +94,10 @@ const Conversation = () => {
 
   const loadConversationHistory = async () => {
     try {
+      console.log('[DEBUG] Loading history for session:', activeSessionId);
       const response = await conversationAPI.getHistory(activeSessionId);
+      console.log('[DEBUG] Received messages:', response.data.messages.length, 'messages');
+      console.log('[DEBUG] Last message:', response.data.messages[response.data.messages.length - 1]?.content?.substring(0, 50));
       setMessages(response.data.messages);
     } catch (err) {
       console.error('Error loading conversation history:', err);
@@ -204,9 +207,11 @@ const Conversation = () => {
       });
 
       // Reload conversation history to get the real messages (user + AI response)
+      console.log('[DEBUG] Message sent successfully, reloading history...');
       await loadConversationHistory();
+      console.log('[DEBUG] History reloaded successfully');
     } catch (err) {
-      console.error('Error sending message:', err);
+      console.error('[DEBUG] Error in handleSendMessage:', err);
       setError('Failed to send message. Please try again.');
       // Remove the temporary message on error
       setMessages(prevMessages => prevMessages.filter(msg => msg.id !== tempUserMessage.id));
