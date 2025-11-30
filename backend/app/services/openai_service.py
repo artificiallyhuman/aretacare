@@ -205,8 +205,11 @@ class OpenAIService:
         else:
             return {"content": ai_config.FALLBACK_COACHING}
 
-    async def categorize_document(self, extracted_text: str, filename: str) -> Dict:
-        """Categorize a document and generate a brief description using AI"""
+    async def categorize_document(self, extracted_text: str, filename: str, image_url: str = None) -> Dict:
+        """Categorize a document and generate a brief description using AI.
+
+        For images, pass image_url to use GPT vision for better categorization.
+        """
 
         # Take first 2000 characters for categorization to avoid token limits
         text_sample = extracted_text[:2000] if extracted_text else ""
@@ -215,8 +218,19 @@ class OpenAIService:
 
         messages = [
             {"role": "system", "content": ai_config.DOCUMENT_CLASSIFIER_PROMPT},
-            {"role": "user", "content": prompt}
         ]
+
+        # Use vision for images to get better categorization
+        if image_url:
+            messages.append({
+                "role": "user",
+                "content": [
+                    {"type": "input_text", "text": prompt},
+                    {"type": "input_image", "image_url": image_url}
+                ]
+            })
+        else:
+            messages.append({"role": "user", "content": prompt})
 
         response = self._create_chat_completion(messages)
 
