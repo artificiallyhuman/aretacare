@@ -48,12 +48,12 @@ export default function AdminAccounts() {
     <AdminLayout>
       <div className="space-y-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Account Analysis</h1>
-          <p className="text-gray-600 dark:text-gray-400 mt-1">Monitor inactive and unusual accounts</p>
+          <h1 className="text-xl md:text-2xl font-bold text-gray-900 dark:text-white">Account Analysis</h1>
+          <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">Monitor inactive and unusual accounts</p>
         </div>
 
         {/* Tabs */}
-        <div className="flex gap-2 border-b border-gray-200 dark:border-gray-700">
+        <div className="flex gap-1 sm:gap-2 border-b border-gray-200 dark:border-gray-700 overflow-x-auto">
           <button
             onClick={() => setActiveTab('inactive')}
             className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
@@ -85,7 +85,7 @@ export default function AdminAccounts() {
         {/* Inactive Accounts Tab */}
         {activeTab === 'inactive' && (
           <div className="space-y-4">
-            <div className="flex items-center gap-4">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
               <label className="text-sm text-gray-600 dark:text-gray-400">Show accounts inactive for:</label>
               <select
                 value={inactiveDays}
@@ -108,7 +108,8 @@ export default function AdminAccounts() {
               </div>
             ) : (
               <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
-                <table className="w-full">
+                <div className="overflow-x-auto">
+                <table className="w-full min-w-[600px]">
                   <thead className="bg-gray-50 dark:bg-gray-700">
                     <tr>
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">User</th>
@@ -153,6 +154,7 @@ export default function AdminAccounts() {
                     ))}
                   </tbody>
                 </table>
+                </div>
               </div>
             )}
           </div>
@@ -173,7 +175,8 @@ export default function AdminAccounts() {
               </div>
             ) : (
               <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
-                <table className="w-full">
+                <div className="overflow-x-auto">
+                <table className="w-full min-w-[550px]">
                   <thead className="bg-gray-50 dark:bg-gray-700">
                     <tr>
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">User</th>
@@ -214,6 +217,7 @@ export default function AdminAccounts() {
                     ))}
                   </tbody>
                 </table>
+                </div>
               </div>
             )}
           </div>

@@ -99,15 +99,15 @@ export default function AdminHealth() {
   return (
     <AdminLayout>
       <div className="space-y-6">
-        <div className="flex justify-between items-start">
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">System Health</h1>
-            <p className="text-gray-600 dark:text-gray-400 mt-1">Monitor service status and connectivity</p>
+            <h1 className="text-xl md:text-2xl font-bold text-gray-900 dark:text-white">System Health</h1>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">Monitor service status and connectivity</p>
           </div>
           <button
             onClick={fetchHealth}
             disabled={loading}
-            className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors disabled:opacity-50 flex items-center gap-2"
+            className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors disabled:opacity-50 flex items-center gap-2 self-start"
           >
             <svg className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
@@ -129,15 +129,15 @@ export default function AdminHealth() {
         ) : health && (
           <>
             {/* Overall Status */}
-            <div className={`rounded-lg p-6 ${
+            <div className={`rounded-lg p-4 md:p-6 ${
               health.status === 'healthy'
                 ? 'bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800'
                 : health.status === 'degraded'
                 ? 'bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800'
                 : 'bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800'
             }`}>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div className="flex items-center gap-3 md:gap-4">
                   <div className={`p-3 rounded-full ${
                     health.status === 'healthy'
                       ? 'bg-green-100 dark:bg-green-800'
@@ -200,7 +200,8 @@ export default function AdminHealth() {
               <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700">
                 <h3 className="font-semibold text-gray-900 dark:text-white">Service Details</h3>
               </div>
-              <table className="w-full">
+              <div className="overflow-x-auto">
+              <table className="w-full min-w-[500px]">
                 <thead className="bg-gray-50 dark:bg-gray-700">
                   <tr>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Service</th>
@@ -228,6 +229,7 @@ export default function AdminHealth() {
                   ))}
                 </tbody>
               </table>
+              </div>
             </div>
           </>
         )}

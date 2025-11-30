@@ -64,15 +64,15 @@ export default function AdminAuditLog() {
   return (
     <AdminLayout>
       <div className="space-y-6">
-        <div className="flex justify-between items-start">
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Audit Log</h1>
-            <p className="text-gray-600 dark:text-gray-400 mt-1">Track admin actions and changes</p>
+            <h1 className="text-xl md:text-2xl font-bold text-gray-900 dark:text-white">Audit Log</h1>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">Track admin actions and changes</p>
           </div>
           <button
             onClick={handleCleanup}
             disabled={cleaningUp}
-            className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors disabled:opacity-50 flex items-center gap-2"
+            className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors disabled:opacity-50 flex items-center gap-2 self-start"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -104,7 +104,7 @@ export default function AdminAuditLog() {
         )}
 
         {/* Filters */}
-        <div className="flex items-center gap-4">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
           <label className="text-sm text-gray-600 dark:text-gray-400">Filter by action:</label>
           <select
             value={actionFilter}
@@ -136,7 +136,8 @@ export default function AdminAuditLog() {
         ) : (
           <>
             <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
-              <table className="w-full">
+              <div className="overflow-x-auto">
+              <table className="w-full min-w-[600px]">
                 <thead className="bg-gray-50 dark:bg-gray-700">
                   <tr>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Time</th>
@@ -182,11 +183,12 @@ export default function AdminAuditLog() {
                   })}
                 </tbody>
               </table>
+              </div>
             </div>
 
             {/* Pagination */}
             {totalPages > 1 && (
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                 <p className="text-sm text-gray-600 dark:text-gray-400">
                   Showing {(page - 1) * limit + 1} - {Math.min(page * limit, total)} of {total}
                 </p>

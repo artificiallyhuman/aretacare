@@ -81,15 +81,15 @@ export default function AdminS3Cleanup() {
   return (
     <AdminLayout>
       <div className="space-y-6">
-        <div className="flex justify-between items-start">
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">S3 Cleanup</h1>
-            <p className="text-gray-600 dark:text-gray-400 mt-1">Find and delete orphaned S3 files</p>
+            <h1 className="text-xl md:text-2xl font-bold text-gray-900 dark:text-white">S3 Cleanup</h1>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">Find and delete orphaned S3 files</p>
           </div>
           <button
             onClick={fetchOrphans}
             disabled={loading}
-            className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors disabled:opacity-50"
+            className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors disabled:opacity-50 self-start"
           >
             Refresh
           </button>
@@ -114,7 +114,7 @@ export default function AdminS3Cleanup() {
         ) : orphans && (
           <>
             {/* Summary */}
-            <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4">
                 <p className="text-sm text-gray-600 dark:text-gray-400">Total Orphaned Files</p>
                 <p className="text-2xl font-bold text-gray-900 dark:text-white">{orphans.total_count}</p>
@@ -186,8 +186,8 @@ export default function AdminS3Cleanup() {
 
                 {/* File List */}
                 <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
-                  <div className="max-h-96 overflow-y-auto">
-                    <table className="w-full">
+                  <div className="max-h-96 overflow-auto">
+                    <table className="w-full min-w-[600px]">
                       <thead className="bg-gray-50 dark:bg-gray-700 sticky top-0">
                         <tr>
                           <th className="px-4 py-3 w-8"></th>

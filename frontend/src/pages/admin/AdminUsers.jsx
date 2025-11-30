@@ -85,7 +85,7 @@ function UserDetail({ user, onClose, onAction }) {
               </button>
             </div>
 
-            <div className="mt-4 grid grid-cols-2 gap-4">
+            <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-3">
                 <p className="text-xs text-gray-500 dark:text-gray-400">User ID</p>
                 <p className="text-sm font-mono text-gray-900 dark:text-white truncate">{user.id}</p>
@@ -228,13 +228,13 @@ export default function AdminUsers() {
     <AdminLayout>
       <div className="space-y-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">User Management</h1>
-          <p className="text-gray-600 dark:text-gray-400 mt-1">Search and manage user accounts</p>
+          <h1 className="text-xl md:text-2xl font-bold text-gray-900 dark:text-white">User Management</h1>
+          <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">Search and manage user accounts</p>
         </div>
 
         {/* Search Form */}
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4">
-          <form onSubmit={handleSearch} className="flex gap-3">
+          <form onSubmit={handleSearch} className="flex flex-col sm:flex-row gap-3">
             <input
               type="text"
               value={searchQuery}
@@ -268,7 +268,8 @@ export default function AdminUsers() {
         {/* Results */}
         {users.length > 0 && (
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
-            <table className="w-full">
+            <div className="overflow-x-auto">
+            <table className="w-full min-w-[500px]">
               <thead className="bg-gray-50 dark:bg-gray-700">
                 <tr>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">User</th>
@@ -314,6 +315,7 @@ export default function AdminUsers() {
                 ))}
               </tbody>
             </table>
+            </div>
           </div>
         )}
       </div>

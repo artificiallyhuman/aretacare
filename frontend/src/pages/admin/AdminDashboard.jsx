@@ -15,20 +15,20 @@ function MetricCard({ title, value, icon, color, loading }) {
   };
 
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <p className="text-sm font-medium text-gray-600 dark:text-gray-400">{title}</p>
+    <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-3 md:p-4">
+      <div className="flex items-center justify-between gap-2">
+        <div className="min-w-0">
+          <p className="text-xs md:text-sm font-medium text-gray-600 dark:text-gray-400 truncate">{title}</p>
           {loading ? (
-            <div className="h-8 w-16 bg-gray-200 dark:bg-gray-700 rounded animate-pulse mt-1"></div>
+            <div className="h-6 md:h-8 w-12 md:w-16 bg-gray-200 dark:bg-gray-700 rounded animate-pulse mt-1"></div>
           ) : (
-            <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">
+            <p className="text-xl md:text-2xl font-bold text-gray-900 dark:text-white mt-1">
               {value?.toLocaleString() ?? '-'}
             </p>
           )}
         </div>
-        <div className={`p-3 rounded-full ${colorClasses[color] || colorClasses.blue}`}>
-          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <div className={`p-2 md:p-3 rounded-full flex-shrink-0 ${colorClasses[color] || colorClasses.blue}`}>
+          <svg className="w-5 h-5 md:w-6 md:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={icon} />
           </svg>
         </div>
@@ -125,8 +125,8 @@ export default function AdminDashboard() {
       <div className="space-y-6">
         {/* Header */}
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Dashboard</h1>
-          <p className="text-gray-600 dark:text-gray-400 mt-1">Platform overview and metrics</p>
+          <h1 className="text-xl md:text-2xl font-bold text-gray-900 dark:text-white">Dashboard</h1>
+          <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">Platform overview and metrics</p>
         </div>
 
         {error && (
@@ -136,7 +136,7 @@ export default function AdminDashboard() {
         )}
 
         {/* Metrics Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3">
           <MetricCard
             title="Total Users"
             value={metrics?.user_count}
@@ -189,7 +189,7 @@ export default function AdminDashboard() {
         </div>
 
         {/* Trends */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4">
             <TrendChart data={trends.users} loading={trendsLoading} title="New Users (30 days)" />
           </div>
@@ -227,7 +227,7 @@ export default function AdminDashboard() {
               <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Check Inactive Accounts</span>
             </Link>
             <Link
-              to="/admin/s3"
+              to="/admin/s3-cleanup"
               className="flex items-center gap-3 p-3 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
             >
               <svg className="w-5 h-5 text-purple-600 dark:text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">

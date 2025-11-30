@@ -15,9 +15,39 @@ export default function AdminLayout({ children }) {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+      {/* Mobile navigation - horizontal scrollable tabs */}
+      <div className="lg:hidden bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-2 py-2 overflow-x-auto sticky top-0 z-10">
+        <div className="flex gap-1 min-w-max">
+          <Link
+            to="/"
+            className="flex items-center gap-1 px-2 py-2 text-xs font-medium rounded-lg text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+            </svg>
+          </Link>
+          {navItems.map((item) => {
+            const isActive = location.pathname === item.path;
+            return (
+              <Link
+                key={item.path}
+                to={item.path}
+                className={`flex items-center gap-1 px-3 py-2 text-xs font-medium rounded-lg whitespace-nowrap transition-colors ${
+                  isActive
+                    ? 'bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300'
+                    : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
+                }`}
+              >
+                {item.label}
+              </Link>
+            );
+          })}
+        </div>
+      </div>
+
       <div className="flex">
-        {/* Sidebar */}
-        <aside className="w-64 min-h-screen bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 hidden lg:block">
+        {/* Sidebar - desktop only */}
+        <aside className="w-64 min-h-screen bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 hidden lg:block fixed">
           <div className="p-4">
             <h2 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
               <svg className="w-6 h-6 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -61,30 +91,8 @@ export default function AdminLayout({ children }) {
           </div>
         </aside>
 
-        {/* Mobile navigation */}
-        <div className="lg:hidden w-full bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-4 py-2 overflow-x-auto">
-          <div className="flex gap-2">
-            {navItems.map((item) => {
-              const isActive = location.pathname === item.path;
-              return (
-                <Link
-                  key={item.path}
-                  to={item.path}
-                  className={`flex items-center gap-1 px-3 py-2 text-xs font-medium rounded-lg whitespace-nowrap transition-colors ${
-                    isActive
-                      ? 'bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300'
-                      : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
-                  }`}
-                >
-                  {item.label}
-                </Link>
-              );
-            })}
-          </div>
-        </div>
-
         {/* Main content */}
-        <main className="flex-1 p-4 lg:p-8">
+        <main className="flex-1 p-3 md:p-4 lg:p-8 lg:ml-64">
           {children}
         </main>
       </div>
