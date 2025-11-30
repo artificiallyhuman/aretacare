@@ -19,6 +19,27 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
+// Error handler reference (set by NetworkProvider)
+let globalErrorHandler = null;
+
+// Set the global error handler (called from NetworkProvider)
+export const setGlobalErrorHandler = (handler) => {
+  globalErrorHandler = handler;
+};
+
+// Add response interceptor for global error handling
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    // Call global error handler if set
+    if (globalErrorHandler) {
+      globalErrorHandler(error);
+    }
+    // Still reject so component-level error handling works too
+    return Promise.reject(error);
+  }
+);
+
 // Auth API
 export const authAPI = {
   register: (name, email, password, acknowledgeNotMedicalAdvice, acknowledgeBetaVersion, acknowledgeEmailCommunications) =>

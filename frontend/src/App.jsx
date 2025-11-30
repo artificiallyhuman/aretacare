@@ -3,8 +3,10 @@ import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'r
 import { SessionProvider, useSessionContext } from './contexts/SessionContext';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { AdminProvider, useAdmin } from './contexts/AdminContext';
+import { NetworkProvider } from './contexts/NetworkContext';
 import Header from './components/Header';
 import Footer from './components/Footer';
+import NetworkStatusBanner from './components/NetworkStatusBanner';
 
 // Eagerly load critical pages (login flow and main conversation)
 import Login from './pages/Login';
@@ -127,6 +129,7 @@ function AppContent() {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-200">
+      <NetworkStatusBanner />
       {user && <Header onLogout={handleLogout} user={user} />}
       <Suspense fallback={<PageLoadingFallback />}>
         <Routes>
@@ -296,11 +299,13 @@ function App() {
   return (
     <ThemeProvider>
       <Router>
-        <SessionProvider>
-          <AdminProvider>
-            <AppContent />
-          </AdminProvider>
-        </SessionProvider>
+        <NetworkProvider>
+          <SessionProvider>
+            <AdminProvider>
+              <AppContent />
+            </AdminProvider>
+          </SessionProvider>
+        </NetworkProvider>
       </Router>
     </ThemeProvider>
   );
