@@ -55,6 +55,9 @@ const Documents = () => {
   const [showSidebar, setShowSidebar] = useState(false);
   const searchInputRef = useRef(null);
   const isSearchFocused = useRef(false);
+  const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState('');
+  const fileInputRef = useRef(null);
 
   // Restore focus to search input if it was focused before re-render
   useEffect(() => {
@@ -237,6 +240,66 @@ const Documents = () => {
     setPreviewUrl(null);
   };
 
+  const handleFileUpload = async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    const allowedTypes = ['application/pdf', 'image/png', 'image/jpeg', 'image/jpg', 'text/plain'];
+    const allowedExtensions = ['.pdf', '.png', '.jpg', '.jpeg', '.txt'];
+    const fileExt = '.' + file.name.split('.').pop().toLowerCase();
+
+    if (!allowedTypes.includes(file.type) && !allowedExtensions.includes(fileExt)) {
+      setError('Invalid file type. Please upload a PDF, image (PNG, JPG), or text file.');
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      return;
+    }
+
+    // Validate file size (20MB)
+    const maxSize = 20 * 1024 * 1024;
+    if (file.size > maxSize) {
+      setError('File size exceeds 20MB limit. Please choose a smaller file.');
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      return;
+    }
+
+    setUploading(true);
+    setError(null);
+    setUploadProgress('Uploading document...');
+
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      setUploadProgress('Processing document...');
+      await documentAPI.upload(formData, sessionId);
+
+      setUploadProgress('Document uploaded successfully! Journal entries may have been created.');
+
+      // Reload documents to show the new one
+      await loadDocuments();
+
+      // Clear the file input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+
+      // Clear success message after 3 seconds
+      setTimeout(() => {
+        setUploadProgress('');
+      }, 3000);
+    } catch (err) {
+      console.error('Error uploading document:', err);
+      const errorMessage = err.response?.data?.detail || 'Failed to upload document. Please try again.';
+      setError(errorMessage);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    } finally {
+      setUploading(false);
+    }
+  };
+
   const getFileIcon = (contentType) => {
     if (contentType?.includes('pdf')) {
       return (
@@ -284,9 +347,61 @@ const Documents = () => {
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 lg:py-12">
       <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white mb-4 sm:mb-6">
-            Documents Manager
-          </h1>
+          <div className="flex items-center justify-between mb-4 sm:mb-6">
+            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">
+              Documents Manager
+            </h1>
+
+            {/* Upload button */}
+            <div className="text-right">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".pdf,.png,.jpg,.jpeg,.txt,application/pdf,image/png,image/jpeg,text/plain"
+                onChange={handleFileUpload}
+                disabled={uploading}
+                className="hidden"
+                id="document-file-upload"
+              />
+              <label
+                htmlFor="document-file-upload"
+                className={`btn-primary inline-flex items-center gap-2 cursor-pointer ${uploading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                title="Upload documents (PDF, PNG, JPG, TXT) - Max 20MB"
+              >
+                {uploading ? (
+                  <>
+                    <svg className="animate-spin w-5 h-5" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    <span className="hidden sm:inline">Uploading...</span>
+                  </>
+                ) : (
+                  <>
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                    </svg>
+                    <span className="hidden sm:inline">Upload Document</span>
+                    <span className="sm:hidden">Upload</span>
+                  </>
+                )}
+              </label>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 hidden sm:block">
+                Max 20MB
+              </p>
+            </div>
+          </div>
+
+          {/* Upload progress message */}
+          {uploadProgress && (
+            <div className="mb-4 bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300 px-4 py-3 rounded flex items-center gap-2">
+              <svg className="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              {uploadProgress}
+            </div>
+          )}
 
           {/* Controls */}
           <div className="mb-6 space-y-3 sm:space-y-4">
@@ -355,7 +470,7 @@ const Documents = () => {
               <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
                 {searchQuery || selectedCategory !== 'all'
                   ? 'Try adjusting your filters or search term'
-                  : 'Upload documents in conversations by clicking the attachment icon'
+                  : 'Upload documents using the button above or attach them in conversations'
                 }
               </p>
             </div>

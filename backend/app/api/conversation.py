@@ -259,11 +259,6 @@ async def transcribe_audio(
                 detail=f"Invalid audio format. Supported formats: {', '.join(allowed_extensions)}"
             )
 
-        # Generate unique filename for S3 (with optional environment prefix for shared buckets)
-        timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
-        unique_id = str(uuid.uuid4())[:8]
-        s3_key = s3_service.get_prefixed_key(f"audio/{session_id}/{timestamp}_{unique_id}_{audio.filename}")
-
         # Read audio file content
         audio_content = await audio.read()
 
@@ -273,10 +268,6 @@ async def transcribe_audio(
                 status_code=400,
                 detail=f"Audio file size exceeds maximum allowed size of {MAX_AUDIO_FILE_SIZE / 1024 / 1024}MB"
             )
-
-        # Upload original to S3
-        await s3_service.upload_file(audio_content, s3_key, audio.content_type or 'audio/mpeg')
-        logger.info(f"Uploaded audio to S3: {s3_key}")
 
         # Convert audio to mp3 for OpenAI using temporary files
         audio_temp_path = None
@@ -367,14 +358,41 @@ async def transcribe_audio(
                 # File is short enough to transcribe in one go
                 audio_segment.export(mp3_temp_path, format="mp3")
 
-                # Read mp3 file into BytesIO for OpenAI
+                # Read mp3 file for both transcription and storage
                 with open(mp3_temp_path, 'rb') as mp3_file:
-                    mp3_buffer = io.BytesIO(mp3_file.read())
-                    mp3_buffer.seek(0)
+                    mp3_content = mp3_file.read()
+
+                # Prepare mp3 for transcription
+                mp3_buffer = io.BytesIO(mp3_content)
+                mp3_buffer.seek(0)
 
                 # Use mp3 filename for transcription
                 mp3_filename = audio.filename.rsplit('.', 1)[0] + '.mp3'
                 transcribed_text = await openai_service.transcribe_audio(mp3_buffer, mp3_filename)
+
+            # Upload MP3 version to S3 (for browser playback compatibility)
+            # This is done after transcription to ensure we have the full MP3 content
+            timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
+            unique_id = str(uuid.uuid4())[:8]
+            mp3_filename_base = audio.filename.rsplit('.', 1)[0] if '.' in audio.filename else audio.filename
+            s3_key = s3_service.get_prefixed_key(f"audio/{session_id}/{timestamp}_{unique_id}_{mp3_filename_base}.mp3")
+
+            # For chunked files, we need to export the full audio as MP3
+            if duration_seconds > MAX_CHUNK_DURATION_SECONDS:
+                # Export full audio as MP3 for storage
+                full_mp3_fd, full_mp3_path = tempfile.mkstemp(suffix='.mp3')
+                os.close(full_mp3_fd)
+                try:
+                    audio_segment.export(full_mp3_path, format="mp3")
+                    with open(full_mp3_path, 'rb') as full_mp3_file:
+                        mp3_content = full_mp3_file.read()
+                finally:
+                    if os.path.exists(full_mp3_path):
+                        os.unlink(full_mp3_path)
+
+            # Upload MP3 to S3
+            await s3_service.upload_file(mp3_content, s3_key, 'audio/mpeg')
+            logger.info(f"Uploaded converted MP3 to S3: {s3_key}")
         except HTTPException:
             # Re-raise HTTPException (like duration validation)
             raise
@@ -414,9 +432,12 @@ async def transcribe_audio(
             # Leave recording_category and ai_summary as None for backward compatibility
 
         # Save audio recording metadata to database with AI metadata (or None if AI failed)
+        # Use MP3 filename since we're storing the converted version
+        mp3_filename_for_db = (audio.filename.rsplit('.', 1)[0] if '.' in audio.filename else audio.filename) + '.mp3'
+
         audio_recording = AudioRecording(
             session_id=session_id,
-            filename=audio.filename,
+            filename=mp3_filename_for_db,
             s3_key=s3_key,
             duration=duration_seconds,
             transcribed_text=transcribed_text,

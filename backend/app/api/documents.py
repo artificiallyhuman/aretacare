@@ -5,6 +5,7 @@ from app.models import Document as DocumentModel, DocumentCategory, Session as S
 from app.schemas import DocumentUploadResponse, DocumentResponse, DocumentUpdate
 from app.services import s3_service, document_processor
 from app.services.openai_service import openai_service
+from app.services.journal_service import JournalService
 from app.api.auth import get_current_user
 from app.api.permissions import check_session_access
 from typing import List, Optional
@@ -24,7 +25,7 @@ ALLOWED_CONTENT_TYPES = [
     "text/plain",
 ]
 
-MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB
+MAX_FILE_SIZE = 20 * 1024 * 1024  # 20MB
 
 
 @router.post("/upload", response_model=DocumentUploadResponse)
@@ -138,6 +139,43 @@ async def upload_document(
     db.add(document)
     db.commit()
     db.refresh(document)
+
+    # Create journal entry from document content
+    # This matches the behavior of document uploads in conversations
+    try:
+        journal_service = JournalService(db)
+
+        # Format as a user message about the document
+        user_message = f"Document uploaded: {file.filename}\n\n"
+        if extracted_text:
+            # Include first 500 characters of extracted text for context
+            preview = extracted_text[:500] + ("..." if len(extracted_text) > 500 else "")
+            user_message += f"Content preview:\n{preview}"
+        else:
+            user_message += "Document type: " + file.content_type
+
+        ai_response = f"I've processed this document. {ai_description if ai_description else 'This appears to be related to your care journey.'}"
+
+        # Use today's date
+        from datetime import date as date_type
+        entry_date = date_type.today()
+
+        synthesis_result = await journal_service.assess_and_synthesize(
+            user_message=user_message,
+            ai_response=ai_response,
+            session_id=session_id,
+            conversation_id=None,  # Not from a conversation
+            entry_date=entry_date
+        )
+
+        if synthesis_result.should_create and len(synthesis_result.suggested_entries) > 0:
+            logger.info(f"Created {len(synthesis_result.suggested_entries)} journal entries from document upload")
+        else:
+            logger.info("No journal entries created from document upload (not journal-worthy)")
+
+    except Exception as e:
+        # Log but don't fail the upload if journal synthesis fails
+        logger.warning(f"Failed to create journal entry from document upload: {e}")
 
     return document
 
