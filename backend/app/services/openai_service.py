@@ -205,31 +205,48 @@ class OpenAIService:
         else:
             return {"content": ai_config.FALLBACK_COACHING}
 
-    async def categorize_document(self, extracted_text: str, filename: str, image_url: str = None) -> Dict:
+    async def categorize_document(
+        self,
+        filename: str,
+        content_type: str,
+        document_url: str,
+        extracted_text: str = ""
+    ) -> Dict:
         """Categorize a document and generate a brief description using AI.
 
-        For images, pass image_url to use GPT vision for better categorization.
+        Uses GPT-5.1's native file support to analyze the actual document content.
+        Falls back to extracted text if document URL is not available.
         """
 
-        # Take first 2000 characters for categorization to avoid token limits
-        text_sample = extracted_text[:2000] if extracted_text else ""
-
-        prompt = ai_config.get_document_categorization_prompt(filename, text_sample)
+        prompt = ai_config.get_document_categorization_prompt(filename, extracted_text)
 
         messages = [
             {"role": "system", "content": ai_config.DOCUMENT_CLASSIFIER_PROMPT},
         ]
 
-        # Use vision for images to get better categorization
-        if image_url:
+        # Use native file/image support for better categorization
+        if document_url:
+            content_items = [{"type": "input_text", "text": prompt}]
+
+            if content_type.startswith("image/"):
+                # Use input_image for images
+                content_items.append({
+                    "type": "input_image",
+                    "image_url": document_url
+                })
+            else:
+                # Use input_file for PDFs, text files, etc.
+                content_items.append({
+                    "type": "input_file",
+                    "file_url": document_url
+                })
+
             messages.append({
                 "role": "user",
-                "content": [
-                    {"type": "input_text", "text": prompt},
-                    {"type": "input_image", "image_url": image_url}
-                ]
+                "content": content_items
             })
         else:
+            # Fallback to text-only if no URL (shouldn't happen normally)
             messages.append({"role": "user", "content": prompt})
 
         response = self._create_chat_completion(messages)
@@ -267,8 +284,8 @@ class OpenAIService:
     async def categorize_audio_recording(self, transcribed_text: str, duration: float = None) -> Dict:
         """Categorize an audio recording and generate a brief summary using AI"""
 
-        # Take first 1500 characters for categorization to avoid token limits
-        text_sample = transcribed_text[:1500] if transcribed_text else ""
+        # Take first 5000 characters for categorization to avoid token limits
+        text_sample = transcribed_text[:5000] if transcribed_text else ""
 
         prompt = ai_config.get_audio_categorization_prompt(text_sample, duration)
 

@@ -9,7 +9,6 @@ const ENTRY_TYPE_COLORS = {
   TREATMENT_CHANGE: 'bg-orange-100 dark:bg-orange-900/30 text-orange-800 dark:text-orange-300',
   APPOINTMENT: 'bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-300',
   INSIGHT: 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300',
-  QUESTION: 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300',
   MILESTONE: 'bg-teal-100 dark:bg-teal-900/30 text-teal-800 dark:text-teal-300',
   OTHER: 'bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-300'
 };
@@ -237,7 +236,6 @@ const JournalView = () => {
               <option value="TREATMENT_CHANGE">Treatment Change</option>
               <option value="APPOINTMENT">Appointment</option>
               <option value="INSIGHT">Insight</option>
-              <option value="QUESTION">Question</option>
               <option value="MILESTONE">Milestone</option>
               <option value="OTHER">Other</option>
             </select>

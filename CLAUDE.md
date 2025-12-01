@@ -102,6 +102,7 @@ STRICT SAFETY BOUNDARIES - YOU MUST NEVER:
 - **Models**: `CHAT_MODEL = "gpt-5.1"`, `TRANSCRIPTION_MODEL = "gpt-4o-transcribe"`
 - **All Prompts**: System prompt, conversation instructions, task-specific prompts (jargon translation, conversation coaching, document/audio categorization, journal synthesis, daily plan generation)
 - **Categories**: Document categories (12 types), Audio categories (12 types)
+- **Context Settings**: Conversation history (30 messages), journal context (10,000 tokens with tiered loading)
 - **Fallback Messages**: Error responses when AI calls fail
 - **All services use OpenAI Responses API**
 
@@ -117,15 +118,18 @@ See `backend/app/config/README.md` for complete documentation on modifying AI be
 - Mobile-optimized: compact padding (`p-2 md:p-4`), smaller text, touch-friendly buttons
 
 **AI Journal Synthesis**
-- `JournalService.assess_and_synthesize()` analyzes conversations for medical significance
+- `JournalService.assess_and_synthesize()` analyzes conversations for caregiving relevance
+- Creates entries for: medical updates, treatment changes, appointments, insights, milestones, and other substantive caregiving topics
+- Entry detail varies by importance: detailed for significant topics, brief for routine updates
 - Uses user's local timezone (frontend sends `entry_date` in YYYY-MM-DD format)
-- Creates structured entries: title, content, entry type, date
+- Creates structured entries: title, content, entry type (6 types), date
 - Marks messages as `synthesized_to_journal=True`
 
 **GPT-5.1 Native File Support**
-- Uses OpenAI Responses API with presigned S3 URLs
+- Uses OpenAI Responses API with presigned S3 URLs for direct file processing
 - Supports PDFs, images (PNG, JPG), text files
-- OCR text extraction as fallback
+- AI analyzes actual files first; OCR text extraction provided only as fallback for unreadable files
+- Document categorization (12 categories) and description generation via native file analysis
 
 ### Authentication & Privacy Model
 
@@ -181,10 +185,16 @@ See `backend/app/config/README.md` for complete documentation on modifying AI be
 
 **Services** (`backend/app/services/`):
 - `openai_service.py` - GPT-5.1 integration via Responses API, all LLM interactions
+  - Conversation: Uses last 30 messages + full journal context (tiered: 7 days full, 8-30 days summarized, 30+ days titles)
+  - Document categorization: Native file analysis prioritized over OCR text fallback
 - `journal_service.py` - Conversation analysis and journal synthesis
+  - Creates entries for all substantive caregiving conversations (6 entry types)
+  - Uses last 7 days of journal context for synthesis decisions
 - `daily_plan_service.py` - Daily plan generation
-- `s3_service.py` - S3 upload/download/delete, presigned URLs
-- `document_processor.py` - Text extraction (PDF, OCR), thumbnail generation
+  - Context: ALL journal entries (grouped by type, max 5 per type), last 7 days conversations (max 50 messages), last 10 documents (with text preview), last 3 daily plans
+  - Generates concise daily priorities, reminders, and questions for care team
+- `s3_service.py` - S3 upload/download/delete, presigned URLs (24-hour expiration)
+- `document_processor.py` - Text extraction (PDF via PyPDF2, images via Tesseract OCR), thumbnail generation (PDFs)
 - `email_service.py` - Email notifications via Gmail SMTP (password changes, email changes, collaborator management, password reset)
 - `admin_service.py` - Admin metrics, S3 orphan detection, audit log management
 

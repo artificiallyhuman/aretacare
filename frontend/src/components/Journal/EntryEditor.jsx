@@ -6,7 +6,6 @@ const ENTRY_TYPES = [
   { value: 'TREATMENT_CHANGE', label: 'Treatment Change' },
   { value: 'APPOINTMENT', label: 'Appointment' },
   { value: 'INSIGHT', label: 'Insight' },
-  { value: 'QUESTION', label: 'Question' },
   { value: 'MILESTONE', label: 'Milestone' },
   { value: 'OTHER', label: 'Other' }
 ];

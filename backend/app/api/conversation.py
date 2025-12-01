@@ -70,7 +70,7 @@ async def send_message(
         # Get conversation history for context
         history = db.query(Conversation).filter(
             Conversation.session_id == session_id
-        ).order_by(Conversation.created_at).limit(20).all()
+        ).order_by(Conversation.created_at).limit(30).all()
 
         history_messages = [
             {"role": msg.role.value, "content": msg.content}
@@ -184,25 +184,32 @@ async def get_conversation_history(
     # Reverse to get chronological order for display
     messages = list(reversed(messages))
 
-    # Batch load all documents for image messages in ONE query (fixes N+1)
-    image_doc_ids = [
+    # Batch load all documents for image and document messages in ONE query (fixes N+1)
+    doc_ids = [
         msg.document_id for msg in messages
-        if msg.message_type == MessageType.IMAGE and msg.document_id
+        if msg.document_id and msg.message_type in [MessageType.IMAGE, MessageType.DOCUMENT]
     ]
     docs_by_id = {}
-    if image_doc_ids:
-        docs = db.query(Document).filter(Document.id.in_(image_doc_ids)).all()
+    if doc_ids:
+        docs = db.query(Document).filter(Document.id.in_(doc_ids)).all()
         docs_by_id = {doc.id: doc for doc in docs}
 
     # Convert to response format (including rich media fields)
     message_responses = []
     for msg in messages:
-        # Regenerate presigned URL for images (they expire after 24h)
+        # Regenerate presigned URLs for images and document thumbnails (they expire after 24h)
         media_url = msg.media_url
-        if msg.message_type == MessageType.IMAGE and msg.document_id:
+        thumbnail_url = None
+
+        if msg.document_id:
             doc = docs_by_id.get(msg.document_id)
             if doc:
-                media_url = s3_service.generate_presigned_url(doc.s3_key, expiration=86400)
+                if msg.message_type == MessageType.IMAGE:
+                    # For images, regenerate the image URL
+                    media_url = s3_service.generate_presigned_url(doc.s3_key, expiration=86400)
+                elif msg.message_type == MessageType.DOCUMENT and doc.thumbnail_s3_key:
+                    # For documents with thumbnails (PDFs), generate thumbnail URL
+                    thumbnail_url = s3_service.generate_presigned_url(doc.thumbnail_s3_key, expiration=86400)
 
         msg_dict = {
             "id": msg.id,
@@ -212,6 +219,7 @@ async def get_conversation_history(
             "message_type": msg.message_type,
             "document_id": msg.document_id,
             "media_url": media_url,
+            "thumbnail_url": thumbnail_url,
             "extracted_text": msg.extracted_text
         }
         message_responses.append(MessageResponse(**msg_dict))

@@ -97,6 +97,17 @@ const Conversation = () => {
     }
   }, [activeSessionId]);
 
+  // Poll for new messages from collaborators (every 10 seconds)
+  useEffect(() => {
+    if (activeSessionId && messages.length > 0) {
+      const interval = setInterval(() => {
+        checkForNewMessages();
+      }, 10 * 1000); // 10 seconds
+
+      return () => clearInterval(interval);
+    }
+  }, [activeSessionId, messages]);
+
   const loadConversationHistory = async (sessionId = activeSessionId, resetPagination = true) => {
     if (!sessionId) return;
     try {
@@ -139,6 +150,37 @@ const Conversation = () => {
       console.error('Error loading more messages:', err);
     } finally {
       setLoadingMore(false);
+    }
+  };
+
+  const checkForNewMessages = async () => {
+    if (!activeSessionId || messages.length === 0 || isAITyping) return;
+
+    try {
+      // Get the latest 10 messages to check for new ones
+      const response = await conversationAPI.getHistory(activeSessionId, 10, 0);
+      const latestMessages = response.data.messages || [];
+
+      if (latestMessages.length === 0) return;
+
+      // Find the ID of our current latest message
+      const currentLatestId = messages[messages.length - 1]?.id;
+
+      // Filter for messages newer than our current latest
+      const newMessages = latestMessages.filter(msg => msg.id > currentLatestId);
+
+      if (newMessages.length > 0) {
+        // Append new messages to the end
+        setMessages(prevMessages => [...prevMessages, ...newMessages]);
+
+        // Auto-scroll if user is near bottom
+        if (isNearBottomRef.current) {
+          setTimeout(() => scrollToBottom('smooth'), 100);
+        }
+      }
+    } catch (err) {
+      // Silently fail - don't disrupt the user experience
+      console.error('Error checking for new messages:', err);
     }
   };
 

@@ -7,7 +7,6 @@ const ENTRY_TYPE_COLORS = {
   TREATMENT_CHANGE: 'bg-orange-100 text-orange-800',
   APPOINTMENT: 'bg-purple-100 text-purple-800',
   INSIGHT: 'bg-green-100 text-green-800',
-  QUESTION: 'bg-yellow-100 text-yellow-800',
   MILESTONE: 'bg-teal-100 text-teal-800'
 };
 

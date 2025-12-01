@@ -20,7 +20,7 @@ AretaCare was built from exactly this experience—sitting beside a loved one in
 
 **Conversation** — Talk naturally about what's happening. Upload lab results, record voice notes, or type out questions. AretaCare helps translate medical jargon, organize information, and prepare you for conversations with the care team.
 
-**Journal** — Your care journey automatically organized into a searchable timeline. Medical updates, symptoms, appointments, and questions—all captured and categorized so nothing falls through the cracks.
+**Journal** — Your care journey automatically organized into a searchable timeline. Medical updates, treatment changes, appointments, insights, and milestones—all captured and categorized so nothing falls through the cracks.
 
 **Daily Plan** — AI-generated summaries of today's priorities, important reminders, and questions to ask at your next appointment. Editable and regenerated daily based on your situation.
 

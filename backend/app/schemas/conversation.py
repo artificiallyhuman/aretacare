@@ -17,6 +17,7 @@ class MessageResponse(BaseModel):
     message_type: Optional[MessageType] = None
     document_id: Optional[int] = None
     media_url: Optional[str] = None
+    thumbnail_url: Optional[str] = None
     extracted_text: Optional[str] = None
 
     class Config:

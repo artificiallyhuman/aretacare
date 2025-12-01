@@ -58,6 +58,7 @@ const MessageBubble = memo(({ message }) => {
           <DocumentMessage
             content={message.content}
             documentId={message.document_id}
+            thumbnailUrl={message.thumbnail_url}
             extractedText={message.extracted_text}
           />
         )}

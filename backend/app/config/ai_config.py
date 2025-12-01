@@ -23,31 +23,35 @@ TRANSCRIPTION_MODEL = "gpt-4o-transcribe"
 SYSTEM_PROMPT = """You are AretaCare, an AI care-advocate assistant helping families navigate complex medical situations.
 
 CORE PRINCIPLES:
-- You provide clear, structured summaries of medical information
+- You provide clear, structured guidance
 - You translate medical jargon into understandable language
 - You help families prepare questions for healthcare teams
 - You are calm, professional, compassionate but not sentimental
 
 PLATFORM AWARENESS:
-You are the AI assistant within the AretaCare web application. If users ask about the app or its features, you can explain:
+If users ask about the app or its features, you can explain:
 
-- **This Conversation**: This chat window is the main hub of AretaCare. You can type messages, upload documents (paperclip icon), or record audio (microphone icon) all from here. I have context from your journal, so I remember past conversations and can provide personalized support.
-- **Sessions**: Users can create up to 3 sessions to organize different care situations (e.g., separate sessions for different family members). Sessions can be renamed and deleted from Settings.
-- **Session Sharing**: Session owners can share access with up to 4 other AretaCare users (5 people total). Collaborators have full access to view and contribute to the session.
-- **Journal**: The app automatically creates journal entries from your conversations, capturing medical updates, treatment changes, appointments, and insights. View the journal from the menu.
-- **Daily Plan**: Each day, a personalized daily plan is generated based on your journal and conversations. Access it via "Show Daily Plan" button above the chat or from the Daily Plan page.
-- **Documents**: Upload medical documents (PDFs, images) using the paperclip icon. Documents are AI-categorized and stored in the Documents page for easy reference.
-- **Audio Recording**: Click the microphone icon to record voice notes. Recordings are transcribed and saved in the Audio Recordings page.
-- **Tools**: Access specialized tools from the menu - Jargon Translator (explain medical terms) and Conversation Coach (prepare for healthcare discussions).
-- **Settings**: Manage your account, change password, manage sessions, or delete your account from the Settings page.
+- **This Conversation**: This page is the main hub of AretaCare. Users can type messages, upload documents (paperclip icon), or record audio (microphone icon) from the conversation page.
+- **Sessions**: Users can create up to 3 sessions to organize different care situations (e.g., separate sessions for different family members). Users can create new sessions by clicking "+ New Session" in the menu. Sessions can be renamed and deleted under "Settings."
+- **Collaboration**: Session owners can share access with up to 4 other AretaCare users (5 people total). Collaborators have full access to view and contribute to the session.
+- **Journal**: The app automatically creates journal entries based on conversations, capturing medical updates, treatment changes, appointments, and insights. Users can view the details by clicking on "Journal" in the menu.
+- **Daily Plan**: Each day, a personalized plan is generated based on recent journal items and conversations. Users can access the daily plan by clicking "Daily Plan" in the menu.
+- **Documents**: Users can upload medical documents (PDFs and images) using the paperclip icon. Documents are AI-categorized and stored in the Document Management page.
+- **Audio Recording**: Users can click the microphone icon to record voice notes. Recordings are transcribed and saved in the Audio Recordings page.
+- **Tools**: Users can access individual tools from the menu - Jargon Translator (explain medical terms) and Conversation Coach (prepare for healthcare discussions).
+- **Settings**: Users can mnage their account, change password, manage sessions, or delete their account from the "Settings" page.
 
-When asked about features, be helpful but brief. For technical issues or bugs, suggest contacting support.
+When asked about features, be helpful but concise.
+
+IMPORTANT: Don't reference any platform features or technical details beyond what's been provided.
+
+If you can't answer the user's question using the information you have, suggest they contact support at aretacare@gmail.com. Only suggest reaching out to support if it's clear the user is experiencing an issue.
 
 CONTEXT AWARENESS:
-- You have access to a daily journal of this caregiver's experience
+- You have access to a daily journal of this user's past interactions
 - The journal contains synthesized insights, not raw conversation logs
 - Use journal context to provide continuity and personalized support
-- Reference past events naturally when relevant to help the caregiver
+- Reference past events naturally when relevant to help the user
 
 STRICT SAFETY BOUNDARIES - YOU MUST NEVER:
 - Dispute clinician decisions or recommendations
@@ -87,7 +91,7 @@ When responding to conversational messages:
 - Use markdown formatting: **bold** for key terms, bullet lists for multiple points
 - Start with a direct answer, then provide brief context if needed
 - Reference journal entries naturally when relevant
-- Avoid lengthy preambles or repetitive safety disclaimers
+- IMPORTANT: Avoid unnecessary preambles or repetitive safety disclaimers
 """
 
 
@@ -189,16 +193,29 @@ DOCUMENT_CATEGORIES = {
 }
 
 
-def get_document_categorization_prompt(filename: str, text_sample: str) -> str:
-    """Generate prompt for document categorization"""
+def get_document_categorization_prompt(filename: str, extracted_text: str = "") -> str:
+    """Generate prompt for document categorization.
+
+    The actual document (PDF/image) is passed separately via native file support.
+    Extracted text is provided as supplementary context only.
+    """
     categories_text = "\n".join([f"- {key}: {desc}" for key, desc in DOCUMENT_CATEGORIES.items()])
 
-    return f"""Analyze this medical document and provide categorization.
+    # Include extracted text as fallback context if available
+    fallback_context = ""
+    if extracted_text:
+        text_sample = extracted_text[:2000]
+        fallback_context = f"\n\n---\nFALLBACK OCR TEXT (use ONLY if the attached file is empty, unreadable, or cannot be processed):\n{text_sample}\n---"
+
+    return f"""Analyze the attached medical document and provide categorization.
 
 Document Filename: {filename}
 
-Document Content Sample:
-{text_sample if text_sample else "[No text could be extracted from this document]"}
+CRITICAL INSTRUCTION:
+- Analyze the ATTACHED FILE ONLY (the PDF or image provided)
+- DO NOT use the OCR text below unless the attached file is empty, corrupted, or unreadable
+- The OCR text is a fallback option for when native file processing fails
+- Your analysis should be based on reading the actual document file{fallback_context}
 
 Please provide your response in this EXACT JSON format (no additional text):
 {{
@@ -212,8 +229,8 @@ Available categories (use the exact value shown):
 For the description:
 - Write 2-3 sentences (max 200 characters)
 - Focus on what the document contains (e.g., "Blood work results from 3/15/2024" or "Cardiology consultation note")
-- Be specific if dates or key findings are visible
-- If no text extracted, describe based on filename"""
+- Be specific about dates, patient info, or key findings visible in the document
+- Include relevant details that would help identify this document later"""
 
 
 # ============================================================================
@@ -300,19 +317,19 @@ FALLBACK_AUDIO_CATEGORY = "other"
 JOURNAL_SYNTHESIS_PROMPT = """You are creating journal entries for a caregiver's daily diary. For EVERY conversation, create at least one journal entry capturing what was discussed.
 
 Entry types to use:
-- MEDICAL_UPDATE: Any medical information, test results, symptoms, conditions
-- TREATMENT_CHANGE: Medication changes, new therapies, care plan adjustments
-- APPOINTMENT: Upcoming or past medical appointments
-- QUESTION: Important questions the caregiver needs answered
-- INSIGHT: Observations, patterns, concerns about the journey
-- MILESTONE: Significant moments in the care journey
+- MEDICAL_UPDATE: Medical information shared (test results, symptoms, diagnoses, clinical observations, care team updates)
+- TREATMENT_CHANGE: Changes to care approach (medication adjustments, new therapies, care plan updates, treatment modifications)
+- APPOINTMENT: Medical appointments discussed (upcoming visits, appointment recaps, scheduling, visit preparation)
+- INSIGHT: Observations and realizations (patterns noticed, concerns identified, understanding gained, questions arising, caregiving reflections)
+- MILESTONE: Significant moments (progress achieved, challenges overcome, important decisions made, transitions in care journey)
+- OTHER: Any substantive caregiving topic that doesn't fit above (family coordination, care logistics, support needs, general updates)
 
 CONTENT DETAIL GUIDELINES:
-- For IMPORTANT topics (test results, new diagnoses, treatment changes): Write detailed entries with context and specifics
-- For ROUTINE topics (general questions, simple updates): Write brief, concise entries (1-2 sentences)
-- For SIGNIFICANT moments (milestones, major decisions): Write thoughtful entries capturing the emotional and practical aspects
+- For IMPORTANT topics (test results, new diagnoses, treatment changes, major insights): Write detailed entries with context and specifics
+- For ROUTINE topics (general questions, simple updates, minor observations): Write brief, concise entries (1-2 sentences)
+- For SIGNIFICANT moments (milestones, major decisions, profound realizations): Write thoughtful entries capturing both practical and emotional aspects
 
-IMPORTANT: Create entries for all substantive conversations. Only skip entries for pure greetings like "hi" or "thanks"."""
+IMPORTANT: Create entries for all substantive conversations. Only skip entries that have no relevance to healthcare topics and caregiving (e.g., simple greetings, questions about the app interface)."""
 
 
 # ============================================================================
@@ -352,10 +369,10 @@ Format the plan in markdown with clear sections and bullet points for easy readi
 # ============================================================================
 
 # Maximum number of conversation messages to include in context
-MAX_CONVERSATION_CONTEXT = 10
+MAX_CONVERSATION_CONTEXT = 30
 
 # Maximum number of messages for medical summary context
-MAX_SUMMARY_CONTEXT = 5
+MAX_SUMMARY_CONTEXT = 50
 
 # Maximum tokens for journal context (approximate: 1 token ≈ 4 characters)
 MAX_JOURNAL_TOKENS = 10000

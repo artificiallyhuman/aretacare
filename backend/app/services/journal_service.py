@@ -43,7 +43,7 @@ class JournalService:
                         "content": {"type": "string"},
                         "entry_type": {
                             "type": "string",
-                            "enum": ["MEDICAL_UPDATE", "TREATMENT_CHANGE", "APPOINTMENT", "INSIGHT", "QUESTION", "MILESTONE"]
+                            "enum": ["MEDICAL_UPDATE", "TREATMENT_CHANGE", "APPOINTMENT", "INSIGHT", "MILESTONE", "OTHER"]
                         }
                     },
                     "required": ["title", "content", "entry_type"],
@@ -82,7 +82,7 @@ Assistant: {ai_response}
 
 Create a journal entry for this conversation. Set should_create to true unless this is just a greeting with no substance (like just "hi" or "thanks").
 
-Choose the appropriate entry type (MEDICAL_UPDATE, TREATMENT_CHANGE, APPOINTMENT, QUESTION, INSIGHT, or MILESTONE).
+Choose the appropriate entry type (MEDICAL_UPDATE, TREATMENT_CHANGE, APPOINTMENT, INSIGHT, MILESTONE, or OTHER).
 
 Adjust detail level based on importance:
 - Important topics (test results, new diagnoses, treatment changes) = detailed entry with context
@@ -97,7 +97,7 @@ IMPORTANT: Respond with ONLY a valid JSON object in this exact format, with no a
     {{
       "title": "entry title (max 100 chars)",
       "content": "entry content",
-      "entry_type": "MEDICAL_UPDATE or TREATMENT_CHANGE or APPOINTMENT or QUESTION or INSIGHT or MILESTONE"
+      "entry_type": "MEDICAL_UPDATE or TREATMENT_CHANGE or APPOINTMENT or INSIGHT or MILESTONE or OTHER"
     }}
   ]
 }}"""

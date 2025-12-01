@@ -458,7 +458,7 @@ Authorization: Bearer <token>
         "id": 1,
         "title": "Follow-up Appointment",
         "content": "Discussed blood pressure management...",
-        "entry_type": "appointment",
+        "entry_type": "APPOINTMENT",
         "entry_date": "2025-01-15",
         "created_at": "2025-01-15T10:00:00Z"
       }
@@ -486,19 +486,18 @@ Content-Type: application/json
 {
   "title": "New Medication Started",
   "content": "Started Lisinopril 10mg daily for blood pressure",
-  "entry_type": "medication",
+  "entry_type": "TREATMENT_CHANGE",
   "entry_date": "2025-01-15"
 }
 ```
 
 **Valid Entry Types:**
-- `appointment` - Doctor visits, scheduled procedures
-- `symptom` - Physical symptoms or changes
-- `medication` - Medication changes or notes
-- `test_result` - Lab results, imaging results
-- `milestone` - Important health milestones
-- `note` - General notes
-- `other` - Any other health-related information
+- `MEDICAL_UPDATE` - Medical information shared (test results, symptoms, diagnoses, clinical observations)
+- `TREATMENT_CHANGE` - Changes to care approach (medication adjustments, new therapies, care plan updates)
+- `APPOINTMENT` - Medical appointments (upcoming visits, appointment recaps, scheduling)
+- `INSIGHT` - Observations and realizations (patterns noticed, concerns identified, caregiving reflections)
+- `MILESTONE` - Significant moments (progress achieved, challenges overcome, important decisions)
+- `OTHER` - Any substantive caregiving topic that doesn't fit above
 
 **Example:**
 ```bash
@@ -508,7 +507,7 @@ curl -X POST http://localhost:8000/api/journal/{session_id} \
   -d '{
     "title": "Lab Results",
     "content": "Cholesterol levels improved",
-    "entry_type": "test_result",
+    "entry_type": "MEDICAL_UPDATE",
     "entry_date": "2025-01-15"
   }'
 ```
@@ -1074,12 +1073,12 @@ const createJournalEntry = async (sessionId, title, content, entryType, date) =>
 const entries = await getJournalEntries(sessionId);
 console.log('Entries by date:', entries);
 
-// Valid entry types: 'appointment', 'symptom', 'medication', 'test_result', 'milestone', 'note', 'other'
+// Valid entry types: 'MEDICAL_UPDATE', 'TREATMENT_CHANGE', 'APPOINTMENT', 'INSIGHT', 'MILESTONE', 'OTHER'
 const newEntry = await createJournalEntry(
   sessionId,
   'Lab Results',
   'Cholesterol levels improved',
-  'test_result',
+  'MEDICAL_UPDATE',
   '2025-01-15'
 );
 console.log('New entry created:', newEntry);

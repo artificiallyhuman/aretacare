@@ -104,15 +104,14 @@ async def upload_document(
     doc_category = None
     ai_description = None
     try:
-        # For images, generate presigned URL to use GPT vision for better categorization
-        image_url = None
-        if file.content_type.startswith("image/"):
-            image_url = s3_service.generate_presigned_url(s3_key)
+        # Generate presigned URL for native GPT file processing
+        document_url = s3_service.generate_presigned_url(s3_key)
 
         categorization = await openai_service.categorize_document(
-            extracted_text or "",
-            file.filename,
-            image_url=image_url
+            filename=file.filename,
+            content_type=file.content_type,
+            document_url=document_url,
+            extracted_text=extracted_text or ""
         )
         # Convert category string to enum (with fallback to OTHER)
         try:
