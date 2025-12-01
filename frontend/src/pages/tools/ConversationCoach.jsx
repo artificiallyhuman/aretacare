@@ -1,8 +1,10 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { toolsAPI, conversationAPI } from '../../services/api';
 import { useSessionContext } from '../../contexts/SessionContext';
 import AudioWaveform from '../../components/AudioWaveform';
+
+const MAX_RECORDING_SECONDS = 900; // 15 minutes (corresponds to ~20MB at typical WebM bitrate)
 
 const ConversationCoach = () => {
   const { activeSessionId: sessionId } = useSessionContext();
@@ -13,8 +15,48 @@ const ConversationCoach = () => {
   const [isRecording, setIsRecording] = useState(false);
   const [isTranscribing, setIsTranscribing] = useState(false);
   const [audioStream, setAudioStream] = useState(null);
+  const [recordingTimeLeft, setRecordingTimeLeft] = useState(MAX_RECORDING_SECONDS);
+  const [recordingAutoStopped, setRecordingAutoStopped] = useState(false);
   const mediaRecorderRef = useRef(null);
   const audioChunksRef = useRef([]);
+  const recordingTimerRef = useRef(null);
+
+  // Countdown timer for recording
+  useEffect(() => {
+    if (isRecording) {
+      recordingTimerRef.current = setInterval(() => {
+        setRecordingTimeLeft((prev) => {
+          if (prev <= 1) {
+            // Time's up - auto-stop recording
+            setRecordingAutoStopped(true);
+            stopRecording();
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    } else {
+      // Reset timer when not recording
+      if (recordingTimerRef.current) {
+        clearInterval(recordingTimerRef.current);
+        recordingTimerRef.current = null;
+      }
+      setRecordingTimeLeft(MAX_RECORDING_SECONDS);
+    }
+
+    return () => {
+      if (recordingTimerRef.current) {
+        clearInterval(recordingTimerRef.current);
+      }
+    };
+  }, [isRecording]);
+
+  // Format time as MM:SS
+  const formatTime = (seconds) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
 
   const handleGetCoaching = async () => {
     if (!situation.trim()) {
@@ -74,6 +116,13 @@ const ConversationCoach = () => {
 
   const transcribeAudio = async (audioBlob) => {
     setIsTranscribing(true);
+
+    // Show message if recording was auto-stopped
+    if (recordingAutoStopped) {
+      alert('Recording reached the 15-minute maximum length and was automatically stopped.');
+      setRecordingAutoStopped(false);
+    }
+
     try {
       const audioFile = new File([audioBlob], 'recording.webm', { type: 'audio/webm' });
       const response = await conversationAPI.transcribeAudio(audioFile, sessionId);
@@ -83,7 +132,8 @@ const ConversationCoach = () => {
       setSituation(prev => prev ? `${prev}\n${transcribedText}` : transcribedText);
     } catch (error) {
       console.error('Error transcribing audio:', error);
-      setError('Failed to transcribe audio. Please try again.');
+      const errorMessage = error.response?.data?.detail || 'Failed to transcribe audio. Please try again.';
+      setError(errorMessage);
     } finally {
       setIsTranscribing(false);
     }
@@ -108,12 +158,27 @@ const ConversationCoach = () => {
           {/* Recording/Transcribing status */}
           {isRecording && (
             <div className="mb-3 p-3 bg-red-100 dark:bg-red-900/40 rounded-lg border-2 border-red-300 dark:border-red-700 shadow-sm space-y-2">
-              <div className="flex items-center space-x-2">
-                <div className="w-3 h-3 bg-red-600 rounded-full animate-pulse"></div>
-                <span className="text-sm font-medium text-red-800 dark:text-red-300">Recording... Click "Stop Recording" when finished</span>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-2">
+                  <div className="w-3 h-3 bg-red-600 rounded-full animate-pulse"></div>
+                  <span className="text-sm font-medium text-red-800 dark:text-red-300">Recording... Click "Stop Recording" when finished</span>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <svg className="w-5 h-5 text-red-700 dark:text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <span className={`text-base font-bold font-mono ${recordingTimeLeft < 60 ? 'text-red-700 dark:text-red-300 animate-pulse' : 'text-red-800 dark:text-red-300'}`}>
+                    {formatTime(recordingTimeLeft)}
+                  </span>
+                </div>
               </div>
               {/* Live waveform visualization */}
               <AudioWaveform stream={audioStream} isRecording={isRecording} />
+              {recordingTimeLeft < 60 && (
+                <div className="text-xs text-red-700 dark:text-red-300 font-medium text-center">
+                  ⚠️ Less than 1 minute remaining
+                </div>
+              )}
             </div>
           )}
           {isTranscribing && (

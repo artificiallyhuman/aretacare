@@ -118,10 +118,45 @@ const Conversation = () => {
         setCurrentOffset(MESSAGE_PAGE_SIZE);
       }
 
-      // Scroll to bottom on initial load after messages render
-      setTimeout(() => {
-        scrollToBottom('auto');
-      }, 100);
+      // Scroll to bottom on initial load - wait for images to load
+      // Multiple scroll attempts to handle async image loading
+      const scrollAfterLoad = () => {
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            scrollToBottom('auto');
+            // Additional scroll after short delay for images
+            setTimeout(() => scrollToBottom('auto'), 100);
+            setTimeout(() => scrollToBottom('auto'), 300);
+            setTimeout(() => scrollToBottom('auto'), 600);
+          });
+        });
+      };
+
+      // Wait for all images in messages to load
+      const container = messagesContainerRef.current;
+      if (container) {
+        const images = container.querySelectorAll('img');
+        if (images.length > 0) {
+          let loadedCount = 0;
+          const checkAllLoaded = () => {
+            loadedCount++;
+            if (loadedCount === images.length) {
+              scrollToBottom('auto');
+            }
+          };
+
+          images.forEach(img => {
+            if (img.complete) {
+              checkAllLoaded();
+            } else {
+              img.addEventListener('load', checkAllLoaded);
+              img.addEventListener('error', checkAllLoaded); // Handle broken images
+            }
+          });
+        }
+      }
+
+      scrollAfterLoad();
     } catch (err) {
       console.error('Error loading conversation history:', err);
     }

@@ -230,6 +230,9 @@ async def get_conversation_history(
     return {"messages": message_responses, "total_count": total_count, "has_more": has_more}
 
 
+MAX_AUDIO_FILE_SIZE = 20 * 1024 * 1024  # 20MB
+
+
 @router.post("/transcribe")
 async def transcribe_audio(
     audio: UploadFile = File(...),
@@ -263,6 +266,13 @@ async def transcribe_audio(
 
         # Read audio file content
         audio_content = await audio.read()
+
+        # Validate file size
+        if len(audio_content) > MAX_AUDIO_FILE_SIZE:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Audio file size exceeds maximum allowed size of {MAX_AUDIO_FILE_SIZE / 1024 / 1024}MB"
+            )
 
         # Upload original to S3
         await s3_service.upload_file(audio_content, s3_key, audio.content_type or 'audio/mpeg')
