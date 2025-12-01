@@ -117,6 +117,11 @@ const Conversation = () => {
       if (resetPagination) {
         setCurrentOffset(MESSAGE_PAGE_SIZE);
       }
+
+      // Scroll to bottom on initial load after messages render
+      setTimeout(() => {
+        scrollToBottom('auto');
+      }, 100);
     } catch (err) {
       console.error('Error loading conversation history:', err);
     }
