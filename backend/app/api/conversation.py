@@ -286,8 +286,12 @@ async def transcribe_audio(
             logger.info(f"Audio content size: {len(audio_content)} bytes")
             logger.info(f"First 20 bytes: {audio_content[:20].hex() if len(audio_content) >= 20 else audio_content.hex()}")
 
-            # Write audio content to temporary file
-            with tempfile.NamedTemporaryFile(delete=False, suffix='.webm', mode='wb') as audio_temp:
+            # Determine file extension from original filename for format detection
+            file_ext = '.' + audio.filename.split('.')[-1].lower() if '.' in audio.filename else '.webm'
+            logger.info(f"Original filename: {audio.filename}, using extension: {file_ext}")
+
+            # Write audio content to temporary file with correct extension
+            with tempfile.NamedTemporaryFile(delete=False, suffix=file_ext, mode='wb') as audio_temp:
                 bytes_written = audio_temp.write(audio_content)
                 audio_temp.flush()  # Ensure data is written to disk
                 os.fsync(audio_temp.fileno())  # Force write to disk
@@ -307,18 +311,75 @@ async def transcribe_audio(
             # Convert to mp3 (auto-detect input format)
             audio_segment = AudioSegment.from_file(audio_temp_path)
             duration_seconds = len(audio_segment) / 1000.0  # pydub returns milliseconds
-            audio_segment.export(mp3_temp_path, format="mp3")
 
-            # Read mp3 file into BytesIO for OpenAI
-            with open(mp3_temp_path, 'rb') as mp3_file:
-                mp3_buffer = io.BytesIO(mp3_file.read())
-                mp3_buffer.seek(0)
+            # OpenAI Whisper has a 1400 second limit per request
+            # For longer files, we'll split into chunks
+            MAX_CHUNK_DURATION_SECONDS = 1200  # 20 minutes (safely under 23 minute limit)
 
-            # Use mp3 filename for transcription
-            mp3_filename = audio.filename.rsplit('.', 1)[0] + '.mp3'
-            transcribed_text = await openai_service.transcribe_audio(mp3_buffer, mp3_filename)
+            if duration_seconds > MAX_CHUNK_DURATION_SECONDS:
+                logger.info(f"Audio duration {duration_seconds:.1f}s exceeds chunk limit. Splitting into chunks...")
+
+                # Calculate number of chunks needed
+                chunk_duration_ms = MAX_CHUNK_DURATION_SECONDS * 1000  # pydub uses milliseconds
+                num_chunks = int(duration_seconds / MAX_CHUNK_DURATION_SECONDS) + 1
+
+                logger.info(f"Splitting into {num_chunks} chunks of {MAX_CHUNK_DURATION_SECONDS}s each")
+
+                # Transcribe each chunk and combine results
+                transcribed_parts = []
+                for i in range(num_chunks):
+                    start_ms = i * chunk_duration_ms
+                    end_ms = min((i + 1) * chunk_duration_ms, len(audio_segment))
+
+                    chunk = audio_segment[start_ms:end_ms]
+                    chunk_duration = len(chunk) / 1000.0
+
+                    logger.info(f"Processing chunk {i+1}/{num_chunks} (duration: {chunk_duration:.1f}s)")
+
+                    # Export chunk to temporary mp3
+                    chunk_temp_fd, chunk_temp_path = tempfile.mkstemp(suffix='.mp3')
+                    os.close(chunk_temp_fd)
+
+                    try:
+                        chunk.export(chunk_temp_path, format="mp3")
+
+                        # Read chunk into BytesIO for OpenAI
+                        with open(chunk_temp_path, 'rb') as chunk_file:
+                            chunk_buffer = io.BytesIO(chunk_file.read())
+                            chunk_buffer.seek(0)
+
+                        # Transcribe chunk
+                        chunk_filename = f"{audio.filename.rsplit('.', 1)[0]}_chunk_{i+1}.mp3"
+                        chunk_text = await openai_service.transcribe_audio(chunk_buffer, chunk_filename)
+
+                        if chunk_text:
+                            transcribed_parts.append(chunk_text)
+                            logger.info(f"Chunk {i+1}/{num_chunks} transcribed successfully")
+                    finally:
+                        # Clean up chunk temp file
+                        if os.path.exists(chunk_temp_path):
+                            os.unlink(chunk_temp_path)
+
+                # Combine all transcribed parts
+                transcribed_text = ' '.join(transcribed_parts)
+                logger.info(f"Combined {len(transcribed_parts)} chunks into final transcription")
+            else:
+                # File is short enough to transcribe in one go
+                audio_segment.export(mp3_temp_path, format="mp3")
+
+                # Read mp3 file into BytesIO for OpenAI
+                with open(mp3_temp_path, 'rb') as mp3_file:
+                    mp3_buffer = io.BytesIO(mp3_file.read())
+                    mp3_buffer.seek(0)
+
+                # Use mp3 filename for transcription
+                mp3_filename = audio.filename.rsplit('.', 1)[0] + '.mp3'
+                transcribed_text = await openai_service.transcribe_audio(mp3_buffer, mp3_filename)
+        except HTTPException:
+            # Re-raise HTTPException (like duration validation)
+            raise
         except Exception as e:
-            logger.error(f"Error converting audio to mp3: {str(e)}")
+            logger.error(f"Error converting audio to mp3: {str(e)}", exc_info=True)
             raise HTTPException(status_code=500, detail=f"Error processing audio file: {str(e)}")
         finally:
             # Clean up temporary files
@@ -367,6 +428,36 @@ async def transcribe_audio(
         db.refresh(audio_recording)
 
         logger.info(f"Saved audio recording metadata to database: ID {audio_recording.id}")
+
+        # Create journal entry from audio transcription
+        # This matches the behavior of audio recordings in conversations
+        try:
+            journal_service = JournalService(db)
+
+            # Format as a user message about the audio recording
+            user_message = f"Audio recording uploaded: {audio.filename}\n\nTranscription:\n{transcribed_text}"
+            ai_response = f"I've processed this audio recording. {ai_summary if ai_summary else 'This appears to be related to your care journey.'}"
+
+            # Use entry_date if provided (for timezone handling), otherwise use today
+            from datetime import date as date_type
+            entry_date = date_type.today()
+
+            synthesis_result = await journal_service.assess_and_synthesize(
+                user_message=user_message,
+                ai_response=ai_response,
+                session_id=session_id,
+                conversation_id=None,  # Not from a conversation
+                entry_date=entry_date
+            )
+
+            if synthesis_result.should_create and len(synthesis_result.suggested_entries) > 0:
+                logger.info(f"Created {len(synthesis_result.suggested_entries)} journal entries from audio recording")
+            else:
+                logger.info("No journal entries created from audio recording (not journal-worthy)")
+
+        except Exception as e:
+            # Log but don't fail the upload if journal synthesis fails
+            logger.warning(f"Failed to create journal entry from audio recording: {e}")
 
         return {
             "transcribed_text": transcribed_text,

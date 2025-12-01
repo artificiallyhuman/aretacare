@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useSessionContext } from '../contexts/SessionContext';
-import { audioRecordingsAPI } from '../services/api';
+import { audioRecordingsAPI, conversationAPI } from '../services/api';
 
 // Audio recording categories with labels and colors
 const CATEGORIES = [
@@ -52,6 +52,9 @@ const AudioRecordings = () => {
   const [showSidebar, setShowSidebar] = useState(false);
   const searchInputRef = useRef(null);
   const isSearchFocused = useRef(false);
+  const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState('');
+  const fileInputRef = useRef(null);
 
   // Restore focus to search input if it was focused before re-render
   useEffect(() => {
@@ -165,11 +168,31 @@ const AudioRecordings = () => {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const getPreviewText = (text, lineCount = 2) => {
+  const getPreviewText = (text, lineCount = 2, charLimit = 200) => {
     if (!text) return '';
     const lines = text.split('\n');
-    if (lines.length <= lineCount) return text;
-    return lines.slice(0, lineCount).join('\n');
+
+    // If text is short enough, show it all
+    if (lines.length <= lineCount && text.length <= charLimit) {
+      return text;
+    }
+
+    // Show first N lines
+    const previewLines = lines.slice(0, lineCount).join('\n');
+
+    // If preview is still too long, truncate at character limit
+    if (previewLines.length > charLimit) {
+      return previewLines.substring(0, charLimit) + '...';
+    }
+
+    return previewLines;
+  };
+
+  const shouldShowExpandButton = (text) => {
+    if (!text) return false;
+    const lines = text.split('\n');
+    // Show button if there are more than 2 lines OR if text is longer than 200 characters
+    return lines.length > 2 || text.length > 200;
   };
 
   // Group recordings by date (parse as UTC by appending 'Z')
@@ -211,6 +234,66 @@ const AudioRecordings = () => {
     return date.toDateString() === today.toDateString();
   };
 
+  const handleFileUpload = async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    const allowedTypes = ['audio/mpeg', 'audio/mp4', 'audio/x-m4a', 'audio/m4a', 'audio/wav', 'audio/webm', 'audio/ogg'];
+    const allowedExtensions = ['.mp3', '.mp4', '.m4a', '.wav', '.webm', '.ogg'];
+    const fileExt = '.' + file.name.split('.').pop().toLowerCase();
+
+    if (!allowedTypes.includes(file.type) && !allowedExtensions.includes(fileExt)) {
+      setError('Invalid file type. Please upload an audio file (MP3, M4A, WAV, WebM, OGG).');
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      return;
+    }
+
+    // Validate file size (20MB)
+    const maxSize = 20 * 1024 * 1024;
+    if (file.size > maxSize) {
+      setError('File size exceeds 20MB limit. Please choose a smaller file.');
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      return;
+    }
+
+    // Note: Long audio files (>20 minutes) are automatically split into chunks and processed sequentially
+
+    setUploading(true);
+    setError(null);
+    setUploadProgress('Uploading audio file...');
+
+    try {
+      // Use the same transcribe endpoint that handles recording transcription
+      setUploadProgress('Processing audio (this may take a while for long files)...');
+      await conversationAPI.transcribeAudio(file, sessionId);
+
+      setUploadProgress('Audio processed successfully! Journal entries may have been created.');
+
+      // Reload recordings to show the new one
+      await loadRecordings();
+
+      // Clear the file input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+
+      // Clear success message after 3 seconds
+      setTimeout(() => {
+        setUploadProgress('');
+      }, 3000);
+    } catch (err) {
+      console.error('Error uploading audio:', err);
+      const errorMessage = err.response?.data?.detail || 'Failed to upload audio file. Please try again.';
+      setError(errorMessage);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    } finally {
+      setUploading(false);
+    }
+  };
+
   if (sessionLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -236,9 +319,61 @@ const AudioRecordings = () => {
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 lg:py-12">
       <div>
-        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white mb-4 sm:mb-6">
-          Audio Recordings
-        </h1>
+        <div className="flex items-center justify-between mb-4 sm:mb-6">
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">
+            Audio Recordings
+          </h1>
+
+          {/* Upload button */}
+          <div className="text-right">
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="audio/mpeg,audio/mp4,audio/x-m4a,audio/m4a,audio/wav,audio/webm,audio/ogg,.mp3,.mp4,.m4a,.wav,.webm,.ogg"
+              onChange={handleFileUpload}
+              disabled={uploading}
+              className="hidden"
+              id="audio-file-upload"
+            />
+            <label
+              htmlFor="audio-file-upload"
+              className={`btn-primary inline-flex items-center gap-2 cursor-pointer ${uploading ? 'opacity-50 cursor-not-allowed' : ''}`}
+              title="Upload audio files (MP3, M4A, WAV, WebM, OGG) - Max 20MB (long files automatically chunked)"
+            >
+              {uploading ? (
+                <>
+                  <svg className="animate-spin w-5 h-5" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  <span className="hidden sm:inline">Uploading...</span>
+                </>
+              ) : (
+                <>
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                  </svg>
+                  <span className="hidden sm:inline">Upload Audio</span>
+                  <span className="sm:hidden">Upload</span>
+                </>
+              )}
+            </label>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 hidden sm:block">
+              Max 20MB • Long files auto-chunked
+            </p>
+          </div>
+        </div>
+
+        {/* Upload progress message */}
+        {uploadProgress && (
+          <div className="mb-4 bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300 px-4 py-3 rounded flex items-center gap-2">
+            <svg className="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            {uploadProgress}
+          </div>
+        )}
 
         {/* Controls */}
         <div className="mb-6 space-y-3 sm:space-y-4">
@@ -307,7 +442,7 @@ const AudioRecordings = () => {
             <p className="text-gray-600 dark:text-gray-400">
               {searchQuery || selectedCategory !== 'all'
                 ? 'Try adjusting your filters or search term'
-                : 'Start recording audio in conversations to see them here'
+                : 'Record audio in conversations or upload audio files to see them here'
               }
             </p>
           </div>
@@ -483,7 +618,7 @@ const AudioRecordings = () => {
                             <div className="bg-gray-50 dark:bg-gray-700 p-3 rounded mb-3">
                               <div className="flex items-center justify-between mb-2">
                                 <p className="text-xs font-medium text-gray-700 dark:text-gray-300">Transcription:</p>
-                                {recording.transcribed_text.split('\n').length > 2 && (
+                                {shouldShowExpandButton(recording.transcribed_text) && (
                                   <button
                                     onClick={() => toggleTranscript(recording.id)}
                                     className="text-xs text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 flex items-center gap-1"
