@@ -24,7 +24,7 @@ AretaCare was built from exactly this experience—sitting beside a loved one in
 
 **Daily Plan** — AI-generated summaries of today's priorities, important reminders, and questions to ask at your next appointment. Editable and regenerated daily based on your situation.
 
-**Documents & Recordings** — Upload PDFs and images of medical records. Record voice notes during appointments. Everything is automatically categorized, transcribed, and made searchable.
+**Documents & Recordings** — Upload PDFs, images, and audio files (MP3, M4A, WAV) of medical records and appointments. Record voice notes with a 15-minute timer directly in the app. Long audio files (>20 minutes) are automatically chunked and processed. All uploads support up to 20MB and are automatically categorized, transcribed, converted to browser-friendly formats, and made searchable. Journal entries are automatically created from meaningful uploads.
 
 **Session Sharing** — Invite family members to collaborate on a session. Up to 5 people can share the same view, keeping everyone informed and aligned even when you're in different cities. Receive email notifications when collaborators are added or removed.
 

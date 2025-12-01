@@ -11,20 +11,22 @@ AretaCare is an AI-powered medical care advocate assistant that helps families u
 - Multi-session support (up to 3 sessions per user, including collaborations) with session switcher, rename (15-char limit), and separate data per session
 - Session sharing - share sessions with up to 4 collaborators (5 people total), collaborators have full access to session data
 - Daily Plan - AI-generated summaries, user editable, delete and regenerate capability
-- AI Journal Synthesis - extracts medical updates from conversations with local timezone support
+- AI Journal Synthesis - extracts medical updates from conversations, audio uploads, and document uploads with local timezone support
 - Journal with date navigation - reverse chronological, sticky sidebar, scroll-to-date functionality
 - GPT-5.1 native file support for PDFs and images via Responses API
-- Audio recording with live waveform visualization and real-time transcription
+- Audio recording with live waveform visualization, 15-minute countdown timer, and real-time transcription
+- Audio file uploads - supports MP3, M4A, WAV, WebM, OGG (20MB limit, auto-chunks long files, converts to MP3 for browser playback)
+- Document uploads - supports PDF, PNG, JPG, TXT (20MB limit) with text extraction and AI categorization
 - JWT-based authentication with bcrypt password hashing, registration requires three acknowledgement checkboxes
 - Email notifications - password changes, email changes, collaborator management (sent via Gmail SMTP)
 - Settings page - account management, password reset via email, manage sessions, account deletion
-- AI-powered Documents Manager (12 categories, AI descriptions, searchable, date navigation)
-- AI-powered Audio Recordings (12 categories, AI summaries, searchable, date navigation)
+- AI-powered Documents Manager (12 categories, AI descriptions, searchable, date navigation, direct upload)
+- AI-powered Audio Recordings (12 categories, AI summaries, searchable, date navigation, direct upload)
 - Complete data deletion - removes PostgreSQL data and S3 files (zero orphaned files)
 - Admin console - user metrics, system health, S3 orphan cleanup, audit logging with GDPR retention
 - Mobile-optimized design with responsive layouts
 - Dark mode support via Tailwind CSS and ThemeContext
-- Specialized tools: Jargon Translator, Conversation Coach
+- Specialized tools: Jargon Translator (with audio input), Conversation Coach (with audio input)
 
 ## Development Commands
 

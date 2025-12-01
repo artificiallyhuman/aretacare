@@ -301,10 +301,20 @@ Content-Type: multipart/form-data
 - `file` (file): The document to upload
 - `session_id` (string, optional): Session ID to associate with
 
+**Supported File Types:**
+- PDF (`application/pdf`)
+- Images: JPEG, PNG (`image/jpeg`, `image/png`)
+- Text files (`text/plain`)
+
+**File Size Limit:** 20MB
+
 **Processing:**
 - PDFs: Text extraction + thumbnail generation (first page at 150 DPI, max width 300px)
 - Images: OCR text extraction
 - All files: Text content stored in database
+- AI categorization into 12 categories (Lab Results, Imaging, Medications, etc.)
+- AI-generated description (user-editable)
+- **Journal synthesis**: Automatically creates journal entry if content is medically relevant
 
 **Response:**
 ```json
@@ -314,7 +324,9 @@ Content-Type: multipart/form-data
   "content_type": "application/pdf",
   "uploaded_at": "2025-01-15T10:00:00Z",
   "extracted_text": "Extracted text content...",
-  "thumbnail_s3_key": "thumbnails/uuid.png"
+  "thumbnail_s3_key": "thumbnails/uuid.png",
+  "category": "LAB_RESULTS",
+  "ai_description": "Blood work results showing cholesterol levels"
 }
 ```
 
@@ -438,6 +450,132 @@ Authorization: Bearer <token>
 ```bash
 curl -H "Authorization: Bearer <token>" \
   http://localhost:8000/api/conversation/{session_id}/history
+```
+
+### Audio Recordings
+
+#### Upload Audio File
+
+```bash
+POST /api/conversation/transcribe
+Authorization: Bearer <token>
+Content-Type: multipart/form-data
+```
+
+**Parameters:**
+- `audio` (file): The audio file to upload
+- `session_id` (string): Session ID to associate with
+
+**Supported Audio Formats:**
+- MP3 (`audio/mpeg`)
+- M4A (`audio/m4a`, `audio/mp4`)
+- WAV (`audio/wav`, `audio/x-wav`)
+- WebM (`audio/webm`)
+- OGG (`audio/ogg`)
+
+**File Size Limit:** 20MB
+
+**Processing:**
+- **Automatic chunking**: Audio files longer than 20 minutes are automatically split into chunks, transcribed separately, and recombined
+- **MP3 conversion**: All uploaded audio is converted to MP3 format for universal browser playback compatibility
+- **Transcription**: Audio is transcribed using OpenAI Whisper API
+- **AI categorization**: Categorized into 12 types (Doctor Visits, Treatment Discussions, Symptoms, etc.)
+- **AI-generated summary**: Brief summary of audio content (user-editable, max 150 characters)
+- **Journal synthesis**: Automatically creates journal entry if content is medically relevant
+
+**Response:**
+```json
+{
+  "id": 1,
+  "session_id": "your-session-id",
+  "filename": "doctor_appointment.m4a",
+  "s3_key": "audio/session-id/timestamp_uuid_doctor_appointment.mp3",
+  "content_type": "audio/mpeg",
+  "duration_seconds": 1234.5,
+  "transcribed_text": "Full transcription of the audio recording...",
+  "category": "DOCTOR_VISIT",
+  "ai_summary": "Discussion about blood pressure medication adjustments",
+  "uploaded_at": "2025-01-15T10:00:00Z"
+}
+```
+
+**Notes:**
+- Long audio files (>20 minutes, up to OpenAI's limit) are automatically chunked into 20-minute segments
+- Original format is converted to MP3 and stored in S3 for browser playback
+- Transcription handles multi-chunk audio seamlessly
+- Maximum audio duration: approximately 23 minutes per chunk (OpenAI Whisper limit)
+
+**Example:**
+```bash
+curl -X POST http://localhost:8000/api/conversation/transcribe \
+  -H "Authorization: Bearer <token>" \
+  -F "audio=@doctor_visit.m4a" \
+  -F "session_id=your-session-id"
+```
+
+#### Get Session Audio Recordings
+
+```bash
+GET /api/audio-recordings/{session_id}
+Authorization: Bearer <token>
+```
+
+**Query Parameters (optional):**
+- `category` (string): Filter by category (e.g., "DOCTOR_VISIT", "all")
+- `search` (string): Search by filename or AI summary
+
+**Response:**
+```json
+[
+  {
+    "id": 1,
+    "session_id": "your-session-id",
+    "filename": "appointment_recording.mp3",
+    "s3_key": "audio/session-id/timestamp_uuid_appointment.mp3",
+    "duration_seconds": 450.2,
+    "transcribed_text": "Full transcription...",
+    "category": "DOCTOR_VISIT",
+    "ai_summary": "Cardiology follow-up discussion",
+    "uploaded_at": "2025-01-15T10:00:00Z"
+  }
+]
+```
+
+**Example:**
+```bash
+# Get all audio recordings
+curl -H "Authorization: Bearer <token>" \
+  http://localhost:8000/api/audio-recordings/{session_id}
+
+# Filter by category
+curl -H "Authorization: Bearer <token>" \
+  "http://localhost:8000/api/audio-recordings/{session_id}?category=DOCTOR_VISIT"
+
+# Search recordings
+curl -H "Authorization: Bearer <token>" \
+  "http://localhost:8000/api/audio-recordings/{session_id}?search=cardiology"
+```
+
+#### Get Audio Playback URL
+
+```bash
+GET /api/audio-recordings/{recording_id}/audio-url
+Authorization: Bearer <token>
+```
+
+**Response:**
+```json
+{
+  "audio_url": "https://s3.amazonaws.com/bucket/audio/..."
+}
+```
+
+**Note:** Returns presigned S3 URL (24-hour expiration) for the MP3 audio file.
+
+**Example:**
+```bash
+curl -H "Authorization: Bearer <token>" \
+  http://localhost:8000/api/audio-recordings/1/audio-url
 ```
 
 ### Journal
@@ -975,6 +1113,60 @@ console.log('User:', reply.user_message.content);
 console.log('Assistant:', reply.assistant_message.content);
 ```
 
+### Audio Recordings
+
+```javascript
+// Upload audio file
+const uploadAudio = async (audioFile, sessionId) => {
+  const formData = new FormData();
+  formData.append('audio', audioFile);
+  formData.append('session_id', sessionId);
+
+  const response = await api.post('/conversation/transcribe', formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  });
+
+  return response.data;
+};
+
+// Get all audio recordings
+const getAudioRecordings = async (sessionId, category = null, search = null) => {
+  const params = {};
+  if (category) params.category = category;
+  if (search) params.search = search;
+
+  const response = await api.get(`/audio-recordings/${sessionId}`, { params });
+  return response.data;
+};
+
+// Get audio playback URL
+const getAudioUrl = async (recordingId) => {
+  const response = await api.get(`/audio-recordings/${recordingId}/audio-url`);
+  return response.data.audio_url; // Presigned S3 URL
+};
+
+// Usage - Upload audio file
+const audioFile = new File([audioBlob], 'recording.m4a', { type: 'audio/m4a' });
+const recording = await uploadAudio(audioFile, sessionId);
+console.log('Transcription:', recording.transcribed_text);
+console.log('AI Summary:', recording.ai_summary);
+console.log('Category:', recording.category);
+
+// Get audio playback URL
+const audioUrl = await getAudioUrl(recording.id);
+console.log('Play audio at:', audioUrl);
+
+// Filter recordings by category
+const doctorVisits = await getAudioRecordings(sessionId, 'DOCTOR_VISIT');
+console.log('Doctor visit recordings:', doctorVisits);
+
+// Search recordings
+const searchResults = await getAudioRecordings(sessionId, null, 'cardiology');
+console.log('Cardiology-related recordings:', searchResults);
+```
+
 ### Daily Plans
 
 ```javascript
@@ -1164,11 +1356,13 @@ Currently, there are no rate limits implemented. However, be mindful of:
 
 1. **Session Management**: Create one session per user/browser session
 2. **Error Handling**: Always implement proper error handling
-3. **File Validation**: Validate file types and sizes before upload (10MB max)
-4. **Privacy**: Clear sessions when done to protect user privacy - this removes ALL data from PostgreSQL and S3
-5. **Context**: Provide context when using the chat or translation features
-6. **Thumbnails**: Check for `thumbnail_s3_key` before requesting PDF thumbnails
-7. **Data Deletion**: Warn users that session deletion is permanent and removes all data including S3 files
+3. **File Validation**: Validate file types and sizes before upload (20MB max for both documents and audio)
+4. **Audio Uploads**: For long audio files (>20 minutes), the system automatically chunks, transcribes, and recombines - no special handling needed
+5. **Privacy**: Clear sessions when done to protect user privacy - this removes ALL data from PostgreSQL and S3
+6. **Context**: Provide context when using the chat or translation features
+7. **Thumbnails**: Check for `thumbnail_s3_key` before requesting PDF thumbnails
+8. **Audio Playback**: All uploaded audio is converted to MP3 for browser compatibility - original format doesn't matter
+9. **Data Deletion**: Warn users that session deletion is permanent and removes all data including S3 files
 
 ## Health Check
 
