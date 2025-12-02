@@ -52,7 +52,7 @@ run_audit_log_cleanup()
 
 app = FastAPI(
     title="AretaCare API",
-    description="AI Care Advocate Assistant - Helping families navigate medical information",
+    description="Care. Clarity. Confidence. - Helping families navigate medical information",
     version="1.0.0",
 )
 
@@ -78,7 +78,7 @@ async def root():
     """Root endpoint"""
     return {
         "message": "Welcome to AretaCare API",
-        "description": "Your Family's AI Care Advocate",
+        "description": "Care. Clarity. Confidence.",
         "version": "1.0.0",
         "docs": "/docs"
     }

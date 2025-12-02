@@ -65,7 +65,7 @@ The AretaCare Team
                     <tr>
                         <td style="padding: 40px 40px 20px; text-align: center;">
                             <h1 style="margin: 0; color: #059669; font-size: 28px;">AretaCare</h1>
-                            <p style="margin: 8px 0 0; color: #6b7280; font-size: 14px;">AI Care Advocate</p>
+                            <p style="margin: 8px 0 0; color: #6b7280; font-size: 14px;">Care. Clarity. Confidence.</p>
                         </td>
                     </tr>
 
@@ -209,7 +209,7 @@ The AretaCare Team
                     <tr>
                         <td style="padding: 40px 40px 20px; text-align: center;">
                             <h1 style="margin: 0; color: #059669; font-size: 28px;">AretaCare</h1>
-                            <p style="margin: 8px 0 0; color: #6b7280; font-size: 14px;">AI Care Advocate</p>
+                            <p style="margin: 8px 0 0; color: #6b7280; font-size: 14px;">Care. Clarity. Confidence.</p>
                         </td>
                     </tr>
 
@@ -332,7 +332,7 @@ The AretaCare Team
                     <tr>
                         <td style="padding: 40px 40px 20px; text-align: center;">
                             <h1 style="margin: 0; color: #059669; font-size: 28px;">AretaCare</h1>
-                            <p style="margin: 8px 0 0; color: #6b7280; font-size: 14px;">AI Care Advocate</p>
+                            <p style="margin: 8px 0 0; color: #6b7280; font-size: 14px;">Care. Clarity. Confidence.</p>
                         </td>
                     </tr>
 
@@ -469,7 +469,7 @@ The AretaCare Team
                     <tr>
                         <td style="padding: 40px 40px 20px; text-align: center;">
                             <h1 style="margin: 0; color: #059669; font-size: 28px;">AretaCare</h1>
-                            <p style="margin: 8px 0 0; color: #6b7280; font-size: 14px;">AI Care Advocate</p>
+                            <p style="margin: 8px 0 0; color: #6b7280; font-size: 14px;">Care. Clarity. Confidence.</p>
                         </td>
                     </tr>
 
@@ -621,7 +621,7 @@ The AretaCare Team
                     <tr>
                         <td style="padding: 40px 40px 20px; text-align: center;">
                             <h1 style="margin: 0; color: #059669; font-size: 28px;">AretaCare</h1>
-                            <p style="margin: 8px 0 0; color: #6b7280; font-size: 14px;">AI Care Advocate</p>
+                            <p style="margin: 8px 0 0; color: #6b7280; font-size: 14px;">Care. Clarity. Confidence.</p>
                         </td>
                     </tr>
 
@@ -775,7 +775,7 @@ The AretaCare Team
                     <tr>
                         <td style="padding: 40px 40px 20px; text-align: center;">
                             <h1 style="margin: 0; color: #059669; font-size: 28px;">AretaCare</h1>
-                            <p style="margin: 8px 0 0; color: #6b7280; font-size: 14px;">AI Care Advocate</p>
+                            <p style="margin: 8px 0 0; color: #6b7280; font-size: 14px;">Care. Clarity. Confidence.</p>
                         </td>
                     </tr>
 

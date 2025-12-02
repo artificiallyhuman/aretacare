@@ -21,8 +21,8 @@ const About = () => {
             />
           </svg>
         </div>
-        <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Welcome to AretaCare</h2>
-        <p className="text-lg text-gray-600 dark:text-gray-400 mb-4">Your AI Care Advocate</p>
+        <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">Welcome to AretaCare</h2>
+        <p className="text-lg text-gray-600 dark:text-gray-400 mb-4">Care. Clarity. Confidence.</p>
         <p className="text-gray-700 dark:text-gray-300 max-w-xl mx-auto">
           AretaCare helps you understand complex medical information, organize your health journey, and prepare meaningful questions for your healthcare team.
         </p>

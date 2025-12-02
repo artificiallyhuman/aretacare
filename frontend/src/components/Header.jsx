@@ -70,8 +70,8 @@ const Header = ({ onLogout, user }) => {
               </svg>
             </div>
             <div>
-              <h1 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white">AretaCare</h1>
-              <p className="text-xs text-gray-500 dark:text-gray-400 hidden sm:block">AI Care Advocate</p>
+              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">AretaCare</h1>
+              <p className="text-xs text-gray-500 dark:text-gray-400 hidden sm:block">Care. Clarity. Confidence.</p>
             </div>
           </Link>
 

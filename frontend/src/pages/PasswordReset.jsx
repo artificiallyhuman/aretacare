@@ -78,8 +78,8 @@ export default function PasswordReset() {
               </svg>
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-gray-900 dark:text-white">AretaCare</h1>
-              <p className="text-xs text-gray-500 dark:text-gray-400">AI Care Advocate</p>
+              <h1 className="text-3xl font-bold text-gray-900 dark:text-white">AretaCare</h1>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Care. Clarity. Confidence.</p>
             </div>
           </div>
         </div>

@@ -1,7 +1,7 @@
 {
   "name": "aretacare-frontend",
   "version": "1.0.0",
-  "description": "AretaCare - Your Family's AI Care Advocate",
+  "description": "AretaCare - Care. Clarity. Confidence.",
   "private": true,
   "dependencies": {
     "react": "^18.2.0",
