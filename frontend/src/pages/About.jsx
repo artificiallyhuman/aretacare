@@ -310,7 +310,7 @@ const About = () => {
             </p>
 
             <p>
-              This is why I created AretaCare. It grew from sitting beside my mother and seeing how easily information can scatter and become overwhelming. It grew from watching how hard families work to stay informed and united. My hope is that AretaCare will give families the clarity, organization, and support I wished we had during those long nights and complicated days.
+              This is why I created AretaCare. It grew from sitting beside my mother and seeing how easily information can scatter and become overwhelming. It grew from watching how hard families work to stay informed and united. My hope is that AretaCare will give families the care, clarity, and confidence I wished we had during those long nights and complicated days.
             </p>
           </div>
         </div>
