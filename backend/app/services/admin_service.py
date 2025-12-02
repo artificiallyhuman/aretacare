@@ -70,7 +70,7 @@ class AdminService:
         """
         Delete audit log entries older than the retention period.
 
-        GDPR Compliance: Automatically removes old audit logs to minimize
+        Data Retention: Automatically removes old audit logs to minimize
         PII retention while maintaining sufficient records for security.
 
         Returns:
@@ -91,7 +91,7 @@ class AdminService:
             ).delete(synchronize_session=False)
             db.commit()
 
-            logger.info(f"GDPR cleanup: Deleted {count} audit log entries older than {retention_days} days")
+            logger.info(f"Audit log cleanup: Deleted {count} audit log entries older than {retention_days} days")
 
         return count
 

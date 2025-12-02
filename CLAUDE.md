@@ -23,7 +23,7 @@ AretaCare is an AI-powered medical care advocate assistant that helps families u
 - AI-powered Documents Manager (12 categories, AI descriptions, searchable, date navigation, direct upload)
 - AI-powered Audio Recordings (12 categories, AI summaries, searchable, date navigation, direct upload)
 - Complete data deletion - removes PostgreSQL data and S3 files (zero orphaned files)
-- Admin console - user metrics, system health, S3 orphan cleanup, audit logging with GDPR retention
+- Admin console - user metrics, system health, S3 orphan cleanup, audit logging with automatic retention
 - Mobile-optimized design with responsive layouts
 - Dark mode support via Tailwind CSS and ThemeContext
 - Specialized tools: Jargon Translator (with audio input), Conversation Coach (with audio input)
@@ -255,7 +255,7 @@ Backend requires (`backend/.env`):
 - `CORS_ORIGINS` - Comma-separated allowed origins
 - `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM_EMAIL`, `SMTP_FROM_NAME`, `FRONTEND_URL` - For email notifications: password reset, password changes, email changes, collaborator management (see docs/EMAIL_SETUP.md)
 - `ADMIN_EMAILS` - Comma-separated list of admin email addresses (e.g., `admin@example.com,other@example.com`)
-- `AUDIT_LOG_RETENTION_DAYS` - GDPR compliance: auto-delete audit logs older than this (default: 90)
+- `AUDIT_LOG_RETENTION_DAYS` - Auto-delete audit logs older than this (default: 90)
 - `S3_KEY_PREFIX` - Environment prefix for shared S3 buckets (e.g., `dev/` or `prod/`)
 - `RESET_DB` - Optional: Set to "true" to drop and recreate database on startup (development/production)
 

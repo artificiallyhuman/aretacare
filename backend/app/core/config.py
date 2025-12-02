@@ -23,7 +23,7 @@ class Settings(BaseSettings):
 
     # Admin
     ADMIN_EMAILS: str = ""  # Comma-separated list of admin email addresses
-    AUDIT_LOG_RETENTION_DAYS: int = 90  # GDPR compliance: auto-delete audit logs older than this
+    AUDIT_LOG_RETENTION_DAYS: int = 90  # Auto-delete audit logs older than this
 
     @property
     def admin_emails_list(self) -> List[str]:

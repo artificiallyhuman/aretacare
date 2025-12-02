@@ -492,7 +492,7 @@ async def cleanup_audit_log(
     db: DBSession = Depends(get_db)
 ):
     """
-    Manually trigger audit log cleanup for GDPR compliance.
+    Manually trigger audit log cleanup for data retention.
 
     Deletes entries older than AUDIT_LOG_RETENTION_DAYS (default: 90 days).
     This runs automatically on server startup, but can be triggered manually.

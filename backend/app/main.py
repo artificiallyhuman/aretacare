@@ -34,16 +34,16 @@ else:
     # Run migrations for schema changes
     run_migrations()
 
-# GDPR Compliance: Clean up old audit logs on startup
+# Data Retention: Clean up old audit logs on startup
 def run_audit_log_cleanup():
-    """Run audit log cleanup for GDPR compliance."""
+    """Run audit log cleanup for data retention."""
     try:
         db = SessionLocal()
         deleted_count = admin_service.cleanup_old_audit_logs(db)
         if deleted_count > 0:
-            logger.info(f"✓ GDPR audit log cleanup: {deleted_count} old entries removed")
+            logger.info(f"✓ Audit log cleanup: {deleted_count} old entries removed")
         else:
-            logger.info(f"✓ GDPR audit log cleanup: No old entries to remove (retention: {settings.AUDIT_LOG_RETENTION_DAYS} days)")
+            logger.info(f"✓ Audit log cleanup: No old entries to remove (retention: {settings.AUDIT_LOG_RETENTION_DAYS} days)")
         db.close()
     except Exception as e:
         logger.error(f"Failed to run audit log cleanup: {e}")
