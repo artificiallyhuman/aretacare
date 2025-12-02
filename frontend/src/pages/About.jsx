@@ -51,6 +51,16 @@ const About = () => {
           >
             The Platform
           </button>
+          <button
+            onClick={() => setActiveTab('principles')}
+            className={`px-6 py-2 rounded-md text-sm font-medium transition-all ${
+              activeTab === 'principles'
+                ? 'bg-primary-600 text-white shadow-sm'
+                : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-700'
+            }`}
+          >
+            The Principles
+          </button>
         </div>
       </div>
 
@@ -315,6 +325,154 @@ const About = () => {
           </div>
         </div>
       </div>
+      )}
+
+      {/* The Principles Tab */}
+      {activeTab === 'principles' && (
+        <div className="space-y-6">
+          {/* Principle 1 */}
+          <div className="bg-gradient-to-br from-white to-blue-50/30 dark:from-gray-800 dark:to-blue-900/10 rounded-xl border-l-4 border-blue-500 dark:border-blue-400 shadow-md">
+            <div className="p-6 sm:p-8">
+              <div className="flex items-center gap-4 mb-4">
+                <div className="flex-shrink-0 flex items-center justify-center w-12 h-12 bg-blue-100 dark:bg-blue-900/50 rounded-lg">
+                  <svg className="w-6 h-6 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                  </svg>
+                </div>
+                <div className="flex-grow">
+                  <h3 className="text-2xl font-bold text-blue-600 dark:text-blue-400">Built for patients and caregivers</h3>
+                </div>
+              </div>
+              <div className="prose prose-gray dark:prose-invert max-w-none text-gray-700 dark:text-gray-300 space-y-4 leading-relaxed pl-16">
+                <p>
+                  Most healthcare platforms are pulled in different directions by patients, hospitals, insurers, and investors. We're not. AretaCare is built for patients and caregivers, plain and simple.
+                </p>
+                <p>
+                  That choice informs every part of the platform. We designed AretaCare so families can work together in one place, with conversations, data, and documents organized and accessible. We intentionally don't give medical advice or steer care decisions. Instead, we help you make sense of the professional care you're receiving and support you in advocating for yourself and the people you love.
+                </p>
+                <p className="font-semibold text-gray-900 dark:text-white bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg border-l-2 border-blue-500 dark:border-blue-400">
+                  This isn't a platform for hospitals, insurers, or investors. It's for you.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Principle 2 */}
+          <div className="bg-gradient-to-br from-white to-purple-50/30 dark:from-gray-800 dark:to-purple-900/10 rounded-xl border-l-4 border-purple-500 dark:border-purple-400 shadow-md">
+            <div className="p-6 sm:p-8">
+              <div className="flex items-center gap-4 mb-4">
+                <div className="flex-shrink-0 flex items-center justify-center w-12 h-12 bg-purple-100 dark:bg-purple-900/50 rounded-lg">
+                  <svg className="w-6 h-6 text-purple-600 dark:text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                  </svg>
+                </div>
+                <div className="flex-grow">
+                  <h3 className="text-2xl font-bold text-purple-600 dark:text-purple-400">Powered by the latest technology</h3>
+                </div>
+              </div>
+              <div className="prose prose-gray dark:prose-invert max-w-none text-gray-700 dark:text-gray-300 space-y-4 leading-relaxed pl-16">
+                <p>
+                  Technology is moving fast, and the people who need it most shouldn't wait years for new capabilities to trickle into tools built for them.
+                </p>
+                <p>
+                  Our commitment is to stay on the frontier and bring new technologies to patients and caregivers quickly and responsibly. When better AI models, infrastructure, and devices become available, our first instinct is to test and integrate them. Not because it's trendy, but because new capabilities can help you understand complex situations more clearly, spot problems sooner, and stay organized under pressure.
+                </p>
+                <p className="font-semibold text-gray-900 dark:text-white bg-purple-50 dark:bg-purple-900/20 p-4 rounded-lg border-l-2 border-purple-500 dark:border-purple-400">
+                  We'll strive to bring you the best technology the world has to offer.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Principle 3 */}
+          <div className="bg-gradient-to-br from-white to-green-50/30 dark:from-gray-800 dark:to-green-900/10 rounded-xl border-l-4 border-green-500 dark:border-green-400 shadow-md">
+            <div className="p-6 sm:p-8">
+              <div className="flex items-center gap-4 mb-4">
+                <div className="flex-shrink-0 flex items-center justify-center w-12 h-12 bg-green-100 dark:bg-green-900/50 rounded-lg">
+                  <svg className="w-6 h-6 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+                <div className="flex-grow">
+                  <h3 className="text-2xl font-bold text-green-600 dark:text-green-400">Free for all who need it</h3>
+                </div>
+              </div>
+              <div className="prose prose-gray dark:prose-invert max-w-none text-gray-700 dark:text-gray-300 space-y-4 leading-relaxed pl-16">
+                <p>
+                  Caregiving is hard enough without having to decide whether you can afford another subscription.
+                </p>
+                <p>
+                  Running AretaCare isn't cheap. It takes compute, infrastructure, and real work behind the scenes. But the platform is free and will remain free. You shouldn't have to check your insurance coverage or weigh monthly costs before getting tools that help you stay on top of a stressful medical situation.
+                </p>
+                <p className="font-semibold text-gray-900 dark:text-white bg-green-50 dark:bg-green-900/20 p-4 rounded-lg border-l-2 border-green-500 dark:border-green-400">
+                  AretaCare will remain accessible to anyone who needs it, regardless of ability to pay.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Principle 4 */}
+          <div className="bg-gradient-to-br from-white to-amber-50/30 dark:from-gray-800 dark:to-amber-900/10 rounded-xl border-l-4 border-amber-500 dark:border-amber-400 shadow-md">
+            <div className="p-6 sm:p-8">
+              <div className="flex items-center gap-4 mb-4">
+                <div className="flex-shrink-0 flex items-center justify-center w-12 h-12 bg-amber-100 dark:bg-amber-900/50 rounded-lg">
+                  <svg className="w-6 h-6 text-amber-600 dark:text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                  </svg>
+                </div>
+                <div className="flex-grow">
+                  <h3 className="text-2xl font-bold text-amber-600 dark:text-amber-400">It's your data, not ours</h3>
+                </div>
+              </div>
+              <div className="prose prose-gray dark:prose-invert max-w-none text-gray-700 dark:text-gray-300 space-y-4 leading-relaxed pl-16">
+                <p>
+                  We take your trust seriously. You're sharing personal, sometimes deeply sensitive information with us so you can manage care more effectively. That trust comes with clear responsibilities.
+                </p>
+                <p>
+                  We can't promise that the internet is safe or that no one will ever attempt to break in. What we can promise is that we will never be the ones you have to worry about. We won't sell your data. We won't share it with hospitals or insurers. We won't hold it hostage. If you choose to delete your data, it's deleted. This is your information, and you stay in control of it.
+                </p>
+                <p className="font-semibold text-gray-900 dark:text-white bg-amber-50 dark:bg-amber-900/20 p-4 rounded-lg border-l-2 border-amber-500 dark:border-amber-400">
+                  Your data will never be an asset that we try to profit from.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Principle 5 */}
+          <div className="bg-gradient-to-br from-white to-indigo-50/30 dark:from-gray-800 dark:to-indigo-900/10 rounded-xl border-l-4 border-indigo-500 dark:border-indigo-400 shadow-md">
+            <div className="p-6 sm:p-8">
+              <div className="flex items-center gap-4 mb-4">
+                <div className="flex-shrink-0 flex items-center justify-center w-12 h-12 bg-indigo-100 dark:bg-indigo-900/50 rounded-lg">
+                  <svg className="w-6 h-6 text-indigo-600 dark:text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
+                  </svg>
+                </div>
+                <div className="flex-grow">
+                  <h3 className="text-2xl font-bold text-indigo-600 dark:text-indigo-400">Open by design</h3>
+                </div>
+              </div>
+              <div className="prose prose-gray dark:prose-invert max-w-none text-gray-700 dark:text-gray-300 space-y-4 leading-relaxed pl-16">
+                <p>
+                  AretaCare is open source for a simple reason: transparency builds trust.
+                </p>
+                <p>
+                  Experts can review how the platform works, suggest improvements, and help make the platform safer and more reliable. Even if you never read a line of code, you benefit from a community of people who can verify that we're doing what we say we're doing. When we say your data is deleted when you press a button, you shouldn't have to take that on faith: it's visible in the code.
+                </p>
+                <p className="font-semibold text-gray-900 dark:text-white bg-indigo-50 dark:bg-indigo-900/20 p-4 rounded-lg border-l-2 border-indigo-500 dark:border-indigo-400">
+                  Want to verify for yourself? <br/>{' '}
+                  <a
+                    href="https://github.com/artificiallyhuman/aretacare"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-indigo-600 dark:text-indigo-300 hover:text-indigo-700 dark:hover:text-indigo-200 underline"
+                  >
+                    github.com/artificiallyhuman/aretacare
+                  </a>
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
