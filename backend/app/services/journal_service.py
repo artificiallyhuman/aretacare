@@ -220,28 +220,33 @@ IMPORTANT: Respond with ONLY a valid JSON object in this exact format, with no a
                     titles_only.append(entry)
 
             context = "# Care Journal Context\n\n"
+            context += "_Ordered chronologically from oldest to newest. Pay attention to dates when assessing current situation._\n\n"
 
-            # Recent entries (full detail)
-            if full_detail:
-                context += "## Recent Entries (Last 7 Days)\n\n"
-                for e in full_detail:
-                    context += f"**{e.entry_date}** [{e.entry_type.value}] **{e.title}**\n{e.content}\n\n"
-
-            # Mid-range entries (summarized)
-            if summarized:
-                context += "## Previous Entries (8-30 Days Ago)\n\n"
-                for e in summarized:
-                    summary = e.content[:150] + "..." if len(e.content) > 150 else e.content
-                    context += f"**{e.entry_date}** {e.title}: {summary}\n\n"
-
-            # Older entries (titles only)
+            # Older entries (titles only) - show oldest first
             if titles_only:
                 context += "## Earlier History (30+ Days Ago)\n\n"
                 by_month = self._group_by_month(titles_only)
-                for month, month_entries in by_month.items():
+                # Sort months chronologically (oldest first)
+                sorted_months = sorted(by_month.items(), key=lambda x: datetime.strptime(x[0], "%B %Y"))
+                for month, month_entries in sorted_months:
+                    # Reverse entries within each month so oldest appear first
+                    reversed_entries = list(reversed(month_entries))
                     context += f"**{month}**: "
-                    context += ", ".join([e.title for e in month_entries])
+                    context += ", ".join([e.title for e in reversed_entries])
                     context += "\n\n"
+
+            # Mid-range entries (summarized) - show oldest first
+            if summarized:
+                context += "## Previous Entries (8-30 Days Ago)\n\n"
+                for e in reversed(summarized):
+                    summary = e.content[:150] + "..." if len(e.content) > 150 else e.content
+                    context += f"**{e.entry_date}** {e.title}: {summary}\n\n"
+
+            # Recent entries (full detail) - show oldest first
+            if full_detail:
+                context += "## Recent Entries (Last 7 Days)\n\n"
+                for e in reversed(full_detail):
+                    context += f"**{e.entry_date}** [{e.entry_type.value}] **{e.title}**\n{e.content}\n\n"
 
             # Rough token limit (4 chars per token estimate)
             if len(context) > max_tokens * 4:

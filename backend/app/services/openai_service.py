@@ -424,12 +424,26 @@ class OpenAIService:
             })
 
         # Add recent conversation history
+        if conversation_history:
+            messages.append({
+                "role": "system",
+                "content": "---\nConversation history below (ordered chronologically - oldest first, newest last):\n---"
+            })
         messages.extend(conversation_history[-ai_config.MAX_CONVERSATION_CONTEXT:])
+
+        # Highlight the immediate context (last exchange) to help AI connect follow-ups
+        if conversation_history and len(conversation_history) > 0:
+            last_message = conversation_history[-1]
+            if last_message.get("role") == "assistant":
+                messages.append({
+                    "role": "system",
+                    "content": f"---\nIMMEDIATE CONTEXT - Your last message to the user:\n{last_message.get('content', '')}\n\nThe user is now responding to this message. If they say things like 'yes', 'sure', 'okay', 'go ahead', etc., they are agreeing to what you suggested above.\n---"
+                })
 
         # Explicitly mark the current message as the one to respond to
         messages.append({
             "role": "system",
-            "content": "---\nThe following message is the user's CURRENT MESSAGE that you must respond to. Previous messages and journal entries above are context only.\n---"
+            "content": "---\nThe following message is the user's CURRENT MESSAGE that you must respond to:\n---"
         })
 
         # Add current message with file/image support

@@ -89,8 +89,15 @@ CONVERSATION_INSTRUCTIONS = """
 IMPORTANT - RESPONDING TO THE USER:
 - The user's LATEST MESSAGE is what you must respond to
 - Past messages and journal entries are provided as CONTEXT ONLY to help you give personalized, informed responses
-- DO NOT confuse contextual information with the current question - always focus your response on what the user is asking RIGHT NOW
+- DO NOT confuse contextual information with the current message - always focus your response on what the user is asking RIGHT NOW
 - Reference past context naturally when relevant to the current question, but your primary job is to address the user's immediate need
+
+CRITICAL - TEMPORAL CONTEXT UNDERSTANDING:
+- BOTH conversation history AND journal entries are ordered CHRONOLOGICALLY (oldest first, newest last)
+- Journal entries include DATES - pay attention to how recent information is (later dates = more recent)
+- When the user asks a follow-up question, prioritize RECENT context (recent messages, recent journal entries) over older information
+- If earlier context contradicts more recent information, assume the more recent information is current unless the user specifically asks about the past
+- When medical information has changed over time (e.g., medication changes, symptom updates), use the MOST RECENT information unless asked about history
 
 When responding to conversational messages:
 - Be warm but concise (2-4 sentences for simple questions, 1-2 short paragraphs for complex topics)
