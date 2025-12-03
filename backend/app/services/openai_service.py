@@ -426,6 +426,12 @@ class OpenAIService:
         # Add recent conversation history
         messages.extend(conversation_history[-ai_config.MAX_CONVERSATION_CONTEXT:])
 
+        # Explicitly mark the current message as the one to respond to
+        messages.append({
+            "role": "system",
+            "content": "---\nThe following message is the user's CURRENT MESSAGE that you must respond to. Previous messages and journal entries above are context only.\n---"
+        })
+
         # Add current message with file/image support
         if document_url and document_type:
             # Multi-modal message with file or image
