@@ -141,7 +141,7 @@ const PrivacyPolicy = () => {
             <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4 pb-2 border-b-2 border-primary-200 dark:border-primary-800">5. Session Sharing</h2>
             <div className="space-y-4">
               <p className="text-gray-700 dark:text-gray-300 leading-relaxed text-base">
-                AretaCare allows you to share sessions with other registered users (up to 5 people per session, including yourself). When you share a session:
+                AretaCare allows you to share sessions with other registered users (up to 10 people per session, including yourself). When you share a session:
               </p>
               <ul className="list-disc list-inside space-y-2 text-gray-700 dark:text-gray-300 pl-4">
                 <li>Collaborators have full access to all session data including conversations, journal entries, documents, audio recordings, and daily plans</li>

@@ -212,7 +212,7 @@ Authorization: Bearer <token>
 Content-Type: application/json
 ```
 
-**Note:** Only the session owner can share. Maximum 5 people per session (1 owner + 4 collaborators).
+**Note:** Only the session owner can share. Maximum 10 people per session (1 owner + 9 collaborators).
 
 **Request Body:**
 ```json

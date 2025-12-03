@@ -227,7 +227,7 @@ const About = () => {
               </li>
               <li className="flex items-start">
                 <span className="text-indigo-600 dark:text-indigo-400 mr-2 mt-1">•</span>
-                <span>Up to 5 people can share a session, keeping everyone informed and aligned</span>
+                <span>Up to 10 people can share a session, keeping everyone informed and aligned</span>
               </li>
               <li className="flex items-start">
                 <span className="text-indigo-600 dark:text-indigo-400 mr-2 mt-1">•</span>

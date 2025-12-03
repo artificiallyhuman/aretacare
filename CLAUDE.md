@@ -9,7 +9,7 @@ AretaCare is an AI-powered medical care advocate assistant that helps families u
 **Key Features:**
 - Conversation-first interface with AI care advocate, "Thinking..." status, enhanced markdown rendering
 - Multi-session support (up to 3 sessions per user, including collaborations) with session switcher, rename (15-char limit), and separate data per session
-- Session sharing - share sessions with up to 4 collaborators (5 people total), collaborators have full access to session data
+- Session sharing - share sessions with up to 9 collaborators (10 people total), collaborators have full access to session data
 - Daily Plan - AI-generated summaries, user editable, delete and regenerate capability
 - AI Journal Synthesis - extracts medical updates from conversations, audio uploads, and document uploads with local timezone support
 - Journal with date navigation - reverse chronological, sticky sidebar, scroll-to-date functionality
@@ -157,7 +157,7 @@ See `backend/app/config/README.md` for complete documentation on modifying AI be
 
 **Session Sharing:**
 - Session owners can share sessions with other AretaCare users by email
-- Maximum 5 people per session (1 owner + 4 collaborators)
+- Maximum 10 people per session (1 owner + 9 collaborators)
 - Collaborators have full access to session data (documents, conversations, journal, daily plans, audio)
 - Only session owners can: rename session, delete session, share with others, revoke collaborator access
 - Collaborators can leave shared sessions at any time

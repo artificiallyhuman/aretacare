@@ -546,15 +546,15 @@ async def share_session(
     # Only owner can share
     check_session_access(session, current_user.id, db, require_owner=True)
 
-    # Check collaborator limit (max 5 total including owner means max 4 additional collaborators)
+    # Check collaborator limit (max 10 total including owner means max 9 additional collaborators)
     current_collab_count = db.query(func.count(SessionCollaborator.id)).filter(
         SessionCollaborator.session_id == session_id
     ).scalar()
 
-    if current_collab_count >= 4:
+    if current_collab_count >= 9:
         raise HTTPException(
             status_code=400,
-            detail="Maximum of 5 people (including owner) can collaborate on a session. Please remove a collaborator first."
+            detail="Maximum of 10 people (including owner) can collaborate on a session. Please remove a collaborator first."
         )
 
     # Look up user by email

@@ -26,7 +26,7 @@ AretaCare was built from exactly this experience—sitting beside a loved one in
 
 **Documents & Recordings** — Upload PDFs, images, and audio files (MP3, M4A, WAV) of medical records and appointments. Record voice notes with a 15-minute timer directly in the app. Long audio files (>20 minutes) are automatically chunked and processed. All uploads support up to 20MB and are automatically categorized, transcribed, converted to browser-friendly formats, and made searchable. Journal entries are automatically created from meaningful uploads.
 
-**Session Sharing** — Invite family members to collaborate on a session. Up to 5 people can share the same view, keeping everyone informed and aligned even when you're in different cities. Receive email notifications when collaborators are added or removed.
+**Session Sharing** — Invite family members to collaborate on a session. Up to 10 people can share the same view, keeping everyone informed and aligned even when you're in different cities. Receive email notifications when collaborators are added or removed.
 
 **Account Security** — Email notifications keep you informed of important account changes including password updates, email changes, and session sharing activities.
 
