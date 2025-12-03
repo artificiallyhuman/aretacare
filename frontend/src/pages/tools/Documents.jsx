@@ -56,7 +56,7 @@ const Documents = () => {
   const searchInputRef = useRef(null);
   const isSearchFocused = useRef(false);
   const [uploading, setUploading] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState('');
+  const [uploadProgress, setUploadProgress] = useState([]);
   const fileInputRef = useRef(null);
 
   // Restore focus to search input if it was focused before re-render
@@ -241,63 +241,122 @@ const Documents = () => {
   };
 
   const handleFileUpload = async (event) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
+    const files = Array.from(event.target.files || []);
+    if (files.length === 0) return;
 
-    // Validate file type
     const allowedTypes = ['application/pdf', 'image/png', 'image/jpeg', 'image/jpg', 'text/plain'];
     const allowedExtensions = ['.pdf', '.png', '.jpg', '.jpeg', '.txt'];
-    const fileExt = '.' + file.name.split('.').pop().toLowerCase();
+    const maxSize = 50 * 1024 * 1024; // 50MB per file
 
-    if (!allowedTypes.includes(file.type) && !allowedExtensions.includes(fileExt)) {
-      setError('Invalid file type. Please upload a PDF, image (PNG, JPG), or text file.');
+    // Validate all files first
+    const invalidFiles = [];
+    const oversizedFiles = [];
+
+    files.forEach(file => {
+      const fileExt = '.' + file.name.split('.').pop().toLowerCase();
+      if (!allowedTypes.includes(file.type) && !allowedExtensions.includes(fileExt)) {
+        invalidFiles.push(file.name);
+      }
+      if (file.size > maxSize) {
+        oversizedFiles.push(file.name);
+      }
+    });
+
+    if (invalidFiles.length > 0) {
+      setError(`Invalid file type(s): ${invalidFiles.join(', ')}. Please upload PDF, image (PNG, JPG), or text files only.`);
       if (fileInputRef.current) fileInputRef.current.value = '';
       return;
     }
 
-    // Validate file size (50MB)
-    const maxSize = 50 * 1024 * 1024;
-    if (file.size > maxSize) {
-      setError('File size exceeds 50MB limit. Please choose a smaller file.');
+    if (oversizedFiles.length > 0) {
+      setError(`File(s) exceed 50MB limit: ${oversizedFiles.join(', ')}. Each file must be 50MB or less.`);
       if (fileInputRef.current) fileInputRef.current.value = '';
       return;
     }
 
     setUploading(true);
     setError(null);
-    setUploadProgress('Uploading document...');
 
-    try {
-      const formData = new FormData();
-      formData.append('file', file);
+    // Initialize progress for each file
+    const initialProgress = files.map((file, index) => ({
+      id: index,
+      filename: file.name,
+      status: 'pending',
+      progress: 0,
+      message: 'Waiting...'
+    }));
+    setUploadProgress(initialProgress);
 
-      setUploadProgress('Processing document...');
-      await documentAPI.upload(formData, sessionId);
+    let successCount = 0;
+    let failCount = 0;
 
-      setUploadProgress('Document uploaded successfully! Journal entries may have been created.');
+    // Upload files sequentially to avoid overwhelming the backend
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
 
-      // Reload documents to show the new one
-      await loadDocuments();
+      try {
+        // Update status to uploading
+        setUploadProgress(prev => prev.map((p, idx) =>
+          idx === i ? { ...p, status: 'uploading', message: 'Uploading...' } : p
+        ));
 
-      // Clear the file input
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
+        const formData = new FormData();
+        formData.append('file', file);
+
+        // Update status to processing
+        setUploadProgress(prev => prev.map((p, idx) =>
+          idx === i ? { ...p, message: 'Processing...' } : p
+        ));
+
+        await documentAPI.upload(formData, sessionId);
+
+        // Update status to success
+        setUploadProgress(prev => prev.map((p, idx) =>
+          idx === i ? { ...p, status: 'success', progress: 100, message: 'Complete!' } : p
+        ));
+
+        successCount++;
+      } catch (err) {
+        console.error(`Error uploading ${file.name}:`, err);
+        const errorMessage = err.response?.data?.detail || 'Upload failed';
+
+        // Update status to error
+        setUploadProgress(prev => prev.map((p, idx) =>
+          idx === i ? { ...p, status: 'error', message: errorMessage } : p
+        ));
+
+        failCount++;
       }
-
-      // Clear success message after 3 seconds
-      setTimeout(() => {
-        setUploadProgress('');
-      }, 3000);
-    } catch (err) {
-      console.error('Error uploading document:', err);
-      const errorMessage = err.response?.data?.detail || 'Failed to upload document. Please try again.';
-      setError(errorMessage);
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
-      }
-    } finally {
-      setUploading(false);
     }
+
+    // Reload documents to show the new ones
+    await loadDocuments();
+
+    // Clear the file input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+
+    // Show summary message
+    if (successCount > 0 && failCount === 0) {
+      setUploadProgress(prev => [
+        ...prev,
+        { id: 'summary', status: 'info', message: `Successfully uploaded ${successCount} document${successCount > 1 ? 's' : ''}. Journal entries have been created.` }
+      ]);
+    } else if (successCount > 0 && failCount > 0) {
+      setUploadProgress(prev => [
+        ...prev,
+        { id: 'summary', status: 'warning', message: `Uploaded ${successCount} document${successCount > 1 ? 's' : ''}, ${failCount} failed. Journal entries created for successful uploads.` }
+      ]);
+    } else if (failCount > 0) {
+      setError(`Failed to upload ${failCount} document${failCount > 1 ? 's' : ''}.`);
+    }
+
+    // Clear progress after 5 seconds
+    setTimeout(() => {
+      setUploadProgress([]);
+      setUploading(false);
+    }, 5000);
   };
 
   const getFileIcon = (contentType) => {
@@ -362,11 +421,12 @@ const Documents = () => {
                 disabled={uploading}
                 className="hidden"
                 id="document-file-upload"
+                multiple
               />
               <label
                 htmlFor="document-file-upload"
                 className={`btn-primary inline-flex items-center gap-2 cursor-pointer ${uploading ? 'opacity-50 cursor-not-allowed' : ''}`}
-                title="Upload documents (PDF, PNG, JPG, TXT) - Max 50MB"
+                title="Upload documents (PDF, PNG, JPG, TXT) - Max 50MB each"
               >
                 {uploading ? (
                   <>
@@ -381,25 +441,97 @@ const Documents = () => {
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
                     </svg>
-                    <span className="hidden sm:inline">Upload Document</span>
+                    <span className="hidden sm:inline">Upload Documents</span>
                     <span className="sm:hidden">Upload</span>
                   </>
                 )}
               </label>
               <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 hidden sm:block">
-                Max 50MB
+                50MB per document
               </p>
             </div>
           </div>
 
-          {/* Upload progress message */}
-          {uploadProgress && (
-            <div className="mb-4 bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300 px-4 py-3 rounded flex items-center gap-2">
-              <svg className="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-              </svg>
-              {uploadProgress}
+          {/* Upload progress */}
+          {uploadProgress.length > 0 && (
+            <div className="mb-4 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4 space-y-3 overflow-hidden">
+              <div className="flex items-center gap-2 mb-2">
+                <svg className="w-5 h-5 text-blue-600 dark:text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                </svg>
+                <h3 className="text-sm font-semibold text-gray-900 dark:text-white">
+                  Upload Progress
+                </h3>
+              </div>
+              {uploadProgress.map((item) => {
+                if (item.id === 'summary') {
+                  const bgColor = item.status === 'info' ? 'bg-green-50 dark:bg-green-900/30 border-green-200 dark:border-green-800 text-green-700 dark:text-green-300' :
+                                  item.status === 'warning' ? 'bg-yellow-50 dark:bg-yellow-900/30 border-yellow-200 dark:border-yellow-800 text-yellow-700 dark:text-yellow-300' :
+                                  'bg-blue-50 dark:bg-blue-900/30 border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300';
+                  return (
+                    <div key={item.id} className={`border px-3 py-2 rounded ${bgColor}`}>
+                      {item.message}
+                    </div>
+                  );
+                }
+
+                const statusIcon = {
+                  pending: (
+                    <svg className="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  ),
+                  uploading: (
+                    <svg className="w-4 h-4 text-blue-600 dark:text-blue-400 animate-spin" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                  ),
+                  success: (
+                    <svg className="w-4 h-4 text-green-600 dark:text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                  ),
+                  error: (
+                    <svg className="w-4 h-4 text-red-600 dark:text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  )
+                };
+
+                const statusColor = {
+                  pending: 'text-gray-600 dark:text-gray-400',
+                  uploading: 'text-blue-700 dark:text-blue-300',
+                  success: 'text-green-700 dark:text-green-300',
+                  error: 'text-red-700 dark:text-red-300'
+                };
+
+                return (
+                  <div key={item.id} className="space-y-1 min-w-0">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <div className="flex-shrink-0">
+                        {statusIcon[item.status]}
+                      </div>
+                      <span className={`text-sm font-medium ${statusColor[item.status]} flex-1 truncate min-w-0`} title={item.filename}>
+                        {item.filename}
+                      </span>
+                      <span className={`text-xs ${statusColor[item.status]} flex-shrink-0 whitespace-nowrap`}>
+                        {item.message}
+                      </span>
+                    </div>
+                    {item.status === 'uploading' && (
+                      <div className="ml-6 mr-6 bg-gray-200 dark:bg-gray-700 rounded-full h-1.5 overflow-hidden">
+                        <div className="bg-blue-600 dark:bg-blue-400 h-1.5 rounded-full transition-all duration-300 animate-pulse" style={{ width: '70%' }}></div>
+                      </div>
+                    )}
+                    {item.status === 'success' && (
+                      <div className="ml-6 mr-6 bg-gray-200 dark:bg-gray-700 rounded-full h-1.5 overflow-hidden">
+                        <div className="bg-green-600 dark:bg-green-400 h-1.5 rounded-full transition-all duration-300" style={{ width: '100%' }}></div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           )}
 
