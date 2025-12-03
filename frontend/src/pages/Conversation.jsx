@@ -112,10 +112,16 @@ const Conversation = () => {
     if (!sessionId) return;
     try {
       const response = await conversationAPI.getHistory(sessionId, MESSAGE_PAGE_SIZE, 0);
-      setMessages(response.data.messages || []);
+      const loadedMessages = response.data.messages || [];
+      setMessages(loadedMessages);
       setHasMoreMessages(response.data.has_more || false);
       if (resetPagination) {
         setCurrentOffset(MESSAGE_PAGE_SIZE);
+      }
+
+      // Only scroll to bottom if there are messages to display
+      if (loadedMessages.length === 0) {
+        return;
       }
 
       // Scroll to bottom on initial load - wait for images to load
@@ -457,7 +463,7 @@ const Conversation = () => {
                     <div className="flex items-start mb-2 md:mb-3">
                       <div className="flex-shrink-0">
                         <svg className="w-5 h-5 md:w-6 md:h-6 text-primary-600 dark:text-primary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 9l3 3m0 0l-3 3m3-3H8m13 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
                         </svg>
                       </div>
                       <div className="ml-2 md:ml-3">
@@ -493,19 +499,18 @@ const Conversation = () => {
                             </svg>
                             <span>Recent appointments or test results</span>
                           </li>
-                          <li className="flex items-start">
-                            <svg className="w-4 h-4 md:w-5 md:h-5 text-primary-600 dark:text-primary-400 mr-1.5 md:mr-2 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                            </svg>
-                            <span>Questions or concerns</span>
-                          </li>
                         </ul>
                       </div>
                     </div>
-                    <div className="flex items-center justify-center pt-1 md:pt-2">
-                      <svg className="w-5 h-5 md:w-6 md:h-6 text-primary-600 dark:text-primary-400 animate-bounce" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
-                      </svg>
+                    <div className="border-t border-gray-200 dark:border-gray-600 mt-3 md:mt-4 pt-3 md:pt-4">
+                      <p className="text-xs text-gray-600 dark:text-gray-400 text-center mb-3 px-6 md:px-8">
+                        You can have up to <strong>3 active sessions</strong>. When a session is no longer needed, delete it under <em>Settings → Manage Sessions → Details</em> to clear your data from our servers.
+                      </p>
+                      <div className="flex items-center justify-center">
+                        <svg className="w-5 h-5 md:w-6 md:h-6 text-primary-600 dark:text-primary-400 animate-bounce" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+                        </svg>
+                      </div>
                     </div>
                   </div>
                 </div>
