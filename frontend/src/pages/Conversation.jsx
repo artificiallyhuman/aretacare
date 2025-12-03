@@ -504,7 +504,7 @@ const Conversation = () => {
                     </div>
                     <div className="border-t border-gray-200 dark:border-gray-600 mt-3 md:mt-4 pt-3 md:pt-4">
                       <p className="text-xs text-gray-600 dark:text-gray-400 text-center mb-3 px-6 md:px-8">
-                        You can have up to <strong>3 active sessions</strong>. When a session is no longer needed, delete it under <em>Settings → Manage Sessions → Details</em> to clear your data from our servers.
+                        You can have <strong>up to 3 active sessions</strong>. When a session is no longer needed, delete it under <em>Settings → Manage Sessions → Details</em> to clear your data from our servers.
                       </p>
                       <div className="flex items-center justify-center">
                         <svg className="w-5 h-5 md:w-6 md:h-6 text-primary-600 dark:text-primary-400 animate-bounce" fill="none" stroke="currentColor" viewBox="0 0 24 24">
