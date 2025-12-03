@@ -21,8 +21,8 @@ const About = () => {
             />
           </svg>
         </div>
-        <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">Welcome to AretaCare</h2>
-        <p className="text-lg text-gray-600 dark:text-gray-400 mb-4">Care. Clarity. Confidence.</p>
+        <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Welcome to AretaCare</h2>
+        <p className="text-lg text-gray-600 dark:text-gray-400 mb-4">Care | Clarity | Confidence</p>
         <p className="text-gray-700 dark:text-gray-300 max-w-xl mx-auto">
           AretaCare helps you make sense of complicated medical information, stay organized through stressful moments, and have confident conversations with your care team.
         </p>
@@ -39,7 +39,7 @@ const About = () => {
                 : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-700'
             }`}
           >
-            The Story
+            Story
           </button>
           <button
             onClick={() => setActiveTab('platform')}
@@ -49,7 +49,7 @@ const About = () => {
                 : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-700'
             }`}
           >
-            The Platform
+            Platform
           </button>
           <button
             onClick={() => setActiveTab('principles')}
@@ -59,7 +59,7 @@ const About = () => {
                 : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-700'
             }`}
           >
-            The Principles
+            Principles
           </button>
         </div>
       </div>
@@ -345,19 +345,46 @@ const About = () => {
               </div>
               <div className="prose prose-gray dark:prose-invert max-w-none text-gray-700 dark:text-gray-300 space-y-4 leading-relaxed pl-16">
                 <p>
-                  Most healthcare platforms are pulled in different directions by patients, hospitals, insurers, and investors. We're not. AretaCare is built for patients and caregivers, plain and simple.
+                  Most healthcare platforms balance the needs of multiple stakeholders (e.g., hospitals, insurers, investors). We don't. AretaCare is built for patients and caregivers, plain and simple.
                 </p>
                 <p>
                   That choice informs every part of the platform. We designed AretaCare so families can work together in one place, with conversations, data, and documents organized and accessible. We intentionally don't give medical advice or steer care decisions. Instead, we help you make sense of the professional care you're receiving and support you in advocating for yourself and the people you love.
                 </p>
                 <p className="font-semibold text-gray-900 dark:text-white bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg border-l-2 border-blue-500 dark:border-blue-400">
-                  This isn't a platform for hospitals, insurers, or investors. It's for you.
+                  AretaCare exists to provide patients and caregivers with clarity and confidence.
                 </p>
               </div>
             </div>
           </div>
 
           {/* Principle 2 */}
+          <div className="bg-gradient-to-br from-white to-green-50/30 dark:from-gray-800 dark:to-green-900/10 rounded-xl border-l-4 border-green-500 dark:border-green-400 shadow-md">
+            <div className="p-6 sm:p-8">
+              <div className="flex items-center gap-4 mb-4">
+                <div className="flex-shrink-0 flex items-center justify-center w-12 h-12 bg-green-100 dark:bg-green-900/50 rounded-lg">
+                  <svg className="w-6 h-6 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+                <div className="flex-grow">
+                  <h3 className="text-2xl font-bold text-green-600 dark:text-green-400">Free for all who need it</h3>
+                </div>
+              </div>
+              <div className="prose prose-gray dark:prose-invert max-w-none text-gray-700 dark:text-gray-300 space-y-4 leading-relaxed pl-16">
+                <p>
+                  Caregiving is difficult enough without having to decide whether you can afford another subscription.
+                </p>
+                <p>
+                  Running AretaCare isn't cheap. It takes compute, infrastructure, and real work behind the scenes. But the platform is free and will remain free. You shouldn't have to check your insurance coverage or weigh monthly costs before getting tools that help you stay on top of a stressful medical situation.
+                </p>
+                <p className="font-semibold text-gray-900 dark:text-white bg-green-50 dark:bg-green-900/20 p-4 rounded-lg border-l-2 border-green-500 dark:border-green-400">
+                  AretaCare is available to anyone who needs it, regardless of their ability to pay.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Principle 3 */}
           <div className="bg-gradient-to-br from-white to-purple-50/30 dark:from-gray-800 dark:to-purple-900/10 rounded-xl border-l-4 border-purple-500 dark:border-purple-400 shadow-md">
             <div className="p-6 sm:p-8">
               <div className="flex items-center gap-4 mb-4">
@@ -378,34 +405,7 @@ const About = () => {
                   Our commitment is to stay on the frontier and bring new technologies to patients and caregivers quickly and responsibly. When better AI models, infrastructure, and devices become available, our first instinct is to test and integrate them. Not because it's trendy, but because new capabilities can help you understand complex situations more clearly, spot problems sooner, and stay organized under pressure.
                 </p>
                 <p className="font-semibold text-gray-900 dark:text-white bg-purple-50 dark:bg-purple-900/20 p-4 rounded-lg border-l-2 border-purple-500 dark:border-purple-400">
-                  We'll strive to bring you the best technology the world has to offer.
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {/* Principle 3 */}
-          <div className="bg-gradient-to-br from-white to-green-50/30 dark:from-gray-800 dark:to-green-900/10 rounded-xl border-l-4 border-green-500 dark:border-green-400 shadow-md">
-            <div className="p-6 sm:p-8">
-              <div className="flex items-center gap-4 mb-4">
-                <div className="flex-shrink-0 flex items-center justify-center w-12 h-12 bg-green-100 dark:bg-green-900/50 rounded-lg">
-                  <svg className="w-6 h-6 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                </div>
-                <div className="flex-grow">
-                  <h3 className="text-2xl font-bold text-green-600 dark:text-green-400">Free for all who need it</h3>
-                </div>
-              </div>
-              <div className="prose prose-gray dark:prose-invert max-w-none text-gray-700 dark:text-gray-300 space-y-4 leading-relaxed pl-16">
-                <p>
-                  Caregiving is hard enough without having to decide whether you can afford another subscription.
-                </p>
-                <p>
-                  Running AretaCare isn't cheap. It takes compute, infrastructure, and real work behind the scenes. But the platform is free and will remain free. You shouldn't have to check your insurance coverage or weigh monthly costs before getting tools that help you stay on top of a stressful medical situation.
-                </p>
-                <p className="font-semibold text-gray-900 dark:text-white bg-green-50 dark:bg-green-900/20 p-4 rounded-lg border-l-2 border-green-500 dark:border-green-400">
-                  AretaCare will remain accessible to anyone who needs it, regardless of ability to pay.
+                  AretaCare strives to bring patients and caregivers the best technology available.
                 </p>
               </div>
             </div>
@@ -432,7 +432,7 @@ const About = () => {
                   We can't promise that the internet is safe or that no one will ever attempt to break in. What we can promise is that we will never be the ones you have to worry about. We won't sell your data. We won't share it with hospitals or insurers. We won't hold it hostage. If you choose to delete your data, it's deleted. This is your information, and you stay in control of it.
                 </p>
                 <p className="font-semibold text-gray-900 dark:text-white bg-amber-50 dark:bg-amber-900/20 p-4 rounded-lg border-l-2 border-amber-500 dark:border-amber-400">
-                  Your data will never be an asset that we try to profit from.
+                  AretaCare will always respect your personal data and never profit from it.
                 </p>
               </div>
             </div>
@@ -448,7 +448,7 @@ const About = () => {
                   </svg>
                 </div>
                 <div className="flex-grow">
-                  <h3 className="text-2xl font-bold text-indigo-600 dark:text-indigo-400">Open by design</h3>
+                  <h3 className="text-2xl font-bold text-indigo-600 dark:text-indigo-400">Built in the open</h3>
                 </div>
               </div>
               <div className="prose prose-gray dark:prose-invert max-w-none text-gray-700 dark:text-gray-300 space-y-4 leading-relaxed pl-16">
@@ -459,7 +459,7 @@ const About = () => {
                   Experts can review how the platform works, suggest improvements, and help make the platform safer and more reliable. Even if you never read a line of code, you benefit from a community of people who can verify that we're doing what we say we're doing. When we say your data is deleted when you press a button, you shouldn't have to take that on faith: it's visible in the code.
                 </p>
                 <p className="font-semibold text-gray-900 dark:text-white bg-indigo-50 dark:bg-indigo-900/20 p-4 rounded-lg border-l-2 border-indigo-500 dark:border-indigo-400">
-                  Want to verify for yourself? <br/>{' '}
+                  AretaCare is open source because transparency builds trust: {' '}
                   <a
                     href="https://github.com/artificiallyhuman/aretacare"
                     target="_blank"
