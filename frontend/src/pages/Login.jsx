@@ -19,7 +19,7 @@ function Login() {
     },
     {
       title: 'Beta Version',
-      message: 'This system is currently in beta and may be unstable. Users may experience data loss from time to time. Please do not rely on this system for critical medical information storage.'
+      message: 'The system may be unstable and could experience occasional data loss. Please do not store confidential or identifiable medical information in this version. Use only non-sensitive or sample data while we complete our security and HIPAA compliance work.'
     }
   ];
 

@@ -24,7 +24,7 @@ function Register() {
     },
     {
       title: 'Beta Version',
-      message: 'This system is currently in beta and may be unstable. Users may experience data loss from time to time. Please do not rely on this system for critical medical information storage.'
+      message: 'The system may be unstable and could experience occasional data loss. Please do not store confidential or identifiable medical information in this version. Use only non-sensitive or sample data while we complete our security and HIPAA compliance work.'
     }
   ];
 
@@ -51,7 +51,7 @@ function Register() {
     }
 
     if (!acknowledgeBetaVersion) {
-      setError('You must acknowledge the beta version status and potential data loss');
+      setError('You must acknowledge the beta version status, potential data loss, and data sensitivity requirements');
       return;
     }
 
@@ -244,7 +244,7 @@ function Register() {
                   required
                 />
                 <label htmlFor="acknowledgeBetaVersion" className="ml-3 text-sm text-gray-700 dark:text-gray-300 cursor-pointer">
-                  I understand this system is in beta and may be unstable. I acknowledge there may be data loss from time to time, and I will not rely on this system for critical medical information storage.
+                  I understand the system may be unstable and could experience occasional data loss. I will not store confidential or identifiable medical information, and will use only non-sensitive or sample data while security and HIPAA compliance work is completed.
                 </label>
               </div>
 
