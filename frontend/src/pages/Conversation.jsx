@@ -25,6 +25,9 @@ const Conversation = () => {
   const messagesEndRef = useRef(null);
   const messagesContainerRef = useRef(null);
   const isNearBottomRef = useRef(true);
+  const lastAIMessageRef = useRef(null);
+  const previousMessageCountRef = useRef(0);
+  const expectingAIResponse = useRef(false);
 
   const scrollToBottom = (behavior = 'smooth') => {
     if (messagesContainerRef.current) {
@@ -68,15 +71,42 @@ const Conversation = () => {
   // Auto-scroll only if user is near bottom and there are messages
   useEffect(() => {
     if (messages.length > 0 && isNearBottomRef.current) {
-      scrollToBottom('smooth');
+      const previousCount = previousMessageCountRef.current;
+      const newMessagesAdded = messages.length > previousCount;
+
+      // If we're expecting an AI response and the last message is from the assistant
+      if (expectingAIResponse.current && messages.length > 0) {
+        const lastMessage = messages[messages.length - 1];
+        if (lastMessage.role === 'assistant') {
+          // Reset the flag
+          expectingAIResponse.current = false;
+
+          // Wait for the DOM to update and the ref to be attached
+          setTimeout(() => {
+            if (lastAIMessageRef.current) {
+              // Scroll to the top of the AI's response
+              lastAIMessageRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+          }, 150);
+          return; // Don't run the else branch
+        }
+      }
+
+      if (newMessagesAdded && !expectingAIResponse.current) {
+        // For other cases (user messages, collaboration messages), scroll to bottom as usual
+        scrollToBottom('smooth');
+      }
+
+      previousMessageCountRef.current = messages.length;
     }
   }, [messages]);
 
-  // Auto-scroll when typing indicator appears
+  // Auto-scroll when typing indicator appears (only scroll to bottom when typing starts)
   useEffect(() => {
     if (isAITyping && isNearBottomRef.current) {
       setTimeout(() => scrollToBottom('smooth'), 100);
     }
+    // When typing stops, don't auto-scroll - let the messages useEffect handle it
   }, [isAITyping]);
 
   useEffect(() => {
@@ -121,6 +151,11 @@ const Conversation = () => {
 
       // Only scroll to bottom if there are messages to display
       if (loadedMessages.length === 0) {
+        return;
+      }
+
+      // Skip auto-scroll if we're expecting an AI response (let the messages useEffect handle it)
+      if (expectingAIResponse.current) {
         return;
       }
 
@@ -323,6 +358,9 @@ const Conversation = () => {
       // Show typing indicator
       setIsAITyping(true);
 
+      // Mark that we're expecting an AI response
+      expectingAIResponse.current = true;
+
       // Send message
       const response = await conversationAPI.sendMessage({
         content,
@@ -339,6 +377,8 @@ const Conversation = () => {
       setError('Failed to send message. Please try again.');
       // Remove the temporary message on error
       setMessages(prevMessages => prevMessages.filter(msg => msg.id !== tempUserMessage.id));
+      // Reset the flag on error
+      expectingAIResponse.current = false;
     } finally {
       setLoading(false);
       setIsAITyping(false);
@@ -544,9 +584,19 @@ const Conversation = () => {
                     </button>
                   </div>
                 )}
-                {messages.map((message) => (
-                  <MessageBubble key={message.id} message={message} />
-                ))}
+                {messages.map((message, index) => {
+                  const isLastMessage = index === messages.length - 1;
+                  const isAssistantMessage = message.role === 'assistant';
+
+                  return (
+                    <div
+                      key={message.id}
+                      ref={isLastMessage && isAssistantMessage ? lastAIMessageRef : null}
+                    >
+                      <MessageBubble message={message} />
+                    </div>
+                  );
+                })}
                 {isAITyping && <TypingIndicator />}
               </>
             )}
