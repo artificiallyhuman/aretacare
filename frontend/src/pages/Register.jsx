@@ -20,7 +20,7 @@ function Register() {
   const warnings = [
     {
       title: 'Important',
-      message: 'AretaCare is an AI assistant, not a medical professional. For any medical decisions, please consult your healthcare team.'
+      message: 'AretaCare is an AI assistant, not a medical professional. For any medical decisions, please consult your care team.'
     },
     {
       title: 'Beta Version',
@@ -229,7 +229,7 @@ function Register() {
                   required
                 />
                 <label htmlFor="acknowledgeNotMedicalAdvice" className="ml-3 text-sm text-gray-700 dark:text-gray-300 cursor-pointer">
-                  I understand that AretaCare is an AI assistant, not a medical professional, and I should consult my healthcare team for any medical decisions.
+                  I understand that AretaCare is an AI assistant, not a medical professional, and I should consult my care team for any medical decisions.
                 </label>
               </div>
 

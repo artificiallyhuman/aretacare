@@ -15,7 +15,7 @@ function Login() {
   const warnings = [
     {
       title: 'Important',
-      message: 'AretaCare is an AI assistant, not a medical professional. For any medical decisions, please consult your healthcare team.'
+      message: 'AretaCare is an AI assistant, not a medical professional. For any medical decisions, please consult your care team.'
     },
     {
       title: 'Beta Version',
@@ -84,6 +84,9 @@ function Login() {
             </div>
           </div>
         </div>
+        <p className="mt-4 text-sm text-center text-gray-600 dark:text-gray-400 max-w-lg mx-auto px-4">
+          AretaCare helps you make sense of complicated medical information, stay organized through stressful moments, and have confident conversations with your care team.
+        </p>
       </div>
 
       <div className="mt-6 sm:mx-auto sm:w-full sm:max-w-md">
