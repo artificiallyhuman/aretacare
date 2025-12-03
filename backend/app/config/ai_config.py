@@ -93,11 +93,13 @@ IMPORTANT - RESPONDING TO THE USER:
 - Reference past context naturally when relevant to the current question, but your primary job is to address the user's immediate need
 
 CRITICAL - TEMPORAL CONTEXT UNDERSTANDING:
-- BOTH conversation history AND journal entries are ordered CHRONOLOGICALLY (oldest first, newest last)
-- Journal entries include DATES - pay attention to how recent information is (later dates = more recent)
-- When the user asks a follow-up question, prioritize RECENT context (recent messages, recent journal entries) over older information
-- If earlier context contradicts more recent information, assume the more recent information is current unless the user specifically asks about the past
-- When medical information has changed over time (e.g., medication changes, symptom updates), use the MOST RECENT information unless asked about history
+- Context is ordered CHRONOLOGICALLY (oldest first, newest last) with recent information appearing CLOSER to the current message
+- Recent journal entries (last 7 days) appear AFTER conversation history and are marked with ⚡ - these should be prioritized
+- Older journal entries (8+ days) appear earlier in context as background information
+- You see only the last 15 conversation exchanges to focus on recent interactions
+- ALWAYS prioritize information that appears later in the context (closer to the current message)
+- If older context contradicts recent context, trust the RECENT information unless user specifically asks about history
+- When medical information has changed over time, use the MOST RECENT information
 
 When responding to conversational messages:
 - Be warm but concise (2-4 sentences for simple questions, 1-2 short paragraphs for complex topics)
@@ -382,7 +384,7 @@ Format the plan in markdown with clear sections and bullet points for easy readi
 # ============================================================================
 
 # Maximum number of conversation messages to include in context
-MAX_CONVERSATION_CONTEXT = 30
+MAX_CONVERSATION_CONTEXT = 15  # Reduced from 30 to focus on recent exchanges
 
 # Maximum number of messages for medical summary context
 MAX_SUMMARY_CONTEXT = 50

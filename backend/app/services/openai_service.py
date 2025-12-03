@@ -405,31 +405,50 @@ class OpenAIService:
         self,
         message: str,
         conversation_history: List[Dict[str, str]],
-        journal_context: str,
+        older_journal_context: str = "",
+        recent_journal_context: str = "",
         document_url: Optional[str] = None,
-        document_type: Optional[str] = None
+        document_type: Optional[str] = None,
+        # Legacy parameter for backwards compatibility
+        journal_context: Optional[str] = None
     ) -> str:
-        """Chat interface with journal context and native file/image support"""
+        """Chat interface with journal context and native file/image support
+
+        Optimized context structure:
+        1. System prompts
+        2. Older journal (8+ days) - background context
+        3. Recent conversation (last 15 messages)
+        4. Recent journal (last 7 days) - prioritized context
+        5. Immediate context (last AI message)
+        6. Current user message
+        """
 
         messages = [
             {"role": "system", "content": ai_config.SYSTEM_PROMPT},
             {"role": "system", "content": ai_config.CONVERSATION_INSTRUCTIONS}
         ]
 
-        # Add journal context as system message
-        if journal_context and journal_context.strip() != ai_config.EMPTY_JOURNAL_MARKER:
+        # Add older journal context (background) - farther from current message
+        if older_journal_context and older_journal_context.strip():
             messages.append({
                 "role": "system",
-                "content": f"Care journal for context:\n\n{journal_context}"
+                "content": older_journal_context
             })
 
         # Add recent conversation history
         if conversation_history:
             messages.append({
                 "role": "system",
-                "content": "---\nConversation history below (ordered chronologically - oldest first, newest last):\n---"
+                "content": "---\nConversation History (last 15 exchanges, oldest to newest):\n---"
             })
         messages.extend(conversation_history[-ai_config.MAX_CONVERSATION_CONTEXT:])
+
+        # Add recent journal context AFTER conversation - closer to current message for priority
+        if recent_journal_context and recent_journal_context.strip():
+            messages.append({
+                "role": "system",
+                "content": recent_journal_context
+            })
 
         # Highlight the immediate context (last exchange) to help AI connect follow-ups
         if conversation_history and len(conversation_history) > 0:
@@ -437,13 +456,13 @@ class OpenAIService:
             if last_message.get("role") == "assistant":
                 messages.append({
                     "role": "system",
-                    "content": f"---\nIMMEDIATE CONTEXT - Your last message to the user:\n{last_message.get('content', '')}\n\nThe user is now responding to this message. If they say things like 'yes', 'sure', 'okay', 'go ahead', etc., they are agreeing to what you suggested above.\n---"
+                    "content": f"---\n⚡ IMMEDIATE CONTEXT - Your last message to the user:\n{last_message.get('content', '')}\n\nThe user is now responding to THIS message. If they say 'yes', 'sure', 'okay', 'go ahead', etc., they are agreeing to what you suggested above.\n---"
                 })
 
         # Explicitly mark the current message as the one to respond to
         messages.append({
             "role": "system",
-            "content": "---\nThe following message is the user's CURRENT MESSAGE that you must respond to:\n---"
+            "content": "---\n⚡ The following is the user's CURRENT MESSAGE that you must respond to:\n---"
         })
 
         # Add current message with file/image support

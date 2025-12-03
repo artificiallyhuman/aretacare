@@ -4,7 +4,7 @@ import { toolsAPI, conversationAPI } from '../../services/api';
 import { useSessionContext } from '../../contexts/SessionContext';
 import AudioWaveform from '../../components/AudioWaveform';
 
-const MAX_RECORDING_SECONDS = 900; // 15 minutes (corresponds to ~20MB at typical WebM bitrate)
+const MAX_RECORDING_SECONDS = 900; // 15 minutes (corresponds to ~50MB at typical WebM bitrate)
 
 const ConversationCoach = () => {
   const { activeSessionId: sessionId } = useSessionContext();

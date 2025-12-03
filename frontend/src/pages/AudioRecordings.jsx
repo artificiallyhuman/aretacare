@@ -249,10 +249,10 @@ const AudioRecordings = () => {
       return;
     }
 
-    // Validate file size (20MB)
-    const maxSize = 20 * 1024 * 1024;
+    // Validate file size (50MB)
+    const maxSize = 50 * 1024 * 1024;
     if (file.size > maxSize) {
-      setError('File size exceeds 20MB limit. Please choose a smaller file.');
+      setError('File size exceeds 50MB limit. Please choose a smaller file.');
       if (fileInputRef.current) fileInputRef.current.value = '';
       return;
     }
@@ -338,7 +338,7 @@ const AudioRecordings = () => {
             <label
               htmlFor="audio-file-upload"
               className={`btn-primary inline-flex items-center gap-2 cursor-pointer ${uploading ? 'opacity-50 cursor-not-allowed' : ''}`}
-              title="Upload audio files (MP3, M4A, WAV, WebM, OGG) - Max 20MB (long files automatically chunked)"
+              title="Upload audio files (MP3, M4A, WAV, WebM, OGG) - Max 50MB (long files automatically chunked)"
             >
               {uploading ? (
                 <>
@@ -359,7 +359,7 @@ const AudioRecordings = () => {
               )}
             </label>
             <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 hidden sm:block">
-              Max 20MB • Long files auto-chunked
+              Max 50MB • Long files auto-chunked
             </p>
           </div>
         </div>

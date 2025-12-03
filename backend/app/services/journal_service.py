@@ -188,12 +188,12 @@ IMPORTANT: Respond with ONLY a valid JSON object in this exact format, with no a
                 suggested_entries=[]
             )
 
-    async def format_journal_context(
+    async def format_journal_context_split(
         self,
         session_id: str,
         max_tokens: int = None
-    ) -> str:
-        """Format journal context for conversation with tiered loading"""
+    ) -> tuple[str, str]:
+        """Format journal context split into older and recent parts for better AI context management"""
         if max_tokens is None:
             max_tokens = ai_config.MAX_JOURNAL_TOKENS
         try:
@@ -202,7 +202,7 @@ IMPORTANT: Respond with ONLY a valid JSON object in this exact format, with no a
             ).order_by(desc(JournalEntry.entry_date)).all()
 
             if not entries:
-                return "# Care Journal\n\nNo journal entries yet."
+                return "", ""
 
             now = date.today()
             full_detail = []
@@ -219,44 +219,53 @@ IMPORTANT: Respond with ONLY a valid JSON object in this exact format, with no a
                 else:
                     titles_only.append(entry)
 
-            context = "# Care Journal Context\n\n"
-            context += "_Ordered chronologically from oldest to newest. Pay attention to dates when assessing current situation._\n\n"
+            # OLDER CONTEXT (8+ days ago) - shown first in prompt, farther from current message
+            older_context = ""
+            if titles_only or summarized:
+                older_context = "# Background Journal Context (Older History)\n\n"
 
-            # Older entries (titles only) - show oldest first
-            if titles_only:
-                context += "## Earlier History (30+ Days Ago)\n\n"
-                by_month = self._group_by_month(titles_only)
-                # Sort months chronologically (oldest first)
-                sorted_months = sorted(by_month.items(), key=lambda x: datetime.strptime(x[0], "%B %Y"))
-                for month, month_entries in sorted_months:
-                    # Reverse entries within each month so oldest appear first
-                    reversed_entries = list(reversed(month_entries))
-                    context += f"**{month}**: "
-                    context += ", ".join([e.title for e in reversed_entries])
-                    context += "\n\n"
+                # Older entries (titles only) - show oldest first
+                if titles_only:
+                    older_context += "## Earlier History (30+ Days Ago)\n\n"
+                    by_month = self._group_by_month(titles_only)
+                    sorted_months = sorted(by_month.items(), key=lambda x: datetime.strptime(x[0], "%B %Y"))
+                    for month, month_entries in sorted_months:
+                        reversed_entries = list(reversed(month_entries))
+                        older_context += f"**{month}**: "
+                        older_context += ", ".join([e.title for e in reversed_entries])
+                        older_context += "\n\n"
 
-            # Mid-range entries (summarized) - show oldest first
-            if summarized:
-                context += "## Previous Entries (8-30 Days Ago)\n\n"
-                for e in reversed(summarized):
-                    summary = e.content[:150] + "..." if len(e.content) > 150 else e.content
-                    context += f"**{e.entry_date}** {e.title}: {summary}\n\n"
+                # Mid-range entries (summarized) - show oldest first
+                if summarized:
+                    older_context += "## Previous Entries (8-30 Days Ago)\n\n"
+                    for e in reversed(summarized):
+                        summary = e.content[:150] + "..." if len(e.content) > 150 else e.content
+                        older_context += f"**{e.entry_date}** {e.title}: {summary}\n\n"
 
-            # Recent entries (full detail) - show oldest first
+            # RECENT CONTEXT (last 7 days) - will be shown later in prompt, closer to current message
+            recent_context = ""
             if full_detail:
-                context += "## Recent Entries (Last 7 Days)\n\n"
+                recent_context = "# Recent Journal Context (Last 7 Days) ⚡\n\n"
+                recent_context += "_This is the MOST RECENT journal information. Prioritize this over older context._\n\n"
                 for e in reversed(full_detail):
-                    context += f"**{e.entry_date}** [{e.entry_type.value}] **{e.title}**\n{e.content}\n\n"
+                    recent_context += f"**{e.entry_date}** [{e.entry_type.value}] **{e.title}**\n{e.content}\n\n"
 
-            # Rough token limit (4 chars per token estimate)
-            if len(context) > max_tokens * 4:
-                context = context[:max_tokens * 4] + "\n\n[Context truncated]"
-
-            return context
+            return older_context, recent_context
 
         except Exception as e:
             logger.error(f"Error formatting journal context: {e}")
-            return "# Care Journal\n\nUnable to load journal context."
+            return "", ""
+
+    async def format_journal_context(
+        self,
+        session_id: str,
+        max_tokens: int = None
+    ) -> str:
+        """Format journal context for conversation with tiered loading (legacy method for compatibility)"""
+        older, recent = await self.format_journal_context_split(session_id, max_tokens)
+        if not older and not recent:
+            return "# Care Journal\n\nNo journal entries yet."
+        return (older + "\n" + recent).strip()
 
     async def create_entry(
         self,

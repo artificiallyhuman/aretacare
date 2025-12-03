@@ -255,10 +255,10 @@ const Documents = () => {
       return;
     }
 
-    // Validate file size (20MB)
-    const maxSize = 20 * 1024 * 1024;
+    // Validate file size (50MB)
+    const maxSize = 50 * 1024 * 1024;
     if (file.size > maxSize) {
-      setError('File size exceeds 20MB limit. Please choose a smaller file.');
+      setError('File size exceeds 50MB limit. Please choose a smaller file.');
       if (fileInputRef.current) fileInputRef.current.value = '';
       return;
     }
@@ -366,7 +366,7 @@ const Documents = () => {
               <label
                 htmlFor="document-file-upload"
                 className={`btn-primary inline-flex items-center gap-2 cursor-pointer ${uploading ? 'opacity-50 cursor-not-allowed' : ''}`}
-                title="Upload documents (PDF, PNG, JPG, TXT) - Max 20MB"
+                title="Upload documents (PDF, PNG, JPG, TXT) - Max 50MB"
               >
                 {uploading ? (
                   <>
@@ -387,7 +387,7 @@ const Documents = () => {
                 )}
               </label>
               <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 hidden sm:block">
-                Max 20MB
+                Max 50MB
               </p>
             </div>
           </div>

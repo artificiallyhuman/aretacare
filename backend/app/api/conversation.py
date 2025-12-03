@@ -77,9 +77,9 @@ async def send_message(
             for msg in history[:-1]  # Exclude the message we just added
         ]
 
-        # Get journal context
+        # Get journal context (split into older and recent)
         journal_service = JournalService(db)
-        journal_context = await journal_service.format_journal_context(session_id)
+        older_journal, recent_journal = await journal_service.format_journal_context_split(session_id)
 
         # Build complete message with extracted text for journal synthesis
         complete_message = content
@@ -90,7 +90,8 @@ async def send_message(
         ai_response_text = await openai_service.chat_with_journal(
             message=content,  # Don't include extracted text - use native file support
             conversation_history=history_messages,
-            journal_context=journal_context,
+            older_journal_context=older_journal,
+            recent_journal_context=recent_journal,
             document_url=generated_media_url if document_id else None,
             document_type=message_type if document_id else None
         )
@@ -230,7 +231,7 @@ async def get_conversation_history(
     return {"messages": message_responses, "total_count": total_count, "has_more": has_more}
 
 
-MAX_AUDIO_FILE_SIZE = 20 * 1024 * 1024  # 20MB
+MAX_AUDIO_FILE_SIZE = 50 * 1024 * 1024  # 50MB
 
 
 @router.post("/transcribe")
