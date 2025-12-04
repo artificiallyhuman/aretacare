@@ -384,3 +384,62 @@ def run_migrations():
                 conn.rollback()
         else:
             logger.info("admin_audit_logs table already exists")
+
+        # ==========================================
+        # SECURITY LOGS TABLE
+        # ==========================================
+
+        # Create security_logs table if it doesn't exist
+        if 'security_logs' not in inspector.get_table_names():
+            logger.info("Creating security_logs table...")
+            try:
+                conn.execute(text("""
+                    CREATE TABLE security_logs (
+                        id SERIAL PRIMARY KEY,
+                        event_type VARCHAR(50) NOT NULL,
+                        email VARCHAR(255),
+                        user_id VARCHAR(36),
+                        ip_address VARCHAR(45),
+                        user_agent VARCHAR(500),
+                        endpoint VARCHAR(255),
+                        details TEXT,
+                        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+                    )
+                """))
+                conn.commit()
+                logger.info("Successfully created security_logs table")
+
+                # Create indexes for efficient queries
+                conn.execute(text("""
+                    CREATE INDEX IF NOT EXISTS idx_security_logs_created_at
+                    ON security_logs (created_at DESC)
+                """))
+                conn.commit()
+                logger.info("Created index idx_security_logs_created_at")
+
+                conn.execute(text("""
+                    CREATE INDEX IF NOT EXISTS idx_security_logs_event_type
+                    ON security_logs (event_type)
+                """))
+                conn.commit()
+                logger.info("Created index idx_security_logs_event_type")
+
+                conn.execute(text("""
+                    CREATE INDEX IF NOT EXISTS idx_security_logs_email
+                    ON security_logs (email)
+                """))
+                conn.commit()
+                logger.info("Created index idx_security_logs_email")
+
+                conn.execute(text("""
+                    CREATE INDEX IF NOT EXISTS idx_security_logs_user_id
+                    ON security_logs (user_id)
+                """))
+                conn.commit()
+                logger.info("Created index idx_security_logs_user_id")
+
+            except Exception as e:
+                logger.error(f"Failed to create security_logs table: {e}")
+                conn.rollback()
+        else:
+            logger.info("security_logs table already exists")

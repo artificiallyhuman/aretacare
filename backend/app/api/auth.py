@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session as DBSession
 from typing import Optional
@@ -20,6 +20,7 @@ from app.schemas.auth import (
 )
 from app.services.email_service import email_service
 from app.services.s3_service import s3_service
+from app.services.security_service import security_service
 
 logger = logging.getLogger(__name__)
 
@@ -28,6 +29,7 @@ security = HTTPBearer()
 
 
 def get_current_user(
+    request: Request,
     credentials: HTTPAuthorizationCredentials = Depends(security),
     db: DBSession = Depends(get_db)
 ) -> User:
@@ -36,6 +38,14 @@ def get_current_user(
     payload = decode_access_token(token)
 
     if payload is None:
+        # Log invalid token attempt
+        security_service.log_invalid_token(
+            db=db,
+            ip_address=security_service.get_client_ip(request),
+            user_agent=security_service.get_user_agent(request),
+            endpoint=request.url.path,
+            details="Invalid JWT token"
+        )
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid authentication credentials",
@@ -44,6 +54,14 @@ def get_current_user(
 
     user_id: str = payload.get("sub")
     if user_id is None:
+        # Log invalid token attempt
+        security_service.log_invalid_token(
+            db=db,
+            ip_address=security_service.get_client_ip(request),
+            user_agent=security_service.get_user_agent(request),
+            endpoint=request.url.path,
+            details="Token missing user ID"
+        )
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid authentication credentials",
@@ -52,6 +70,15 @@ def get_current_user(
 
     user = db.query(User).filter(User.id == user_id).first()
     if user is None:
+        # Log invalid token attempt (user doesn't exist)
+        security_service.log_invalid_token(
+            db=db,
+            user_id=user_id,
+            ip_address=security_service.get_client_ip(request),
+            user_agent=security_service.get_user_agent(request),
+            endpoint=request.url.path,
+            details="User not found"
+        )
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="User not found",
@@ -132,11 +159,18 @@ def register(user_data: UserRegister, db: DBSession = Depends(get_db)):
 
 
 @router.post("/login", response_model=TokenResponse)
-def login(user_data: UserLogin, db: DBSession = Depends(get_db)):
+def login(user_data: UserLogin, request: Request, db: DBSession = Depends(get_db)):
     """Login user and return access token."""
     # Find user by email
     user = db.query(User).filter(User.email == user_data.email).first()
     if not user:
+        # Log failed login attempt
+        security_service.log_failed_login(
+            db=db,
+            email=user_data.email,
+            ip_address=security_service.get_client_ip(request),
+            user_agent=security_service.get_user_agent(request)
+        )
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect email or password"
@@ -144,6 +178,13 @@ def login(user_data: UserLogin, db: DBSession = Depends(get_db)):
 
     # Verify password
     if not verify_password(user_data.password, user.password_hash):
+        # Log failed login attempt
+        security_service.log_failed_login(
+            db=db,
+            email=user_data.email,
+            ip_address=security_service.get_client_ip(request),
+            user_agent=security_service.get_user_agent(request)
+        )
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect email or password"

@@ -239,6 +239,9 @@ export const adminAPI = {
     api.get('/admin/audit-log', { params: { page, limit, action, admin_email: adminEmail } }),
   cleanupAuditLog: () => api.post('/admin/audit-log/cleanup'),
 
+  // Security logs
+  getSecurityLogs: (params) => api.get('/admin/security-logs', { params }),
+
   // System health
   getSystemHealth: () => api.get('/admin/health'),
 };

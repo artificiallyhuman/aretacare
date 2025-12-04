@@ -218,3 +218,31 @@ class AuditLogCleanupResponse(BaseModel):
     deleted_count: int
     retention_days: int
     message: str
+
+
+# ==========================================
+# Security Log Schemas
+# ==========================================
+
+class SecurityLogEntry(BaseModel):
+    """Single security log entry."""
+    id: int
+    event_type: str
+    email: Optional[str] = None
+    user_id: Optional[str] = None
+    ip_address: Optional[str] = None
+    user_agent: Optional[str] = None
+    endpoint: Optional[str] = None
+    details: Optional[str] = None
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class SecurityLogResponse(BaseModel):
+    """Paginated security log response."""
+    logs: List[SecurityLogEntry]
+    total: int
+    page: int
+    page_size: int

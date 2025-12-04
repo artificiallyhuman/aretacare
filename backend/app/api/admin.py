@@ -6,6 +6,7 @@ All endpoints require admin authentication via the ADMIN_EMAILS environment vari
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session as DBSession
 from datetime import datetime, timedelta
+from typing import Optional
 import secrets
 import logging
 
@@ -15,7 +16,7 @@ from app.api.auth import get_current_user
 from app.api.permissions import check_is_admin, require_admin
 from app.models import (
     User, Session as SessionModel, SessionCollaborator,
-    Document, AudioRecording, AdminAuditLog
+    Document, AudioRecording, AdminAuditLog, SecurityLog
 )
 from app.schemas.admin import (
     PlatformMetrics, MetricsTrendResponse, MetricsTrend,
@@ -25,7 +26,8 @@ from app.schemas.admin import (
     OrphanedS3Summary, OrphanedS3File, S3DeleteRequest, S3DeleteResponse,
     AuditLogEntry, AuditLogResponse, AuditLogCleanupResponse,
     SystemHealth, ServiceStatus,
-    AdminCheckResponse
+    AdminCheckResponse,
+    SecurityLogEntry, SecurityLogResponse
 )
 from app.services.admin_service import admin_service
 from app.services.s3_service import s3_service
@@ -532,4 +534,42 @@ async def get_system_health(
         status=health["status"],
         services=[ServiceStatus(**s) for s in health["services"]],
         checked_at=health["checked_at"]
+    )
+
+
+# ==========================================
+# Security Logs
+# ==========================================
+
+@router.get("/security-logs", response_model=SecurityLogResponse)
+async def get_security_logs(
+    page: int = Query(1, ge=1, description="Page number"),
+    page_size: int = Query(50, ge=1, le=200, description="Results per page"),
+    event_type: Optional[str] = Query(None, description="Filter by event type: failed_login, invalid_token, unauthorized_access"),
+    email: Optional[str] = Query(None, description="Filter by email"),
+    admin_user: User = Depends(get_admin_user),
+    db: DBSession = Depends(get_db)
+):
+    """Get paginated security logs with optional filters."""
+    # Build query
+    query = db.query(SecurityLog)
+
+    # Apply filters
+    if event_type:
+        query = query.filter(SecurityLog.event_type == event_type)
+    if email:
+        query = query.filter(SecurityLog.email.ilike(f"%{email}%"))
+
+    # Get total count
+    total = query.count()
+
+    # Get paginated results
+    offset = (page - 1) * page_size
+    logs = query.order_by(SecurityLog.created_at.desc()).offset(offset).limit(page_size).all()
+
+    return SecurityLogResponse(
+        logs=[SecurityLogEntry.model_validate(log) for log in logs],
+        total=total,
+        page=page,
+        page_size=page_size
     )

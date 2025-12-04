@@ -7,9 +7,10 @@ from app.models.audio_recording import AudioRecording, AudioRecordingCategory
 from app.models.journal import JournalEntry, EntryType
 from app.models.daily_plan import DailyPlan
 from app.models.admin_audit_log import AdminAuditLog
+from app.models.security_log import SecurityLog
 
 __all__ = [
     "User", "Session", "SessionCollaborator", "Document", "DocumentCategory",
     "Conversation", "MessageRole", "AudioRecording", "AudioRecordingCategory",
-    "JournalEntry", "EntryType", "DailyPlan", "AdminAuditLog"
+    "JournalEntry", "EntryType", "DailyPlan", "AdminAuditLog", "SecurityLog"
 ]

@@ -1,9 +1,11 @@
 """Shared permission checking functions for API endpoints"""
-from fastapi import HTTPException, Depends, status
+from fastapi import HTTPException, Depends, status, Request
 from sqlalchemy.orm import Session
+from typing import Optional
 from app.models import Session as SessionModel, SessionCollaborator
 from app.models.user import User
 from app.core.config import settings
+from app.services.security_service import security_service
 
 
 def check_session_access(session: SessionModel, user_id: str, db: Session, require_owner: bool = False):
