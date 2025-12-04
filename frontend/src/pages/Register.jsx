@@ -126,7 +126,7 @@ function Register() {
               </svg>
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-gray-900 dark:text-white">AretaCare</h1>
+              <h1 className="text-2xl font-bold text-gray-900 dark:text-white">AretaCare<span className="font-normal">™</span></h1>
               <p className="text-xs text-gray-500 dark:text-gray-400">Care | Clarity | Confidence</p>
             </div>
           </div>

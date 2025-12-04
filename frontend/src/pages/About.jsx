@@ -21,7 +21,7 @@ const About = () => {
             />
           </svg>
         </div>
-        <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Welcome to AretaCare</h2>
+        <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Welcome to AretaCare<span className="font-normal">™</span></h2>
         <p className="text-lg text-gray-600 dark:text-gray-400 mb-4">Care | Clarity | Confidence</p>
         <p className="text-gray-700 dark:text-gray-300 max-w-xl mx-auto">
           AretaCare helps you make sense of complicated medical information, stay organized through stressful moments, and have confident conversations with your care team.
@@ -274,7 +274,7 @@ const About = () => {
       {activeTab === 'story' && (
       <div className="bg-gradient-to-br from-primary-50 to-blue-50 dark:from-gray-800 dark:to-gray-900 rounded-lg border border-primary-200 dark:border-gray-700 p-8 shadow-sm">
         <div className="max-w-3xl mx-auto">
-          <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-6 text-center">Why I Created AretaCare</h3>
+          <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-6 text-center">Why I Created AretaCare<span className="font-normal">™</span></h3>
 
           <div className="prose prose-gray dark:prose-invert max-w-none text-gray-700 dark:text-gray-300 space-y-4 leading-relaxed">
             <p>

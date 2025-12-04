@@ -25,7 +25,7 @@ const TermsOfService = () => {
           <section>
             <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4 pb-2 border-b-2 border-primary-200 dark:border-primary-800">1. Acceptance of Terms</h2>
             <p className="text-gray-700 dark:text-gray-300 leading-relaxed text-base">
-              By accessing and using AretaCare, you agree to be bound by these Terms of Service. If you do not agree to these terms, please do not use this application.
+              By accessing and using AretaCare™, you agree to be bound by these Terms of Service. If you do not agree to these terms, please do not use this application.
             </p>
           </section>
 
@@ -275,7 +275,7 @@ const TermsOfService = () => {
           {/* Copyright */}
           <section className="bg-gray-50 dark:bg-gray-700 rounded-lg p-6 border border-gray-200 dark:border-gray-600">
             <p className="text-center text-gray-600 dark:text-gray-300 text-sm">
-              Copyright © 2025 AretaCare. Released under the MIT License.
+              Copyright © 2025 AretaCare™. Released under the MIT License.
             </p>
           </section>
         </div>
