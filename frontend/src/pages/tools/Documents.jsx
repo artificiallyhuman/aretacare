@@ -312,7 +312,7 @@ const Documents = () => {
 
         // Update status to success
         setUploadProgress(prev => prev.map((p, idx) =>
-          idx === i ? { ...p, status: 'success', progress: 100, message: 'Complete!' } : p
+          idx === i ? { ...p, status: 'success', progress: 100, message: 'Complete' } : p
         ));
 
         successCount++;

@@ -129,5 +129,61 @@ class SecurityService:
             return user_agent[:500]  # Truncate to match database column size
         return user_agent
 
+    def check_repeated_upload_failures(
+        self,
+        db: DBSession,
+        user_id: Optional[str] = None,
+        ip_address: Optional[str] = None,
+        time_window_minutes: int = 15,
+        threshold: int = 5
+    ) -> dict:
+        """
+        Check for repeated upload failures from the same user or IP address.
+
+        Args:
+            db: Database session
+            user_id: User ID to check
+            ip_address: IP address to check
+            time_window_minutes: Time window to check (default: 15 minutes)
+            threshold: Number of failures to trigger alert (default: 5)
+
+        Returns:
+            dict with 'abuse_detected', 'failure_count', and 'time_window' keys
+        """
+        from datetime import datetime, timedelta
+        from sqlalchemy import and_, or_
+
+        cutoff_time = datetime.utcnow() - timedelta(minutes=time_window_minutes)
+
+        # Build query for upload failures and blocked uploads
+        query = db.query(SecurityLog).filter(
+            and_(
+                SecurityLog.created_at >= cutoff_time,
+                or_(
+                    SecurityLog.event_type == "upload_failure",
+                    SecurityLog.event_type == "blocked_file_upload"
+                )
+            )
+        )
+
+        # Filter by user_id OR ip_address
+        filters = []
+        if user_id:
+            filters.append(SecurityLog.user_id == user_id)
+        if ip_address:
+            filters.append(SecurityLog.ip_address == ip_address)
+
+        if filters:
+            query = query.filter(or_(*filters))
+
+        failure_count = query.count()
+
+        return {
+            "abuse_detected": failure_count >= threshold,
+            "failure_count": failure_count,
+            "time_window": time_window_minutes,
+            "threshold": threshold
+        }
+
 
 security_service = SecurityService()

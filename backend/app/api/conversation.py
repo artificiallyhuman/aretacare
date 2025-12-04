@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, Request
 from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.models import User, Session as SessionModel, Conversation, Document, AudioRecording
@@ -7,6 +7,7 @@ from app.schemas.conversation import MessageRequest, MessageResponse, Conversati
 from app.services.openai_service import openai_service
 from app.services.journal_service import JournalService
 from app.services.s3_service import s3_service
+from app.services.security_service import SecurityService
 from app.api.auth import get_current_user
 from app.api.permissions import check_session_access
 from typing import Optional
@@ -233,15 +234,28 @@ async def get_conversation_history(
 
 MAX_AUDIO_FILE_SIZE = 50 * 1024 * 1024  # 50MB
 
+# Blocked audio file types for security
+BLOCKED_AUDIO_EXTENSIONS = [
+    # Executable files disguised as audio
+    '.exe', '.bat', '.cmd', '.sh', '.bash', '.ps1',
+    # Scripts
+    '.js', '.py', '.php', '.pl', '.rb',
+    # Archives
+    '.zip', '.tar', '.gz', '.rar',
+]
+
 
 @router.post("/transcribe")
 async def transcribe_audio(
+    request: Request,
     audio: UploadFile = File(...),
     session_id: str = Form(...),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """Transcribe audio file to text using OpenAI's speech-to-text"""
+    security_service = SecurityService()
+
     # Verify user has access to session (owner or collaborator)
     session = db.query(SessionModel).filter(SessionModel.id == session_id).first()
     if not session:
@@ -249,15 +263,44 @@ async def transcribe_audio(
     check_session_access(session, current_user.id, db)
 
     try:
-        # Validate audio file type
-        allowed_types = ['audio/mpeg', 'audio/mp4', 'audio/mpeg', 'audio/mpga', 'audio/m4a', 'audio/wav', 'audio/webm']
-        allowed_extensions = ['.mp3', '.mp4', '.mpeg', '.mpga', '.m4a', '.wav', '.webm']
-
-        file_ext = '.' + audio.filename.split('.')[-1].lower() if '.' in audio.filename else ''
-        if file_ext not in allowed_extensions and audio.content_type not in allowed_types:
+        # Check for blocked file extensions
+        file_ext = ('.' + audio.filename.split('.')[-1].lower()) if '.' in audio.filename else ''
+        if file_ext in BLOCKED_AUDIO_EXTENSIONS:
+            # Log security event for blocked file type attempt
+            security_service.log_event(
+                db=db,
+                event_type="blocked_file_upload",
+                email=current_user.email,
+                user_id=current_user.id,
+                ip_address=security_service.get_client_ip(request),
+                user_agent=security_service.get_user_agent(request),
+                endpoint="/api/conversation/transcribe",
+                details=f"Blocked audio extension: {file_ext}, filename: {audio.filename}"
+            )
             raise HTTPException(
                 status_code=400,
-                detail=f"Invalid audio format. Supported formats: {', '.join(allowed_extensions)}"
+                detail=f"File type '{file_ext}' is not allowed for security reasons. Allowed audio types: MP3, M4A, WAV, WebM, OGG"
+            )
+
+        # Validate audio file type
+        allowed_types = ['audio/mpeg', 'audio/mp4', 'audio/mpeg', 'audio/mpga', 'audio/m4a', 'audio/wav', 'audio/webm', 'audio/ogg']
+        allowed_extensions = ['.mp3', '.mp4', '.mpeg', '.mpga', '.m4a', '.wav', '.webm', '.ogg']
+
+        if file_ext not in allowed_extensions and audio.content_type not in allowed_types:
+            # Log upload failure
+            security_service.log_event(
+                db=db,
+                event_type="upload_failure",
+                email=current_user.email,
+                user_id=current_user.id,
+                ip_address=security_service.get_client_ip(request),
+                user_agent=security_service.get_user_agent(request),
+                endpoint="/api/conversation/transcribe",
+                details=f"Invalid audio format: {file_ext}, content_type: {audio.content_type}"
+            )
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid audio format. Supported formats: MP3, M4A, WAV, WebM, OGG"
             )
 
         # Read audio file content
@@ -265,6 +308,17 @@ async def transcribe_audio(
 
         # Validate file size
         if len(audio_content) > MAX_AUDIO_FILE_SIZE:
+            # Log upload failure
+            security_service.log_event(
+                db=db,
+                event_type="upload_failure",
+                email=current_user.email,
+                user_id=current_user.id,
+                ip_address=security_service.get_client_ip(request),
+                user_agent=security_service.get_user_agent(request),
+                endpoint="/api/conversation/transcribe",
+                details=f"Audio file size exceeds limit: {len(audio_content)} bytes, filename: {audio.filename}"
+            )
             raise HTTPException(
                 status_code=400,
                 detail=f"Audio file size exceeds maximum allowed size of {MAX_AUDIO_FILE_SIZE / 1024 / 1024}MB"

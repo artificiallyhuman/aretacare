@@ -6,6 +6,8 @@ const eventTypeLabels = {
   failed_login: { label: 'Failed Login', color: 'red' },
   invalid_token: { label: 'Invalid Token', color: 'orange' },
   unauthorized_access: { label: 'Unauthorized Access', color: 'purple' },
+  blocked_file_upload: { label: 'Blocked File Upload', color: 'yellow' },
+  upload_failure: { label: 'Upload Failure', color: 'pink' },
 };
 
 export default function AdminSecurityLogs() {
@@ -75,8 +77,8 @@ export default function AdminSecurityLogs() {
             <div className="text-sm text-blue-800 dark:text-blue-200">
               <p className="font-medium">Security Monitoring</p>
               <p className="mt-1 text-blue-700 dark:text-blue-300">
-                This log tracks failed login attempts, invalid authentication tokens, and unauthorized access attempts.
-                Use this to identify potential security threats and suspicious activity.
+                This log tracks failed login attempts, invalid authentication tokens, unauthorized access attempts, blocked file uploads, and upload failures.
+                Use this to identify potential security threats, suspicious activity, and abuse patterns.
               </p>
             </div>
           </div>
@@ -95,6 +97,8 @@ export default function AdminSecurityLogs() {
               <option value="failed_login">Failed Login</option>
               <option value="invalid_token">Invalid Token</option>
               <option value="unauthorized_access">Unauthorized Access</option>
+              <option value="blocked_file_upload">Blocked File Upload</option>
+              <option value="upload_failure">Upload Failure</option>
             </select>
           </div>
 

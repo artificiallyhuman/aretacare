@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Request
 from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.models import Document as DocumentModel, DocumentCategory, Session as SessionModel, User
@@ -6,6 +6,7 @@ from app.schemas import DocumentUploadResponse, DocumentResponse, DocumentUpdate
 from app.services import s3_service, document_processor
 from app.services.openai_service import openai_service
 from app.services.journal_service import JournalService
+from app.services.security_service import SecurityService
 from app.api.auth import get_current_user
 from app.api.permissions import check_session_access
 from typing import List, Optional
@@ -25,17 +26,69 @@ ALLOWED_CONTENT_TYPES = [
     "text/plain",
 ]
 
+# Explicitly blocked file types for security
+BLOCKED_FILE_EXTENSIONS = [
+    # Medical imaging files (DICOM and other formats)
+    '.dcm', '.dicom', '.nii', '.nrrd', '.mha', '.mhd',
+    # Executable files
+    '.exe', '.bat', '.cmd', '.sh', '.bash', '.ps1', '.msi', '.app', '.dmg', '.deb', '.rpm',
+    # Script files
+    '.js', '.py', '.php', '.pl', '.rb', '.lua', '.vbs',
+    # Archive files (could contain anything)
+    '.zip', '.tar', '.gz', '.bz2', '.7z', '.rar', '.tgz', '.xz',
+    # Office files with macros
+    '.xlsm', '.docm', '.pptm',
+    # Database files
+    '.db', '.sqlite', '.mdb',
+    # Other binary/data files
+    '.bin', '.dat', '.dll', '.so', '.dylib',
+]
+
+BLOCKED_MIME_TYPES = [
+    # Medical imaging
+    'application/dicom',
+    # Executables
+    'application/x-executable', 'application/x-msdos-program', 'application/x-msdownload',
+    # Archives
+    'application/zip', 'application/x-tar', 'application/gzip', 'application/x-7z-compressed',
+    'application/x-rar-compressed', 'application/x-bzip2',
+    # Scripts
+    'application/javascript', 'application/x-python-code', 'application/x-php',
+    'text/javascript', 'application/x-sh',
+]
+
 MAX_FILE_SIZE = 50 * 1024 * 1024  # 50MB
 
 
 @router.post("/upload", response_model=DocumentUploadResponse)
 async def upload_document(
+    request: Request,
     file: UploadFile = File(...),
     session_id: str = None,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """Upload a medical document"""
+    security_service = SecurityService()
+
+    # Check for abuse patterns (repeated upload failures)
+    ip_address = security_service.get_client_ip(request)
+    abuse_check = security_service.check_repeated_upload_failures(
+        db=db,
+        user_id=current_user.id,
+        ip_address=ip_address,
+        time_window_minutes=15,
+        threshold=10
+    )
+
+    if abuse_check["abuse_detected"]:
+        # Log the abuse detection
+        logger.warning(
+            f"Potential upload abuse detected: User {current_user.email} / IP {ip_address} "
+            f"has {abuse_check['failure_count']} upload failures in {abuse_check['time_window']} minutes"
+        )
+        # Note: We log but don't block - admin can review security logs
+        # If needed, admin can manually disable account
 
     # Validate session
     if session_id:
@@ -55,11 +108,59 @@ async def upload_document(
         db.refresh(session)
         session_id = session.id
 
-    # Validate file type
-    if file.content_type not in ALLOWED_CONTENT_TYPES:
+    # Check for blocked file extensions
+    file_extension = ('.' + file.filename.split('.')[-1].lower()) if '.' in file.filename else ''
+    if file_extension in BLOCKED_FILE_EXTENSIONS:
+        # Log security event for blocked file type attempt
+        security_service.log_event(
+            db=db,
+            event_type="blocked_file_upload",
+            email=current_user.email,
+            user_id=current_user.id,
+            ip_address=security_service.get_client_ip(request),
+            user_agent=security_service.get_user_agent(request),
+            endpoint="/api/documents/upload",
+            details=f"Blocked file extension: {file_extension}, filename: {file.filename}"
+        )
         raise HTTPException(
             status_code=400,
-            detail=f"File type {file.content_type} not allowed. Allowed types: {', '.join(ALLOWED_CONTENT_TYPES)}"
+            detail=f"File type '{file_extension}' is not allowed for security reasons. Allowed types: PDF, PNG, JPG, TXT"
+        )
+
+    # Check for blocked MIME types
+    if file.content_type in BLOCKED_MIME_TYPES:
+        # Log security event for blocked MIME type attempt
+        security_service.log_event(
+            db=db,
+            event_type="blocked_file_upload",
+            email=current_user.email,
+            user_id=current_user.id,
+            ip_address=security_service.get_client_ip(request),
+            user_agent=security_service.get_user_agent(request),
+            endpoint="/api/documents/upload",
+            details=f"Blocked MIME type: {file.content_type}, filename: {file.filename}"
+        )
+        raise HTTPException(
+            status_code=400,
+            detail=f"File type '{file.content_type}' is not allowed for security reasons. Allowed types: PDF, PNG, JPG, TXT"
+        )
+
+    # Validate file type against allowed types
+    if file.content_type not in ALLOWED_CONTENT_TYPES:
+        # Log upload failure for monitoring
+        security_service.log_event(
+            db=db,
+            event_type="upload_failure",
+            email=current_user.email,
+            user_id=current_user.id,
+            ip_address=security_service.get_client_ip(request),
+            user_agent=security_service.get_user_agent(request),
+            endpoint="/api/documents/upload",
+            details=f"Invalid file type: {file.content_type}, filename: {file.filename}"
+        )
+        raise HTTPException(
+            status_code=400,
+            detail=f"File type {file.content_type} not allowed. Allowed types: PDF, PNG, JPG, TXT"
         )
 
     # Read file content
@@ -67,6 +168,17 @@ async def upload_document(
 
     # Validate file size
     if len(file_content) > MAX_FILE_SIZE:
+        # Log upload failure for monitoring
+        security_service.log_event(
+            db=db,
+            event_type="upload_failure",
+            email=current_user.email,
+            user_id=current_user.id,
+            ip_address=security_service.get_client_ip(request),
+            user_agent=security_service.get_user_agent(request),
+            endpoint="/api/documents/upload",
+            details=f"File size exceeds limit: {len(file_content)} bytes, filename: {file.filename}"
+        )
         raise HTTPException(
             status_code=400,
             detail=f"File size exceeds maximum allowed size of {MAX_FILE_SIZE / 1024 / 1024}MB"
