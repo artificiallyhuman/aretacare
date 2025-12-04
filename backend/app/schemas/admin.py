@@ -246,3 +246,19 @@ class SecurityLogResponse(BaseModel):
     total: int
     page: int
     page_size: int
+
+
+# ==========================================
+# Inactive Account Email Schemas
+# ==========================================
+
+class EmailInactiveUsersRequest(BaseModel):
+    """Request to email inactive users."""
+    user_ids: List[str] = Field(..., min_length=1, description="List of user IDs to email")
+
+
+class EmailInactiveUsersResponse(BaseModel):
+    """Response from emailing inactive users."""
+    emails_sent: int
+    emails_failed: int
+    details: List[dict]

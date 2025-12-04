@@ -217,6 +217,8 @@ export const adminAPI = {
     api.get('/admin/accounts/inactive', { params: { days } }),
   getUnusualAccounts: (zThreshold = 2.0) =>
     api.get('/admin/accounts/unusual', { params: { z_threshold: zThreshold } }),
+  emailInactiveAccounts: (userIds) =>
+    api.post('/admin/accounts/inactive/email', { user_ids: userIds }),
 
   // User administration
   searchUsers: (email, limit = 50) =>

@@ -847,6 +847,106 @@ The AretaCare Team
             logger.error(f"Error sending collaborator removed email: {str(e)}")
             return False
 
+    def send_inactive_account_notification(self, user_email: str, user_name: str, days_inactive: int) -> bool:
+        """Send notification to inactive account."""
+        try:
+            message = MIMEMultipart("alternative")
+            message["Subject"] = "AretaCare - Account Inactivity Notice"
+            message["From"] = f"{settings.SMTP_FROM_NAME} <{settings.SMTP_FROM_EMAIL}>"
+            message["To"] = user_email
+
+            # Plain text version
+            text = f"""
+Hello {user_name},
+
+We noticed that your AretaCare account has been inactive for {days_inactive} days.
+
+To help manage our resources, we periodically review and may remove accounts that have been inactive for extended periods. Your account may be subject to deletion if it remains inactive.
+
+If you'd like to keep your account active, simply log in at:
+{settings.FRONTEND_URL}
+
+If you have any questions or concerns, please visit our GitHub repository:
+https://github.com/artificiallyhuman/aretacare
+
+Thank you for using AretaCare.
+
+---
+This is an automated message from AretaCare.
+"""
+
+            # HTML version
+            html = f"""
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333; }}
+        .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
+        .header {{ background-color: #2563eb; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; }}
+        .content {{ background-color: #f9fafb; padding: 30px; border-radius: 0 0 8px 8px; }}
+        .button {{ display: inline-block; background-color: #2563eb; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; margin: 20px 0; }}
+        .footer {{ text-align: center; margin-top: 20px; font-size: 12px; color: #6b7280; }}
+        .warning {{ background-color: #fef3c7; border-left: 4px solid: #f59e0b; padding: 15px; margin: 20px 0; }}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Account Inactivity Notice</h1>
+        </div>
+        <div class="content">
+            <p>Hello {user_name},</p>
+
+            <p>We noticed that your AretaCare account has been inactive for <strong>{days_inactive} days</strong>.</p>
+
+            <div class="warning">
+                <p><strong>Action May Be Required</strong></p>
+                <p>To help manage our resources, we periodically review and may remove accounts that have been inactive for extended periods. Your account may be subject to deletion if it remains inactive.</p>
+            </div>
+
+            <p>If you'd like to keep your account active, simply log in:</p>
+
+            <div style="text-align: center;">
+                <a href="{settings.FRONTEND_URL}" class="button">Log In to AretaCare</a>
+            </div>
+
+            <p>If you have any questions or concerns, please visit our <a href="https://github.com/artificiallyhuman/aretacare">GitHub repository</a>.</p>
+
+            <p>Thank you for using AretaCare.</p>
+        </div>
+        <div class="footer">
+            <p>This is an automated message from AretaCare.</p>
+            <p>You received this email because you have an account at AretaCare.</p>
+        </div>
+    </div>
+</body>
+</html>
+"""
+
+            part1 = MIMEText(text, "plain")
+            part2 = MIMEText(html, "html")
+            message.attach(part1)
+            message.attach(part2)
+
+            # Check if SMTP password is configured
+            if not settings.SMTP_PASSWORD:
+                logger.warning("SMTP_PASSWORD not configured. Email not sent. Using development mode.")
+                return False
+
+            # Send email
+            with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT) as server:
+                server.starttls()
+                server.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
+                server.send_message(message)
+
+            logger.info(f"Inactive account notification sent successfully to {user_email}")
+            return True
+
+        except Exception as e:
+            logger.error(f"Error sending inactive account notification: {str(e)}")
+            return False
+
 
 # Global instance
 email_service = EmailService()

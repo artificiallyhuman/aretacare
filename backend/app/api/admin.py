@@ -27,7 +27,8 @@ from app.schemas.admin import (
     AuditLogEntry, AuditLogResponse, AuditLogCleanupResponse,
     SystemHealth, ServiceStatus,
     AdminCheckResponse,
-    SecurityLogEntry, SecurityLogResponse
+    SecurityLogEntry, SecurityLogResponse,
+    EmailInactiveUsersRequest, EmailInactiveUsersResponse
 )
 from app.services.admin_service import admin_service
 from app.services.s3_service import s3_service
@@ -117,6 +118,84 @@ async def get_unusual_accounts(
     """Get accounts with unusual activity patterns (statistical outliers)."""
     accounts = admin_service.get_unusual_accounts(db, z_threshold)
     return [UnusualAccount(**a) for a in accounts]
+
+
+@router.post("/accounts/inactive/email", response_model=EmailInactiveUsersResponse)
+async def email_inactive_accounts(
+    request: EmailInactiveUsersRequest,
+    admin_user: User = Depends(get_admin_user),
+    db: DBSession = Depends(get_db)
+):
+    """Send inactivity notification emails to selected users."""
+    emails_sent = 0
+    emails_failed = 0
+    details = []
+
+    for user_id in request.user_ids:
+        # Get user
+        user = db.query(User).filter(User.id == user_id).first()
+        if not user:
+            details.append({
+                "user_id": user_id,
+                "email": None,
+                "status": "failed",
+                "reason": "User not found"
+            })
+            emails_failed += 1
+            continue
+
+        # Calculate days inactive
+        last_activity = admin_service.get_user_last_activity(db, user_id)
+        if last_activity:
+            days_inactive = (datetime.utcnow() - last_activity).days
+        else:
+            days_inactive = (datetime.utcnow() - user.created_at).days
+
+        # Send email
+        success = email_service.send_inactive_account_notification(
+            user.email,
+            user.name,
+            days_inactive
+        )
+
+        if success:
+            emails_sent += 1
+            details.append({
+                "user_id": user_id,
+                "email": user.email,
+                "status": "sent",
+                "days_inactive": days_inactive
+            })
+
+            # Log to audit log
+            audit_log = AdminAuditLog(
+                admin_user_id=admin_user.id,
+                admin_email=admin_user.email,
+                action="inactive_account_email",
+                target_type="user",
+                target_id=user_id,
+                details={
+                    "recipient_email": user.email,
+                    "days_inactive": days_inactive
+                }
+            )
+            db.add(audit_log)
+        else:
+            emails_failed += 1
+            details.append({
+                "user_id": user_id,
+                "email": user.email,
+                "status": "failed",
+                "reason": "Email send failed"
+            })
+
+    db.commit()
+
+    return EmailInactiveUsersResponse(
+        emails_sent=emails_sent,
+        emails_failed=emails_failed,
+        details=details
+    )
 
 
 # ==========================================

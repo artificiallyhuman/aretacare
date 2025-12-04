@@ -9,6 +9,9 @@ export default function AdminAccounts() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [inactiveDays, setInactiveDays] = useState(30);
+  const [selectedUsers, setSelectedUsers] = useState([]);
+  const [sendingEmails, setSendingEmails] = useState(false);
+  const [emailSuccess, setEmailSuccess] = useState('');
 
   useEffect(() => {
     if (activeTab === 'inactive') {
@@ -21,6 +24,8 @@ export default function AdminAccounts() {
   const fetchInactiveAccounts = async () => {
     setLoading(true);
     setError('');
+    setSelectedUsers([]);
+    setEmailSuccess('');
     try {
       const response = await adminAPI.getInactiveAccounts(inactiveDays);
       setInactiveAccounts(response.data);
@@ -28,6 +33,55 @@ export default function AdminAccounts() {
       setError(err.response?.data?.detail || 'Failed to load inactive accounts');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleSelectAll = (e) => {
+    if (e.target.checked) {
+      setSelectedUsers(inactiveAccounts.map(acc => acc.user_id));
+    } else {
+      setSelectedUsers([]);
+    }
+  };
+
+  const handleSelectUser = (userId) => {
+    setSelectedUsers(prev =>
+      prev.includes(userId)
+        ? prev.filter(id => id !== userId)
+        : [...prev, userId]
+    );
+  };
+
+  const handleEmailSelected = async () => {
+    if (selectedUsers.length === 0) return;
+
+    setSendingEmails(true);
+    setError('');
+    setEmailSuccess('');
+
+    try {
+      const response = await adminAPI.emailInactiveAccounts(selectedUsers);
+      setEmailSuccess(`Successfully sent ${response.data.emails_sent} email(s). Failed: ${response.data.emails_failed}`);
+      setSelectedUsers([]);
+    } catch (err) {
+      setError(err.response?.data?.detail || 'Failed to send emails');
+    } finally {
+      setSendingEmails(false);
+    }
+  };
+
+  const handleEmailSingle = async (userId) => {
+    setSendingEmails(true);
+    setError('');
+    setEmailSuccess('');
+
+    try {
+      const response = await adminAPI.emailInactiveAccounts([userId]);
+      setEmailSuccess(`Successfully sent email to user`);
+    } catch (err) {
+      setError(err.response?.data?.detail || 'Failed to send email');
+    } finally {
+      setSendingEmails(false);
     }
   };
 
@@ -82,6 +136,12 @@ export default function AdminAccounts() {
           </div>
         )}
 
+        {emailSuccess && (
+          <div className="bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-300 px-4 py-3 rounded-lg">
+            {emailSuccess}
+          </div>
+        )}
+
         {/* Inactive Accounts Tab */}
         {activeTab === 'inactive' && (
           <div className="space-y-4">
@@ -107,55 +167,92 @@ export default function AdminAccounts() {
                 No inactive accounts found
               </div>
             ) : (
-              <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
-                <div className="overflow-x-auto">
-                <table className="w-full min-w-[600px]">
-                  <thead className="bg-gray-50 dark:bg-gray-700">
-                    <tr>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">User</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Days Inactive</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Last Activity</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Sessions</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Created</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                    {inactiveAccounts.map((account) => (
-                      <tr key={account.user_id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
-                        <td className="px-4 py-3">
-                          <div>
-                            <p className="font-medium text-gray-900 dark:text-white">{account.name}</p>
-                            <p className="text-sm text-gray-500 dark:text-gray-400">{account.email}</p>
-                          </div>
-                        </td>
-                        <td className="px-4 py-3">
-                          <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
-                            account.days_inactive >= 60
-                              ? 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300'
-                              : account.days_inactive >= 30
-                              ? 'bg-orange-100 dark:bg-orange-900/30 text-orange-800 dark:text-orange-300'
-                              : 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300'
-                          }`}>
-                            {account.days_inactive} days
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">
-                          {account.last_activity
-                            ? new Date(account.last_activity).toLocaleDateString()
-                            : 'Never'}
-                        </td>
-                        <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">
-                          {account.session_count}
-                        </td>
-                        <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">
-                          {new Date(account.created_at).toLocaleDateString()}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+              <>
+                <div className="flex justify-end">
+                  <button
+                    onClick={handleEmailSelected}
+                    disabled={selectedUsers.length === 0 || sendingEmails}
+                    className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-sm font-medium"
+                  >
+                    {sendingEmails ? 'Sending...' : `Email Selected (${selectedUsers.length})`}
+                  </button>
                 </div>
-              </div>
+                <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
+                  <div className="overflow-x-auto">
+                  <table className="w-full min-w-[700px]">
+                    <thead className="bg-gray-50 dark:bg-gray-700">
+                      <tr>
+                        <th className="px-4 py-3 text-left">
+                          <input
+                            type="checkbox"
+                            checked={selectedUsers.length === inactiveAccounts.length}
+                            onChange={handleSelectAll}
+                            className="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
+                          />
+                        </th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">User</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Days Inactive</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Last Activity</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Sessions</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Created</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                      {inactiveAccounts.map((account) => (
+                        <tr key={account.user_id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                          <td className="px-4 py-3">
+                            <input
+                              type="checkbox"
+                              checked={selectedUsers.includes(account.user_id)}
+                              onChange={() => handleSelectUser(account.user_id)}
+                              className="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
+                            />
+                          </td>
+                          <td className="px-4 py-3">
+                            <div>
+                              <p className="font-medium text-gray-900 dark:text-white">{account.name}</p>
+                              <p className="text-sm text-gray-500 dark:text-gray-400">{account.email}</p>
+                            </div>
+                          </td>
+                          <td className="px-4 py-3">
+                            <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
+                              account.days_inactive >= 60
+                                ? 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300'
+                                : account.days_inactive >= 30
+                                ? 'bg-orange-100 dark:bg-orange-900/30 text-orange-800 dark:text-orange-300'
+                                : 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300'
+                            }`}>
+                              {account.days_inactive} days
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">
+                            {account.last_activity
+                              ? new Date(account.last_activity).toLocaleDateString()
+                              : 'Never'}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">
+                            {account.session_count}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">
+                            {new Date(account.created_at).toLocaleDateString()}
+                          </td>
+                          <td className="px-4 py-3">
+                            <button
+                              onClick={() => handleEmailSingle(account.user_id)}
+                              disabled={sendingEmails}
+                              className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-xs"
+                            >
+                              Email
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  </div>
+                </div>
+              </>
             )}
           </div>
         )}

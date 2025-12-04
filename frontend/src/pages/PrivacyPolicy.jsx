@@ -249,14 +249,27 @@ const PrivacyPolicy = () => {
             <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4 pb-2 border-b-2 border-primary-200 dark:border-primary-800">8. Data Retention and Deletion</h2>
             <div className="space-y-6">
               <div>
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">Session Data</h3>
-                <p className="text-gray-700 dark:text-gray-300 leading-relaxed text-base mb-3">When you clear your session:</p>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">Document Deletion</h3>
+                <p className="text-gray-700 dark:text-gray-300 leading-relaxed text-base mb-3">When you delete a document:</p>
                 <ul className="list-disc list-inside space-y-2 text-gray-700 dark:text-gray-300 pl-4">
-                  <li>All conversations are permanently deleted</li>
-                  <li>All journal entries are permanently deleted</li>
-                  <li>All uploaded documents are permanently deleted from S3</li>
-                  <li>All daily plans are permanently deleted</li>
-                  <li>Your user account remains active</li>
+                  <li>The document file is permanently deleted from AWS S3 storage</li>
+                  <li>Document thumbnails (if any) are permanently deleted from S3</li>
+                  <li>Extracted text and metadata are permanently deleted from the database</li>
+                  <li>All references to the document in conversations are removed</li>
+                </ul>
+              </div>
+
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">Session Deletion</h3>
+                <p className="text-gray-700 dark:text-gray-300 leading-relaxed text-base mb-3">When you delete a session:</p>
+                <ul className="list-disc list-inside space-y-2 text-gray-700 dark:text-gray-300 pl-4">
+                  <li>All conversations in the session are permanently deleted from the database</li>
+                  <li>All journal entries are permanently deleted from the database</li>
+                  <li>All uploaded documents and audio files are permanently deleted from S3 storage</li>
+                  <li>Document thumbnails and audio transcriptions are permanently deleted</li>
+                  <li>All daily plans are permanently deleted from the database</li>
+                  <li>Session collaborator access is removed</li>
+                  <li>Your user account remains active with any other sessions intact</li>
                 </ul>
               </div>
 
@@ -266,18 +279,48 @@ const PrivacyPolicy = () => {
                   You can delete your account at any time from the Settings page. This will permanently delete:
                 </p>
                 <ul className="list-disc list-inside space-y-2 text-gray-700 dark:text-gray-300 pl-4">
-                  <li>Your account and profile information</li>
-                  <li>All sessions you own and their associated data</li>
-                  <li>All documents, audio recordings, and files in storage</li>
+                  <li>Your account and profile information (name, email, credentials)</li>
+                  <li>All sessions you own and their complete data (conversations, journal, daily plans)</li>
+                  <li>All documents, audio recordings, thumbnails, and associated files in S3 storage</li>
                   <li>Your access to any sessions shared with you (the shared sessions remain for other collaborators)</li>
                 </ul>
               </div>
 
               <div>
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">Data Backup</h3>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">Cloud Backup Retention</h3>
+                <div className="bg-amber-50 dark:bg-amber-900/30 border-l-4 border-amber-500 dark:border-amber-600 p-5 rounded-r-lg">
+                  <p className="text-amber-900 dark:text-amber-200 font-semibold mb-2">
+                    While we immediately delete your data from our active systems, copies may persist in underlying cloud provider backups for a limited time:
+                  </p>
+                  <ul className="space-y-2 text-amber-800 dark:text-amber-300 pl-4">
+                    <li className="flex items-start">
+                      <span className="text-amber-600 mr-2 mt-1">•</span>
+                      <span>Database backups (PostgreSQL via Render) may retain deleted data for up to 30 days</span>
+                    </li>
+                    <li className="flex items-start">
+                      <span className="text-amber-600 mr-2 mt-1">•</span>
+                      <span>S3 backups (AWS) may retain deleted files according to AWS backup policies</span>
+                    </li>
+                    <li className="flex items-start">
+                      <span className="text-amber-600 mr-2 mt-1">•</span>
+                      <span>These backup copies are not accessible through the application and will be automatically purged according to cloud provider retention policies</span>
+                    </li>
+                  </ul>
+                </div>
+              </div>
+
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">Inactive Account Deletion</h3>
+                <p className="text-gray-700 dark:text-gray-300 leading-relaxed text-base">
+                  We reserve the right to delete accounts that have been inactive for more than 90 days. Before deletion, we will make reasonable efforts to notify you at your registered email address. Inactive account deletion follows the same process as user-initiated account deletion, permanently removing all associated data from active systems.
+                </p>
+              </div>
+
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">No Automatic User Backups</h3>
                 <div className="bg-blue-50 dark:bg-blue-900/30 border-l-4 border-blue-500 dark:border-blue-600 p-5 rounded-r-lg">
                   <p className="text-blue-900 dark:text-blue-200 font-semibold mb-3">
-                    We do not maintain automatic backups of user data. If you need to preserve your information, you should:
+                    We do not maintain automatic backups accessible to users. If you need to preserve your information, you should:
                   </p>
                   <ul className="space-y-2 text-blue-800 dark:text-blue-300 pl-4">
                     <li className="flex items-start">
@@ -292,7 +335,14 @@ const PrivacyPolicy = () => {
                       <span className="text-blue-600 mr-2 mt-1">•</span>
                       <span>Save your daily plans manually</span>
                     </li>
+                    <li className="flex items-start">
+                      <span className="text-blue-600 mr-2 mt-1">•</span>
+                      <span>Copy important conversation content</span>
+                    </li>
                   </ul>
+                  <p className="text-blue-900 dark:text-blue-200 mt-3">
+                    Once deleted, data cannot be recovered from active systems.
+                  </p>
                 </div>
               </div>
             </div>
@@ -337,10 +387,25 @@ const PrivacyPolicy = () => {
           {/* Section 11 - Beta Software Warning */}
           <section>
             <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4 pb-2 border-b-2 border-primary-200 dark:border-primary-800">11. Beta Software, HIPAA, and Data Loss</h2>
-            <div className="bg-amber-50 dark:bg-amber-900/30 border-l-4 border-amber-500 dark:border-amber-600 p-5 rounded-r-lg">
-              <p className="text-amber-900 dark:text-amber-200 font-semibold">
-                AretaCare is not a HIPAA-covered service. The platform is designed for personal use and does not receive information directly from healthcare providers. The system is currently in beta and may be unstable with occasional data loss. We are not responsible for any lost data. Do not rely on it as a medical record system or for storing critical health information.
-              </p>
+            <div className="bg-amber-50 dark:bg-amber-900/30 border-l-4 border-amber-500 dark:border-amber-600 p-5 rounded-r-lg space-y-3">
+              <div>
+                <p className="text-amber-900 dark:text-amber-200 font-semibold mb-2">Direct-to-Consumer Tool</p>
+                <p className="text-amber-900 dark:text-amber-200">
+                  AretaCare is a direct-to-consumer tool designed for personal use by patients and caregivers. It is not acting on behalf of any healthcare provider or insurer, and does not integrate with provider systems or electronic health records. Healthcare providers should not use AretaCare as part of their clinical record or workflow.
+                </p>
+              </div>
+              <div>
+                <p className="text-amber-900 dark:text-amber-200 font-semibold mb-2">Not a HIPAA-Covered Service</p>
+                <p className="text-amber-900 dark:text-amber-200">
+                  AretaCare is not a HIPAA-covered service. The platform does not receive information directly from healthcare providers and is not intended to serve as a medical record system.
+                </p>
+              </div>
+              <div>
+                <p className="text-amber-900 dark:text-amber-200 font-semibold mb-2">Beta Software and Data Loss</p>
+                <p className="text-amber-900 dark:text-amber-200">
+                  The system is currently in beta and may be unstable with occasional data loss. We are not responsible for any lost data. Do not rely on it for storing critical health information.
+                </p>
+              </div>
             </div>
           </section>
 
