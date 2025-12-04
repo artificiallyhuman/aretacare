@@ -334,10 +334,10 @@ const PrivacyPolicy = () => {
 
           {/* Section 11 - Beta Software Warning */}
           <section>
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4 pb-2 border-b-2 border-primary-200 dark:border-primary-800">11. Beta Software and Data Loss</h2>
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4 pb-2 border-b-2 border-primary-200 dark:border-primary-800">11. Beta Software, HIPAA, and Data Loss</h2>
             <div className="bg-amber-50 dark:bg-amber-900/30 border-l-4 border-amber-500 dark:border-amber-600 p-5 rounded-r-lg">
               <p className="text-amber-900 dark:text-amber-200 font-semibold">
-                The system may be unstable and could experience occasional data loss. We are not responsible for any lost data. Please do not store confidential or identifiable medical information in this version. Use only non-sensitive or sample data while we complete our security and HIPAA compliance work.
+                AretaCare is not a HIPAA-covered service. The platform is designed for personal use and does not receive information directly from healthcare providers. The system is currently in beta and may be unstable with occasional data loss. We are not responsible for any lost data. Do not rely on it as a medical record system or for storing critical health information.
               </p>
             </div>
           </section>

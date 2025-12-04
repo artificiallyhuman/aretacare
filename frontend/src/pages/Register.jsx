@@ -24,7 +24,7 @@ function Register() {
     },
     {
       title: 'Beta Version',
-      message: 'The system may be unstable and could experience occasional data loss. Please do not store confidential or identifiable medical information in this version. Use only non-sensitive or sample data while we complete our security and HIPAA compliance work.'
+      message: 'AretaCare is not a HIPAA-covered service. The platform is designed for personal use and does not receive information directly from healthcare providers. The system is currently in beta and may be unstable with occasional data loss. Do not rely on it as a medical record system or for storing critical health information.'
     }
   ];
 
@@ -51,7 +51,7 @@ function Register() {
     }
 
     if (!acknowledgeBetaVersion) {
-      setError('You must acknowledge the beta version status, potential data loss, and data sensitivity requirements');
+      setError('You must acknowledge the beta status, HIPAA limitations, and potential data loss');
       return;
     }
 
@@ -244,7 +244,7 @@ function Register() {
                   required
                 />
                 <label htmlFor="acknowledgeBetaVersion" className="ml-3 text-sm text-gray-700 dark:text-gray-300 cursor-pointer">
-                  I understand the system may be unstable and could experience occasional data loss. I will not store confidential or identifiable medical information, and will use only non-sensitive or sample data while security and HIPAA compliance work is completed.
+                  I understand AretaCare is not a HIPAA-covered service, is in beta, and may experience occasional data loss. I will not rely on it as a medical record system or for storing critical health information.
                 </label>
               </div>
 

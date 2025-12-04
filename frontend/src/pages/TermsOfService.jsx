@@ -104,10 +104,13 @@ const TermsOfService = () => {
 
           {/* Section 5 */}
           <section>
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4 pb-2 border-b-2 border-primary-200 dark:border-primary-800">5. Beta Software</h2>
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4 pb-2 border-b-2 border-primary-200 dark:border-primary-800">5. Beta Software and HIPAA</h2>
             <div className="space-y-4">
               <div className="bg-amber-50 dark:bg-amber-900/30 border-l-4 border-amber-500 dark:border-amber-600 p-5 rounded-r-lg">
-                <p className="text-amber-900 dark:text-amber-200 font-medium mb-2">The system may be unstable and could experience occasional data loss. Users may experience:</p>
+                <p className="text-amber-900 dark:text-amber-200 font-medium mb-3">
+                  AretaCare is not a HIPAA-covered service. The platform is designed for personal use and does not receive information directly from healthcare providers.
+                </p>
+                <p className="text-amber-900 dark:text-amber-200 font-medium mb-2">The system is currently in beta and may be unstable. Users may experience:</p>
                 <ul className="list-disc list-inside space-y-1 text-amber-800 dark:text-amber-300 pl-2">
                   <li>Occasional data loss</li>
                   <li>Service interruptions or downtime</li>
@@ -116,7 +119,7 @@ const TermsOfService = () => {
                 </ul>
               </div>
               <p className="text-gray-700 dark:text-gray-300 leading-relaxed text-base font-semibold">
-                Please do not store confidential or identifiable medical information in this version. Use only non-sensitive or sample data while we complete our security and HIPAA compliance work.
+                Do not rely on AretaCare as a medical record system or for storing critical health information. Always maintain separate records of important medical information.
               </p>
             </div>
           </section>
