@@ -23,7 +23,7 @@ function Register() {
       message: 'AretaCare is an AI assistant, not a medical professional. For any medical decisions, please consult your care team.'
     },
     {
-      title: 'Beta Version',
+      title: 'Service Limitations',
       message: 'AretaCare is not a HIPAA-covered service. The platform is designed for personal use and does not receive information directly from healthcare providers. The system is currently in beta and may be unstable with occasional data loss. Do not rely on it as a medical record system or for storing critical health information.'
     }
   ];
