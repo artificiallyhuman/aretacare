@@ -206,6 +206,8 @@ const PrivacyPolicy = () => {
                   <li>Passwords are hashed using bcrypt</li>
                   <li>Authentication via JWT tokens</li>
                   <li>HTTPS encryption for data in transit</li>
+                  <li>S3 file storage uses AES-256 encryption at rest</li>
+                  <li>Database encryption at rest (PostgreSQL)</li>
                   <li>Access controls on database and storage</li>
                 </ul>
               </div>

@@ -31,13 +31,14 @@ class S3Service:
         return path
 
     async def upload_file(self, file_content: bytes, key: str, content_type: str) -> bool:
-        """Upload file to S3 bucket"""
+        """Upload file to S3 bucket with AES-256 encryption"""
         try:
             self.s3_client.put_object(
                 Bucket=self.bucket_name,
                 Key=key,
                 Body=file_content,
-                ContentType=content_type
+                ContentType=content_type,
+                ServerSideEncryption='AES256'
             )
             logger.info(f"Successfully uploaded file to S3: {key}")
             return True
