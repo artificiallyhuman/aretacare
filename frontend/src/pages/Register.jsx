@@ -11,6 +11,7 @@ function Register() {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [acknowledgeNotMedicalAdvice, setAcknowledgeNotMedicalAdvice] = useState(false);
+  const [acknowledgeHIPAA, setAcknowledgeHIPAA] = useState(false);
   const [acknowledgeBetaVersion, setAcknowledgeBetaVersion] = useState(false);
   const [acknowledgeEmailCommunications, setAcknowledgeEmailCommunications] = useState(false);
   const [error, setError] = useState('');
@@ -23,8 +24,8 @@ function Register() {
       message: 'AretaCare is an AI assistant, not a medical professional. For any medical decisions, please consult your care team.'
     },
     {
-      title: 'Service Limitations',
-      message: 'AretaCare is not a HIPAA-covered service. The platform is designed for personal use and does not receive information directly from healthcare providers. The system is currently in beta and may be unstable with occasional data loss. Do not rely on it as a medical record system or for storing critical health information.'
+      title: 'Notice',
+      message: 'AretaCare is not a HIPAA-covered service. It is designed for personal use by patients and caregivers, and should not be treated as an official medical record system or the only place critical health information is stored.'
     }
   ];
 
@@ -50,8 +51,13 @@ function Register() {
       return;
     }
 
+    if (!acknowledgeHIPAA) {
+      setError('You must acknowledge the HIPAA limitations and understand this is not a medical record system');
+      return;
+    }
+
     if (!acknowledgeBetaVersion) {
-      setError('You must acknowledge the beta status, HIPAA limitations, and potential data loss');
+      setError('You must acknowledge the beta status and potential for data loss');
       return;
     }
 
@@ -236,6 +242,21 @@ function Register() {
               <div className="flex items-start">
                 <input
                   type="checkbox"
+                  id="acknowledgeHIPAA"
+                  checked={acknowledgeHIPAA}
+                  onChange={(e) => setAcknowledgeHIPAA(e.target.checked)}
+                  disabled={loading}
+                  className="mt-1 h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 dark:border-gray-600 rounded cursor-pointer"
+                  required
+                />
+                <label htmlFor="acknowledgeHIPAA" className="ml-3 text-sm text-gray-700 dark:text-gray-300 cursor-pointer">
+                  I understand AretaCare is not a HIPAA-covered service. It is designed for personal use by patients and caregivers, and should not be treated as an official medical record system or the only place critical health information is stored.
+                </label>
+              </div>
+
+              <div className="flex items-start">
+                <input
+                  type="checkbox"
                   id="acknowledgeBetaVersion"
                   checked={acknowledgeBetaVersion}
                   onChange={(e) => setAcknowledgeBetaVersion(e.target.checked)}
@@ -244,7 +265,7 @@ function Register() {
                   required
                 />
                 <label htmlFor="acknowledgeBetaVersion" className="ml-3 text-sm text-gray-700 dark:text-gray-300 cursor-pointer">
-                  I understand AretaCare is not a HIPAA-covered service, is in beta, and may experience occasional data loss. I will not rely on it as a medical record system or for storing critical health information.
+                  I understand AretaCare is currently in beta and may experience instability and occasional data loss. I will not rely on it as the only place I store critical health information.
                 </label>
               </div>
 

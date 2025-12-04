@@ -17,7 +17,7 @@ AretaCare is an AI-powered medical care advocate assistant that helps families u
 - Audio recording with live waveform visualization, 15-minute countdown timer, and real-time transcription
 - Audio file uploads - supports MP3, M4A, WAV, WebM, OGG (20MB limit, auto-chunks long files, converts to MP3 for browser playback)
 - Document uploads - supports PDF, PNG, JPG, TXT (20MB limit) with text extraction and AI categorization
-- JWT-based authentication with bcrypt password hashing, registration requires three acknowledgement checkboxes
+- JWT-based authentication with bcrypt password hashing, registration requires four acknowledgement checkboxes
 - Email notifications - password changes, email changes, collaborator management (sent via Gmail SMTP)
 - Settings page - account management, password reset via email, manage sessions, account deletion
 - AI-powered Documents Manager (12 categories, AI descriptions, searchable, date navigation, direct upload)
@@ -139,7 +139,7 @@ See `backend/app/config/README.md` for complete documentation on modifying AI be
 - JWT-based authentication with 7-day token expiration
 - Passwords hashed with bcrypt (72-byte maximum due to bcrypt limitation)
 - Minimum password length: 8 characters
-- Registration requires three acknowledgements: not medical advice, beta version, email communications
+- Registration requires four acknowledgements: not medical advice, HIPAA limitations, beta version/data loss, email communications
 - Auth token stored in localStorage, included in API requests via Authorization header
 - Protected routes on both frontend (React Router) and backend (FastAPI dependencies)
 - Email notifications sent for password changes, email changes, and collaborator actions
@@ -338,11 +338,11 @@ Theme managed via `ThemeContext.jsx`, persisted to localStorage.
 
 **First-time Setup:**
 1. Navigate to http://localhost:3001
-2. Create account (8-72 character password, check three acknowledgement boxes)
+2. Create account (8-72 character password, check four acknowledgement boxes)
 3. Auto-logged in and redirected
 
 **Key Features to Test:**
-- Registration with three required acknowledgements
+- Registration with four required acknowledgements
 - Conversation interface with text/voice/document input
 - Multi-session management (up to 3 sessions, rename, switch)
 - Session sharing (share by email, collaborator access, leave session)
