@@ -153,6 +153,7 @@ aretacare/
 | Document | Description |
 |----------|-------------|
 | [CLAUDE.md](CLAUDE.md) | Development guidance for Claude Code |
+| [SECURITY.md](SECURITY.md) | Security vulnerability reporting |
 | [docs/SETUP_GUIDE.md](docs/SETUP_GUIDE.md) | Detailed AWS and OpenAI configuration |
 | [docs/API_USAGE.md](docs/API_USAGE.md) | API endpoint reference |
 | [docs/SAFETY_GUIDELINES.md](docs/SAFETY_GUIDELINES.md) | AI safety requirements |

@@ -743,7 +743,8 @@ Authorization: Bearer <token>
 **Requirements:**
 - User must have journal entries OR conversations (sufficient data)
 - Returns HTTP 400 if insufficient data exists
-- Auto-generates after 2 AM local time when user becomes active (if no plan exists for today)
+- **First plan**: Auto-generates after the session has been active for 24 hours
+- **Subsequent plans**: Auto-generate after 2 AM local time when user becomes active (if no plan exists for today)
 
 **Response (Success):**
 ```json
