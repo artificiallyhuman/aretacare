@@ -313,7 +313,10 @@ class DailyPlanService:
     @staticmethod
     def should_generate_new_plan(db: Session, session_id: str) -> tuple[bool, Optional[DailyPlan]]:
         """
-        Check if a new daily plan should be generated (24 hours have passed).
+        Check if a new daily plan should be generated.
+
+        For the first plan: requires session to be 24+ hours old.
+        For subsequent plans: requires latest plan to be from a previous day.
 
         Returns:
             tuple: (should_generate: bool, latest_plan: Optional[DailyPlan])
@@ -325,9 +328,20 @@ class DailyPlanService:
 
         today = date.today()
 
-        # If no plan exists, should generate
+        # If no plan exists, check if session is old enough (24+ hours)
         if not latest_plan:
-            return True, None
+            # Get the session to check when it was created
+            session = db.query(UserSession).filter(UserSession.id == session_id).first()
+            if session:
+                # Calculate hours since session creation
+                hours_since_creation = (datetime.utcnow() - session.created_at).total_seconds() / 3600
+                # Only generate if session is 24+ hours old
+                if hours_since_creation >= 24:
+                    return True, None
+                else:
+                    return False, None
+            # If session not found (shouldn't happen), don't generate
+            return False, None
 
         # If latest plan is not for today, should generate
         if latest_plan.date < today:

@@ -111,6 +111,11 @@ const Conversation = () => {
 
   useEffect(() => {
     if (activeSessionId) {
+      // Reset daily plan state when switching sessions
+      setHasNewDailyPlan(false);
+      setShowBanner(false);
+      setDailyPlanPanelOpen(false);
+
       loadConversationHistory();
       checkDailyPlan();
     }
