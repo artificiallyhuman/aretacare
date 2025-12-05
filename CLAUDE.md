@@ -196,7 +196,7 @@ See `backend/app/config/README.md` for complete documentation on modifying AI be
   - Context: ALL journal entries (grouped by type, max 5 per type), last 7 days conversations (max 50 messages), last 10 documents (with text preview), last 3 daily plans
   - Generates concise daily priorities, reminders, and questions for care team
 - `s3_service.py` - S3 upload/download/delete, presigned URLs (24-hour expiration)
-- `document_processor.py` - Text extraction (PDF via PyPDF2, images via Tesseract OCR), thumbnail generation (PDFs)
+- `document_processor.py` - Text extraction (PDF via pypdf, images via Tesseract OCR), thumbnail generation (PDFs)
 - `email_service.py` - Email notifications via Gmail SMTP (password changes, email changes, collaborator management, password reset)
 - `admin_service.py` - Admin metrics, S3 orphan detection, audit log management
 

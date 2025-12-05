@@ -1,4 +1,4 @@
-from PyPDF2 import PdfReader
+from pypdf import PdfReader
 from io import BytesIO
 from PIL import Image
 import pytesseract
