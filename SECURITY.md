@@ -132,4 +132,4 @@ If you have questions about this security policy or responsible disclosure, plea
 
 ---
 
-**Last Updated**: 2024-12-04
+**Last Updated**: 2025-12-04
