@@ -80,7 +80,7 @@ Conversation:
 User: {user_message}
 Assistant: {ai_response}
 
-Create journal entries for this conversation. Set should_create to true unless this is just a greeting with no substance (like just "hi" or "thanks").
+Create a journal entry for this conversation. Set should_create to true unless this is just a greeting with no substance (like just "hi" or "thanks").
 
 Choose the appropriate entry type:
 - MEDICAL_UPDATE: Test results, diagnoses, symptoms, health status changes
@@ -97,20 +97,13 @@ Adjust detail level based on importance:
 - Routine topics (general questions, simple updates) = brief entry (1-2 sentences)
 - Significant moments (milestones, major decisions) = thoughtful entry
 
-ENTRY SPLITTING GUIDANCE - READ CAREFULLY:
-- ALWAYS create separate entries when different entry types are mentioned
-- Splitting by category is CRITICAL for filtering and organization
-- Examples requiring MULTIPLE entries:
-  * Medical update + appointment mentioned → MUST split into 2 entries
-  * New medication + lab results → MUST split into 2 entries
-  * Appointment + treatment change → MUST split into 2 entries
-  * Any mention of appointment scheduling → SEPARATE APPOINTMENT entry
-- Examples that stay as ONE entry:
-  * Multiple aspects of the same medication → 1 TREATMENT_CHANGE entry
-  * Several questions about the same condition → 1 MEDICAL_UPDATE entry
-  * Multiple related reflections → 1 INSIGHT entry
-
-CRITICAL: If an appointment is mentioned (scheduled, discussed, or referenced), create a dedicated APPOINTMENT entry even if other topics are also discussed.
+ENTRY SPLITTING GUIDANCE:
+- Generally, create ONE comprehensive entry per conversation
+- You may create separate entries if the conversation covers distinctly different topics that would benefit from separate categorization
+- Examples where splitting may be appropriate:
+  * A conversation covering both a medical update AND scheduling an appointment → could be 2 entries
+  * Discussion of new medication AND unrelated test results → could be 2 entries
+- Most conversations should be ONE entry even if multiple topics are mentioned
 
 IMPORTANT: Respond with ONLY a valid JSON object in this exact format, with no additional text before or after:
 {{
