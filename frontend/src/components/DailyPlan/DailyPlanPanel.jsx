@@ -17,21 +17,24 @@ const DailyPlanPanel = ({ activeSessionId, isOpen, onToggle }) => {
   const loadLatestPlan = async () => {
     try {
       setLoading(true);
+      setError(null);
       const response = await dailyPlanAPI.getLatest(activeSessionId);
-      setDailyPlan(response.data);
 
-      // Mark as viewed if not already
-      if (!response.data.viewed) {
-        await dailyPlanAPI.markViewed(response.data.id);
+      // Backend now returns null if no plan exists (instead of 404)
+      if (response.data) {
+        setDailyPlan(response.data);
+
+        // Mark as viewed if not already
+        if (!response.data.viewed) {
+          await dailyPlanAPI.markViewed(response.data.id);
+        }
+      } else {
+        // No plan exists yet (new session)
+        setDailyPlan(null);
       }
     } catch (err) {
-      if (err.response?.status === 404) {
-        // No daily plan exists yet
-        setDailyPlan(null);
-      } else {
-        console.error('Error loading daily plan:', err);
-        setError('Failed to load daily plan');
-      }
+      console.error('Error loading daily plan:', err);
+      setError('Failed to load daily plan');
     } finally {
       setLoading(false);
     }
@@ -112,18 +115,23 @@ const DailyPlanPanel = ({ activeSessionId, isOpen, onToggle }) => {
             {error}
           </div>
         ) : !dailyPlan || !hasTodaysPlan() ? (
-          <div className="text-center py-6 md:py-8">
+          <div className="text-center py-6 md:py-8 px-4">
             <svg className="w-10 h-10 md:w-12 md:h-12 text-gray-400 dark:text-gray-500 mx-auto mb-2 md:mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
             </svg>
-            <p className="text-xs md:text-sm text-gray-600 dark:text-gray-400 mb-3 md:mb-4">
+            <p className="text-xs md:text-sm text-gray-600 dark:text-gray-400 mb-2">
               {dailyPlan ? "No plan for today yet" : "No daily plan yet"}
             </p>
+            {!dailyPlan && (
+              <p className="text-xs text-gray-500 dark:text-gray-500 mb-3 md:mb-4">
+                Your first daily plan will auto-generate after 24 hours of activity
+              </p>
+            )}
             <button
               onClick={handleGeneratePlan}
               className="text-xs md:text-sm text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 font-medium"
             >
-              Generate Today's Plan
+              Generate Now
             </button>
           </div>
         ) : (
