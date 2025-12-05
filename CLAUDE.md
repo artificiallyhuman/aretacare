@@ -177,7 +177,7 @@ See `backend/app/config/README.md` for complete documentation on modifying AI be
 - `journal.py` - Journal CRUD operations
 - `daily_plans.py` - Daily plan management (generate, list, update)
 - `tools.py` - Standalone tools (Jargon Translator, Conversation Coach)
-- `admin.py` - Admin console (metrics, health, S3 cleanup, audit log)
+- `admin.py` - Admin console (metrics, health, S3 cleanup, admin logs)
 
 **Models** (`backend/app/models/`): `user.py`, `session.py`, `session_collaborator.py`, `document.py`, `audio_recording.py`, `journal.py`, `daily_plan.py`, `conversation.py`, `admin_audit_log.py`
 
@@ -215,7 +215,7 @@ See `backend/app/config/README.md` for complete documentation on modifying AI be
 - `AudioRecordings.jsx` - AI-powered audio manager
 - `Login.jsx`, `Register.jsx`, `PasswordReset.jsx` - Authentication
 - `About.jsx`, `TermsOfService.jsx`, `PrivacyPolicy.jsx` - Info pages
-- `admin/` - Admin console pages (Dashboard, Health, S3Cleanup, AuditLog)
+- `admin/` - Admin console pages (Dashboard, SecurityLogs, Health, Accounts, Users, S3Cleanup, AdminLogs)
 
 **Components** (`frontend/src/components/`):
 - `Header.jsx` - Navigation with session switcher
@@ -351,7 +351,7 @@ Theme managed via `ThemeContext.jsx`, persisted to localStorage.
 - Daily Plan generation and editing
 - Documents/Audio with AI categorization
 - Settings: account updates, session management, password reset
-- Admin console (requires email in ADMIN_EMAILS): metrics, health, S3 cleanup, audit log
+- Admin console (requires email in ADMIN_EMAILS): dashboard, security logs, system health, accounts, users, S3 cleanup, admin logs
 - Mobile responsiveness
 
 ## Safety Guideline Enforcement

@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import AdminLayout from '../../components/admin/AdminLayout';
 import { adminAPI } from '../../services/api';
 
 export default function AdminAccounts() {
-  const [activeTab, setActiveTab] = useState('inactive');
+  const [searchParams] = useSearchParams();
+  const [activeTab, setActiveTab] = useState(searchParams.get('tab') === 'unusual' ? 'unusual' : 'inactive');
   const [inactiveAccounts, setInactiveAccounts] = useState([]);
   const [unusualAccounts, setUnusualAccounts] = useState([]);
   const [loading, setLoading] = useState(true);
