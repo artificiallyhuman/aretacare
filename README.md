@@ -174,7 +174,8 @@ AretaCare deploys to Render using the included `render.yaml` blueprint:
 
 ## License
 
-MIT
+MIT, with additional restrictions under the Commons Clause.  
+See `LICENSE` and `COMMONS-CLAUSE.md` for details.
 
 ---
 
