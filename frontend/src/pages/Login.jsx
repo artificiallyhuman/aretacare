@@ -32,9 +32,8 @@ function Login() {
       const response = await authAPI.login(email, password);
       const { access_token, user } = response.data;
 
-      // Store auth token and user info
+      // Store auth token
       localStorage.setItem('auth_token', access_token);
-      localStorage.setItem('user', JSON.stringify(user));
 
       // Reload to home page to reinitialize session
       window.location.href = '/';

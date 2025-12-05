@@ -78,7 +78,6 @@ export default function Settings() {
       const response = await authAPI.updateName(nameForm.name, nameForm.password);
       const updatedUser = response.data;
       setUser(updatedUser);
-      localStorage.setItem('user', JSON.stringify(updatedUser));
       setSuccess((prev) => ({ ...prev, name: 'Name updated successfully' }));
       setNameForm({ ...nameForm, password: '' });
       // Refresh page to update name in header
@@ -104,7 +103,6 @@ export default function Settings() {
       const response = await authAPI.updateEmail(emailForm.email, emailForm.password);
       const updatedUser = response.data;
       setUser(updatedUser);
-      localStorage.setItem('user', JSON.stringify(updatedUser));
       setSuccess((prev) => ({ ...prev, email: 'Email updated successfully' }));
       setEmailForm({ ...emailForm, password: '' });
       setTimeout(() => setExpandedSection(null), 2000);
@@ -138,7 +136,6 @@ export default function Settings() {
       const response = await authAPI.updatePassword(passwordForm.currentPassword, passwordForm.newPassword);
       const updatedUser = response.data;
       setUser(updatedUser);
-      localStorage.setItem('user', JSON.stringify(updatedUser));
       setSuccess((prev) => ({ ...prev, password: 'Password updated successfully' }));
       setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
       setTimeout(() => setExpandedSection(null), 2000);
