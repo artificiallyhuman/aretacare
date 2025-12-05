@@ -65,6 +65,7 @@ async def upload_document(
     request: Request,
     file: UploadFile = File(...),
     session_id: str = None,
+    skip_journal_synthesis: str = "false",  # "true" for conversation uploads, "false" for management uploads
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
@@ -252,42 +253,47 @@ async def upload_document(
     db.commit()
     db.refresh(document)
 
-    # Create journal entry from document content
-    # This matches the behavior of document uploads in conversations
-    try:
-        journal_service = JournalService(db)
+    # Create journal entry from document content (only for management page uploads)
+    # Conversation uploads skip this and synthesize when the document is used in conversation
+    skip_synthesis = skip_journal_synthesis.lower() == "true"
 
-        # Format as a user message about the document
-        user_message = f"Document uploaded: {file.filename}\n\n"
-        if extracted_text:
-            # Include first 500 characters of extracted text for context
-            preview = extracted_text[:500] + ("..." if len(extracted_text) > 500 else "")
-            user_message += f"Content preview:\n{preview}"
-        else:
-            user_message += "Document type: " + file.content_type
+    if not skip_synthesis:
+        try:
+            journal_service = JournalService(db)
 
-        ai_response = f"I've processed this document. {ai_description if ai_description else 'This appears to be related to your care journey.'}"
+            # Format as a user message about the document
+            user_message = f"Document uploaded: {file.filename}\n\n"
+            if extracted_text:
+                # Include first 500 characters of extracted text for context
+                preview = extracted_text[:500] + ("..." if len(extracted_text) > 500 else "")
+                user_message += f"Content preview:\n{preview}"
+            else:
+                user_message += "Document type: " + file.content_type
 
-        # Use today's date
-        from datetime import date as date_type
-        entry_date = date_type.today()
+            ai_response = f"I've processed this document. {ai_description if ai_description else 'This appears to be related to your care journey.'}"
 
-        synthesis_result = await journal_service.assess_and_synthesize(
-            user_message=user_message,
-            ai_response=ai_response,
-            session_id=session_id,
-            conversation_id=None,  # Not from a conversation
-            entry_date=entry_date
-        )
+            # Use today's date
+            from datetime import date as date_type
+            entry_date = date_type.today()
 
-        if synthesis_result.should_create and len(synthesis_result.suggested_entries) > 0:
-            logger.info(f"Created {len(synthesis_result.suggested_entries)} journal entries from document upload")
-        else:
-            logger.info("No journal entries created from document upload (not journal-worthy)")
+            synthesis_result = await journal_service.assess_and_synthesize(
+                user_message=user_message,
+                ai_response=ai_response,
+                session_id=session_id,
+                conversation_id=None,  # Not from a conversation
+                entry_date=entry_date
+            )
 
-    except Exception as e:
-        # Log but don't fail the upload if journal synthesis fails
-        logger.warning(f"Failed to create journal entry from document upload: {e}")
+            if synthesis_result.should_create and len(synthesis_result.suggested_entries) > 0:
+                logger.info(f"Created {len(synthesis_result.suggested_entries)} journal entries from document upload")
+            else:
+                logger.info("No journal entries created from document upload (not journal-worthy)")
+
+        except Exception as e:
+            # Log but don't fail the upload if journal synthesis fails
+            logger.warning(f"Failed to create journal entry from document upload: {e}")
+    else:
+        logger.info("Skipping journal synthesis for conversation document upload (will synthesize in conversation)")
 
     return document
 

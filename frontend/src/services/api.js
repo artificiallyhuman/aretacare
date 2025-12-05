@@ -102,8 +102,10 @@ export const sessionAPI = {
 
 // Document API
 export const documentAPI = {
-  upload: (formData, sessionId) => {
-    return api.post(`/documents/upload${sessionId ? `?session_id=${sessionId}` : ''}`, formData, {
+  upload: (formData, sessionId, skipJournalSynthesis = false) => {
+    const params = sessionId ? `?session_id=${sessionId}` : '';
+    const skipParam = skipJournalSynthesis ? `&skip_journal_synthesis=true` : `&skip_journal_synthesis=false`;
+    return api.post(`/documents/upload${params}${skipParam}`, formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
       },
@@ -128,14 +130,16 @@ export const conversationAPI = {
     api.post('/conversation/message', null, { params: data }),
   getHistory: (sessionId, limit = 50, offset = 0) =>
     api.get(`/conversation/${sessionId}/history`, { params: { limit, offset } }),
-  transcribeAudio: (audioFile, sessionId) => {
+  transcribeAudio: (audioFile, sessionId, skipJournalSynthesis = false) => {
     const formData = new FormData();
     formData.append('audio', audioFile);
     formData.append('session_id', sessionId);
+    formData.append('skip_journal_synthesis', skipJournalSynthesis ? 'true' : 'false');
     return api.post('/conversation/transcribe', formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
       },
+      timeout: 600000, // 10 minutes timeout for long audio files
     });
   },
 };

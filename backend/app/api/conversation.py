@@ -250,6 +250,7 @@ async def transcribe_audio(
     request: Request,
     audio: UploadFile = File(...),
     session_id: str = Form(...),
+    skip_journal_synthesis: str = Form("false"),  # "true" for conversation recordings, "false" for management uploads
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
@@ -505,35 +506,40 @@ async def transcribe_audio(
 
         logger.info(f"Saved audio recording metadata to database: ID {audio_recording.id}")
 
-        # Create journal entry from audio transcription
-        # This matches the behavior of audio recordings in conversations
-        try:
-            journal_service = JournalService(db)
+        # Create journal entry from audio transcription (only for management page uploads)
+        # Conversation recordings skip this and synthesize when the transcribed text is sent as a message
+        skip_synthesis = skip_journal_synthesis.lower() == "true"
 
-            # Format as a user message about the audio recording
-            user_message = f"Audio recording uploaded: {audio.filename}\n\nTranscription:\n{transcribed_text}"
-            ai_response = f"I've processed this audio recording. {ai_summary if ai_summary else 'This appears to be related to your care journey.'}"
+        if not skip_synthesis:
+            try:
+                journal_service = JournalService(db)
 
-            # Use entry_date if provided (for timezone handling), otherwise use today
-            from datetime import date as date_type
-            entry_date = date_type.today()
+                # Format as a user message about the audio recording
+                user_message = f"Audio recording uploaded: {audio.filename}\n\nTranscription:\n{transcribed_text}"
+                ai_response = f"I've processed this audio recording. {ai_summary if ai_summary else 'This appears to be related to your care journey.'}"
 
-            synthesis_result = await journal_service.assess_and_synthesize(
-                user_message=user_message,
-                ai_response=ai_response,
-                session_id=session_id,
-                conversation_id=None,  # Not from a conversation
-                entry_date=entry_date
-            )
+                # Use entry_date if provided (for timezone handling), otherwise use today
+                from datetime import date as date_type
+                entry_date = date_type.today()
 
-            if synthesis_result.should_create and len(synthesis_result.suggested_entries) > 0:
-                logger.info(f"Created {len(synthesis_result.suggested_entries)} journal entries from audio recording")
-            else:
-                logger.info("No journal entries created from audio recording (not journal-worthy)")
+                synthesis_result = await journal_service.assess_and_synthesize(
+                    user_message=user_message,
+                    ai_response=ai_response,
+                    session_id=session_id,
+                    conversation_id=None,  # Not from a conversation
+                    entry_date=entry_date
+                )
 
-        except Exception as e:
-            # Log but don't fail the upload if journal synthesis fails
-            logger.warning(f"Failed to create journal entry from audio recording: {e}")
+                if synthesis_result.should_create and len(synthesis_result.suggested_entries) > 0:
+                    logger.info(f"Created {len(synthesis_result.suggested_entries)} journal entries from audio recording")
+                else:
+                    logger.info("No journal entries created from audio recording (not journal-worthy)")
+
+            except Exception as e:
+                # Log but don't fail the upload if journal synthesis fails
+                logger.warning(f"Failed to create journal entry from audio recording: {e}")
+        else:
+            logger.info("Skipping journal synthesis for conversation audio recording (will synthesize when message is sent)")
 
         return {
             "transcribed_text": transcribed_text,

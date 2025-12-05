@@ -108,16 +108,33 @@ const MessageInput = ({ onSendMessage, onFileUpload, loading }) => {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       setAudioStream(stream); // Save stream for waveform visualization
 
-      const mediaRecorder = new MediaRecorder(stream);
+      // Use supported audio format - prefer Opus codec in WebM container
+      let options = { mimeType: 'audio/webm;codecs=opus' };
+
+      // Fallback to default if Opus not supported
+      if (!MediaRecorder.isTypeSupported(options.mimeType)) {
+        options = { mimeType: 'audio/webm' };
+        if (!MediaRecorder.isTypeSupported(options.mimeType)) {
+          options = {};
+        }
+      }
+
+      const mediaRecorder = new MediaRecorder(stream, options);
       mediaRecorderRef.current = mediaRecorder;
       audioChunksRef.current = [];
 
       mediaRecorder.addEventListener('dataavailable', (event) => {
-        audioChunksRef.current.push(event.data);
+        if (event.data && event.data.size > 0) {
+          audioChunksRef.current.push(event.data);
+        }
       });
 
       mediaRecorder.addEventListener('stop', async () => {
-        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+        // Short delay to ensure all data events have been processed
+        await new Promise(resolve => setTimeout(resolve, 200));
+
+        const audioBlob = new Blob(audioChunksRef.current, { type: mediaRecorder.mimeType });
+
         await transcribeAudio(audioBlob);
 
         // Stop all tracks to release the microphone
@@ -125,7 +142,9 @@ const MessageInput = ({ onSendMessage, onFileUpload, loading }) => {
         setAudioStream(null); // Clear stream reference
       });
 
-      mediaRecorder.start();
+      // Start recording with timeslice to ensure proper WebM container structure
+      // Request data every 1 second for reliable encoding
+      mediaRecorder.start(1000);
       setIsRecording(true);
     } catch (error) {
       console.error('Error accessing microphone:', error);
@@ -133,8 +152,14 @@ const MessageInput = ({ onSendMessage, onFileUpload, loading }) => {
     }
   };
 
-  const stopRecording = () => {
+  const stopRecording = async () => {
     if (mediaRecorderRef.current && isRecording) {
+      // Request any buffered data before stopping
+      if (mediaRecorderRef.current.state === 'recording') {
+        mediaRecorderRef.current.requestData();
+        // Wait for the data to be dispatched before stopping
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
       mediaRecorderRef.current.stop();
       setIsRecording(false);
     }
@@ -151,7 +176,8 @@ const MessageInput = ({ onSendMessage, onFileUpload, loading }) => {
 
     try {
       const audioFile = new File([audioBlob], 'recording.webm', { type: 'audio/webm' });
-      const response = await conversationAPI.transcribeAudio(audioFile, sessionId);
+      // Pass skipJournalSynthesis=true for conversation recordings (will synthesize when message is sent)
+      const response = await conversationAPI.transcribeAudio(audioFile, sessionId, true);
       const transcribedText = response.data.transcribed_text;
 
       // Add transcribed text to the message input
@@ -298,7 +324,7 @@ const MessageInput = ({ onSendMessage, onFileUpload, loading }) => {
         <div className="px-1.5 pb-1.5 md:px-2 md:pb-2">
           <button
             type="submit"
-            disabled={loading || (!message.trim() && !selectedFile)}
+            disabled={loading || isRecording || isTranscribing || (!message.trim() && !selectedFile)}
             className="btn-primary w-full py-2 md:py-2.5 disabled:opacity-50 disabled:cursor-not-allowed shadow-md hover:shadow-lg transition-shadow text-sm md:text-base"
           >
             {loading ? (

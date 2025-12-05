@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from typing import List
+from typing import List, Optional
 from datetime import datetime, date, timedelta
 
 from ..core.database import get_db
@@ -44,13 +44,13 @@ async def get_all_daily_plans(
     return plans
 
 
-@router.get("/{session_id}/latest", response_model=DailyPlanResponse)
+@router.get("/{session_id}/latest", response_model=Optional[DailyPlanResponse])
 async def get_latest_daily_plan(
     session_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    """Get the latest daily plan for a session"""
+    """Get the latest daily plan for a session (returns null if none exist)"""
 
     # Verify user has access to session (owner or collaborator)
     session = db.query(UserSession).filter(UserSession.id == session_id).first()
@@ -60,13 +60,10 @@ async def get_latest_daily_plan(
 
     check_session_access(session, current_user.id, db)
 
-    # Get latest plan
+    # Get latest plan (returns None if no plans exist - that's okay for new sessions)
     plan = db.query(DailyPlan).filter(
         DailyPlan.session_id == session_id
     ).order_by(DailyPlan.date.desc()).first()
-
-    if not plan:
-        raise HTTPException(status_code=404, detail="No daily plans found")
 
     return plan
 

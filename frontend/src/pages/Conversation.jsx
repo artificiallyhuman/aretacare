@@ -15,6 +15,7 @@ const Conversation = () => {
   const [hasNewDailyPlan, setHasNewDailyPlan] = useState(false);
   const [showBanner, setShowBanner] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
   const [isAITyping, setIsAITyping] = useState(false);
   const [error, setError] = useState('');
   const [showScrollButton, setShowScrollButton] = useState(false);
@@ -100,6 +101,13 @@ const Conversation = () => {
       previousMessageCountRef.current = messages.length;
     }
   }, [messages]);
+
+  // Auto-scroll when uploading indicator appears
+  useEffect(() => {
+    if (isUploading && isNearBottomRef.current) {
+      setTimeout(() => scrollToBottom('smooth'), 100);
+    }
+  }, [isUploading]);
 
   // Auto-scroll when typing indicator appears (only scroll to bottom when typing starts)
   useEffect(() => {
@@ -298,12 +306,13 @@ const Conversation = () => {
         // Check if latest plan has been viewed (show banner if not)
         try {
           const latestPlan = await dailyPlanAPI.getLatest(activeSessionId);
-          if (!latestPlan.data.viewed) {
+          // latestPlan.data will be null if no plans exist yet (new session)
+          if (latestPlan.data && !latestPlan.data.viewed) {
             setHasNewDailyPlan(true);
             setShowBanner(true);
           }
         } catch (err) {
-          // No plan exists yet, that's okay
+          console.error('Error fetching latest daily plan:', err);
         }
       }
     } catch (err) {
@@ -341,12 +350,17 @@ const Conversation = () => {
 
       // Upload file if present
       if (file) {
+        setIsUploading(true);
+
         const formData = new FormData();
         formData.append('file', file);
 
-        const uploadResponse = await documentAPI.upload(formData, activeSessionId);
+        // Pass skipJournalSynthesis=true for conversation uploads (will synthesize in conversation)
+        const uploadResponse = await documentAPI.upload(formData, activeSessionId, true);
         documentId = uploadResponse.data.id;
         messageType = file.type.startsWith('image/') ? 'image' : 'document';
+
+        setIsUploading(false);
 
         // If user didn't provide text, use a default message
         if (!content.trim()) {
@@ -386,6 +400,7 @@ const Conversation = () => {
       expectingAIResponse.current = false;
     } finally {
       setLoading(false);
+      setIsUploading(false);
       setIsAITyping(false);
     }
   };
@@ -602,6 +617,19 @@ const Conversation = () => {
                     </div>
                   );
                 })}
+                {isUploading && (
+                  <div className="flex items-start space-x-2 mb-2">
+                    <div className="bg-blue-100 dark:bg-blue-900/30 border-2 border-blue-300 dark:border-blue-800 rounded-lg px-4 py-3 shadow-sm">
+                      <div className="flex items-center space-x-2">
+                        <svg className="w-5 h-5 text-blue-700 dark:text-blue-400 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        <span className="text-sm font-medium text-blue-800 dark:text-blue-300">Uploading file...</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
                 {isAITyping && <TypingIndicator />}
               </>
             )}
@@ -633,7 +661,7 @@ const Conversation = () => {
           {/* Input */}
           <MessageInput
             onSendMessage={handleSendMessage}
-            loading={loading}
+            loading={loading || isUploading}
           />
         </div>
       </div>

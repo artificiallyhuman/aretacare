@@ -80,14 +80,37 @@ Conversation:
 User: {user_message}
 Assistant: {ai_response}
 
-Create a journal entry for this conversation. Set should_create to true unless this is just a greeting with no substance (like just "hi" or "thanks").
+Create journal entries for this conversation. Set should_create to true unless this is just a greeting with no substance (like just "hi" or "thanks").
 
-Choose the appropriate entry type (MEDICAL_UPDATE, TREATMENT_CHANGE, APPOINTMENT, INSIGHT, MILESTONE, or OTHER).
+Choose the appropriate entry type:
+- MEDICAL_UPDATE: Test results, diagnoses, symptoms, health status changes
+- TREATMENT_CHANGE: New medications, dosage changes, treatment plans, procedures
+- APPOINTMENT: Scheduled appointments, visits, consultations (past or future)
+- MILESTONE: Significant achievements, first-time events, major progress moments
+- INSIGHT: Personal reflections, emotional processing, understanding developed through conversation (NOT for factual medical information)
+- OTHER: General questions, administrative matters, non-medical topics
+
+IMPORTANT: Use INSIGHT sparingly - only for genuine personal reflections or emotional insights gained through discussion. Most medical information should use MEDICAL_UPDATE or TREATMENT_CHANGE.
 
 Adjust detail level based on importance:
 - Important topics (test results, new diagnoses, treatment changes) = detailed entry with context
 - Routine topics (general questions, simple updates) = brief entry (1-2 sentences)
 - Significant moments (milestones, major decisions) = thoughtful entry
+
+ENTRY SPLITTING GUIDANCE - READ CAREFULLY:
+- ALWAYS create separate entries when different entry types are mentioned
+- Splitting by category is CRITICAL for filtering and organization
+- Examples requiring MULTIPLE entries:
+  * Medical update + appointment mentioned → MUST split into 2 entries
+  * New medication + lab results → MUST split into 2 entries
+  * Appointment + treatment change → MUST split into 2 entries
+  * Any mention of appointment scheduling → SEPARATE APPOINTMENT entry
+- Examples that stay as ONE entry:
+  * Multiple aspects of the same medication → 1 TREATMENT_CHANGE entry
+  * Several questions about the same condition → 1 MEDICAL_UPDATE entry
+  * Multiple related reflections → 1 INSIGHT entry
+
+CRITICAL: If an appointment is mentioned (scheduled, discussed, or referenced), create a dedicated APPOINTMENT entry even if other topics are also discussed.
 
 IMPORTANT: Respond with ONLY a valid JSON object in this exact format, with no additional text before or after:
 {{
