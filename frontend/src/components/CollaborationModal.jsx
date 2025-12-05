@@ -156,7 +156,7 @@ export default function CollaborationModal({ session, onClose, onSuccess }) {
               {collaborators.length > 0 && (
                 <div>
                   <h3 className="text-sm font-medium text-gray-700 mb-2">
-                    Collaborators ({collaborators.length}/4)
+                    Collaborators ({collaborators.length}/9)
                   </h3>
                   <div className="space-y-2">
                     {collaborators.map((collab) => (
@@ -193,7 +193,7 @@ export default function CollaborationModal({ session, onClose, onSuccess }) {
               )}
 
               <div className="flex space-x-2 pt-4 border-t border-gray-200">
-                {isOwner && collaborators.length < 4 && (
+                {isOwner && collaborators.length < 9 && (
                   <button
                     onClick={() => setStep('enterEmail')}
                     className="flex-1 px-4 py-2 bg-primary-600 text-white rounded hover:bg-primary-700"
