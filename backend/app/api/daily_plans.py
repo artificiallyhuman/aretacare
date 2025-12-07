@@ -74,7 +74,7 @@ async def check_daily_plan_status(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    """Check if a new daily plan should be generated (24 hours have passed)"""
+    """Check if a new daily plan should be generated automatically (requires new data since last plan)"""
 
     # Verify user has access to session (owner or collaborator)
     session = db.query(UserSession).filter(UserSession.id == session_id).first()
@@ -85,12 +85,13 @@ async def check_daily_plan_status(
     check_session_access(session, current_user.id, db)
 
     # Check if should generate
-    should_generate, latest_plan = DailyPlanService.should_generate_new_plan(db, session_id)
+    should_generate, latest_plan, reason = DailyPlanService.should_generate_new_plan(db, session_id)
 
     response = {
         "should_generate": should_generate,
         "latest_plan_date": latest_plan.date if latest_plan else None,
-        "hours_since_last_plan": None
+        "hours_since_last_plan": None,
+        "reason": reason  # Will be populated when should_generate is False
     }
 
     if latest_plan:
