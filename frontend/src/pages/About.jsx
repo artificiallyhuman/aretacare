@@ -68,6 +68,7 @@ const About = () => {
       {activeTab === 'platform' && (
       <>
       <div className="grid md:grid-cols-2 gap-6">
+        {/* Conversation */}
         <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6 shadow-sm hover:shadow-md transition">
           <div className="flex items-center mb-4">
             <div className="flex items-center justify-center w-12 h-12 bg-blue-100 dark:bg-blue-900/50 rounded-lg mr-4">
@@ -77,11 +78,11 @@ const About = () => {
             </div>
             <h4 className="text-lg font-semibold text-gray-900 dark:text-white">Conversation</h4>
           </div>
-          <p className="text-gray-600 dark:text-gray-400 mb-3">A running dialogue that references your journal for context:</p>
+          <p className="text-gray-600 dark:text-gray-400 mb-3">A simple place to manage your care journey:</p>
           <ul className="text-gray-600 dark:text-gray-400 space-y-2 leading-relaxed">
             <li className="flex items-start">
               <span className="text-blue-600 dark:text-blue-400 mr-2 mt-1">•</span>
-              <span>Type messages, record audio, or upload documents like lab results</span>
+              <span>Interact your way: type messages, record voice notes, and share documents</span>
             </li>
             <li className="flex items-start">
               <span className="text-blue-600 dark:text-blue-400 mr-2 mt-1">•</span>
@@ -89,45 +90,12 @@ const About = () => {
             </li>
             <li className="flex items-start">
               <span className="text-blue-600 dark:text-blue-400 mr-2 mt-1">•</span>
-              <span>Understand complex medical terminology in the context of your situation</span>
-            </li>
-            <li className="flex items-start">
-              <span className="text-blue-600 dark:text-blue-400 mr-2 mt-1">•</span>
-              <span>Prepare thoughtful questions for your healthcare team</span>
+              <span>Everything is organized automatically in the background</span>
             </li>
           </ul>
         </div>
 
-        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6 shadow-sm hover:shadow-md transition">
-          <div className="flex items-center mb-4">
-            <div className="flex items-center justify-center w-12 h-12 bg-green-100 dark:bg-green-900/50 rounded-lg mr-4">
-              <svg className="w-7 h-7 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-              </svg>
-            </div>
-            <h4 className="text-lg font-semibold text-gray-900 dark:text-white">Journal</h4>
-          </div>
-          <p className="text-gray-600 dark:text-gray-400 mb-3">Your care journey automatically organized into a daily timeline:</p>
-          <ul className="text-gray-600 dark:text-gray-400 space-y-2 leading-relaxed">
-            <li className="flex items-start">
-              <span className="text-green-600 dark:text-green-400 mr-2 mt-1">•</span>
-              <span>Intelligent categorization into medications, symptoms, appointments, test results, and questions</span>
-            </li>
-            <li className="flex items-start">
-              <span className="text-green-600 dark:text-green-400 mr-2 mt-1">•</span>
-              <span>View entries by date, edit or add notes manually</span>
-            </li>
-            <li className="flex items-start">
-              <span className="text-green-600 dark:text-green-400 mr-2 mt-1">•</span>
-              <span>Maintain a comprehensive record of your healthcare experience</span>
-            </li>
-            <li className="flex items-start">
-              <span className="text-green-600 dark:text-green-400 mr-2 mt-1">•</span>
-              <span>Track patterns and trends over time</span>
-            </li>
-          </ul>
-        </div>
-
+        {/* Daily Plan */}
         <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6 shadow-sm hover:shadow-md transition">
           <div className="flex items-center mb-4">
             <div className="flex items-center justify-center w-12 h-12 bg-amber-100 dark:bg-amber-900/50 rounded-lg mr-4">
@@ -137,27 +105,51 @@ const About = () => {
             </div>
             <h4 className="text-lg font-semibold text-gray-900 dark:text-white">Daily Plan</h4>
           </div>
-          <p className="text-gray-600 dark:text-gray-400 mb-3">AI-generated daily summaries to keep you organized and focused:</p>
+          <p className="text-gray-600 dark:text-gray-400 mb-3">AI-generated daily plans that keep you focused on what matters:</p>
           <ul className="text-gray-600 dark:text-gray-400 space-y-2 leading-relaxed">
             <li className="flex items-start">
               <span className="text-amber-600 dark:text-amber-400 mr-2 mt-1">•</span>
-              <span>Automatically generated each day based on your journal, conversations, and documents</span>
+              <span>Created each day using your journal, conversations, and documents</span>
             </li>
             <li className="flex items-start">
               <span className="text-amber-600 dark:text-amber-400 mr-2 mt-1">•</span>
-              <span>Concise format highlighting today's priorities, important reminders, and questions for care team</span>
+              <span>Highlights priorities, reminders, and questions for the care team</span>
             </li>
             <li className="flex items-start">
               <span className="text-amber-600 dark:text-amber-400 mr-2 mt-1">•</span>
-              <span>Edit and customize your daily plan to fit your needs</span>
-            </li>
-            <li className="flex items-start">
-              <span className="text-amber-600 dark:text-amber-400 mr-2 mt-1">•</span>
-              <span>View sidebar in conversation page or dedicated daily plan page with full history</span>
+              <span>Fully editable so you can make it your own</span>
             </li>
           </ul>
         </div>
 
+        {/* Collaboration */}
+        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6 shadow-sm hover:shadow-md transition">
+          <div className="flex items-center mb-4">
+            <div className="flex items-center justify-center w-12 h-12 bg-emerald-100 dark:bg-emerald-900/50 rounded-lg mr-4">
+              <svg className="w-7 h-7 text-emerald-600 dark:text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+              </svg>
+            </div>
+            <h4 className="text-lg font-semibold text-gray-900 dark:text-white">Collaboration</h4>
+          </div>
+          <p className="text-gray-600 dark:text-gray-400 mb-3">Keep everyone aligned and working together:</p>
+          <ul className="text-gray-600 dark:text-gray-400 space-y-2 leading-relaxed">
+            <li className="flex items-start">
+              <span className="text-emerald-600 dark:text-emerald-400 mr-2 mt-1">•</span>
+              <span>Up to 10 people can collaborate on each AretaCare session</span>
+            </li>
+            <li className="flex items-start">
+              <span className="text-emerald-600 dark:text-emerald-400 mr-2 mt-1">•</span>
+              <span>A single source of truth for conversations, documents, and care information</span>
+            </li>
+            <li className="flex items-start">
+              <span className="text-emerald-600 dark:text-emerald-400 mr-2 mt-1">•</span>
+              <span>Invite family members and caregivers to join your sessions</span>
+            </li>
+          </ul>
+        </div>
+
+        {/* Tools */}
         <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6 shadow-sm hover:shadow-md transition">
           <div className="flex items-center mb-4">
             <div className="flex items-center justify-center w-12 h-12 bg-purple-100 dark:bg-purple-900/50 rounded-lg mr-4">
@@ -167,77 +159,26 @@ const About = () => {
             </div>
             <h4 className="text-lg font-semibold text-gray-900 dark:text-white">Tools</h4>
           </div>
-          <p className="text-gray-600 dark:text-gray-400 mb-3">Specialized features to support your healthcare advocacy:</p>
+          <p className="text-gray-600 dark:text-gray-400 mb-3">Advanced features that put you in control of your care journey:</p>
           <ul className="text-gray-600 dark:text-gray-400 space-y-2 leading-relaxed">
             <li className="flex items-start">
               <span className="text-purple-600 dark:text-purple-400 mr-2 mt-1">•</span>
-              <span>Jargon Translator explains medical terms in plain language</span>
+              <span>Journal, Documents, and Audio keep everything organized in one place</span>
             </li>
             <li className="flex items-start">
               <span className="text-purple-600 dark:text-purple-400 mr-2 mt-1">•</span>
-              <span>Conversation Coach helps you prepare questions and talking points before appointments</span>
+              <span>Coach helps you prepare thoughtful questions before appointments</span>
             </li>
             <li className="flex items-start">
               <span className="text-purple-600 dark:text-purple-400 mr-2 mt-1">•</span>
-              <span>Documents Manager uploads medical files with AI categorization, automatic descriptions, and searchable text extraction</span>
-            </li>
-            <li className="flex items-start">
-              <span className="text-purple-600 dark:text-purple-400 mr-2 mt-1">•</span>
-              <span>Audio Recordings captures voice notes with automatic transcription, AI categorization, and searchable summaries</span>
+              <span>Translator explains medical terms in language you can understand</span>
             </li>
           </ul>
         </div>
 
       </div>
 
-      <div className="mt-6 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6 shadow-sm hover:shadow-md transition">
-        <div className="flex items-center mb-4">
-          <div className="flex items-center justify-center w-12 h-12 bg-indigo-100 dark:bg-indigo-900/50 rounded-lg mr-4">
-            <svg className="w-7 h-7 text-indigo-600 dark:text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-            </svg>
-          </div>
-          <h4 className="text-lg font-semibold text-gray-900 dark:text-white">Sessions & Sharing</h4>
-        </div>
-        <p className="text-gray-600 dark:text-gray-400 mb-3">Organize different care situations and collaborate with family members:</p>
-        <div className="grid md:grid-cols-2 gap-6">
-          <div>
-            <h5 className="font-medium text-gray-800 dark:text-gray-200 mb-2">Multiple Sessions</h5>
-            <ul className="text-gray-600 dark:text-gray-400 space-y-2 leading-relaxed">
-              <li className="flex items-start">
-                <span className="text-indigo-600 dark:text-indigo-400 mr-2 mt-1">•</span>
-                <span>Create up to 3 sessions to organize different care situations or family members</span>
-              </li>
-              <li className="flex items-start">
-                <span className="text-indigo-600 dark:text-indigo-400 mr-2 mt-1">•</span>
-                <span>Each session has its own conversations, journal, documents, audio recordings, and daily plans</span>
-              </li>
-              <li className="flex items-start">
-                <span className="text-indigo-600 dark:text-indigo-400 mr-2 mt-1">•</span>
-                <span>Switch between sessions instantly using the dropdown in the header</span>
-              </li>
-            </ul>
-          </div>
-          <div>
-            <h5 className="font-medium text-gray-800 dark:text-gray-200 mb-2">Share with Family</h5>
-            <ul className="text-gray-600 dark:text-gray-400 space-y-2 leading-relaxed">
-              <li className="flex items-start">
-                <span className="text-indigo-600 dark:text-indigo-400 mr-2 mt-1">•</span>
-                <span>Invite family members or caregivers to collaborate on a session by email</span>
-              </li>
-              <li className="flex items-start">
-                <span className="text-indigo-600 dark:text-indigo-400 mr-2 mt-1">•</span>
-                <span>Up to 10 people can share a session, keeping everyone informed and aligned</span>
-              </li>
-              <li className="flex items-start">
-                <span className="text-indigo-600 dark:text-indigo-400 mr-2 mt-1">•</span>
-                <span>Collaborators have full access to add, edit, and view all session content</span>
-              </li>
-            </ul>
-          </div>
-        </div>
-      </div>
-
+      {/* Privacy & Security */}
       <div className="mt-6 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6 shadow-sm hover:shadow-md transition">
         <div className="flex items-center mb-4">
           <div className="flex items-center justify-center w-12 h-12 bg-gray-100 dark:bg-gray-700 rounded-lg mr-4">
@@ -251,19 +192,19 @@ const About = () => {
         <ul className="text-gray-600 dark:text-gray-400 space-y-2 leading-relaxed">
           <li className="flex items-start">
             <span className="text-gray-600 dark:text-gray-400 mr-2 mt-1">•</span>
-            <span>All conversations, journal entries, documents, and recordings are tied to your session</span>
+            <span>Each session keeps conversations, journal, documents, and audio recordings separate</span>
           </li>
           <li className="flex items-start">
             <span className="text-gray-600 dark:text-gray-400 mr-2 mt-1">•</span>
-            <span>Clear your entire session at any time using the trash icon in the header</span>
+            <span>Delete individual sessions or your entire account anytime from Settings</span>
           </li>
           <li className="flex items-start">
             <span className="text-gray-600 dark:text-gray-400 mr-2 mt-1">•</span>
-            <span>Clearing <strong>permanently deletes</strong> all conversations, journal entries, uploaded documents, and audio recordings</span>
+            <span>Deletion is <strong>permanent</strong> and removes all associated data from our servers</span>
           </li>
           <li className="flex items-start">
             <span className="text-gray-600 dark:text-gray-400 mr-2 mt-1">•</span>
-            <span>Once cleared, your data <strong>cannot be recovered</strong></span>
+            <span>You control who has access to your sessions through collaboration settings</span>
           </li>
         </ul>
       </div>
