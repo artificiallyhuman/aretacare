@@ -372,10 +372,13 @@ const About = () => {
               </div>
               <div className="prose prose-gray dark:prose-invert max-w-none text-gray-700 dark:text-gray-300 space-y-4 leading-relaxed pl-16">
                 <p>
-                  Caregiving is difficult enough without having to decide whether you can afford another subscription.
+                  Caregiving is stressful enough without worrying about another bill.
                 </p>
                 <p>
-                  Running AretaCare isn't cheap. It takes compute, infrastructure, and real work behind the scenes. But the platform is free and will remain free. You shouldn't have to check your insurance coverage or weigh monthly costs before getting tools that help you stay on top of a stressful medical situation.
+                  AretaCare’s core platform is free and will remain free. You shouldn’t have to check your insurance coverage to get the help you need.
+                </p>
+                <p>
+                  To keep innovating and delivering the service you deserve, AretaCare needs a sustainable model. We'll explore options like optional premium features that pay the bills without putting core features behind a paywall.
                 </p>
                 <p className="font-semibold text-gray-900 dark:text-white bg-green-50 dark:bg-green-900/20 p-4 rounded-lg border-l-2 border-green-500 dark:border-green-400">
                   AretaCare is available to anyone who needs it, regardless of their ability to pay.
