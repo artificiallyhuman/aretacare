@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { authAPI } from '../services/api';
-import WarningsContainer from '../components/WarningsContainer';
 import { useTheme } from '../contexts/ThemeContext';
 
 function Register() {
@@ -17,17 +16,6 @@ function Register() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
-
-  const warnings = [
-    {
-      title: 'Important',
-      message: 'AretaCare is an AI assistant, not a medical professional. For any medical decisions, please consult your care team.'
-    },
-    {
-      title: 'Notice',
-      message: 'AretaCare is not a HIPAA-covered service. It is designed for personal use by patients and caregivers, and should not be treated as an official medical record system or the only place critical health information is stored.'
-    }
-  ];
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -47,12 +35,12 @@ function Register() {
 
     // Validate acknowledgements
     if (!acknowledgeNotMedicalAdvice) {
-      setError('You must acknowledge that AretaCare is not medical advice');
+      setError('You must acknowledge that AretaCare is an AI assistant, not a medical professional');
       return;
     }
 
     if (!acknowledgeHIPAA) {
-      setError('You must acknowledge the HIPAA limitations and understand this is not a medical record system');
+      setError('You must acknowledge the HIPAA limitations and data source restrictions');
       return;
     }
 
@@ -110,9 +98,21 @@ function Register() {
         )}
       </button>
 
-      {/* Warnings Container - First thing user sees */}
+      {/* Important Notice - First thing user sees */}
       <div className="sm:mx-auto sm:w-full sm:max-w-md px-4 sm:px-0 mb-6">
-        <WarningsContainer warnings={warnings} />
+        <div className="bg-amber-50 dark:bg-amber-900/20 border-l-4 border-amber-500 dark:border-amber-600 p-4 rounded-r-lg">
+          <div className="flex items-start">
+            <svg className="w-5 h-5 text-amber-600 dark:text-amber-500 mt-0.5 mr-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+            <div className="flex-1">
+              <h3 className="text-xs font-semibold text-amber-800 dark:text-amber-400 mb-1.5">Important</h3>
+              <p className="text-xs text-amber-800 dark:text-amber-300 leading-relaxed">
+                AretaCare is an AI assistant, not a medical professional. Consult your care team for any medical decisions. This service is not HIPAA-covered and is intended for personal use. Do not rely on AretaCare as your primary source of medical information.
+              </p>
+            </div>
+          </div>
+        </div>
       </div>
 
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
@@ -234,7 +234,7 @@ function Register() {
                   required
                 />
                 <label htmlFor="acknowledgeNotMedicalAdvice" className="ml-3 text-sm text-gray-700 dark:text-gray-300 cursor-pointer">
-                  I understand that AretaCare is an AI assistant, not a medical professional, and I should consult my care team for any medical decisions.
+                  I understand that AretaCare is an AI assistant, not a medical professional, and I will consult my care team for any medical decisions.
                 </label>
               </div>
 
@@ -249,7 +249,7 @@ function Register() {
                   required
                 />
                 <label htmlFor="acknowledgeHIPAA" className="ml-3 text-sm text-gray-700 dark:text-gray-300 cursor-pointer">
-                  I understand AretaCare is not a HIPAA-covered service. It is designed for personal use by patients and caregivers, and should not be treated as an official medical record system or the only place critical health information is stored.
+                  I understand this service is not HIPAA-covered and is intended for personal use. I will not rely on AretaCare as my primary source of medical information.
                 </label>
               </div>
 
