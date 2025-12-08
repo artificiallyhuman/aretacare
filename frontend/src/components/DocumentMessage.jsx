@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 
-const DocumentMessage = ({ content, documentId, thumbnailUrl, extractedText }) => {
+const DocumentMessage = ({ content, documentId, thumbnailUrl, extractedText, onThumbnailLoad }) => {
   const [showExtracted, setShowExtracted] = useState(false);
 
   return (
@@ -18,6 +18,7 @@ const DocumentMessage = ({ content, documentId, thumbnailUrl, extractedText }) =
             src={thumbnailUrl}
             alt="Document thumbnail"
             className="max-w-xs rounded border border-gray-300 dark:border-gray-600"
+            onLoad={onThumbnailLoad}
           />
         </div>
       ) : (

@@ -29,6 +29,7 @@ const Conversation = () => {
   const lastAIMessageRef = useRef(null);
   const previousMessageCountRef = useRef(0);
   const expectingAIResponse = useRef(false);
+  const typingIndicatorRef = useRef(null);
 
   const scrollToBottom = (behavior = 'smooth') => {
     if (messagesContainerRef.current) {
@@ -67,6 +68,16 @@ const Conversation = () => {
     // Show scroll-to-top button when scrolled down more than 200px
     const { scrollTop } = messagesContainerRef.current;
     setShowScrollTopButton(scrollTop > 200 && messages.length > 0);
+  };
+
+  // Handle when user uploads an image/PDF and it finishes loading
+  const handleThumbnailLoad = () => {
+    // If we're waiting for AI response and typing indicator is visible, scroll to it
+    if (isAITyping && typingIndicatorRef.current && isNearBottomRef.current) {
+      setTimeout(() => {
+        typingIndicatorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 100);
+    }
   };
 
   // Auto-scroll only if user is near bottom and there are messages
@@ -368,6 +379,21 @@ const Conversation = () => {
             ? 'I uploaded an image'
             : 'I uploaded a document';
         }
+
+        // Update the temp message with the actual document/image data so thumbnail shows immediately
+        setMessages(prevMessages => prevMessages.map(msg => {
+          if (msg.id === tempUserMessage.id) {
+            return {
+              ...msg,
+              content: content,
+              document_id: uploadResponse.data.id,
+              media_url: uploadResponse.data.media_url || null,
+              thumbnail_url: uploadResponse.data.thumbnail_url || null,
+              extracted_text: uploadResponse.data.extracted_text || null
+            };
+          }
+          return msg;
+        }));
       }
 
       // Get user's current date in local timezone (YYYY-MM-DD)
@@ -613,7 +639,10 @@ const Conversation = () => {
                       key={message.id}
                       ref={isLastMessage && isAssistantMessage ? lastAIMessageRef : null}
                     >
-                      <MessageBubble message={message} />
+                      <MessageBubble
+                        message={message}
+                        onThumbnailLoad={handleThumbnailLoad}
+                      />
                     </div>
                   );
                 })}
@@ -630,7 +659,11 @@ const Conversation = () => {
                     </div>
                   </div>
                 )}
-                {isAITyping && <TypingIndicator />}
+                {isAITyping && (
+                  <div ref={typingIndicatorRef}>
+                    <TypingIndicator />
+                  </div>
+                )}
               </>
             )}
             <div ref={messagesEndRef} />

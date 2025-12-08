@@ -295,6 +295,22 @@ async def upload_document(
     else:
         logger.info("Skipping journal synthesis for conversation document upload (will synthesize in conversation)")
 
+    # Generate presigned URLs for immediate display in conversation
+    # For images, use media_url; for PDFs, use thumbnail_url
+    media_url = None
+    thumbnail_url = None
+
+    if file.content_type.startswith('image/'):
+        # For images, generate media_url from the document's s3_key
+        media_url = s3_service.generate_presigned_url(s3_key)
+    elif file.content_type == 'application/pdf' and thumbnail_s3_key:
+        # For PDFs, generate thumbnail_url
+        thumbnail_url = s3_service.generate_presigned_url(thumbnail_s3_key)
+
+    # Add URLs to document for response
+    document.media_url = media_url
+    document.thumbnail_url = thumbnail_url
+
     return document
 
 

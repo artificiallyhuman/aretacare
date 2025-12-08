@@ -44,9 +44,14 @@ class JournalService:
                         "entry_type": {
                             "type": "string",
                             "enum": ["MEDICAL_UPDATE", "TREATMENT_CHANGE", "APPOINTMENT", "INSIGHT", "MILESTONE", "OTHER"]
+                        },
+                        "entry_date": {
+                            "type": "string",
+                            "description": "Date for this entry in YYYY-MM-DD format. Use today's date unless the conversation mentions a specific date (e.g., 'on Thursday', 'next week', 'yesterday'). Can be past, present, or future.",
+                            "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
                         }
                     },
-                    "required": ["title", "content", "entry_type"],
+                    "required": ["title", "content", "entry_type", "entry_date"],
                     "additionalProperties": False
                 }
             }
@@ -73,7 +78,14 @@ class JournalService:
             recent_entries = self._get_recent_entries(session_id, days=7)
             recent_context = self._format_recent_journal_brief(recent_entries)
 
-            prompt = f"""Recent journal (last 7 days):
+            # Get today's date for context
+            today = entry_date if entry_date else date.today()
+            today_str = today.isoformat()
+            day_of_week = today.strftime('%A')  # e.g., "Monday"
+
+            prompt = f"""TODAY'S DATE: {today_str} ({day_of_week})
+
+Recent journal (last 7 days):
 {recent_context}
 
 Conversation:
@@ -98,12 +110,37 @@ Adjust detail level based on importance:
 - Significant moments (milestones, major decisions) = thoughtful entry
 
 ENTRY SPLITTING GUIDANCE:
-- Generally, create ONE comprehensive entry per conversation
-- You may create separate entries if the conversation covers distinctly different topics that would benefit from separate categorization
-- Examples where splitting may be appropriate:
-  * A conversation covering both a medical update AND scheduling an appointment → could be 2 entries
-  * Discussion of new medication AND unrelated test results → could be 2 entries
-- Most conversations should be ONE entry even if multiple topics are mentioned
+- **ALWAYS create separate entries for events on different dates**
+- Examples requiring SEPARATE entries:
+  * User mentions an appointment on Thursday → Create entry dated for Thursday
+  * User discusses a blood test from yesterday → Create entry dated for yesterday
+  * User talks about today's symptoms AND mentions a future appointment → 2 entries (one for today, one for future date)
+  * User recaps a past visit AND schedules a future appointment → 2 entries (one for past date, one for future date)
+- Only combine into ONE entry if everything discussed relates to the same date (usually today)
+- Future appointments must get their own entry on the scheduled date
+- Past events must get their own entry on the date they occurred
+
+CRITICAL - JOURNAL ENTRY WRITING STYLE:
+- Write entries in third-person observational style
+- Do NOT use pronouns: "I", "me", "my", "we", "us", "they", "them", "someone", "the user"
+- Describe only the events, information, or medical facts
+- Focus on what happened, what was discussed, or what is scheduled
+- Examples:
+  * BAD: "I have an appointment scheduled"
+  * GOOD: "Cardiology appointment scheduled"
+  * BAD: "The user reported symptoms"
+  * GOOD: "Symptoms reported include headache and fatigue"
+
+DATE INTERPRETATION:
+- Default to TODAY ({today_str}) unless the user mentions a specific date
+- Interpret relative dates accurately:
+  * "yesterday" = {(today - timedelta(days=1)).isoformat()}
+  * "tomorrow" = {(today + timedelta(days=1)).isoformat()}
+  * "on Thursday", "next Monday", etc. = calculate the actual date
+  * "last week", "next week" = calculate the appropriate date
+  * Past appointments should use the date they occurred
+  * Future appointments should use the scheduled date
+- ALWAYS use YYYY-MM-DD format for entry_date
 
 IMPORTANT: Respond with ONLY a valid JSON object in this exact format, with no additional text before or after:
 {{
@@ -113,7 +150,8 @@ IMPORTANT: Respond with ONLY a valid JSON object in this exact format, with no a
     {{
       "title": "entry title (max 100 chars)",
       "content": "entry content",
-      "entry_type": "MEDICAL_UPDATE or TREATMENT_CHANGE or APPOINTMENT or INSIGHT or MILESTONE or OTHER"
+      "entry_type": "MEDICAL_UPDATE or TREATMENT_CHANGE or APPOINTMENT or INSIGHT or MILESTONE or OTHER",
+      "entry_date": "YYYY-MM-DD"
     }}
   ]
 }}"""
@@ -155,15 +193,26 @@ IMPORTANT: Respond with ONLY a valid JSON object in this exact format, with no a
             result_json = json.loads(cleaned_text)
 
             # Convert to Pydantic models
-            suggestions = [
-                JournalSuggestion(
+            suggestions = []
+            for entry in result_json["suggested_entries"]:
+                # Parse entry_date if provided, otherwise use today
+                suggested_date = None
+                if "entry_date" in entry and entry["entry_date"]:
+                    try:
+                        suggested_date = date.fromisoformat(entry["entry_date"])
+                    except (ValueError, TypeError):
+                        logger.warning(f"Invalid entry_date '{entry.get('entry_date')}', using today")
+                        suggested_date = entry_date if entry_date else date.today()
+                else:
+                    suggested_date = entry_date if entry_date else date.today()
+
+                suggestions.append(JournalSuggestion(
                     title=entry["title"],
                     content=entry["content"],
                     entry_type=EntryType(entry["entry_type"]),
-                    confidence=1.0  # Always save - no confidence filtering
-                )
-                for entry in result_json["suggested_entries"]
-            ]
+                    confidence=1.0,  # Always save - no confidence filtering
+                    entry_date=suggested_date
+                ))
 
             synthesis_result = JournalSynthesisResult(
                 should_create=result_json["should_create"],
@@ -171,8 +220,7 @@ IMPORTANT: Respond with ONLY a valid JSON object in this exact format, with no a
                 suggested_entries=suggestions
             )
 
-            # Auto-save ALL suggested entries with user's date
-            use_date = entry_date if entry_date else date.today()
+            # Auto-save ALL suggested entries with AI-determined dates
             for suggestion in suggestions:
                 await self.create_entry(
                     session_id=session_id,
@@ -180,7 +228,7 @@ IMPORTANT: Respond with ONLY a valid JSON object in this exact format, with no a
                         title=suggestion.title,
                         content=suggestion.content,
                         entry_type=suggestion.entry_type,
-                        entry_date=use_date
+                        entry_date=suggestion.entry_date
                     ),
                     created_by="ai",
                     source_message_ids=[conversation_id] if conversation_id else None

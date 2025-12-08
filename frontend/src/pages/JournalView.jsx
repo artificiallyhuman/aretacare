@@ -58,6 +58,11 @@ const JournalView = () => {
   };
 
   const applyFilters = () => {
+    if (!entries) {
+      setFilteredEntries({});
+      return;
+    }
+
     let filtered = { ...entries };
 
     // Filter by type
@@ -117,16 +122,6 @@ const JournalView = () => {
     }
   };
 
-  // Sort dates in reverse chronological order (most recent first)
-  const sortedDates = Object.keys(filteredEntries).sort(
-    (a, b) => new Date(b) - new Date(a)
-  );
-
-  const totalEntries = Object.values(entries).reduce(
-    (sum, dateEntries) => sum + dateEntries.length,
-    0
-  );
-
   // Format date properly in local timezone
   const formatDate = (dateString) => {
     // Parse as local date (YYYY-MM-DD) not UTC
@@ -152,6 +147,24 @@ const JournalView = () => {
     const today = new Date();
     return date.toDateString() === today.toDateString();
   };
+
+  const isFuture = (dateString) => {
+    const [year, month, day] = dateString.split('-').map(Number);
+    const entryDate = new Date(year, month - 1, day, 0, 0, 0, 0);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return entryDate > today;
+  };
+
+  // Sort dates in reverse chronological order (most recent first)
+  const sortedDates = Object.keys(filteredEntries).sort(
+    (a, b) => new Date(b) - new Date(a)
+  );
+
+  const totalEntries = Object.values(entries).reduce(
+    (sum, dateEntries) => sum + dateEntries.length,
+    0
+  );
 
   if (sessionLoading || loading) {
     return (
@@ -288,7 +301,30 @@ const JournalView = () => {
             <div className={`lg:col-span-1 ${showSidebar ? 'block mb-4' : 'hidden lg:block'}`}>
               <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm lg:sticky lg:top-4">
                 <div className="p-3 md:p-4 border-b border-gray-200 dark:border-gray-700">
-                  <h2 className="text-base md:text-lg font-semibold text-gray-900 dark:text-gray-100">Dates</h2>
+                  <div className="flex items-center justify-between mb-2">
+                    <h2 className="text-base md:text-lg font-semibold text-gray-900 dark:text-gray-100">Dates</h2>
+                  </div>
+                  {/* Jump to Today button */}
+                  {(() => {
+                    const today = new Date();
+                    const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+                    const hasTodayEntry = sortedDates.includes(todayStr);
+
+                    if (hasTodayEntry) {
+                      return (
+                        <button
+                          onClick={() => handleDateClick(todayStr)}
+                          className="w-full mt-2 px-3 py-2 bg-primary-50 dark:bg-primary-900/30 hover:bg-primary-100 dark:hover:bg-primary-900/50 border border-primary-200 dark:border-primary-800 rounded-lg transition-colors flex items-center justify-center space-x-2 text-sm font-medium text-primary-700 dark:text-primary-400"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                          </svg>
+                          <span>Jump to Today</span>
+                        </button>
+                      );
+                    }
+                    return null;
+                  })()}
                 </div>
                 <div className="divide-y divide-gray-200 dark:divide-gray-700 max-h-64 lg:max-h-[calc(100vh-12rem)] overflow-y-auto">
                   {sortedDates.map((date) => (
@@ -323,34 +359,54 @@ const JournalView = () => {
 
             {/* Main content: Entries by date */}
             <div className="lg:col-span-3 space-y-6">
-              {sortedDates.map((date) => (
-                <div
-                  key={date}
-                  ref={(el) => (dateRefs.current[date] = el)}
-                  className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 md:p-6 scroll-mt-4"
-                >
-                  {/* Date header */}
-                  <h2 className="text-base md:text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4 flex items-center">
-                    <svg className="w-4 h-4 md:w-5 md:h-5 mr-2 text-primary-600 dark:text-primary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                    </svg>
-                    {formatDate(date)}
-                  </h2>
+              {sortedDates.map((date) => {
+                const isFutureEntry = isFuture(date);
+                return (
+                  <div
+                    key={date}
+                    ref={(el) => (dateRefs.current[date] = el)}
+                    className={`rounded-lg border p-4 md:p-6 scroll-mt-4 ${
+                      isFutureEntry
+                        ? 'bg-blue-50/50 dark:bg-blue-900/10 border-blue-200 dark:border-blue-800'
+                        : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700'
+                    }`}
+                  >
+                    {/* Date header */}
+                    <h2 className={`text-base md:text-lg font-semibold mb-4 flex items-center ${
+                      isFutureEntry
+                        ? 'text-blue-900 dark:text-blue-200'
+                        : 'text-gray-900 dark:text-gray-100'
+                    }`}>
+                      <svg className={`w-4 h-4 md:w-5 md:h-5 mr-2 ${
+                        isFutureEntry
+                          ? 'text-blue-600 dark:text-blue-400'
+                          : 'text-primary-600 dark:text-primary-400'
+                      }`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                      </svg>
+                      {formatDate(date)}
+                      {isFutureEntry && (
+                        <span className="ml-2 text-xs font-normal bg-blue-200 dark:bg-blue-800 text-blue-800 dark:text-blue-200 px-2 py-0.5 rounded-full">
+                          Upcoming
+                        </span>
+                      )}
+                    </h2>
 
-                  {/* Entries for this date */}
-                  <div className="space-y-3">
-                    {filteredEntries[date].map((entry) => (
-                      <JournalEntry
-                        key={entry.id}
-                        entry={entry}
-                        colors={ENTRY_TYPE_COLORS}
-                        onEdit={() => handleEditEntry(entry)}
-                        onDelete={loadJournalEntries}
-                      />
-                    ))}
+                    {/* Entries for this date */}
+                    <div className="space-y-3">
+                      {filteredEntries[date].map((entry) => (
+                        <JournalEntry
+                          key={entry.id}
+                          entry={entry}
+                          colors={ENTRY_TYPE_COLORS}
+                          onEdit={() => handleEditEntry(entry)}
+                          onDelete={loadJournalEntries}
+                        />
+                      ))}
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         )}

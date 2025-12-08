@@ -46,6 +46,7 @@ class JournalSuggestion(BaseModel):
     content: str
     entry_type: EntryType
     confidence: float
+    entry_date: Optional[date] = None  # Date for the entry (defaults to today if not specified)
 
 
 class JournalSynthesisResult(BaseModel):

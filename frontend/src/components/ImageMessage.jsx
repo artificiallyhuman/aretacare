@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 
-const ImageMessage = ({ content, mediaUrl, extractedText }) => {
+const ImageMessage = ({ content, mediaUrl, extractedText, onThumbnailLoad }) => {
   const [showExtracted, setShowExtracted] = useState(false);
   const [showFullImage, setShowFullImage] = useState(false);
 
@@ -20,6 +20,7 @@ const ImageMessage = ({ content, mediaUrl, extractedText }) => {
             alt="Uploaded image"
             className="max-w-xs rounded cursor-pointer hover:opacity-90 transition"
             onClick={() => setShowFullImage(true)}
+            onLoad={onThumbnailLoad}
           />
         </div>
       )}

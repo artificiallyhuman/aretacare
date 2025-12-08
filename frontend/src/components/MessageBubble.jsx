@@ -4,7 +4,7 @@ import DocumentMessage from './DocumentMessage';
 import ImageMessage from './ImageMessage';
 
 // Memoized to prevent re-renders when parent updates but message hasn't changed
-const MessageBubble = memo(({ message }) => {
+const MessageBubble = memo(({ message, onThumbnailLoad }) => {
   const isUser = message.role === 'user';
   const messageType = message.message_type || 'text';
 
@@ -60,6 +60,7 @@ const MessageBubble = memo(({ message }) => {
             documentId={message.document_id}
             thumbnailUrl={message.thumbnail_url}
             extractedText={message.extracted_text}
+            onThumbnailLoad={onThumbnailLoad}
           />
         )}
 
@@ -68,6 +69,7 @@ const MessageBubble = memo(({ message }) => {
             content={message.content}
             mediaUrl={message.media_url}
             extractedText={message.extracted_text}
+            onThumbnailLoad={onThumbnailLoad}
           />
         )}
 
