@@ -115,10 +115,19 @@ const JournalView = () => {
 
   const handleDateClick = (date) => {
     setSelectedDate(date);
+    const wasSidebarOpen = showSidebar;
     setShowSidebar(false); // Close sidebar on mobile after selection
+
     const element = dateRefs.current[date];
     if (element) {
-      element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      // If sidebar was open (mobile), wait for it to close before scrolling
+      if (wasSidebarOpen) {
+        setTimeout(() => {
+          element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }, 100);
+      } else {
+        element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
     }
   };
 
@@ -365,7 +374,7 @@ const JournalView = () => {
                   <div
                     key={date}
                     ref={(el) => (dateRefs.current[date] = el)}
-                    className={`rounded-lg border p-4 md:p-6 scroll-mt-20 ${
+                    className={`rounded-lg border p-4 md:p-6 scroll-mt-4 ${
                       isFutureEntry
                         ? 'bg-blue-50/50 dark:bg-blue-900/10 border-blue-200 dark:border-blue-800'
                         : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700'
