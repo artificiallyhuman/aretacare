@@ -415,11 +415,11 @@ class OpenAIService:
         """Chat interface with journal context and native file/image support
 
         Optimized context structure:
-        1. System prompts
-        2. Older journal (8+ days) - background context
+        1. System prompts (rules and instructions)
+        2. Older journal (8+ days) - as user message (context, not rules)
         3. Recent conversation (last 15 messages)
-        4. Recent journal (last 7 days) - prioritized context
-        5. Immediate context (last AI message)
+        4. Recent journal (last 7 days) - as user message (prioritized context)
+        5. Immediate context reminder (system - rules for interpreting next message)
         6. Current user message
         """
 
@@ -428,25 +428,20 @@ class OpenAIService:
             {"role": "system", "content": ai_config.CONVERSATION_INSTRUCTIONS}
         ]
 
-        # Add older journal context (background) - farther from current message
+        # Add older journal context as user message (knowledge, not rules)
         if older_journal_context and older_journal_context.strip():
             messages.append({
-                "role": "system",
+                "role": "user",
                 "content": older_journal_context
             })
 
-        # Add recent conversation history
-        if conversation_history:
-            messages.append({
-                "role": "system",
-                "content": "---\nConversation History (last 15 exchanges, oldest to newest):\n---"
-            })
+        # Add recent conversation history (no wrapper needed)
         messages.extend(conversation_history[-ai_config.MAX_CONVERSATION_CONTEXT:])
 
-        # Add recent journal context AFTER conversation - closer to current message for priority
+        # Add recent journal context as user message (knowledge, not rules)
         if recent_journal_context and recent_journal_context.strip():
             messages.append({
-                "role": "system",
+                "role": "user",
                 "content": recent_journal_context
             })
 
