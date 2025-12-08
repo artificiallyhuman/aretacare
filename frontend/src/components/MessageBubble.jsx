@@ -1,12 +1,47 @@
-import React, { memo } from 'react';
+import React, { memo, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import DocumentMessage from './DocumentMessage';
 import ImageMessage from './ImageMessage';
 
 // Memoized to prevent re-renders when parent updates but message hasn't changed
 const MessageBubble = memo(({ message, onThumbnailLoad }) => {
+  const [copied, setCopied] = useState(false);
   const isUser = message.role === 'user';
   const messageType = message.message_type || 'text';
+
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(message.content);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy:', err);
+    }
+  };
+
+  // Check if message is from today
+  const messageDate = new Date(message.created_at + 'Z');
+  const today = new Date();
+  const isToday = messageDate.toDateString() === today.toDateString();
+
+  // Format timestamp
+  const formatTimestamp = () => {
+    if (isToday) {
+      // Just show time for today's messages
+      return messageDate.toLocaleTimeString([], {
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    } else {
+      // Show date and time for older messages
+      return messageDate.toLocaleString([], {
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    }
+  };
 
   return (
     <div className={`flex ${isUser ? 'justify-end' : 'justify-start'} mb-4`}>
@@ -73,12 +108,36 @@ const MessageBubble = memo(({ message, onThumbnailLoad }) => {
           />
         )}
 
-        {/* Timestamp */}
-        <div className={`text-xs mt-2 ${isUser ? 'text-primary-100' : 'text-gray-500'}`}>
-          {new Date(message.created_at + 'Z').toLocaleTimeString([], {
-            hour: '2-digit',
-            minute: '2-digit'
-          })}
+        {/* Timestamp and Copy Button */}
+        <div className="flex items-center justify-between mt-2 gap-2">
+          <div className={`text-xs ${isUser ? 'text-primary-100' : 'text-gray-500 dark:text-gray-400'}`}>
+            {formatTimestamp()}
+          </div>
+          <button
+            onClick={handleCopy}
+            className={`text-xs px-2 py-1 rounded transition-colors flex items-center gap-1 ${
+              isUser
+                ? 'hover:bg-primary-700 text-primary-100'
+                : 'hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400'
+            }`}
+            title="Copy message"
+          >
+            {copied ? (
+              <>
+                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+                <span>Copied!</span>
+              </>
+            ) : (
+              <>
+                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                </svg>
+                <span className="hidden sm:inline">Copy</span>
+              </>
+            )}
+          </button>
         </div>
       </div>
     </div>
