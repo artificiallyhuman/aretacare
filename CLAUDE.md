@@ -7,7 +7,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 AretaCare is an AI-powered medical care advocate assistant that helps families understand complex medical information. It maintains **strict safety boundaries** - never diagnosing, recommending treatments, or predicting outcomes. The core function is to translate medical jargon, summarize clinical notes, and help families prepare questions for healthcare teams.
 
 **Key Features:**
-- Conversation-first interface with AI care advocate, "Thinking..." status, enhanced markdown rendering
+- Conversation-first interface with AI care advocate, "Thinking..." status, enhanced markdown rendering, copy-to-clipboard for messages (converts markdown to formatted HTML), contextual timestamps (time only for today, date+time for older messages)
 - Multi-session support (up to 3 sessions per user, including collaborations) with session switcher, rename (15-char limit), and separate data per session
 - Session sharing - share sessions with up to 9 collaborators (10 people total), collaborators have full access to session data
 - Daily Plan - AI-generated summaries, user editable, delete and regenerate capability
@@ -114,6 +114,8 @@ See `backend/app/config/README.md` for complete documentation on modifying AI be
 
 **Conversation-First Design**
 - Chat interface with AI care advocate, "Thinking..." status, enhanced markdown rendering
+- Copy-to-clipboard functionality: copies message content with markdown converted to formatted HTML (supports bold, italic, headers, lists with nesting, horizontal rules, line breaks) for rich text paste into Word/Google Docs
+- Contextual timestamps: messages from today show time only (e.g., "2:30 PM"), older messages show date+time (e.g., "Dec 6, 2:30 PM")
 - Color-aware styling (prose-invert for user, prose-gray for AI)
 - Smart scrolling (auto-scroll near bottom, stops at input not footer), scroll-to-bottom button
 - Thumbnails display immediately after upload completes (before AI response) for better UX
@@ -223,7 +225,7 @@ See `backend/app/config/README.md` for complete documentation on modifying AI be
 
 **Components** (`frontend/src/components/`):
 - `Header.jsx` - Navigation with session switcher
-- `MessageBubble.jsx` - Chat message display
+- `MessageBubble.jsx` - Chat message display with copy-to-clipboard (markdown to HTML converter) and contextual timestamps
 - `MessageInput.jsx` - Chat input with audio recording
 - `AudioWaveform.jsx` - Real-time waveform visualization
 - `DailyPlan/DailyPlanPanel.jsx` - Collapsible daily plan sidebar

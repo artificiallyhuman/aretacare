@@ -18,7 +18,7 @@ AretaCare was built from exactly this experience—sitting beside a loved one in
 
 ## What It Does
 
-**Conversation** — Talk naturally about what's happening. Upload lab results, record voice notes, or type out questions. AretaCare helps translate medical jargon, organize information, and prepare you for conversations with the care team.
+**Conversation** — Talk naturally about what's happening. Upload lab results, record voice notes, or type out questions. AretaCare helps translate medical jargon, organize information, and prepare you for conversations with the care team. Copy any message to your clipboard as formatted text for easy pasting into notes or documents. Contextual timestamps help you track when conversations occurred.
 
 **Journal** — Your care journey automatically organized into a searchable timeline. Medical updates, treatment changes, appointments, insights, and milestones—all captured and categorized so nothing falls through the cracks.
 
