@@ -156,25 +156,30 @@ function Login() {
               </div>
             </div>
 
-            <div className="mt-6 text-center space-y-3">
-              <div>
-                <Link
-                  to="/about"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-sm font-medium text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 transition-colors"
-                >
-                  Learn about AretaCare
-                </Link>
-              </div>
-              <div>
-                <Link
-                  to="/register"
-                  className="text-sm font-medium text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 transition-colors"
-                >
-                  Create a new account
-                </Link>
-              </div>
+            <div className="mt-6 space-y-3">
+              {/* Primary CTA: Create account */}
+              <Link
+                to="/register"
+                className="block w-full text-center px-6 py-3 bg-primary-600 hover:bg-primary-700 text-white font-semibold rounded-lg shadow-sm hover:shadow-md transition-all duration-200"
+              >
+                Create a new account
+              </Link>
+
+              {/* Secondary: Learn more */}
+              <Link
+                to="/about"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center justify-center space-x-2 w-full px-6 py-2.5 border-2 border-gray-300 dark:border-gray-600 hover:border-primary-400 dark:hover:border-primary-500 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-750 text-gray-700 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 font-medium rounded-lg transition-all duration-200 group"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span>Learn about AretaCare</span>
+                <svg className="w-4 h-4 opacity-0 group-hover:opacity-100 transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                </svg>
+              </Link>
             </div>
           </div>
         </div>

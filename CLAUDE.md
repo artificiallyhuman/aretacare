@@ -11,8 +11,8 @@ AretaCare is an AI-powered medical care advocate assistant that helps families u
 - Multi-session support (up to 3 sessions per user, including collaborations) with session switcher, rename (15-char limit), and separate data per session
 - Session sharing - share sessions with up to 9 collaborators (10 people total), collaborators have full access to session data
 - Daily Plan - AI-generated summaries, user editable, delete and regenerate capability
-- AI Journal Synthesis - extracts medical updates from conversations, audio uploads, and document uploads with local timezone support
-- Journal with date navigation - reverse chronological, sticky sidebar, scroll-to-date functionality
+- AI Journal Synthesis - extracts medical updates from conversations, audio uploads, and document uploads with local timezone support and intelligent date interpretation (handles "Thursday", "next week", etc.)
+- Journal with date navigation - reverse chronological, sticky sidebar, scroll-to-date functionality, "Jump to Today" button, future entries visually distinguished with blue background shading
 - GPT-5.1 native file support for PDFs and images via Responses API
 - Audio recording with live waveform visualization, 15-minute countdown timer, and real-time transcription
 - Audio file uploads - supports MP3, M4A, WAV, WebM, OGG (20MB limit, auto-chunks long files, converts to MP3 for browser playback)
@@ -116,6 +116,7 @@ See `backend/app/config/README.md` for complete documentation on modifying AI be
 - Chat interface with AI care advocate, "Thinking..." status, enhanced markdown rendering
 - Color-aware styling (prose-invert for user, prose-gray for AI)
 - Smart scrolling (auto-scroll near bottom, stops at input not footer), scroll-to-bottom button
+- Thumbnails display immediately after upload completes (before AI response) for better UX
 - Messages support text, documents, images, voice recordings
 - Mobile-optimized: compact padding (`p-2 md:p-4`), smaller text, touch-friendly buttons
 
@@ -124,6 +125,9 @@ See `backend/app/config/README.md` for complete documentation on modifying AI be
 - Creates entries for: medical updates, treatment changes, appointments, insights, milestones, and other substantive caregiving topics
 - Entry detail varies by importance: detailed for significant topics, brief for routine updates
 - Uses user's local timezone (frontend sends `entry_date` in YYYY-MM-DD format)
+- Intelligent date interpretation: understands relative dates like "Thursday", "next week", "yesterday" and creates entries on appropriate dates
+- Automatically splits conversations into separate entries when events occur on different dates (e.g., past appointment recap + future appointment scheduled)
+- Third-person observational writing style - avoids pronouns like "I", "me", "they"
 - Creates structured entries: title, content, entry type (6 types), date
 - Marks messages as `synthesized_to_journal=True`
 
@@ -171,7 +175,7 @@ See `backend/app/config/README.md` for complete documentation on modifying AI be
 - `auth.py` - Authentication (register, login, /me) and user management (update account, password reset, deletion)
 - `sessions.py` - Multi-session management (3-session limit, rename, delete with S3 cleanup, sharing/collaboration)
 - `permissions.py` - Shared permission checking (`check_session_access()` for owner/collaborator validation)
-- `documents.py` - Document upload/management with AI categorization
+- `documents.py` - Document upload/management with AI categorization, returns presigned URLs (media_url/thumbnail_url) for immediate display
 - `audio_recording.py` - Audio recording management with AI categorization
 - `conversation.py` - Conversation endpoints with rich media support
 - `journal.py` - Journal CRUD operations
@@ -207,13 +211,13 @@ See `backend/app/config/README.md` for complete documentation on modifying AI be
 
 ### Frontend
 **Pages** (`frontend/src/pages/`):
-- `Conversation.jsx` - Main chat interface with daily plan panel
-- `JournalView.jsx` - Journal with date navigation
+- `Conversation.jsx` - Main chat interface with daily plan panel, thumbnails load immediately after upload
+- `JournalView.jsx` - Journal with date navigation, "Jump to Today" button, future entries shown with blue background shading
 - `DailyPlan.jsx` - Daily plan history and editing
 - `Settings.jsx` - Account management, session management
 - `Documents.jsx` - AI-powered document manager
 - `AudioRecordings.jsx` - AI-powered audio manager
-- `Login.jsx`, `Register.jsx`, `PasswordReset.jsx` - Authentication
+- `Login.jsx`, `Register.jsx`, `PasswordReset.jsx` - Authentication (Login has prominent "Learn about AretaCare" secondary button)
 - `About.jsx`, `TermsOfService.jsx`, `PrivacyPolicy.jsx` - Info pages
 - `admin/` - Admin console pages (Dashboard, SecurityLogs, Health, Accounts, Users, S3Cleanup, AdminLogs)
 

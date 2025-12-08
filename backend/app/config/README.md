@@ -64,7 +64,7 @@ Each feature has dedicated prompts and functions:
 | Conversation Coaching | `get_conversation_coaching_prompt()` | Help prepare for appointments |
 | Document Categorization | `get_document_categorization_prompt()` | Classify uploaded documents |
 | Audio Categorization | `get_audio_categorization_prompt()` | Classify voice recordings |
-| Journal Synthesis | `JOURNAL_SYNTHESIS_PROMPT` | Generate journal entries from conversations |
+| Journal Synthesis | `JOURNAL_SYNTHESIS_PROMPT` | Generate journal entries from conversations with date interpretation ("Thursday", "next week") and automatic entry splitting for events on different dates |
 | Daily Plan | `DAILY_PLAN_SYSTEM_PROMPT` | Generate daily care plans |
 
 ### Categories
