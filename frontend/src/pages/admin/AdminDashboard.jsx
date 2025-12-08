@@ -38,6 +38,8 @@ function MetricCard({ title, value, icon, color, loading }) {
 }
 
 function TrendChart({ data, loading, title }) {
+  const [hoveredBar, setHoveredBar] = React.useState(null);
+
   if (loading) {
     return (
       <div className="h-32 bg-gray-100 dark:bg-gray-700 rounded animate-pulse"></div>
@@ -65,10 +67,19 @@ function TrendChart({ data, loading, title }) {
         {data.slice(-30).map((d, i) => (
           <div
             key={i}
-            className="flex-1 bg-primary-500 dark:bg-primary-600 rounded-t hover:bg-primary-600 dark:hover:bg-primary-500 transition-colors"
+            className="flex-1 bg-primary-500 dark:bg-primary-600 rounded-t hover:bg-primary-600 dark:hover:bg-primary-500 transition-colors cursor-pointer relative"
             style={{ height: `${(d.count / maxCount) * 100}%`, minHeight: d.count > 0 ? '4px' : '0' }}
-            title={`${d.date}: ${d.count}`}
-          />
+            onMouseEnter={() => setHoveredBar(i)}
+            onMouseLeave={() => setHoveredBar(null)}
+          >
+            {hoveredBar === i && (
+              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-gray-900 dark:bg-gray-700 text-white text-xs rounded whitespace-nowrap z-10 pointer-events-none">
+                <div className="font-semibold">{d.count}</div>
+                <div className="text-gray-300 dark:text-gray-400">{d.date}</div>
+                <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900 dark:border-t-gray-700"></div>
+              </div>
+            )}
+          </div>
         ))}
       </div>
       <div className="flex justify-between mt-1 text-xs text-gray-500 dark:text-gray-400">
