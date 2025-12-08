@@ -118,7 +118,7 @@ const JournalView = () => {
     setShowSidebar(false); // Close sidebar on mobile after selection
     const element = dateRefs.current[date];
     if (element) {
-      element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      element.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
   };
 
