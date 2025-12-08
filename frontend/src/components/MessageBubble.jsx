@@ -3,6 +3,102 @@ import ReactMarkdown from 'react-markdown';
 import DocumentMessage from './DocumentMessage';
 import ImageMessage from './ImageMessage';
 
+// Simple markdown to HTML converter for clipboard
+const markdownToHtml = (markdown) => {
+  let html = markdown;
+
+  // Bold (do before italic to avoid conflicts)
+  html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+  html = html.replace(/__(.*?)__/g, '<strong>$1</strong>');
+
+  // Italic
+  html = html.replace(/\*([^*]+)\*/g, '<em>$1</em>');
+  html = html.replace(/_([^_]+)_/g, '<em>$1</em>');
+
+  // Split into lines for processing
+  const lines = html.split('\n');
+  const processed = [];
+  let inList = false;
+  let listType = null;
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+
+    // Check for headers
+    if (line.match(/^### /)) {
+      if (inList) { processed.push(`</${listType}>`); inList = false; }
+      processed.push(line.replace(/^### (.*)$/, '<h3>$1</h3>'));
+    } else if (line.match(/^## /)) {
+      if (inList) { processed.push(`</${listType}>`); inList = false; }
+      processed.push(line.replace(/^## (.*)$/, '<h2>$1</h2>'));
+    } else if (line.match(/^# /)) {
+      if (inList) { processed.push(`</${listType}>`); inList = false; }
+      processed.push(line.replace(/^# (.*)$/, '<h1>$1</h1>'));
+    }
+    // Check for unordered list items
+    else if (line.match(/^[\*\-] /)) {
+      if (!inList) {
+        processed.push('<ul>');
+        inList = true;
+        listType = 'ul';
+      } else if (listType !== 'ul') {
+        processed.push(`</${listType}>`);
+        processed.push('<ul>');
+        listType = 'ul';
+      }
+      processed.push(line.replace(/^[\*\-] (.*)$/, '<li>$1</li>'));
+    }
+    // Check for ordered list items
+    else if (line.match(/^\d+\. /)) {
+      if (!inList) {
+        processed.push('<ol>');
+        inList = true;
+        listType = 'ol';
+      } else if (listType !== 'ol') {
+        processed.push(`</${listType}>`);
+        processed.push('<ol>');
+        listType = 'ol';
+      }
+      processed.push(line.replace(/^\d+\. (.*)$/, '<li>$1</li>'));
+    }
+    // Empty line
+    else if (line.trim() === '') {
+      if (inList) {
+        processed.push(`</${listType}>`);
+        inList = false;
+        listType = null;
+      }
+      processed.push('</p><p>');
+    }
+    // Regular text
+    else {
+      if (inList) {
+        processed.push(`</${listType}>`);
+        inList = false;
+        listType = null;
+      }
+      processed.push(line);
+    }
+  }
+
+  // Close any open list
+  if (inList) {
+    processed.push(`</${listType}>`);
+  }
+
+  // Join and wrap in paragraph
+  html = '<p>' + processed.join('') + '</p>';
+
+  // Clean up empty paragraphs
+  html = html.replace(/<p><\/p>/g, '');
+  html = html.replace(/<p>(<[uo]l>)/g, '$1');
+  html = html.replace(/(<\/[uo]l>)<\/p>/g, '$1');
+  html = html.replace(/<p>(<h[123]>)/g, '$1');
+  html = html.replace(/(<\/h[123]>)<\/p>/g, '$1');
+
+  return html;
+};
+
 // Memoized to prevent re-renders when parent updates but message hasn't changed
 const MessageBubble = memo(({ message, onThumbnailLoad }) => {
   const [copied, setCopied] = useState(false);
@@ -11,11 +107,32 @@ const MessageBubble = memo(({ message, onThumbnailLoad }) => {
 
   const handleCopy = async () => {
     try {
-      await navigator.clipboard.writeText(message.content);
+      // Convert markdown to HTML for rich text paste
+      const html = markdownToHtml(message.content);
+
+      // Create clipboard item with both HTML and plain text
+      const blob = new Blob([html], { type: 'text/html' });
+      const textBlob = new Blob([message.content], { type: 'text/plain' });
+
+      await navigator.clipboard.write([
+        new ClipboardItem({
+          'text/html': blob,
+          'text/plain': textBlob
+        })
+      ]);
+
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch (err) {
       console.error('Failed to copy:', err);
+      // Fallback to plain text if clipboard API fails
+      try {
+        await navigator.clipboard.writeText(message.content);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      } catch (fallbackErr) {
+        console.error('Fallback copy also failed:', fallbackErr);
+      }
     }
   };
 
