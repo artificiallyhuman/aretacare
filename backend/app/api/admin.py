@@ -16,7 +16,7 @@ from app.api.auth import get_current_user
 from app.api.permissions import check_is_admin, require_admin
 from app.models import (
     User, Session as SessionModel, SessionCollaborator,
-    Document, AudioRecording, AdminAuditLog, SecurityLog
+    Document, AudioRecording, AdminAuditLog, SecurityLog, ErrorLog
 )
 from app.schemas.admin import (
     PlatformMetrics, MetricsTrendResponse, MetricsTrend,
@@ -28,7 +28,8 @@ from app.schemas.admin import (
     SystemHealth, ServiceStatus,
     AdminCheckResponse,
     SecurityLogEntry, SecurityLogResponse,
-    EmailInactiveUsersRequest, EmailInactiveUsersResponse
+    EmailInactiveUsersRequest, EmailInactiveUsersResponse,
+    ErrorLogEntry, ErrorLogResponse, ErrorLogCleanupResponse
 )
 from app.services.admin_service import admin_service
 from app.services.s3_service import s3_service
@@ -652,3 +653,77 @@ async def get_security_logs(
         page=page,
         page_size=page_size
     )
+
+
+# ==========================================
+# Error Logs
+# ==========================================
+
+@router.get("/error-logs", response_model=ErrorLogResponse)
+async def get_error_logs(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(50, ge=1, le=100),
+    level: Optional[str] = Query(None, description="Filter by error level (ERROR, WARNING, CRITICAL)"),
+    source: Optional[str] = Query(None, description="Filter by source module"),
+    db: DBSession = Depends(get_db),
+    admin: User = Depends(get_admin_user)
+):
+    """
+    Get paginated error logs with optional filtering.
+
+    Requires admin authentication.
+    """
+    query = db.query(ErrorLog)
+
+    # Apply filters
+    if level:
+        query = query.filter(ErrorLog.level == level.upper())
+    if source:
+        query = query.filter(ErrorLog.source.ilike(f"%{source}%"))
+
+    # Get total count
+    total = query.count()
+
+    # Get paginated results
+    offset = (page - 1) * page_size
+    logs = query.order_by(ErrorLog.timestamp.desc()).offset(offset).limit(page_size).all()
+
+    return ErrorLogResponse(
+        logs=[ErrorLogEntry.model_validate(log) for log in logs],
+        total=total,
+        page=page,
+        page_size=page_size
+    )
+
+
+@router.delete("/error-logs/cleanup", response_model=ErrorLogCleanupResponse)
+async def cleanup_error_logs(
+    days: int = Query(90, ge=1, description="Delete error logs older than this many days"),
+    db: DBSession = Depends(get_db),
+    admin: User = Depends(get_admin_user)
+):
+    """
+    Delete error logs older than specified days.
+
+    Requires admin authentication.
+    """
+    cutoff_date = datetime.utcnow() - timedelta(days=days)
+
+    deleted_count = db.query(ErrorLog).filter(
+        ErrorLog.timestamp < cutoff_date
+    ).delete()
+
+    db.commit()
+
+    # Log the cleanup action
+    admin_service.log_admin_action(
+        db=db,
+        admin_user_id=admin.id,
+        admin_email=admin.email,
+        action="error_logs_cleanup",
+        details={"days": days, "deleted_count": deleted_count}
+    )
+
+    logger.info(f"Admin {admin.email} deleted {deleted_count} error logs older than {days} days")
+
+    return ErrorLogCleanupResponse(deleted_count=deleted_count)

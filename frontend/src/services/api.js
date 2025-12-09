@@ -245,6 +245,12 @@ export const adminAPI = {
     api.get('/admin/audit-log', { params: { page, limit, action, admin_email: adminEmail } }),
   cleanupAuditLog: () => api.post('/admin/audit-log/cleanup'),
 
+  // Error logs
+  getErrorLogs: (page = 1, pageSize = 50, level = null, source = null) =>
+    api.get('/admin/error-logs', { params: { page, page_size: pageSize, level, source } }),
+  cleanupErrorLogs: (days = 30) =>
+    api.delete('/admin/error-logs/cleanup', { params: { days } }),
+
   // Security logs
   getSecurityLogs: (params) => api.get('/admin/security-logs', { params }),
 

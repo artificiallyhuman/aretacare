@@ -262,3 +262,36 @@ class EmailInactiveUsersResponse(BaseModel):
     emails_sent: int
     emails_failed: int
     details: List[dict]
+
+
+# ==========================================
+# Error Log Schemas
+# ==========================================
+
+class ErrorLogEntry(BaseModel):
+    """Single error log entry."""
+    id: int
+    timestamp: datetime
+    level: str
+    source: str
+    message: str
+    stack_trace: Optional[str] = None
+    user_id: Optional[str] = None
+    session_id: Optional[str] = None
+    details: Optional[dict] = None
+
+    class Config:
+        from_attributes = True
+
+
+class ErrorLogResponse(BaseModel):
+    """Paginated error log response."""
+    logs: List[ErrorLogEntry]
+    total: int
+    page: int
+    page_size: int
+
+
+class ErrorLogCleanupResponse(BaseModel):
+    """Response from cleaning up old error logs."""
+    deleted_count: int

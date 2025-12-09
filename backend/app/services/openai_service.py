@@ -41,6 +41,19 @@ class OpenAIService:
 
         except Exception as e:
             logger.error(f"OpenAI API error: {e}")
+
+            # Log to database for admin visibility
+            try:
+                from app.services.error_logger import log_error_standalone
+                log_error_standalone(
+                    source="services.openai._create_chat_completion",
+                    error=e,
+                    level="ERROR",
+                    details={"model": self.model, "message_count": len(messages)}
+                )
+            except:
+                pass
+
             return None
 
     async def generate_medical_summary(
@@ -508,6 +521,19 @@ class OpenAIService:
             return transcription
         except Exception as e:
             logger.error(f"Audio transcription error: {e}")
+
+            # Log to database for admin visibility
+            try:
+                from app.services.error_logger import log_error_standalone
+                log_error_standalone(
+                    source="services.openai.transcribe_audio",
+                    error=e,
+                    level="ERROR",
+                    details={"filename": filename}
+                )
+            except:
+                pass
+
             return None
 
 openai_service = OpenAIService()

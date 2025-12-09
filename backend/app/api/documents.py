@@ -167,151 +167,176 @@ async def upload_document(
     # Read file content
     file_content = await file.read()
 
-    # Validate file size
-    if len(file_content) > MAX_FILE_SIZE:
-        # Log upload failure for monitoring
-        security_service.log_event(
-            db=db,
-            event_type="upload_failure",
-            email=current_user.email,
-            user_id=current_user.id,
-            ip_address=security_service.get_client_ip(request),
-            user_agent=security_service.get_user_agent(request),
-            endpoint="/api/documents/upload",
-            details=f"File size exceeds limit: {len(file_content)} bytes, filename: {file.filename}"
-        )
-        raise HTTPException(
-            status_code=400,
-            detail=f"File size exceeds maximum allowed size of {MAX_FILE_SIZE / 1024 / 1024}MB"
-        )
-
-    # Generate unique S3 key (with optional environment prefix for shared buckets)
-    file_extension = file.filename.split('.')[-1] if '.' in file.filename else 'bin'
-    s3_key = s3_service.get_prefixed_key(f"documents/{session_id}/{uuid.uuid4()}.{file_extension}")
-
-    # Upload to S3
-    upload_success = await s3_service.upload_file(file_content, s3_key, file.content_type)
-
-    if not upload_success:
-        raise HTTPException(status_code=500, detail="Failed to upload file to storage")
-
-    # Extract text from document
-    extracted_text = document_processor.extract_text(file_content, file.content_type)
-
-    # Generate and upload thumbnail for PDFs
-    thumbnail_s3_key = None
-    if file.content_type == "application/pdf":
-        thumbnail_bytes = document_processor.generate_pdf_thumbnail(file_content)
-        if thumbnail_bytes:
-            thumbnail_s3_key = s3_service.get_prefixed_key(f"thumbnails/{session_id}/{uuid.uuid4()}.png")
-            thumbnail_upload_success = await s3_service.upload_file(
-                thumbnail_bytes,
-                thumbnail_s3_key,
-                "image/png"
-            )
-            if not thumbnail_upload_success:
-                logger.warning(f"Failed to upload thumbnail for {file.filename}")
-                thumbnail_s3_key = None
-
-    # Use AI to categorize document and generate description
-    # Wrapped in try/except for backward compatibility - if AI fails, document still uploads
-    doc_category = None
-    ai_description = None
     try:
-        # Generate presigned URL for native GPT file processing
-        document_url = s3_service.generate_presigned_url(s3_key)
-
-        categorization = await openai_service.categorize_document(
-            filename=file.filename,
-            content_type=file.content_type,
-            document_url=document_url,
-            extracted_text=extracted_text or ""
-        )
-        # Convert category string to enum (with fallback to OTHER)
-        try:
-            doc_category = DocumentCategory(categorization["category"])
-        except (ValueError, KeyError):
-            doc_category = DocumentCategory.OTHER
-        ai_description = categorization.get("description", "")
-    except Exception as e:
-        logger.warning(f"AI categorization failed for {file.filename}: {e}. Document will upload without category.")
-        # Leave doc_category and ai_description as None for backward compatibility
-
-    # Create document record with AI metadata (or None if AI failed)
-    document = DocumentModel(
-        session_id=session_id,
-        filename=file.filename,
-        s3_key=s3_key,
-        thumbnail_s3_key=thumbnail_s3_key,
-        content_type=file.content_type,
-        extracted_text=extracted_text,
-        category=doc_category,
-        ai_description=ai_description
-    )
-
-    db.add(document)
-    db.commit()
-    db.refresh(document)
-
-    # Create journal entry from document content (only for management page uploads)
-    # Conversation uploads skip this and synthesize when the document is used in conversation
-    skip_synthesis = skip_journal_synthesis.lower() == "true"
-
-    if not skip_synthesis:
-        try:
-            journal_service = JournalService(db)
-
-            # Format as a user message about the document
-            user_message = f"Document uploaded: {file.filename}\n\n"
-            if extracted_text:
-                # Include first 500 characters of extracted text for context
-                preview = extracted_text[:500] + ("..." if len(extracted_text) > 500 else "")
-                user_message += f"Content preview:\n{preview}"
-            else:
-                user_message += "Document type: " + file.content_type
-
-            ai_response = f"I've processed this document. {ai_description if ai_description else 'This appears to be related to your care journey.'}"
-
-            # Use today's date
-            from datetime import date as date_type
-            entry_date = date_type.today()
-
-            synthesis_result = await journal_service.assess_and_synthesize(
-                user_message=user_message,
-                ai_response=ai_response,
-                session_id=session_id,
-                conversation_id=None,  # Not from a conversation
-                entry_date=entry_date
+        # Validate file size
+        if len(file_content) > MAX_FILE_SIZE:
+            # Log upload failure for monitoring
+            security_service.log_event(
+                db=db,
+                event_type="upload_failure",
+                email=current_user.email,
+                user_id=current_user.id,
+                ip_address=security_service.get_client_ip(request),
+                user_agent=security_service.get_user_agent(request),
+                endpoint="/api/documents/upload",
+                details=f"File size exceeds limit: {len(file_content)} bytes, filename: {file.filename}"
+            )
+            raise HTTPException(
+                status_code=400,
+                detail=f"File size exceeds maximum allowed size of {MAX_FILE_SIZE / 1024 / 1024}MB"
             )
 
-            if synthesis_result.should_create and len(synthesis_result.suggested_entries) > 0:
-                logger.info(f"Created {len(synthesis_result.suggested_entries)} journal entries from document upload")
-            else:
-                logger.info("No journal entries created from document upload (not journal-worthy)")
+        # Generate unique S3 key (with optional environment prefix for shared buckets)
+        file_extension = file.filename.split('.')[-1] if '.' in file.filename else 'bin'
+        s3_key = s3_service.get_prefixed_key(f"documents/{session_id}/{uuid.uuid4()}.{file_extension}")
 
+        # Upload to S3
+        upload_success = await s3_service.upload_file(file_content, s3_key, file.content_type)
+
+        if not upload_success:
+            raise HTTPException(status_code=500, detail="Failed to upload file to storage")
+
+        # Extract text from document
+        extracted_text = document_processor.extract_text(file_content, file.content_type)
+
+        # Generate and upload thumbnail for PDFs
+        thumbnail_s3_key = None
+        if file.content_type == "application/pdf":
+            thumbnail_bytes = document_processor.generate_pdf_thumbnail(file_content)
+            if thumbnail_bytes:
+                thumbnail_s3_key = s3_service.get_prefixed_key(f"thumbnails/{session_id}/{uuid.uuid4()}.png")
+                thumbnail_upload_success = await s3_service.upload_file(
+                    thumbnail_bytes,
+                    thumbnail_s3_key,
+                    "image/png"
+                )
+                if not thumbnail_upload_success:
+                    logger.warning(f"Failed to upload thumbnail for {file.filename}")
+                    thumbnail_s3_key = None
+
+        # Use AI to categorize document and generate description
+        # Wrapped in try/except for backward compatibility - if AI fails, document still uploads
+        doc_category = None
+        ai_description = None
+        try:
+            # Generate presigned URL for native GPT file processing
+            document_url = s3_service.generate_presigned_url(s3_key)
+
+            categorization = await openai_service.categorize_document(
+                filename=file.filename,
+                content_type=file.content_type,
+                document_url=document_url,
+                extracted_text=extracted_text or ""
+            )
+            # Convert category string to enum (with fallback to OTHER)
+            try:
+                doc_category = DocumentCategory(categorization["category"])
+            except (ValueError, KeyError):
+                doc_category = DocumentCategory.OTHER
+            ai_description = categorization.get("description", "")
         except Exception as e:
-            # Log but don't fail the upload if journal synthesis fails
-            logger.warning(f"Failed to create journal entry from document upload: {e}")
-    else:
-        logger.info("Skipping journal synthesis for conversation document upload (will synthesize in conversation)")
+            logger.warning(f"AI categorization failed for {file.filename}: {e}. Document will upload without category.")
+            # Leave doc_category and ai_description as None for backward compatibility
 
-    # Generate presigned URLs for immediate display in conversation
-    # For images, use media_url; for PDFs, use thumbnail_url
-    media_url = None
-    thumbnail_url = None
+        # Create document record with AI metadata (or None if AI failed)
+        document = DocumentModel(
+            session_id=session_id,
+            filename=file.filename,
+            s3_key=s3_key,
+            thumbnail_s3_key=thumbnail_s3_key,
+            content_type=file.content_type,
+            extracted_text=extracted_text,
+            category=doc_category,
+            ai_description=ai_description
+        )
 
-    if file.content_type.startswith('image/'):
-        # For images, generate media_url from the document's s3_key
-        media_url = s3_service.generate_presigned_url(s3_key)
-    elif file.content_type == 'application/pdf' and thumbnail_s3_key:
-        # For PDFs, generate thumbnail_url
-        thumbnail_url = s3_service.generate_presigned_url(thumbnail_s3_key)
+        db.add(document)
+        db.commit()
+        db.refresh(document)
 
-    # Add URLs to document for response
-    document.media_url = media_url
-    document.thumbnail_url = thumbnail_url
+        # Create journal entry from document content (only for management page uploads)
+        # Conversation uploads skip this and synthesize when the document is used in conversation
+        skip_synthesis = skip_journal_synthesis.lower() == "true"
 
-    return document
+        if not skip_synthesis:
+            try:
+                journal_service = JournalService(db)
+
+                # Format as a user message about the document
+                user_message = f"Document uploaded: {file.filename}\n\n"
+                if extracted_text:
+                    # Include first 500 characters of extracted text for context
+                    preview = extracted_text[:500] + ("..." if len(extracted_text) > 500 else "")
+                    user_message += f"Content preview:\n{preview}"
+                else:
+                    user_message += "Document type: " + file.content_type
+
+                ai_response = f"I've processed this document. {ai_description if ai_description else 'This appears to be related to your care journey.'}"
+
+                # Use today's date
+                from datetime import date as date_type
+                entry_date = date_type.today()
+
+                synthesis_result = await journal_service.assess_and_synthesize(
+                    user_message=user_message,
+                    ai_response=ai_response,
+                    session_id=session_id,
+                    conversation_id=None,  # Not from a conversation
+                    entry_date=entry_date
+                )
+
+                if synthesis_result.should_create and len(synthesis_result.suggested_entries) > 0:
+                    logger.info(f"Created {len(synthesis_result.suggested_entries)} journal entries from document upload")
+                else:
+                    logger.info("No journal entries created from document upload (not journal-worthy)")
+
+            except Exception as e:
+                # Log but don't fail the upload if journal synthesis fails
+                logger.warning(f"Failed to create journal entry from document upload: {e}")
+        else:
+            logger.info("Skipping journal synthesis for conversation document upload (will synthesize in conversation)")
+
+        # Generate presigned URLs for immediate display in conversation
+        # For images, use media_url; for PDFs, use thumbnail_url
+        media_url = None
+        thumbnail_url = None
+
+        if file.content_type.startswith('image/'):
+            # For images, generate media_url from the document's s3_key
+            media_url = s3_service.generate_presigned_url(s3_key)
+        elif file.content_type == 'application/pdf' and thumbnail_s3_key:
+            # For PDFs, generate thumbnail_url
+            thumbnail_url = s3_service.generate_presigned_url(thumbnail_s3_key)
+
+        # Add URLs to document for response
+        document.media_url = media_url
+        document.thumbnail_url = thumbnail_url
+
+        return document
+
+    except HTTPException:
+        # Re-raise HTTP exceptions (validation errors, etc.)
+        raise
+    except Exception as e:
+        # Log unexpected errors to database
+        try:
+            from app.services.error_logger import log_database_error
+            log_database_error(
+                db=db,
+                source="api.documents.upload_document",
+                error=e,
+                user_id=current_user.id,
+                session_id=session_id,
+                details={
+                    "filename": file.filename,
+                    "content_type": file.content_type,
+                    "file_size": len(file_content)
+                }
+            )
+        except:
+            pass
+
+        raise HTTPException(status_code=500, detail=f"Error uploading document: {str(e)}")
 
 
 @router.get("/session/{session_id}", response_model=List[DocumentResponse])

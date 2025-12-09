@@ -556,3 +556,55 @@ def run_migrations():
                 conn.rollback()
         else:
             logger.info("security_logs table already exists")
+
+        # ==========================================
+        # ERROR LOGS TABLE
+        # ==========================================
+
+        # Create error_logs table if it doesn't exist
+        if 'error_logs' not in inspector.get_table_names():
+            logger.info("Creating error_logs table...")
+            try:
+                conn.execute(text("""
+                    CREATE TABLE error_logs (
+                        id SERIAL PRIMARY KEY,
+                        timestamp TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                        level VARCHAR(20) NOT NULL,
+                        source VARCHAR(255) NOT NULL,
+                        message TEXT NOT NULL,
+                        stack_trace TEXT,
+                        user_id VARCHAR(36),
+                        session_id VARCHAR(36),
+                        details JSONB
+                    )
+                """))
+                conn.commit()
+                logger.info("Successfully created error_logs table")
+
+                # Create indexes for efficient queries
+                conn.execute(text("""
+                    CREATE INDEX IF NOT EXISTS idx_error_logs_timestamp
+                    ON error_logs (timestamp DESC)
+                """))
+                conn.commit()
+                logger.info("Created index idx_error_logs_timestamp")
+
+                conn.execute(text("""
+                    CREATE INDEX IF NOT EXISTS idx_error_logs_level
+                    ON error_logs (level)
+                """))
+                conn.commit()
+                logger.info("Created index idx_error_logs_level")
+
+                conn.execute(text("""
+                    CREATE INDEX IF NOT EXISTS idx_error_logs_source
+                    ON error_logs (source)
+                """))
+                conn.commit()
+                logger.info("Created index idx_error_logs_source")
+
+            except Exception as e:
+                logger.error(f"Failed to create error_logs table: {e}")
+                conn.rollback()
+        else:
+            logger.info("error_logs table already exists")

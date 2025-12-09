@@ -155,6 +155,24 @@ async def send_message(
 
     except Exception as e:
         db.rollback()
+
+        # Log error to database for admin visibility
+        try:
+            from app.services.error_logger import log_database_error
+            log_database_error(
+                db=db,
+                source="api.conversation.send_message",
+                error=e,
+                user_id=current_user.id,
+                session_id=session_id,
+                details={
+                    "message_length": len(message_data.content),
+                    "has_document": message_data.document_id is not None
+                }
+            )
+        except:
+            pass
+
         raise HTTPException(status_code=500, detail=f"Error processing message: {str(e)}")
 
 
@@ -454,6 +472,21 @@ async def transcribe_audio(
             raise
         except Exception as e:
             logger.error(f"Error converting audio to mp3: {str(e)}", exc_info=True)
+
+            # Log to database for admin visibility
+            try:
+                from app.services.error_logger import log_database_error
+                log_database_error(
+                    db=db,
+                    source="api.conversation.transcribe_audio.convert_mp3",
+                    error=e,
+                    user_id=current_user.id,
+                    session_id=session_id,
+                    details={"filename": audio.filename}
+                )
+            except:
+                pass
+
             raise HTTPException(status_code=500, detail=f"Error processing audio file: {str(e)}")
         finally:
             # Clean up temporary files
@@ -553,4 +586,19 @@ async def transcribe_audio(
         raise
     except Exception as e:
         logger.error(f"Error transcribing audio: {str(e)}")
+
+        # Log to database for admin visibility
+        try:
+            from app.services.error_logger import log_database_error
+            log_database_error(
+                db=db,
+                source="api.conversation.transcribe_audio",
+                error=e,
+                user_id=current_user.id,
+                session_id=session_id,
+                details={"filename": audio.filename}
+            )
+        except:
+            pass
+
         raise HTTPException(status_code=500, detail=f"Error transcribing audio: {str(e)}")

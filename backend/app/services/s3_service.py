@@ -44,6 +44,19 @@ class S3Service:
             return True
         except ClientError as e:
             logger.error(f"Failed to upload file to S3: {e}")
+
+            # Log to database for admin visibility
+            try:
+                from app.services.error_logger import log_error_standalone
+                log_error_standalone(
+                    source="services.s3.upload_file",
+                    error=e,
+                    level="ERROR",
+                    details={"key": key, "content_type": content_type}
+                )
+            except:
+                pass
+
             return False
 
     async def download_file(self, key: str) -> Optional[bytes]:
@@ -56,6 +69,19 @@ class S3Service:
             return response['Body'].read()
         except ClientError as e:
             logger.error(f"Failed to download file from S3: {e}")
+
+            # Log to database for admin visibility
+            try:
+                from app.services.error_logger import log_error_standalone
+                log_error_standalone(
+                    source="services.s3.download_file",
+                    error=e,
+                    level="ERROR",
+                    details={"key": key}
+                )
+            except:
+                pass
+
             return None
 
     async def delete_file(self, key: str) -> bool:
@@ -69,6 +95,19 @@ class S3Service:
             return True
         except ClientError as e:
             logger.error(f"Failed to delete file from S3: {e}")
+
+            # Log to database for admin visibility
+            try:
+                from app.services.error_logger import log_error_standalone
+                log_error_standalone(
+                    source="services.s3.delete_file",
+                    error=e,
+                    level="WARNING",  # Deletion failures are often less critical
+                    details={"key": key}
+                )
+            except:
+                pass
+
             return False
 
     def generate_presigned_url(self, key: str, expiration: int = 3600) -> Optional[str]:

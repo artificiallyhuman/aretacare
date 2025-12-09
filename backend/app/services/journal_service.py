@@ -369,6 +369,24 @@ IMPORTANT: Respond with ONLY a valid JSON object in this exact format, with no a
         except Exception as e:
             self.db.rollback()
             logger.error(f"Error creating journal entry: {e}")
+
+            # Log to database for admin visibility
+            try:
+                from app.services.error_logger import log_database_error
+                log_database_error(
+                    db=self.db,
+                    source="services.journal.create_entry",
+                    error=e,
+                    session_id=session_id,
+                    details={
+                        "entry_type": entry_type.value if entry_type else None,
+                        "entry_date": entry_date.isoformat() if entry_date else None,
+                        "title": title[:100] if title else None
+                    }
+                )
+            except:
+                pass  # Don't let error logging itself crash the app
+
             raise
 
     async def update_entry(
