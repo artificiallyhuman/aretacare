@@ -146,7 +146,7 @@ class DailyPlanService:
 
         if latest_plan:
             # Subsequent plan: only get NEW data since last plan was created
-            cutoff_time = datetime.combine(latest_plan.date, datetime.min.time())
+            cutoff_time = latest_plan.created_at
 
             # Get journal entries created since last plan
             journal_entries = db.query(JournalEntry).filter(
@@ -426,7 +426,7 @@ class DailyPlanService:
             return False, latest_plan, "Plan already exists for today"
 
         # Latest plan is from a previous day - check for NEW data since that plan
-        cutoff_time = datetime.combine(latest_plan.date, datetime.min.time())
+        cutoff_time = latest_plan.created_at
 
         # Check for new journal entries
         new_journals = db.query(JournalEntry).filter(
