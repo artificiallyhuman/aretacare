@@ -6,6 +6,7 @@ from app.models.conversation import Conversation, MessageRole
 from app.models.audio_recording import AudioRecording, AudioRecordingCategory
 from app.models.journal import JournalEntry, EntryType
 from app.models.daily_plan import DailyPlan
+from app.models.daily_plan_view import DailyPlanView
 from app.models.admin_audit_log import AdminAuditLog
 from app.models.security_log import SecurityLog
 from app.models.error_log import ErrorLog
@@ -13,5 +14,5 @@ from app.models.error_log import ErrorLog
 __all__ = [
     "User", "Session", "SessionCollaborator", "Document", "DocumentCategory",
     "Conversation", "MessageRole", "AudioRecording", "AudioRecordingCategory",
-    "JournalEntry", "EntryType", "DailyPlan", "AdminAuditLog", "SecurityLog", "ErrorLog"
+    "JournalEntry", "EntryType", "DailyPlan", "DailyPlanView", "AdminAuditLog", "SecurityLog", "ErrorLog"
 ]

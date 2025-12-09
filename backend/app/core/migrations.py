@@ -608,3 +608,40 @@ def run_migrations():
                 conn.rollback()
         else:
             logger.info("error_logs table already exists")
+
+        # Create daily_plan_views table if it doesn't exist (per-user view tracking)
+        if 'daily_plan_views' not in inspector.get_table_names():
+            logger.info("Creating daily_plan_views table...")
+            try:
+                conn.execute(text("""
+                    CREATE TABLE daily_plan_views (
+                        id SERIAL PRIMARY KEY,
+                        daily_plan_id INTEGER NOT NULL REFERENCES daily_plans(id) ON DELETE CASCADE,
+                        user_id VARCHAR(36) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                        viewed_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                        CONSTRAINT uq_daily_plan_user UNIQUE (daily_plan_id, user_id)
+                    )
+                """))
+                conn.commit()
+                logger.info("Successfully created daily_plan_views table")
+
+                # Create indexes for efficient queries
+                conn.execute(text("""
+                    CREATE INDEX IF NOT EXISTS idx_daily_plan_views_plan
+                    ON daily_plan_views (daily_plan_id)
+                """))
+                conn.commit()
+                logger.info("Created index idx_daily_plan_views_plan")
+
+                conn.execute(text("""
+                    CREATE INDEX IF NOT EXISTS idx_daily_plan_views_user
+                    ON daily_plan_views (user_id)
+                """))
+                conn.commit()
+                logger.info("Created index idx_daily_plan_views_user")
+
+            except Exception as e:
+                logger.error(f"Failed to create daily_plan_views table: {e}")
+                conn.rollback()
+        else:
+            logger.info("daily_plan_views table already exists")

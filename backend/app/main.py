@@ -34,44 +34,6 @@ else:
     # Run migrations for schema changes
     run_migrations()
 
-# Data Retention: Clean up old audit logs on startup
-def run_audit_log_cleanup():
-    """Run audit log cleanup for data retention."""
-    try:
-        db = SessionLocal()
-        deleted_count = admin_service.cleanup_old_audit_logs(db)
-        if deleted_count > 0:
-            logger.info(f"✓ Audit log cleanup: {deleted_count} old entries removed")
-        else:
-            logger.info(f"✓ Audit log cleanup: No old entries to remove (retention: {settings.AUDIT_LOG_RETENTION_DAYS} days)")
-        db.close()
-    except Exception as e:
-        logger.error(f"Failed to run audit log cleanup: {e}")
-
-run_audit_log_cleanup()
-
-# Data Retention: Clean up old error logs on startup
-def run_error_log_cleanup():
-    """Run error log cleanup for data retention."""
-    try:
-        from app.models.error_log import ErrorLog
-        from datetime import datetime, timedelta
-
-        db = SessionLocal()
-        cutoff_date = datetime.utcnow() - timedelta(days=settings.ERROR_LOG_RETENTION_DAYS)
-        deleted_count = db.query(ErrorLog).filter(ErrorLog.timestamp < cutoff_date).delete()
-        db.commit()
-
-        if deleted_count > 0:
-            logger.info(f"✓ Error log cleanup: {deleted_count} old entries removed")
-        else:
-            logger.info(f"✓ Error log cleanup: No old entries to remove (retention: {settings.ERROR_LOG_RETENTION_DAYS} days)")
-        db.close()
-    except Exception as e:
-        logger.error(f"Failed to run error log cleanup: {e}")
-
-run_error_log_cleanup()
-
 app = FastAPI(
     title="AretaCare API",
     description="Care. Clarity. Confidence. - Helping families navigate medical information",
@@ -93,6 +55,41 @@ app.add_middleware(
 
 # Include API routes
 app.include_router(api_router, prefix="/api")
+
+
+# Data Retention: Clean up old logs on startup (after models are initialized)
+@app.on_event("startup")
+async def startup_cleanup():
+    """Run data retention cleanup on startup"""
+    # Clean up old audit logs
+    try:
+        db = SessionLocal()
+        deleted_count = admin_service.cleanup_old_audit_logs(db)
+        if deleted_count > 0:
+            logger.info(f"✓ Audit log cleanup: {deleted_count} old entries removed")
+        else:
+            logger.info(f"✓ Audit log cleanup: No old entries to remove (retention: {settings.AUDIT_LOG_RETENTION_DAYS} days)")
+        db.close()
+    except Exception as e:
+        logger.error(f"Failed to run audit log cleanup: {e}")
+
+    # Clean up old error logs
+    try:
+        from app.models.error_log import ErrorLog
+        from datetime import datetime, timedelta
+
+        db = SessionLocal()
+        cutoff_date = datetime.utcnow() - timedelta(days=settings.ERROR_LOG_RETENTION_DAYS)
+        deleted_count = db.query(ErrorLog).filter(ErrorLog.timestamp < cutoff_date).delete()
+        db.commit()
+
+        if deleted_count > 0:
+            logger.info(f"✓ Error log cleanup: {deleted_count} old entries removed")
+        else:
+            logger.info(f"✓ Error log cleanup: No old entries to remove (retention: {settings.ERROR_LOG_RETENTION_DAYS} days)")
+        db.close()
+    except Exception as e:
+        logger.error(f"Failed to run error log cleanup: {e}")
 
 
 @app.get("/")

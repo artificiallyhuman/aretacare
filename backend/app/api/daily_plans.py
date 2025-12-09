@@ -27,6 +27,7 @@ async def get_all_daily_plans(
     current_user: User = Depends(get_current_user)
 ):
     """Get all daily plans for a session, ordered by date (most recent first)"""
+    from app.models.daily_plan_view import DailyPlanView
 
     # Verify user has access to session (owner or collaborator)
     session = db.query(UserSession).filter(UserSession.id == session_id).first()
@@ -41,6 +42,18 @@ async def get_all_daily_plans(
         DailyPlan.session_id == session_id
     ).order_by(DailyPlan.date.desc()).all()
 
+    # Get all view records for this user in one query
+    plan_ids = [plan.id for plan in plans]
+    user_views = db.query(DailyPlanView.daily_plan_id).filter(
+        DailyPlanView.daily_plan_id.in_(plan_ids),
+        DailyPlanView.user_id == current_user.id
+    ).all()
+    viewed_plan_ids = {view.daily_plan_id for view in user_views}
+
+    # Set viewed status for each plan based on current user
+    for plan in plans:
+        plan.viewed = plan.id in viewed_plan_ids
+
     return plans
 
 
@@ -51,6 +64,7 @@ async def get_latest_daily_plan(
     current_user: User = Depends(get_current_user)
 ):
     """Get the latest daily plan for a session (returns null if none exist)"""
+    from app.models.daily_plan_view import DailyPlanView
 
     # Verify user has access to session (owner or collaborator)
     session = db.query(UserSession).filter(UserSession.id == session_id).first()
@@ -64,6 +78,15 @@ async def get_latest_daily_plan(
     plan = db.query(DailyPlan).filter(
         DailyPlan.session_id == session_id
     ).order_by(DailyPlan.date.desc()).first()
+
+    if plan:
+        # Check if current user has viewed this plan
+        user_view = db.query(DailyPlanView).filter(
+            DailyPlanView.daily_plan_id == plan.id,
+            DailyPlanView.user_id == current_user.id
+        ).first()
+        # Set viewed status for this user
+        plan.viewed = user_view is not None
 
     return plan
 
@@ -126,6 +149,15 @@ async def generate_daily_plan(
 
     # Generate the plan (HTTPException will pass through to FastAPI)
     plan = await DailyPlanService.generate_daily_plan(db, session_id, user_date)
+
+    # Check if current user has viewed this plan (for existing plans returned by generate)
+    from app.models.daily_plan_view import DailyPlanView
+    user_view = db.query(DailyPlanView).filter(
+        DailyPlanView.daily_plan_id == plan.id,
+        DailyPlanView.user_id == current_user.id
+    ).first()
+    plan.viewed = user_view is not None
+
     return plan
 
 
@@ -169,7 +201,8 @@ async def mark_plan_viewed(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    """Mark a daily plan as viewed"""
+    """Mark a daily plan as viewed (per-user tracking)"""
+    from app.models.daily_plan_view import DailyPlanView
 
     # Get the plan
     plan = db.query(DailyPlan).filter(DailyPlan.id == plan_id).first()
@@ -185,9 +218,27 @@ async def mark_plan_viewed(
 
     check_session_access(session, current_user.id, db)
 
-    # Mark as viewed
-    plan.viewed = mark_viewed.viewed
-    plan.updated_at = datetime.utcnow()
+    # Create or update per-user view record
+    if mark_viewed.viewed:
+        # Check if user has already viewed this plan
+        existing_view = db.query(DailyPlanView).filter(
+            DailyPlanView.daily_plan_id == plan_id,
+            DailyPlanView.user_id == current_user.id
+        ).first()
+
+        if not existing_view:
+            # Create new view record
+            view_record = DailyPlanView(
+                daily_plan_id=plan_id,
+                user_id=current_user.id
+            )
+            db.add(view_record)
+    else:
+        # Remove view record (user is marking as unviewed)
+        db.query(DailyPlanView).filter(
+            DailyPlanView.daily_plan_id == plan_id,
+            DailyPlanView.user_id == current_user.id
+        ).delete()
 
     db.commit()
     db.refresh(plan)
