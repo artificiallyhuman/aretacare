@@ -23,7 +23,7 @@ AretaCare is an AI-powered medical care advocate assistant that helps families u
 - AI-powered Documents Manager (12 categories, AI descriptions, searchable, date navigation, direct upload)
 - AI-powered Audio Recordings (12 categories, AI summaries, searchable, date navigation, direct upload)
 - Complete data deletion - removes PostgreSQL data and S3 files (zero orphaned files)
-- Admin console - user metrics, system health, S3 orphan cleanup, audit logging with automatic retention
+- Admin console - user metrics, system health, S3 orphan cleanup, audit logging with automatic retention, error logs with filtering and cleanup
 - Mobile-optimized design with responsive layouts
 - Dark mode support via Tailwind CSS and ThemeContext
 - Specialized tools: Jargon Translator (with audio input), Conversation Coach (with audio input)
@@ -60,14 +60,16 @@ python -c "import secrets; print(secrets.token_urlsafe(32))"  # Generate secret 
 - Protected routes redirect to login if not authenticated
 
 **Database (PostgreSQL)**
-- Nine main tables: `users`, `sessions`, `session_collaborators`, `documents`, `audio_recordings`, `conversations`, `journal_entries`, `daily_plans`, `admin_audit_logs`
+- Eleven main tables: `users`, `sessions`, `session_collaborators`, `documents`, `audio_recordings`, `conversations`, `journal_entries`, `daily_plans`, `daily_plan_views`, `admin_audit_logs`, `security_logs`, `error_logs`
 - User table stores authentication credentials (bcrypt hashed passwords) and password reset tokens (time-limited, 1-hour expiration)
 - **Sessions table** tied to user accounts via foreign key, supports up to 3 sessions per user (owned + collaborations), includes `owner_id` for session ownership, name field (15-character limit, default "Session N"), created_at for automatic numbering
 - **Session collaborators table** links users to shared sessions with unique constraint on (session_id, user_id), cascading deletes when session or user is deleted
-- **Documents table** with AI categorization (12 categories), AI-generated descriptions (user-editable, up to 200 characters), text extraction, and thumbnail support
+- **Documents table** with AI categorization (12 categories), AI-generated descriptions (user-editable, up to 200 characters), text extraction, and thumbnail support, timezone-aware upload dates
 - **Audio recordings table** with AI categorization (12 categories), AI-generated summaries (user-editable, up to 150 characters), transcription, and duration tracking
 - Journal entries with AI-generated content, metadata, and entry types
-- Daily plans with AI-generated content, user edits, viewed status, and date tracking
+- Daily plans with AI-generated content, user edits, and date tracking
+- **Daily plan views table** tracks per-user view status - each collaborator has independent view tracking, ensures "new plan" banners show correctly for each user
+- **Error logs table** stores application errors (OpenAI API, S3, uploads, etc.) for debugging in production, auto-cleanup after 30 days
 - Conversations include rich media support (message_type, document_id, media_url fields)
 - Cascading deletes: deleting user removes all sessions and associated data (including S3 files), deleting individual session removes all session data
 - **Database migrations** run automatically on startup via `run_migrations()` in `backend/app/core/migrations.py`

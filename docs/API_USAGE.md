@@ -300,6 +300,8 @@ Content-Type: multipart/form-data
 **Parameters:**
 - `file` (file): The document to upload
 - `session_id` (string, optional): Session ID to associate with
+- `skip_journal_synthesis` (boolean, optional): Skip automatic journal entry creation (default: false)
+- `user_date` (string, optional): User's local date in YYYY-MM-DD format for timezone-accurate journal entries (recommended)
 
 **Supported File Types:**
 - PDF (`application/pdf`)
@@ -332,10 +334,16 @@ Content-Type: multipart/form-data
 
 **Example:**
 ```bash
+# Basic upload
 curl -X POST http://localhost:8000/api/documents/upload \
   -H "Authorization: Bearer <token>" \
   -F "file=@medical_report.pdf" \
   -F "session_id=your-session-id"
+
+# Upload with timezone-aware journal entry
+curl -X POST "http://localhost:8000/api/documents/upload?session_id=your-session-id&user_date=2025-01-16" \
+  -H "Authorization: Bearer <token>" \
+  -F "file=@medical_report.pdf"
 ```
 
 #### Get Session Documents
@@ -810,6 +818,8 @@ PUT /api/daily-plans/{plan_id}/mark-viewed
 Authorization: Bearer <token>
 Content-Type: application/json
 ```
+
+**Note:** View status is tracked per-user. Each collaborator has independent view tracking, ensuring the "new plan" banner shows correctly for each user until they personally view the plan.
 
 **Request Body:**
 ```json
