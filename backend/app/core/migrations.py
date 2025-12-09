@@ -295,6 +295,88 @@ def run_migrations():
                 logger.error(f"Failed to update entrytype enum: {e}")
                 conn.rollback()
 
+        # Fix AudioRecordingCategory and DocumentCategory enums
+        # These were created as VARCHAR initially, need to convert to proper enums
+        logger.info("Checking if category enums need to be created/fixed...")
+
+        try:
+            # Check if audiorecordingcategory enum exists
+            result = conn.execute(text("""
+                SELECT EXISTS (
+                    SELECT 1 FROM pg_type WHERE typname = 'audiorecordingcategory'
+                )
+            """))
+            audio_enum_exists = result.scalar()
+
+            if not audio_enum_exists:
+                logger.info("Creating audiorecordingcategory enum type...")
+                conn.execute(text("""
+                    CREATE TYPE audiorecordingcategory AS ENUM (
+                        'symptom_update', 'appointment_recap', 'medication_note',
+                        'question_for_doctor', 'daily_reflection', 'progress_update',
+                        'side_effects', 'care_instruction', 'emergency_note',
+                        'family_update', 'treatment_observation', 'other'
+                    )
+                """))
+                conn.commit()
+                logger.info("Successfully created audiorecordingcategory enum")
+
+                # Update the column to use the enum type
+                if 'audio_recordings' in inspector.get_table_names():
+                    logger.info("Converting audio_recordings.category to enum type...")
+                    conn.execute(text("""
+                        ALTER TABLE audio_recordings
+                        ALTER COLUMN category TYPE audiorecordingcategory
+                        USING category::audiorecordingcategory
+                    """))
+                    conn.commit()
+                    logger.info("Successfully converted audio_recordings.category to enum")
+            else:
+                logger.info("audiorecordingcategory enum already exists")
+
+        except Exception as e:
+            logger.error(f"Failed to create/fix audiorecordingcategory enum: {e}")
+            conn.rollback()
+
+        try:
+            # Check if documentcategory enum exists
+            result = conn.execute(text("""
+                SELECT EXISTS (
+                    SELECT 1 FROM pg_type WHERE typname = 'documentcategory'
+                )
+            """))
+            doc_enum_exists = result.scalar()
+
+            if not doc_enum_exists:
+                logger.info("Creating documentcategory enum type...")
+                conn.execute(text("""
+                    CREATE TYPE documentcategory AS ENUM (
+                        'lab_results', 'imaging_reports', 'clinic_notes',
+                        'medication_records', 'discharge_summary', 'treatment_plan',
+                        'test_results', 'referral', 'insurance_billing',
+                        'consent_form', 'care_instructions', 'other'
+                    )
+                """))
+                conn.commit()
+                logger.info("Successfully created documentcategory enum")
+
+                # Update the column to use the enum type
+                if 'documents' in inspector.get_table_names():
+                    logger.info("Converting documents.category to enum type...")
+                    conn.execute(text("""
+                        ALTER TABLE documents
+                        ALTER COLUMN category TYPE documentcategory
+                        USING category::documentcategory
+                    """))
+                    conn.commit()
+                    logger.info("Successfully converted documents.category to enum")
+            else:
+                logger.info("documentcategory enum already exists")
+
+        except Exception as e:
+            logger.error(f"Failed to create/fix documentcategory enum: {e}")
+            conn.rollback()
+
         # ==========================================
         # PERFORMANCE INDEXES
         # ==========================================
