@@ -265,6 +265,37 @@ def run_migrations():
             logger.info("session_collaborators table already exists")
 
         # ==========================================
+        # ENUM TYPE UPDATES
+        # ==========================================
+
+        # Add 'OTHER' to entrytype enum if it doesn't exist
+        if 'journal_entries' in inspector.get_table_names():
+            logger.info("Checking entrytype enum for 'OTHER' value...")
+            try:
+                # Check if OTHER already exists in the enum
+                result = conn.execute(text("""
+                    SELECT EXISTS (
+                        SELECT 1 FROM pg_enum
+                        WHERE enumlabel = 'OTHER'
+                        AND enumtypid = (
+                            SELECT oid FROM pg_type WHERE typname = 'entrytype'
+                        )
+                    )
+                """))
+                has_other = result.scalar()
+
+                if not has_other:
+                    logger.info("Adding 'OTHER' to entrytype enum...")
+                    conn.execute(text("ALTER TYPE entrytype ADD VALUE 'OTHER'"))
+                    conn.commit()
+                    logger.info("Successfully added 'OTHER' to entrytype enum")
+                else:
+                    logger.info("'OTHER' already exists in entrytype enum")
+            except Exception as e:
+                logger.error(f"Failed to update entrytype enum: {e}")
+                conn.rollback()
+
+        # ==========================================
         # PERFORMANCE INDEXES
         # ==========================================
 
