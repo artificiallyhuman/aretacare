@@ -34,6 +34,11 @@ const DailyPlan = () => {
         // Mark as viewed if not already
         if (!latestPlan.viewed) {
           await dailyPlanAPI.markViewed(latestPlan.id);
+          // Update local state to reflect viewed status
+          const updatedPlan = { ...latestPlan, viewed: true };
+          setSelectedPlan(updatedPlan);
+          // Update the plan in the list as well
+          setPlans(plans => plans.map(p => p.id === latestPlan.id ? updatedPlan : p));
         }
       }
     } catch (err) {
@@ -257,11 +262,15 @@ const DailyPlan = () => {
                 {plans.map((plan) => (
                   <button
                     key={plan.id}
-                    onClick={() => {
+                    onClick={async () => {
                       setSelectedPlan(plan);
                       setShowSidebar(false); // Close sidebar on mobile after selection
                       if (!plan.viewed) {
-                        dailyPlanAPI.markViewed(plan.id);
+                        await dailyPlanAPI.markViewed(plan.id);
+                        // Update local state to reflect viewed status
+                        const updatedPlan = { ...plan, viewed: true };
+                        setSelectedPlan(updatedPlan);
+                        setPlans(plans => plans.map(p => p.id === plan.id ? updatedPlan : p));
                       }
                       setIsEditing(false);
                     }}

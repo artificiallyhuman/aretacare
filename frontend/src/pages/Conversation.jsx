@@ -304,9 +304,13 @@ const Conversation = () => {
           // Get today's date in user's local timezone (YYYY-MM-DD)
           const today = new Date();
           const userDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-          await dailyPlanAPI.generate(activeSessionId, userDate);
-          setHasNewDailyPlan(true);
-          setShowBanner(true);
+          const generatedPlan = await dailyPlanAPI.generate(activeSessionId, userDate);
+          // Only show banner if the plan hasn't been viewed
+          // (generate returns existing plan if one already exists)
+          if (generatedPlan.data && !generatedPlan.data.viewed) {
+            setHasNewDailyPlan(true);
+            setShowBanner(true);
+          }
         } catch (err) {
           // If insufficient data, silently ignore
           if (err.response?.status !== 400) {
@@ -436,6 +440,15 @@ const Conversation = () => {
     setHasNewDailyPlan(false);
   };
 
+  const handleToggleDailyPlan = () => {
+    const willBeOpen = !dailyPlanPanelOpen;
+    setDailyPlanPanelOpen(willBeOpen);
+    // If opening the panel, dismiss the banner
+    if (willBeOpen) {
+      handleDismissBanner();
+    }
+  };
+
   if (sessionLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -460,7 +473,8 @@ const Conversation = () => {
           <DailyPlanPanel
             activeSessionId={activeSessionId}
             isOpen={dailyPlanPanelOpen}
-            onToggle={() => setDailyPlanPanelOpen(!dailyPlanPanelOpen)}
+            onToggle={handleToggleDailyPlan}
+            onPlanViewed={handleDismissBanner}
           />
         </div>
 
@@ -471,7 +485,8 @@ const Conversation = () => {
               <DailyPlanPanel
                 activeSessionId={activeSessionId}
                 isOpen={dailyPlanPanelOpen}
-                onToggle={() => setDailyPlanPanelOpen(!dailyPlanPanelOpen)}
+                onToggle={handleToggleDailyPlan}
+                onPlanViewed={handleDismissBanner}
               />
             </div>
           </div>

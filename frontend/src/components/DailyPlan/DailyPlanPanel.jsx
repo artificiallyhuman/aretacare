@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
 import { dailyPlanAPI } from '../../services/api';
 
-const DailyPlanPanel = ({ activeSessionId, isOpen, onToggle }) => {
+const DailyPlanPanel = ({ activeSessionId, isOpen, onToggle, onPlanViewed }) => {
   const [dailyPlan, setDailyPlan] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -26,7 +26,21 @@ const DailyPlanPanel = ({ activeSessionId, isOpen, onToggle }) => {
 
         // Mark as viewed if not already
         if (!response.data.viewed) {
-          await dailyPlanAPI.markViewed(response.data.id);
+          try {
+            await dailyPlanAPI.markViewed(response.data.id);
+            // Update local state to reflect viewed status
+            setDailyPlan({ ...response.data, viewed: true });
+            // Notify parent component (Conversation) to hide the banner
+            if (onPlanViewed) {
+              onPlanViewed();
+            }
+          } catch (markErr) {
+            console.error('Failed to mark plan as viewed:', markErr);
+            // Still update UI even if marking fails
+            if (onPlanViewed) {
+              onPlanViewed();
+            }
+          }
         }
       } else {
         // No plan exists yet (new session)
