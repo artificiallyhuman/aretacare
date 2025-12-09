@@ -308,7 +308,11 @@ const Documents = () => {
           idx === i ? { ...p, message: 'Processing...' } : p
         ));
 
-        await documentAPI.upload(formData, sessionId);
+        // Get user's local date in YYYY-MM-DD format
+        const today = new Date();
+        const userDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+
+        await documentAPI.upload(formData, sessionId, false, userDate);
 
         // Update status to success
         setUploadProgress(prev => prev.map((p, idx) =>

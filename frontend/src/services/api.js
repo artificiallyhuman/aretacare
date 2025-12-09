@@ -102,10 +102,11 @@ export const sessionAPI = {
 
 // Document API
 export const documentAPI = {
-  upload: (formData, sessionId, skipJournalSynthesis = false) => {
+  upload: (formData, sessionId, skipJournalSynthesis = false, userDate = null) => {
     const params = sessionId ? `?session_id=${sessionId}` : '';
     const skipParam = skipJournalSynthesis ? `&skip_journal_synthesis=true` : `&skip_journal_synthesis=false`;
-    return api.post(`/documents/upload${params}${skipParam}`, formData, {
+    const dateParam = userDate ? `&user_date=${userDate}` : '';
+    return api.post(`/documents/upload${params}${skipParam}${dateParam}`, formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
       },

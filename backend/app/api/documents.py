@@ -66,6 +66,7 @@ async def upload_document(
     file: UploadFile = File(...),
     session_id: str = None,
     skip_journal_synthesis: str = "false",  # "true" for conversation uploads, "false" for management uploads
+    user_date: str = None,  # User's local date in YYYY-MM-DD format
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
@@ -273,9 +274,15 @@ async def upload_document(
 
                 ai_response = f"I've processed this document. {ai_description if ai_description else 'This appears to be related to your care journey.'}"
 
-                # Use today's date
+                # Use user's local date if provided, otherwise server date
                 from datetime import date as date_type
-                entry_date = date_type.today()
+                if user_date:
+                    try:
+                        entry_date = date_type.fromisoformat(user_date)
+                    except ValueError:
+                        entry_date = date_type.today()
+                else:
+                    entry_date = date_type.today()
 
                 synthesis_result = await journal_service.assess_and_synthesize(
                     user_message=user_message,
