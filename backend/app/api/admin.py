@@ -76,18 +76,32 @@ async def get_platform_metrics(
 async def get_metrics_trend(
     metric: str = Query(..., description="Metric to query: users, sessions, documents, audio, conversations, journals"),
     days: int = Query(30, ge=1, le=365, description="Number of days to look back"),
+    user_date: str = Query(None, description="User's local date in YYYY-MM-DD format (optional)"),
+    timezone_offset_hours: int = Query(0, ge=-12, le=14, description="User's timezone offset from UTC in hours (optional)"),
     admin_user: User = Depends(get_admin_user),
     db: DBSession = Depends(get_db)
 ):
     """Get daily counts for a metric over time."""
-    valid_metrics = ["users", "sessions", "documents", "audio", "conversations", "journals"]
+    valid_metrics = ["users", "sessions", "documents", "audio", "conversations", "journals", "error_logs", "security_logs"]
     if metric not in valid_metrics:
         raise HTTPException(
             status_code=400,
             detail=f"Invalid metric. Must be one of: {', '.join(valid_metrics)}"
         )
 
-    trend_data = admin_service.get_metrics_trend(db, metric, days)
+    # Parse user_date if provided
+    parsed_user_date = None
+    if user_date:
+        try:
+            from datetime import datetime
+            parsed_user_date = datetime.strptime(user_date, "%Y-%m-%d").date()
+        except ValueError:
+            raise HTTPException(
+                status_code=400,
+                detail="Invalid user_date format. Use YYYY-MM-DD."
+            )
+
+    trend_data = admin_service.get_metrics_trend(db, metric, days, parsed_user_date, timezone_offset_hours)
     return MetricsTrendResponse(
         metric=metric,
         days=days,

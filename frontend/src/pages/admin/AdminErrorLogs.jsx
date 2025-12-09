@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import AdminLayout from '../../components/admin/AdminLayout';
 import { adminAPI } from '../../services/api';
+import { formatLocalDateTime } from '../../utils/dateUtils';
 
 const levelColors = {
   ERROR: { bg: 'bg-red-100 dark:bg-red-900/30', text: 'text-red-800 dark:text-red-300', border: 'border-red-200 dark:border-red-800' },
@@ -166,7 +167,7 @@ export default function AdminErrorLogs() {
           <>
             <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
               <div className="overflow-x-auto">
-                <table className="w-full min-w-[600px]">
+                <table className="w-full min-w-[800px]">
                   <thead className="bg-gray-50 dark:bg-gray-700">
                     <tr>
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Time</th>
@@ -181,8 +182,8 @@ export default function AdminErrorLogs() {
                       const colors = levelColors[entry.level] || levelColors.ERROR;
                       return (
                         <tr key={entry.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
-                          <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100 whitespace-nowrap">
-                            {new Date(entry.timestamp).toLocaleString()}
+                          <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">
+                            {formatLocalDateTime(entry.timestamp)}
                           </td>
                           <td className="px-4 py-3">
                             <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${colors.bg} ${colors.text}`}>
@@ -192,15 +193,15 @@ export default function AdminErrorLogs() {
                           <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400 font-mono">
                             {entry.source}
                           </td>
-                          <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">
-                            <div className="max-w-md truncate">{entry.message}</div>
+                          <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">
+                            {entry.message}
                           </td>
-                          <td className="px-4 py-3 text-right">
+                          <td className="px-4 py-3">
                             <button
                               onClick={() => setSelectedEntry(entry)}
-                              className="text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 text-sm font-medium"
+                              className="text-sm text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300"
                             >
-                              Details
+                              View
                             </button>
                           </td>
                         </tr>
@@ -257,7 +258,7 @@ export default function AdminErrorLogs() {
             <div className="p-6 space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Timestamp</label>
-                <div className="text-sm text-gray-900 dark:text-gray-100">{new Date(selectedEntry.timestamp).toLocaleString()}</div>
+                <div className="text-sm text-gray-900 dark:text-gray-100">{formatLocalDateTime(selectedEntry.timestamp)}</div>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Level</label>

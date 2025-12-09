@@ -23,7 +23,7 @@ AretaCare is an AI-powered medical care advocate assistant that helps families u
 - AI-powered Documents Manager (12 categories, AI descriptions, searchable, date navigation, direct upload)
 - AI-powered Audio Recordings (12 categories, AI summaries, searchable, date navigation, direct upload)
 - Complete data deletion - removes PostgreSQL data and S3 files (zero orphaned files)
-- Admin console - user metrics, system health, S3 orphan cleanup, audit logging with automatic retention, error logs with filtering and cleanup
+- Admin console - timezone-aware metrics dashboard with charts for users/sessions/documents/messages/errors/security, system health, S3 orphan cleanup, audit logging with automatic retention, error logs with filtering and cleanup, security logs. All timestamps display in admin's local timezone.
 - Mobile-optimized design with responsive layouts
 - Dark mode support via Tailwind CSS and ThemeContext
 - Specialized tools: Jargon Translator (with audio input), Conversation Coach (with audio input)
@@ -223,7 +223,7 @@ See `backend/app/config/README.md` for complete documentation on modifying AI be
 - `AudioRecordings.jsx` - AI-powered audio manager
 - `Login.jsx`, `Register.jsx`, `PasswordReset.jsx` - Authentication (Login has prominent "Learn about AretaCare" secondary button)
 - `About.jsx`, `TermsOfService.jsx`, `PrivacyPolicy.jsx` - Info pages
-- `admin/` - Admin console pages (Dashboard, SecurityLogs, Health, Accounts, Users, S3Cleanup, AdminLogs)
+- `admin/` - Admin console pages (Dashboard with timezone-aware charts, ErrorLogs, SecurityLogs, Health, Accounts, Users, S3Cleanup, AdminLogs)
 
 **Components** (`frontend/src/components/`):
 - `Header.jsx` - Navigation with session switcher
@@ -237,6 +237,7 @@ See `backend/app/config/README.md` for complete documentation on modifying AI be
 - `contexts/SessionContext.jsx` - Multi-session state management
 - `contexts/AdminContext.jsx` - Admin authorization state
 - `services/api.js` - Axios instance with auth interceptor
+- `utils/dateUtils.js` - Timezone utilities for converting UTC to local time (used in admin console)
 
 ## Important Configuration Details
 
@@ -359,7 +360,7 @@ Theme managed via `ThemeContext.jsx`, persisted to localStorage.
 - Daily Plan generation and editing
 - Documents/Audio with AI categorization
 - Settings: account updates, session management, password reset
-- Admin console (requires email in ADMIN_EMAILS): dashboard, security logs, system health, accounts, users, S3 cleanup, admin logs
+- Admin console (requires email in ADMIN_EMAILS): timezone-aware metrics dashboard, error logs, security logs, system health, accounts, users, S3 cleanup, audit logs
 - Mobile responsiveness
 
 ## Safety Guideline Enforcement

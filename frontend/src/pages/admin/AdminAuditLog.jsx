@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import AdminLayout from '../../components/admin/AdminLayout';
 import { adminAPI } from '../../services/api';
+import { formatLocalDateTime } from '../../utils/dateUtils';
 
 const actionLabels = {
   password_reset: { label: 'Password Reset', color: 'blue' },
@@ -153,7 +154,7 @@ export default function AdminAuditLog() {
                     return (
                       <tr key={entry.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
                         <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">
-                          {new Date(entry.created_at).toLocaleString()}
+                          {formatLocalDateTime(entry.created_at)}
                         </td>
                         <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">
                           {entry.admin_email}
@@ -233,7 +234,7 @@ export default function AdminAuditLog() {
                 <div>
                   <p className="text-xs text-gray-500 dark:text-gray-400">Timestamp</p>
                   <p className="text-sm text-gray-900 dark:text-white">
-                    {new Date(selectedEntry.created_at).toLocaleString()}
+                    {formatLocalDateTime(selectedEntry.created_at)}
                   </p>
                 </div>
                 <div>

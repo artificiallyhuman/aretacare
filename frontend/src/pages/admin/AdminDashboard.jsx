@@ -40,6 +40,13 @@ function MetricCard({ title, value, icon, color, loading }) {
 function TrendChart({ data, loading, title }) {
   const [hoveredBar, setHoveredBar] = React.useState(null);
 
+  // Format date for display (MM/DD format)
+  // Backend returns dates in user's local timezone, so just parse and display
+  const formatDate = (dateStr) => {
+    const [year, month, day] = dateStr.split('-');
+    return `${parseInt(month)}/${parseInt(day)}`;
+  };
+
   if (loading) {
     return (
       <div className="h-32 bg-gray-100 dark:bg-gray-700 rounded animate-pulse"></div>
@@ -75,7 +82,7 @@ function TrendChart({ data, loading, title }) {
             {hoveredBar === i && (
               <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-gray-900 dark:bg-gray-700 text-white text-xs rounded whitespace-nowrap z-10 pointer-events-none">
                 <div className="font-semibold">{d.count}</div>
-                <div className="text-gray-300 dark:text-gray-400">{d.date}</div>
+                <div className="text-gray-300 dark:text-gray-400">{formatDate(d.date)}</div>
                 <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900 dark:border-t-gray-700"></div>
               </div>
             )}
@@ -115,11 +122,18 @@ export default function AdminDashboard() {
 
   const fetchTrends = async () => {
     try {
-      const metricTypes = ['users', 'sessions', 'documents', 'conversations'];
+      // Get user's local date in YYYY-MM-DD format
+      const today = new Date();
+      const userDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+
+      // Get user's timezone offset in hours (negative for timezones behind UTC like PST)
+      const timezoneOffsetHours = -Math.round(today.getTimezoneOffset() / 60);
+
+      const metricTypes = ['users', 'sessions', 'documents', 'conversations', 'error_logs', 'security_logs'];
       const trendData = {};
 
       for (const metric of metricTypes) {
-        const response = await adminAPI.getMetricsTrend(metric, 30);
+        const response = await adminAPI.getMetricsTrend(metric, 30, userDate, timezoneOffsetHours);
         trendData[metric] = response.data.data;
       }
 
@@ -205,6 +219,12 @@ export default function AdminDashboard() {
           </div>
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4">
             <TrendChart data={trends.conversations} loading={trendsLoading} title="Messages (30 days)" />
+          </div>
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4">
+            <TrendChart data={trends.error_logs} loading={trendsLoading} title="Error Logs (30 days)" />
+          </div>
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4">
+            <TrendChart data={trends.security_logs} loading={trendsLoading} title="Security Events (30 days)" />
           </div>
         </div>
 

@@ -5,7 +5,7 @@ Handles metrics calculations, account analysis, S3 orphan detection, and audit l
 """
 from sqlalchemy.orm import Session
 from sqlalchemy import func, text
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 from typing import List, Optional, Tuple
 import statistics
 import logging
@@ -15,6 +15,8 @@ from app.models import (
     Document, AudioRecording, Conversation, JournalEntry, DailyPlan,
     AdminAuditLog
 )
+from app.models.error_log import ErrorLog
+from app.models.security_log import SecurityLog
 from app.services.s3_service import s3_service
 from app.core.config import settings
 
@@ -111,7 +113,7 @@ class AdminService:
             "daily_plan_count": db.query(DailyPlan).count()
         }
 
-    def get_metrics_trend(self, db: Session, metric: str, days: int = 30) -> List[dict]:
+    def get_metrics_trend(self, db: Session, metric: str, days: int = 30, user_date: date = None, timezone_offset_hours: int = 0) -> List[dict]:
         """
         Get daily counts for a metric over time.
 
@@ -119,11 +121,13 @@ class AdminService:
             db: Database session
             metric: One of "users", "sessions", "documents", "audio", "conversations", "journals"
             days: Number of days to look back
+            user_date: User's local date (optional, defaults to UTC today)
 
         Returns:
             List of {date, count} dictionaries
         """
-        end_date = datetime.utcnow().date()
+        # Use user's local date if provided, otherwise fall back to UTC date
+        end_date = user_date if user_date else datetime.utcnow().date()
         start_date = end_date - timedelta(days=days - 1)
 
         # Map metric to model and date field
@@ -133,7 +137,9 @@ class AdminService:
             "documents": (Document, "uploaded_at"),
             "audio": (AudioRecording, "created_at"),
             "conversations": (Conversation, "created_at"),
-            "journals": (JournalEntry, "created_at")
+            "journals": (JournalEntry, "created_at"),
+            "error_logs": (ErrorLog, "timestamp"),
+            "security_logs": (SecurityLog, "created_at")
         }
 
         if metric not in metric_map:
@@ -141,26 +147,44 @@ class AdminService:
 
         model, date_field = metric_map[metric]
 
-        # Query for counts by date
+        # Convert UTC timestamps to user's timezone before grouping by date
+        # This ensures data is grouped by the user's local date, not UTC date
+        timestamp_column = getattr(model, date_field)
+
+        # Add timezone offset to convert UTC to user's local time
+        # PostgreSQL: timestamp + INTERVAL 'N hours'
+        local_timestamp = timestamp_column + text(f"INTERVAL '{timezone_offset_hours} hours'")
+
+        # Query for counts by date (in user's timezone)
         result = db.query(
-            func.date(getattr(model, date_field)).label('date'),
+            func.date(local_timestamp).label('date'),
             func.count().label('count')
         ).filter(
-            getattr(model, date_field) >= start_date
+            timestamp_column >= start_date,
+            timestamp_column < end_date + timedelta(days=2)  # Extended range to capture all timezones
         ).group_by(
-            func.date(getattr(model, date_field))
+            func.date(local_timestamp)
         ).all()
 
-        # Convert to dict for easy lookup
+        # Convert to dict for easy lookup (include all dates from query)
         counts_by_date = {r.date: r.count for r in result}
 
-        # Fill in all dates
+        # Fill in all dates from start to end (in user's local date range)
         trend_data = []
         current_date = start_date
         while current_date <= end_date:
+            # Get count for this date
+            count = counts_by_date.get(current_date, 0)
+
+            # For today (end_date), also include tomorrow's UTC data
+            # This captures records created "today" in user's timezone but stored with "tomorrow" UTC timestamp
+            if current_date == end_date:
+                tomorrow_utc = end_date + timedelta(days=1)
+                count += counts_by_date.get(tomorrow_utc, 0)
+
             trend_data.append({
                 "date": current_date,
-                "count": counts_by_date.get(current_date, 0)
+                "count": count
             })
             current_date += timedelta(days=1)
 

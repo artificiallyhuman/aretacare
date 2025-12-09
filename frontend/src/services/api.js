@@ -214,8 +214,12 @@ export const adminAPI = {
 
   // Platform metrics
   getMetrics: () => api.get('/admin/metrics'),
-  getMetricsTrend: (metric, days = 30) =>
-    api.get('/admin/metrics/trends', { params: { metric, days } }),
+  getMetricsTrend: (metric, days = 30, userDate = null, timezoneOffsetHours = 0) => {
+    const params = { metric, days };
+    if (userDate) params.user_date = userDate;
+    if (timezoneOffsetHours !== 0) params.timezone_offset_hours = timezoneOffsetHours;
+    return api.get('/admin/metrics/trends', { params });
+  },
 
   // Account analysis
   getInactiveAccounts: (days = 30) =>

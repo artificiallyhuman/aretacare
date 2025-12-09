@@ -30,7 +30,7 @@ AretaCare was built from exactly this experience—sitting beside a loved one in
 
 **Account Security** — Email notifications keep you informed of important account changes including password updates, email changes, and session sharing activities.
 
-**Admin Console** — For administrators: user metrics dashboard, system health monitoring, S3 orphan file cleanup, error logs with filtering and cleanup, and audit logging with automatic retention.
+**Admin Console** — For administrators: timezone-aware metrics dashboard with charts for users/sessions/documents/messages/errors/security, error logs with filtering and cleanup, security logs, system health monitoring, S3 orphan file cleanup, and audit logging with automatic retention. All timestamps display in admin's local timezone.
 
 ---
 

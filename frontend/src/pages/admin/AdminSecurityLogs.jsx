@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import AdminLayout from '../../components/admin/AdminLayout';
 import { adminAPI } from '../../services/api';
+import { formatLocalDateTime } from '../../utils/dateUtils';
 
 const eventTypeLabels = {
   failed_login: { label: 'Failed Login', color: 'red' },
@@ -52,11 +53,6 @@ export default function AdminSecurityLogs() {
   };
 
   const totalPages = Math.ceil(total / limit);
-
-  const formatDate = (dateString) => {
-    const date = new Date(dateString);
-    return date.toLocaleString();
-  };
 
   return (
     <AdminLayout>
@@ -162,7 +158,7 @@ export default function AdminSecurityLogs() {
                       return (
                         <tr key={log.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
                           <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">
-                            {formatDate(log.created_at)}
+                            {formatLocalDateTime(log.created_at)}
                           </td>
                           <td className="px-4 py-3">
                             <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full bg-${eventConfig.color}-100 dark:bg-${eventConfig.color}-900/50 text-${eventConfig.color}-800 dark:text-${eventConfig.color}-300`}>
@@ -239,7 +235,7 @@ export default function AdminSecurityLogs() {
                   </button>
                 </div>
                 <div className="space-y-3 text-sm">
-                  <div><span className="font-medium text-gray-700 dark:text-gray-300">Time:</span> <span className="text-gray-900 dark:text-white">{formatDate(selectedLog.created_at)}</span></div>
+                  <div><span className="font-medium text-gray-700 dark:text-gray-300">Time:</span> <span className="text-gray-900 dark:text-white">{formatLocalDateTime(selectedLog.created_at)}</span></div>
                   <div><span className="font-medium text-gray-700 dark:text-gray-300">Event Type:</span> <span className="text-gray-900 dark:text-white">{selectedLog.event_type}</span></div>
                   <div><span className="font-medium text-gray-700 dark:text-gray-300">Email:</span> <span className="text-gray-900 dark:text-white">{selectedLog.email || 'N/A'}</span></div>
                   <div><span className="font-medium text-gray-700 dark:text-gray-300">User ID:</span> <span className="text-gray-900 dark:text-white font-mono">{selectedLog.user_id || 'N/A'}</span></div>
