@@ -43,6 +43,10 @@ export default function Settings() {
   const [expandedSection, setExpandedSection] = useState(null);
   const [expandedSessionId, setExpandedSessionId] = useState(null);
 
+  // Confirmation modals
+  const [sessionToDelete, setSessionToDelete] = useState(null);
+  const [accountDeleteConfirm, setAccountDeleteConfirm] = useState(false);
+
   // Fetch all session statistics on mount
   useEffect(() => {
     const fetchAllStatistics = async () => {
@@ -149,32 +153,23 @@ export default function Settings() {
     }
   };
 
-  const handleDeleteSession = async (sessionId) => {
+  const handleDeleteSession = (sessionId) => {
+    const session = sessions.find(s => s.id === sessionId);
     const stats = sessionStatistics[sessionId];
+    setSessionToDelete({ session, stats });
+  };
 
-    const confirmMessage =
-      '⚠️ WARNING: PERMANENT DATA DELETION ⚠️\n\n' +
-      'This will PERMANENTLY DELETE ALL of this session\'s data including:\n' +
-      `• All conversations and messages (${stats?.conversations || 0})\n` +
-      `• All journal entries (${stats?.journal_entries || 0})\n` +
-      `• All uploaded documents (${stats?.documents || 0})\n` +
-      `• All audio recordings (${stats?.audio_recordings || 0})\n` +
-      '• All daily plans\n\n' +
-      'THIS ACTION CANNOT BE UNDONE.\n' +
-      'Your data is NOT recoverable after deletion.\n\n' +
-      'Your account will remain active.\n\n' +
-      'Are you absolutely sure you want to proceed?';
+  const confirmDeleteSession = async () => {
+    if (!sessionToDelete) return;
 
-    const confirmed = window.confirm(confirmMessage);
-
-    if (!confirmed) return;
-
+    const sessionId = sessionToDelete.session.id;
     clearMessages(`session-${sessionId}`);
     setLoading((prev) => ({ ...prev, [`session-${sessionId}`]: true }));
 
     try {
       await deleteSession(sessionId);
       setSuccess((prev) => ({ ...prev, sessions: 'Session deleted successfully' }));
+      setSessionToDelete(null);
       // Refresh sessions and redirect if necessary
       await refreshSessions();
       if (sessionId === activeSessionId) {
@@ -215,7 +210,7 @@ export default function Settings() {
     }
   };
 
-  const handleDeleteAccount = async (e) => {
+  const handleDeleteAccount = (e) => {
     e.preventDefault();
     clearMessages('delete');
 
@@ -224,36 +219,10 @@ export default function Settings() {
       return;
     }
 
-    // Calculate total statistics across all sessions
-    const totalStats = sessions.reduce((totals, session) => {
-      const stats = sessionStatistics[session.id] || {};
-      return {
-        conversations: totals.conversations + (stats.conversations || 0),
-        journal_entries: totals.journal_entries + (stats.journal_entries || 0),
-        documents: totals.documents + (stats.documents || 0),
-        audio_recordings: totals.audio_recordings + (stats.audio_recordings || 0),
-      };
-    }, { conversations: 0, journal_entries: 0, documents: 0, audio_recordings: 0 });
+    setAccountDeleteConfirm(true);
+  };
 
-    const confirmMessage =
-      '⚠️ FINAL WARNING: ACCOUNT AND DATA DELETION ⚠️\n\n' +
-      'This will PERMANENTLY DELETE:\n' +
-      '• Your user account\n' +
-      `• All your sessions (${sessions.length})\n` +
-      `• All conversations and messages (${totalStats.conversations})\n` +
-      `• All journal entries (${totalStats.journal_entries})\n` +
-      `• All uploaded documents (${totalStats.documents})\n` +
-      `• All audio recordings (${totalStats.audio_recordings})\n` +
-      '• All daily plans\n' +
-      '• All account settings\n\n' +
-      'THIS ACTION CANNOT BE UNDONE.\n' +
-      'You will need to create a new account to use AretaCare again.\n\n' +
-      'Are you absolutely sure you want to delete your account?';
-
-    const confirmed = window.confirm(confirmMessage);
-
-    if (!confirmed) return;
-
+  const confirmDeleteAccount = async () => {
     setLoading((prev) => ({ ...prev, delete: true }));
 
     try {
@@ -266,6 +235,7 @@ export default function Settings() {
         delete: error.response?.data?.detail || 'Failed to delete account',
       }));
       setLoading((prev) => ({ ...prev, delete: false }));
+      setAccountDeleteConfirm(false);
     }
   };
 
@@ -541,7 +511,7 @@ export default function Settings() {
               <div className="text-left">
                 <h2 className="text-base sm:text-lg font-semibold text-orange-600 dark:text-orange-400">Manage Sessions</h2>
                 <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
-                  View, rename, and delete your sessions ({sessions.length}/3)
+                  View, rename, and delete your sessions ({sessions.filter(s => s.is_owner).length}/3 owned)
                 </p>
               </div>
               <svg
@@ -558,160 +528,169 @@ export default function Settings() {
 
             {expandedSection === 'sessions' && (
               <div className="px-4 sm:px-6 pb-4 border-t border-orange-100 dark:border-orange-900/30">
-                <div className="mt-4 space-y-3">
+                <div className="mt-4 space-y-4">
                   {success.sessions && (
                     <div className="text-sm text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/30 px-3 py-2 rounded">
                       {success.sessions}
                     </div>
                   )}
 
-                  {sessions.map((session) => (
-                    <div key={session.id} className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
-                      <div className="bg-gray-50 dark:bg-gray-700 px-4 py-3 flex items-center justify-between">
-                        <div className="flex-1">
-                          {editingSessionId === session.id ? (
-                            <div className="space-y-1">
-                              <div className="flex items-center space-x-2">
-                                <div className="flex-1">
-                                  <input
-                                    type="text"
-                                    value={editingSessionName}
-                                    onChange={(e) => setEditingSessionName(e.target.value)}
-                                    className="input text-sm w-full"
-                                    maxLength={15}
-                                    placeholder="Session name"
-                                  />
-                                  <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                                    {editingSessionName.length}/15 characters
+                  {/* Owned Sessions */}
+                  {sessions.filter(s => s.is_owner).length > 0 && (
+                    <div className="space-y-3">
+                      <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
+                        Your Sessions ({sessions.filter(s => s.is_owner).length})
+                      </h3>
+                      {sessions.filter(s => s.is_owner).map((session) => (
+                        <div key={session.id} className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
+                          <div className="bg-gray-50 dark:bg-gray-700 px-4 py-3 flex items-center justify-between">
+                            <div className="flex-1">
+                              {editingSessionId === session.id ? (
+                                <div className="space-y-1">
+                                  <div className="flex items-center space-x-2">
+                                    <div className="flex-1">
+                                      <input
+                                        type="text"
+                                        value={editingSessionName}
+                                        onChange={(e) => setEditingSessionName(e.target.value)}
+                                        className="input text-sm w-full"
+                                        maxLength={15}
+                                        placeholder="Session name"
+                                      />
+                                      <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                        {editingSessionName.length}/15 characters
+                                      </div>
+                                    </div>
+                                    <button
+                                      onClick={() => handleRenameSession(session.id)}
+                                      disabled={loading[`rename-${session.id}`]}
+                                      className="px-3 py-1.5 bg-primary-600 text-white rounded hover:bg-primary-700 text-sm disabled:opacity-50"
+                                    >
+                                      Save
+                                    </button>
+                                    <button
+                                      onClick={() => {
+                                        setEditingSessionId(null);
+                                        setEditingSessionName('');
+                                        clearMessages(`rename-${session.id}`);
+                                      }}
+                                      className="px-3 py-1.5 bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-200 rounded hover:bg-gray-300 dark:hover:bg-gray-500 text-sm"
+                                    >
+                                      Cancel
+                                    </button>
                                   </div>
                                 </div>
-                                <button
-                                  onClick={() => handleRenameSession(session.id)}
-                                  disabled={loading[`rename-${session.id}`]}
-                                  className="px-3 py-1.5 bg-primary-600 text-white rounded hover:bg-primary-700 text-sm disabled:opacity-50"
-                                >
-                                  Save
-                                </button>
-                                <button
-                                  onClick={() => {
-                                    setEditingSessionId(null);
-                                    setEditingSessionName('');
-                                    clearMessages(`rename-${session.id}`);
-                                  }}
-                                  className="px-3 py-1.5 bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-200 rounded hover:bg-gray-300 dark:hover:bg-gray-500 text-sm"
-                                >
-                                  Cancel
-                                </button>
-                              </div>
-                            </div>
-                          ) : (
-                            <div className="flex items-center justify-between">
-                              <div>
-                                <h3 className="font-semibold text-gray-900 dark:text-white flex items-center space-x-2 flex-wrap">
-                                  <span>{session.name}</span>
-                                  {session.id === activeSessionId && (
-                                    <span className="text-xs bg-primary-100 dark:bg-primary-900/50 text-primary-700 dark:text-primary-300 px-2 py-0.5 rounded">
-                                      Active
-                                    </span>
-                                  )}
-                                  {!session.is_owner && (
-                                    <span className="text-xs bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 px-2 py-0.5 rounded">
-                                      Shared
-                                    </span>
-                                  )}
-                                  {session.is_owner && session.collaborators && session.collaborators.length > 0 && (
-                                    <span className="text-xs bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-300 px-2 py-0.5 rounded">
-                                      {session.collaborators.length} {session.collaborators.length === 1 ? 'Collaborator' : 'Collaborators'}
-                                    </span>
-                                  )}
-                                </h3>
-                                <p className="text-xs text-gray-500 dark:text-gray-400">
-                                  Created {new Date(session.created_at).toLocaleDateString()}
-                                  {!session.is_owner && ' • You are a collaborator'}
-                                </p>
-                              </div>
-                              <div className="flex items-center space-x-2">
-                                {session.is_owner && (
-                                  <button
-                                    onClick={() => {
-                                      setEditingSessionId(session.id);
-                                      setEditingSessionName(session.name);
-                                    }}
-                                    className="text-sm text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300"
-                                  >
-                                    Rename
-                                  </button>
-                                )}
-                                <button
-                                  onClick={() => setCollaborationModalSession(session)}
-                                  className="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300"
-                                >
-                                  Collaborate
-                                </button>
-                                <button
-                                  onClick={() => toggleSessionDetails(session.id)}
-                                  className="text-sm text-gray-600 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"
-                                >
-                                  {expandedSessionId === session.id ? 'Hide' : 'Details'}
-                                </button>
-                              </div>
-                            </div>
-                          )}
-
-                          {errors[`rename-${session.id}`] && (
-                            <div className="text-sm text-red-600 mt-2">
-                              {errors[`rename-${session.id}`]}
-                            </div>
-                          )}
-                          {success[`rename-${session.id}`] && (
-                            <div className="text-sm text-green-600 mt-2">
-                              {success[`rename-${session.id}`]}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-
-                      {expandedSessionId === session.id && (
-                        <div className="px-4 py-3 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700">
-                          {loadingStats[session.id] ? (
-                            <div className="text-xs text-gray-600 dark:text-gray-400">Loading statistics...</div>
-                          ) : sessionStatistics[session.id] ? (
-                            <>
-                              <div className="space-y-1.5 mb-3">
-                                <div className="flex items-center justify-between text-sm">
-                                  <span className="text-gray-700 dark:text-gray-300">Conversations</span>
-                                  <span className="font-semibold text-gray-900 dark:text-white">
-                                    {sessionStatistics[session.id].conversations}
-                                  </span>
-                                </div>
-                                <div className="flex items-center justify-between text-sm">
-                                  <span className="text-gray-700 dark:text-gray-300">Journal Entries</span>
-                                  <span className="font-semibold text-gray-900 dark:text-white">
-                                    {sessionStatistics[session.id].journal_entries}
-                                  </span>
-                                </div>
-                                <div className="flex items-center justify-between text-sm">
-                                  <span className="text-gray-700 dark:text-gray-300">Documents</span>
-                                  <span className="font-semibold text-gray-900 dark:text-white">
-                                    {sessionStatistics[session.id].documents}
-                                  </span>
-                                </div>
-                                <div className="flex items-center justify-between text-sm">
-                                  <span className="text-gray-700 dark:text-gray-300">Audio Recordings</span>
-                                  <span className="font-semibold text-gray-900 dark:text-white">
-                                    {sessionStatistics[session.id].audio_recordings}
-                                  </span>
-                                </div>
-                              </div>
-
-                              {/* Owner vs Collaborator */}
-                              {session.is_owner ? (
-                                <>
-                                  {/* Warning Box */}
-                                  <div className="bg-orange-50 dark:bg-orange-900/30 border border-orange-200 dark:border-orange-800 rounded px-2 py-2 mb-3">
-                                    <p className="text-xs text-orange-800 dark:text-orange-300">
-                                      <strong>Warning:</strong> Deleting this session will permanently delete all data shown above. This action cannot be undone.
+                              ) : (
+                                <div className="flex items-center justify-between">
+                                  <div>
+                                    <h3 className="font-semibold text-gray-900 dark:text-white flex items-center space-x-2 flex-wrap">
+                                      <span>{session.name}</span>
+                                      {session.id === activeSessionId && (
+                                        <span className="text-xs bg-primary-100 dark:bg-primary-900/50 text-primary-700 dark:text-primary-300 px-2 py-0.5 rounded">
+                                          Active
+                                        </span>
+                                      )}
+                                      {session.is_owner && session.collaborators && session.collaborators.length > 0 && (
+                                        <span className="text-xs bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-300 px-2 py-0.5 rounded">
+                                          {session.collaborators.length} {session.collaborators.length === 1 ? 'Collaborator' : 'Collaborators'}
+                                        </span>
+                                      )}
+                                    </h3>
+                                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                                      Created {new Date(session.created_at).toLocaleDateString()}
                                     </p>
+                                  </div>
+                                  <div className="flex items-center space-x-2">
+                                    {session.is_owner && (
+                                      <button
+                                        onClick={() => {
+                                          setEditingSessionId(session.id);
+                                          setEditingSessionName(session.name);
+                                        }}
+                                        className="text-sm text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300"
+                                      >
+                                        Rename
+                                      </button>
+                                    )}
+                                    <button
+                                      onClick={() => setCollaborationModalSession(session)}
+                                      className="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300"
+                                    >
+                                      Collaborate
+                                    </button>
+                                    <button
+                                      onClick={() => toggleSessionDetails(session.id)}
+                                      className="text-sm text-gray-600 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"
+                                    >
+                                      {expandedSessionId === session.id ? 'Hide' : 'Details'}
+                                    </button>
+                                  </div>
+                                </div>
+                              )}
+
+                              {errors[`rename-${session.id}`] && (
+                                <div className="text-sm text-red-600 mt-2">
+                                  {errors[`rename-${session.id}`]}
+                                </div>
+                              )}
+                              {success[`rename-${session.id}`] && (
+                                <div className="text-sm text-green-600 mt-2">
+                                  {success[`rename-${session.id}`]}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+
+                          {expandedSessionId === session.id && (
+                            <div className="px-4 py-3 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700">
+                              {loadingStats[session.id] ? (
+                                <div className="text-xs text-gray-600 dark:text-gray-400">Loading statistics...</div>
+                              ) : sessionStatistics[session.id] ? (
+                                <>
+                                  <div className="space-y-1.5 mb-3">
+                                    <div className="flex items-center justify-between text-sm">
+                                      <span className="text-gray-700 dark:text-gray-300">Conversations</span>
+                                      <span className="font-semibold text-gray-900 dark:text-white">
+                                        {sessionStatistics[session.id].conversations}
+                                      </span>
+                                    </div>
+                                    <div className="flex items-center justify-between text-sm">
+                                      <span className="text-gray-700 dark:text-gray-300">Journal Entries</span>
+                                      <span className="font-semibold text-gray-900 dark:text-white">
+                                        {sessionStatistics[session.id].journal_entries}
+                                      </span>
+                                    </div>
+                                    <div className="flex items-center justify-between text-sm">
+                                      <span className="text-gray-700 dark:text-gray-300">Documents</span>
+                                      <span className="font-semibold text-gray-900 dark:text-white">
+                                        {sessionStatistics[session.id].documents}
+                                      </span>
+                                    </div>
+                                    <div className="flex items-center justify-between text-sm">
+                                      <span className="text-gray-700 dark:text-gray-300">Audio Recordings</span>
+                                      <span className="font-semibold text-gray-900 dark:text-white">
+                                        {sessionStatistics[session.id].audio_recordings}
+                                      </span>
+                                    </div>
+                                  </div>
+
+                                  {/* Warning Box */}
+                                  <div className="bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded px-3 py-3 mb-3">
+                                    <div className="flex items-start gap-2">
+                                      <div className="flex-shrink-0">
+                                        <svg className="w-5 h-5 text-orange-600 dark:text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                                        </svg>
+                                      </div>
+                                      <div className="flex-1">
+                                        <p className="text-xs text-orange-900 dark:text-orange-200 font-medium mb-1">
+                                          Warning: Permanent Data Deletion
+                                        </p>
+                                        <p className="text-xs text-orange-800 dark:text-orange-300">
+                                          Deleting this session will permanently delete all data shown above. <strong>This action cannot be undone.</strong>
+                                        </p>
+                                      </div>
+                                    </div>
                                   </div>
 
                                   {errors[`session-${session.id}`] && (
@@ -728,19 +707,114 @@ export default function Settings() {
                                     {loading[`session-${session.id}`] ? 'Deleting...' : 'Delete This Session'}
                                   </button>
                                 </>
-                              ) : (
-                                <div className="bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 rounded px-2 py-2 mb-3">
-                                  <p className="text-xs text-blue-800 dark:text-blue-300">
-                                    <strong>Note:</strong> You are a collaborator on this session. Use the "Collaborate" button to leave this session. Only the owner can delete it.
+                              ) : null}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Shared Sessions */}
+                  {sessions.filter(s => !s.is_owner).length > 0 && (
+                    <div className="space-y-3 pt-2">
+                      <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
+                        Shared with You ({sessions.filter(s => !s.is_owner).length})
+                      </h3>
+                      {sessions.filter(s => !s.is_owner).map((session) => (
+                        <div key={session.id} className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
+                          <div className="bg-gray-50 dark:bg-gray-700 px-4 py-3 flex items-center justify-between">
+                            <div className="flex-1">
+                              <div className="flex items-center justify-between">
+                                <div>
+                                  <h3 className="font-semibold text-gray-900 dark:text-white flex items-center space-x-2 flex-wrap">
+                                    <span>{session.name}</span>
+                                    {session.id === activeSessionId && (
+                                      <span className="text-xs bg-primary-100 dark:bg-primary-900/50 text-primary-700 dark:text-primary-300 px-2 py-0.5 rounded">
+                                        Active
+                                      </span>
+                                    )}
+                                  </h3>
+                                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                                    Created {new Date(session.created_at).toLocaleDateString()}
                                   </p>
                                 </div>
-                              )}
-                            </>
-                          ) : null}
+                                <div className="flex items-center space-x-2">
+                                  <button
+                                    onClick={() => setCollaborationModalSession(session)}
+                                    className="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300"
+                                  >
+                                    Collaborate
+                                  </button>
+                                  <button
+                                    onClick={() => toggleSessionDetails(session.id)}
+                                    className="text-sm text-gray-600 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"
+                                  >
+                                    {expandedSessionId === session.id ? 'Hide' : 'Details'}
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+
+                          {expandedSessionId === session.id && (
+                            <div className="px-4 py-3 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700">
+                              {loadingStats[session.id] ? (
+                                <div className="text-xs text-gray-600 dark:text-gray-400">Loading statistics...</div>
+                              ) : sessionStatistics[session.id] ? (
+                                <>
+                                  <div className="space-y-1.5 mb-3">
+                                    <div className="flex items-center justify-between text-sm">
+                                      <span className="text-gray-700 dark:text-gray-300">Conversations</span>
+                                      <span className="font-semibold text-gray-900 dark:text-white">
+                                        {sessionStatistics[session.id].conversations}
+                                      </span>
+                                    </div>
+                                    <div className="flex items-center justify-between text-sm">
+                                      <span className="text-gray-700 dark:text-gray-300">Journal Entries</span>
+                                      <span className="font-semibold text-gray-900 dark:text-white">
+                                        {sessionStatistics[session.id].journal_entries}
+                                      </span>
+                                    </div>
+                                    <div className="flex items-center justify-between text-sm">
+                                      <span className="text-gray-700 dark:text-gray-300">Documents</span>
+                                      <span className="font-semibold text-gray-900 dark:text-white">
+                                        {sessionStatistics[session.id].documents}
+                                      </span>
+                                    </div>
+                                    <div className="flex items-center justify-between text-sm">
+                                      <span className="text-gray-700 dark:text-gray-300">Audio Recordings</span>
+                                      <span className="font-semibold text-gray-900 dark:text-white">
+                                        {sessionStatistics[session.id].audio_recordings}
+                                      </span>
+                                    </div>
+                                  </div>
+
+                                  <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded px-3 py-3 mb-3">
+                                    <div className="flex items-start gap-2">
+                                      <div className="flex-shrink-0">
+                                        <svg className="w-5 h-5 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                        </svg>
+                                      </div>
+                                      <div className="flex-1">
+                                        <p className="text-xs text-blue-900 dark:text-blue-200 font-medium mb-1">
+                                          You are a Collaborator
+                                        </p>
+                                        <p className="text-xs text-blue-800 dark:text-blue-300">
+                                          Use the "Collaborate" button to leave this session. Only the owner can delete it.
+                                        </p>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </>
+                              ) : null}
+                            </div>
+                          )}
                         </div>
-                      )}
+                      ))}
                     </div>
-                  ))}
+                  )}
                 </div>
               </div>
             )}
@@ -773,10 +847,25 @@ export default function Settings() {
             {expandedSection === 'delete' && (
               <form onSubmit={handleDeleteAccount} className="px-4 sm:px-6 pb-4 border-t border-red-100 dark:border-red-900/30">
                 <div className="mt-4 space-y-4">
-                  <div className="bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-lg px-3 py-2">
-                    <p className="text-sm text-red-800 dark:text-red-300">
-                      <strong>Warning:</strong> This action is permanent and cannot be undone. Your account AND all associated data from all sessions (conversations, journal entries, documents, audio recordings, daily plans) will be permanently deleted. You will need to create a new account to use AretaCare again.
-                    </p>
+                  <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg px-4 py-3">
+                    <div className="flex items-start gap-3">
+                      <div className="flex-shrink-0">
+                        <svg className="w-6 h-6 text-red-600 dark:text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                        </svg>
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-sm text-red-900 dark:text-red-200 font-bold mb-2">
+                          Warning: Permanent Account & Data Deletion
+                        </p>
+                        <p className="text-sm text-red-800 dark:text-red-300">
+                          This action is permanent and cannot be undone. Your account AND all associated data from all sessions (conversations, journal entries, documents, audio recordings, daily plans) will be permanently deleted.
+                        </p>
+                        <p className="text-sm text-red-900 dark:text-red-200 font-bold mt-2">
+                          You will need to create a new account to use AretaCare again.
+                        </p>
+                      </div>
+                    </div>
                   </div>
 
                   <div>
@@ -837,6 +926,175 @@ export default function Settings() {
             setTimeout(() => clearMessages('sessions'), 2000);
           }}
         />
+      )}
+
+      {/* Session Deletion Confirmation Modal */}
+      {sessionToDelete && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 dark:bg-opacity-70 flex items-center justify-center p-4 z-50">
+          <div className="bg-white dark:bg-gray-800 rounded-lg max-w-lg w-full max-h-[90vh] overflow-y-auto">
+            <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+              <div className="flex items-center justify-between">
+                <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Delete Session</h2>
+                <button
+                  onClick={() => setSessionToDelete(null)}
+                  className="text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            <div className="px-6 py-4 space-y-4">
+              <div className="flex items-start gap-3">
+                <div className="flex-shrink-0 w-12 h-12 bg-orange-100 dark:bg-orange-900/30 rounded-full flex items-center justify-center">
+                  <svg className="w-6 h-6 text-orange-600 dark:text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-sm font-medium text-gray-900 dark:text-white mb-1">
+                    Delete "{sessionToDelete.session.name}"?
+                  </h3>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                    This will permanently delete all data in this session
+                  </p>
+                </div>
+              </div>
+
+              <div className="bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded px-4 py-3">
+                <p className="text-sm text-orange-900 dark:text-orange-200 mb-2 font-medium">
+                  This will permanently delete:
+                </p>
+                <ul className="text-sm text-orange-800 dark:text-orange-300 space-y-1.5">
+                  <li>• {sessionToDelete.stats?.conversations || 0} conversations and messages</li>
+                  <li>• {sessionToDelete.stats?.journal_entries || 0} journal entries</li>
+                  <li>• {sessionToDelete.stats?.documents || 0} uploaded documents</li>
+                  <li>• {sessionToDelete.stats?.audio_recordings || 0} audio recordings</li>
+                  <li>• All daily plans</li>
+                </ul>
+              </div>
+
+              <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded px-4 py-3">
+                <p className="text-sm text-red-900 dark:text-red-200 font-bold">
+                  This action cannot be undone. Your data is NOT recoverable after deletion.
+                </p>
+                <p className="text-sm text-red-800 dark:text-red-300 mt-2">
+                  Your account will remain active.
+                </p>
+              </div>
+
+              {errors[`session-${sessionToDelete.session.id}`] && (
+                <div className="text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/30 px-3 py-2 rounded">
+                  {errors[`session-${sessionToDelete.session.id}`]}
+                </div>
+              )}
+
+              <div className="flex space-x-2 pt-4 border-t border-gray-200 dark:border-gray-700">
+                <button
+                  onClick={() => setSessionToDelete(null)}
+                  className="flex-1 px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded hover:bg-gray-300 dark:hover:bg-gray-600"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={confirmDeleteSession}
+                  disabled={loading[`session-${sessionToDelete.session.id}`]}
+                  className="flex-1 px-4 py-2 bg-orange-600 dark:bg-orange-700 text-white rounded hover:bg-orange-700 dark:hover:bg-orange-600 disabled:opacity-50 font-medium"
+                >
+                  {loading[`session-${sessionToDelete.session.id}`] ? 'Deleting...' : 'Delete Session'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Account Deletion Confirmation Modal */}
+      {accountDeleteConfirm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 dark:bg-opacity-70 flex items-center justify-center p-4 z-50">
+          <div className="bg-white dark:bg-gray-800 rounded-lg max-w-lg w-full max-h-[90vh] overflow-y-auto">
+            <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+              <div className="flex items-center justify-between">
+                <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Delete Account</h2>
+                <button
+                  onClick={() => setAccountDeleteConfirm(false)}
+                  className="text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            <div className="px-6 py-4 space-y-4">
+              <div className="flex items-start gap-3">
+                <div className="flex-shrink-0 w-12 h-12 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center">
+                  <svg className="w-6 h-6 text-red-600 dark:text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-sm font-medium text-gray-900 dark:text-white mb-1">
+                    Final Warning: Delete Your Account
+                  </h3>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                    This will permanently delete your account and all associated data
+                  </p>
+                </div>
+              </div>
+
+              <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded px-4 py-3">
+                <p className="text-sm text-red-900 dark:text-red-200 mb-2 font-bold">
+                  This will permanently delete:
+                </p>
+                <ul className="text-sm text-red-800 dark:text-red-300 space-y-1.5">
+                  <li>• Your user account</li>
+                  <li>• All your sessions ({sessions.length})</li>
+                  <li>• All conversations ({sessions.reduce((sum, s) => sum + (sessionStatistics[s.id]?.conversations || 0), 0)})</li>
+                  <li>• All journal entries ({sessions.reduce((sum, s) => sum + (sessionStatistics[s.id]?.journal_entries || 0), 0)})</li>
+                  <li>• All documents ({sessions.reduce((sum, s) => sum + (sessionStatistics[s.id]?.documents || 0), 0)})</li>
+                  <li>• All audio recordings ({sessions.reduce((sum, s) => sum + (sessionStatistics[s.id]?.audio_recordings || 0), 0)})</li>
+                  <li>• All daily plans</li>
+                  <li>• All account settings</li>
+                </ul>
+              </div>
+
+              <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded px-4 py-3">
+                <p className="text-sm text-red-900 dark:text-red-200 font-bold">
+                  This action cannot be undone.
+                </p>
+                <p className="text-sm text-red-900 dark:text-red-200 font-bold mt-1">
+                  You will need to create a new account to use AretaCare again.
+                </p>
+              </div>
+
+              {errors.delete && (
+                <div className="text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/30 px-3 py-2 rounded">
+                  {errors.delete}
+                </div>
+              )}
+
+              <div className="flex space-x-2 pt-4 border-t border-gray-200 dark:border-gray-700">
+                <button
+                  onClick={() => setAccountDeleteConfirm(false)}
+                  className="flex-1 px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded hover:bg-gray-300 dark:hover:bg-gray-600"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={confirmDeleteAccount}
+                  disabled={loading.delete}
+                  className="flex-1 px-4 py-2 bg-red-600 dark:bg-red-700 text-white rounded hover:bg-red-700 dark:hover:bg-red-600 disabled:opacity-50 font-medium"
+                >
+                  {loading.delete ? 'Deleting...' : 'Delete My Account'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

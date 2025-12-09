@@ -5,7 +5,7 @@ from app.core.database import get_db
 from app.models import Session as SessionModel, User, Document, AudioRecording, JournalEntry, Conversation, SessionCollaborator
 from app.schemas import (
     SessionCreate, SessionResponse, SessionRename, SessionShareRequest,
-    SessionShareResponse, UserExistsResponse, CollaboratorInfo
+    SessionShareResponse, UserExistsResponse, CollaboratorInfo, TransferOwnershipRequest
 )
 from datetime import datetime, timedelta
 from app.core.config import settings
@@ -18,6 +18,44 @@ import uuid
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/sessions", tags=["sessions"])
+
+
+def build_collaborator_infos(collaborators, db: Session) -> list[CollaboratorInfo]:
+    """
+    Build list of CollaboratorInfo objects with owned session counts.
+    Batch queries to avoid N+1 problem.
+    """
+    if not collaborators:
+        return []
+
+    # Batch load all collaborator users
+    user_ids = [c.user_id for c in collaborators]
+    users = db.query(User).filter(User.id.in_(user_ids)).all()
+    users_by_id = {u.id: u for u in users}
+
+    # Batch load owned session counts
+    owned_counts = db.query(
+        SessionModel.user_id,
+        func.count(SessionModel.id).label('count')
+    ).filter(
+        SessionModel.user_id.in_(user_ids)
+    ).group_by(SessionModel.user_id).all()
+    owned_counts_by_user = {user_id: count for user_id, count in owned_counts}
+
+    # Build collaborator infos
+    collaborator_infos = []
+    for collab in collaborators:
+        user = users_by_id.get(collab.user_id)
+        if user:
+            collaborator_infos.append(CollaboratorInfo(
+                user_id=user.id,
+                email=user.email,
+                name=user.name,
+                added_at=collab.added_at,
+                owned_session_count=owned_counts_by_user.get(user.id, 0)
+            ))
+
+    return collaborator_infos
 
 
 @router.get("/", response_model=list[SessionResponse])
@@ -60,6 +98,15 @@ async def list_sessions(
     ).all() if collaborator_user_ids else []
     users_by_id = {u.id: u for u in collaborator_users}
 
+    # Batch load owned session counts for all collaborators in ONE query (fixes N+1)
+    owned_counts = db.query(
+        SessionModel.user_id,
+        func.count(SessionModel.id).label('count')
+    ).filter(
+        SessionModel.user_id.in_(collaborator_user_ids)
+    ).group_by(SessionModel.user_id).all() if collaborator_user_ids else []
+    owned_counts_by_user = {user_id: count for user_id, count in owned_counts}
+
     # Group collaborators by session_id
     collaborators_by_session = {}
     for collab in all_collaborators:
@@ -78,7 +125,8 @@ async def list_sessions(
                     user_id=collab_user.id,
                     email=collab_user.email,
                     name=collab_user.name,
-                    added_at=collab.added_at
+                    added_at=collab.added_at,
+                    owned_session_count=owned_counts_by_user.get(collab_user.id, 0)
                 ))
 
         session_response = SessionResponse(
@@ -102,23 +150,16 @@ async def create_session(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """Create a new session for the authenticated user (max 3 sessions per user)"""
-    # Check session limit (count owned sessions + collaborations)
+    """Create a new session for the authenticated user (max 3 owned sessions per user)"""
+    # Check session limit (count only owned sessions, not collaborations)
     owned_session_count = db.query(func.count(SessionModel.id)).filter(
         SessionModel.user_id == current_user.id
     ).scalar()
 
-    # Count collaborations
-    collaboration_count = db.query(func.count(SessionCollaborator.id)).filter(
-        SessionCollaborator.user_id == current_user.id
-    ).scalar()
-
-    total_session_count = owned_session_count + collaboration_count
-
-    if total_session_count >= 3:
+    if owned_session_count >= 3:
         raise HTTPException(
             status_code=400,
-            detail="Maximum of 3 sessions allowed (including collaborations). Please delete a session or leave a collaboration in Settings → Manage Sessions before creating a new one."
+            detail="Maximum of 3 owned sessions allowed. Please delete a session in Settings → Manage Sessions before creating a new one."
         )
 
     # Generate default name if not provided
@@ -195,16 +236,7 @@ async def get_or_create_primary_session(
             SessionCollaborator.session_id == primary_session.id
         ).all()
 
-        collaborator_infos = []
-        for collab in collaborators:
-            collab_user = db.query(User).filter(User.id == collab.user_id).first()
-            if collab_user:
-                collaborator_infos.append(CollaboratorInfo(
-                    user_id=collab_user.id,
-                    email=collab_user.email,
-                    name=collab_user.name,
-                    added_at=collab.added_at
-                ))
+        collaborator_infos = build_collaborator_infos(collaborators, db)
 
         return SessionResponse(
             id=primary_session.id,
@@ -274,16 +306,7 @@ async def get_session(
         SessionCollaborator.session_id == session.id
     ).all()
 
-    collaborator_infos = []
-    for collab in collaborators:
-        collab_user = db.query(User).filter(User.id == collab.user_id).first()
-        if collab_user:
-            collaborator_infos.append(CollaboratorInfo(
-                user_id=collab_user.id,
-                email=collab_user.email,
-                name=collab_user.name,
-                added_at=collab.added_at
-            ))
+    collaborator_infos = build_collaborator_infos(collaborators, db)
 
     return SessionResponse(
         id=session.id,
@@ -322,16 +345,7 @@ async def rename_session(
         SessionCollaborator.session_id == session.id
     ).all()
 
-    collaborator_infos = []
-    for collab in collaborators:
-        collab_user = db.query(User).filter(User.id == collab.user_id).first()
-        if collab_user:
-            collaborator_infos.append(CollaboratorInfo(
-                user_id=collab_user.id,
-                email=collab_user.email,
-                name=collab_user.name,
-                added_at=collab.added_at
-            ))
+    collaborator_infos = build_collaborator_infos(collaborators, db)
 
     return SessionResponse(
         id=session.id,
@@ -505,23 +519,8 @@ async def check_user_exists(
             message=f"{target_user.name} is already a collaborator on this session."
         )
 
-    # Count user's current sessions (owned + collaborations)
-    user_owned_count = db.query(func.count(SessionModel.id)).filter(
-        SessionModel.user_id == target_user.id
-    ).scalar()
-
-    user_collab_count = db.query(func.count(SessionCollaborator.id)).filter(
-        SessionCollaborator.user_id == target_user.id
-    ).scalar()
-
-    user_total_sessions = user_owned_count + user_collab_count
-
-    if user_total_sessions >= 3:
-        return UserExistsResponse(
-            exists=False,
-            message=f"{target_user.name} already has 3 active sessions. They must delete or leave a session before joining this one."
-        )
-
+    # No session limit check needed - users can be collaborators on unlimited sessions
+    # They just can't accept ownership if they have 3 owned sessions
     return UserExistsResponse(
         exists=True,
         user_id=target_user.id,
@@ -576,20 +575,8 @@ async def share_session(
     if existing_collab:
         raise HTTPException(status_code=400, detail="User is already a collaborator")
 
-    # Check target user's session count
-    user_owned_count = db.query(func.count(SessionModel.id)).filter(
-        SessionModel.user_id == target_user.id
-    ).scalar()
-
-    user_collab_count = db.query(func.count(SessionCollaborator.id)).filter(
-        SessionCollaborator.user_id == target_user.id
-    ).scalar()
-
-    if user_owned_count + user_collab_count >= 3:
-        raise HTTPException(
-            status_code=400,
-            detail="Target user already has 3 active sessions"
-        )
+    # No session limit check needed - users can be collaborators on unlimited sessions
+    # They just can't accept ownership transfer if they have 3 owned sessions
 
     # Create collaboration
     new_collab = SessionCollaborator(
@@ -625,11 +612,17 @@ async def share_session(
             owner_name=owner.name
         )
 
+    # Get owned session count for the new collaborator
+    owned_count = db.query(func.count(SessionModel.id)).filter(
+        SessionModel.user_id == target_user.id
+    ).scalar()
+
     collaborator_info = CollaboratorInfo(
         user_id=target_user.id,
         email=target_user.email,
         name=target_user.name,
-        added_at=new_collab.added_at
+        added_at=new_collab.added_at,
+        owned_session_count=owned_count
     )
 
     return SessionShareResponse(
@@ -718,3 +711,106 @@ async def leave_session(
     db.commit()
 
     return {"message": "Left session successfully"}
+
+
+@router.post("/{session_id}/transfer-ownership", response_model=SessionResponse)
+async def transfer_ownership(
+    session_id: str,
+    transfer_data: TransferOwnershipRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Transfer session ownership to an existing collaborator (owner only)"""
+    session = db.query(SessionModel).filter(SessionModel.id == session_id).first()
+
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    # Only owner can transfer ownership
+    check_session_access(session, current_user.id, db, require_owner=True)
+
+    # Verify new owner is an existing collaborator
+    new_owner_collab = db.query(SessionCollaborator).filter(
+        SessionCollaborator.session_id == session_id,
+        SessionCollaborator.user_id == transfer_data.new_owner_user_id
+    ).first()
+
+    if not new_owner_collab:
+        raise HTTPException(
+            status_code=400,
+            detail="New owner must be an existing collaborator on this session"
+        )
+
+    # Get the new owner user
+    new_owner = db.query(User).filter(User.id == transfer_data.new_owner_user_id).first()
+    if not new_owner:
+        raise HTTPException(status_code=404, detail="New owner user not found")
+
+    # Check if new owner already has 3 owned sessions (they can't accept ownership)
+    new_owner_session_count = db.query(func.count(SessionModel.id)).filter(
+        SessionModel.user_id == new_owner.id
+    ).scalar()
+
+    if new_owner_session_count >= 3:
+        raise HTTPException(
+            status_code=400,
+            detail=f"{new_owner.name} already has 3 owned sessions. They must delete a session before accepting ownership."
+        )
+
+    # Transfer ownership
+    old_owner_id = session.owner_id
+    session.owner_id = new_owner.id
+    session.user_id = new_owner.id  # Update user_id as well for consistency
+
+    # Remove new owner from collaborators
+    db.delete(new_owner_collab)
+
+    # Add old owner as collaborator
+    old_owner_as_collab = SessionCollaborator(
+        id=str(uuid.uuid4()),
+        session_id=session_id,
+        user_id=old_owner_id
+    )
+    db.add(old_owner_as_collab)
+
+    db.commit()
+    db.refresh(session)
+
+    # Get old owner info for email notifications
+    old_owner = db.query(User).filter(User.id == old_owner_id).first()
+
+    # Send email notifications
+    if old_owner and new_owner:
+        from app.services.email_service import email_service
+        # Notify new owner that they now own the session
+        email_service.send_ownership_transferred_to_new_owner_email(
+            new_owner_email=new_owner.email,
+            new_owner_name=new_owner.name,
+            session_name=session.name,
+            old_owner_name=old_owner.name
+        )
+        # Notify old owner that ownership was transferred
+        email_service.send_ownership_transferred_from_old_owner_email(
+            old_owner_email=old_owner.email,
+            old_owner_name=old_owner.name,
+            session_name=session.name,
+            new_owner_name=new_owner.name
+        )
+
+    # Get updated collaborators for response
+    collaborators = db.query(SessionCollaborator).filter(
+        SessionCollaborator.session_id == session.id
+    ).all()
+
+    collaborator_infos = build_collaborator_infos(collaborators, db)
+
+    return SessionResponse(
+        id=session.id,
+        name=session.name,
+        created_at=session.created_at,
+        last_activity=session.last_activity,
+        is_active=session.is_active,
+        owner_id=session.owner_id,
+        is_owner=False,  # Current user is now a collaborator
+        collaborators=collaborator_infos
+    )

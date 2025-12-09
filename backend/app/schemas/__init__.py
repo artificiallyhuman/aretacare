@@ -6,6 +6,7 @@ from app.schemas.session import (
     SessionShareResponse,
     UserExistsResponse,
     CollaboratorInfo,
+    TransferOwnershipRequest,
 )
 from app.schemas.document import DocumentUploadResponse, DocumentResponse, DocumentUpdate
 from app.schemas.conversation import (
@@ -28,6 +29,7 @@ __all__ = [
     "SessionShareResponse",
     "UserExistsResponse",
     "CollaboratorInfo",
+    "TransferOwnershipRequest",
     "DocumentUploadResponse",
     "DocumentResponse",
     "DocumentUpdate",

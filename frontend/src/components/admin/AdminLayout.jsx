@@ -18,7 +18,7 @@ export default function AdminLayout({ children }) {
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       {/* Mobile navigation - horizontal scrollable tabs */}
-      <div className="lg:hidden bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-2 py-2 overflow-x-auto sticky top-0 z-10">
+      <div className="lg:hidden bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-2 py-2 overflow-x-auto sticky top-0 z-20">
         <div className="flex gap-1 min-w-max">
           <Link
             to="/"

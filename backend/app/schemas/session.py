@@ -12,6 +12,7 @@ class CollaboratorInfo(BaseModel):
     email: str
     name: str
     added_at: datetime
+    owned_session_count: int = 0  # Number of sessions this collaborator owns
 
     class Config:
         from_attributes = True
@@ -50,3 +51,7 @@ class UserExistsResponse(BaseModel):
     user_id: Optional[str] = None
     name: Optional[str] = None
     message: Optional[str] = None
+
+
+class TransferOwnershipRequest(BaseModel):
+    new_owner_user_id: str = Field(..., description="User ID of the collaborator to transfer ownership to")

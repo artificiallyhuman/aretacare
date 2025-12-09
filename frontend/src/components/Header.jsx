@@ -14,6 +14,7 @@ const Header = ({ onLogout, user }) => {
   const [userDropdownOpen, setUserDropdownOpen] = useState(false);
   const [mobileToolsOpen, setMobileToolsOpen] = useState(false);
   const [creatingSession, setCreatingSession] = useState(false);
+  const [sessionError, setSessionError] = useState(null);
   const toolsDropdownRef = useRef(null);
   const userDropdownRef = useRef(null);
 
@@ -42,7 +43,9 @@ const Header = ({ onLogout, user }) => {
       setMobileMenuOpen(false);
       navigate('/');
     } catch (error) {
-      alert(error.message || 'Failed to create session');
+      setSessionError(error.message || 'Failed to create session');
+      setUserDropdownOpen(false);
+      setMobileMenuOpen(false);
     } finally {
       setCreatingSession(false);
     }
@@ -56,7 +59,7 @@ const Header = ({ onLogout, user }) => {
   };
 
   return (
-    <header className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 transition-colors duration-200">
+    <header className="sticky top-0 z-30 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 transition-colors duration-200">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           {/* Logo */}
@@ -176,12 +179,14 @@ const Header = ({ onLogout, user }) => {
 
                 {userDropdownOpen && (
                   <div className="absolute top-full right-0 mt-1 w-56 bg-white dark:bg-gray-800 rounded-md shadow-lg border border-gray-200 dark:border-gray-700 py-1 z-10">
-                    {/* Sessions Section */}
+                    {/* Owned Sessions Section */}
                     <div className="px-3 py-2 border-b border-gray-200 dark:border-gray-700">
-                      <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">Sessions</p>
+                      <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">
+                        Your Sessions ({sessions.filter(s => s.is_owner).length})
+                      </p>
                     </div>
 
-                    {sessions.map((session) => (
+                    {sessions.filter(s => s.is_owner).map((session) => (
                       <button
                         key={session.id}
                         onClick={() => handleSwitchSession(session.id)}
@@ -210,6 +215,37 @@ const Header = ({ onLogout, user }) => {
                       </svg>
                       <span>{creatingSession ? 'Creating...' : 'New Session'}</span>
                     </button>
+
+                    {/* Collaboration Sessions Section */}
+                    {sessions.filter(s => !s.is_owner).length > 0 && (
+                      <>
+                        <div className="px-3 py-2 border-t border-gray-200 dark:border-gray-700 mt-1">
+                          <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">
+                            Shared with You ({sessions.filter(s => !s.is_owner).length})
+                          </p>
+                        </div>
+                        <div className="max-h-48 overflow-y-auto">
+                          {sessions.filter(s => !s.is_owner).map((session) => (
+                            <button
+                              key={session.id}
+                              onClick={() => handleSwitchSession(session.id)}
+                              className={`w-full text-left px-4 py-2 text-sm flex items-center justify-between ${
+                                session.id === activeSession?.id
+                                  ? 'bg-primary-50 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300'
+                                  : 'text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700'
+                              }`}
+                            >
+                              <span className="truncate">{session.name}</span>
+                              {session.id === activeSession?.id && (
+                                <svg className="w-4 h-4 text-primary-600 dark:text-primary-400" fill="currentColor" viewBox="0 0 20 20">
+                                  <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                </svg>
+                              )}
+                            </button>
+                          ))}
+                        </div>
+                      </>
+                    )}
 
                     <div className="border-t border-gray-200 dark:border-gray-700 mt-1 pt-1">
                       <Link
@@ -382,12 +418,15 @@ const Header = ({ onLogout, user }) => {
 
               {/* Sessions List - Always Visible */}
               <div className="pt-3">
+                {/* Owned Sessions */}
                 <div className="px-3 pb-2">
-                  <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Sessions</p>
+                  <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    Your Sessions ({sessions.filter(s => s.is_owner).length})
+                  </p>
                 </div>
 
                 <div className="flex flex-col space-y-0.5">
-                  {sessions.map((session) => (
+                  {sessions.filter(s => s.is_owner).map((session) => (
                     <button
                       key={session.id}
                       onClick={() => handleSwitchSession(session.id)}
@@ -417,6 +456,37 @@ const Header = ({ onLogout, user }) => {
                     <span>{creatingSession ? 'Creating...' : 'New Session'}</span>
                   </button>
                 </div>
+
+                {/* Collaboration Sessions */}
+                {sessions.filter(s => !s.is_owner).length > 0 && (
+                  <>
+                    <div className="px-3 pb-2 pt-3 border-t border-gray-300 dark:border-gray-600 mt-3">
+                      <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        Shared with You ({sessions.filter(s => !s.is_owner).length})
+                      </p>
+                    </div>
+                    <div className="flex flex-col space-y-0.5 max-h-40 overflow-y-auto">
+                      {sessions.filter(s => !s.is_owner).map((session) => (
+                        <button
+                          key={session.id}
+                          onClick={() => handleSwitchSession(session.id)}
+                          className={`w-full text-left px-3 py-2 text-sm transition-colors flex items-center justify-between ${
+                            session.id === activeSession?.id
+                              ? 'bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300 font-medium'
+                              : 'text-gray-600 dark:text-gray-300 hover:bg-white dark:hover:bg-gray-600 hover:text-primary-600 dark:hover:text-primary-400'
+                          }`}
+                        >
+                          <span className="truncate">{session.name}</span>
+                          {session.id === activeSession?.id && (
+                            <svg className="w-4 h-4 text-primary-600 dark:text-primary-400 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                            </svg>
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                )}
               </div>
             </div>
 
@@ -469,6 +539,46 @@ const Header = ({ onLogout, user }) => {
           </div>
         )}
       </div>
+
+      {/* Session Error Modal */}
+      {sessionError && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 dark:bg-opacity-70 flex items-center justify-center p-4 z-50">
+          <div className="bg-white dark:bg-gray-800 rounded-lg max-w-lg w-full">
+            <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Cannot Create Session</h2>
+            </div>
+
+            <div className="p-6 space-y-4">
+              <div className="bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded px-4 py-3">
+                <div className="flex items-start gap-3">
+                  <div className="flex-shrink-0">
+                    <svg className="w-5 h-5 text-orange-600 dark:text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    </svg>
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm text-orange-900 dark:text-orange-200 mb-2 font-medium">
+                      You've reached the limit of 3 owned sessions.
+                    </p>
+                    <p className="text-sm text-orange-800 dark:text-orange-300">
+                      To create a new session, go to <strong>Settings → Manage Sessions</strong> and delete one of your existing owned sessions first.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex justify-end pt-4 border-t border-gray-200 dark:border-gray-700">
+                <button
+                  onClick={() => setSessionError(null)}
+                  className="px-4 py-2 bg-primary-600 dark:bg-primary-700 text-white rounded hover:bg-primary-700 dark:hover:bg-primary-600 font-medium"
+                >
+                  OK
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </header>
   );
 };

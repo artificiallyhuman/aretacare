@@ -98,6 +98,8 @@ export const sessionAPI = {
   share: (sessionId, email) => api.post(`/sessions/${sessionId}/share`, { email }),
   revokeAccess: (sessionId, userId) => api.delete(`/sessions/${sessionId}/collaborators/${userId}`),
   leave: (sessionId) => api.post(`/sessions/${sessionId}/leave`),
+  transferOwnership: (sessionId, newOwnerUserId) =>
+    api.post(`/sessions/${sessionId}/transfer-ownership`, { new_owner_user_id: newOwnerUserId }),
 };
 
 // Document API

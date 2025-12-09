@@ -947,6 +947,326 @@ This is an automated message from AretaCare.
             logger.error(f"Error sending inactive account notification: {str(e)}")
             return False
 
+    @staticmethod
+    def send_ownership_transferred_to_new_owner_email(
+        new_owner_email: str,
+        new_owner_name: str,
+        session_name: str,
+        old_owner_name: str
+    ) -> bool:
+        """
+        Send notification to new owner when ownership is transferred
+
+        Args:
+            new_owner_email: New owner's email address
+            new_owner_name: New owner's name
+            session_name: Name of the session
+            old_owner_name: Name of the previous owner
+
+        Returns:
+            bool: True if email sent successfully, False otherwise
+        """
+        try:
+            # Build settings URL
+            settings_url = f"{settings.FRONTEND_URL}/settings"
+
+            # Create message
+            message = MIMEMultipart("alternative")
+            message["Subject"] = f"You're Now the Owner of \"{session_name}\" - AretaCare"
+            message["From"] = f"{settings.SMTP_FROM_NAME} <{settings.SMTP_FROM_EMAIL}>"
+            message["To"] = new_owner_email
+
+            # Plain text version
+            text_content = f"""
+Hello {new_owner_name},
+
+{old_owner_name} has transferred ownership of the AretaCare session "{session_name}" to you.
+
+You are now the session owner with full control, including:
+- Managing collaborators (add/remove/transfer ownership)
+- Renaming the session
+- Deleting the session
+
+{old_owner_name} has been added as a collaborator and can still access all session data.
+
+You can manage this session in your account settings: {settings_url}
+
+Best regards,
+The AretaCare Team
+            """
+
+            # HTML version
+            html_content = f"""
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f3f4f6;">
+    <table role="presentation" style="width: 100%; border-collapse: collapse;">
+        <tr>
+            <td align="center" style="padding: 40px 0;">
+                <table role="presentation" style="width: 600px; max-width: 100%; background-color: #ffffff; border-radius: 8px; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);">
+                    <!-- Header -->
+                    <tr>
+                        <td style="padding: 40px 40px 20px; text-align: center;">
+                            <h1 style="margin: 0; color: #059669; font-size: 28px;">AretaCare</h1>
+                            <p style="margin: 8px 0 0; color: #6b7280; font-size: 14px;">Care | Clarity | Confidence</p>
+                        </td>
+                    </tr>
+
+                    <!-- Content -->
+                    <tr>
+                        <td style="padding: 20px 40px;">
+                            <h2 style="margin: 0 0 16px; color: #111827; font-size: 24px;">Session Ownership Transferred</h2>
+                            <p style="margin: 0 0 16px; color: #374151; font-size: 16px; line-height: 24px;">
+                                Hello {new_owner_name},
+                            </p>
+                            <p style="margin: 0 0 16px; color: #374151; font-size: 16px; line-height: 24px;">
+                                <strong>{old_owner_name}</strong> has transferred ownership of the AretaCare session <strong>"{session_name}"</strong> to you.
+                            </p>
+                        </td>
+                    </tr>
+
+                    <!-- Info Box -->
+                    <tr>
+                        <td style="padding: 0 40px 20px;">
+                            <div style="background-color: #ecfdf5; border-left: 4px solid #059669; padding: 16px; border-radius: 4px;">
+                                <p style="margin: 0 0 8px; color: #065f46; font-size: 14px; font-weight: 600;">
+                                    As the New Owner
+                                </p>
+                                <p style="margin: 0; color: #065f46; font-size: 14px; line-height: 20px;">
+                                    You now have full control of this session:
+                                </p>
+                                <ul style="margin: 8px 0 0 20px; padding: 0; color: #065f46; font-size: 14px; line-height: 20px;">
+                                    <li style="margin: 4px 0;">Manage collaborators (add/remove/transfer)</li>
+                                    <li style="margin: 4px 0;">Rename the session</li>
+                                    <li style="margin: 4px 0;">Delete the session</li>
+                                </ul>
+                                <p style="margin: 8px 0 0; color: #065f46; font-size: 14px; line-height: 20px;">
+                                    <strong>{old_owner_name}</strong> has been added as a collaborator and can still access all session data.
+                                </p>
+                            </div>
+                        </td>
+                    </tr>
+
+                    <!-- Button -->
+                    <tr>
+                        <td style="padding: 0 40px 40px;">
+                            <table role="presentation" style="margin: 0;">
+                                <tr>
+                                    <td style="border-radius: 6px; background-color: #059669;">
+                                        <a href="{settings_url}" target="_blank" style="display: inline-block; padding: 14px 32px; color: #ffffff; text-decoration: none; font-size: 16px; font-weight: 600;">
+                                            Manage Sessions
+                                        </a>
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+
+                    <!-- Footer -->
+                    <tr>
+                        <td style="padding: 20px 40px; background-color: #f9fafb; border-top: 1px solid #e5e7eb; border-radius: 0 0 8px 8px;">
+                            <p style="margin: 0; color: #6b7280; font-size: 12px; line-height: 18px; text-align: center;">
+                                Best regards,<br>
+                                The AretaCare Team
+                            </p>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>
+            """
+
+            # Attach both versions
+            part1 = MIMEText(text_content, "plain")
+            part2 = MIMEText(html_content, "html")
+            message.attach(part1)
+            message.attach(part2)
+
+            # Check if SMTP password is configured
+            if not settings.SMTP_PASSWORD:
+                logger.warning("SMTP_PASSWORD not configured. Email not sent. Using development mode.")
+                return False
+
+            # Send email
+            with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT) as server:
+                server.starttls()
+                server.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
+                server.send_message(message)
+
+            logger.info(f"Ownership transfer notification sent successfully to new owner {new_owner_email}")
+            return True
+
+        except Exception as e:
+            logger.error(f"Error sending ownership transfer notification to new owner: {str(e)}")
+            return False
+
+    @staticmethod
+    def send_ownership_transferred_from_old_owner_email(
+        old_owner_email: str,
+        old_owner_name: str,
+        session_name: str,
+        new_owner_name: str
+    ) -> bool:
+        """
+        Send notification to old owner when they transfer ownership
+
+        Args:
+            old_owner_email: Old owner's email address
+            old_owner_name: Old owner's name
+            session_name: Name of the session
+            new_owner_name: Name of the new owner
+
+        Returns:
+            bool: True if email sent successfully, False otherwise
+        """
+        try:
+            # Build settings URL
+            settings_url = f"{settings.FRONTEND_URL}/settings"
+
+            # Create message
+            message = MIMEMultipart("alternative")
+            message["Subject"] = f"Ownership Transferred for \"{session_name}\" - AretaCare"
+            message["From"] = f"{settings.SMTP_FROM_NAME} <{settings.SMTP_FROM_EMAIL}>"
+            message["To"] = old_owner_email
+
+            # Plain text version
+            text_content = f"""
+Hello {old_owner_name},
+
+You have successfully transferred ownership of the AretaCare session "{session_name}" to {new_owner_name}.
+
+{new_owner_name} is now the session owner and can:
+- Manage collaborators (add/remove/transfer ownership)
+- Rename the session
+- Delete the session
+
+You have been added as a collaborator and can still access all session data. However, you can no longer manage the session or its collaborators.
+
+If you want to leave this session, you can do so in your account settings: {settings_url}
+
+Best regards,
+The AretaCare Team
+            """
+
+            # HTML version
+            html_content = f"""
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f3f4f6;">
+    <table role="presentation" style="width: 100%; border-collapse: collapse;">
+        <tr>
+            <td align="center" style="padding: 40px 0;">
+                <table role="presentation" style="width: 600px; max-width: 100%; background-color: #ffffff; border-radius: 8px; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);">
+                    <!-- Header -->
+                    <tr>
+                        <td style="padding: 40px 40px 20px; text-align: center;">
+                            <h1 style="margin: 0; color: #059669; font-size: 28px;">AretaCare</h1>
+                            <p style="margin: 8px 0 0; color: #6b7280; font-size: 14px;">Care | Clarity | Confidence</p>
+                        </td>
+                    </tr>
+
+                    <!-- Content -->
+                    <tr>
+                        <td style="padding: 20px 40px;">
+                            <h2 style="margin: 0 0 16px; color: #111827; font-size: 24px;">Ownership Transferred</h2>
+                            <p style="margin: 0 0 16px; color: #374151; font-size: 16px; line-height: 24px;">
+                                Hello {old_owner_name},
+                            </p>
+                            <p style="margin: 0 0 16px; color: #374151; font-size: 16px; line-height: 24px;">
+                                You have successfully transferred ownership of the AretaCare session <strong>"{session_name}"</strong> to <strong>{new_owner_name}</strong>.
+                            </p>
+                        </td>
+                    </tr>
+
+                    <!-- Info Box -->
+                    <tr>
+                        <td style="padding: 0 40px 20px;">
+                            <div style="background-color: #eff6ff; border-left: 4px solid #3b82f6; padding: 16px; border-radius: 4px;">
+                                <p style="margin: 0 0 8px; color: #1e40af; font-size: 14px; font-weight: 600;">
+                                    What This Means
+                                </p>
+                                <p style="margin: 0; color: #1e40af; font-size: 14px; line-height: 20px;">
+                                    <strong>{new_owner_name}</strong> is now the session owner and can:
+                                </p>
+                                <ul style="margin: 8px 0 0 20px; padding: 0; color: #1e40af; font-size: 14px; line-height: 20px;">
+                                    <li style="margin: 4px 0;">Manage collaborators (add/remove/transfer)</li>
+                                    <li style="margin: 4px 0;">Rename the session</li>
+                                    <li style="margin: 4px 0;">Delete the session</li>
+                                </ul>
+                                <p style="margin: 8px 0 0; color: #1e40af; font-size: 14px; line-height: 20px;">
+                                    You have been added as a collaborator and can still access all session data. However, you can no longer manage the session or its collaborators.
+                                </p>
+                            </div>
+                        </td>
+                    </tr>
+
+                    <!-- Button -->
+                    <tr>
+                        <td style="padding: 0 40px 40px;">
+                            <table role="presentation" style="margin: 0;">
+                                <tr>
+                                    <td style="border-radius: 6px; background-color: #059669;">
+                                        <a href="{settings_url}" target="_blank" style="display: inline-block; padding: 14px 32px; color: #ffffff; text-decoration: none; font-size: 16px; font-weight: 600;">
+                                            View Sessions
+                                        </a>
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+
+                    <!-- Footer -->
+                    <tr>
+                        <td style="padding: 20px 40px; background-color: #f9fafb; border-top: 1px solid #e5e7eb; border-radius: 0 0 8px 8px;">
+                            <p style="margin: 0; color: #6b7280; font-size: 12px; line-height: 18px; text-align: center;">
+                                Best regards,<br>
+                                The AretaCare Team
+                            </p>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>
+            """
+
+            # Attach both versions
+            part1 = MIMEText(text_content, "plain")
+            part2 = MIMEText(html_content, "html")
+            message.attach(part1)
+            message.attach(part2)
+
+            # Check if SMTP password is configured
+            if not settings.SMTP_PASSWORD:
+                logger.warning("SMTP_PASSWORD not configured. Email not sent. Using development mode.")
+                return False
+
+            # Send email
+            with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT) as server:
+                server.starttls()
+                server.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
+                server.send_message(message)
+
+            logger.info(f"Ownership transfer notification sent successfully to old owner {old_owner_email}")
+            return True
+
+        except Exception as e:
+            logger.error(f"Error sending ownership transfer notification to old owner: {str(e)}")
+            return False
+
 
 # Global instance
 email_service = EmailService()
