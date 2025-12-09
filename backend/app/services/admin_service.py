@@ -152,8 +152,10 @@ class AdminService:
         timestamp_column = getattr(model, date_field)
 
         # Add timezone offset to convert UTC to user's local time
-        # PostgreSQL: timestamp + INTERVAL 'N hours'
-        local_timestamp = timestamp_column + text(f"INTERVAL '{timezone_offset_hours} hours'")
+        # Use PostgreSQL's interval type with parameterized query to prevent SQL injection
+        # We multiply the offset hours by INTERVAL '1 hour' to get the correct interval
+        from sqlalchemy import literal_column
+        local_timestamp = timestamp_column + (literal_column("INTERVAL '1 hour'") * timezone_offset_hours)
 
         # Query for counts by date (in user's timezone)
         result = db.query(
