@@ -254,7 +254,7 @@ export default function Settings() {
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-6 sm:py-8 lg:py-12 transition-colors duration-200">
       <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="mb-6 sm:mb-8">
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">Account Settings</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">Settings</h1>
           <p className="mt-2 text-sm sm:text-base text-gray-600 dark:text-gray-400">
             Manage your account information and preferences
           </p>

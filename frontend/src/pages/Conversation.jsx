@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { Link } from 'react-router-dom';
 import { useSessionContext } from '../contexts/SessionContext';
 import { conversationAPI, documentAPI, dailyPlanAPI } from '../services/api';
 import MessageBubble from '../components/MessageBubble';
@@ -559,56 +560,69 @@ const Conversation = () => {
           >
             {messages.length === 0 ? (
               <div className="flex items-center justify-center h-full">
-                <div className="max-w-2xl mx-auto px-3 md:px-4">
-                  <div className="bg-gradient-to-r from-primary-50 to-blue-50 dark:from-gray-800 dark:to-gray-800 rounded-lg border-2 border-primary-200 dark:border-gray-700 px-3 py-3 md:px-6 md:py-4">
-                    <div className="flex items-start mb-2 md:mb-3">
-                      <div className="flex-shrink-0">
-                        <svg className="w-5 h-5 md:w-6 md:h-6 text-primary-600 dark:text-primary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                        </svg>
-                      </div>
-                      <div className="ml-2 md:ml-3">
-                        <h3 className="text-base md:text-lg font-bold text-gray-900 dark:text-gray-100 mb-1 md:mb-2">Type or speak your message below</h3>
-                        <p className="text-xs md:text-sm text-gray-700 dark:text-gray-300 mb-2 md:mb-3">
-                          You can type in the text box, click the microphone{' '}
-                          <svg className="w-3 h-3 md:w-4 md:h-4 inline text-gray-600 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
-                          </svg>
-                          {' '}to record audio, or the paperclip{' '}
-                          <svg className="w-3 h-3 md:w-4 md:h-4 inline text-gray-600 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
-                          </svg>
-                          {' '}to upload documents and images.
-                          <br/><br/>Share information like:
-                        </p>
-                        <ul className="space-y-1 md:space-y-2 text-xs md:text-sm text-gray-700 dark:text-gray-300">
-                          <li className="flex items-start">
-                            <svg className="w-4 h-4 md:w-5 md:h-5 text-primary-600 dark:text-primary-400 mr-1.5 md:mr-2 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                            </svg>
-                            <span>Health conditions or diagnoses</span>
-                          </li>
-                          <li className="flex items-start">
-                            <svg className="w-4 h-4 md:w-5 md:h-5 text-primary-600 dark:text-primary-400 mr-1.5 md:mr-2 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                            </svg>
-                            <span>Current medications</span>
-                          </li>
-                          <li className="flex items-start">
-                            <svg className="w-4 h-4 md:w-5 md:h-5 text-primary-600 dark:text-primary-400 mr-1.5 md:mr-2 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                            </svg>
-                            <span>Recent appointments or test results</span>
-                          </li>
-                        </ul>
-                      </div>
+                <div className="max-w-2xl mx-auto px-4 md:px-6">
+                  <div className="bg-gradient-to-r from-primary-50 to-blue-50 dark:from-gray-800 dark:to-gray-800 rounded-lg border-2 border-primary-200 dark:border-gray-700 px-4 py-5 md:px-6 md:py-6">
+                    {/* Header */}
+                    <div className="text-center mb-5">
+                      <svg className="w-12 h-12 md:w-14 md:h-14 text-primary-600 dark:text-primary-400 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                      </svg>
+                      <h3 className="text-xl md:text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2">Start a Conversation</h3>
+                      <p className="text-sm md:text-base text-gray-700 dark:text-gray-300">
+                        Tell us what's happening and how we can help
+                      </p>
                     </div>
-                    <div className="border-t border-gray-200 dark:border-gray-600 mt-3 md:mt-4 pt-3 md:pt-4">
-                      <p className="text-xs text-gray-600 dark:text-gray-400 text-center mb-3 px-6 md:px-8">
-                        You can have <strong>up to 3 active sessions</strong>. When a session is no longer needed, delete it under <em>Settings → Manage Sessions → Details</em> to clear your data from our servers.
+
+                    {/* Simple bullets */}
+                    <div className="space-y-2 text-xs md:text-sm text-gray-700 dark:text-gray-300 mb-4">
+                      <p className="flex items-start">
+                        <svg className="w-4 h-4 text-primary-600 dark:text-primary-400 mr-2 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                        </svg>
+                        <span>AI generates your <Link to="/daily-plan" className="font-bold text-gray-700 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 underline">Daily Plan</Link> and <Link to="/journal" className="font-bold text-gray-700 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 underline">Care Journal</Link> automatically</span>
+                      </p>
+                      <p className="flex items-start">
+                        <svg className="w-4 h-4 text-primary-600 dark:text-primary-400 mr-2 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                        </svg>
+                        <span>Bring others into the conversation under <Link to="/collaboration" className="font-bold text-gray-700 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 underline">Collaboration</Link></span>
+                      </p>
+                      <p className="flex items-start">
+                        <svg className="w-4 h-4 text-primary-600 dark:text-primary-400 mr-2 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                        </svg>
+                        <span>Rename or delete this session in <Link to="/settings" className="font-bold text-gray-700 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 underline">Settings → Manage Sessions</Link></span>
+                      </p>
+                      <p className="flex items-start">
+                        <svg className="w-4 h-4 text-primary-600 dark:text-primary-400 mr-2 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+                        </svg>
+                        <span>View your files in <Link to="/tools/documents" className="font-bold text-gray-700 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 underline">Document Manager</Link> and <Link to="/audio-recordings" className="font-bold text-gray-700 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 underline">Audio Recordings</Link></span>
+                      </p>
+                      <p className="flex items-start">
+                        <svg className="w-4 h-4 text-primary-600 dark:text-primary-400 mr-2 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <span>Explore the story, platform, and principles on the <Link to="/about" className="font-bold text-gray-700 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 underline">About</Link> page</span>
+                      </p>
+                    </div>
+
+                    {/* Footer - how to share and arrow */}
+                    <div className="border-t border-gray-200 dark:border-gray-600 pt-4">
+                      <p className="text-xs md:text-sm text-gray-600 dark:text-gray-400 text-center mb-3 flex items-center justify-center gap-1 flex-wrap">
+                        <span>Type a message,</span>
+                        <svg className="w-4 h-4 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+                        </svg>
+                        <span>upload documents, or</span>
+                        <svg className="w-4 h-4 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+                        </svg>
+                        <span>record audio</span>
                       </p>
                       <div className="flex items-center justify-center">
-                        <svg className="w-5 h-5 md:w-6 md:h-6 text-primary-600 dark:text-primary-400 animate-bounce" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg className="w-6 h-6 text-primary-600 dark:text-primary-400 animate-bounce" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
                         </svg>
                       </div>

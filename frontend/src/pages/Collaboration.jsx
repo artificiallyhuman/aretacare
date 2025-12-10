@@ -771,7 +771,7 @@ export default function Collaboration() {
                   >
                     <button
                       onClick={() => handleToggleSession(session.id)}
-                      className="w-full px-4 py-4 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-750 transition-colors"
+                      className="w-full px-4 py-4 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
                     >
                       <div className="flex-1 text-left">
                         <h3 className="font-semibold text-gray-900 dark:text-white flex items-center space-x-2 flex-wrap">
