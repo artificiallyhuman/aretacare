@@ -1,6 +1,7 @@
 from app.models.user import User
 from app.models.session import Session
 from app.models.session_collaborator import SessionCollaborator
+from app.models.pending_invitation import PendingInvitation
 from app.models.document import Document, DocumentCategory
 from app.models.conversation import Conversation, MessageRole
 from app.models.audio_recording import AudioRecording, AudioRecordingCategory
@@ -12,7 +13,7 @@ from app.models.security_log import SecurityLog
 from app.models.error_log import ErrorLog
 
 __all__ = [
-    "User", "Session", "SessionCollaborator", "Document", "DocumentCategory",
+    "User", "Session", "SessionCollaborator", "PendingInvitation", "Document", "DocumentCategory",
     "Conversation", "MessageRole", "AudioRecording", "AudioRecordingCategory",
     "JournalEntry", "EntryType", "DailyPlan", "DailyPlanView", "AdminAuditLog", "SecurityLog", "ErrorLog"
 ]

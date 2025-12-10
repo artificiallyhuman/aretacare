@@ -25,6 +25,7 @@ class Session(Base):
     user = relationship("User", back_populates="sessions", foreign_keys=[user_id])
     owner = relationship("User", foreign_keys=[owner_id])
     collaborators = relationship("SessionCollaborator", back_populates="session", cascade="all, delete-orphan")
+    pending_invitations = relationship("PendingInvitation", back_populates="session", cascade="all, delete-orphan")
     documents = relationship("Document", back_populates="session", cascade="all, delete-orphan")
     conversations = relationship("Conversation", back_populates="session", cascade="all, delete-orphan")
     journal_entries = relationship("JournalEntry", back_populates="session", cascade="all, delete-orphan")

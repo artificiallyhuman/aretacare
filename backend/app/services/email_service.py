@@ -64,7 +64,7 @@ The AretaCare Team
                     <!-- Header -->
                     <tr>
                         <td style="padding: 40px 40px 20px; text-align: center;">
-                            <h1 style="margin: 0; color: #059669; font-size: 28px;">AretaCare</h1>
+                            <h1 style="margin: 0; color: #059669; font-size: 28px;">AretaCare<span style="font-size: 16px; vertical-align: super;">™</span></h1>
                             <p style="margin: 8px 0 0; color: #6b7280; font-size: 14px;">Care | Clarity | Confidence</p>
                         </td>
                     </tr>
@@ -208,7 +208,7 @@ The AretaCare Team
                     <!-- Header -->
                     <tr>
                         <td style="padding: 40px 40px 20px; text-align: center;">
-                            <h1 style="margin: 0; color: #059669; font-size: 28px;">AretaCare</h1>
+                            <h1 style="margin: 0; color: #059669; font-size: 28px;">AretaCare<span style="font-size: 16px; vertical-align: super;">™</span></h1>
                             <p style="margin: 8px 0 0; color: #6b7280; font-size: 14px;">Care | Clarity | Confidence</p>
                         </td>
                     </tr>
@@ -331,7 +331,7 @@ The AretaCare Team
                     <!-- Header -->
                     <tr>
                         <td style="padding: 40px 40px 20px; text-align: center;">
-                            <h1 style="margin: 0; color: #059669; font-size: 28px;">AretaCare</h1>
+                            <h1 style="margin: 0; color: #059669; font-size: 28px;">AretaCare<span style="font-size: 16px; vertical-align: super;">™</span></h1>
                             <p style="margin: 8px 0 0; color: #6b7280; font-size: 14px;">Care | Clarity | Confidence</p>
                         </td>
                     </tr>
@@ -468,7 +468,7 @@ The AretaCare Team
                     <!-- Header -->
                     <tr>
                         <td style="padding: 40px 40px 20px; text-align: center;">
-                            <h1 style="margin: 0; color: #059669; font-size: 28px;">AretaCare</h1>
+                            <h1 style="margin: 0; color: #059669; font-size: 28px;">AretaCare<span style="font-size: 16px; vertical-align: super;">™</span></h1>
                             <p style="margin: 8px 0 0; color: #6b7280; font-size: 14px;">Care | Clarity | Confidence</p>
                         </td>
                     </tr>
@@ -620,7 +620,7 @@ The AretaCare Team
                     <!-- Header -->
                     <tr>
                         <td style="padding: 40px 40px 20px; text-align: center;">
-                            <h1 style="margin: 0; color: #059669; font-size: 28px;">AretaCare</h1>
+                            <h1 style="margin: 0; color: #059669; font-size: 28px;">AretaCare<span style="font-size: 16px; vertical-align: super;">™</span></h1>
                             <p style="margin: 8px 0 0; color: #6b7280; font-size: 14px;">Care | Clarity | Confidence</p>
                         </td>
                     </tr>
@@ -774,7 +774,7 @@ The AretaCare Team
                     <!-- Header -->
                     <tr>
                         <td style="padding: 40px 40px 20px; text-align: center;">
-                            <h1 style="margin: 0; color: #059669; font-size: 28px;">AretaCare</h1>
+                            <h1 style="margin: 0; color: #059669; font-size: 28px;">AretaCare<span style="font-size: 16px; vertical-align: super;">™</span></h1>
                             <p style="margin: 8px 0 0; color: #6b7280; font-size: 14px;">Care | Clarity | Confidence</p>
                         </td>
                     </tr>
@@ -1011,7 +1011,7 @@ The AretaCare Team
                     <!-- Header -->
                     <tr>
                         <td style="padding: 40px 40px 20px; text-align: center;">
-                            <h1 style="margin: 0; color: #059669; font-size: 28px;">AretaCare</h1>
+                            <h1 style="margin: 0; color: #059669; font-size: 28px;">AretaCare<span style="font-size: 16px; vertical-align: super;">™</span></h1>
                             <p style="margin: 8px 0 0; color: #6b7280; font-size: 14px;">Care | Clarity | Confidence</p>
                         </td>
                     </tr>
@@ -1108,6 +1108,355 @@ The AretaCare Team
             return False
 
     @staticmethod
+    def send_invitation_email(
+        to_email: str,
+        inviter_name: str,
+        session_name: str,
+        registration_url: str
+    ) -> bool:
+        """
+        Send invitation email to a user who doesn't have an AretaCare account yet
+
+        Args:
+            to_email: Email address of the person being invited
+            inviter_name: Name of the person sending the invitation
+            session_name: Name of the session they're being invited to
+            registration_url: URL to the registration page with pre-populated email and token
+
+        Returns:
+            bool: True if email sent successfully, False otherwise
+        """
+        try:
+            # Create message
+            message = MIMEMultipart("alternative")
+            message["Subject"] = f"{inviter_name} Invited You to Join AretaCare"
+            message["From"] = f"{settings.SMTP_FROM_NAME} <{settings.SMTP_FROM_EMAIL}>"
+            message["To"] = to_email
+
+            # Plain text version
+            text_content = f"""
+Hello,
+
+{inviter_name} has invited you to join AretaCare to collaborate on their session "{session_name}".
+
+AretaCare helps you make sense of complicated medical information, stay organized through stressful moments, and have confident conversations with your care team. Once you create a free account, you'll have access to the shared session.
+
+To accept this invitation and create your account, visit:
+
+{registration_url}
+
+Your email address will be pre-filled on the registration page. After you complete the registration, you'll automatically have access to the shared session.
+
+IMPORTANT: This invitation will expire in 30 days. After that, {inviter_name} will need to send you a new invitation.
+
+If you have any questions about AretaCare, visit our website at {settings.FRONTEND_URL}/about
+
+Best regards,
+The AretaCare Team
+            """
+
+            # HTML version
+            html_content = f"""
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f3f4f6;">
+    <table role="presentation" style="width: 100%; border-collapse: collapse;">
+        <tr>
+            <td align="center" style="padding: 40px 0;">
+                <table role="presentation" style="width: 600px; max-width: 100%; background-color: #ffffff; border-radius: 8px; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);">
+                    <!-- Header -->
+                    <tr>
+                        <td style="padding: 40px 40px 20px; text-align: center;">
+                            <h1 style="margin: 0; color: #059669; font-size: 28px;">AretaCare<span style="font-size: 16px; vertical-align: super;">™</span></h1>
+                            <p style="margin: 8px 0 0; color: #6b7280; font-size: 14px;">Care | Clarity | Confidence</p>
+                        </td>
+                    </tr>
+
+                    <!-- Content -->
+                    <tr>
+                        <td style="padding: 20px 40px;">
+                            <h2 style="margin: 0 0 16px; color: #111827; font-size: 24px;">You've Been Invited to AretaCare</h2>
+                            <p style="margin: 0 0 16px; color: #374151; font-size: 16px; line-height: 24px;">
+                                Hello,
+                            </p>
+                            <p style="margin: 0 0 16px; color: #374151; font-size: 16px; line-height: 24px;">
+                                <strong>{inviter_name}</strong> has invited you to join AretaCare to collaborate on their session <strong>"{session_name}"</strong>.
+                            </p>
+                        </td>
+                    </tr>
+
+                    <!-- Info Box -->
+                    <tr>
+                        <td style="padding: 0 40px 20px;">
+                            <div style="background-color: #ecfdf5; border-left: 4px solid #059669; padding: 16px; border-radius: 4px;">
+                                <p style="margin: 0 0 8px; color: #065f46; font-size: 14px; font-weight: 600;">
+                                    What is AretaCare?
+                                </p>
+                                <p style="margin: 0; color: #065f46; font-size: 14px; line-height: 20px;">
+                                    AretaCare helps you make sense of complicated medical information, stay organized through stressful moments, and have confident conversations with your care team. Once you create a free account, you'll have access to the shared session.
+                                </p>
+                            </div>
+                        </td>
+                    </tr>
+
+                    <!-- Button -->
+                    <tr>
+                        <td style="padding: 0 40px 20px;">
+                            <p style="margin: 0 0 16px; color: #374151; font-size: 16px; line-height: 24px;">
+                                To accept this invitation and create your account, click the button below:
+                            </p>
+                            <table role="presentation" style="margin: 16px 0;">
+                                <tr>
+                                    <td style="border-radius: 6px; background-color: #059669;">
+                                        <a href="{registration_url}" target="_blank" style="display: inline-block; padding: 14px 32px; color: #ffffff; text-decoration: none; font-size: 16px; font-weight: 600;">
+                                            Create Your Account
+                                        </a>
+                                    </td>
+                                </tr>
+                            </table>
+                            <p style="margin: 16px 0 0; color: #6b7280; font-size: 14px; line-height: 20px;">
+                                Or copy and paste this URL into your browser:<br>
+                                <a href="{registration_url}" style="color: #059669; text-decoration: none; word-break: break-all;">{registration_url}</a>
+                            </p>
+                        </td>
+                    </tr>
+
+                    <!-- Note -->
+                    <tr>
+                        <td style="padding: 0 40px 20px;">
+                            <div style="background-color: #f0f9ff; border-left: 4px solid #3b82f6; padding: 16px; border-radius: 4px;">
+                                <p style="margin: 0; color: #1e40af; font-size: 14px; line-height: 20px;">
+                                    <strong>Note:</strong> Your email address will be pre-filled on the registration page. After you complete the registration, you'll automatically have access to the shared session.
+                                </p>
+                            </div>
+                        </td>
+                    </tr>
+
+                    <!-- Expiration Warning -->
+                    <tr>
+                        <td style="padding: 0 40px 40px;">
+                            <div style="background-color: #fef3c7; border-left: 4px solid #f59e0b; padding: 16px; border-radius: 4px;">
+                                <p style="margin: 0; color: #92400e; font-size: 14px; line-height: 20px;">
+                                    <strong>Important:</strong> This invitation will expire in 30 days. After that, {inviter_name} will need to send you a new invitation.
+                                </p>
+                            </div>
+                            <p style="margin: 16px 0 0; color: #6b7280; font-size: 14px; line-height: 20px;">
+                                If you have questions about AretaCare, visit our <a href="{settings.FRONTEND_URL}/about" style="color: #059669; text-decoration: none;">About page</a>.
+                            </p>
+                        </td>
+                    </tr>
+
+                    <!-- Footer -->
+                    <tr>
+                        <td style="padding: 20px 40px; background-color: #f9fafb; border-top: 1px solid #e5e7eb; border-radius: 0 0 8px 8px;">
+                            <p style="margin: 0; color: #6b7280; font-size: 12px; line-height: 18px; text-align: center;">
+                                Best regards,<br>
+                                The AretaCare Team
+                            </p>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>
+            """
+
+            # Attach both versions
+            part1 = MIMEText(text_content, "plain")
+            part2 = MIMEText(html_content, "html")
+            message.attach(part1)
+            message.attach(part2)
+
+            # Check if SMTP password is configured
+            if not settings.SMTP_PASSWORD:
+                logger.warning("SMTP_PASSWORD not configured. Email not sent. Using development mode.")
+                logger.info(f"Development mode: Invitation link: {registration_url}")
+                return False
+
+            # Send email
+            with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT) as server:
+                server.starttls()
+                server.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
+                server.send_message(message)
+
+            logger.info(f"Invitation email sent successfully to {to_email}")
+            return True
+
+        except smtplib.SMTPAuthenticationError as e:
+            logger.error(f"SMTP Authentication failed: {str(e)}")
+            logger.error("Please check your SMTP_USER and SMTP_PASSWORD (use Gmail App Password, not regular password)")
+            return False
+        except smtplib.SMTPException as e:
+            logger.error(f"SMTP error sending email: {str(e)}")
+            return False
+        except Exception as e:
+            logger.error(f"Unexpected error sending invitation email: {str(e)}")
+            return False
+
+    @staticmethod
+    def send_invitation_accepted_email(
+        owner_email: str,
+        owner_name: str,
+        new_user_name: str,
+        new_user_email: str,
+        session_name: str
+    ) -> bool:
+        """
+        Send notification to session owner when their invitation is accepted
+
+        Args:
+            owner_email: Session owner's email address
+            owner_name: Session owner's name
+            new_user_name: Name of the person who accepted
+            new_user_email: Email of the person who accepted
+            session_name: Name of the session
+
+        Returns:
+            bool: True if email sent successfully, False otherwise
+        """
+        try:
+            # Build settings URL
+            settings_url = f"{settings.FRONTEND_URL}/settings"
+
+            # Create message
+            message = MIMEMultipart("alternative")
+            message["Subject"] = f"{new_user_name} Accepted Your AretaCare Invitation"
+            message["From"] = f"{settings.SMTP_FROM_NAME} <{settings.SMTP_FROM_EMAIL}>"
+            message["To"] = owner_email
+
+            # Plain text version
+            text_content = f"""
+Hello {owner_name},
+
+Great news! {new_user_name} ({new_user_email}) has accepted your invitation and created an AretaCare account.
+
+They now have full access to your session "{session_name}" and can view and edit all session data, including conversations, journal entries, documents, and audio recordings.
+
+You can manage your collaborators at any time in your account settings: {settings_url}
+
+Best regards,
+The AretaCare Team
+            """
+
+            # HTML version
+            html_content = f"""
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f3f4f6;">
+    <table role="presentation" style="width: 100%; border-collapse: collapse;">
+        <tr>
+            <td align="center" style="padding: 40px 0;">
+                <table role="presentation" style="width: 600px; max-width: 100%; background-color: #ffffff; border-radius: 8px; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);">
+                    <!-- Header -->
+                    <tr>
+                        <td style="padding: 40px 40px 20px; text-align: center;">
+                            <h1 style="margin: 0; color: #059669; font-size: 28px;">AretaCare<span style="font-size: 16px; vertical-align: super;">™</span></h1>
+                            <p style="margin: 8px 0 0; color: #6b7280; font-size: 14px;">Care | Clarity | Confidence</p>
+                        </td>
+                    </tr>
+
+                    <!-- Content -->
+                    <tr>
+                        <td style="padding: 20px 40px;">
+                            <h2 style="margin: 0 0 16px; color: #111827; font-size: 24px;">Invitation Accepted!</h2>
+                            <p style="margin: 0 0 16px; color: #374151; font-size: 16px; line-height: 24px;">
+                                Hello {owner_name},
+                            </p>
+                            <p style="margin: 0 0 16px; color: #374151; font-size: 16px; line-height: 24px;">
+                                Great news! <strong>{new_user_name}</strong> ({new_user_email}) has accepted your invitation and created an AretaCare account.
+                            </p>
+                        </td>
+                    </tr>
+
+                    <!-- Success Box -->
+                    <tr>
+                        <td style="padding: 0 40px 20px;">
+                            <div style="background-color: #ecfdf5; border-left: 4px solid #059669; padding: 16px; border-radius: 4px;">
+                                <p style="margin: 0 0 8px; color: #065f46; font-size: 14px; font-weight: 600;">
+                                    {new_user_name} now has access to:
+                                </p>
+                                <ul style="margin: 8px 0 0 20px; padding: 0; color: #065f46; font-size: 14px; line-height: 20px;">
+                                    <li style="margin: 4px 0;">Your session: <strong>"{session_name}"</strong></li>
+                                    <li style="margin: 4px 0;">All conversations and messages</li>
+                                    <li style="margin: 4px 0;">Journal entries</li>
+                                    <li style="margin: 4px 0;">Uploaded documents</li>
+                                    <li style="margin: 4px 0;">Audio recordings</li>
+                                    <li style="margin: 4px 0;">Daily plans</li>
+                                </ul>
+                            </div>
+                        </td>
+                    </tr>
+
+                    <!-- Button -->
+                    <tr>
+                        <td style="padding: 0 40px 40px;">
+                            <p style="margin: 0 0 16px; color: #374151; font-size: 16px; line-height: 24px;">
+                                You can manage your collaborators at any time in your account settings.
+                            </p>
+                            <table role="presentation" style="margin: 0;">
+                                <tr>
+                                    <td style="border-radius: 6px; background-color: #059669;">
+                                        <a href="{settings_url}" target="_blank" style="display: inline-block; padding: 14px 32px; color: #ffffff; text-decoration: none; font-size: 16px; font-weight: 600;">
+                                            Manage Collaborators
+                                        </a>
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+
+                    <!-- Footer -->
+                    <tr>
+                        <td style="padding: 20px 40px; background-color: #f9fafb; border-top: 1px solid #e5e7eb; border-radius: 0 0 8px 8px;">
+                            <p style="margin: 0; color: #6b7280; font-size: 12px; line-height: 18px; text-align: center;">
+                                Best regards,<br>
+                                The AretaCare Team
+                            </p>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>
+            """
+
+            # Attach both versions
+            part1 = MIMEText(text_content, "plain")
+            part2 = MIMEText(html_content, "html")
+            message.attach(part1)
+            message.attach(part2)
+
+            # Check if SMTP password is configured
+            if not settings.SMTP_PASSWORD:
+                logger.warning("SMTP_PASSWORD not configured. Email not sent. Using development mode.")
+                return False
+
+            # Send email
+            with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT) as server:
+                server.starttls()
+                server.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
+                server.send_message(message)
+
+            logger.info(f"Invitation accepted notification sent successfully to {owner_email}")
+            return True
+
+        except Exception as e:
+            logger.error(f"Error sending invitation accepted email: {str(e)}")
+            return False
+
+    @staticmethod
     def send_ownership_transferred_from_old_owner_email(
         old_owner_email: str,
         old_owner_name: str,
@@ -1171,7 +1520,7 @@ The AretaCare Team
                     <!-- Header -->
                     <tr>
                         <td style="padding: 40px 40px 20px; text-align: center;">
-                            <h1 style="margin: 0; color: #059669; font-size: 28px;">AretaCare</h1>
+                            <h1 style="margin: 0; color: #059669; font-size: 28px;">AretaCare<span style="font-size: 16px; vertical-align: super;">™</span></h1>
                             <p style="margin: 8px 0 0; color: #6b7280; font-size: 14px;">Care | Clarity | Confidence</p>
                         </td>
                     </tr>
