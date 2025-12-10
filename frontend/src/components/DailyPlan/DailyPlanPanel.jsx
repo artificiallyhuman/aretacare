@@ -97,6 +97,13 @@ const DailyPlanPanel = ({ activeSessionId, isOpen, onToggle, onPlanViewed }) => 
     return dailyPlan && isToday(dailyPlan.date);
   };
 
+  const formatDateFull = (dateString) => {
+    // Parse as local date (YYYY-MM-DD) not UTC
+    const [year, month, day] = dateString.split('-').map(Number);
+    const date = new Date(year, month - 1, day);
+    return date.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+  };
+
   return (
     <div className="h-full flex flex-col bg-gray-50 dark:bg-gray-900">
       {/* Header */}
@@ -134,7 +141,7 @@ const DailyPlanPanel = ({ activeSessionId, isOpen, onToggle, onPlanViewed }) => 
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
             </svg>
             <p className="text-xs md:text-sm text-gray-600 dark:text-gray-400 mb-2">
-              {dailyPlan ? "No plan for today yet" : "No daily plan yet"}
+              {dailyPlan ? `No new activity since the last daily plan generated on ${formatDateFull(dailyPlan.date)}` : "No daily plan yet"}
             </p>
             {!dailyPlan && (
               <p className="text-xs text-gray-500 dark:text-gray-500 mb-3 md:mb-4">

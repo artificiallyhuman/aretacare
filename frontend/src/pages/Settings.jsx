@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { authAPI, sessionAPI } from '../services/api';
 import { useSessionContext } from '../contexts/SessionContext';
-import CollaborationModal from '../components/CollaborationModal';
 
 export default function Settings() {
   const navigate = useNavigate();
@@ -13,7 +12,6 @@ export default function Settings() {
   const [loadingStats, setLoadingStats] = useState({});
   const [editingSessionId, setEditingSessionId] = useState(null);
   const [editingSessionName, setEditingSessionName] = useState('');
-  const [collaborationModalSession, setCollaborationModalSession] = useState(null);
 
   // Form states
   const [nameForm, setNameForm] = useState({
@@ -511,7 +509,7 @@ export default function Settings() {
               <div className="text-left">
                 <h2 className="text-base sm:text-lg font-semibold text-orange-600 dark:text-orange-400">Manage Sessions</h2>
                 <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
-                  View, rename, and delete your sessions ({sessions.filter(s => s.is_owner).length}/3 owned)
+                  View, rename, and delete your sessions
                 </p>
               </div>
               <svg
@@ -539,7 +537,7 @@ export default function Settings() {
                   {sessions.filter(s => s.is_owner).length > 0 && (
                     <div className="space-y-3">
                       <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
-                        Your Sessions ({sessions.filter(s => s.is_owner).length})
+                        Your Sessions ({sessions.filter(s => s.is_owner).length} of 3)
                       </h3>
                       {sessions.filter(s => s.is_owner).map((session) => (
                         <div key={session.id} className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
@@ -590,11 +588,6 @@ export default function Settings() {
                                           Active
                                         </span>
                                       )}
-                                      {session.is_owner && session.collaborators && session.collaborators.length > 0 && (
-                                        <span className="text-xs bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-300 px-2 py-0.5 rounded">
-                                          {session.collaborators.length} {session.collaborators.length === 1 ? 'Collaborator' : 'Collaborators'}
-                                        </span>
-                                      )}
                                     </h3>
                                     <p className="text-xs text-gray-500 dark:text-gray-400">
                                       Created {new Date(session.created_at).toLocaleDateString()}
@@ -613,16 +606,10 @@ export default function Settings() {
                                       </button>
                                     )}
                                     <button
-                                      onClick={() => setCollaborationModalSession(session)}
-                                      className="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300"
-                                    >
-                                      Collaborate
-                                    </button>
-                                    <button
                                       onClick={() => toggleSessionDetails(session.id)}
                                       className="text-sm text-gray-600 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"
                                     >
-                                      {expandedSessionId === session.id ? 'Hide' : 'Details'}
+                                      {expandedSessionId === session.id ? 'Hide' : 'View'}
                                     </button>
                                   </div>
                                 </div>
@@ -672,6 +659,12 @@ export default function Settings() {
                                         {sessionStatistics[session.id].audio_recordings}
                                       </span>
                                     </div>
+                                    <div className="flex items-center justify-between text-sm">
+                                      <span className="text-gray-700 dark:text-gray-300">Collaborators</span>
+                                      <span className="font-semibold text-gray-900 dark:text-white">
+                                        {session.collaborators?.length || 0}
+                                      </span>
+                                    </div>
                                   </div>
 
                                   {/* Warning Box */}
@@ -706,107 +699,6 @@ export default function Settings() {
                                   >
                                     {loading[`session-${session.id}`] ? 'Deleting...' : 'Delete This Session'}
                                   </button>
-                                </>
-                              ) : null}
-                            </div>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* Shared Sessions */}
-                  {sessions.filter(s => !s.is_owner).length > 0 && (
-                    <div className="space-y-3 pt-2">
-                      <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
-                        Shared with You ({sessions.filter(s => !s.is_owner).length})
-                      </h3>
-                      {sessions.filter(s => !s.is_owner).map((session) => (
-                        <div key={session.id} className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
-                          <div className="bg-gray-50 dark:bg-gray-700 px-4 py-3 flex items-center justify-between">
-                            <div className="flex-1">
-                              <div className="flex items-center justify-between">
-                                <div>
-                                  <h3 className="font-semibold text-gray-900 dark:text-white flex items-center space-x-2 flex-wrap">
-                                    <span>{session.name}</span>
-                                    {session.id === activeSessionId && (
-                                      <span className="text-xs bg-primary-100 dark:bg-primary-900/50 text-primary-700 dark:text-primary-300 px-2 py-0.5 rounded">
-                                        Active
-                                      </span>
-                                    )}
-                                  </h3>
-                                  <p className="text-xs text-gray-500 dark:text-gray-400">
-                                    Created {new Date(session.created_at).toLocaleDateString()}
-                                  </p>
-                                </div>
-                                <div className="flex items-center space-x-2">
-                                  <button
-                                    onClick={() => setCollaborationModalSession(session)}
-                                    className="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300"
-                                  >
-                                    Collaborate
-                                  </button>
-                                  <button
-                                    onClick={() => toggleSessionDetails(session.id)}
-                                    className="text-sm text-gray-600 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"
-                                  >
-                                    {expandedSessionId === session.id ? 'Hide' : 'Details'}
-                                  </button>
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-
-                          {expandedSessionId === session.id && (
-                            <div className="px-4 py-3 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700">
-                              {loadingStats[session.id] ? (
-                                <div className="text-xs text-gray-600 dark:text-gray-400">Loading statistics...</div>
-                              ) : sessionStatistics[session.id] ? (
-                                <>
-                                  <div className="space-y-1.5 mb-3">
-                                    <div className="flex items-center justify-between text-sm">
-                                      <span className="text-gray-700 dark:text-gray-300">Conversations</span>
-                                      <span className="font-semibold text-gray-900 dark:text-white">
-                                        {sessionStatistics[session.id].conversations}
-                                      </span>
-                                    </div>
-                                    <div className="flex items-center justify-between text-sm">
-                                      <span className="text-gray-700 dark:text-gray-300">Journal Entries</span>
-                                      <span className="font-semibold text-gray-900 dark:text-white">
-                                        {sessionStatistics[session.id].journal_entries}
-                                      </span>
-                                    </div>
-                                    <div className="flex items-center justify-between text-sm">
-                                      <span className="text-gray-700 dark:text-gray-300">Documents</span>
-                                      <span className="font-semibold text-gray-900 dark:text-white">
-                                        {sessionStatistics[session.id].documents}
-                                      </span>
-                                    </div>
-                                    <div className="flex items-center justify-between text-sm">
-                                      <span className="text-gray-700 dark:text-gray-300">Audio Recordings</span>
-                                      <span className="font-semibold text-gray-900 dark:text-white">
-                                        {sessionStatistics[session.id].audio_recordings}
-                                      </span>
-                                    </div>
-                                  </div>
-
-                                  <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded px-3 py-3 mb-3">
-                                    <div className="flex items-start gap-2">
-                                      <div className="flex-shrink-0">
-                                        <svg className="w-5 h-5 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                        </svg>
-                                      </div>
-                                      <div className="flex-1">
-                                        <p className="text-xs text-blue-900 dark:text-blue-200 font-medium mb-1">
-                                          You are a Collaborator
-                                        </p>
-                                        <p className="text-xs text-blue-800 dark:text-blue-300">
-                                          Use the "Collaborate" button to leave this session. Only the owner can delete it.
-                                        </p>
-                                      </div>
-                                    </div>
-                                  </div>
                                 </>
                               ) : null}
                             </div>
@@ -914,19 +806,6 @@ export default function Settings() {
           </div>
         </div>
       </div>
-
-      {/* Collaboration Modal */}
-      {collaborationModalSession && (
-        <CollaborationModal
-          session={collaborationModalSession}
-          onClose={() => setCollaborationModalSession(null)}
-          onSuccess={() => {
-            refreshSessions();
-            setSuccess({ ...success, sessions: 'Collaboration updated successfully' });
-            setTimeout(() => clearMessages('sessions'), 2000);
-          }}
-        />
-      )}
 
       {/* Session Deletion Confirmation Modal */}
       {sessionToDelete && (
