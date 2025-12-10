@@ -574,7 +574,7 @@ const Conversation = () => {
                     </div>
 
                     {/* Simple bullets */}
-                    <div className="space-y-2 text-xs md:text-sm text-gray-700 dark:text-gray-300 mb-4">
+                    <div className="border-t border-gray-200 dark:border-gray-600 pt-4 space-y-2 text-xs md:text-sm text-gray-700 dark:text-gray-300 mb-4">
                       <p className="flex items-start">
                         <svg className="w-4 h-4 text-primary-600 dark:text-primary-400 mr-2 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
