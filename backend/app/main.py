@@ -91,6 +91,24 @@ async def startup_cleanup():
     except Exception as e:
         logger.error(f"Failed to run error log cleanup: {e}")
 
+    # Clean up expired invitations (older than 30 days)
+    try:
+        from app.models.pending_invitation import PendingInvitation
+        from datetime import datetime, timedelta
+
+        db = SessionLocal()
+        cutoff_date = datetime.utcnow() - timedelta(days=30)
+        deleted_count = db.query(PendingInvitation).filter(PendingInvitation.created_at < cutoff_date).delete()
+        db.commit()
+
+        if deleted_count > 0:
+            logger.info(f"✓ Invitation cleanup: {deleted_count} expired invitations removed")
+        else:
+            logger.info(f"✓ Invitation cleanup: No expired invitations to remove (retention: 30 days)")
+        db.close()
+    except Exception as e:
+        logger.error(f"Failed to run invitation cleanup: {e}")
+
 
 @app.get("/")
 async def root():

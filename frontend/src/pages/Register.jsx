@@ -1,10 +1,11 @@
-import { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { authAPI } from '../services/api';
 import { useTheme } from '../contexts/ThemeContext';
 
 function Register() {
   const { isDark, toggleTheme } = useTheme();
+  const [searchParams] = useSearchParams();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -17,9 +18,27 @@ function Register() {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
+  // Check for invitation parameters in URL
+  const invitationEmail = searchParams.get('email');
+  const invitationToken = searchParams.get('token');
+  const isInvitation = !!(invitationEmail && invitationToken);
+
+  // Pre-populate email from invitation
+  useEffect(() => {
+    if (invitationEmail) {
+      setEmail(invitationEmail);
+    }
+  }, [invitationEmail]);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+
+    // Validate email matches invitation email
+    if (isInvitation && email !== invitationEmail) {
+      setError(`You must use the email address from your invitation (${invitationEmail}). You can change it after creating your account in Settings.`);
+      return;
+    }
 
     // Validate passwords match
     if (password !== confirmPassword) {
@@ -115,6 +134,25 @@ function Register() {
         </div>
       </div>
 
+      {/* Invitation Notice - Show if registering via invitation */}
+      {isInvitation && (
+        <div className="sm:mx-auto sm:w-full sm:max-w-md px-4 sm:px-0 mb-4">
+          <div className="bg-blue-50 dark:bg-blue-900/20 border-l-4 border-blue-500 dark:border-blue-600 p-4 rounded-r-lg">
+            <div className="flex items-start">
+              <svg className="w-5 h-5 text-blue-600 dark:text-blue-500 mt-0.5 mr-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <div className="flex-1">
+                <h3 className="text-xs font-semibold text-blue-800 dark:text-blue-400 mb-1.5">You've Been Invited</h3>
+                <p className="text-xs text-blue-800 dark:text-blue-300 leading-relaxed">
+                  Someone has invited you to collaborate on their AretaCare session. Complete your registration below to accept the invitation and gain access to the shared session.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
         {/* Logo */}
         <div className="flex justify-center">
@@ -166,7 +204,7 @@ function Register() {
 
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Email address
+                Email address {isInvitation && <span className="text-xs font-normal text-gray-500 dark:text-gray-400">(from invitation)</span>}
               </label>
               <input
                 type="email"
@@ -175,9 +213,15 @@ function Register() {
                 onChange={(e) => setEmail(e.target.value)}
                 required
                 placeholder="your@email.com"
-                disabled={loading}
-                className="input"
+                disabled={loading || isInvitation}
+                readOnly={isInvitation}
+                className={`input ${isInvitation ? 'bg-gray-100 dark:bg-gray-700 cursor-not-allowed' : ''}`}
               />
+              {isInvitation && (
+                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                  This email is required to accept your invitation. You can change it after registration in Settings.
+                </p>
+              )}
             </div>
 
             <div>

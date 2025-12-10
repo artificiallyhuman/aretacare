@@ -100,6 +100,11 @@ export const sessionAPI = {
   leave: (sessionId) => api.post(`/sessions/${sessionId}/leave`),
   transferOwnership: (sessionId, newOwnerUserId) =>
     api.post(`/sessions/${sessionId}/transfer-ownership`, { new_owner_user_id: newOwnerUserId }),
+
+  // Invitation endpoints (for non-users)
+  sendInvitation: (sessionId, email) => api.post(`/sessions/${sessionId}/send-invitation`, { email }),
+  getPendingInvitations: (sessionId) => api.get(`/sessions/${sessionId}/pending-invitations`),
+  cancelInvitation: (sessionId, invitationId) => api.delete(`/sessions/${sessionId}/pending-invitations/${invitationId}`),
 };
 
 // Document API

@@ -1,19 +1,37 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { sessionAPI } from '../services/api';
 
 export default function CollaborationModal({ session, onClose, onSuccess }) {
-  const [step, setStep] = useState('view'); // 'view', 'enterEmail', 'confirm', 'confirmTransfer', 'warningMaxSessions', 'confirmRemove', 'confirmLeave'
+  const [step, setStep] = useState('view'); // 'view', 'enterEmail', 'confirm', 'confirmInvitation', 'confirmTransfer', 'warningMaxSessions', 'confirmRemove', 'confirmLeave', 'confirmCancelInvitation'
   const [email, setEmail] = useState('');
   const [userToAdd, setUserToAdd] = useState(null);
   const [userToTransfer, setUserToTransfer] = useState(null); // { userId, userName }
   const [userToWarn, setUserToWarn] = useState(null); // { userName } for max sessions warning
   const [userToRemove, setUserToRemove] = useState(null); // { userId, userName } for remove confirmation
+  const [invitationToCancel, setInvitationToCancel] = useState(null); // { invitationId, email } for cancel confirmation
+  const [pendingInvitations, setPendingInvitations] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
 
   const collaborators = session.collaborators || [];
   const isOwner = session.is_owner;
+
+  // Fetch pending invitations when modal opens (only if owner)
+  useEffect(() => {
+    if (isOwner && step === 'view') {
+      fetchPendingInvitations();
+    }
+  }, [isOwner, step]);
+
+  const fetchPendingInvitations = async () => {
+    try {
+      const response = await sessionAPI.getPendingInvitations(session.id);
+      setPendingInvitations(response.data || []);
+    } catch (err) {
+      console.error('Failed to fetch pending invitations:', err);
+    }
+  };
 
   const handleCheckUser = async (e) => {
     e.preventDefault();
@@ -25,7 +43,8 @@ export default function CollaborationModal({ session, onClose, onSuccess }) {
       const data = response.data;
 
       if (!data.exists) {
-        setError(data.message);
+        // User doesn't exist, ask if they want to send an invitation
+        setStep('confirmInvitation');
         setLoading(false);
         return;
       }
@@ -135,6 +154,51 @@ export default function CollaborationModal({ session, onClose, onSuccess }) {
     }
   };
 
+  const handleSendInvitation = async () => {
+    setError(null);
+    setLoading(true);
+
+    try {
+      await sessionAPI.sendInvitation(session.id, email);
+      setSuccess('Invitation sent successfully!');
+      setTimeout(() => {
+        setStep('view');
+        setEmail('');
+        fetchPendingInvitations(); // Refresh the list
+      }, 1500);
+    } catch (err) {
+      setError(err.response?.data?.detail || 'Failed to send invitation');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCancelInvitation = (invitationId, invitationEmail) => {
+    setInvitationToCancel({ invitationId, email: invitationEmail });
+    setStep('confirmCancelInvitation');
+  };
+
+  const confirmCancelInvitation = async () => {
+    if (!invitationToCancel) return;
+
+    setError(null);
+    setLoading(true);
+
+    try {
+      await sessionAPI.cancelInvitation(session.id, invitationToCancel.invitationId);
+      setSuccess('Invitation cancelled successfully!');
+      fetchPendingInvitations(); // Refresh the list
+      setTimeout(() => {
+        setStep('view');
+        setInvitationToCancel(null);
+      }, 1000);
+    } catch (err) {
+      setError(err.response?.data?.detail || 'Failed to cancel invitation');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 dark:bg-opacity-70 flex items-center justify-center p-4 z-50">
       <div className="bg-white dark:bg-gray-800 rounded-lg max-w-lg w-full max-h-[90vh] overflow-y-auto">
@@ -144,10 +208,12 @@ export default function CollaborationModal({ session, onClose, onSuccess }) {
               {step === 'view' && 'Manage Collaborators'}
               {step === 'enterEmail' && 'Share Session'}
               {step === 'confirm' && 'Confirm Sharing'}
+              {step === 'confirmInvitation' && 'Send Invitation'}
               {step === 'confirmTransfer' && 'Transfer Ownership'}
               {step === 'warningMaxSessions' && 'Cannot Transfer'}
               {step === 'confirmRemove' && 'Remove Collaborator'}
               {step === 'confirmLeave' && 'Leave Session'}
+              {step === 'confirmCancelInvitation' && 'Cancel Invitation'}
             </h2>
             <button
               onClick={onClose}
@@ -231,6 +297,47 @@ export default function CollaborationModal({ session, onClose, onSuccess }) {
                 </div>
               )}
 
+              {isOwner && pendingInvitations.length > 0 && (
+                <div>
+                  <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Pending Invitations ({pendingInvitations.length})
+                  </h3>
+                  <div className="space-y-2">
+                    {pendingInvitations.map((invitation) => {
+                      const daysRemaining = invitation.days_remaining;
+                      const isExpiringSoon = daysRemaining <= 7;
+
+                      return (
+                        <div
+                          key={invitation.id}
+                          className="flex items-start justify-between p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded"
+                        >
+                          <div className="flex-1 min-w-0 pr-4">
+                            <div className="text-sm font-medium text-gray-900 dark:text-white">{invitation.email}</div>
+                            <div className="text-xs text-gray-500 dark:text-gray-400">
+                              Invited by {invitation.invited_by_name}
+                            </div>
+                            <div className="text-xs text-gray-400 dark:text-gray-500">
+                              Sent {new Date(invitation.created_at).toLocaleDateString()}
+                            </div>
+                            <div className={`text-xs font-medium mt-1 ${isExpiringSoon ? 'text-orange-600 dark:text-orange-400' : 'text-gray-600 dark:text-gray-400'}`}>
+                              {daysRemaining === 0 ? 'Expires today' : `Expires in ${daysRemaining} day${daysRemaining === 1 ? '' : 's'}`}
+                            </div>
+                          </div>
+                          <button
+                            onClick={() => handleCancelInvitation(invitation.id, invitation.email)}
+                            disabled={loading}
+                            className="px-3 py-1.5 text-xs font-medium text-red-600 dark:text-red-400 hover:text-white hover:bg-red-600 dark:hover:bg-red-500 border border-red-600 dark:border-red-400 rounded disabled:opacity-50 transition-colors whitespace-nowrap flex-shrink-0"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
               <div className="flex space-x-2 pt-4 border-t border-gray-200 dark:border-gray-700">
                 {isOwner && collaborators.length < 9 && (
                   <button
@@ -274,7 +381,7 @@ export default function CollaborationModal({ session, onClose, onSuccess }) {
                   required
                 />
                 <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                  The person must have an existing AretaCare account.
+                  If they don't have an account, you'll be able to send them an invitation.
                 </p>
               </div>
 
@@ -566,6 +673,112 @@ export default function CollaborationModal({ session, onClose, onSuccess }) {
                   className="flex-1 px-4 py-2 bg-orange-600 dark:bg-orange-700 text-white rounded hover:bg-orange-700 dark:hover:bg-orange-600 disabled:opacity-50 font-medium"
                 >
                   {loading ? 'Leaving...' : 'Leave Session'}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {step === 'confirmInvitation' && (
+            <div className="space-y-4">
+              <div className="flex items-start gap-3">
+                <div className="flex-shrink-0 w-12 h-12 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center">
+                  <svg className="w-6 h-6 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                  </svg>
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-sm font-medium text-gray-900 dark:text-white mb-1">
+                    No AretaCare Account Found
+                  </h3>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                    {email} doesn't have an AretaCare account yet
+                  </p>
+                </div>
+              </div>
+
+              <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded px-4 py-3">
+                <p className="text-sm text-blue-900 dark:text-blue-200 mb-2 font-medium">
+                  Send an invitation?
+                </p>
+                <p className="text-sm text-blue-800 dark:text-blue-300">
+                  We can send an email invitation to {email}. They'll receive a link to create a free AretaCare account, and once they register, they'll automatically have access to this session.
+                </p>
+              </div>
+
+              <div className="bg-yellow-50 dark:bg-yellow-900/50 border border-yellow-200 dark:border-yellow-800 rounded px-3 py-3">
+                <p className="text-sm text-yellow-800 dark:text-yellow-300 mb-2">
+                  <strong>⚠️ Important:</strong> After they create an account, they will have full access to:
+                </p>
+                <ul className="text-xs text-yellow-700 dark:text-yellow-300 space-y-1 list-disc list-inside">
+                  <li>All data for "{session.name}"</li>
+                  <li>Conversations, journal entries, documents, and audio recordings</li>
+                  <li>They will be able to add, edit, and delete content in this session</li>
+                  <li>You can revoke their access at any time after they join</li>
+                </ul>
+              </div>
+
+              <div className="flex space-x-2 pt-4 border-t border-gray-200 dark:border-gray-700">
+                <button
+                  onClick={() => {
+                    setStep('enterEmail');
+                    setError(null);
+                  }}
+                  className="flex-1 px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded hover:bg-gray-300 dark:hover:bg-gray-600"
+                >
+                  Back
+                </button>
+                <button
+                  onClick={handleSendInvitation}
+                  disabled={loading}
+                  className="flex-1 px-4 py-2 bg-primary-600 dark:bg-primary-700 text-white rounded hover:bg-primary-700 dark:hover:bg-primary-600 disabled:opacity-50"
+                >
+                  {loading ? 'Sending...' : 'Send Invitation'}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {step === 'confirmCancelInvitation' && invitationToCancel && (
+            <div className="space-y-4">
+              <div className="flex items-start gap-3">
+                <div className="flex-shrink-0 w-12 h-12 bg-orange-100 dark:bg-orange-900/30 rounded-full flex items-center justify-center">
+                  <svg className="w-6 h-6 text-orange-600 dark:text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-sm font-medium text-gray-900 dark:text-white mb-1">
+                    Cancel invitation to {invitationToCancel.email}?
+                  </h3>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                    They will no longer be able to use the invitation link
+                  </p>
+                </div>
+              </div>
+
+              <div className="bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded px-4 py-3">
+                <p className="text-sm text-orange-900 dark:text-orange-200">
+                  This will delete the invitation email link. If they try to use it, they won't be able to access this session.
+                </p>
+              </div>
+
+              <div className="flex space-x-2 pt-4 border-t border-gray-200 dark:border-gray-700">
+                <button
+                  onClick={() => {
+                    setStep('view');
+                    setInvitationToCancel(null);
+                    setError(null);
+                  }}
+                  className="flex-1 px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded hover:bg-gray-300 dark:hover:bg-gray-600"
+                >
+                  Back
+                </button>
+                <button
+                  onClick={confirmCancelInvitation}
+                  disabled={loading}
+                  className="flex-1 px-4 py-2 bg-orange-600 dark:bg-orange-700 text-white rounded hover:bg-orange-700 dark:hover:bg-orange-600 disabled:opacity-50 font-medium"
+                >
+                  {loading ? 'Cancelling...' : 'Cancel Invitation'}
                 </button>
               </div>
             </div>

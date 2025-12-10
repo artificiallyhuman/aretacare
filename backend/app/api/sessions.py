@@ -2,11 +2,12 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func
 from app.core.database import get_db
-from app.models import Session as SessionModel, User, Document, AudioRecording, JournalEntry, Conversation, SessionCollaborator
+from app.models import Session as SessionModel, User, Document, AudioRecording, JournalEntry, Conversation, SessionCollaborator, PendingInvitation
 from app.schemas import (
     SessionCreate, SessionResponse, SessionRename, SessionShareRequest,
     SessionShareResponse, UserExistsResponse, CollaboratorInfo, TransferOwnershipRequest
 )
+from app.schemas.invitation import InvitationSend, PendingInvitationResponse
 from datetime import datetime, timedelta
 from app.core.config import settings
 from app.api.auth import get_current_user
@@ -814,3 +815,170 @@ async def transfer_ownership(
         is_owner=False,  # Current user is now a collaborator
         collaborators=collaborator_infos
     )
+
+
+@router.post("/{session_id}/send-invitation", response_model=PendingInvitationResponse)
+async def send_invitation(
+    session_id: str,
+    invitation_data: InvitationSend,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Send an invitation to a user who doesn't have an AretaCare account yet"""
+    from app.services.email_service import EmailService
+
+    session = db.query(SessionModel).filter(SessionModel.id == session_id).first()
+
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    # Only owner can send invitations
+    check_session_access(session, current_user.id, db, require_owner=True)
+
+    # Verify user doesn't already exist
+    existing_user = db.query(User).filter(User.email == invitation_data.email).first()
+    if existing_user:
+        raise HTTPException(
+            status_code=400,
+            detail="This email is already associated with an AretaCare account. Use the normal sharing process."
+        )
+
+    # Check if invitation already exists for this email/session combo
+    existing_invitation = db.query(PendingInvitation).filter(
+        PendingInvitation.email == invitation_data.email,
+        PendingInvitation.session_id == session_id
+    ).first()
+
+    if existing_invitation:
+        # Update the invitation (refresh the timestamp and token)
+        existing_invitation.created_at = datetime.utcnow()
+        import secrets
+        existing_invitation.token = secrets.token_urlsafe(32)
+        db.commit()
+        db.refresh(existing_invitation)
+        invitation = existing_invitation
+    else:
+        # Create new invitation
+        invitation = PendingInvitation(
+            email=invitation_data.email,
+            session_id=session_id,
+            invited_by_user_id=current_user.id
+        )
+        db.add(invitation)
+        db.commit()
+        db.refresh(invitation)
+
+    # Send invitation email
+    email_service = EmailService()
+    frontend_url = settings.FRONTEND_URL or "http://localhost:3001"
+    registration_url = f"{frontend_url}/register?email={invitation_data.email}&token={invitation.token}"
+
+    email_service.send_invitation_email(
+        to_email=invitation_data.email,
+        inviter_name=current_user.name,
+        session_name=session.name,
+        registration_url=registration_url
+    )
+
+    # Calculate expiration info
+    days_since_created = (datetime.utcnow() - invitation.created_at).days
+    days_remaining = max(0, 30 - days_since_created)
+    is_expired = days_since_created >= 30
+
+    return PendingInvitationResponse(
+        id=invitation.id,
+        email=invitation.email,
+        session_id=invitation.session_id,
+        invited_by_name=current_user.name,
+        created_at=invitation.created_at,
+        days_remaining=days_remaining,
+        is_expired=is_expired
+    )
+
+
+@router.get("/{session_id}/pending-invitations", response_model=list[PendingInvitationResponse])
+async def get_pending_invitations(
+    session_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Get all pending invitations for a session (owner only)"""
+    session = db.query(SessionModel).filter(SessionModel.id == session_id).first()
+
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    # Only owner can view pending invitations
+    check_session_access(session, current_user.id, db, require_owner=True)
+
+    invitations = db.query(PendingInvitation).filter(
+        PendingInvitation.session_id == session_id
+    ).all()
+
+    # Filter out and delete expired invitations (older than 30 days)
+    now = datetime.utcnow()
+    valid_invitations = []
+
+    for invitation in invitations:
+        days_since_created = (now - invitation.created_at).days
+        if days_since_created >= 30:
+            # Delete expired invitation
+            db.delete(invitation)
+            logger.info(f"Auto-deleted expired invitation for {invitation.email} to session {session_id}")
+        else:
+            valid_invitations.append(invitation)
+
+    db.commit()
+
+    # Get inviter names
+    inviter_ids = [inv.invited_by_user_id for inv in valid_invitations]
+    inviters = db.query(User).filter(User.id.in_(inviter_ids)).all() if inviter_ids else []
+    inviters_by_id = {u.id: u.name for u in inviters}
+
+    # Build response with expiration info
+    responses = []
+    for inv in valid_invitations:
+        days_since_created = (now - inv.created_at).days
+        days_remaining = max(0, 30 - days_since_created)
+
+        responses.append(PendingInvitationResponse(
+            id=inv.id,
+            email=inv.email,
+            session_id=inv.session_id,
+            invited_by_name=inviters_by_id.get(inv.invited_by_user_id, "Unknown"),
+            created_at=inv.created_at,
+            days_remaining=days_remaining,
+            is_expired=False  # Already filtered out expired ones
+        ))
+
+    return responses
+
+
+@router.delete("/{session_id}/pending-invitations/{invitation_id}")
+async def cancel_invitation(
+    session_id: str,
+    invitation_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Cancel a pending invitation (owner only)"""
+    session = db.query(SessionModel).filter(SessionModel.id == session_id).first()
+
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    # Only owner can cancel invitations
+    check_session_access(session, current_user.id, db, require_owner=True)
+
+    invitation = db.query(PendingInvitation).filter(
+        PendingInvitation.id == invitation_id,
+        PendingInvitation.session_id == session_id
+    ).first()
+
+    if not invitation:
+        raise HTTPException(status_code=404, detail="Invitation not found")
+
+    db.delete(invitation)
+    db.commit()
+
+    return {"message": "Invitation cancelled successfully"}

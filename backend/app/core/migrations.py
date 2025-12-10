@@ -645,3 +645,48 @@ def run_migrations():
                 conn.rollback()
         else:
             logger.info("daily_plan_views table already exists")
+
+        # Create pending_invitations table if it doesn't exist (for inviting non-users)
+        if 'pending_invitations' not in inspector.get_table_names():
+            logger.info("Creating pending_invitations table...")
+            try:
+                conn.execute(text("""
+                    CREATE TABLE pending_invitations (
+                        id VARCHAR(43) PRIMARY KEY,
+                        email VARCHAR(255) NOT NULL,
+                        session_id VARCHAR(36) NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+                        invited_by_user_id VARCHAR(36) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                        token VARCHAR(43) UNIQUE NOT NULL,
+                        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+                    )
+                """))
+                conn.commit()
+                logger.info("Successfully created pending_invitations table")
+
+                # Create indexes for efficient queries
+                conn.execute(text("""
+                    CREATE INDEX IF NOT EXISTS idx_pending_invitations_email
+                    ON pending_invitations (email)
+                """))
+                conn.commit()
+                logger.info("Created index idx_pending_invitations_email")
+
+                conn.execute(text("""
+                    CREATE INDEX IF NOT EXISTS idx_pending_invitations_session
+                    ON pending_invitations (session_id)
+                """))
+                conn.commit()
+                logger.info("Created index idx_pending_invitations_session")
+
+                conn.execute(text("""
+                    CREATE INDEX IF NOT EXISTS idx_pending_invitations_token
+                    ON pending_invitations (token)
+                """))
+                conn.commit()
+                logger.info("Created index idx_pending_invitations_token")
+
+            except Exception as e:
+                logger.error(f"Failed to create pending_invitations table: {e}")
+                conn.rollback()
+        else:
+            logger.info("pending_invitations table already exists")

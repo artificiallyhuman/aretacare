@@ -859,7 +859,7 @@ export default function Settings() {
                           Warning: Permanent Account & Data Deletion
                         </p>
                         <p className="text-sm text-red-800 dark:text-red-300">
-                          This action is permanent and cannot be undone. Your account AND all associated data from all sessions (conversations, journal entries, documents, audio recordings, daily plans) will be permanently deleted.
+                          This action is permanent and cannot be undone. Your account AND all data from your owned sessions will be permanently deleted. Sessions shared with you by others will remain accessible to the owners.
                         </p>
                         <p className="text-sm text-red-900 dark:text-red-200 font-bold mt-2">
                           You will need to create a new account to use AretaCare again.
@@ -1052,14 +1052,20 @@ export default function Settings() {
                 </p>
                 <ul className="text-sm text-red-800 dark:text-red-300 space-y-1.5">
                   <li>• Your user account</li>
-                  <li>• All your sessions ({sessions.length})</li>
-                  <li>• All conversations ({sessions.reduce((sum, s) => sum + (sessionStatistics[s.id]?.conversations || 0), 0)})</li>
-                  <li>• All journal entries ({sessions.reduce((sum, s) => sum + (sessionStatistics[s.id]?.journal_entries || 0), 0)})</li>
-                  <li>• All documents ({sessions.reduce((sum, s) => sum + (sessionStatistics[s.id]?.documents || 0), 0)})</li>
-                  <li>• All audio recordings ({sessions.reduce((sum, s) => sum + (sessionStatistics[s.id]?.audio_recordings || 0), 0)})</li>
+                  <li>• All your owned sessions ({sessions.filter(s => s.is_owner).length})</li>
+                  <li>• All conversations ({sessions.filter(s => s.is_owner).reduce((sum, s) => sum + (sessionStatistics[s.id]?.conversations || 0), 0)})</li>
+                  <li>• All journal entries ({sessions.filter(s => s.is_owner).reduce((sum, s) => sum + (sessionStatistics[s.id]?.journal_entries || 0), 0)})</li>
+                  <li>• All documents ({sessions.filter(s => s.is_owner).reduce((sum, s) => sum + (sessionStatistics[s.id]?.documents || 0), 0)})</li>
+                  <li>• All audio recordings ({sessions.filter(s => s.is_owner).reduce((sum, s) => sum + (sessionStatistics[s.id]?.audio_recordings || 0), 0)})</li>
                   <li>• All daily plans</li>
                   <li>• All account settings</li>
                 </ul>
+              </div>
+
+              <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded px-4 py-3">
+                <p className="text-sm text-blue-900 dark:text-blue-200 font-medium">
+                  <strong>Note:</strong> Sessions shared with you by others will remain intact and accessible to the owners. Only your owned sessions will be deleted.
+                </p>
               </div>
 
               <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded px-4 py-3">

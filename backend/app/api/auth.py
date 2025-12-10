@@ -136,6 +136,73 @@ def register(user_data: UserRegister, db: DBSession = Depends(get_db)):
     db.commit()
     db.refresh(new_user)
 
+    # Check for pending invitations and auto-add to sessions
+    from app.models.pending_invitation import PendingInvitation
+    from app.models.session_collaborator import SessionCollaborator
+
+    pending_invitations = db.query(PendingInvitation).filter(
+        PendingInvitation.email == user_data.email
+    ).all()
+
+    if pending_invitations:
+        # Filter out expired invitations (older than 30 days)
+        now = datetime.utcnow()
+        valid_invitations = []
+        expired_invitations = []
+
+        for invitation in pending_invitations:
+            days_old = (now - invitation.created_at).days
+            if days_old >= 30:
+                expired_invitations.append(invitation)
+            else:
+                valid_invitations.append(invitation)
+
+        # Delete expired invitations
+        for invitation in expired_invitations:
+            db.delete(invitation)
+            logger.info(f"Deleted expired invitation for {invitation.email} to session {invitation.session_id}")
+
+        # Add user as collaborator to all valid invited sessions
+        sessions_joined = []  # Track sessions for notification emails
+        for invitation in valid_invitations:
+            # Check if session still exists
+            invited_session = db.query(Session).filter(Session.id == invitation.session_id).first()
+            if invited_session:
+                # Create collaborator record
+                collaborator = SessionCollaborator(
+                    session_id=invitation.session_id,
+                    user_id=new_user.id
+                )
+                db.add(collaborator)
+
+                # Get session owner info for notification email
+                owner = db.query(User).filter(User.id == invited_session.owner_id).first()
+                if owner:
+                    sessions_joined.append({
+                        'session_name': invited_session.name,
+                        'owner_email': owner.email,
+                        'owner_name': owner.name
+                    })
+
+        # Delete all processed valid invitations
+        for invitation in valid_invitations:
+            db.delete(invitation)
+
+        db.commit()
+
+        # Send notification emails to session owners
+        for session_info in sessions_joined:
+            try:
+                email_service.send_invitation_accepted_email(
+                    owner_email=session_info['owner_email'],
+                    owner_name=session_info['owner_name'],
+                    new_user_name=new_user.name,
+                    new_user_email=new_user.email,
+                    session_name=session_info['session_name']
+                )
+            except Exception as e:
+                logger.error(f"Failed to send invitation accepted email: {str(e)}")
+
     # Create initial session for the new user
     initial_session = Session(
         user_id=new_user.id,
@@ -309,10 +376,11 @@ async def delete_account(
             detail="Incorrect password"
         )
 
-    # Get all sessions for this user
-    user_sessions = db.query(Session).filter(Session.user_id == current_user.id).all()
+    # Get all sessions owned by this user (not just created by them)
+    # Only delete sessions where the user is the current owner
+    user_sessions = db.query(Session).filter(Session.owner_id == current_user.id).all()
 
-    # Delete all S3 files for all sessions before deleting database records
+    # Delete all S3 files for all owned sessions before deleting database records
     for session in user_sessions:
         # Delete all documents and their thumbnails from S3
         documents = db.query(Document).filter(Document.session_id == session.id).all()
@@ -342,8 +410,16 @@ async def delete_account(
             except Exception as e:
                 logger.error(f"Failed to delete S3 audio file {audio.s3_key} during account deletion: {str(e)}")
 
-    # Delete user (cascades to all related data in database: sessions, documents, conversations,
-    # journal entries, audio recordings, daily plans)
+    # Manually delete owned sessions first (before deleting user)
+    # This prevents CASCADE from deleting sessions where user was creator but transferred ownership
+    for session in user_sessions:
+        db.delete(session)
+
+    # Remove user from any collaborative sessions (as collaborator)
+    # This happens via SessionCollaborator CASCADE when we delete the user
+
+    # Delete user (cascades to remaining related data)
+    # Note: We already deleted owned sessions above, so CASCADE won't affect transferred sessions
     db.delete(current_user)
     db.commit()
 
