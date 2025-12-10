@@ -26,19 +26,29 @@ const DailyPlan = () => {
       const response = await dailyPlanAPI.getAll(sessionId);
       setPlans(response.data);
 
-      // Auto-select the most recent plan
+      // Auto-select only if there's a today's plan
       if (response.data.length > 0) {
         const latestPlan = response.data[0];
-        setSelectedPlan(latestPlan);
+        const today = new Date();
+        const [year, month, day] = latestPlan.date.split('-').map(Number);
+        const planDate = new Date(year, month - 1, day);
 
-        // Mark as viewed if not already
-        if (!latestPlan.viewed) {
-          await dailyPlanAPI.markViewed(latestPlan.id);
-          // Update local state to reflect viewed status
-          const updatedPlan = { ...latestPlan, viewed: true };
-          setSelectedPlan(updatedPlan);
-          // Update the plan in the list as well
-          setPlans(plans => plans.map(p => p.id === latestPlan.id ? updatedPlan : p));
+        // Only select if it's today's plan
+        if (planDate.toDateString() === today.toDateString()) {
+          setSelectedPlan(latestPlan);
+
+          // Mark as viewed if not already
+          if (!latestPlan.viewed) {
+            await dailyPlanAPI.markViewed(latestPlan.id);
+            // Update local state to reflect viewed status
+            const updatedPlan = { ...latestPlan, viewed: true };
+            setSelectedPlan(updatedPlan);
+            // Update the plan in the list as well
+            setPlans(plans => plans.map(p => p.id === latestPlan.id ? updatedPlan : p));
+          }
+        } else {
+          // No today's plan - don't select anything
+          setSelectedPlan(null);
         }
       }
     } catch (err) {
@@ -319,7 +329,7 @@ const DailyPlan = () => {
 
           {/* Main content: Selected plan */}
           <div className="lg:col-span-3">
-            {selectedPlan && !isToday(selectedPlan.date) ? (
+            {!selectedPlan ? (
               <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm p-12">
                 <div className="text-center max-w-md mx-auto">
                   <svg className="w-16 h-16 text-blue-600 dark:text-blue-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -327,7 +337,7 @@ const DailyPlan = () => {
                   </svg>
                   <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-3">No Plan for Today</h3>
                   <p className="text-gray-600 dark:text-gray-400 mb-6">
-                    No new activity since the last daily plan generated on {formatDateFull(selectedPlan.date)}
+                    No new activity since the last daily plan generated on {formatDateFull(plans[0].date)}
                   </p>
                   <button
                     onClick={handleGenerateNew}
@@ -338,7 +348,7 @@ const DailyPlan = () => {
                   </button>
                 </div>
               </div>
-            ) : selectedPlan && (
+            ) : (
               <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm">
                 <div className="p-6 border-b border-gray-200 dark:border-gray-700">
                   <div className="flex justify-between items-start">
