@@ -153,6 +153,13 @@ const DailyPlan = () => {
     });
   };
 
+  const formatDateFull = (dateString) => {
+    // Parse as local date (YYYY-MM-DD)
+    const [year, month, day] = dateString.split('-').map(Number);
+    const date = new Date(year, month - 1, day);
+    return date.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+  };
+
   const isToday = (dateString) => {
     // Parse as local date (YYYY-MM-DD) not UTC
     const [year, month, day] = dateString.split('-').map(Number);
@@ -178,9 +185,15 @@ const DailyPlan = () => {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 lg:py-12">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">Daily Plans</h1>
-        <button
+      <div className="mb-6 sm:mb-8">
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4">
+          <div className="flex-1">
+            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">Daily Plan</h1>
+            <p className="mt-2 text-sm sm:text-base text-gray-600 dark:text-gray-400">
+              View AI-generated daily summaries of priorities, reminders, and questions
+            </p>
+          </div>
+          <button
           onClick={handleGenerateNew}
           disabled={generating || hasTodaysPlan()}
           className={`btn-primary flex items-center space-x-2 ${hasTodaysPlan() ? 'opacity-50 cursor-not-allowed' : ''}`}
@@ -210,6 +223,7 @@ const DailyPlan = () => {
             </>
           )}
         </button>
+        </div>
       </div>
 
       {error && (
@@ -226,7 +240,7 @@ const DailyPlan = () => {
             </svg>
             <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">No Daily Plans Yet</h3>
             <p className="text-gray-700 dark:text-gray-300 mb-4">
-              Daily plans help you stay organized by summarizing priorities, reminders, and questions for your care team.
+              Your first daily plan will auto-generate after 24 hours of activity
             </p>
             <button
               onClick={handleGenerateNew}
@@ -305,7 +319,26 @@ const DailyPlan = () => {
 
           {/* Main content: Selected plan */}
           <div className="lg:col-span-3">
-            {selectedPlan && (
+            {selectedPlan && !isToday(selectedPlan.date) ? (
+              <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm p-12">
+                <div className="text-center max-w-md mx-auto">
+                  <svg className="w-16 h-16 text-blue-600 dark:text-blue-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-3">No Plan for Today</h3>
+                  <p className="text-gray-600 dark:text-gray-400 mb-6">
+                    No new activity since the last daily plan generated on {formatDateFull(selectedPlan.date)}
+                  </p>
+                  <button
+                    onClick={handleGenerateNew}
+                    disabled={generating}
+                    className="btn-primary"
+                  >
+                    {generating ? 'Generating...' : 'Generate Today\'s Plan'}
+                  </button>
+                </div>
+              </div>
+            ) : selectedPlan && (
               <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm">
                 <div className="p-6 border-b border-gray-200 dark:border-gray-700">
                   <div className="flex justify-between items-start">

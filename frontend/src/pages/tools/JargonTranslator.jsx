@@ -32,9 +32,14 @@ const JargonTranslator = () => {
 
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 lg:py-12">
-      <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white mb-4 sm:mb-6">
-        Medical Jargon Translator
-      </h1>
+      <div className="mb-6 sm:mb-8">
+        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">
+          Medical Jargon Translator
+        </h1>
+        <p className="mt-2 text-sm sm:text-base text-gray-600 dark:text-gray-400">
+          Get plain-language explanations of medical terms
+        </p>
+      </div>
 
       <div className="card mb-4 sm:mb-6">
         <h2 className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white mb-4">
