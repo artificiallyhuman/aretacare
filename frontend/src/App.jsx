@@ -18,6 +18,7 @@ const About = lazy(() => import('./pages/About'));
 const JournalView = lazy(() => import('./pages/JournalView'));
 const DailyPlan = lazy(() => import('./pages/DailyPlan'));
 const AudioRecordings = lazy(() => import('./pages/AudioRecordings'));
+const Collaboration = lazy(() => import('./pages/Collaboration'));
 const Settings = lazy(() => import('./pages/Settings'));
 const JargonTranslator = lazy(() => import('./pages/tools/JargonTranslator'));
 const ConversationCoach = lazy(() => import('./pages/tools/ConversationCoach'));
@@ -187,6 +188,14 @@ function AppContent() {
             element={
               <ProtectedRoute>
                 <Settings />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/collaboration"
+            element={
+              <ProtectedRoute>
+                <Collaboration />
               </ProtectedRoute>
             }
           />

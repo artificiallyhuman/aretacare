@@ -115,6 +115,11 @@ async def list_sessions(
             collaborators_by_session[collab.session_id] = []
         collaborators_by_session[collab.session_id].append(collab)
 
+    # Batch load owner names for all sessions
+    owner_ids = list(set(s.owner_id for s in all_sessions.values()))
+    owners = db.query(User).filter(User.id.in_(owner_ids)).all() if owner_ids else []
+    owners_by_id = {o.id: o for o in owners}
+
     # Build response with collaborator information
     response = []
     for session in sorted(all_sessions.values(), key=lambda x: x.created_at, reverse=True):
@@ -130,6 +135,11 @@ async def list_sessions(
                     owned_session_count=owned_counts_by_user.get(collab_user.id, 0)
                 ))
 
+        # Get owner name and email
+        owner = owners_by_id.get(session.owner_id)
+        owner_name = owner.name if owner else ""
+        owner_email = owner.email if owner else ""
+
         session_response = SessionResponse(
             id=session.id,
             name=session.name,
@@ -137,6 +147,8 @@ async def list_sessions(
             last_activity=session.last_activity,
             is_active=session.is_active,
             owner_id=session.owner_id,
+            owner_name=owner_name,
+            owner_email=owner_email,
             is_owner=(session.owner_id == current_user.id),
             collaborators=collaborator_infos
         )
@@ -501,11 +513,11 @@ async def check_user_exists(
             message="No AretaCare account found with this email address."
         )
 
-    # Check if user is already the owner
-    if target_user.id == session.owner_id:
+    # Check if user is trying to add themselves
+    if target_user.id == current_user.id:
         return UserExistsResponse(
             exists=False,
-            message="This is your own session. You cannot share it with yourself."
+            message="You cannot add yourself as a collaborator."
         )
 
     # Check if user is already a collaborator
@@ -563,9 +575,9 @@ async def share_session(
     if not target_user:
         raise HTTPException(status_code=404, detail="User not found")
 
-    # Check if user is the owner
-    if target_user.id == session.owner_id:
-        raise HTTPException(status_code=400, detail="Cannot share session with yourself")
+    # Check if user is trying to add themselves
+    if target_user.id == current_user.id:
+        raise HTTPException(status_code=400, detail="You cannot add yourself as a collaborator")
 
     # Check if already a collaborator
     existing_collab = db.query(SessionCollaborator).filter(

@@ -86,6 +86,9 @@ const Header = ({ onLogout, user }) => {
             <Link to="/daily-plan" className="px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-200 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-md transition-colors">
               Daily Plan
             </Link>
+            <Link to="/collaboration" className="px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-200 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-md transition-colors">
+              Collaboration
+            </Link>
 
             {/* Tools Dropdown */}
             <div className="relative" ref={toolsDropdownRef}>
@@ -348,6 +351,13 @@ const Header = ({ onLogout, user }) => {
                   onClick={() => setMobileMenuOpen(false)}
                 >
                   Daily Plan
+                </Link>
+                <Link
+                  to="/collaboration"
+                  className="px-3 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-200 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-primary-50 dark:hover:bg-gray-700 transition-colors"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  Collaboration
                 </Link>
 
                 {/* Tools Dropdown */}

@@ -25,6 +25,8 @@ class SessionResponse(BaseModel):
     last_activity: datetime
     is_active: bool
     owner_id: str
+    owner_name: str = ""  # Name of the session owner
+    owner_email: str = ""  # Email of the session owner
     is_owner: bool = False  # Will be set dynamically
     collaborators: List[CollaboratorInfo] = []
 
