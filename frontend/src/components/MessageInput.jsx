@@ -130,8 +130,8 @@ const MessageInput = ({ onSendMessage, onFileUpload, loading }) => {
       });
 
       mediaRecorder.addEventListener('stop', async () => {
-        // Short delay to ensure all data events have been processed
-        await new Promise(resolve => setTimeout(resolve, 200));
+        // Longer delay to ensure all data events have been processed, especially on mobile
+        await new Promise(resolve => setTimeout(resolve, 500));
 
         const audioBlob = new Blob(audioChunksRef.current, { type: mediaRecorder.mimeType });
 
@@ -157,8 +157,8 @@ const MessageInput = ({ onSendMessage, onFileUpload, loading }) => {
       // Request any buffered data before stopping
       if (mediaRecorderRef.current.state === 'recording') {
         mediaRecorderRef.current.requestData();
-        // Wait for the data to be dispatched before stopping
-        await new Promise(resolve => setTimeout(resolve, 100));
+        // Longer wait for mobile devices to ensure data is dispatched
+        await new Promise(resolve => setTimeout(resolve, 300));
       }
       mediaRecorderRef.current.stop();
       setIsRecording(false);

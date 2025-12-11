@@ -36,6 +36,14 @@ const Header = ({ onLogout, user }) => {
     }
   }, [toolsDropdownOpen, userDropdownOpen]);
 
+  // Reset mobile sub-menus when mobile menu closes
+  useEffect(() => {
+    if (!mobileMenuOpen) {
+      setMobileToolsOpen(false);
+      setMobileSessionsOpen(false);
+    }
+  }, [mobileMenuOpen]);
+
   const handleNewSession = async () => {
     setCreatingSession(true);
     try {
