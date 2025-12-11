@@ -441,20 +441,20 @@ class OpenAIService:
             {"role": "system", "content": ai_config.CONVERSATION_INSTRUCTIONS}
         ]
 
-        # Add older journal context as user message (knowledge, not rules)
+        # Add older journal context as assistant message (system-provided knowledge, not user input)
         if older_journal_context and older_journal_context.strip():
             messages.append({
-                "role": "user",
+                "role": "assistant",
                 "content": older_journal_context
             })
 
         # Add recent conversation history (no wrapper needed)
         messages.extend(conversation_history[-ai_config.MAX_CONVERSATION_CONTEXT:])
 
-        # Add recent journal context as user message (knowledge, not rules)
+        # Add recent journal context as assistant message (system-provided knowledge, not user input)
         if recent_journal_context and recent_journal_context.strip():
             messages.append({
-                "role": "user",
+                "role": "assistant",
                 "content": recent_journal_context
             })
 
