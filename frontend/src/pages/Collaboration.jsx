@@ -5,7 +5,7 @@ import { useSessionContext } from '../contexts/SessionContext';
 
 export default function Collaboration() {
   const navigate = useNavigate();
-  const { user, sessions, refreshSessions } = useSessionContext();
+  const { user, sessions, refreshSessions, activeSessionId } = useSessionContext();
   const [expandedSessionId, setExpandedSessionId] = useState(null);
   const [selectedSession, setSelectedSession] = useState(null);
 
@@ -781,6 +781,11 @@ export default function Collaboration() {
                               {session.collaborators.length} {session.collaborators.length === 1 ? 'Collaborator' : 'Collaborators'}
                             </span>
                           )}
+                          {session.id === activeSessionId && (
+                            <span className="text-xs bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 px-2 py-0.5 rounded font-semibold">
+                              Active
+                            </span>
+                          )}
                           {pendingInvitations[session.id] && pendingInvitations[session.id].length > 0 && (
                             <span className="text-xs bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-300 px-2 py-0.5 rounded">
                               {pendingInvitations[session.id].length} Pending
@@ -827,8 +832,13 @@ export default function Collaboration() {
                       className="w-full px-4 py-4 flex items-center justify-between hover:bg-blue-100 dark:hover:bg-blue-900/20 transition-colors"
                     >
                       <div className="flex-1 text-left">
-                        <h3 className="font-semibold text-gray-900 dark:text-white">
-                          {session.name}
+                        <h3 className="font-semibold text-gray-900 dark:text-white flex items-center space-x-2 flex-wrap">
+                          <span>{session.name}</span>
+                          {session.id === activeSessionId && (
+                            <span className="text-xs bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 px-2 py-0.5 rounded font-semibold">
+                              Active
+                            </span>
+                          )}
                         </h3>
                         <p className="text-xs text-gray-500 dark:text-gray-400">
                           Created {new Date(session.created_at).toLocaleDateString()}
