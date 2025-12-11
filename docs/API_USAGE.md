@@ -287,6 +287,123 @@ curl -X POST http://localhost:8000/api/sessions/{session_id}/leave \
   -H "Authorization: Bearer <token>"
 ```
 
+#### Send Invitation (for non-users)
+
+```bash
+POST /api/sessions/{session_id}/invite
+Authorization: Bearer <token>
+Content-Type: application/json
+```
+
+**Note:** Send email invitation to someone who doesn't have an AretaCare account. Only the session owner can send invitations.
+
+**Request Body:**
+```json
+{
+  "email": "newuser@example.com"
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Invitation sent to newuser@example.com"
+}
+```
+
+**Example:**
+```bash
+curl -X POST http://localhost:8000/api/sessions/{session_id}/invite \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{"email": "newuser@example.com"}'
+```
+
+#### Get Pending Invitations
+
+```bash
+GET /api/sessions/{session_id}/invitations
+Authorization: Bearer <token>
+```
+
+**Note:** Only the session owner can view pending invitations.
+
+**Response:**
+```json
+[
+  {
+    "id": "uuid-string",
+    "email": "newuser@example.com",
+    "invited_by_name": "John Doe",
+    "created_at": "2025-01-15T10:00:00Z",
+    "days_remaining": 25
+  }
+]
+```
+
+**Example:**
+```bash
+curl -H "Authorization: Bearer <token>" \
+  http://localhost:8000/api/sessions/{session_id}/invitations
+```
+
+#### Cancel Invitation
+
+```bash
+DELETE /api/sessions/{session_id}/invitations/{invitation_id}
+Authorization: Bearer <token>
+```
+
+**Note:** Only the session owner can cancel invitations.
+
+**Response:**
+```json
+{
+  "message": "Invitation cancelled successfully"
+}
+```
+
+**Example:**
+```bash
+curl -X DELETE http://localhost:8000/api/sessions/{session_id}/invitations/{invitation_id} \
+  -H "Authorization: Bearer <token>"
+```
+
+#### Transfer Session Ownership
+
+```bash
+POST /api/sessions/{session_id}/transfer
+Authorization: Bearer <token>
+Content-Type: application/json
+```
+
+**Note:** Only the session owner can transfer ownership. Target user must:
+- Be an existing collaborator on the session
+- Own fewer than 3 sessions (users can own max 3 sessions)
+
+**Request Body:**
+```json
+{
+  "user_id": "uuid-of-new-owner"
+}
+```
+
+**Response:**
+```json
+{
+  "message": "Ownership transferred to Jane Doe"
+}
+```
+
+**Example:**
+```bash
+curl -X POST http://localhost:8000/api/sessions/{session_id}/transfer \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{"user_id": "uuid-of-collaborator"}'
+```
+
 ### Documents
 
 #### Upload Document
@@ -1037,6 +1154,30 @@ const leaveSession = async (sessionId) => {
   return response.data;
 };
 
+// Send invitation to non-user (owner only)
+const sendInvitation = async (sessionId, email) => {
+  const response = await api.post(`/sessions/${sessionId}/invite`, { email });
+  return response.data;
+};
+
+// Get pending invitations (owner only)
+const getPendingInvitations = async (sessionId) => {
+  const response = await api.get(`/sessions/${sessionId}/invitations`);
+  return response.data;
+};
+
+// Cancel invitation (owner only)
+const cancelInvitation = async (sessionId, invitationId) => {
+  const response = await api.delete(`/sessions/${sessionId}/invitations/${invitationId}`);
+  return response.data;
+};
+
+// Transfer ownership (owner only, target must own <3 sessions)
+const transferOwnership = async (sessionId, userId) => {
+  const response = await api.post(`/sessions/${sessionId}/transfer`, { user_id: userId });
+  return response.data;
+};
+
 // Usage - Share a session
 const session = await getSession();
 if (session.is_owner) {
@@ -1054,6 +1195,23 @@ const sessions = await listSessions();
 const sharedSession = sessions.find(s => !s.is_owner);
 if (sharedSession) {
   await leaveSession(sharedSession.id);
+}
+
+// Usage - Send invitation to non-user
+const check = await checkUserForSharing(session.id, 'newuser@example.com');
+if (!check.exists) {
+  await sendInvitation(session.id, 'newuser@example.com');
+  console.log('Invitation email sent!');
+}
+
+// Usage - Transfer ownership
+const collaborators = session.collaborators;
+if (collaborators.length > 0) {
+  const targetUser = collaborators[0];
+  if (targetUser.owned_session_count < 3) {
+    await transferOwnership(session.id, targetUser.user_id);
+    console.log('Ownership transferred!');
+  }
 }
 ```
 

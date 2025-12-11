@@ -68,7 +68,7 @@ S3_BUCKET_NAME=your-s3-bucket-name-here
 # Application Configuration
 SECRET_KEY=your-secret-key-here-use-long-random-string
 DEBUG=True
-CORS_ORIGINS=http://localhost:3000
+CORS_ORIGINS=http://localhost:3001
 
 # Admin Configuration
 ADMIN_EMAILS=your-email@example.com
@@ -121,7 +121,7 @@ VITE_API_URL=http://localhost:8000/api
     {
         "AllowedHeaders": ["*"],
         "AllowedMethods": ["GET", "PUT", "POST", "DELETE"],
-        "AllowedOrigins": ["http://localhost:3000", "https://your-production-domain.com"],
+        "AllowedOrigins": ["http://localhost:3001", "https://your-production-domain.com"],
         "ExposeHeaders": []
     }
 ]
@@ -171,7 +171,7 @@ This will:
 
 ### 2. Verify Services
 
-- **Frontend**: http://localhost:3000
+- **Frontend**: http://localhost:3001
 - **Backend API**: http://localhost:8000
 - **API Docs**: http://localhost:8000/docs
 - **Health Check**: http://localhost:8000/health
@@ -228,7 +228,7 @@ Add your Render frontend URL to S3 CORS configuration:
         "AllowedHeaders": ["*"],
         "AllowedMethods": ["GET", "PUT", "POST", "DELETE"],
         "AllowedOrigins": [
-            "http://localhost:3000",
+            "http://localhost:3001",
             "https://your-app.onrender.com"
         ],
         "ExposeHeaders": []
@@ -411,5 +411,6 @@ After successful setup:
 5. Test the conversation coach
 6. Generate a daily plan
 7. Create journal entries
-8. Monitor logs for any errors
-9. Set up monitoring for production
+8. Test collaboration features (share sessions, add collaborators)
+9. Monitor logs for any errors
+10. Set up monitoring for production

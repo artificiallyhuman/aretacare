@@ -10,6 +10,7 @@ AretaCare is an AI-powered medical care advocate assistant that helps families u
 - Conversation-first interface with AI care advocate, "Thinking..." status, enhanced markdown rendering, copy-to-clipboard for messages (converts markdown to formatted HTML), contextual timestamps (time only for today, date+time for older messages)
 - Multi-session support (up to 3 sessions per user, including collaborations) with session switcher, rename (15-char limit), and separate data per session
 - Session sharing - share sessions with up to 9 collaborators (10 people total), collaborators have full access to session data
+- Dedicated Collaboration page - manage collaborators across all sessions, add/remove users, transfer ownership, pending invitations, leave shared sessions
 - Daily Plan - AI-generated summaries, user editable, delete and regenerate capability
 - AI Journal Synthesis - extracts medical updates from conversations, audio uploads, and document uploads with local timezone support and intelligent date interpretation (handles "Thursday", "next week", etc.)
 - Journal with date navigation - reverse chronological, sticky sidebar, scroll-to-date functionality, "Jump to Today" button, future entries visually distinguished with blue background shading
@@ -26,6 +27,7 @@ AretaCare is an AI-powered medical care advocate assistant that helps families u
 - Admin console - timezone-aware metrics dashboard with charts for users/sessions/documents/messages/errors/security, system health, S3 orphan cleanup, audit logging with automatic retention, error logs with filtering and cleanup, security logs. All timestamps display in admin's local timezone.
 - Mobile-optimized design with responsive layouts
 - Dark mode support via Tailwind CSS and ThemeContext
+- Network status monitoring with offline detection and reconnection banner
 - Specialized tools: Jargon Translator (with audio input), Conversation Coach (with audio input)
 
 ## Development Commands
@@ -164,10 +166,13 @@ See `backend/app/config/README.md` for complete documentation on modifying AI be
 - Deleting user account removes all owned sessions and leaves all collaborations
 
 **Session Sharing:**
+- Dedicated Collaboration page at `/collaboration` for managing all session collaborations
 - Session owners can share sessions with other AretaCare users by email
+- Email invitations for non-users (pending invitations with expiration tracking)
 - Maximum 10 people per session (1 owner + 9 collaborators)
 - Collaborators have full access to session data (documents, conversations, journal, daily plans, audio)
-- Only session owners can: rename session, delete session, share with others, revoke collaborator access
+- Only session owners can: rename session, delete session, share with others, revoke collaborator access, transfer ownership
+- Ownership transfer with validation (target user must have <3 owned sessions)
 - Collaborators can leave shared sessions at any time
 - Shared sessions do NOT count toward the collaborator's 3-session ownership limit
 - Permission checking via `check_session_access()` in `backend/app/api/permissions.py`
@@ -218,24 +223,27 @@ See `backend/app/config/README.md` for complete documentation on modifying AI be
 - `Conversation.jsx` - Main chat interface with daily plan panel, thumbnails load immediately after upload
 - `JournalView.jsx` - Journal with date navigation, "Jump to Today" button, future entries shown with blue background shading
 - `DailyPlan.jsx` - Daily plan history and editing
+- `Collaboration.jsx` - Dedicated collaboration management page (view owned/shared sessions, add/remove collaborators, transfer ownership, pending invitations, leave sessions)
 - `Settings.jsx` - Account management, session management
-- `Documents.jsx` - AI-powered document manager
+- `tools/Documents.jsx` - AI-powered document manager (at `/tools/documents` route)
 - `AudioRecordings.jsx` - AI-powered audio manager
 - `Login.jsx`, `Register.jsx`, `PasswordReset.jsx` - Authentication (Login has prominent "Learn about AretaCare" secondary button)
 - `About.jsx`, `TermsOfService.jsx`, `PrivacyPolicy.jsx` - Info pages
+- `tools/JargonTranslator.jsx`, `tools/ConversationCoach.jsx` - Standalone AI tools
 - `admin/` - Admin console pages (Dashboard with timezone-aware charts, ErrorLogs, SecurityLogs, Health, Accounts, Users, S3Cleanup, AdminLogs)
 
 **Components** (`frontend/src/components/`):
-- `Header.jsx` - Navigation with session switcher
+- `Header.jsx` - Navigation with session switcher and top-level Collaboration link
 - `MessageBubble.jsx` - Chat message display with copy-to-clipboard (markdown to HTML converter) and contextual timestamps
 - `MessageInput.jsx` - Chat input with audio recording
 - `AudioWaveform.jsx` - Real-time waveform visualization
 - `DailyPlan/DailyPlanPanel.jsx` - Collapsible daily plan sidebar
-- `CollaborationModal.jsx` - Session sharing modal (add/remove collaborators)
+- `NetworkStatusBanner.jsx` - Offline/reconnection notification banner
 
 **Context & Services**:
 - `contexts/SessionContext.jsx` - Multi-session state management
 - `contexts/AdminContext.jsx` - Admin authorization state
+- `contexts/NetworkContext.jsx` - Network status monitoring (online/offline detection)
 - `services/api.js` - Axios instance with auth interceptor
 - `utils/dateUtils.js` - Timezone utilities for converting UTC to local time (used in admin console)
 
@@ -354,13 +362,15 @@ Theme managed via `ThemeContext.jsx`, persisted to localStorage.
 - Registration with four required acknowledgements
 - Conversation interface with text/voice/document input
 - Multi-session management (up to 3 sessions, rename, switch)
-- Session sharing (share by email, collaborator access, leave session)
+- Collaboration page (add/remove collaborators, transfer ownership, pending invitations, leave session)
+- Session sharing (share by email, collaborator access)
 - Email notifications (password changes, email changes, collaborator actions)
 - Journal with date navigation and timezone handling
 - Daily Plan generation and editing
 - Documents/Audio with AI categorization
 - Settings: account updates, session management, password reset
 - Admin console (requires email in ADMIN_EMAILS): timezone-aware metrics dashboard, error logs, security logs, system health, accounts, users, S3 cleanup, audit logs
+- Network status banner (test offline behavior)
 - Mobile responsiveness
 
 ## Safety Guideline Enforcement
