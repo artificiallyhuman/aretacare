@@ -595,10 +595,10 @@ You now have full access to this session's data, including documents, conversati
 
 If you don't know {owner_name} or believe this was done in error, you can remove this connection by:
 1. Logging into your AretaCare account
-2. Going to Account Settings → Manage Sessions
+2. Going to the Collaboration page
 3. Leaving the shared session
 
-You can access your settings here: {settings_url}
+You can access the Collaboration page here: {settings.FRONTEND_URL}/collaboration
 
 Best regards,
 The AretaCare Team
@@ -653,7 +653,7 @@ The AretaCare Team
                                 </p>
                                 <ol style="margin: 8px 0 0 20px; padding: 0; color: #065f46; font-size: 14px; line-height: 20px;">
                                     <li style="margin: 4px 0;">Logging into your AretaCare account</li>
-                                    <li style="margin: 4px 0;">Going to Account Settings → Manage Sessions</li>
+                                    <li style="margin: 4px 0;">Going to the Collaboration page</li>
                                     <li style="margin: 4px 0;">Leaving the shared session</li>
                                 </ol>
                             </div>
@@ -666,8 +666,8 @@ The AretaCare Team
                             <table role="presentation" style="margin: 0;">
                                 <tr>
                                     <td style="border-radius: 6px; background-color: #059669;">
-                                        <a href="{settings_url}" target="_blank" style="display: inline-block; padding: 14px 32px; color: #ffffff; text-decoration: none; font-size: 16px; font-weight: 600;">
-                                            Go to Settings
+                                        <a href="{settings.FRONTEND_URL}/collaboration" target="_blank" style="display: inline-block; padding: 14px 32px; color: #ffffff; text-decoration: none; font-size: 16px; font-weight: 600;">
+                                            Go to Collaboration
                                         </a>
                                     </td>
                                 </tr>
@@ -967,8 +967,8 @@ This is an automated message from AretaCare.
             bool: True if email sent successfully, False otherwise
         """
         try:
-            # Build settings URL
-            settings_url = f"{settings.FRONTEND_URL}/settings"
+            # Build collaboration URL
+            collaboration_url = f"{settings.FRONTEND_URL}/collaboration"
 
             # Create message
             message = MIMEMultipart("alternative")
@@ -989,7 +989,7 @@ You are now the session owner with full control, including:
 
 {old_owner_name} has been added as a collaborator and can still access all session data.
 
-You can manage this session in your account settings: {settings_url}
+You can manage this session on the Collaboration page: {collaboration_url}
 
 Best regards,
 The AretaCare Team
@@ -1057,8 +1057,8 @@ The AretaCare Team
                             <table role="presentation" style="margin: 0;">
                                 <tr>
                                     <td style="border-radius: 6px; background-color: #059669;">
-                                        <a href="{settings_url}" target="_blank" style="display: inline-block; padding: 14px 32px; color: #ffffff; text-decoration: none; font-size: 16px; font-weight: 600;">
-                                            Manage Sessions
+                                        <a href="{collaboration_url}" target="_blank" style="display: inline-block; padding: 14px 32px; color: #ffffff; text-decoration: none; font-size: 16px; font-weight: 600;">
+                                            Manage Collaboration
                                         </a>
                                     </td>
                                 </tr>
@@ -1321,8 +1321,8 @@ The AretaCare Team
             bool: True if email sent successfully, False otherwise
         """
         try:
-            # Build settings URL
-            settings_url = f"{settings.FRONTEND_URL}/settings"
+            # Build collaboration URL
+            collaboration_url = f"{settings.FRONTEND_URL}/collaboration"
 
             # Create message
             message = MIMEMultipart("alternative")
@@ -1338,7 +1338,7 @@ Great news! {new_user_name} ({new_user_email}) has accepted your invitation and 
 
 They now have full access to your session "{session_name}" and can view and edit all session data, including conversations, journal entries, documents, and audio recordings.
 
-You can manage your collaborators at any time in your account settings: {settings_url}
+You can manage your collaborators at any time on the Collaboration page: {collaboration_url}
 
 Best regards,
 The AretaCare Team
@@ -1401,12 +1401,12 @@ The AretaCare Team
                     <tr>
                         <td style="padding: 0 40px 40px;">
                             <p style="margin: 0 0 16px; color: #374151; font-size: 16px; line-height: 24px;">
-                                You can manage your collaborators at any time in your account settings.
+                                You can manage your collaborators at any time on the Collaboration page.
                             </p>
                             <table role="presentation" style="margin: 0;">
                                 <tr>
                                     <td style="border-radius: 6px; background-color: #059669;">
-                                        <a href="{settings_url}" target="_blank" style="display: inline-block; padding: 14px 32px; color: #ffffff; text-decoration: none; font-size: 16px; font-weight: 600;">
+                                        <a href="{collaboration_url}" target="_blank" style="display: inline-block; padding: 14px 32px; color: #ffffff; text-decoration: none; font-size: 16px; font-weight: 600;">
                                             Manage Collaborators
                                         </a>
                                     </td>
@@ -1476,8 +1476,8 @@ The AretaCare Team
             bool: True if email sent successfully, False otherwise
         """
         try:
-            # Build settings URL
-            settings_url = f"{settings.FRONTEND_URL}/settings"
+            # Build collaboration URL
+            collaboration_url = f"{settings.FRONTEND_URL}/collaboration"
 
             # Create message
             message = MIMEMultipart("alternative")
@@ -1498,7 +1498,7 @@ You have successfully transferred ownership of the AretaCare session "{session_n
 
 You have been added as a collaborator and can still access all session data. However, you can no longer manage the session or its collaborators.
 
-If you want to leave this session, you can do so in your account settings: {settings_url}
+If you want to leave this session, you can do so on the Collaboration page: {collaboration_url}
 
 Best regards,
 The AretaCare Team
@@ -1566,8 +1566,8 @@ The AretaCare Team
                             <table role="presentation" style="margin: 0;">
                                 <tr>
                                     <td style="border-radius: 6px; background-color: #059669;">
-                                        <a href="{settings_url}" target="_blank" style="display: inline-block; padding: 14px 32px; color: #ffffff; text-decoration: none; font-size: 16px; font-weight: 600;">
-                                            View Sessions
+                                        <a href="{collaboration_url}" target="_blank" style="display: inline-block; padding: 14px 32px; color: #ffffff; text-decoration: none; font-size: 16px; font-weight: 600;">
+                                            View Collaboration
                                         </a>
                                     </td>
                                 </tr>
