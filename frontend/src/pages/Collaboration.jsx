@@ -782,7 +782,7 @@ export default function Collaboration() {
                             </span>
                           )}
                           {session.id === activeSessionId && (
-                            <span className="text-xs bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 px-2 py-0.5 rounded font-semibold">
+                            <span className="text-xs bg-purple-100 dark:bg-purple-900/50 text-purple-700 dark:text-purple-300 px-2 py-0.5 rounded font-semibold">
                               Active
                             </span>
                           )}
@@ -835,7 +835,7 @@ export default function Collaboration() {
                         <h3 className="font-semibold text-gray-900 dark:text-white flex items-center space-x-2 flex-wrap">
                           <span>{session.name}</span>
                           {session.id === activeSessionId && (
-                            <span className="text-xs bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 px-2 py-0.5 rounded font-semibold">
+                            <span className="text-xs bg-purple-100 dark:bg-purple-900/50 text-purple-700 dark:text-purple-300 px-2 py-0.5 rounded font-semibold">
                               Active
                             </span>
                           )}
