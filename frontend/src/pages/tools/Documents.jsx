@@ -416,7 +416,7 @@ const Documents = () => {
                 Document Manager
               </h1>
               <p className="mt-2 text-sm sm:text-base text-gray-600 dark:text-gray-400">
-                Upload and organize medical documents with AI categorization and summaries
+                Upload and organize documents with AI categorization and summaries
               </p>
             </div>
 

@@ -62,7 +62,7 @@ python -c "import secrets; print(secrets.token_urlsafe(32))"  # Generate secret 
 **Database (PostgreSQL)**
 - Eleven main tables: `users`, `sessions`, `session_collaborators`, `documents`, `audio_recordings`, `conversations`, `journal_entries`, `daily_plans`, `daily_plan_views`, `admin_audit_logs`, `security_logs`, `error_logs`
 - User table stores authentication credentials (bcrypt hashed passwords) and password reset tokens (time-limited, 1-hour expiration)
-- **Sessions table** tied to user accounts via foreign key, supports up to 3 sessions per user (owned + collaborations), includes `owner_id` for session ownership, name field (15-character limit, default "Session N"), created_at for automatic numbering
+- **Sessions table** tied to user accounts via foreign key, supports up to 3 owned sessions per user (collaborator sessions don't count), includes `owner_id` for session ownership, name field (15-character limit, default "Session N"), created_at for automatic numbering
 - **Session collaborators table** links users to shared sessions with unique constraint on (session_id, user_id), cascading deletes when session or user is deleted
 - **Documents table** with AI categorization (12 categories), AI-generated descriptions (user-editable, up to 200 characters), text extraction, and thumbnail support, timezone-aware upload dates
 - **Audio recordings table** with AI categorization (12 categories), AI-generated summaries (user-editable, up to 150 characters), transcription, and duration tracking
@@ -153,8 +153,8 @@ See `backend/app/config/README.md` for complete documentation on modifying AI be
 - Email notifications sent for password changes, email changes, and collaborator actions
 
 **Session Management:**
-- **Multi-session support**: Each user can have up to 3 active sessions (owned + collaborations combined)
-- Sessions created via header dropdown "New Session" button (shows error if 3 sessions already exist)
+- **Multi-session support**: Each user can own up to 3 sessions. Collaborator sessions don't count toward this limit.
+- Sessions created via header dropdown "New Session" button (shows error if 3 owned sessions already exist)
 - Active session ID stored in browser localStorage
 - All data (documents, conversations, journal, daily plans, audio) tied to both user account and session ID
 - Sessions have both `user_id` (creator) and `owner_id` (current owner) for ownership tracking
@@ -169,7 +169,7 @@ See `backend/app/config/README.md` for complete documentation on modifying AI be
 - Collaborators have full access to session data (documents, conversations, journal, daily plans, audio)
 - Only session owners can: rename session, delete session, share with others, revoke collaborator access
 - Collaborators can leave shared sessions at any time
-- Shared sessions count toward the collaborator's 3-session limit
+- Shared sessions do NOT count toward the collaborator's 3-session ownership limit
 - Permission checking via `check_session_access()` in `backend/app/api/permissions.py`
 
 ## Key Files and Their Roles
@@ -177,7 +177,7 @@ See `backend/app/config/README.md` for complete documentation on modifying AI be
 ### Backend
 **API Routes** (`backend/app/api/`):
 - `auth.py` - Authentication (register, login, /me) and user management (update account, password reset, deletion)
-- `sessions.py` - Multi-session management (3-session limit, rename, delete with S3 cleanup, sharing/collaboration)
+- `sessions.py` - Multi-session management (3 owned session limit, rename, delete with S3 cleanup, sharing/collaboration)
 - `permissions.py` - Shared permission checking (`check_session_access()` for owner/collaborator validation)
 - `documents.py` - Document upload/management with AI categorization, returns presigned URLs (media_url/thumbnail_url) for immediate display
 - `audio_recording.py` - Audio recording management with AI categorization
