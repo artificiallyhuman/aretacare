@@ -463,7 +463,7 @@ const Conversation = () => {
   }
 
   return (
-    <div className="flex flex-col h-[calc(100vh-4rem)]">
+    <div className="flex flex-col h-[calc(100vh-4rem)] h-[calc(100dvh-4rem)] supports-[height:100dvh]:h-[calc(100dvh-4rem)]">
       {/* Main content area */}
       <div className="flex flex-1 overflow-hidden">
         {/* Daily Plan Panel (collapsible sidebar) */}
@@ -557,7 +557,7 @@ const Conversation = () => {
           <div
             ref={messagesContainerRef}
             onScroll={handleScroll}
-            className={`flex-1 p-2 md:p-4 pb-24 md:pb-4 space-y-2 scroll-smooth ${messages.length === 0 ? 'overflow-hidden' : 'overflow-y-auto'}`}
+            className={`flex-1 p-2 md:p-4 space-y-2 scroll-smooth ${messages.length === 0 ? 'overflow-hidden' : 'overflow-y-auto'}`}
           >
             {messages.length === 0 ? (
               <div className="flex items-center justify-center h-full">

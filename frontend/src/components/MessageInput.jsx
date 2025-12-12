@@ -247,7 +247,7 @@ const MessageInput = ({ onSendMessage, onFileUpload, loading, hasMessages = fals
   };
 
   return (
-    <form onSubmit={handleSubmit} className="border-t-2 border-primary-200 dark:border-primary-800 bg-gradient-to-r from-primary-50 to-blue-50 dark:from-gray-800 dark:to-gray-800 p-2 md:p-4 pb-2 md:pb-4 shadow-lg transition-colors duration-200">
+    <form onSubmit={handleSubmit} className="border-t-2 border-primary-200 dark:border-primary-800 bg-gradient-to-r from-primary-50 to-blue-50 dark:from-gray-800 dark:to-gray-800 p-2 md:p-4 pb-[max(0.5rem,env(safe-area-inset-bottom))] md:pb-[max(1rem,env(safe-area-inset-bottom))] shadow-lg transition-colors duration-200">
       {/* Recording/Transcribing status */}
       {isRecording && (
         <div className="mb-2 md:mb-3 p-2 md:p-3 bg-red-100 dark:bg-red-900/30 rounded-lg border-2 border-red-300 dark:border-red-800 shadow-sm space-y-2">
