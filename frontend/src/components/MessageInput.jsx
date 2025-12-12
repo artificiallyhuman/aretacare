@@ -14,6 +14,15 @@ const ROTATING_PROMPTS = [
   "I'm caring for my dad and feeling overwhelmed…"
 ];
 
+const ROTATING_PROMPTS_MOBILE = [
+  "My mom's in the hospital…",
+  "I was admitted to the ER…",
+  "My husband has prostate cancer…",
+  "I'm pregnant and on bed rest…",
+  "My lab results came back…",
+  "I'm exhausted from caring for…"
+];
+
 const MessageInput = ({ onSendMessage, onFileUpload, loading, hasMessages = false }) => {
   const { activeSessionId: sessionId } = useSessionContext();
   const [message, setMessage] = useState('');
@@ -24,12 +33,25 @@ const MessageInput = ({ onSendMessage, onFileUpload, loading, hasMessages = fals
   const [recordingTimeLeft, setRecordingTimeLeft] = useState(MAX_RECORDING_SECONDS);
   const [recordingAutoStopped, setRecordingAutoStopped] = useState(false);
   const [currentPromptIndex, setCurrentPromptIndex] = useState(0);
+  const [isMobile, setIsMobile] = useState(false);
   const fileInputRef = useRef(null);
   const mediaRecorderRef = useRef(null);
   const audioChunksRef = useRef([]);
   const textareaRef = useRef(null);
   const recordingTimerRef = useRef(null);
   const promptRotationTimerRef = useRef(null);
+
+  // Detect mobile screen size
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768); // md breakpoint
+    };
+
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   // Rotating prompt animation for new sessions
   useEffect(() => {
@@ -345,7 +367,11 @@ const MessageInput = ({ onSendMessage, onFileUpload, loading, hasMessages = fals
             value={message}
             onChange={handleTextareaChange}
             onKeyPress={handleKeyPress}
-            placeholder={hasMessages ? "Type your message..." : ROTATING_PROMPTS[currentPromptIndex]}
+            placeholder={
+              hasMessages
+                ? "Type your message..."
+                : (isMobile ? ROTATING_PROMPTS_MOBILE[currentPromptIndex] : ROTATING_PROMPTS[currentPromptIndex])
+            }
             className="flex-1 resize-none border-0 rounded-lg px-2 py-2 md:px-3 focus:outline-none focus:ring-2 focus:ring-primary-500 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 max-h-[200px] overflow-y-auto text-base transition-all duration-500"
             rows={1}
             disabled={loading}
