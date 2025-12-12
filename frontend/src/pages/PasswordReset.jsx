@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { authAPI } from '../services/api';
+import logo from '../logos/large_logo.png';
 
 export default function PasswordReset() {
   const [searchParams] = useSearchParams();
@@ -72,11 +73,11 @@ export default function PasswordReset() {
         {/* Logo */}
         <div className="flex justify-center">
           <div className="flex items-center space-x-3">
-            <div className="flex items-center justify-center w-11 h-11 bg-primary-600 rounded-lg">
-              <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-              </svg>
-            </div>
+            <img
+              src={logo}
+              alt="AretaCare Logo"
+              className="w-11 h-11 object-contain"
+            />
             <div>
               <h1 className="text-2xl font-bold text-gray-900 dark:text-white">AretaCare<span className="font-normal">™</span></h1>
               <p className="text-xs text-gray-500 dark:text-gray-400">Care | Clarity | Confidence</p>

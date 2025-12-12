@@ -1,24 +1,21 @@
 {
-  "name": "AretaCare - Care. Clarity. Confidence.",
+  "name": "AretaCare",
   "short_name": "AretaCare",
-  "description": "AI-powered care advocate helping families understand complex medical information",
   "icons": [
     {
       "src": "/favicon/web-app-manifest-192x192.png",
       "sizes": "192x192",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "maskable"
     },
     {
       "src": "/favicon/web-app-manifest-512x512.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "maskable"
     }
   ],
-  "theme_color": "#0284c7",
+  "theme_color": "#ffffff",
   "background_color": "#ffffff",
-  "display": "standalone",
-  "start_url": "/",
-  "scope": "/"
+  "display": "standalone"
 }
