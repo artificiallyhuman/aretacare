@@ -263,17 +263,6 @@ async def upload_document(
             try:
                 journal_service = JournalService(db)
 
-                # Format as a user message about the document
-                user_message = f"Document uploaded: {file.filename}\n\n"
-                if extracted_text:
-                    # Include first 500 characters of extracted text for context
-                    preview = extracted_text[:500] + ("..." if len(extracted_text) > 500 else "")
-                    user_message += f"Content preview:\n{preview}"
-                else:
-                    user_message += "Document type: " + file.content_type
-
-                ai_response = f"I've processed this document. {ai_description if ai_description else 'This appears to be related to your care journey.'}"
-
                 # Use user's local date if provided, otherwise server date
                 from datetime import date as date_type
                 if user_date:
@@ -284,16 +273,17 @@ async def upload_document(
                 else:
                     entry_date = date_type.today()
 
-                synthesis_result = await journal_service.assess_and_synthesize(
-                    user_message=user_message,
-                    ai_response=ai_response,
+                # Use specialized document synthesis method with FULL extracted text
+                synthesis_result = await journal_service.synthesize_from_document(
+                    filename=file.filename,
+                    extracted_text=extracted_text or "",
+                    ai_description=ai_description or "",
                     session_id=session_id,
-                    conversation_id=None,  # Not from a conversation
                     entry_date=entry_date
                 )
 
                 if synthesis_result.should_create and len(synthesis_result.suggested_entries) > 0:
-                    logger.info(f"Created {len(synthesis_result.suggested_entries)} journal entries from document upload")
+                    logger.info(f"Created {len(synthesis_result.suggested_entries)} comprehensive journal entries from document upload")
                 else:
                     logger.info("No journal entries created from document upload (not journal-worthy)")
 

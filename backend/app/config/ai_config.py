@@ -351,6 +351,158 @@ CONTENT DETAIL GUIDELINES:
 IMPORTANT: Create entries for all substantive conversations. Only skip entries that have no relevance to healthcare topics and caregiving (e.g., simple greetings, questions about the app interface)."""
 
 
+DOCUMENT_JOURNAL_SYNTHESIS_PROMPT = """You are creating comprehensive journal entries from uploaded documents for a caregiver's daily diary.
+
+CRITICAL MISSION: This journal entry will be the ONLY accessible record of this document's content for future AI conversations. You MUST extract and preserve ALL relevant information comprehensively.
+
+Entry types to use:
+- MEDICAL_UPDATE: Test results, lab values, imaging findings, diagnoses, clinical observations, vital signs, symptoms documented
+- TREATMENT_CHANGE: Medication changes, new prescriptions, dosage adjustments, new therapies, treatment plans, procedures scheduled
+- APPOINTMENT: Visit notes, consultation summaries, scheduled appointments, provider contacts
+- INSIGHT: Clinical impressions, assessment notes, care team observations, recommendations, care instructions
+- MILESTONE: Significant diagnoses, treatment completions, major health transitions, hospital discharges
+- OTHER: Administrative documents, insurance information, billing, consent forms, contact information, care notes, general records
+
+COMPREHENSIVE EXTRACTION PRINCIPLES:
+
+**Extract ALL Key Information:**
+- All dates mentioned (any format, any context)
+- All numeric values with their units and context
+- All names (people, facilities, organizations) with roles/specialties
+- All contact information (phone numbers, addresses, emails, fax numbers)
+- All specific details rather than summaries
+- All instructions, plans, and next steps
+- All amounts (costs, quantities, dosages)
+- All codes or reference numbers (account numbers, claim numbers, ICD codes, etc.)
+
+**Preserve Exact Details:**
+- Don't summarize - extract the actual information
+- Don't simplify technical terms - use exact wording from document
+- Don't say "various items" - list the actual items
+- Don't say "multiple values" - list all the values
+- Don't say "normal results" - specify what was tested and what the results were
+
+**Structure Logically:**
+- Organize by topic or chronologically as appropriate
+- Use markdown formatting for readability:
+  * Use **bold** for section headers and key terms
+  * Use bullet points (- or *) for lists of items
+  * Use blank lines to separate sections
+  * For complex documents, create clear sections (e.g., **Lab Results:**, **Medications:**, **Follow-up:**)
+- Group related information together
+- Make it scannable and easy to reference later
+
+WRITING STYLE:
+- Third-person observational style - no pronouns like "I", "me", "we", "they", "someone"
+- Describe only the facts, information, and data from the document
+- Be COMPREHENSIVE not concise - include all relevant details
+- Present information clearly and objectively
+- Use markdown formatting to improve readability of long entries
+
+EXAMPLES:
+
+**Medical Document:**
+- BAD: "Blood test results showing mostly normal values"
+- GOOD: "**Complete Blood Count** - 12/5/2024\n- WBC: 7.2 K/uL (normal)\n- RBC: 4.5 M/uL (normal)\n- Hemoglobin: 13.8 g/dL (normal)\n- Hematocrit: 41% (normal)\n- Platelets: 245 K/uL (normal)\n\n**Comprehensive Metabolic Panel** - 12/5/2024\n- Glucose: 102 mg/dL (slightly elevated)\n- Creatinine: 0.9 mg/dL (normal)\n- Sodium: 140 mEq/L (normal)\n- Potassium: 4.1 mEq/L (normal)"
+
+**Bill/Invoice:**
+- BAD: "Medical bill received for recent visit"
+- GOOD: "**Invoice Details**\n- Invoice #A12345 from County General Hospital\n- Date: 12/1/2024\n- Account: #987654\n- Total: $2,847.50\n\n**Charges:**\n- Emergency Room visit: $1,200\n- X-ray chest 2 views: $450\n- Laboratory services: $397.50\n- Supplies: $800\n\n**Payment Info:**\n- Insurance: Pending\n- Due date: 1/1/2025\n- Billing contact: 555-123-4567"
+
+**Provider Contact Card:**
+- BAD: "Cardiologist contact information received"
+- GOOD: "**Dr. Michael Torres, Cardiology**\nHeart & Vascular Specialists\n\n**Location:**\n123 Medical Plaza, Suite 400\nCity, ST 12345\n\n**Contact:**\n- Main office: 555-234-5678\n- Fax: 555-234-5679\n- After-hours: 555-234-5680\n- Scheduling: 555-234-5681\n\n**Hours:** Mon-Fri 8am-5pm"
+
+**Care Instructions:**
+- BAD: "Instructions for wound care"
+- GOOD: "**Surgical Site Care Instructions**\nDr. Smith - 12/3/2024\n\n**Daily Care:**\n- Clean incision twice daily with mild soap and water\n- Pat dry gently\n- Apply thin layer of antibiotic ointment\n- Cover with sterile gauze\n- Change dressing after cleaning or if wet\n\n**Watch For (Call Immediately - 555-345-6789):**\n- Redness spreading beyond incision\n- Increased warmth\n- Yellow/green discharge\n- Fever >100.4°F\n\n**Follow-up:** 12/17/2024"
+
+**Insurance Document:**
+- BAD: "Insurance approval for procedure"
+- GOOD: "**Prior Authorization Approved**\nBlue Cross Blue Shield\n\n**Authorization:** #PA-789456\n**Approved:** 11/28/2024\n**Procedure:** MRI lumbar spine with and without contrast\n**CPT Code:** 72158\n**Valid:** 12/1/2024 through 1/31/2025\n**Facility:** Advanced Imaging Center\n\n**Note:** Reference authorization number on all claims\n**Questions:** Provider services 1-800-555-0123"
+
+IMPORTANT: When in doubt, include the information. Over-documentation is far better than losing important details that might be needed later."""
+
+
+AUDIO_JOURNAL_SYNTHESIS_PROMPT = """You are creating comprehensive journal entries from audio recording transcriptions for a caregiver's daily diary.
+
+CRITICAL MISSION: This journal entry will be the ONLY accessible record of this audio recording's content for future AI conversations. You MUST extract and preserve ALL relevant information comprehensively.
+
+Entry types to use:
+- MEDICAL_UPDATE: Symptoms described, health observations, clinical updates, vital signs mentioned, test results discussed
+- TREATMENT_CHANGE: Medication updates, dosage changes, new treatments started/stopped, therapy changes
+- APPOINTMENT: Visit recaps, appointment summaries, upcoming appointments mentioned, provider discussions
+- INSIGHT: Personal observations, reflections, concerns identified, questions arising, care realizations
+- MILESTONE: Significant achievements, progress noted, important decisions, transitions in care journey
+- OTHER: General updates, family coordination, administrative notes, care logistics, daily reflections
+
+COMPREHENSIVE EXTRACTION PRINCIPLES:
+
+**Extract ALL Key Information:**
+- All dates and times mentioned (appointments, events, medication schedules)
+- All numeric values (vital signs, measurements, dosages, test results)
+- All names (providers, facilities, medications, family members)
+- All contact information (phone numbers, addresses mentioned)
+- All specific details about symptoms, observations, or changes
+- All instructions or action items mentioned
+- All questions or concerns raised
+- All amounts (costs, quantities, frequencies)
+
+**Preserve Exact Details:**
+- Don't summarize - extract the actual information shared
+- Preserve medical terms and specific wording used
+- Include actual values and measurements, not "normal" or "high"
+- List specific symptoms, not "feeling unwell"
+- Capture emotional context when relevant to care journey
+- Include the sequence of events if chronological
+
+**Structure Logically:**
+- Organize by topic or chronologically as appropriate
+- Use markdown formatting for readability:
+  * Use **bold** for section headers and key terms
+  * Use bullet points (- or *) for lists of items
+  * Use blank lines to separate sections
+  * For complex updates, create clear sections (e.g., **Symptoms:**, **Medications:**, **Questions:**)
+- Group related information together
+- Make it scannable and easy to reference later
+
+WRITING STYLE:
+- Third-person observational style - no pronouns like "I", "me", "we", "they", "someone"
+- Describe only the facts, information, and observations from the audio
+- Be COMPREHENSIVE not concise - include all relevant details
+- Present information clearly and objectively
+- Use markdown formatting to improve readability of long entries
+- Capture the essence of what was communicated
+
+EXAMPLES:
+
+**Symptom Report:**
+- BAD: "Experiencing some pain"
+- GOOD: "**Lower Back Pain Report**\n- Intensity: 6/10\n- Type: Sharp stabbing sensation\n- Worse when: Standing\n- Started: 3 days ago (Monday morning)\n- Relief: Improves slightly with heating pad"
+
+**Medication Update:**
+- BAD: "Changed blood pressure medication"
+- GOOD: "**Medication Change - Blood Pressure**\n\n**Discontinued:**\n- Lisinopril 10mg (persistent dry cough)\n\n**New Prescription:**\n- Losartan 25mg\n- Dosing: 1 tablet by mouth every morning\n- Prescribed by: Dr. Martinez (12/8/2024)\n- Pharmacy: CVS on Main Street (ready for pickup)\n\n**Follow-up:** Blood pressure check in 2 weeks"
+
+**Appointment Recap:**
+- BAD: "Had doctor's visit"
+- GOOD: "**Cardiology Appointment**\nDr. Sarah Chen - 12/5/2024 at 2:30pm\n\n**Chief Complaint:**\nChest discomfort episodes\n- Duration: 5-10 minutes\n- Frequency: 2-3 times per week\n\n**Vitals:**\n- Blood pressure: 138/85\n\n**Plan:**\n- Stress test scheduled: 12/15/2024 at County Hospital\n- Continue current medications\n- Return immediately if chest pain worsens or lasts >15 minutes\n\n**Next Visit:** 1/10/2025"
+
+**Care Observation:**
+- BAD: "Having a rough day"
+- GOOD: "**Difficult Morning - Monitoring**\n\n**Observations:**\n- Increased fatigue (stayed in bed until 11am - unusual)\n- Decreased appetite (ate only half of breakfast)\n- Mood lower than usual\n- Less interest in activities\n- Temperature: 99.1°F (slight elevation)\n\n**Actions Taken:**\n- Encouraged fluid intake\n- Monitoring for changes\n\n**Plan:** Call Dr. Smith's office if fever increases or symptoms worsen"
+
+**Question/Concern:**
+- BAD: "Have questions about the medication"
+- GOOD: "**Metformin Side Effects - Questions for Dr. Patel**\n\n**Current Issue:**\n- Medication: Metformin 500mg\n- Side effects: Stomach upset and nausea 30-60 minutes after taking with meals\n\n**Questions to Ask:**\n1. Is nausea a normal side effect?\n2. How long before it improves?\n3. Should medication be taken at different time?\n4. Are there alternatives if side effects persist?\n\n**Next Appointment:** 12/20/2024"
+
+**Treatment Progress:**
+- BAD: "Physical therapy is helping"
+- GOOD: "**Physical Therapy Progress - 6 Week Update**\n\n**Range of Motion:**\n- Knee flexion: 90° → 115° (improved)\n\n**Pain Level:**\n- During exercises: 7/10 → 4/10 (decreased)\n\n**Functional Improvement:**\n- Walking without assistance: 5 min → 15 min\n\n**Therapist Recommendation:** (Sarah)\nContinue twice weekly sessions\n\n**Home Exercise Program:** (performing daily)\n- Quad sets: 3 sets x 10 reps\n- Heel slides: 3 sets x 10 reps\n- Wall sits: 3 sets x 30 seconds\n\n**Next Session:** Thursday 12/14/2024 at 3pm"
+
+IMPORTANT: When in doubt, include the information. Over-documentation is far better than losing important details that might be needed later."""
+
+
 # ============================================================================
 # DAILY PLAN GENERATION
 # ============================================================================

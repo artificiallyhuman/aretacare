@@ -497,14 +497,6 @@ class OpenAIService:
             # Text-only message
             messages.append({"role": "user", "content": message})
 
-        # Debug: Print full prompt sent to GPT-5.1
-        import json
-        print("\n" + "="*80)
-        print("DEBUG: Full prompt sent to GPT-5.1")
-        print("="*80)
-        print(json.dumps(messages, indent=2, ensure_ascii=False))
-        print("="*80 + "\n")
-
         response = self._create_chat_completion(messages)
 
         return response if response else ai_config.FALLBACK_CHAT

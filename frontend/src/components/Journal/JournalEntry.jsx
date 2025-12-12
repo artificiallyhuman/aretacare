@@ -1,9 +1,20 @@
 import React, { useState } from 'react';
+import ReactMarkdown from 'react-markdown';
 import { journalAPI } from '../../services/api';
 
 const JournalEntry = ({ entry, colors, onEdit, onDelete }) => {
   const [expanded, setExpanded] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [isClamped, setIsClamped] = useState(false);
+  const contentRef = React.useRef(null);
+
+  // Check if content is clamped after render
+  React.useEffect(() => {
+    if (contentRef.current && !expanded) {
+      const isContentClamped = contentRef.current.scrollHeight > contentRef.current.clientHeight;
+      setIsClamped(isContentClamped);
+    }
+  }, [entry.content, expanded]);
 
   const handleDelete = async () => {
     if (!window.confirm('Are you sure you want to delete this journal entry?')) {
@@ -70,17 +81,46 @@ const JournalEntry = ({ entry, colors, onEdit, onDelete }) => {
       </div>
 
       {/* Content preview/full */}
-      <p className={`text-sm text-gray-700 dark:text-gray-300 ${!expanded && entry.content.length > 100 ? 'line-clamp-2' : ''}`}>
-        {entry.content}
-      </p>
+      <div
+        ref={contentRef}
+        className={`text-sm text-gray-700 dark:text-gray-300 prose prose-sm dark:prose-invert max-w-none ${!expanded ? 'line-clamp-4' : ''}`}
+      >
+        <ReactMarkdown
+          components={{
+            // Custom paragraph spacing
+            p: ({node, ...props}) => <p className="mb-2 leading-relaxed" {...props} />,
+            // Compact lists
+            ul: ({node, ...props}) => <ul className="mb-2 ml-4 list-disc" {...props} />,
+            ol: ({node, ...props}) => <ol className="mb-2 ml-4 list-decimal" {...props} />,
+            li: ({node, ...props}) => <li className="mb-1" {...props} />,
+            // Headers
+            h1: ({node, ...props}) => <h1 className="text-lg font-bold mb-2 mt-3" {...props} />,
+            h2: ({node, ...props}) => <h2 className="text-base font-bold mb-2 mt-3" {...props} />,
+            h3: ({node, ...props}) => <h3 className="text-sm font-bold mb-1 mt-2" {...props} />,
+            // Strong text
+            strong: ({node, ...props}) => <strong className="font-semibold" {...props} />,
+          }}
+        >
+          {entry.content}
+        </ReactMarkdown>
+      </div>
 
-      {/* Expand/collapse if long content */}
-      {entry.content.length > 100 && (
+      {/* Expand/collapse button - only show if content is actually clamped */}
+      {isClamped && !expanded && (
         <button
-          onClick={() => setExpanded(!expanded)}
+          onClick={() => setExpanded(true)}
           className="text-xs text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 mt-1"
         >
-          {expanded ? 'Show less' : 'Show more'}
+          Show more
+        </button>
+      )}
+
+      {expanded && (
+        <button
+          onClick={() => setExpanded(false)}
+          className="text-xs text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 mt-1"
+        >
+          Show less
         </button>
       )}
 

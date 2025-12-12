@@ -65,6 +65,366 @@ class JournalService:
         self.client = OpenAI(api_key=settings.OPENAI_API_KEY)
         self.model = ai_config.CHAT_MODEL
 
+    async def synthesize_from_document(
+        self,
+        filename: str,
+        extracted_text: str,
+        ai_description: str,
+        session_id: str,
+        entry_date: Optional[date] = None
+    ) -> JournalSynthesisResult:
+        """Synthesize comprehensive journal entry from uploaded medical document"""
+        try:
+            recent_entries = self._get_recent_entries(session_id, days=7)
+            recent_context = self._format_recent_journal_brief(recent_entries)
+
+            # Get today's date for context
+            today = entry_date if entry_date else date.today()
+            today_str = today.isoformat()
+            day_of_week = today.strftime('%A')
+
+            # Prepare document content - use full extracted text for comprehensive synthesis
+            document_content = f"Filename: {filename}\n\n"
+            if ai_description:
+                document_content += f"Document Type/Summary: {ai_description}\n\n"
+            if extracted_text:
+                document_content += f"Full Document Content:\n{extracted_text}"
+            else:
+                document_content += "No text content could be extracted from this document."
+
+            prompt = f"""TODAY'S DATE: {today_str} ({day_of_week})
+
+Recent journal (last 7 days):
+{recent_context}
+
+DOCUMENT UPLOADED:
+{document_content}
+
+Create a comprehensive journal entry from this document. Extract and preserve ALL relevant information as this will be the ONLY accessible record for future AI conversations.
+
+EXTRACTION GUIDANCE:
+- Extract ALL dates, names, contact information, numeric values with units
+- Include ALL specific details (account numbers, reference codes, costs, addresses, phone numbers)
+- Preserve exact terminology and wording from the document
+- Don't summarize - list actual information (e.g., "WBC 7.2 K/uL" not "normal values")
+- Include ALL instructions, plans, next steps, and follow-up information
+- Be COMPREHENSIVE not concise - over-documentation is better than losing details
+
+FORMATTING FOR READABILITY:
+- Use **bold** for section headers (e.g., **Lab Results:**, **Medications:**, **Contact Info:**)
+- Use bullet points (-) for lists of items
+- Use blank lines to separate sections
+- For complex documents with lots of data, organize into clear sections
+- Make entries scannable and easy to read
+
+Choose the appropriate entry type:
+- MEDICAL_UPDATE: Test results, lab values, imaging findings, diagnoses, clinical observations, vital signs, symptoms
+- TREATMENT_CHANGE: Medications, dosage changes, treatment plans, procedures scheduled, therapies
+- APPOINTMENT: Visit notes, consultation summaries, scheduled appointments, provider information
+- MILESTONE: Significant diagnoses, treatment completions, major health transitions, hospital discharges
+- INSIGHT: Clinical impressions, care team observations, recommendations, care instructions
+- OTHER: Administrative documents, insurance/billing information, contact information, consent forms, care notes, general records
+
+ENTRY SPLITTING GUIDANCE:
+- If document contains information about multiple dates (e.g., past visit + future appointment + billing date), create SEPARATE entries for each date
+- Default to TODAY ({today_str}) unless the document clearly indicates a different date
+- For visit notes, use the visit date; for test results, use the test date; for appointments, use the appointment date; for bills, use the service date or statement date
+
+CRITICAL - JOURNAL ENTRY WRITING STYLE:
+- Write in third-person observational style
+- Do NOT use pronouns: "I", "me", "my", "we", "us", "they", "them", "someone"
+- Describe only the facts, data, and information from the document
+- Focus on what the document contains
+
+IMPORTANT: Respond with ONLY a valid JSON object in this exact format, with no additional text before or after:
+{{
+  "should_create": true,
+  "reasoning": "Document contains information that should be preserved in journal",
+  "suggested_entries": [
+    {{
+      "title": "descriptive title (max 100 chars)",
+      "content": "comprehensive extraction of all relevant information from document",
+      "entry_type": "MEDICAL_UPDATE or TREATMENT_CHANGE or APPOINTMENT or INSIGHT or MILESTONE or OTHER",
+      "entry_date": "YYYY-MM-DD"
+    }}
+  ]
+}}"""
+
+            messages = [
+                {"role": "system", "content": ai_config.DOCUMENT_JOURNAL_SYNTHESIS_PROMPT},
+                {"role": "user", "content": prompt}
+            ]
+
+            # Use Responses API
+            response = self.client.responses.create(
+                model=self.model,
+                input=messages
+            )
+
+            # Extract text from Responses API
+            text = getattr(response, "output_text", None)
+            if text is None and getattr(response, "output", None):
+                first_item = response.output[0]
+                if getattr(first_item, "content", None):
+                    first_content = first_item.content[0]
+                    text = getattr(first_content, "text", None)
+
+            if not text:
+                raise Exception("No response from AI")
+
+            # Clean up the response - remove markdown code blocks if present
+            cleaned_text = text.strip()
+            if cleaned_text.startswith("```"):
+                lines = cleaned_text.split("\n")
+                lines = lines[1:]
+                if lines and lines[-1].strip() == "```":
+                    lines = lines[:-1]
+                cleaned_text = "\n".join(lines).strip()
+
+            result_json = json.loads(cleaned_text)
+
+            # Convert to Pydantic models
+            suggestions = []
+            for entry in result_json["suggested_entries"]:
+                suggested_date = None
+                if "entry_date" in entry and entry["entry_date"]:
+                    try:
+                        suggested_date = date.fromisoformat(entry["entry_date"])
+                    except (ValueError, TypeError):
+                        logger.warning(f"Invalid entry_date '{entry.get('entry_date')}', using today")
+                        suggested_date = entry_date if entry_date else date.today()
+                else:
+                    suggested_date = entry_date if entry_date else date.today()
+
+                suggestions.append(JournalSuggestion(
+                    title=entry["title"],
+                    content=entry["content"],
+                    entry_type=EntryType(entry["entry_type"]),
+                    confidence=1.0,
+                    entry_date=suggested_date
+                ))
+
+            synthesis_result = JournalSynthesisResult(
+                should_create=result_json["should_create"],
+                reasoning=result_json["reasoning"],
+                suggested_entries=suggestions
+            )
+
+            # Auto-save ALL suggested entries
+            for suggestion in suggestions:
+                await self.create_entry(
+                    session_id=session_id,
+                    entry_data=JournalEntryCreate(
+                        title=suggestion.title,
+                        content=suggestion.content,
+                        entry_type=suggestion.entry_type,
+                        entry_date=suggestion.entry_date
+                    ),
+                    created_by="ai",
+                    source_message_ids=None
+                )
+
+            return synthesis_result
+
+        except json.JSONDecodeError as e:
+            logger.error(f"JSON decode error during document journal synthesis: {e}")
+            logger.error(f"Response text: {text if 'text' in locals() else 'No text'}")
+            return JournalSynthesisResult(
+                should_create=False,
+                reasoning="Error parsing AI response",
+                suggested_entries=[]
+            )
+        except Exception as e:
+            logger.error(f"Document journal synthesis error: {e}", exc_info=True)
+            return JournalSynthesisResult(
+                should_create=False,
+                reasoning="Error during synthesis",
+                suggested_entries=[]
+            )
+
+    async def synthesize_from_audio(
+        self,
+        filename: str,
+        transcribed_text: str,
+        ai_summary: str,
+        duration: float,
+        session_id: str,
+        entry_date: Optional[date] = None
+    ) -> JournalSynthesisResult:
+        """Synthesize comprehensive journal entry from audio recording transcription"""
+        try:
+            recent_entries = self._get_recent_entries(session_id, days=7)
+            recent_context = self._format_recent_journal_brief(recent_entries)
+
+            # Get today's date for context
+            today = entry_date if entry_date else date.today()
+            today_str = today.isoformat()
+            day_of_week = today.strftime('%A')
+
+            # Prepare audio content - use full transcription for comprehensive synthesis
+            duration_min = int(duration // 60)
+            duration_sec = int(duration % 60)
+            audio_content = f"Filename: {filename}\n"
+            audio_content += f"Duration: {duration_min}m {duration_sec}s\n\n"
+            if ai_summary:
+                audio_content += f"Recording Type/Summary: {ai_summary}\n\n"
+            if transcribed_text:
+                audio_content += f"Full Transcription:\n{transcribed_text}"
+            else:
+                audio_content += "No transcription available for this recording."
+
+            prompt = f"""TODAY'S DATE: {today_str} ({day_of_week})
+
+Recent journal (last 7 days):
+{recent_context}
+
+AUDIO RECORDING TRANSCRIPTION:
+{audio_content}
+
+Create a comprehensive journal entry from this audio recording. Extract and preserve ALL relevant information as this will be the ONLY accessible record for future AI conversations.
+
+EXTRACTION GUIDANCE:
+- Extract ALL dates, times, names, numeric values (vital signs, measurements, dosages)
+- Include ALL specific details about symptoms, observations, or changes
+- Preserve medical terms and exact wording used
+- Don't summarize - list actual information (e.g., "pain rated 6/10" not "experiencing pain")
+- Include ALL instructions, action items, questions, or concerns mentioned
+- Capture emotional context when relevant to the care journey
+- Be COMPREHENSIVE not concise - over-documentation is better than losing details
+
+FORMATTING FOR READABILITY:
+- Use **bold** for section headers (e.g., **Symptoms:**, **Vitals:**, **Plan:**)
+- Use bullet points (-) for lists of items
+- Use blank lines to separate sections
+- For complex updates with lots of information, organize into clear sections
+- Make entries scannable and easy to read
+
+Choose the appropriate entry type:
+- MEDICAL_UPDATE: Symptoms, health observations, vital signs, test results discussed, clinical updates
+- TREATMENT_CHANGE: Medications, dosage changes, treatments started/stopped, therapy changes
+- APPOINTMENT: Visit recaps, appointment summaries, upcoming appointments, provider discussions
+- MILESTONE: Significant achievements, progress, important decisions, transitions
+- INSIGHT: Personal observations, reflections, concerns, questions, care realizations
+- OTHER: General updates, family coordination, administrative notes, care logistics, daily reflections
+
+ENTRY SPLITTING GUIDANCE:
+- If audio mentions information about multiple dates (e.g., yesterday's symptom + today's observation + tomorrow's appointment), create SEPARATE entries for each date
+- Default to TODAY ({today_str}) unless the audio clearly indicates a different date
+- For appointment recaps, use the appointment date; for scheduled appointments, use the future date
+- For symptom reports, use the date when symptoms were observed/reported
+
+CRITICAL - JOURNAL ENTRY WRITING STYLE:
+- Write in third-person observational style
+- Do NOT use pronouns: "I", "me", "my", "we", "us", "they", "them", "someone"
+- Describe only the facts, data, observations, and information from the audio
+- Focus on what was communicated in the recording
+
+IMPORTANT: Respond with ONLY a valid JSON object in this exact format, with no additional text before or after:
+{{
+  "should_create": true,
+  "reasoning": "Audio recording contains information that should be preserved in journal",
+  "suggested_entries": [
+    {{
+      "title": "descriptive title (max 100 chars)",
+      "content": "comprehensive extraction of all relevant information from audio",
+      "entry_type": "MEDICAL_UPDATE or TREATMENT_CHANGE or APPOINTMENT or INSIGHT or MILESTONE or OTHER",
+      "entry_date": "YYYY-MM-DD"
+    }}
+  ]
+}}"""
+
+            messages = [
+                {"role": "system", "content": ai_config.AUDIO_JOURNAL_SYNTHESIS_PROMPT},
+                {"role": "user", "content": prompt}
+            ]
+
+            # Use Responses API
+            response = self.client.responses.create(
+                model=self.model,
+                input=messages
+            )
+
+            # Extract text from Responses API
+            text = getattr(response, "output_text", None)
+            if text is None and getattr(response, "output", None):
+                first_item = response.output[0]
+                if getattr(first_item, "content", None):
+                    first_content = first_item.content[0]
+                    text = getattr(first_content, "text", None)
+
+            if not text:
+                raise Exception("No response from AI")
+
+            # Clean up the response - remove markdown code blocks if present
+            cleaned_text = text.strip()
+            if cleaned_text.startswith("```"):
+                lines = cleaned_text.split("\n")
+                lines = lines[1:]
+                if lines and lines[-1].strip() == "```":
+                    lines = lines[:-1]
+                cleaned_text = "\n".join(lines).strip()
+
+            result_json = json.loads(cleaned_text)
+
+            # Convert to Pydantic models
+            suggestions = []
+            for entry in result_json["suggested_entries"]:
+                suggested_date = None
+                if "entry_date" in entry and entry["entry_date"]:
+                    try:
+                        suggested_date = date.fromisoformat(entry["entry_date"])
+                    except (ValueError, TypeError):
+                        logger.warning(f"Invalid entry_date '{entry.get('entry_date')}', using today")
+                        suggested_date = entry_date if entry_date else date.today()
+                else:
+                    suggested_date = entry_date if entry_date else date.today()
+
+                suggestions.append(JournalSuggestion(
+                    title=entry["title"],
+                    content=entry["content"],
+                    entry_type=EntryType(entry["entry_type"]),
+                    confidence=1.0,
+                    entry_date=suggested_date
+                ))
+
+            synthesis_result = JournalSynthesisResult(
+                should_create=result_json["should_create"],
+                reasoning=result_json["reasoning"],
+                suggested_entries=suggestions
+            )
+
+            # Auto-save ALL suggested entries
+            for suggestion in suggestions:
+                await self.create_entry(
+                    session_id=session_id,
+                    entry_data=JournalEntryCreate(
+                        title=suggestion.title,
+                        content=suggestion.content,
+                        entry_type=suggestion.entry_type,
+                        entry_date=suggestion.entry_date
+                    ),
+                    created_by="ai",
+                    source_message_ids=None
+                )
+
+            return synthesis_result
+
+        except json.JSONDecodeError as e:
+            logger.error(f"JSON decode error during audio journal synthesis: {e}")
+            logger.error(f"Response text: {text if 'text' in locals() else 'No text'}")
+            return JournalSynthesisResult(
+                should_create=False,
+                reasoning="Error parsing AI response",
+                suggested_entries=[]
+            )
+        except Exception as e:
+            logger.error(f"Audio journal synthesis error: {e}", exc_info=True)
+            return JournalSynthesisResult(
+                should_create=False,
+                reasoning="Error during synthesis",
+                suggested_entries=[]
+            )
+
     async def assess_and_synthesize(
         self,
         user_message: str,

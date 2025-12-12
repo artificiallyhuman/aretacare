@@ -116,14 +116,27 @@ async def send_message(
             except ValueError:
                 logger.warning(f"Invalid entry_date format: {entry_date}, using server date")
 
-        # Assess for journal synthesis (include document content)
-        synthesis_result = await journal_service.assess_and_synthesize(
-            user_message=complete_message,
-            ai_response=ai_response_text,
-            session_id=session_id,
-            conversation_id=user_message.id,
-            entry_date=user_date
-        )
+        # Use comprehensive document synthesis if a document was uploaded
+        # Otherwise use conversational synthesis
+        if document_id and extracted_text:
+            # Get document details for comprehensive synthesis
+            doc = db.query(Document).filter(Document.id == document_id).first()
+            synthesis_result = await journal_service.synthesize_from_document(
+                filename=doc.filename if doc else "Unknown document",
+                extracted_text=extracted_text,
+                ai_description=doc.ai_description if (doc and doc.ai_description) else "",
+                session_id=session_id,
+                entry_date=user_date
+            )
+        else:
+            # Regular conversational synthesis
+            synthesis_result = await journal_service.assess_and_synthesize(
+                user_message=complete_message,
+                ai_response=ai_response_text,
+                session_id=session_id,
+                conversation_id=user_message.id,
+                entry_date=user_date
+            )
 
         # Mark messages as synthesized if entries were created
         if synthesis_result.should_create and len(synthesis_result.suggested_entries) > 0:
@@ -547,24 +560,22 @@ async def transcribe_audio(
             try:
                 journal_service = JournalService(db)
 
-                # Format as a user message about the audio recording
-                user_message = f"Audio recording uploaded: {audio.filename}\n\nTranscription:\n{transcribed_text}"
-                ai_response = f"I've processed this audio recording. {ai_summary if ai_summary else 'This appears to be related to your care journey.'}"
-
                 # Use entry_date if provided (for timezone handling), otherwise use today
                 from datetime import date as date_type
                 entry_date = date_type.today()
 
-                synthesis_result = await journal_service.assess_and_synthesize(
-                    user_message=user_message,
-                    ai_response=ai_response,
+                # Use specialized audio synthesis method with FULL transcription
+                synthesis_result = await journal_service.synthesize_from_audio(
+                    filename=audio.filename,
+                    transcribed_text=transcribed_text or "",
+                    ai_summary=ai_summary or "",
+                    duration=duration_seconds,
                     session_id=session_id,
-                    conversation_id=None,  # Not from a conversation
                     entry_date=entry_date
                 )
 
                 if synthesis_result.should_create and len(synthesis_result.suggested_entries) > 0:
-                    logger.info(f"Created {len(synthesis_result.suggested_entries)} journal entries from audio recording")
+                    logger.info(f"Created {len(synthesis_result.suggested_entries)} comprehensive journal entries from audio recording")
                 else:
                     logger.info("No journal entries created from audio recording (not journal-worthy)")
 

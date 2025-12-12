@@ -604,7 +604,7 @@ const Conversation = () => {
                         <svg className="w-4 h-4 text-primary-600 dark:text-primary-400 mr-2 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                         </svg>
-                        <span>Explore the story, platform, and principles on the <Link to="/about" className="font-bold text-gray-700 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 underline">About</Link> page</span>
+                        <span>Learn more about AretaCare on the <Link to="/about" className="font-bold text-gray-700 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 underline">About</Link> page</span>
                       </p>
                     </div>
 
