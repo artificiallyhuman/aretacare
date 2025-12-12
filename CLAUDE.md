@@ -14,7 +14,7 @@ AretaCare is an AI-powered medical care advocate assistant that helps families u
 - Daily Plan - AI-generated summaries, user editable, delete and regenerate capability
 - AI Journal Synthesis - extracts medical updates from conversations, audio uploads, and document uploads with local timezone support and intelligent date interpretation (handles "Thursday", "next week", etc.)
 - Journal with date navigation - reverse chronological, sticky sidebar, scroll-to-date functionality, "Jump to Today" button, future entries visually distinguished with blue background shading
-- GPT-5.1 native file support for PDFs and images via Responses API
+- GPT-5.2 native file support for PDFs and images via Responses API
 - Audio recording with live waveform visualization, 15-minute countdown timer, and real-time transcription
 - Audio file uploads - supports MP3, M4A, WAV, WebM, OGG (20MB limit, auto-chunks long files, converts to MP3 for browser playback)
 - Document uploads - supports PDF, PNG, JPG, TXT (20MB limit) with text extraction and AI categorization
@@ -82,7 +82,7 @@ python -c "import secrets; print(secrets.token_urlsafe(32))"  # Generate secret 
 - Text extraction happens on upload (PDF, images via OCR)
 - Extracted text stored in database for quick access
 - Presigned URLs generated for secure document access (24-hour expiration)
-- Native GPT-5.1 file support via presigned URLs passed to OpenAI API
+- Native GPT-5.2 file support via presigned URLs passed to OpenAI API
 
 ### Critical Safety Architecture
 
@@ -105,7 +105,7 @@ STRICT SAFETY BOUNDARIES - YOU MUST NEVER:
 **This prompt is the enforcement mechanism for all safety requirements.** Any changes to AI behavior must update this prompt in `ai_config.py` while maintaining safety boundaries.
 
 **AI Configuration Structure:**
-- **Models**: `CHAT_MODEL = "gpt-5.1"`, `TRANSCRIPTION_MODEL = "gpt-4o-transcribe"`
+- **Models**: `CHAT_MODEL = "gpt-5.2"`, `TRANSCRIPTION_MODEL = "gpt-4o-transcribe"`
 - **All Prompts**: System prompt, conversation instructions, task-specific prompts (jargon translation, conversation coaching, document/audio categorization, journal synthesis, daily plan generation)
 - **Categories**: Document categories (12 types), Audio categories (12 types)
 - **Context Settings**: Conversation history (30 messages), journal context (10,000 tokens with tiered loading)
@@ -137,7 +137,7 @@ See `backend/app/config/README.md` for complete documentation on modifying AI be
 - Creates structured entries: title, content, entry type (6 types), date
 - Marks messages as `synthesized_to_journal=True`
 
-**GPT-5.1 Native File Support**
+**GPT-5.2 Native File Support**
 - Uses OpenAI Responses API with presigned S3 URLs for direct file processing
 - Supports PDFs, images (PNG, JPG), text files
 - AI analyzes actual files first; OCR text extraction provided only as fallback for unreadable files
@@ -199,7 +199,7 @@ See `backend/app/config/README.md` for complete documentation on modifying AI be
 - `backend/app/config/README.md` - Documentation for modifying AI behavior
 
 **Services** (`backend/app/services/`):
-- `openai_service.py` - GPT-5.1 integration via Responses API, all LLM interactions
+- `openai_service.py` - GPT-5.2 integration via Responses API, all LLM interactions
   - Conversation: Uses last 30 messages + full journal context (tiered: 7 days full, 8-30 days summarized, 30+ days titles)
   - Document categorization: Native file analysis prioritized over OCR text fallback
 - `journal_service.py` - Conversation analysis and journal synthesis
@@ -265,7 +265,7 @@ Backend must allow the **actual browser origin** (not Docker internal):
 ### Environment Variables
 
 Backend requires (`backend/.env`):
-- `OPENAI_API_KEY` - For GPT-5.1 interactions (Responses API)
+- `OPENAI_API_KEY` - For GPT-5.2 interactions (Responses API)
 - `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `S3_BUCKET_NAME` - For document storage
 - `DATABASE_URL` - Auto-configured in Docker Compose
 - `SECRET_KEY` - For JWT signing
@@ -308,7 +308,7 @@ Frontend optional (`frontend/.env`):
 
 ### Modifying AI Behavior
 Edit `backend/app/config/ai_config.py`:
-- Change model: `CHAT_MODEL = "gpt-5.1"`
+- Change model: `CHAT_MODEL = "gpt-5.2"`
 - Modify prompts: `SYSTEM_PROMPT` or task-specific prompts
 - Update categories: `DOCUMENT_CATEGORIES` or `AUDIO_CATEGORIES`
 - **Always maintain safety boundaries**

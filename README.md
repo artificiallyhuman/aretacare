@@ -134,7 +134,7 @@ docker compose down -v   # Stop and reset database
 |-------|------------|---------|
 | Frontend | React 18, Vite, Tailwind CSS | Dark mode support, responsive design, code splitting for performance |
 | Backend | FastAPI, SQLAlchemy, PostgreSQL | Auto-migrations, JWT auth with bcrypt, GZip compression |
-| AI | OpenAI GPT-5.1, GPT-4o-transcribe | Responses API for chat and file analysis, native PDF/image support |
+| AI | OpenAI GPT-5.2, GPT-4o-transcribe | Responses API for chat and file analysis, native PDF/image support |
 | Storage | AWS S3 | Presigned URLs (24-hour expiration), cascade cleanup, orphan detection |
 | Deployment | Docker Compose, Render | Multi-service orchestration, production blueprint |
 
@@ -198,7 +198,7 @@ aretacare/
 - **Per-user view tracking** for daily plans (independent "new plan" notifications for each user)
 
 ### AI-Powered Features
-- **Conversation interface** with GPT-5.1, "Thinking..." status, markdown rendering, copy-to-clipboard (converts markdown to formatted HTML)
+- **Conversation interface** with GPT-5.2, "Thinking..." status, markdown rendering, copy-to-clipboard (converts markdown to formatted HTML)
 - **Journal synthesis** - Automatically creates entries from conversations (6 entry types: medical update, treatment change, appointment, insight, milestone, other)
 - **Daily plan generation** - AI-generated daily priorities, reminders, and questions based on comprehensive context
 - **Document categorization** - 12 categories with AI-generated descriptions (user-editable, max 200 characters)
@@ -210,7 +210,7 @@ aretacare/
 - **Documents**: Upload PDFs, images (PNG, JPG), text files up to 20MB
   - Text extraction (PDFs via pypdf, images via Tesseract OCR)
   - Thumbnail generation for PDFs
-  - Native GPT-5.1 file support via presigned URLs
+  - Native GPT-5.2 file support via presigned URLs
   - Search by content, navigate by date
 - **Audio**: Upload MP3, M4A, WAV, WebM, OGG up to 20MB or record in-app
   - Live waveform visualization with 15-minute countdown timer

@@ -5,7 +5,16 @@ import AudioWaveform from './AudioWaveform';
 
 const MAX_RECORDING_SECONDS = 900; // 15 minutes (corresponds to ~50MB at typical WebM bitrate)
 
-const MessageInput = ({ onSendMessage, onFileUpload, loading }) => {
+const ROTATING_PROMPTS = [
+  "My mom's been in the hospital for a week…",
+  "I was just admitted to the ER with a broken leg…",
+  "My husband was diagnosed with prostate cancer…",
+  "I'm pregnant and might have to go on bed rest…",
+  "My lab results came back and I'm worried…",
+  "I'm caring for my dad and feeling overwhelmed…"
+];
+
+const MessageInput = ({ onSendMessage, onFileUpload, loading, hasMessages = false }) => {
   const { activeSessionId: sessionId } = useSessionContext();
   const [message, setMessage] = useState('');
   const [selectedFile, setSelectedFile] = useState(null);
@@ -14,11 +23,35 @@ const MessageInput = ({ onSendMessage, onFileUpload, loading }) => {
   const [audioStream, setAudioStream] = useState(null);
   const [recordingTimeLeft, setRecordingTimeLeft] = useState(MAX_RECORDING_SECONDS);
   const [recordingAutoStopped, setRecordingAutoStopped] = useState(false);
+  const [currentPromptIndex, setCurrentPromptIndex] = useState(0);
   const fileInputRef = useRef(null);
   const mediaRecorderRef = useRef(null);
   const audioChunksRef = useRef([]);
   const textareaRef = useRef(null);
   const recordingTimerRef = useRef(null);
+  const promptRotationTimerRef = useRef(null);
+
+  // Rotating prompt animation for new sessions
+  useEffect(() => {
+    if (!hasMessages && !message) {
+      // Start rotating prompts every 4 seconds
+      promptRotationTimerRef.current = setInterval(() => {
+        setCurrentPromptIndex((prev) => (prev + 1) % ROTATING_PROMPTS.length);
+      }, 4000);
+    } else {
+      // Clear rotation if user has messages or starts typing
+      if (promptRotationTimerRef.current) {
+        clearInterval(promptRotationTimerRef.current);
+        promptRotationTimerRef.current = null;
+      }
+    }
+
+    return () => {
+      if (promptRotationTimerRef.current) {
+        clearInterval(promptRotationTimerRef.current);
+      }
+    };
+  }, [hasMessages, message]);
 
   // Countdown timer for recording
   useEffect(() => {
@@ -312,8 +345,8 @@ const MessageInput = ({ onSendMessage, onFileUpload, loading }) => {
             value={message}
             onChange={handleTextareaChange}
             onKeyPress={handleKeyPress}
-            placeholder="Type your message..."
-            className="flex-1 resize-none border-0 rounded-lg px-2 py-2 md:px-3 focus:outline-none focus:ring-2 focus:ring-primary-500 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 max-h-[200px] overflow-y-auto text-base"
+            placeholder={hasMessages ? "Type your message..." : ROTATING_PROMPTS[currentPromptIndex]}
+            className="flex-1 resize-none border-0 rounded-lg px-2 py-2 md:px-3 focus:outline-none focus:ring-2 focus:ring-primary-500 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 max-h-[200px] overflow-y-auto text-base transition-all duration-500"
             rows={1}
             disabled={loading}
             style={{ minHeight: '40px' }}

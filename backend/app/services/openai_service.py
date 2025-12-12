@@ -227,7 +227,7 @@ class OpenAIService:
     ) -> Dict:
         """Categorize a document and generate a brief description using AI.
 
-        Uses GPT-5.1's native file support to analyze the actual document content.
+        Uses GPT-5.2's native file support to analyze the actual document content.
         Falls back to extracted text if document URL is not available.
         """
 

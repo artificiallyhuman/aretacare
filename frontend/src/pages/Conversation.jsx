@@ -724,6 +724,7 @@ const Conversation = () => {
           <MessageInput
             onSendMessage={handleSendMessage}
             loading={loading || isUploading}
+            hasMessages={messages.length > 0}
           />
         </div>
       </div>

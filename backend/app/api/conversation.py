@@ -51,7 +51,7 @@ async def send_message(
             doc = db.query(Document).filter(Document.id == document_id).first()
             if doc:
                 extracted_text = doc.extracted_text
-                # Generate presigned URL for documents and images (for native GPT-5.1 file support)
+                # Generate presigned URL for documents and images (for native GPT-5.2 file support)
                 generated_media_url = s3_service.generate_presigned_url(doc.s3_key, expiration=86400)  # 24 hours
 
         # Create user message

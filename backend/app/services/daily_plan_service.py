@@ -234,7 +234,7 @@ class DailyPlanService:
     @staticmethod
     async def _generate_plan_content(context: Dict) -> str:
         """
-        Use GPT-5.1 to generate the daily plan content.
+        Use GPT-5.2 to generate the daily plan content.
 
         Args:
             context: Dictionary containing all gathered context
