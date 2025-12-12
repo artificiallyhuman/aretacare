@@ -77,7 +77,7 @@ const Header = ({ onLogout, user }) => {
             <img
               src={logo}
               alt="AretaCare Logo"
-              className="w-9 h-9 sm:w-11 sm:h-11 object-contain"
+              className="w-10 h-10 sm:w-12 sm:h-12 object-contain"
             />
             <div>
               <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">AretaCare<span className="font-normal">™</span></h1>

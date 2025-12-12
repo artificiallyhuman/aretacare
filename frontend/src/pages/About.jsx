@@ -12,7 +12,7 @@ const About = () => {
           <img
             src={logo}
             alt="AretaCare Logo"
-            className="w-16 h-16 object-contain"
+            className="w-20 h-20 object-contain"
           />
         </div>
         <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Welcome to AretaCare<span className="font-normal">™</span></h2>

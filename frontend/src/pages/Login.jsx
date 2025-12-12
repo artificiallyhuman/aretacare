@@ -76,7 +76,7 @@ function Login() {
             <img
               src={logo}
               alt="AretaCare Logo"
-              className="w-11 h-11 object-contain"
+              className="w-12 h-12 object-contain"
             />
             <div>
               <h1 className="text-2xl font-bold text-gray-900 dark:text-white">AretaCare<span className="font-normal">™</span></h1>
