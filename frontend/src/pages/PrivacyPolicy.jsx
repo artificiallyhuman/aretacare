@@ -417,31 +417,61 @@ const PrivacyPolicy = () => {
             </p>
           </section>
 
-          {/* Section 13 */}
+          {/* Section 13 - Data Use and Insights */}
           <section>
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4 pb-2 border-b-2 border-primary-200 dark:border-primary-800">13. Open Source and Community</h2>
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4 pb-2 border-b-2 border-primary-200 dark:border-primary-800">13. Data Use and Aggregate Insights</h2>
+            <div className="space-y-4">
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">Your Personal Data</h3>
+                <p className="text-gray-700 dark:text-gray-300 leading-relaxed text-base">
+                  We never sell your personal data or share it with hospitals, insurers, advertisers, or data brokers. Your individual information remains private and under your control.
+                </p>
+              </div>
+
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">Aggregate, Population-Level Insights</h3>
+                <p className="text-gray-700 dark:text-gray-300 leading-relaxed text-base mb-3">
+                  To fund the platform, we may generate aggregate, population-level insights derived from patterns across many users. These insights:
+                </p>
+                <ul className="list-disc list-inside space-y-2 text-gray-700 dark:text-gray-300 pl-4">
+                  <li>Contain no individual records or personally identifiable information</li>
+                  <li>Cannot be traced back to any specific person or account</li>
+                  <li>Are derived from patterns across large groups of users</li>
+                  <li>May be used to improve the platform or offered to third parties</li>
+                </ul>
+                <div className="bg-blue-50 dark:bg-blue-900/30 border-l-4 border-blue-500 dark:border-blue-600 p-5 rounded-r-lg mt-4">
+                  <p className="text-blue-900 dark:text-blue-200">
+                    <strong>Example:</strong> We might identify that "60% of users caring for elderly parents ask about medication side effects" but we would never reveal that "User John Smith asked about metformin side effects on January 5th."
+                  </p>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          {/* Section 14 */}
+          <section>
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4 pb-2 border-b-2 border-primary-200 dark:border-primary-800">14. Open Source and Community</h2>
             <div className="space-y-4">
               <p className="text-gray-700 dark:text-gray-300 leading-relaxed text-base">As an open source project:</p>
               <ul className="list-disc list-inside space-y-2 text-gray-700 dark:text-gray-300 pl-4">
                 <li>Anyone can review the source code to understand how data is handled</li>
                 <li>Security researchers can identify and report vulnerabilities</li>
                 <li>The community can contribute improvements to privacy and security</li>
-                <li>There is no commercial entity selling or monetizing your data</li>
               </ul>
             </div>
           </section>
 
-          {/* Section 14 */}
+          {/* Section 15 */}
           <section>
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4 pb-2 border-b-2 border-primary-200 dark:border-primary-800">14. International Users</h2>
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4 pb-2 border-b-2 border-primary-200 dark:border-primary-800">15. International Users</h2>
             <p className="text-gray-700 dark:text-gray-300 leading-relaxed text-base">
               AretaCare may be accessed from anywhere in the world. By using this application, you consent to the transfer of your information to the United States (where our servers may be located) and other countries where our service providers operate.
             </p>
           </section>
 
-          {/* Section 15 */}
+          {/* Section 16 */}
           <section>
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4 pb-2 border-b-2 border-primary-200 dark:border-primary-800">15. California Privacy Rights</h2>
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4 pb-2 border-b-2 border-primary-200 dark:border-primary-800">16. California Privacy Rights</h2>
             <div className="space-y-4">
               <p className="text-gray-700 dark:text-gray-300 leading-relaxed text-base">
                 California residents have specific rights under the California Consumer Privacy Act (CCPA), including the right to:
@@ -449,14 +479,14 @@ const PrivacyPolicy = () => {
               <ul className="list-disc list-inside space-y-2 text-gray-700 dark:text-gray-300 pl-4">
                 <li>Know what personal information is collected</li>
                 <li>Request deletion of personal information</li>
-                <li>Opt-out of sale of personal information (we do not sell your data)</li>
+                <li>Opt-out of sale of personal information (we do not sell your personal data)</li>
               </ul>
             </div>
           </section>
 
-          {/* Section 16 */}
+          {/* Section 17 */}
           <section>
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4 pb-2 border-b-2 border-primary-200 dark:border-primary-800">16. Contact and Questions</h2>
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4 pb-2 border-b-2 border-primary-200 dark:border-primary-800">17. Contact and Questions</h2>
             <p className="text-gray-700 dark:text-gray-300 leading-relaxed text-base">
               For privacy questions, concerns, or data requests, please open an issue on our GitHub repository:{' '}
               <a href="https://github.com/artificiallyhuman/aretacare" target="_blank" rel="noopener noreferrer" className="text-primary-600 hover:text-primary-700 font-medium underline">

@@ -240,30 +240,52 @@ const TermsOfService = () => {
             </div>
           </section>
 
+          {/* Section 11 - Data Use */}
+          <section>
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4 pb-2 border-b-2 border-primary-200 dark:border-primary-800">11. Data Use and Privacy</h2>
+            <div className="space-y-4">
+              <p className="text-gray-700 dark:text-gray-300 leading-relaxed text-base">
+                AretaCare never sells your personal data or shares it with hospitals, insurers, advertisers, or data brokers.
+              </p>
+              <p className="text-gray-700 dark:text-gray-300 leading-relaxed text-base">
+                To fund the platform, we may generate aggregate, population-level insights derived from patterns across many users. These insights:
+              </p>
+              <ul className="list-disc list-inside space-y-2 text-gray-700 dark:text-gray-300 pl-4">
+                <li>Contain no individual records or personally identifiable information</li>
+                <li>Cannot be traced back to any specific person</li>
+                <li>Are derived from patterns across large groups of users</li>
+                <li>May be used to improve the platform or offered to third parties</li>
+              </ul>
+              <p className="text-gray-700 dark:text-gray-300 leading-relaxed text-base">
+                You retain full control over your data and can delete it at any time from Settings. When you delete your data, it is permanently removed from our systems.
+              </p>
+            </div>
+          </section>
+
           {/* Remaining sections with simpler formatting */}
           <section>
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4 pb-2 border-b-2 border-primary-200 dark:border-primary-800">11. Modifications to Terms</h2>
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4 pb-2 border-b-2 border-primary-200 dark:border-primary-800">12. Modifications to Terms</h2>
             <p className="text-gray-700 dark:text-gray-300 leading-relaxed text-base">
               We reserve the right to modify these Terms of Service at any time. Changes will be effective immediately upon posting. Your continued use of AretaCare after changes constitutes acceptance of the modified terms.
             </p>
           </section>
 
           <section>
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4 pb-2 border-b-2 border-primary-200 dark:border-primary-800">12. Termination</h2>
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4 pb-2 border-b-2 border-primary-200 dark:border-primary-800">13. Termination</h2>
             <p className="text-gray-700 dark:text-gray-300 leading-relaxed text-base">
               We reserve the right to terminate or suspend your access to AretaCare at any time, without notice, for any reason, including violation of these terms.
             </p>
           </section>
 
           <section>
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4 pb-2 border-b-2 border-primary-200 dark:border-primary-800">13. Governing Law</h2>
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4 pb-2 border-b-2 border-primary-200 dark:border-primary-800">14. Governing Law</h2>
             <p className="text-gray-700 dark:text-gray-300 leading-relaxed text-base">
               These Terms of Service shall be governed by and construed in accordance with the laws of the jurisdiction in which you reside, without regard to its conflict of law provisions.
             </p>
           </section>
 
           <section>
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4 pb-2 border-b-2 border-primary-200 dark:border-primary-800">14. Contact and Questions</h2>
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4 pb-2 border-b-2 border-primary-200 dark:border-primary-800">15. Contact and Questions</h2>
             <p className="text-gray-700 dark:text-gray-300 leading-relaxed text-base">
               For questions, issues, or contributions, please visit the GitHub repository at{' '}
               <a href="https://github.com/artificiallyhuman/aretacare" target="_blank" rel="noopener noreferrer" className="text-primary-600 hover:text-primary-700 font-medium underline">

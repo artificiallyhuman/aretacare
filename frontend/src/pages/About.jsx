@@ -192,7 +192,7 @@ const About = () => {
           </div>
           <h4 className="text-lg font-semibold text-gray-900 dark:text-white">Privacy & Security</h4>
         </div>
-        <p className="text-gray-600 dark:text-gray-400 mb-3">Your data belongs to you and is stored securely:</p>
+        <p className="text-gray-600 dark:text-gray-400 mb-3">Your personal data is never sold and is stored securely:</p>
         <ul className="text-gray-600 dark:text-gray-400 space-y-2 leading-relaxed">
           <li className="flex items-start">
             <span className="text-gray-600 dark:text-gray-400 mr-2 mt-1">•</span>
@@ -204,7 +204,7 @@ const About = () => {
           </li>
           <li className="flex items-start">
             <span className="text-gray-600 dark:text-gray-400 mr-2 mt-1">•</span>
-            <span>Deletion is <strong>permanent</strong> and removes all associated data from our servers</span>
+            <span>Deletion is <strong>permanent</strong> and removes all associated personal data from our servers</span>
           </li>
           <li className="flex items-start">
             <span className="text-gray-600 dark:text-gray-400 mr-2 mt-1">•</span>
@@ -219,7 +219,7 @@ const About = () => {
       {activeTab === 'story' && (
       <div className="bg-gradient-to-br from-primary-50 to-blue-50 dark:from-gray-800 dark:to-gray-900 rounded-lg border border-primary-200 dark:border-gray-700 p-8 shadow-sm">
         <div className="max-w-3xl mx-auto">
-          <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-6 text-center">Why I Created AretaCare<span className="font-normal">™</span></h3>
+          <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-6 text-center">Why I Created AretaCare</h3>
 
           <div className="prose prose-gray dark:prose-invert max-w-none text-gray-700 dark:text-gray-300 space-y-4 leading-relaxed">
             <p>
@@ -377,10 +377,13 @@ const About = () => {
                   We take your trust seriously. You're sharing personal, sometimes deeply sensitive information with us so you can manage care more effectively. That trust comes with clear responsibilities.
                 </p>
                 <p>
-                  We can't promise that the internet is safe or that no one will ever attempt to break in. What we can promise is that we will never be the ones you have to worry about. We won't sell your data. We won't share it with hospitals or insurers. We won't hold it hostage. If you choose to delete your data, it's deleted. This is your information, and you stay in control of it.
+                  We can't promise that the internet is safe or that no one will ever attempt to break in. What we can promise is that we will never be the ones you have to worry about. We won't sell your personal data. We won't share it with hospitals or insurers. We won't hold it hostage. If you choose to delete your data, it's deleted. This is your information, and you stay in control of it.
+                </p>
+                <p>
+                  To fund the platform, we may offer aggregate, population-level insights derived from patterns across many users. These insights contain no individual records and cannot be traced back to any specific person.
                 </p>
                 <p className="font-semibold text-gray-900 dark:text-white bg-amber-50 dark:bg-amber-900/20 p-4 rounded-lg border-l-2 border-amber-500 dark:border-amber-400">
-                  AretaCare will always respect your personal data and never profit from it.
+                  AretaCare will never sell your personal data or use it in ways that compromise your privacy.
                 </p>
               </div>
             </div>
@@ -645,7 +648,7 @@ const About = () => {
             </button>
             {expandedFaq === 7 && (
               <div className="px-6 pt-5 pb-6 text-gray-600 dark:text-gray-400 leading-relaxed border-t border-blue-200 dark:border-blue-800 mt-2">
-                Only you and the people you invite to collaborate on a session. AretaCare never sells your data or shares it with hospitals, insurers, advertisers, or data brokers.
+                Only you and the people you invite to collaborate on a session. AretaCare never sells your personal data or shares it with hospitals, insurers, advertisers, or data brokers.
               </div>
             )}
           </div>
@@ -672,8 +675,9 @@ const About = () => {
               </svg>
             </button>
             {expandedFaq === 8 && (
-              <div className="px-6 pt-5 pb-6 text-gray-600 dark:text-gray-400 leading-relaxed border-t border-blue-200 dark:border-blue-800 mt-2">
-                No. Your data is never sold or used for advertising. You stay in control of what you add and what you delete.
+              <div className="px-6 pt-5 pb-6 text-gray-600 dark:text-gray-400 leading-relaxed border-t border-blue-200 dark:border-blue-800 mt-2 space-y-3">
+                <p>No. Your personal data is never sold or used for advertising. You stay in control of what you add and what you delete.</p>
+                <p>To fund the platform, we may generate aggregate, population-level insights from patterns across many users, but these insights contain no individual records and cannot be traced back to any specific person.</p>
               </div>
             )}
           </div>
@@ -876,7 +880,7 @@ const About = () => {
             </button>
             {expandedFaq === 15 && (
               <div className="px-6 pt-5 pb-6 text-gray-600 dark:text-gray-400 leading-relaxed border-t border-blue-200 dark:border-blue-800 mt-2">
-                Yes. Anyone can review how the platform works, suggest improvements, or verify how data is handled in the public GitHub repo (<a href="https://github.com/artificiallyhuman/aretacare" target="_blank" rel="noopener noreferrer" className="text-primary-600 dark:text-primary-400 hover:underline">https://github.com/artificiallyhuman/aretacare</a>)
+                Yes. Anyone can review how the platform works, suggest improvements, or verify how data is handled in our public <a href="https://github.com/artificiallyhuman/aretacare" target="_blank" rel="noopener noreferrer" className="text-primary-600 dark:text-primary-400 hover:underline font-medium">GitHub repository</a>.
               </div>
             )}
           </div>
