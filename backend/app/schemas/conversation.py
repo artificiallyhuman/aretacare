@@ -14,6 +14,7 @@ class MessageResponse(BaseModel):
     role: MessageRole
     content: str
     created_at: datetime
+    updated_at: Optional[datetime] = None
     message_type: Optional[MessageType] = None
     document_id: Optional[int] = None
     media_url: Optional[str] = None
@@ -57,3 +58,16 @@ class ConversationCoachRequest(BaseModel):
 
 class ConversationCoachResponse(BaseModel):
     content: str
+
+
+class UpdateMessageRequest(BaseModel):
+    content: str
+
+
+class UpdateMessageResponse(BaseModel):
+    id: int
+    content: str
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True

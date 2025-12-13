@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.models import User, Session as SessionModel, Conversation, Document, AudioRecording
 from app.models.conversation import MessageRole, MessageType
-from app.schemas.conversation import MessageRequest, MessageResponse, ConversationHistory
+from app.schemas.conversation import MessageRequest, MessageResponse, ConversationHistory, UpdateMessageRequest, UpdateMessageResponse
 from app.services.openai_service import openai_service
 from app.services.journal_service import JournalService
 from app.services.s3_service import s3_service
@@ -249,6 +249,7 @@ async def get_conversation_history(
             "role": msg.role,
             "content": msg.content,
             "created_at": msg.created_at,
+            "updated_at": msg.updated_at,
             "message_type": msg.message_type,
             "document_id": msg.document_id,
             "media_url": media_url,
@@ -261,6 +262,43 @@ async def get_conversation_history(
     has_more = (offset + limit) < total_count
 
     return {"messages": message_responses, "total_count": total_count, "has_more": has_more}
+
+
+@router.patch("/{message_id}", response_model=UpdateMessageResponse)
+async def update_message(
+    message_id: int,
+    update_data: UpdateMessageRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Update a user message in the conversation"""
+    # Get the message
+    message = db.query(Conversation).filter(Conversation.id == message_id).first()
+    if not message:
+        raise HTTPException(status_code=404, detail="Message not found")
+
+    # Verify message is from a user (not assistant)
+    if message.role != MessageRole.USER:
+        raise HTTPException(status_code=400, detail="Only user messages can be edited")
+
+    # Verify user has access to session (owner or collaborator)
+    session = db.query(SessionModel).filter(SessionModel.id == message.session_id).first()
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+    check_session_access(session, current_user.id, db)
+
+    # Update message content
+    message.content = update_data.content
+    message.updated_at = datetime.utcnow()
+
+    db.commit()
+    db.refresh(message)
+
+    return UpdateMessageResponse(
+        id=message.id,
+        content=message.content,
+        updated_at=message.updated_at
+    )
 
 
 MAX_AUDIO_FILE_SIZE = 50 * 1024 * 1024  # 50MB

@@ -26,6 +26,7 @@ class Conversation(Base):
     role = Column(Enum(MessageRole), nullable=False)
     content = Column(Text, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, onupdate=datetime.utcnow, nullable=True)
 
     # Rich media support
     message_type = Column(Enum(MessageType), default=MessageType.TEXT, nullable=False)

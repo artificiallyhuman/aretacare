@@ -451,6 +451,14 @@ const Conversation = () => {
     }
   };
 
+  const handleMessageUpdate = (messageId, newContent, updatedAt) => {
+    setMessages(prevMessages =>
+      prevMessages.map(msg =>
+        msg.id === messageId ? { ...msg, content: newContent, updated_at: updatedAt } : msg
+      )
+    );
+  };
+
   if (sessionLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -691,6 +699,7 @@ const Conversation = () => {
                       <MessageBubble
                         message={message}
                         onThumbnailLoad={handleThumbnailLoad}
+                        onMessageUpdate={handleMessageUpdate}
                       />
                     </div>
                   );

@@ -2,127 +2,15 @@ import React, { memo, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import DocumentMessage from './DocumentMessage';
 import ImageMessage from './ImageMessage';
-
-// Simple markdown to HTML converter for clipboard
-const markdownToHtml = (markdown) => {
-  let html = markdown;
-
-  // Bold (do before italic to avoid conflicts)
-  html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-  html = html.replace(/__(.*?)__/g, '<strong>$1</strong>');
-
-  // Italic
-  html = html.replace(/\*([^*]+)\*/g, '<em>$1</em>');
-  html = html.replace(/_([^_]+)_/g, '<em>$1</em>');
-
-  // Split into lines for processing
-  const lines = html.split('\n');
-  const processed = [];
-  let listStack = []; // Track nested lists
-
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i];
-    const trimmed = line.trim();
-
-    // Horizontal rule
-    if (trimmed.match(/^(-{3,}|\*{3,}|_{3,})$/)) {
-      // Close any open lists
-      while (listStack.length > 0) {
-        processed.push(`</${listStack.pop()}>`);
-      }
-      processed.push('<hr>');
-      continue;
-    }
-
-    // Headers (with inline styles to match conversation display)
-    if (trimmed.match(/^### /)) {
-      while (listStack.length > 0) { processed.push(`</${listStack.pop()}>`); }
-      processed.push(trimmed.replace(/^### (.*)$/, '<h3 style="font-size: 1em; font-weight: 600; margin: 0.5em 0;">$1</h3>'));
-      continue;
-    } else if (trimmed.match(/^## /)) {
-      while (listStack.length > 0) { processed.push(`</${listStack.pop()}>`); }
-      processed.push(trimmed.replace(/^## (.*)$/, '<h2 style="font-size: 1.125em; font-weight: 600; margin: 0.5em 0;">$1</h2>'));
-      continue;
-    } else if (trimmed.match(/^# /)) {
-      while (listStack.length > 0) { processed.push(`</${listStack.pop()}>`); }
-      processed.push(trimmed.replace(/^# (.*)$/, '<h1 style="font-size: 1.25em; font-weight: 700; margin: 0.5em 0;">$1</h1>'));
-      continue;
-    }
-
-    // Calculate indentation level
-    const indent = line.search(/\S/);
-    const indentLevel = indent === -1 ? 0 : Math.floor(indent / 2);
-
-    // Check for list items (unordered or ordered)
-    const ulMatch = trimmed.match(/^[\*\-] (.*)$/);
-    const olMatch = trimmed.match(/^\d+\. (.*)$/);
-
-    if (ulMatch || olMatch) {
-      const content = ulMatch ? ulMatch[1] : olMatch[1];
-      const listType = ulMatch ? 'ul' : 'ol';
-
-      // Adjust list stack to match current indent level
-      while (listStack.length > indentLevel + 1) {
-        processed.push(`</${listStack.pop()}>`);
-      }
-
-      // Open new list if needed
-      if (listStack.length === indentLevel) {
-        processed.push(`<${listType}>`);
-        listStack.push(listType);
-      }
-
-      processed.push(`<li>${content}</li>`);
-      continue;
-    }
-
-    // Empty line
-    if (trimmed === '') {
-      // Close all lists on empty line
-      while (listStack.length > 0) {
-        processed.push(`</${listStack.pop()}>`);
-      }
-      // Only add paragraph break if there's more content coming
-      if (i < lines.length - 1 && lines[i + 1].trim() !== '') {
-        processed.push('</p><p>');
-      }
-      continue;
-    }
-
-    // Regular text
-    if (listStack.length > 0) {
-      while (listStack.length > 0) {
-        processed.push(`</${listStack.pop()}>`);
-      }
-    }
-    processed.push(line + '<br>');
-  }
-
-  // Close any remaining open lists
-  while (listStack.length > 0) {
-    processed.push(`</${listStack.pop()}>`);
-  }
-
-  // Join and wrap in paragraph
-  html = '<p>' + processed.join('') + '</p>';
-
-  // Clean up
-  html = html.replace(/<p><\/p>/g, '');
-  html = html.replace(/<p>(<[uo]l>)/g, '$1');
-  html = html.replace(/(<\/[uo]l>)<\/p>/g, '$1');
-  html = html.replace(/<p>(<h[123]>)/g, '$1');
-  html = html.replace(/(<\/h[123]>)<\/p>/g, '$1');
-  html = html.replace(/<p>(<hr>)/g, '$1');
-  html = html.replace(/(<hr>)<\/p>/g, '$1');
-  html = html.replace(/<br><\/p>/g, '</p>');
-  html = html.replace(/<p><br>/g, '<p>');
-
-  return html;
-};
+import api from '../services/api';
+import { markdownToHtml } from '../utils/markdownUtils';
 
 // Memoized to prevent re-renders when parent updates but message hasn't changed
-const MessageBubble = memo(({ message, onThumbnailLoad }) => {
+const MessageBubble = memo(({ message, onThumbnailLoad, onMessageUpdate }) => {
   const [copied, setCopied] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editedContent, setEditedContent] = useState(message.content);
+  const [isSaving, setIsSaving] = useState(false);
   const isUser = message.role === 'user';
   const messageType = message.message_type || 'text';
 
@@ -157,10 +45,45 @@ const MessageBubble = memo(({ message, onThumbnailLoad }) => {
     }
   };
 
+  const handleEdit = () => {
+    setIsEditing(true);
+    setEditedContent(message.content);
+  };
+
+  const handleCancel = () => {
+    setIsEditing(false);
+    setEditedContent(message.content);
+  };
+
+  const handleSave = async () => {
+    try {
+      setIsSaving(true);
+      const response = await api.patch(`/conversation/${message.id}`, {
+        content: editedContent
+      });
+
+      // Update the message content in the parent component with the updated_at from server
+      if (onMessageUpdate) {
+        onMessageUpdate(message.id, editedContent, response.data.updated_at);
+      }
+
+      setIsEditing(false);
+    } catch (error) {
+      console.error('Failed to update message:', error);
+      alert('Failed to update message. Please try again.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   // Check if message is from today
   const messageDate = new Date(message.created_at + 'Z');
   const today = new Date();
   const isToday = messageDate.toDateString() === today.toDateString();
+
+  // Check if message has been edited
+  // If updated_at exists, the message has been edited (it's NULL for new messages)
+  const isEdited = !!message.updated_at;
 
   // Format timestamp
   const formatTimestamp = () => {
@@ -192,39 +115,78 @@ const MessageBubble = memo(({ message, onThumbnailLoad }) => {
       >
         {/* Render based on message type */}
         {messageType === 'text' && (
-          <div className={`prose prose-sm max-w-none ${
-            isUser
-              ? 'prose-invert prose-headings:text-white prose-p:text-white prose-li:text-white prose-strong:text-white'
-              : 'prose-gray prose-headings:text-gray-900 prose-p:text-gray-800'
-          }`}>
-            <ReactMarkdown
-              components={{
-                // Custom paragraph spacing
-                p: ({node, ...props}) => <p className="mb-2 leading-relaxed" {...props} />,
-                // Custom heading styles
-                h1: ({node, ...props}) => <h1 className="text-xl font-bold mb-3 mt-4" {...props} />,
-                h2: ({node, ...props}) => <h2 className="text-lg font-semibold mb-2 mt-3" {...props} />,
-                h3: ({node, ...props}) => <h3 className="text-base font-semibold mb-2 mt-3" {...props} />,
-                // Custom list styles with better spacing
-                ul: ({node, ...props}) => <ul className="mb-3 space-y-1 pl-5" {...props} />,
-                ol: ({node, ...props}) => <ol className="mb-3 space-y-1 pl-5" {...props} />,
-                li: ({node, ...props}) => <li className="leading-relaxed" {...props} />,
-                // Code blocks
-                code: ({node, inline, ...props}) =>
-                  inline
-                    ? <code className={`${isUser ? 'bg-primary-700' : 'bg-gray-200 dark:bg-gray-700'} px-1.5 py-0.5 rounded text-sm`} {...props} />
-                    : <code className={`block ${isUser ? 'bg-primary-700' : 'bg-gray-200 dark:bg-gray-700'} p-3 rounded my-2 text-sm overflow-x-auto`} {...props} />,
-                // Blockquotes
-                blockquote: ({node, ...props}) => (
-                  <blockquote className={`border-l-4 ${isUser ? 'border-white' : 'border-primary-400'} pl-4 my-2 italic`} {...props} />
-                ),
-                // Strong/bold text
-                strong: ({node, ...props}) => <strong className="font-bold" {...props} />,
-              }}
-            >
-              {message.content}
-            </ReactMarkdown>
-          </div>
+          isEditing ? (
+            <div className="space-y-2">
+              <textarea
+                value={editedContent}
+                onChange={(e) => setEditedContent(e.target.value)}
+                className={`w-full min-h-[100px] p-2 rounded border ${
+                  isUser
+                    ? 'bg-primary-700 text-white border-primary-500 placeholder-primary-300'
+                    : 'bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600'
+                } focus:outline-none focus:ring-2 focus:ring-primary-500`}
+                disabled={isSaving}
+              />
+              <div className="flex gap-2 justify-end">
+                <button
+                  onClick={handleCancel}
+                  disabled={isSaving}
+                  className={`px-3 py-1 text-sm rounded ${
+                    isUser
+                      ? 'bg-primary-700 hover:bg-primary-800 text-white'
+                      : 'bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-900 dark:text-gray-100'
+                  } disabled:opacity-50`}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSave}
+                  disabled={isSaving || !editedContent.trim()}
+                  className={`px-3 py-1 text-sm rounded ${
+                    isUser
+                      ? 'bg-white text-primary-600 hover:bg-gray-100'
+                      : 'bg-primary-600 text-white hover:bg-primary-700'
+                  } disabled:opacity-50`}
+                >
+                  {isSaving ? 'Saving...' : 'Save'}
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className={`prose prose-sm max-w-none ${
+              isUser
+                ? 'prose-invert prose-headings:text-white prose-p:text-white prose-li:text-white prose-strong:text-white'
+                : 'prose-gray prose-headings:text-gray-900 prose-p:text-gray-800'
+            }`}>
+              <ReactMarkdown
+                components={{
+                  // Custom paragraph spacing
+                  p: ({node, ...props}) => <p className="mb-2 leading-relaxed" {...props} />,
+                  // Custom heading styles
+                  h1: ({node, ...props}) => <h1 className="text-xl font-bold mb-3 mt-4" {...props} />,
+                  h2: ({node, ...props}) => <h2 className="text-lg font-semibold mb-2 mt-3" {...props} />,
+                  h3: ({node, ...props}) => <h3 className="text-base font-semibold mb-2 mt-3" {...props} />,
+                  // Custom list styles with better spacing
+                  ul: ({node, ...props}) => <ul className="mb-3 space-y-1 pl-5" {...props} />,
+                  ol: ({node, ...props}) => <ol className="mb-3 space-y-1 pl-5" {...props} />,
+                  li: ({node, ...props}) => <li className="leading-relaxed" {...props} />,
+                  // Code blocks
+                  code: ({node, inline, ...props}) =>
+                    inline
+                      ? <code className={`${isUser ? 'bg-primary-700' : 'bg-gray-200 dark:bg-gray-700'} px-1.5 py-0.5 rounded text-sm`} {...props} />
+                      : <code className={`block ${isUser ? 'bg-primary-700' : 'bg-gray-200 dark:bg-gray-700'} p-3 rounded my-2 text-sm overflow-x-auto`} {...props} />,
+                  // Blockquotes
+                  blockquote: ({node, ...props}) => (
+                    <blockquote className={`border-l-4 ${isUser ? 'border-white' : 'border-primary-400'} pl-4 my-2 italic`} {...props} />
+                  ),
+                  // Strong/bold text
+                  strong: ({node, ...props}) => <strong className="font-bold" {...props} />,
+                }}
+              >
+                {message.content}
+              </ReactMarkdown>
+            </div>
+          )
         )}
 
         {messageType === 'document' && (
@@ -246,37 +208,64 @@ const MessageBubble = memo(({ message, onThumbnailLoad }) => {
           />
         )}
 
-        {/* Timestamp and Copy Button */}
-        <div className="flex items-center justify-between mt-2 gap-2">
-          <div className={`text-xs ${isUser ? 'text-primary-100' : 'text-gray-500 dark:text-gray-400'}`}>
-            {formatTimestamp()}
+        {/* Timestamp and Action Buttons */}
+        {!isEditing && (
+          <div className="flex items-center justify-between mt-2 gap-2">
+            <div className={`text-xs flex items-center gap-1.5 ${isUser ? 'text-primary-100' : 'text-gray-500 dark:text-gray-400'}`}>
+              {formatTimestamp()}
+              {isEdited && (
+                <span className={`italic ${isUser ? 'text-primary-200' : 'text-gray-400 dark:text-gray-500'}`}>
+                  (edited)
+                </span>
+              )}
+            </div>
+            <div className="flex gap-1">
+              {/* Edit button - only for user messages */}
+              {isUser && messageType === 'text' && (
+                <button
+                  onClick={handleEdit}
+                  className={`text-xs px-2 py-1 rounded transition-colors flex items-center gap-1 ${
+                    isUser
+                      ? 'hover:bg-primary-700 text-primary-100'
+                      : 'hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400'
+                  }`}
+                  title="Edit message"
+                >
+                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                  </svg>
+                  <span className="hidden sm:inline">Edit</span>
+                </button>
+              )}
+              {/* Copy button */}
+              <button
+                onClick={handleCopy}
+                className={`text-xs px-2 py-1 rounded transition-colors flex items-center gap-1 ${
+                  isUser
+                    ? 'hover:bg-primary-700 text-primary-100'
+                    : 'hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400'
+                }`}
+                title="Copy message"
+              >
+                {copied ? (
+                  <>
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                    <span>Copied!</span>
+                  </>
+                ) : (
+                  <>
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                    </svg>
+                    <span className="hidden sm:inline">Copy</span>
+                  </>
+                )}
+              </button>
+            </div>
           </div>
-          <button
-            onClick={handleCopy}
-            className={`text-xs px-2 py-1 rounded transition-colors flex items-center gap-1 ${
-              isUser
-                ? 'hover:bg-primary-700 text-primary-100'
-                : 'hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400'
-            }`}
-            title="Copy message"
-          >
-            {copied ? (
-              <>
-                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                </svg>
-                <span>Copied!</span>
-              </>
-            ) : (
-              <>
-                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                </svg>
-                <span className="hidden sm:inline">Copy</span>
-              </>
-            )}
-          </button>
-        </div>
+        )}
       </div>
     </div>
   );

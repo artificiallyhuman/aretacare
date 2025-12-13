@@ -690,3 +690,50 @@ def run_migrations():
                 conn.rollback()
         else:
             logger.info("pending_invitations table already exists")
+
+        # Check if conversations table exists and add updated_at column
+        if 'conversations' in inspector.get_table_names():
+            columns = [col['name'] for col in inspector.get_columns('conversations')]
+
+            # Add updated_at column if it doesn't exist
+            if 'updated_at' not in columns:
+                logger.info("Adding updated_at column to conversations table...")
+                try:
+                    # Add the column as nullable with no default
+                    # It will only be set when a message is actually edited
+                    conn.execute(text(
+                        "ALTER TABLE conversations ADD COLUMN updated_at TIMESTAMP NULL"
+                    ))
+                    conn.commit()
+                    logger.info("Successfully added updated_at column to conversations (nullable, no default)")
+
+                except Exception as e:
+                    logger.error(f"Failed to add updated_at column to conversations: {e}")
+                    conn.rollback()
+            else:
+                logger.info("updated_at column already exists in conversations")
+
+                # One-time fix: allow NULL and reset updated_at for unedited messages
+                try:
+                    # First, make the column nullable if it isn't already
+                    conn.execute(text(
+                        "ALTER TABLE conversations ALTER COLUMN updated_at DROP NOT NULL"
+                    ))
+                    conn.commit()
+                    logger.info("Made updated_at column nullable")
+
+                    # Now set updated_at to NULL for messages where it equals created_at
+                    # (these are unedited messages that got the wrong timestamp from the old migration)
+                    result = conn.execute(text(
+                        "UPDATE conversations SET updated_at = NULL WHERE updated_at = created_at"
+                    ))
+                    if result.rowcount > 0:
+                        conn.commit()
+                        logger.info(f"Reset updated_at to NULL for {result.rowcount} unedited messages")
+                except Exception as e:
+                    # Column might already be nullable or already fixed, that's okay
+                    logger.info(f"updated_at column migration already applied or not needed: {e}")
+                    try:
+                        conn.rollback()
+                    except:
+                        pass
