@@ -7,11 +7,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 AretaCare is an AI-powered medical care advocate assistant that helps families understand complex medical information. It maintains **strict safety boundaries** - never diagnosing, recommending treatments, or predicting outcomes. The core function is to translate medical jargon, summarize clinical notes, and help families prepare questions for healthcare teams.
 
 **Key Features:**
-- Conversation-first interface with AI care advocate, "Thinking..." status, enhanced markdown rendering, copy-to-clipboard for messages (converts markdown to formatted HTML), contextual timestamps (time only for today, date+time for older messages)
+- Conversation-first interface with AI care advocate, "Thinking..." status, enhanced markdown rendering, message editing (edit your own messages, marked with "(edited)" indicator), copy-to-clipboard for messages (converts markdown to formatted HTML), contextual timestamps (time only for today, date+time for older messages)
 - Multi-session support (up to 3 sessions per user, including collaborations) with session switcher, rename (15-char limit), and separate data per session
 - Session sharing - share sessions with up to 9 collaborators (10 people total), collaborators have full access to session data
 - Dedicated Collaboration page - manage collaborators across all sessions, add/remove users, transfer ownership, pending invitations, leave shared sessions
-- Daily Plan - AI-generated summaries, user editable, delete and regenerate capability
+- Daily Plan - AI-generated summaries, user editable, delete and regenerate capability, copy-to-clipboard (converts markdown to formatted HTML)
 - AI Journal Synthesis - extracts medical updates from conversations, audio uploads, and document uploads with local timezone support and intelligent date interpretation (handles "Thursday", "next week", etc.)
 - Journal with date navigation - reverse chronological, sticky sidebar, scroll-to-date functionality, "Jump to Today" button, future entries visually distinguished with blue background shading
 - GPT-5.2 native file support for PDFs and images via Responses API
@@ -72,7 +72,7 @@ python -c "import secrets; print(secrets.token_urlsafe(32))"  # Generate secret 
 - Daily plans with AI-generated content, user edits, and date tracking
 - **Daily plan views table** tracks per-user view status - each collaborator has independent view tracking, ensures "new plan" banners show correctly for each user
 - **Error logs table** stores application errors (OpenAI API, S3, uploads, etc.) for debugging in production, auto-cleanup after 30 days
-- Conversations include rich media support (message_type, document_id, media_url fields)
+- **Conversations table** includes rich media support (message_type, document_id, media_url fields) and edit tracking (updated_at field is NULL for unedited messages, set to timestamp when edited)
 - Cascading deletes: deleting user removes all sessions and associated data (including S3 files), deleting individual session removes all session data
 - **Database migrations** run automatically on startup via `run_migrations()` in `backend/app/core/migrations.py`
 - Database can be reset with `RESET_DB=true` environment variable (development/production)
@@ -186,7 +186,7 @@ See `backend/app/config/README.md` for complete documentation on modifying AI be
 - `permissions.py` - Shared permission checking (`check_session_access()` for owner/collaborator validation)
 - `documents.py` - Document upload/management with AI categorization, returns presigned URLs (media_url/thumbnail_url) for immediate display
 - `audio_recording.py` - Audio recording management with AI categorization
-- `conversation.py` - Conversation endpoints with rich media support
+- `conversation.py` - Conversation endpoints with rich media support, message editing (PATCH /{message_id})
 - `journal.py` - Journal CRUD operations
 - `daily_plans.py` - Daily plan management (generate, list, update)
 - `tools.py` - Standalone tools (Jargon Translator, Conversation Coach)
@@ -222,7 +222,7 @@ See `backend/app/config/README.md` for complete documentation on modifying AI be
 **Pages** (`frontend/src/pages/`):
 - `Conversation.jsx` - Main chat interface with daily plan panel, thumbnails load immediately after upload
 - `JournalView.jsx` - Journal with date navigation, "Jump to Today" button, future entries shown with blue background shading
-- `DailyPlan.jsx` - Daily plan history and editing
+- `DailyPlan.jsx` - Daily plan history, editing, and copy-to-clipboard functionality (mobile-responsive buttons)
 - `Collaboration.jsx` - Dedicated collaboration management page (view owned/shared sessions, add/remove collaborators, transfer ownership, pending invitations, leave sessions)
 - `Settings.jsx` - Account management, session management
 - `tools/Documents.jsx` - AI-powered document manager (at `/tools/documents` route)
@@ -234,7 +234,7 @@ See `backend/app/config/README.md` for complete documentation on modifying AI be
 
 **Components** (`frontend/src/components/`):
 - `Header.jsx` - Navigation with session switcher and top-level Collaboration link
-- `MessageBubble.jsx` - Chat message display with copy-to-clipboard (markdown to HTML converter) and contextual timestamps
+- `MessageBubble.jsx` - Chat message display with message editing (Edit button for user messages, inline textarea, "(edited)" indicator), copy-to-clipboard, and contextual timestamps
 - `MessageInput.jsx` - Chat input with audio recording
 - `AudioWaveform.jsx` - Real-time waveform visualization
 - `DailyPlan/DailyPlanPanel.jsx` - Collapsible daily plan sidebar
@@ -246,6 +246,7 @@ See `backend/app/config/README.md` for complete documentation on modifying AI be
 - `contexts/NetworkContext.jsx` - Network status monitoring (online/offline detection)
 - `services/api.js` - Axios instance with auth interceptor
 - `utils/dateUtils.js` - Timezone utilities for converting UTC to local time (used in admin console)
+- `utils/markdownUtils.js` - Shared markdown to HTML converter for clipboard operations (used by MessageBubble and DailyPlan)
 
 ## Important Configuration Details
 
@@ -361,17 +362,19 @@ Theme managed via `ThemeContext.jsx`, persisted to localStorage.
 **Key Features to Test:**
 - Registration with four required acknowledgements
 - Conversation interface with text/voice/document input
+- Message editing (edit user messages, verify "(edited)" indicator appears)
+- Copy-to-clipboard (messages and daily plans, paste into Word/Google Docs to verify rich formatting)
 - Multi-session management (up to 3 sessions, rename, switch)
 - Collaboration page (add/remove collaborators, transfer ownership, pending invitations, leave session)
 - Session sharing (share by email, collaborator access)
 - Email notifications (password changes, email changes, collaborator actions)
 - Journal with date navigation and timezone handling
-- Daily Plan generation and editing
+- Daily Plan generation, editing, and copy-to-clipboard
 - Documents/Audio with AI categorization
 - Settings: account updates, session management, password reset
 - Admin console (requires email in ADMIN_EMAILS): timezone-aware metrics dashboard, error logs, security logs, system health, accounts, users, S3 cleanup, audit logs
 - Network status banner (test offline behavior)
-- Mobile responsiveness
+- Mobile responsiveness (especially daily plan buttons)
 
 ## Safety Guideline Enforcement
 

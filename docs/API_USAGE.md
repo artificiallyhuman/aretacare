@@ -522,13 +522,15 @@ Content-Type: application/json
     "id": 1,
     "role": "user",
     "content": "Can you help me understand my lab results?",
-    "created_at": "2025-01-15T10:00:00Z"
+    "created_at": "2025-01-15T10:00:00Z",
+    "updated_at": null
   },
   "assistant_message": {
     "id": 2,
     "role": "assistant",
     "content": "I'd be happy to help you understand your lab results...",
-    "created_at": "2025-01-15T10:00:01Z"
+    "created_at": "2025-01-15T10:00:01Z",
+    "updated_at": null
   }
 }
 ```
@@ -559,13 +561,15 @@ Authorization: Bearer <token>
       "id": 1,
       "role": "user",
       "content": "Hello, I need help...",
-      "created_at": "2025-01-15T10:00:00Z"
+      "created_at": "2025-01-15T10:00:00Z",
+      "updated_at": null
     },
     {
       "id": 2,
       "role": "assistant",
       "content": "I'm here to help...",
-      "created_at": "2025-01-15T10:00:01Z"
+      "created_at": "2025-01-15T10:00:01Z",
+      "updated_at": null
     }
   ]
 }
@@ -576,6 +580,46 @@ Authorization: Bearer <token>
 curl -H "Authorization: Bearer <token>" \
   http://localhost:8000/api/conversation/{session_id}/history
 ```
+
+#### Edit Message
+
+```bash
+PATCH /api/conversation/{message_id}
+Authorization: Bearer <token>
+Content-Type: application/json
+```
+
+**Request Body:**
+```json
+{
+  "content": "Updated message content"
+}
+```
+
+**Response:**
+```json
+{
+  "id": 1,
+  "content": "Updated message content",
+  "updated_at": "2025-01-15T10:05:00Z"
+}
+```
+
+**Example:**
+```bash
+curl -X PATCH http://localhost:8000/api/conversation/123 \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "content": "Corrected message content"
+  }'
+```
+
+**Notes:**
+- Only user messages can be edited (not assistant responses)
+- User must have access to the session (owner or collaborator)
+- The `updated_at` field is set when a message is edited
+- Edited messages display an "(edited)" indicator in the UI
 
 ### Audio Recordings
 
