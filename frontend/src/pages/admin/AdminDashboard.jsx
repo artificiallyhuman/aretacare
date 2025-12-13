@@ -129,7 +129,7 @@ export default function AdminDashboard() {
       // Get user's timezone offset in hours (negative for timezones behind UTC like PST)
       const timezoneOffsetHours = -Math.round(today.getTimezoneOffset() / 60);
 
-      const metricTypes = ['users', 'sessions', 'documents', 'conversations', 'error_logs', 'security_logs'];
+      const metricTypes = ['users', 'sessions', 'collaborators', 'documents', 'audio', 'conversations', 'error_logs', 'security_logs'];
       const trendData = {};
 
       for (const metric of metricTypes) {
@@ -161,19 +161,33 @@ export default function AdminDashboard() {
         )}
 
         {/* Metrics Grid */}
-        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           <MetricCard
-            title="Total Users"
+            title="Users"
             value={metrics?.user_count}
             icon="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"
             color="blue"
             loading={loading}
           />
           <MetricCard
-            title="Total Sessions"
+            title="Sessions"
             value={metrics?.session_count}
             icon="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"
             color="green"
+            loading={loading}
+          />
+          <MetricCard
+            title="Collaborators"
+            value={metrics?.collaborator_count}
+            icon="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
+            color="indigo"
+            loading={loading}
+          />
+          <MetricCard
+            title="Messages"
+            value={metrics?.conversation_count}
+            icon="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
+            color="pink"
             loading={loading}
           />
           <MetricCard
@@ -191,13 +205,6 @@ export default function AdminDashboard() {
             loading={loading}
           />
           <MetricCard
-            title="Messages"
-            value={metrics?.conversation_count}
-            icon="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
-            color="pink"
-            loading={loading}
-          />
-          <MetricCard
             title="Journal Entries"
             value={metrics?.journal_count}
             icon="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
@@ -209,16 +216,22 @@ export default function AdminDashboard() {
         {/* Trends */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4">
-            <TrendChart data={trends.users} loading={trendsLoading} title="New Users (30 days)" />
+            <TrendChart data={trends.users} loading={trendsLoading} title="Users (30 days)" />
           </div>
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4">
-            <TrendChart data={trends.sessions} loading={trendsLoading} title="New Sessions (30 days)" />
+            <TrendChart data={trends.sessions} loading={trendsLoading} title="Sessions (30 days)" />
+          </div>
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4">
+            <TrendChart data={trends.collaborators} loading={trendsLoading} title="Collaborators (30 days)" />
+          </div>
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4">
+            <TrendChart data={trends.conversations} loading={trendsLoading} title="Messages (30 days)" />
           </div>
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4">
             <TrendChart data={trends.documents} loading={trendsLoading} title="Documents Uploaded (30 days)" />
           </div>
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4">
-            <TrendChart data={trends.conversations} loading={trendsLoading} title="Messages (30 days)" />
+            <TrendChart data={trends.audio} loading={trendsLoading} title="Audio Recordings (30 days)" />
           </div>
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4">
             <TrendChart data={trends.error_logs} loading={trendsLoading} title="Error Logs (30 days)" />

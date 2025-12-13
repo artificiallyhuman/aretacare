@@ -74,7 +74,7 @@ async def get_platform_metrics(
 
 @router.get("/metrics/trends", response_model=MetricsTrendResponse)
 async def get_metrics_trend(
-    metric: str = Query(..., description="Metric to query: users, sessions, documents, audio, conversations, journals"),
+    metric: str = Query(..., description="Metric to query: users, sessions, collaborators, documents, audio, conversations, journals"),
     days: int = Query(30, ge=1, le=365, description="Number of days to look back"),
     user_date: str = Query(None, description="User's local date in YYYY-MM-DD format (optional)"),
     timezone_offset_hours: int = Query(0, ge=-12, le=14, description="User's timezone offset from UTC in hours (optional)"),
@@ -82,7 +82,7 @@ async def get_metrics_trend(
     db: DBSession = Depends(get_db)
 ):
     """Get daily counts for a metric over time."""
-    valid_metrics = ["users", "sessions", "documents", "audio", "conversations", "journals", "error_logs", "security_logs"]
+    valid_metrics = ["users", "sessions", "collaborators", "documents", "audio", "conversations", "journals", "error_logs", "security_logs"]
     if metric not in valid_metrics:
         raise HTTPException(
             status_code=400,

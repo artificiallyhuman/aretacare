@@ -106,6 +106,7 @@ class AdminService:
         return {
             "user_count": db.query(User).count(),
             "session_count": db.query(SessionModel).count(),
+            "collaborator_count": db.query(SessionCollaborator).count(),
             "document_count": db.query(Document).count(),
             "audio_count": db.query(AudioRecording).count(),
             "conversation_count": db.query(Conversation).count(),
@@ -119,7 +120,7 @@ class AdminService:
 
         Args:
             db: Database session
-            metric: One of "users", "sessions", "documents", "audio", "conversations", "journals"
+            metric: One of "users", "sessions", "collaborators", "documents", "audio", "conversations", "journals"
             days: Number of days to look back
             user_date: User's local date (optional, defaults to UTC today)
 
@@ -134,6 +135,7 @@ class AdminService:
         metric_map = {
             "users": (User, "created_at"),
             "sessions": (SessionModel, "created_at"),
+            "collaborators": (SessionCollaborator, "added_at"),
             "documents": (Document, "uploaded_at"),
             "audio": (AudioRecording, "created_at"),
             "conversations": (Conversation, "created_at"),

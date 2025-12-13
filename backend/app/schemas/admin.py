@@ -11,6 +11,7 @@ class PlatformMetrics(BaseModel):
     """Current platform-wide metrics."""
     user_count: int
     session_count: int
+    collaborator_count: int
     document_count: int
     audio_count: int
     conversation_count: int
