@@ -136,12 +136,14 @@ See `backend/app/config/README.md` for complete documentation on modifying AI be
 - Third-person observational writing style - avoids pronouns like "I", "me", "they"
 - Creates structured entries: title, content, entry type (6 types), date
 - Marks messages as `synthesized_to_journal=True`
+- **Uses native file support** - passes presigned S3 URLs to OpenAI for document/audio analysis instead of extracted text (faster, more accurate)
 
 **GPT-5.2 Native File Support**
 - Uses OpenAI Responses API with presigned S3 URLs for direct file processing
 - Supports PDFs, images (PNG, JPG), text files
-- AI analyzes actual files first; OCR text extraction provided only as fallback for unreadable files
-- Document categorization (12 categories) and description generation via native file analysis
+- AI analyzes actual files directly; OCR text extraction provided only as fallback for unreadable files
+- Used for: conversation responses, journal synthesis, document categorization, and description generation
+- Significantly faster than sending extracted text, especially for long documents
 
 ### Authentication & Privacy Model
 
@@ -205,6 +207,7 @@ See `backend/app/config/README.md` for complete documentation on modifying AI be
 - `journal_service.py` - Conversation analysis and journal synthesis
   - Creates entries for all substantive caregiving conversations (6 entry types)
   - Uses last 7 days of journal context for synthesis decisions
+  - **Uses native file support** - passes presigned S3 URLs for document/audio analysis instead of extracted text (faster, more accurate)
 - `daily_plan_service.py` - Daily plan generation
   - Context: ALL journal entries (grouped by type, max 5 per type), last 7 days conversations (max 50 messages), last 10 documents (with text preview), last 3 daily plans
   - Generates concise daily priorities, reminders, and questions for care team

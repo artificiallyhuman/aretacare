@@ -199,7 +199,7 @@ aretacare/
 
 ### AI-Powered Features
 - **Conversation interface** with GPT-5.2, "Thinking..." status, markdown rendering, copy-to-clipboard (converts markdown to formatted HTML)
-- **Journal synthesis** - Automatically creates entries from conversations (6 entry types: medical update, treatment change, appointment, insight, milestone, other)
+- **Journal synthesis** - Automatically creates entries from conversations, documents, and audio using native file support (6 entry types: medical update, treatment change, appointment, insight, milestone, other). Analyzes actual files for faster, more accurate synthesis.
 - **Daily plan generation** - AI-generated daily priorities, reminders, and questions based on comprehensive context
 - **Document categorization** - 12 categories with AI-generated descriptions (user-editable, max 200 characters)
 - **Audio categorization** - 12 categories with AI-generated summaries (user-editable, max 150 characters)

@@ -62,9 +62,11 @@ Each feature has dedicated prompts and functions:
 | Medical Summary | `get_medical_summary_prompt()` | Summarize medical text |
 | Jargon Translation | `get_jargon_translation_prompt()` | Explain medical terms |
 | Conversation Coaching | `get_conversation_coaching_prompt()` | Help prepare for appointments |
-| Document Categorization | `get_document_categorization_prompt()` | Classify uploaded documents |
+| Document Categorization | `get_document_categorization_prompt()` | Classify uploaded documents using native file support |
 | Audio Categorization | `get_audio_categorization_prompt()` | Classify voice recordings |
-| Journal Synthesis | `JOURNAL_SYNTHESIS_PROMPT` | Generate journal entries from conversations with date interpretation ("Thursday", "next week") and automatic entry splitting for events on different dates |
+| Journal Synthesis (Conversation) | `JOURNAL_SYNTHESIS_PROMPT` | Generate journal entries from conversations with date interpretation ("Thursday", "next week") and automatic entry splitting for events on different dates |
+| Journal Synthesis (Documents) | `DOCUMENT_JOURNAL_SYNTHESIS_PROMPT` | Generate comprehensive journal entries from uploaded documents using native file support (analyzes actual PDFs/images via presigned URLs for faster, more accurate synthesis) |
+| Journal Synthesis (Audio) | `AUDIO_JOURNAL_SYNTHESIS_PROMPT` | Generate comprehensive journal entries from audio transcriptions |
 | Daily Plan | `DAILY_PLAN_SYSTEM_PROMPT` | Generate daily care plans |
 
 ### Categories
