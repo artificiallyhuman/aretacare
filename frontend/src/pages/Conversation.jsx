@@ -508,7 +508,7 @@ const Conversation = () => {
   }
 
   return (
-    <div className="flex flex-col h-[calc(100vh-4rem)] h-[calc(100dvh-4rem)] supports-[height:100dvh]:h-[calc(100dvh-4rem)] overscroll-none">
+    <div className="flex flex-col h-full overscroll-none">
       {/* Main content area */}
       <div className="flex flex-1 overflow-hidden">
         {/* Daily Plan Panel (collapsible sidebar) */}

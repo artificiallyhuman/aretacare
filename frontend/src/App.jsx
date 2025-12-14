@@ -132,9 +132,10 @@ function AppContent() {
   const showFooter = user && location.pathname !== '/';
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-200">
+    <div className="h-full flex flex-col bg-gray-50 dark:bg-gray-900 transition-colors duration-200 overflow-hidden">
       <NetworkStatusBanner />
       {user && <Header onLogout={handleLogout} user={user} />}
+      <main className="flex-1 overflow-hidden">
       <Suspense fallback={<PageLoadingFallback />}>
         <Routes>
           {/* Public Routes */}
@@ -317,6 +318,7 @@ function AppContent() {
           />
         </Routes>
       </Suspense>
+      </main>
 
       {showFooter && <Footer />}
     </div>
