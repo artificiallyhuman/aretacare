@@ -18,6 +18,12 @@ const MessageBubble = memo(({ message, onThumbnailLoad, onMessageUpdate }) => {
   const isUser = message.role === 'user';
   const messageType = message.message_type || 'text';
 
+  // Check if this is a temporary message (still uploading)
+  const isTempMessage = typeof message.id === 'string' && message.id.startsWith('temp-');
+
+  // Document/image was deleted if: not a temp message AND document_id is null
+  const wasDeleted = !isTempMessage && !message.document_id;
+
   // Auto-resize textarea height as user types (only grow, keep width fixed)
   useEffect(() => {
     if (isEditing && textareaRef.current) {
@@ -222,6 +228,7 @@ const MessageBubble = memo(({ message, onThumbnailLoad, onMessageUpdate }) => {
             thumbnailUrl={message.thumbnail_url}
             extractedText={message.extracted_text}
             onThumbnailLoad={onThumbnailLoad}
+            wasDeleted={wasDeleted}
           />
         )}
 
@@ -232,6 +239,7 @@ const MessageBubble = memo(({ message, onThumbnailLoad, onMessageUpdate }) => {
             mediaUrl={message.media_url}
             extractedText={message.extracted_text}
             onThumbnailLoad={onThumbnailLoad}
+            wasDeleted={wasDeleted}
           />
         )}
 

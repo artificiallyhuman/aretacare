@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 
-const ImageMessage = ({ content, documentId, mediaUrl, extractedText, onThumbnailLoad }) => {
+const ImageMessage = ({ content, documentId, mediaUrl, extractedText, onThumbnailLoad, wasDeleted }) => {
   const [showExtracted, setShowExtracted] = useState(false);
   const [showFullImage, setShowFullImage] = useState(false);
   const [imageError, setImageError] = useState(false);
@@ -25,8 +25,8 @@ const ImageMessage = ({ content, documentId, mediaUrl, extractedText, onThumbnai
             onError={() => setImageError(true)}
           />
         </div>
-      ) : documentId || imageError ? (
-        /* Document ID exists but no media URL = image was deleted */
+      ) : wasDeleted || imageError ? (
+        /* Image was deleted (documentId is NULL) or image failed to load */
         <div className="flex items-center space-x-3 mt-2 p-3 bg-gray-100 dark:bg-gray-800 rounded border border-gray-300 dark:border-gray-600">
           <svg
             className="w-8 h-8 text-gray-400 dark:text-gray-500"

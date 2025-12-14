@@ -800,6 +800,46 @@ def run_migrations():
         else:
             logger.info("pending_invitations table already exists")
 
+        # Check if journal_entries table exists and add source_document_id column
+        if 'journal_entries' in inspector.get_table_names():
+            columns = [col['name'] for col in inspector.get_columns('journal_entries')]
+
+            # Add source_document_id column if it doesn't exist
+            if 'source_document_id' not in columns:
+                logger.info("Adding source_document_id column to journal_entries table...")
+                try:
+                    # Add the column as nullable
+                    conn.execute(text("""
+                        ALTER TABLE journal_entries
+                        ADD COLUMN source_document_id INTEGER NULL
+                    """))
+                    conn.commit()
+                    logger.info("Successfully added source_document_id column to journal_entries")
+
+                    # Add foreign key constraint with ON DELETE CASCADE
+                    conn.execute(text("""
+                        ALTER TABLE journal_entries
+                        ADD CONSTRAINT fk_journal_entries_document
+                        FOREIGN KEY (source_document_id)
+                        REFERENCES documents(id) ON DELETE CASCADE
+                    """))
+                    conn.commit()
+                    logger.info("Successfully added foreign key constraint for source_document_id")
+
+                    # Create index for efficient lookups by document
+                    conn.execute(text("""
+                        CREATE INDEX IF NOT EXISTS idx_journal_entries_document
+                        ON journal_entries (source_document_id)
+                    """))
+                    conn.commit()
+                    logger.info("Created index idx_journal_entries_document")
+
+                except Exception as e:
+                    logger.error(f"Failed to add source_document_id column to journal_entries: {e}")
+                    conn.rollback()
+            else:
+                logger.info("source_document_id column already exists in journal_entries")
+
         # Check if conversations table exists and add updated_at column
         if 'conversations' in inspector.get_table_names():
             columns = [col['name'] for col in inspector.get_columns('conversations')]

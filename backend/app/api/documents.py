@@ -281,7 +281,8 @@ async def upload_document(
                     extracted_text=extracted_text or "",
                     ai_description=ai_description or "",
                     session_id=session_id,
-                    entry_date=entry_date
+                    entry_date=entry_date,
+                    document_id=document.id
                 )
 
                 if synthesis_result.should_create and len(synthesis_result.suggested_entries) > 0:
@@ -445,7 +446,9 @@ async def delete_document(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """Delete a document"""
+    """Delete a document and its associated journal entries"""
+    from app.models.journal import JournalEntry
+
     document = db.query(DocumentModel).filter(DocumentModel.id == document_id).first()
 
     if not document:
@@ -464,11 +467,14 @@ async def delete_document(
     if document.thumbnail_s3_key:
         await s3_service.delete_file(document.thumbnail_s3_key)
 
+    # Delete associated journal entries (cascade should handle this, but explicit for clarity)
+    db.query(JournalEntry).filter(JournalEntry.source_document_id == document_id).delete()
+
     # Delete from database
     db.delete(document)
     db.commit()
 
-    return {"message": "Document deleted successfully"}
+    return {"message": "Document and associated journal entries deleted successfully"}
 
 
 @router.get("/{document_id}/download-url")

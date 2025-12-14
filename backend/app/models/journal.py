@@ -28,6 +28,7 @@ class JournalEntry(Base):
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
     source_message_ids = Column(ARRAY(Integer), nullable=True)  # Links to conversation messages
+    source_document_id = Column(Integer, ForeignKey("documents.id", ondelete="CASCADE"), nullable=True)  # Links to uploaded document
     entry_metadata = Column(JSONB, nullable=True)  # Flexible additional data
 
     # Relationships

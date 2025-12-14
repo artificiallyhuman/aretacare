@@ -71,7 +71,8 @@ class JournalService:
         extracted_text: str,
         ai_description: str,
         session_id: str,
-        entry_date: Optional[date] = None
+        entry_date: Optional[date] = None,
+        document_id: Optional[int] = None
     ) -> JournalSynthesisResult:
         """Synthesize comprehensive journal entry from uploaded medical document"""
         try:
@@ -221,7 +222,8 @@ IMPORTANT: Respond with ONLY a valid JSON object in this exact format, with no a
                         entry_date=suggestion.entry_date
                     ),
                     created_by="ai",
-                    source_message_ids=None
+                    source_message_ids=None,
+                    source_document_id=document_id
                 )
 
             return synthesis_result
@@ -696,7 +698,8 @@ IMPORTANT: Respond with ONLY a valid JSON object in this exact format, with no a
         session_id: str,
         entry_data: JournalEntryCreate,
         created_by: str,
-        source_message_ids: Optional[List[int]] = None
+        source_message_ids: Optional[List[int]] = None,
+        source_document_id: Optional[int] = None
     ) -> JournalEntry:
         """Create a new journal entry"""
         try:
@@ -709,7 +712,8 @@ IMPORTANT: Respond with ONLY a valid JSON object in this exact format, with no a
                 title=entry_data.title,
                 content=entry_data.content,
                 created_by=created_by,
-                source_message_ids=source_message_ids or []
+                source_message_ids=source_message_ids or [],
+                source_document_id=source_document_id
             )
 
             self.db.add(entry)

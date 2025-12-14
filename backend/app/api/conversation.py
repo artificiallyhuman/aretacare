@@ -133,15 +133,16 @@ async def send_message(
 
         # Use comprehensive document synthesis if a document was uploaded
         # Otherwise use conversational synthesis
-        if document_id and extracted_text:
+        if document_id:
             # Get document details for comprehensive synthesis
             doc = db.query(Document).filter(Document.id == document_id).first()
             synthesis_result = await journal_service.synthesize_from_document(
                 filename=doc.filename if doc else "Unknown document",
-                extracted_text=extracted_text,
+                extracted_text=extracted_text or "",  # Use empty string if no text
                 ai_description=doc.ai_description if (doc and doc.ai_description) else "",
                 session_id=session_id,
-                entry_date=user_date
+                entry_date=user_date,
+                document_id=document_id
             )
         else:
             # Regular conversational synthesis
