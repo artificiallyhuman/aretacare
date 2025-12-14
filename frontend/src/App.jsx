@@ -135,7 +135,7 @@ function AppContent() {
     <div className="h-full flex flex-col bg-gray-50 dark:bg-gray-900 transition-colors duration-200 overflow-hidden">
       <NetworkStatusBanner />
       {user && <Header onLogout={handleLogout} user={user} />}
-      <main className="flex-1 overflow-hidden">
+      <main className="flex-1 overflow-auto">
       <Suspense fallback={<PageLoadingFallback />}>
         <Routes>
           {/* Public Routes */}
