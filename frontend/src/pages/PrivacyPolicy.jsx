@@ -487,8 +487,14 @@ const PrivacyPolicy = () => {
           {/* Section 17 */}
           <section>
             <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4 pb-2 border-b-2 border-primary-200 dark:border-primary-800">17. Contact and Questions</h2>
+            <p className="text-gray-700 dark:text-gray-300 leading-relaxed text-base mb-4">
+              For privacy questions, concerns, or data requests, please contact us at{' '}
+              <a href="mailto:privacy@aretacare.com" className="text-primary-600 hover:text-primary-700 font-medium underline">
+                privacy@aretacare.com
+              </a>
+            </p>
             <p className="text-gray-700 dark:text-gray-300 leading-relaxed text-base">
-              For privacy questions, concerns, or data requests, please open an issue on our GitHub repository:{' '}
+              You can also open an issue on our GitHub repository:{' '}
               <a href="https://github.com/artificiallyhuman/aretacare" target="_blank" rel="noopener noreferrer" className="text-primary-600 hover:text-primary-700 font-medium underline">
                 https://github.com/artificiallyhuman/aretacare
               </a>

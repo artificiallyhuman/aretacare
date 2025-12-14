@@ -19,13 +19,13 @@ AretaCare sends automated emails for:
 ### Prerequisites
 
 1. You must have 2-Step Verification enabled on your Google Account
-2. You need access to the Gmail account: `aretacare@gmail.com`
+2. You need access to a Gmail account you want to use for sending emails (e.g., `noreply@yourdomain.com`)
 
 ### Steps to Create Gmail App Password
 
 1. **Go to Google Account Settings**
    - Visit: https://myaccount.google.com/
-   - Sign in with `aretacare@gmail.com`
+   - Sign in with your Gmail account
 
 2. **Navigate to Security**
    - Click "Security" in the left sidebar
@@ -69,10 +69,10 @@ The following variables are configured in `backend/.env`:
 # Email Configuration
 SMTP_HOST=smtp.gmail.com          # Gmail SMTP server
 SMTP_PORT=587                      # TLS port
-SMTP_USER=aretacare@gmail.com     # Gmail account
+SMTP_USER=your-email@gmail.com    # Your Gmail account
 SMTP_PASSWORD=                     # 16-character App Password (SET THIS!)
-SMTP_FROM_EMAIL=aretacare@gmail.com
-SMTP_FROM_NAME=AretaCare
+SMTP_FROM_EMAIL=your-email@gmail.com  # Email address shown to recipients
+SMTP_FROM_NAME=YourAppName         # Name shown to recipients
 FRONTEND_URL=http://localhost:3001  # Used for reset link
 ```
 
@@ -137,11 +137,11 @@ All emails include:
 **Problem:** Backend logs show SMTP authentication error
 
 **Solutions:**
-1. Verify 2-Step Verification is enabled on the Gmail account
+1. Verify 2-Step Verification is enabled on your Gmail account
 2. Regenerate the App Password following the steps above
 3. Make sure you're using the App Password, NOT the Gmail password
 4. Ensure there are no spaces in the SMTP_PASSWORD value
-5. Verify the Gmail account is `aretacare@gmail.com`
+5. Verify SMTP_USER matches your Gmail account
 
 ### "Email not sent" in logs
 

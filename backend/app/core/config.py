@@ -35,9 +35,9 @@ class Settings(BaseSettings):
     # Email (for password reset)
     SMTP_HOST: str = "smtp.gmail.com"
     SMTP_PORT: int = 587
-    SMTP_USER: str = "aretacare@gmail.com"
+    SMTP_USER: str = "noreply@aretacare.com"
     SMTP_PASSWORD: str = ""  # Gmail App Password
-    SMTP_FROM_EMAIL: str = "aretacare@gmail.com"
+    SMTP_FROM_EMAIL: str = "noreply@aretacare.com"
     SMTP_FROM_NAME: str = "AretaCare"
     FRONTEND_URL: str = "http://localhost:3001"
 
