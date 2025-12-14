@@ -729,7 +729,23 @@ def run_migrations():
                     except:
                         pass
 
-                # Step 2: Reset updated_at to NULL for unedited messages (always run this)
+                # Step 2: Remove any DEFAULT value from updated_at column
+                try:
+                    # Drop any default value that might be set at the database level
+                    conn.execute(text(
+                        "ALTER TABLE conversations ALTER COLUMN updated_at DROP DEFAULT"
+                    ))
+                    conn.commit()
+                    logger.info("Dropped DEFAULT from updated_at column")
+                except Exception as e:
+                    # Column might already have no default, that's okay
+                    logger.info(f"updated_at column already has no default: {e}")
+                    try:
+                        conn.rollback()
+                    except:
+                        pass
+
+                # Step 3: Reset updated_at to NULL for unedited messages (always run this)
                 try:
                     # Set updated_at to NULL for messages where it's within 1 second of created_at
                     # (these are unedited messages that got updated_at set automatically)
