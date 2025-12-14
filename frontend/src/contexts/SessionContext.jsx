@@ -168,12 +168,16 @@ export const SessionProvider = ({ children }) => {
       // If we deleted the active session, switch to another one or create new
       if (sessionId === activeSessionId) {
         if (remainingSessions.length > 0) {
-          // Switch to the most recent remaining session
-          const mostRecent = remainingSessions.reduce((latest, session) => {
+          // Prefer owned sessions over collaboration sessions
+          const ownedSessions = remainingSessions.filter(s => s.is_owner);
+          const sessionsToChooseFrom = ownedSessions.length > 0 ? ownedSessions : remainingSessions;
+
+          // Switch to the most recent session (preferring owned)
+          const mostRecent = sessionsToChooseFrom.reduce((latest, session) => {
             return new Date(session.last_activity) > new Date(latest.last_activity)
               ? session
               : latest;
-          }, remainingSessions[0]);
+          }, sessionsToChooseFrom[0]);
 
           setActiveSessionId(mostRecent.id);
           localStorage.setItem('active_session_id', mostRecent.id);

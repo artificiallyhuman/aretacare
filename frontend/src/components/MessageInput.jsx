@@ -286,15 +286,15 @@ const MessageInput = ({ onSendMessage, onFileUpload, loading, hasMessages = fals
 
       {/* File preview */}
       {selectedFile && (
-        <div className="mb-2 md:mb-3 flex items-center space-x-2 p-2 md:p-3 bg-white dark:bg-gray-700 rounded-lg border border-primary-200 dark:border-gray-600 shadow-sm">
-          <svg className="w-4 h-4 md:w-5 md:h-5 text-primary-600 dark:text-primary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <div className="mb-2 md:mb-3 flex items-center gap-2 p-2 md:p-3 bg-white dark:bg-gray-700 rounded-lg border border-primary-200 dark:border-gray-600 shadow-sm">
+          <svg className="w-4 h-4 md:w-5 md:h-5 text-primary-600 dark:text-primary-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
           </svg>
-          <span className="text-xs md:text-sm text-gray-800 dark:text-gray-200 flex-1 font-medium truncate">{selectedFile.name}</span>
+          <span className="text-xs md:text-sm text-gray-800 dark:text-gray-200 font-medium w-0 flex-1 truncate">{selectedFile.name}</span>
           <button
             type="button"
             onClick={removeFile}
-            className="text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 text-xs md:text-sm font-medium"
+            className="text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 text-xs md:text-sm font-medium shrink-0"
           >
             Remove
           </button>

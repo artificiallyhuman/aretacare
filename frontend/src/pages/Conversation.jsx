@@ -320,13 +320,21 @@ const Conversation = () => {
           }
         }
       } else {
-        // Check if latest plan has been viewed (show banner if not)
+        // Check if today's plan has been viewed (show banner if not)
         try {
           const latestPlan = await dailyPlanAPI.getLatest(activeSessionId);
-          // latestPlan.data will be null if no plans exist yet (new session)
+          // Only show banner if the plan is from today and hasn't been viewed
           if (latestPlan.data && !latestPlan.data.viewed) {
-            setHasNewDailyPlan(true);
-            setShowBanner(true);
+            // Check if the plan is from today
+            const planDate = new Date(latestPlan.data.date);
+            const today = new Date();
+            const isToday = planDate.getFullYear() === today.getFullYear() &&
+                            planDate.getMonth() === today.getMonth() &&
+                            planDate.getDate() === today.getDate();
+            if (isToday) {
+              setHasNewDailyPlan(true);
+              setShowBanner(true);
+            }
           }
         } catch (err) {
           console.error('Error fetching latest daily plan:', err);
