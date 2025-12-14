@@ -132,7 +132,9 @@ async def delete_audio_recording(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """Delete an audio recording"""
+    """Delete an audio recording and its associated journal entries"""
+    from app.models.journal import JournalEntry
+
     # Verify session belongs to current user
     session = db.query(SessionModel).filter(SessionModel.id == session_id).first()
     if not session:
@@ -156,11 +158,14 @@ async def delete_audio_recording(
         logger.error(f"Failed to delete audio file from S3: {str(e)}")
         # Continue with database deletion even if S3 deletion fails
 
+    # Delete associated journal entries (cascade should handle this, but explicit for clarity)
+    db.query(JournalEntry).filter(JournalEntry.source_audio_id == recording_id).delete()
+
     # Delete from database
     db.delete(recording)
     db.commit()
 
-    return {"message": "Recording deleted successfully"}
+    return {"message": "Recording and associated journal entries deleted successfully"}
 
 
 @router.get("/{session_id}/{recording_id}/url")

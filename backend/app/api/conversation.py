@@ -45,6 +45,7 @@ async def send_message(
     session_id: str,
     message_type: str = "text",
     document_id: Optional[int] = None,
+    audio_recording_id: Optional[int] = None,
     media_url: Optional[str] = None,
     entry_date: Optional[str] = None,  # User's local date (YYYY-MM-DD)
     current_user: User = Depends(get_current_user),
@@ -76,6 +77,7 @@ async def send_message(
             content=content,
             message_type=MessageType(message_type),
             document_id=document_id,
+            audio_recording_id=audio_recording_id,
             media_url=generated_media_url or media_url,
             extracted_text=extracted_text
         )
@@ -138,9 +140,11 @@ async def send_message(
             doc = db.query(Document).filter(Document.id == document_id).first()
             synthesis_result = await journal_service.synthesize_from_document(
                 filename=doc.filename if doc else "Unknown document",
-                extracted_text=extracted_text or "",  # Use empty string if no text
                 ai_description=doc.ai_description if (doc and doc.ai_description) else "",
                 session_id=session_id,
+                document_url=generated_media_url,  # Use presigned URL for native file support
+                content_type=doc.content_type if doc else None,
+                extracted_text=extracted_text or "",  # Fallback only if URL unavailable
                 entry_date=user_date,
                 document_id=document_id
             )
@@ -151,7 +155,8 @@ async def send_message(
                 ai_response=ai_response_text,
                 session_id=session_id,
                 conversation_id=user_message.id,
-                entry_date=user_date
+                entry_date=user_date,
+                audio_recording_id=user_message.audio_recording_id
             )
 
         # Mark messages as synthesized if entries were created
@@ -638,7 +643,8 @@ async def transcribe_audio(
                     ai_summary=ai_summary or "",
                     duration=duration_seconds,
                     session_id=session_id,
-                    entry_date=entry_date
+                    entry_date=entry_date,
+                    audio_id=audio_recording.id
                 )
 
                 if synthesis_result.should_create and len(synthesis_result.suggested_entries) > 0:

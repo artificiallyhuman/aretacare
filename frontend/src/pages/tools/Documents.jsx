@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useSessionContext } from '../../contexts/SessionContext';
 import { documentAPI } from '../../services/api';
-import { isToday, formatDateShort } from '../../utils/dateUtils';
+import { isToday, formatDateShort, formatLocalDate } from '../../utils/dateUtils';
 
 // Document categories with labels and colors
 const CATEGORIES = [
@@ -971,7 +971,7 @@ const Documents = () => {
                 </p>
                 <ul className="text-sm text-orange-800 dark:text-orange-300 space-y-1.5">
                   <li>• <strong>Category:</strong> {getCategoryLabel(documentToDelete.category)}</li>
-                  <li>• <strong>Uploaded:</strong> {formatDateShort(documentToDelete.upload_date)}</li>
+                  <li>• <strong>Uploaded:</strong> {formatLocalDate(documentToDelete.uploaded_at)}</li>
                   {documentToDelete.ai_description && (
                     <li>• <strong>Description:</strong> {documentToDelete.ai_description}</li>
                   )}

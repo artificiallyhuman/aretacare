@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import AdminLayout from '../../components/admin/AdminLayout';
 import { adminAPI } from '../../services/api';
+import { formatLocalDate } from '../../utils/dateUtils';
 
 export default function AdminAccounts() {
   const [searchParams] = useSearchParams();
@@ -230,14 +231,14 @@ export default function AdminAccounts() {
                           </td>
                           <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">
                             {account.last_activity
-                              ? new Date(account.last_activity).toLocaleDateString()
+                              ? formatLocalDate(account.last_activity)
                               : 'Never'}
                           </td>
                           <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">
                             {account.session_count}
                           </td>
                           <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">
-                            {new Date(account.created_at).toLocaleDateString()}
+                            {formatLocalDate(account.created_at)}
                           </td>
                           <td className="px-4 py-3">
                             <button

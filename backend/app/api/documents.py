@@ -275,12 +275,14 @@ async def upload_document(
                 else:
                     entry_date = date_type.today()
 
-                # Use specialized document synthesis method with FULL extracted text
+                # Use specialized document synthesis method with native file support
                 synthesis_result = await journal_service.synthesize_from_document(
                     filename=file.filename,
-                    extracted_text=extracted_text or "",
                     ai_description=ai_description or "",
                     session_id=session_id,
+                    document_url=document_url,  # Use presigned URL for native file support
+                    content_type=file.content_type,
+                    extracted_text=extracted_text or "",  # Fallback only if URL unavailable
                     entry_date=entry_date,
                     document_id=document.id
                 )

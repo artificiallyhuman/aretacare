@@ -36,6 +36,7 @@ const MessageInput = ({ onSendMessage, loading, hasMessages = false }) => {
   const [recordingAutoStopped, setRecordingAutoStopped] = useState(false);
   const [currentPromptIndex, setCurrentPromptIndex] = useState(0);
   const [isMobile, setIsMobile] = useState(false);
+  const [audioRecordingId, setAudioRecordingId] = useState(null);
   const fileInputRef = useRef(null);
   const mediaRecorderRef = useRef(null);
   const audioChunksRef = useRef([]);
@@ -121,9 +122,10 @@ const MessageInput = ({ onSendMessage, loading, hasMessages = false }) => {
   const handleSubmit = (e) => {
     e.preventDefault();
     if (message.trim() || selectedFile) {
-      onSendMessage(message, selectedFile);
+      onSendMessage(message, selectedFile, audioRecordingId);
       setMessage('');
       setSelectedFile(null);
+      setAudioRecordingId(null);  // Clear audio recording ID after sending
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
@@ -231,15 +233,58 @@ const MessageInput = ({ onSendMessage, loading, hasMessages = false }) => {
       // Pass skipJournalSynthesis=true for conversation recordings (will synthesize when message is sent)
       const response = await conversationAPI.transcribeAudio(audioFile, sessionId, true);
       const transcribedText = response.data.transcribed_text;
+      const recordingId = response.data.recording_id;
 
-      // Add transcribed text to the message input
-      setMessage(prev => prev ? `${prev}\n${transcribedText}` : transcribedText);
+      // Store the recording ID to link to journal entry when message is sent
+      setAudioRecordingId(recordingId);
+
+      // Hide transcribing indicator once transcription is complete
+      setIsTranscribing(false);
+
+      // Automatically send the transcribed message
+      const finalMessage = message ? `${message}\n${transcribedText}` : transcribedText;
+
+      // Clear the input and send the message
+      setMessage('');
+
+      // Send the message with the audio recording ID
+      await onSendMessage(finalMessage, null, recordingId);
+
+      // Show temporary notification about Audio Recordings near the message box
+      const notification = document.createElement('div');
+      notification.className = 'fixed bottom-24 left-1/2 transform -translate-x-1/2 z-50 bg-blue-100 dark:bg-blue-900/90 border-2 border-blue-300 dark:border-blue-700 text-blue-900 dark:text-blue-100 px-4 py-3 rounded-lg shadow-lg max-w-sm mx-4 text-center';
+      notification.style.opacity = '0';
+      notification.style.animation = 'fadeIn 0.3s ease-out forwards';
+      notification.innerHTML = `
+        <style>
+          @keyframes fadeIn {
+            from { opacity: 0; transform: translate(-50%, 20px); }
+            to { opacity: 1; transform: translate(-50%, 0); }
+          }
+        </style>
+        <div class="flex items-center gap-3">
+          <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+          </svg>
+          <span class="text-sm font-medium">You can view and delete this audio recording in the Audio Recordings page</span>
+        </div>
+      `;
+      document.body.appendChild(notification);
+
+      // Remove notification after 5 seconds
+      setTimeout(() => {
+        notification.style.opacity = '0';
+        notification.style.transition = 'opacity 0.5s ease-out';
+        setTimeout(() => notification.remove(), 500);
+      }, 5000);
+
     } catch (error) {
       console.error('Error transcribing audio:', error);
       const errorMessage = error.response?.data?.detail || 'Failed to transcribe audio. Please try again.';
       alert(errorMessage);
-    } finally {
       setIsTranscribing(false);
+    } finally {
+      setAudioRecordingId(null); // Clear the recording ID
     }
   };
 
@@ -251,7 +296,7 @@ const MessageInput = ({ onSendMessage, loading, hasMessages = false }) => {
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-2">
               <div className="w-2.5 h-2.5 md:w-3 md:h-3 bg-red-600 rounded-full animate-pulse"></div>
-              <span className="text-xs md:text-sm font-medium text-red-800 dark:text-red-300">Recording... Click "Stop" when finished</span>
+              <span className="text-xs md:text-sm font-medium text-red-800 dark:text-red-300">Recording... Click "End" when finished</span>
             </div>
             <div className="flex items-center space-x-2">
               <svg className="w-4 h-4 md:w-5 md:h-5 text-red-700 dark:text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -344,20 +389,20 @@ const MessageInput = ({ onSendMessage, loading, hasMessages = false }) => {
             </button>
           )}
 
-          {/* Stop recording button */}
+          {/* End recording button */}
           {isRecording && (
             <button
               type="button"
               onClick={stopRecording}
-              aria-label="Stop voice recording"
+              aria-label="End voice recording"
               aria-pressed={isRecording}
               className="px-2 py-1.5 md:py-2 rounded-lg transition bg-red-600 hover:bg-red-700 text-white font-medium text-xs flex items-center gap-1 animate-pulse flex-shrink-0"
-              title="Stop recording"
+              title="End recording and send"
             >
               <svg className="w-3 h-3 md:w-4 md:h-4" fill="currentColor" viewBox="0 0 24 24">
                 <rect x="6" y="6" width="12" height="12" rx="1" />
               </svg>
-              <span>Stop</span>
+              <span>End</span>
             </button>
           )}
 

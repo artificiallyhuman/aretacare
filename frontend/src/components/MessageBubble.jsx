@@ -222,25 +222,131 @@ const MessageBubble = memo(({ message, onThumbnailLoad, onMessageUpdate }) => {
         )}
 
         {messageType === 'document' && (
-          <DocumentMessage
-            content={message.content}
-            documentId={message.document_id}
-            thumbnailUrl={message.thumbnail_url}
-            extractedText={message.extracted_text}
-            onThumbnailLoad={onThumbnailLoad}
-            wasDeleted={wasDeleted}
-          />
+          isEditing ? (
+            <div className="space-y-2">
+              <textarea
+                ref={textareaRef}
+                value={editedContent}
+                onChange={(e) => setEditedContent(e.target.value)}
+                style={{
+                  minWidth: contentSize.width > 0 ? `${contentSize.width}px` : undefined,
+                  minHeight: contentSize.height > 0 ? `${contentSize.height}px` : '60px',
+                }}
+                className={`w-full max-h-[70vh] p-2 rounded border resize-none overflow-y-auto ${
+                  isUser
+                    ? 'bg-primary-700 text-white border-primary-500 placeholder-primary-300'
+                    : 'bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600'
+                } focus:outline-none focus:ring-2 focus:ring-primary-500`}
+                disabled={isSaving}
+              />
+              {/* Show document thumbnail (non-editable) */}
+              <DocumentMessage
+                content=""
+                documentId={message.document_id}
+                thumbnailUrl={message.thumbnail_url}
+                extractedText={message.extracted_text}
+                onThumbnailLoad={onThumbnailLoad}
+                wasDeleted={wasDeleted}
+              />
+              <div className="flex gap-2 justify-end">
+                <button
+                  onClick={handleCancel}
+                  disabled={isSaving}
+                  className={`px-3 py-1 text-sm rounded ${
+                    isUser
+                      ? 'bg-primary-700 hover:bg-primary-800 text-white'
+                      : 'bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-900 dark:text-gray-100'
+                  } disabled:opacity-50`}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSave}
+                  disabled={isSaving || !editedContent.trim()}
+                  className={`px-3 py-1 text-sm rounded ${
+                    isUser
+                      ? 'bg-white text-primary-600 hover:bg-gray-100'
+                      : 'bg-primary-600 text-white hover:bg-primary-700'
+                  } disabled:opacity-50`}
+                >
+                  {isSaving ? 'Saving...' : 'Save'}
+                </button>
+              </div>
+            </div>
+          ) : (
+            <DocumentMessage
+              content={message.content}
+              documentId={message.document_id}
+              thumbnailUrl={message.thumbnail_url}
+              extractedText={message.extracted_text}
+              onThumbnailLoad={onThumbnailLoad}
+              wasDeleted={wasDeleted}
+            />
+          )
         )}
 
         {messageType === 'image' && (
-          <ImageMessage
-            content={message.content}
-            documentId={message.document_id}
-            mediaUrl={message.media_url}
-            extractedText={message.extracted_text}
-            onThumbnailLoad={onThumbnailLoad}
-            wasDeleted={wasDeleted}
-          />
+          isEditing ? (
+            <div className="space-y-2">
+              <textarea
+                ref={textareaRef}
+                value={editedContent}
+                onChange={(e) => setEditedContent(e.target.value)}
+                style={{
+                  minWidth: contentSize.width > 0 ? `${contentSize.width}px` : undefined,
+                  minHeight: contentSize.height > 0 ? `${contentSize.height}px` : '60px',
+                }}
+                className={`w-full max-h-[70vh] p-2 rounded border resize-none overflow-y-auto ${
+                  isUser
+                    ? 'bg-primary-700 text-white border-primary-500 placeholder-primary-300'
+                    : 'bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600'
+                } focus:outline-none focus:ring-2 focus:ring-primary-500`}
+                disabled={isSaving}
+              />
+              {/* Show image (non-editable) */}
+              <ImageMessage
+                content=""
+                documentId={message.document_id}
+                mediaUrl={message.media_url}
+                extractedText={message.extracted_text}
+                onThumbnailLoad={onThumbnailLoad}
+                wasDeleted={wasDeleted}
+              />
+              <div className="flex gap-2 justify-end">
+                <button
+                  onClick={handleCancel}
+                  disabled={isSaving}
+                  className={`px-3 py-1 text-sm rounded ${
+                    isUser
+                      ? 'bg-primary-700 hover:bg-primary-800 text-white'
+                      : 'bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-900 dark:text-gray-100'
+                  } disabled:opacity-50`}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSave}
+                  disabled={isSaving || !editedContent.trim()}
+                  className={`px-3 py-1 text-sm rounded ${
+                    isUser
+                      ? 'bg-white text-primary-600 hover:bg-gray-100'
+                      : 'bg-primary-600 text-white hover:bg-primary-700'
+                  } disabled:opacity-50`}
+                >
+                  {isSaving ? 'Saving...' : 'Save'}
+                </button>
+              </div>
+            </div>
+          ) : (
+            <ImageMessage
+              content={message.content}
+              documentId={message.document_id}
+              mediaUrl={message.media_url}
+              extractedText={message.extracted_text}
+              onThumbnailLoad={onThumbnailLoad}
+              wasDeleted={wasDeleted}
+            />
+          )
         )}
 
         {/* Timestamp and Action Buttons */}
@@ -256,7 +362,7 @@ const MessageBubble = memo(({ message, onThumbnailLoad, onMessageUpdate }) => {
             </div>
             <div className="flex gap-1">
               {/* Edit button - only for user messages */}
-              {isUser && messageType === 'text' && (
+              {isUser && (
                 <button
                   onClick={handleEdit}
                   className={`text-xs px-2 py-1 rounded transition-colors flex items-center gap-1 ${
@@ -264,7 +370,7 @@ const MessageBubble = memo(({ message, onThumbnailLoad, onMessageUpdate }) => {
                       ? 'hover:bg-primary-700 text-primary-100'
                       : 'hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400'
                   }`}
-                  title="Edit message"
+                  title="Edit message text"
                 >
                   <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />

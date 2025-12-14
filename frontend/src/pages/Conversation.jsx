@@ -73,13 +73,60 @@ const Conversation = () => {
     setShowScrollTopButton(scrollTop > 200 && messages.length > 0);
   };
 
+  // Scroll to show AI message at top of viewport
+  const scrollToAIMessage = () => {
+    if (lastAIMessageRef.current) {
+      lastAIMessageRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  };
+
+  // Wait for AI message element and all images to be fully loaded before scrolling
+  const scrollToAIMessageWhenReady = () => {
+    if (!lastAIMessageRef.current) {
+      // Element not mounted yet, wait for next frame
+      requestAnimationFrame(scrollToAIMessageWhenReady);
+      return;
+    }
+
+    // Check if the element has rendered content (has height)
+    if (lastAIMessageRef.current.offsetHeight === 0) {
+      // Element mounted but not rendered yet, wait for next frame
+      requestAnimationFrame(scrollToAIMessageWhenReady);
+      return;
+    }
+
+    // Find all images in the messages container that could affect scroll position
+    const container = messagesContainerRef.current;
+    if (!container) {
+      requestAnimationFrame(scrollToAIMessageWhenReady);
+      return;
+    }
+
+    const images = container.querySelectorAll('img');
+    let allImagesLoaded = true;
+
+    images.forEach(img => {
+      // Check if image is loaded (complete and has dimensions)
+      if (!img.complete || img.naturalHeight === 0) {
+        allImagesLoaded = false;
+      }
+    });
+
+    if (!allImagesLoaded) {
+      // Some images still loading, wait for next frame
+      requestAnimationFrame(scrollToAIMessageWhenReady);
+      return;
+    }
+
+    // All images loaded and element is ready, scroll to it
+    lastAIMessageRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+
   // Handle when user uploads an image/PDF and it finishes loading
   const handleThumbnailLoad = () => {
-    // If we're waiting for AI response and typing indicator is visible, scroll to it
+    // If we're waiting for AI response and the typing indicator is visible, scroll to it
     if (isAITyping && typingIndicatorRef.current && isNearBottomRef.current) {
-      setTimeout(() => {
-        typingIndicatorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      }, 100);
+      typingIndicatorRef.current.scrollIntoView({ behavior: 'smooth', block: 'end' });
     }
   };
 
@@ -103,13 +150,9 @@ const Conversation = () => {
           // Reset the flag
           expectingAIResponse.current = false;
 
-          // Wait for the DOM to update and the ref to be attached
-          setTimeout(() => {
-            if (lastAIMessageRef.current) {
-              // Scroll to the top of the AI's response
-              lastAIMessageRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
-            }
-          }, 150);
+          // Wait for the AI message element to be fully rendered, then scroll
+          scrollToAIMessageWhenReady();
+
           return; // Don't run the else branch
         }
       }
@@ -126,14 +169,14 @@ const Conversation = () => {
   // Auto-scroll when uploading indicator appears
   useEffect(() => {
     if (isUploading && isNearBottomRef.current) {
-      setTimeout(() => scrollToBottom('smooth'), 100);
+      scrollToBottom('smooth');
     }
   }, [isUploading]);
 
-  // Auto-scroll when typing indicator appears (only scroll to bottom when typing starts)
+  // Auto-scroll when typing indicator appears - scroll to show the "Thinking..." message
   useEffect(() => {
-    if (isAITyping && isNearBottomRef.current) {
-      setTimeout(() => scrollToBottom('smooth'), 100);
+    if (isAITyping && isNearBottomRef.current && typingIndicatorRef.current) {
+      typingIndicatorRef.current.scrollIntoView({ behavior: 'smooth', block: 'end' });
     }
     // When typing stops, don't auto-scroll - let the messages useEffect handle it
   }, [isAITyping]);
@@ -374,7 +417,7 @@ const Conversation = () => {
     }
   };
 
-  const handleSendMessage = async (content, file) => {
+  const handleSendMessage = async (content, file, audioRecordingId = null) => {
     if (!activeSessionId) return;
 
     setLoading(true);
@@ -395,8 +438,8 @@ const Conversation = () => {
     // Add user message immediately to UI
     setMessages(prevMessages => [...prevMessages, tempUserMessage]);
 
-    // Scroll to bottom when sending a message
-    setTimeout(() => scrollToBottom('smooth'), 100);
+    // Don't scroll yet - we'll scroll once the AI response is ready
+    // (This prevents the jarring scroll-to-bottom then scroll-to-AI-message behavior)
 
     try {
       let documentId = null;
@@ -443,11 +486,18 @@ const Conversation = () => {
       const today = new Date();
       const userDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
 
+      // Mark that we're expecting an AI response
+      expectingAIResponse.current = true;
+
       // Show typing indicator
       setIsAITyping(true);
 
-      // Mark that we're expecting an AI response
-      expectingAIResponse.current = true;
+      // Scroll to show the typing indicator (after it renders)
+      requestAnimationFrame(() => {
+        if (typingIndicatorRef.current) {
+          typingIndicatorRef.current.scrollIntoView({ behavior: 'smooth', block: 'end' });
+        }
+      });
 
       // Send message
       const response = await conversationAPI.sendMessage({
@@ -455,6 +505,7 @@ const Conversation = () => {
         session_id: activeSessionId,
         message_type: messageType,
         document_id: documentId,
+        audio_recording_id: audioRecordingId,
         entry_date: userDate
       });
 

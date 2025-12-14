@@ -840,6 +840,82 @@ def run_migrations():
             else:
                 logger.info("source_document_id column already exists in journal_entries")
 
+            # Add source_audio_id column if it doesn't exist
+            if 'source_audio_id' not in columns:
+                logger.info("Adding source_audio_id column to journal_entries table...")
+                try:
+                    # Add the column as nullable
+                    conn.execute(text("""
+                        ALTER TABLE journal_entries
+                        ADD COLUMN source_audio_id INTEGER NULL
+                    """))
+                    conn.commit()
+                    logger.info("Successfully added source_audio_id column to journal_entries")
+
+                    # Add foreign key constraint with ON DELETE CASCADE
+                    conn.execute(text("""
+                        ALTER TABLE journal_entries
+                        ADD CONSTRAINT fk_journal_entries_audio
+                        FOREIGN KEY (source_audio_id)
+                        REFERENCES audio_recordings(id) ON DELETE CASCADE
+                    """))
+                    conn.commit()
+                    logger.info("Successfully added foreign key constraint for source_audio_id")
+
+                    # Create index for efficient lookups by audio recording
+                    conn.execute(text("""
+                        CREATE INDEX IF NOT EXISTS idx_journal_entries_audio
+                        ON journal_entries (source_audio_id)
+                    """))
+                    conn.commit()
+                    logger.info("Created index idx_journal_entries_audio")
+
+                except Exception as e:
+                    logger.error(f"Failed to add source_audio_id column to journal_entries: {e}")
+                    conn.rollback()
+            else:
+                logger.info("source_audio_id column already exists in journal_entries")
+
+        # Check if conversations table exists and add audio_recording_id column
+        if 'conversations' in inspector.get_table_names():
+            columns = [col['name'] for col in inspector.get_columns('conversations')]
+
+            # Add audio_recording_id column if it doesn't exist
+            if 'audio_recording_id' not in columns:
+                logger.info("Adding audio_recording_id column to conversations table...")
+                try:
+                    # Add the column as nullable
+                    conn.execute(text("""
+                        ALTER TABLE conversations
+                        ADD COLUMN audio_recording_id INTEGER NULL
+                    """))
+                    conn.commit()
+                    logger.info("Successfully added audio_recording_id column to conversations")
+
+                    # Add foreign key constraint with ON DELETE SET NULL
+                    conn.execute(text("""
+                        ALTER TABLE conversations
+                        ADD CONSTRAINT fk_conversations_audio
+                        FOREIGN KEY (audio_recording_id)
+                        REFERENCES audio_recordings(id) ON DELETE SET NULL
+                    """))
+                    conn.commit()
+                    logger.info("Successfully added foreign key constraint for audio_recording_id")
+
+                    # Create index for efficient lookups by audio recording
+                    conn.execute(text("""
+                        CREATE INDEX IF NOT EXISTS idx_conversations_audio
+                        ON conversations (audio_recording_id)
+                    """))
+                    conn.commit()
+                    logger.info("Created index idx_conversations_audio")
+
+                except Exception as e:
+                    logger.error(f"Failed to add audio_recording_id column to conversations: {e}")
+                    conn.rollback()
+            else:
+                logger.info("audio_recording_id column already exists in conversations")
+
         # Check if conversations table exists and add updated_at column
         if 'conversations' in inspector.get_table_names():
             columns = [col['name'] for col in inspector.get_columns('conversations')]

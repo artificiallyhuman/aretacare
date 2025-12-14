@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useSessionContext } from '../contexts/SessionContext';
 import { audioRecordingsAPI, conversationAPI } from '../services/api';
-import { isToday, formatDateShort } from '../utils/dateUtils';
+import { isToday, formatDateShort, formatLocalDate } from '../utils/dateUtils';
 
 // Audio recording categories with labels and colors
 const CATEGORIES = [
@@ -263,7 +263,8 @@ const AudioRecordings = () => {
     try {
       // Use the same transcribe endpoint that handles recording transcription
       setUploadProgress('Processing audio (this may take a while for long files)...');
-      await conversationAPI.transcribeAudio(file, sessionId);
+      // Pass false for skipJournalSynthesis so journal entries ARE created for direct uploads
+      await conversationAPI.transcribeAudio(file, sessionId, false);
 
       setUploadProgress('Audio processed successfully! Journal entries may have been created.');
 
@@ -706,7 +707,7 @@ const AudioRecordings = () => {
                 <ul className="text-sm text-orange-800 dark:text-orange-300 space-y-1.5">
                   <li>• <strong>Category:</strong> {getCategoryLabel(recordingToDelete.category)}</li>
                   <li>• <strong>Duration:</strong> {recordingToDelete.duration ? `${Math.floor(recordingToDelete.duration / 60)}:${String(Math.floor(recordingToDelete.duration % 60)).padStart(2, '0')}` : 'Unknown'}</li>
-                  <li>• <strong>Recorded:</strong> {formatDateShort(recordingToDelete.upload_date)}</li>
+                  <li>• <strong>Recorded:</strong> {formatLocalDate(recordingToDelete.created_at)}</li>
                   {recordingToDelete.ai_summary && (
                     <li>• <strong>Summary:</strong> {recordingToDelete.ai_summary}</li>
                   )}

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import AdminLayout from '../../components/admin/AdminLayout';
 import { adminAPI } from '../../services/api';
+import { formatLocalDate } from '../../utils/dateUtils';
 
 function ConfirmModal({ isOpen, onClose, onConfirm, title, message, confirmText = 'Confirm', danger = false }) {
   if (!isOpen) return null;
@@ -98,7 +99,7 @@ function UserDetail({ user, onClose, onAction }) {
                 </span>
               </div>
               <div className="text-gray-500 dark:text-gray-400">
-                Created: <span className="text-gray-900 dark:text-white">{new Date(user.created_at).toLocaleDateString()}</span>
+                Created: <span className="text-gray-900 dark:text-white">{formatLocalDate(user.created_at)}</span>
               </div>
               <div className="text-gray-500 dark:text-gray-400 truncate" title={user.id}>
                 ID: <span className="font-mono text-gray-900 dark:text-white text-xs">{user.id}</span>
@@ -140,7 +141,7 @@ function UserDetail({ user, onClose, onAction }) {
                         <div>
                           <p className="font-medium text-gray-900 dark:text-white">Session {index + 1}</p>
                           <p className="text-xs text-gray-500 dark:text-gray-400">
-                            {session.is_owner ? 'Owner' : 'Collaborator'} - Created {new Date(session.created_at).toLocaleDateString()}
+                            {session.is_owner ? 'Owner' : 'Collaborator'} - Created {formatLocalDate(session.created_at)}
                           </p>
                         </div>
                         <div className="text-right text-xs text-gray-500 dark:text-gray-400">
@@ -320,7 +321,7 @@ export default function AdminUsers() {
                       {user.session_count}
                     </td>
                     <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">
-                      {new Date(user.created_at).toLocaleDateString()}
+                      {formatLocalDate(user.created_at)}
                     </td>
                     <td className="px-4 py-3 text-right">
                       <button

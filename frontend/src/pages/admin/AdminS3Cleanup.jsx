@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import AdminLayout from '../../components/admin/AdminLayout';
 import { adminAPI } from '../../services/api';
+import { formatLocalDateTime } from '../../utils/dateUtils';
 
 function formatBytes(bytes) {
   if (bytes === 0) return '0 Bytes';
@@ -232,7 +233,7 @@ export default function AdminS3Cleanup() {
                               {formatBytes(file.size)}
                             </td>
                             <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">
-                              {new Date(file.last_modified).toLocaleString()}
+                              {formatLocalDateTime(file.last_modified)}
                             </td>
                           </tr>
                         ))}

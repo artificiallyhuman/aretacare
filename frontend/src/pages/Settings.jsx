@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { authAPI, sessionAPI } from '../services/api';
 import { useSessionContext } from '../contexts/SessionContext';
+import { formatLocalDate } from '../utils/dateUtils';
 
 export default function Settings() {
   const navigate = useNavigate();
@@ -590,7 +591,7 @@ export default function Settings() {
                                       )}
                                     </h3>
                                     <p className="text-xs text-gray-500 dark:text-gray-400">
-                                      Created {new Date(session.created_at).toLocaleDateString()}
+                                      Created {formatLocalDate(session.created_at)}
                                     </p>
                                   </div>
                                   <div className="flex items-center space-x-2">

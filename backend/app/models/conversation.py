@@ -31,6 +31,7 @@ class Conversation(Base):
     # Rich media support
     message_type = Column(Enum(MessageType), default=MessageType.TEXT, nullable=False)
     document_id = Column(Integer, ForeignKey("documents.id", ondelete="SET NULL"), nullable=True)
+    audio_recording_id = Column(Integer, ForeignKey("audio_recordings.id", ondelete="SET NULL"), nullable=True)
     media_url = Column(String, nullable=True)
     extracted_text = Column(Text, nullable=True)
     synthesized_to_journal = Column(Boolean, default=False, nullable=False)

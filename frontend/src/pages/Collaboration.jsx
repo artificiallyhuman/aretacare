@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { sessionAPI } from '../services/api';
 import { useSessionContext } from '../contexts/SessionContext';
+import { formatLocalDate } from '../utils/dateUtils';
 
 export default function Collaboration() {
   const navigate = useNavigate();
@@ -312,7 +313,7 @@ export default function Collaboration() {
                         <div className="text-sm font-medium text-gray-900 dark:text-white">{collab.name}</div>
                         <div className="text-xs text-gray-500 dark:text-gray-400">{collab.email}</div>
                         <div className="text-xs text-gray-400 dark:text-gray-500">
-                          Added {new Date(collab.added_at).toLocaleDateString()}
+                          Added {formatLocalDate(collab.added_at)}
                         </div>
                       </div>
                       {isOwner && (
@@ -368,7 +369,7 @@ export default function Collaboration() {
                             Invited by {invitation.invited_by_name}
                           </div>
                           <div className="text-xs text-gray-400 dark:text-gray-500">
-                            Sent {new Date(invitation.created_at).toLocaleDateString()}
+                            Sent {formatLocalDate(invitation.created_at)}
                           </div>
                           <div className={`text-xs font-medium mt-1 ${isExpiringSoon ? 'text-orange-600 dark:text-orange-400' : 'text-gray-600 dark:text-gray-400'}`}>
                             {daysRemaining === 0 ? 'Expires today' : `Expires in ${daysRemaining} day${daysRemaining === 1 ? '' : 's'}`}
@@ -820,7 +821,7 @@ export default function Collaboration() {
                           )}
                         </h3>
                         <p className="text-xs text-gray-500 dark:text-gray-400">
-                          Created {new Date(session.created_at).toLocaleDateString()}
+                          Created {formatLocalDate(session.created_at)}
                         </p>
                       </div>
                       <svg
@@ -868,7 +869,7 @@ export default function Collaboration() {
                           )}
                         </h3>
                         <p className="text-xs text-gray-500 dark:text-gray-400">
-                          Created {new Date(session.created_at).toLocaleDateString()}
+                          Created {formatLocalDate(session.created_at)}
                         </p>
                       </div>
                       <svg

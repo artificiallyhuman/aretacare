@@ -39,7 +39,11 @@ class JournalService:
                 "items": {
                     "type": "object",
                     "properties": {
-                        "title": {"type": "string", "maxLength": 100},
+                        "title": {
+                            "type": "string",
+                            "maxLength": 100,
+                            "description": "Entry title - MUST be 100 characters or less"
+                        },
                         "content": {"type": "string"},
                         "entry_type": {
                             "type": "string",
@@ -68,13 +72,15 @@ class JournalService:
     async def synthesize_from_document(
         self,
         filename: str,
-        extracted_text: str,
         ai_description: str,
         session_id: str,
+        document_url: Optional[str] = None,
+        content_type: Optional[str] = None,
+        extracted_text: Optional[str] = None,
         entry_date: Optional[date] = None,
         document_id: Optional[int] = None
     ) -> JournalSynthesisResult:
-        """Synthesize comprehensive journal entry from uploaded medical document"""
+        """Synthesize comprehensive journal entry from uploaded medical document using native file support"""
         try:
             recent_entries = self._get_recent_entries(session_id, days=7)
             recent_context = self._format_recent_journal_brief(recent_entries)
@@ -84,14 +90,14 @@ class JournalService:
             today_str = today.isoformat()
             day_of_week = today.strftime('%A')
 
-            # Prepare document content - use full extracted text for comprehensive synthesis
-            document_content = f"Filename: {filename}\n\n"
+            # Prepare document description for prompt
+            document_info = f"Filename: {filename}"
             if ai_description:
-                document_content += f"Document Type/Summary: {ai_description}\n\n"
-            if extracted_text:
-                document_content += f"Full Document Content:\n{extracted_text}"
-            else:
-                document_content += "No text content could be extracted from this document."
+                document_info += f"\nDocument Type/Summary: {ai_description}"
+
+            # Use extracted text as fallback only if no document URL available
+            if not document_url and extracted_text:
+                document_info += f"\n\nExtracted text (OCR fallback):\n{extracted_text}"
 
             prompt = f"""TODAY'S DATE: {today_str} ({day_of_week})
 
@@ -99,9 +105,9 @@ Recent journal (last 7 days):
 {recent_context}
 
 DOCUMENT UPLOADED:
-{document_content}
+{document_info}
 
-Create a comprehensive journal entry from this document. Extract and preserve ALL relevant information as this will be the ONLY accessible record for future AI conversations.
+Analyze the uploaded document and create a comprehensive journal entry. Extract and preserve ALL relevant information as this will be the ONLY accessible record for future AI conversations.
 
 EXTRACTION GUIDANCE:
 - Extract ALL dates, names, contact information, numeric values with units
@@ -137,13 +143,18 @@ CRITICAL - JOURNAL ENTRY WRITING STYLE:
 - Describe only the facts, data, and information from the document
 - Focus on what the document contains
 
+CRITICAL - TITLE LENGTH CONSTRAINT:
+- Title MUST be 100 characters or less (strict database limit)
+- Keep titles concise and scannable - put details in content field
+- If title is getting long, abbreviate or move detail to content
+
 IMPORTANT: Respond with ONLY a valid JSON object in this exact format, with no additional text before or after:
 {{
   "should_create": true,
   "reasoning": "Document contains information that should be preserved in journal",
   "suggested_entries": [
     {{
-      "title": "descriptive title (max 100 chars)",
+      "title": "descriptive title (MUST be ≤100 chars)",
       "content": "comprehensive extraction of all relevant information from document",
       "entry_type": "MEDICAL_UPDATE or TREATMENT_CHANGE or APPOINTMENT or INSIGHT or MILESTONE or OTHER",
       "entry_date": "YYYY-MM-DD"
@@ -152,9 +163,33 @@ IMPORTANT: Respond with ONLY a valid JSON object in this exact format, with no a
 }}"""
 
             messages = [
-                {"role": "system", "content": ai_config.DOCUMENT_JOURNAL_SYNTHESIS_PROMPT},
-                {"role": "user", "content": prompt}
+                {"role": "system", "content": ai_config.DOCUMENT_JOURNAL_SYNTHESIS_PROMPT}
             ]
+
+            # Use native file support if document URL available
+            if document_url:
+                content_items = [{"type": "input_text", "text": prompt}]
+
+                # Determine if it's an image or document
+                if content_type and content_type.startswith("image/"):
+                    content_items.append({
+                        "type": "input_image",
+                        "image_url": document_url
+                    })
+                else:
+                    # PDF, text file, etc.
+                    content_items.append({
+                        "type": "input_file",
+                        "file_url": document_url
+                    })
+
+                messages.append({
+                    "role": "user",
+                    "content": content_items
+                })
+            else:
+                # Fallback to text-only if no URL (uses extracted text from prompt)
+                messages.append({"role": "user", "content": prompt})
 
             # Use Responses API
             response = self.client.responses.create(
@@ -213,10 +248,13 @@ IMPORTANT: Respond with ONLY a valid JSON object in this exact format, with no a
 
             # Auto-save ALL suggested entries
             for suggestion in suggestions:
+                # Truncate title to 100 characters if needed (database limit)
+                title = suggestion.title[:100] if len(suggestion.title) > 100 else suggestion.title
+
                 await self.create_entry(
                     session_id=session_id,
                     entry_data=JournalEntryCreate(
-                        title=suggestion.title,
+                        title=title,
                         content=suggestion.content,
                         entry_type=suggestion.entry_type,
                         entry_date=suggestion.entry_date
@@ -251,7 +289,8 @@ IMPORTANT: Respond with ONLY a valid JSON object in this exact format, with no a
         ai_summary: str,
         duration: float,
         session_id: str,
-        entry_date: Optional[date] = None
+        entry_date: Optional[date] = None,
+        audio_id: Optional[int] = None
     ) -> JournalSynthesisResult:
         """Synthesize comprehensive journal entry from audio recording transcription"""
         try:
@@ -263,7 +302,7 @@ IMPORTANT: Respond with ONLY a valid JSON object in this exact format, with no a
             today_str = today.isoformat()
             day_of_week = today.strftime('%A')
 
-            # Prepare audio content - use full transcription for comprehensive synthesis
+            # Prepare audio content
             duration_min = int(duration // 60)
             duration_sec = int(duration % 60)
             audio_content = f"Filename: {filename}\n"
@@ -321,13 +360,18 @@ CRITICAL - JOURNAL ENTRY WRITING STYLE:
 - Describe only the facts, data, observations, and information from the audio
 - Focus on what was communicated in the recording
 
+CRITICAL - TITLE LENGTH CONSTRAINT:
+- Title MUST be 100 characters or less (strict database limit)
+- Keep titles concise and scannable - put details in content field
+- If title is getting long, abbreviate or move detail to content
+
 IMPORTANT: Respond with ONLY a valid JSON object in this exact format, with no additional text before or after:
 {{
   "should_create": true,
   "reasoning": "Audio recording contains information that should be preserved in journal",
   "suggested_entries": [
     {{
-      "title": "descriptive title (max 100 chars)",
+      "title": "descriptive title (MUST be ≤100 chars)",
       "content": "comprehensive extraction of all relevant information from audio",
       "entry_type": "MEDICAL_UPDATE or TREATMENT_CHANGE or APPOINTMENT or INSIGHT or MILESTONE or OTHER",
       "entry_date": "YYYY-MM-DD"
@@ -397,16 +441,20 @@ IMPORTANT: Respond with ONLY a valid JSON object in this exact format, with no a
 
             # Auto-save ALL suggested entries
             for suggestion in suggestions:
+                # Truncate title to 100 characters if needed (database limit)
+                title = suggestion.title[:100] if len(suggestion.title) > 100 else suggestion.title
+
                 await self.create_entry(
                     session_id=session_id,
                     entry_data=JournalEntryCreate(
-                        title=suggestion.title,
+                        title=title,
                         content=suggestion.content,
                         entry_type=suggestion.entry_type,
                         entry_date=suggestion.entry_date
                     ),
                     created_by="ai",
-                    source_message_ids=None
+                    source_message_ids=None,
+                    source_audio_id=audio_id
                 )
 
             return synthesis_result
@@ -433,7 +481,8 @@ IMPORTANT: Respond with ONLY a valid JSON object in this exact format, with no a
         ai_response: str,
         session_id: str,
         conversation_id: Optional[int] = None,
-        entry_date: Optional[date] = None
+        entry_date: Optional[date] = None,
+        audio_recording_id: Optional[int] = None
     ) -> JournalSynthesisResult:
         """Assess if conversation contains journal-worthy information"""
         try:
@@ -504,13 +553,18 @@ DATE INTERPRETATION:
   * Future appointments should use the scheduled date
 - ALWAYS use YYYY-MM-DD format for entry_date
 
+CRITICAL - TITLE LENGTH CONSTRAINT:
+- Title MUST be 100 characters or less (strict database limit)
+- Keep titles concise and scannable - put details in content field
+- If title is getting long, abbreviate or move detail to content
+
 IMPORTANT: Respond with ONLY a valid JSON object in this exact format, with no additional text before or after:
 {{
   "should_create": true or false,
   "reasoning": "brief explanation",
   "suggested_entries": [
     {{
-      "title": "entry title (max 100 chars)",
+      "title": "entry title (MUST be ≤100 chars)",
       "content": "entry content",
       "entry_type": "MEDICAL_UPDATE or TREATMENT_CHANGE or APPOINTMENT or INSIGHT or MILESTONE or OTHER",
       "entry_date": "YYYY-MM-DD"
@@ -584,16 +638,20 @@ IMPORTANT: Respond with ONLY a valid JSON object in this exact format, with no a
 
             # Auto-save ALL suggested entries with AI-determined dates
             for suggestion in suggestions:
+                # Truncate title to 100 characters if needed (database limit)
+                title = suggestion.title[:100] if len(suggestion.title) > 100 else suggestion.title
+
                 await self.create_entry(
                     session_id=session_id,
                     entry_data=JournalEntryCreate(
-                        title=suggestion.title,
+                        title=title,
                         content=suggestion.content,
                         entry_type=suggestion.entry_type,
                         entry_date=suggestion.entry_date
                     ),
                     created_by="ai",
-                    source_message_ids=[conversation_id] if conversation_id else None
+                    source_message_ids=[conversation_id] if conversation_id else None,
+                    source_audio_id=audio_recording_id
                 )
 
             return synthesis_result
@@ -699,7 +757,8 @@ IMPORTANT: Respond with ONLY a valid JSON object in this exact format, with no a
         entry_data: JournalEntryCreate,
         created_by: str,
         source_message_ids: Optional[List[int]] = None,
-        source_document_id: Optional[int] = None
+        source_document_id: Optional[int] = None,
+        source_audio_id: Optional[int] = None
     ) -> JournalEntry:
         """Create a new journal entry"""
         try:
@@ -713,7 +772,8 @@ IMPORTANT: Respond with ONLY a valid JSON object in this exact format, with no a
                 content=entry_data.content,
                 created_by=created_by,
                 source_message_ids=source_message_ids or [],
-                source_document_id=source_document_id
+                source_document_id=source_document_id,
+                source_audio_id=source_audio_id
             )
 
             self.db.add(entry)

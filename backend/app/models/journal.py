@@ -29,6 +29,7 @@ class JournalEntry(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
     source_message_ids = Column(ARRAY(Integer), nullable=True)  # Links to conversation messages
     source_document_id = Column(Integer, ForeignKey("documents.id", ondelete="CASCADE"), nullable=True)  # Links to uploaded document
+    source_audio_id = Column(Integer, ForeignKey("audio_recordings.id", ondelete="CASCADE"), nullable=True)  # Links to uploaded audio
     entry_metadata = Column(JSONB, nullable=True)  # Flexible additional data
 
     # Relationships
