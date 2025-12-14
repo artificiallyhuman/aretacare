@@ -1,0 +1,24 @@
+# Robots.txt for AretaCare
+
+User-agent: *
+Allow: /
+Allow: /about
+Allow: /login
+Allow: /register
+Allow: /terms
+Allow: /privacy
+
+# Disallow authenticated/private pages
+Disallow: /settings
+Disallow: /collaboration
+Disallow: /journal
+Disallow: /daily-plan
+Disallow: /audio-recordings
+Disallow: /tools/
+Disallow: /admin/
+Disallow: /password-reset
+
+# Disallow API
+Disallow: /api/
+
+Sitemap: https://www.aretacare.com/sitemap.xml
