@@ -1,9 +1,13 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.gzip import GZipMiddleware
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
 from app.core.config import settings
 from app.core.database import engine, Base, SessionLocal
 from app.core.migrations import run_migrations
+from app.core.rate_limit import limiter, rate_limit_exceeded_handler
+from app.core.security_headers import SecurityHeadersMiddleware
 from app.api import api_router
 from app.services.admin_service import admin_service
 import logging
@@ -14,6 +18,10 @@ logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
+
+# Suppress harmless passlib/bcrypt version warning
+# (passlib 1.7.4 + bcrypt 4.x compatibility quirk - auth still works fine)
+logging.getLogger("passlib.handlers.bcrypt").setLevel(logging.ERROR)
 
 logger = logging.getLogger(__name__)
 
@@ -40,18 +48,31 @@ app = FastAPI(
     version="1.0.0",
 )
 
+# Configure rate limiting
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, rate_limit_exceeded_handler)
+
 # Configure GZip compression for responses (30-50% size reduction)
 # minimum_size: Only compress responses larger than 1000 bytes
 app.add_middleware(GZipMiddleware, minimum_size=1000)
 
-# Configure CORS
+# Configure CORS with explicit methods and headers (security best practice)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins_list,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allow_headers=[
+        "Authorization",
+        "Content-Type",
+        "Accept",
+        "Origin",
+        "X-Requested-With",
+    ],
 )
+
+# Add security headers to all responses
+app.add_middleware(SecurityHeadersMiddleware)
 
 # Include API routes
 app.include_router(api_router, prefix="/api")

@@ -13,7 +13,7 @@ import logging
 from app.models import (
     User, Session as SessionModel, SessionCollaborator,
     Document, AudioRecording, Conversation, JournalEntry, DailyPlan,
-    AdminAuditLog
+    AdminAuditLog, PendingInvitation
 )
 from app.models.error_log import ErrorLog
 from app.models.security_log import SecurityLog
@@ -107,6 +107,7 @@ class AdminService:
             "user_count": db.query(User).count(),
             "session_count": db.query(SessionModel).count(),
             "collaborator_count": db.query(SessionCollaborator).count(),
+            "pending_invitation_count": db.query(PendingInvitation).count(),
             "document_count": db.query(Document).count(),
             "audio_count": db.query(AudioRecording).count(),
             "conversation_count": db.query(Conversation).count(),
@@ -207,26 +208,75 @@ class AdminService:
         - Document uploaded
         - Audio recording created
         - Session last_activity timestamp
+
+        Optimized to use batch queries instead of per-user queries (fixes N+1).
         """
         cutoff = datetime.utcnow() - timedelta(days=days)
+        now = datetime.utcnow()
 
-        # Get all users with their session IDs
+        # Batch load all users
         users = db.query(User).all()
-        result = []
+        user_ids = [u.id for u in users]
+        user_map = {u.id: u for u in users}
 
-        for user in users:
-            # Get all session IDs for this user (owned or collaborated)
-            owned_sessions = db.query(SessionModel.id).filter(
-                SessionModel.owner_id == user.id
-            ).all()
-            collab_sessions = db.query(SessionCollaborator.session_id).filter(
-                SessionCollaborator.user_id == user.id
-            ).all()
-            session_ids = [s[0] for s in owned_sessions] + [s[0] for s in collab_sessions]
+        # Batch load all session ownership (owned sessions per user)
+        owned_sessions_query = db.query(
+            SessionModel.owner_id,
+            func.array_agg(SessionModel.id).label('session_ids'),
+            func.count(SessionModel.id).label('session_count')
+        ).group_by(SessionModel.owner_id).all()
+        owned_sessions_map = {row.owner_id: (list(row.session_ids), row.session_count) for row in owned_sessions_query}
+
+        # Batch load all collaboration sessions per user
+        collab_sessions_query = db.query(
+            SessionCollaborator.user_id,
+            func.array_agg(SessionCollaborator.session_id).label('session_ids')
+        ).group_by(SessionCollaborator.user_id).all()
+        collab_sessions_map = {row.user_id: list(row.session_ids) for row in collab_sessions_query}
+
+        # Build map of all session IDs per user
+        user_sessions_map = {}
+        for user_id in user_ids:
+            owned = owned_sessions_map.get(user_id, ([], 0))[0]
+            collab = collab_sessions_map.get(user_id, [])
+            user_sessions_map[user_id] = list(set(owned + collab))
+
+        # Batch load latest activity by session
+        # Latest conversation per session
+        conv_activity = db.query(
+            Conversation.session_id,
+            func.max(Conversation.created_at).label('latest')
+        ).group_by(Conversation.session_id).all()
+        conv_map = {row.session_id: row.latest for row in conv_activity}
+
+        # Latest document per session
+        doc_activity = db.query(
+            Document.session_id,
+            func.max(Document.uploaded_at).label('latest')
+        ).group_by(Document.session_id).all()
+        doc_map = {row.session_id: row.latest for row in doc_activity}
+
+        # Latest audio per session
+        audio_activity = db.query(
+            AudioRecording.session_id,
+            func.max(AudioRecording.created_at).label('latest')
+        ).group_by(AudioRecording.session_id).all()
+        audio_map = {row.session_id: row.latest for row in audio_activity}
+
+        # Session last_activity
+        session_activity = db.query(
+            SessionModel.id,
+            SessionModel.last_activity
+        ).filter(SessionModel.last_activity.isnot(None)).all()
+        session_activity_map = {row.id: row.last_activity for row in session_activity}
+
+        result = []
+        for user_id, user in user_map.items():
+            session_ids = user_sessions_map.get(user_id, [])
 
             if not session_ids:
                 # User has no sessions - inactive since account creation
-                days_inactive = (datetime.utcnow() - user.created_at).days
+                days_inactive = (now - user.created_at).days
                 if days_inactive >= days:
                     result.append({
                         "user_id": str(user.id),
@@ -239,31 +289,24 @@ class AdminService:
                     })
                 continue
 
-            # Find the most recent activity across all activity types
-            latest_conversation = db.query(func.max(Conversation.created_at)).filter(
-                Conversation.session_id.in_(session_ids)
-            ).scalar()
+            # Find the most recent activity across all sessions for this user
+            activity_dates = []
+            for sid in session_ids:
+                if sid in conv_map:
+                    activity_dates.append(conv_map[sid])
+                if sid in doc_map:
+                    activity_dates.append(doc_map[sid])
+                if sid in audio_map:
+                    activity_dates.append(audio_map[sid])
+                if sid in session_activity_map:
+                    activity_dates.append(session_activity_map[sid])
 
-            latest_document = db.query(func.max(Document.uploaded_at)).filter(
-                Document.session_id.in_(session_ids)
-            ).scalar()
-
-            latest_audio = db.query(func.max(AudioRecording.created_at)).filter(
-                AudioRecording.session_id.in_(session_ids)
-            ).scalar()
-
-            latest_session_activity = db.query(func.max(SessionModel.last_activity)).filter(
-                SessionModel.id.in_(session_ids)
-            ).scalar()
-
-            # Get the most recent activity
-            activity_dates = [d for d in [latest_conversation, latest_document, latest_audio, latest_session_activity] if d]
             last_activity = max(activity_dates) if activity_dates else None
 
             if last_activity:
-                days_inactive = (datetime.utcnow() - last_activity).days
+                days_inactive = (now - last_activity).days
             else:
-                days_inactive = (datetime.utcnow() - user.created_at).days
+                days_inactive = (now - user.created_at).days
 
             # Only include if actually inactive
             if days_inactive >= days:

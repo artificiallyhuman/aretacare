@@ -1,8 +1,25 @@
+/**
+ * Escapes HTML special characters to prevent XSS attacks.
+ * Must be called before inserting user content into HTML.
+ */
+const escapeHtml = (text) => {
+  const htmlEscapes = {
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;',
+  };
+  return text.replace(/[&<>"']/g, (char) => htmlEscapes[char]);
+};
+
 // Simple markdown to HTML converter for clipboard
 export const markdownToHtml = (markdown) => {
-  let html = markdown;
+  // First, escape HTML to prevent XSS attacks
+  let html = escapeHtml(markdown);
 
   // Bold (do before italic to avoid conflicts)
+  // Note: We're replacing escaped asterisks/underscores since we escaped HTML first
   html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
   html = html.replace(/__(.*?)__/g, '<strong>$1</strong>');
 

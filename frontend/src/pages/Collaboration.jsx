@@ -236,6 +236,24 @@ export default function Collaboration() {
     setStep('confirmCancelInvitation');
   };
 
+  const handleResendInvitation = async (invitationEmail) => {
+    setError(null);
+    setLoading(true);
+
+    try {
+      await sessionAPI.sendInvitation(selectedSession.id, invitationEmail);
+      setSuccess('Invitation resent successfully!');
+      fetchPendingInvitations(selectedSession.id);
+      setTimeout(() => {
+        setSuccess(null);
+      }, 2000);
+    } catch (err) {
+      setError(err.response?.data?.detail || 'Failed to resend invitation');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const confirmCancelInvitation = async () => {
     if (!invitationToCancel) return;
 
@@ -356,13 +374,22 @@ export default function Collaboration() {
                             {daysRemaining === 0 ? 'Expires today' : `Expires in ${daysRemaining} day${daysRemaining === 1 ? '' : 's'}`}
                           </div>
                         </div>
-                        <button
-                          onClick={() => handleCancelInvitation(invitation.id, invitation.email)}
-                          disabled={loading}
-                          className="px-3 py-1.5 text-xs font-medium text-red-600 dark:text-red-400 hover:text-white hover:bg-red-600 dark:hover:bg-red-500 border border-red-600 dark:border-red-400 rounded disabled:opacity-50 transition-colors whitespace-nowrap flex-shrink-0"
-                        >
-                          Cancel
-                        </button>
+                        <div className="flex flex-col gap-2 flex-shrink-0">
+                          <button
+                            onClick={() => handleResendInvitation(invitation.email)}
+                            disabled={loading}
+                            className="px-3 py-1.5 text-xs font-medium text-blue-600 dark:text-blue-400 hover:text-white hover:bg-blue-600 dark:hover:bg-blue-500 border border-blue-600 dark:border-blue-400 rounded disabled:opacity-50 transition-colors whitespace-nowrap"
+                          >
+                            Resend
+                          </button>
+                          <button
+                            onClick={() => handleCancelInvitation(invitation.id, invitation.email)}
+                            disabled={loading}
+                            className="px-3 py-1.5 text-xs font-medium text-red-600 dark:text-red-400 hover:text-white hover:bg-red-600 dark:hover:bg-red-500 border border-red-600 dark:border-red-400 rounded disabled:opacity-50 transition-colors whitespace-nowrap"
+                          >
+                            Cancel
+                          </button>
+                        </div>
                       </div>
                     );
                   })}
@@ -781,14 +808,14 @@ export default function Collaboration() {
                               {session.collaborators.length} {session.collaborators.length === 1 ? 'Collaborator' : 'Collaborators'}
                             </span>
                           )}
-                          {session.id === activeSessionId && (
-                            <span className="text-xs bg-purple-100 dark:bg-purple-900/50 text-purple-700 dark:text-purple-300 px-2 py-0.5 rounded font-semibold">
-                              Active
-                            </span>
-                          )}
                           {pendingInvitations[session.id] && pendingInvitations[session.id].length > 0 && (
                             <span className="text-xs bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-300 px-2 py-0.5 rounded">
                               {pendingInvitations[session.id].length} Pending
+                            </span>
+                          )}
+                          {session.id === activeSessionId && (
+                            <span className="text-xs bg-purple-100 dark:bg-purple-900/50 text-purple-700 dark:text-purple-300 px-2 py-0.5 rounded font-semibold">
+                              Active
                             </span>
                           )}
                         </h3>

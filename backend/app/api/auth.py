@@ -9,6 +9,7 @@ import logging
 from app.core.database import get_db
 from app.core.auth import verify_password, get_password_hash, create_access_token, decode_access_token
 from app.core.config import settings
+from app.core.rate_limit import limiter, RateLimits
 from app.models.user import User
 from app.models.session import Session
 from app.models.document import Document
@@ -95,7 +96,8 @@ def get_current_user(
 
 
 @router.post("/register", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
-def register(user_data: UserRegister, db: DBSession = Depends(get_db)):
+@limiter.limit(RateLimits.REGISTER)
+def register(request: Request, user_data: UserRegister, db: DBSession = Depends(get_db)):
     """Register a new user."""
     # Validate acknowledgements - all must be True
     if not user_data.acknowledge_not_medical_advice:
@@ -226,7 +228,8 @@ def register(user_data: UserRegister, db: DBSession = Depends(get_db)):
 
 
 @router.post("/login", response_model=TokenResponse)
-def login(user_data: UserLogin, request: Request, db: DBSession = Depends(get_db)):
+@limiter.limit(RateLimits.LOGIN)
+def login(request: Request, user_data: UserLogin, db: DBSession = Depends(get_db)):
     """Login user and return access token."""
     # Find user by email
     user = db.query(User).filter(User.email == user_data.email).first()
@@ -425,7 +428,8 @@ async def delete_account(
 
 
 @router.post("/password-reset/request", status_code=status.HTTP_200_OK)
-def request_password_reset(data: PasswordResetRequest, db: DBSession = Depends(get_db)):
+@limiter.limit(RateLimits.PASSWORD_RESET_REQUEST)
+def request_password_reset(request: Request, data: PasswordResetRequest, db: DBSession = Depends(get_db)):
     """Request a password reset token and send email."""
     # Find user by email
     user = db.query(User).filter(User.email == data.email).first()
@@ -451,7 +455,8 @@ def request_password_reset(data: PasswordResetRequest, db: DBSession = Depends(g
 
 
 @router.post("/password-reset/reset", status_code=status.HTTP_200_OK)
-def reset_password(data: PasswordReset, db: DBSession = Depends(get_db)):
+@limiter.limit(RateLimits.PASSWORD_RESET)
+def reset_password(request: Request, data: PasswordReset, db: DBSession = Depends(get_db)):
     """Reset password using a valid reset token."""
     # Find user with this reset token
     user = db.query(User).filter(User.reset_token == data.token).first()

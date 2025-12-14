@@ -184,10 +184,24 @@ export default function AdminDashboard() {
             loading={loading}
           />
           <MetricCard
+            title="Pending Invites"
+            value={metrics?.pending_invitation_count}
+            icon="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
+            color="orange"
+            loading={loading}
+          />
+          <MetricCard
             title="Messages"
             value={metrics?.conversation_count}
             icon="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
             color="pink"
+            loading={loading}
+          />
+          <MetricCard
+            title="Journal Entries"
+            value={metrics?.journal_count}
+            icon="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+            color="cyan"
             loading={loading}
           />
           <MetricCard
@@ -202,13 +216,6 @@ export default function AdminDashboard() {
             value={metrics?.audio_count}
             icon="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"
             color="orange"
-            loading={loading}
-          />
-          <MetricCard
-            title="Journal Entries"
-            value={metrics?.journal_count}
-            icon="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-            color="cyan"
             loading={loading}
           />
         </div>

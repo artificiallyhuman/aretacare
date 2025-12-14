@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, Request
 from sqlalchemy.orm import Session
 from app.core.database import get_db
+from app.core.rate_limit import limiter, RateLimits
 from app.models import User, Session as SessionModel, Conversation, Document, AudioRecording
 from app.models.conversation import MessageRole, MessageType
 from app.schemas.conversation import MessageRequest, MessageResponse, ConversationHistory, UpdateMessageRequest, UpdateMessageResponse
@@ -17,15 +18,29 @@ import logging
 import io
 import tempfile
 import os
+import asyncio
 from pydub import AudioSegment
 
 logger = logging.getLogger(__name__)
+
+
+# Helper functions for CPU-intensive audio operations (to run in thread pool)
+def _load_audio_segment(audio_path: str) -> AudioSegment:
+    """Load audio file into AudioSegment (CPU-intensive)"""
+    return AudioSegment.from_file(audio_path)
+
+
+def _export_audio_segment(audio_segment: AudioSegment, output_path: str, format: str = "mp3"):
+    """Export audio segment to file (CPU-intensive)"""
+    audio_segment.export(output_path, format=format)
 
 router = APIRouter(prefix="/conversation", tags=["conversation"])
 
 
 @router.post("/message", response_model=dict)
+@limiter.limit(RateLimits.AI_CHAT)
 async def send_message(
+    request: Request,
     content: str,
     session_id: str,
     message_type: str = "text",
@@ -191,12 +206,12 @@ async def send_message(
                 user_id=current_user.id,
                 session_id=session_id,
                 details={
-                    "message_length": len(message_data.content),
-                    "has_document": message_data.document_id is not None
+                    "message_length": len(content) if content else 0,
+                    "has_document": document_id is not None
                 }
             )
-        except:
-            pass
+        except Exception:
+            pass  # Don't let error logging crash the app
 
         raise HTTPException(status_code=500, detail=f"Error processing message: {str(e)}")
 
@@ -327,6 +342,7 @@ BLOCKED_AUDIO_EXTENSIONS = [
 
 
 @router.post("/transcribe")
+@limiter.limit(RateLimits.AUDIO_UPLOAD)
 async def transcribe_audio(
     request: Request,
     audio: UploadFile = File(...),
@@ -436,8 +452,8 @@ async def transcribe_audio(
             mp3_temp_fd, mp3_temp_path = tempfile.mkstemp(suffix='.mp3')
             os.close(mp3_temp_fd)  # Close file descriptor, pydub will open it
 
-            # Convert to mp3 (auto-detect input format)
-            audio_segment = AudioSegment.from_file(audio_temp_path)
+            # Convert to mp3 (auto-detect input format) - runs in thread pool
+            audio_segment = await asyncio.to_thread(_load_audio_segment, audio_temp_path)
             duration_seconds = len(audio_segment) / 1000.0  # pydub returns milliseconds
 
             # OpenAI Whisper has a 1400 second limit per request
@@ -469,7 +485,7 @@ async def transcribe_audio(
                     os.close(chunk_temp_fd)
 
                     try:
-                        chunk.export(chunk_temp_path, format="mp3")
+                        await asyncio.to_thread(_export_audio_segment, chunk, chunk_temp_path, "mp3")
 
                         # Read chunk into BytesIO for OpenAI
                         with open(chunk_temp_path, 'rb') as chunk_file:
@@ -492,8 +508,8 @@ async def transcribe_audio(
                 transcribed_text = ' '.join(transcribed_parts)
                 logger.info(f"Combined {len(transcribed_parts)} chunks into final transcription")
             else:
-                # File is short enough to transcribe in one go
-                audio_segment.export(mp3_temp_path, format="mp3")
+                # File is short enough to transcribe in one go (runs in thread pool)
+                await asyncio.to_thread(_export_audio_segment, audio_segment, mp3_temp_path, "mp3")
 
                 # Read mp3 file for both transcription and storage
                 with open(mp3_temp_path, 'rb') as mp3_file:
@@ -516,11 +532,11 @@ async def transcribe_audio(
 
             # For chunked files, we need to export the full audio as MP3
             if duration_seconds > MAX_CHUNK_DURATION_SECONDS:
-                # Export full audio as MP3 for storage
+                # Export full audio as MP3 for storage (runs in thread pool)
                 full_mp3_fd, full_mp3_path = tempfile.mkstemp(suffix='.mp3')
                 os.close(full_mp3_fd)
                 try:
-                    audio_segment.export(full_mp3_path, format="mp3")
+                    await asyncio.to_thread(_export_audio_segment, audio_segment, full_mp3_path, "mp3")
                     with open(full_mp3_path, 'rb') as full_mp3_file:
                         mp3_content = full_mp3_file.read()
                 finally:
@@ -547,8 +563,8 @@ async def transcribe_audio(
                     session_id=session_id,
                     details={"filename": audio.filename}
                 )
-            except:
-                pass
+            except Exception:
+                pass  # Don't let error logging crash the app
 
             raise HTTPException(status_code=500, detail=f"Error processing audio file: {str(e)}")
         finally:
@@ -659,7 +675,7 @@ async def transcribe_audio(
                 session_id=session_id,
                 details={"filename": audio.filename}
             )
-        except:
-            pass
+        except Exception:
+            pass  # Don't let error logging crash the app
 
         raise HTTPException(status_code=500, detail=f"Error transcribing audio: {str(e)}")

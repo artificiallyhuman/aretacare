@@ -32,6 +32,7 @@ const Conversation = () => {
   const previousMessageCountRef = useRef(0);
   const expectingAIResponse = useRef(false);
   const typingIndicatorRef = useRef(null);
+  const sessionSwitchScrollPending = useRef(false);
 
   const scrollToBottom = (behavior = 'smooth') => {
     if (messagesContainerRef.current) {
@@ -83,7 +84,14 @@ const Conversation = () => {
   };
 
   // Auto-scroll only if user is near bottom and there are messages
+  // Skip if session switch scroll is pending (that useEffect handles it with image loading)
   useEffect(() => {
+    if (sessionSwitchScrollPending.current) {
+      // Let the session switch useEffect handle scrolling
+      previousMessageCountRef.current = messages.length;
+      return;
+    }
+
     if (messages.length > 0 && isNearBottomRef.current) {
       const previousCount = previousMessageCountRef.current;
       const newMessagesAdded = messages.length > previousCount;
@@ -137,10 +145,75 @@ const Conversation = () => {
       setShowBanner(false);
       setDailyPlanPanelOpen(false);
 
+      // Mark that we need to scroll after messages load
+      sessionSwitchScrollPending.current = true;
       loadConversationHistory();
       checkDailyPlan();
     }
+    // Intentionally excluding loadConversationHistory and checkDailyPlan from deps
+    // to prevent infinite re-renders - only trigger on session change
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeSessionId]);
+
+  // Handle scroll to bottom after session switch (waits for images to load)
+  useEffect(() => {
+    if (!sessionSwitchScrollPending.current || messages.length === 0) {
+      return;
+    }
+
+    // Clear the flag
+    sessionSwitchScrollPending.current = false;
+
+    // Skip if we're expecting an AI response
+    if (expectingAIResponse.current) {
+      return;
+    }
+
+    const container = messagesContainerRef.current;
+    if (!container) return;
+
+    // Find all images in the rendered messages
+    const images = container.querySelectorAll('img');
+
+    if (images.length === 0) {
+      // No images, just scroll immediately
+      requestAnimationFrame(() => scrollToBottom('auto'));
+      return;
+    }
+
+    // Track state for this scroll operation
+    let loadedCount = 0;
+    let hasScrolled = false;
+    const totalImages = images.length;
+
+    const doScroll = () => {
+      if (hasScrolled) return; // Prevent duplicate scrolls
+      hasScrolled = true;
+      requestAnimationFrame(() => scrollToBottom('auto'));
+    };
+
+    const onImageLoad = () => {
+      loadedCount++;
+      if (loadedCount >= totalImages) {
+        doScroll();
+      }
+    };
+
+    // Check each image
+    images.forEach(img => {
+      if (img.complete && img.naturalHeight !== 0) {
+        onImageLoad();
+      } else {
+        img.addEventListener('load', onImageLoad, { once: true });
+        img.addEventListener('error', onImageLoad, { once: true });
+      }
+    });
+
+    // Fallback: scroll after a delay in case images take too long
+    const fallbackTimer = setTimeout(doScroll, 800);
+
+    return () => clearTimeout(fallbackTimer);
+  }, [messages]);
 
   // Periodic check for daily plan (every 30 minutes)
   useEffect(() => {
@@ -151,6 +224,8 @@ const Conversation = () => {
 
       return () => clearInterval(interval);
     }
+    // Intentionally excluding checkDailyPlan from deps - only re-create interval on session change
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeSessionId]);
 
   // Poll for new messages from collaborators (every 10 seconds)
@@ -162,6 +237,8 @@ const Conversation = () => {
 
       return () => clearInterval(interval);
     }
+    // Intentionally excluding checkForNewMessages from deps - re-create interval on session/messages change
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeSessionId, messages]);
 
   const loadConversationHistory = async (sessionId = activeSessionId, resetPagination = true) => {
@@ -174,56 +251,8 @@ const Conversation = () => {
       if (resetPagination) {
         setCurrentOffset(MESSAGE_PAGE_SIZE);
       }
-
-      // Only scroll to bottom if there are messages to display
-      if (loadedMessages.length === 0) {
-        return;
-      }
-
-      // Skip auto-scroll if we're expecting an AI response (let the messages useEffect handle it)
-      if (expectingAIResponse.current) {
-        return;
-      }
-
-      // Scroll to bottom on initial load - wait for images to load
-      // Multiple scroll attempts to handle async image loading
-      const scrollAfterLoad = () => {
-        requestAnimationFrame(() => {
-          requestAnimationFrame(() => {
-            scrollToBottom('auto');
-            // Additional scroll after short delay for images
-            setTimeout(() => scrollToBottom('auto'), 100);
-            setTimeout(() => scrollToBottom('auto'), 300);
-            setTimeout(() => scrollToBottom('auto'), 600);
-          });
-        });
-      };
-
-      // Wait for all images in messages to load
-      const container = messagesContainerRef.current;
-      if (container) {
-        const images = container.querySelectorAll('img');
-        if (images.length > 0) {
-          let loadedCount = 0;
-          const checkAllLoaded = () => {
-            loadedCount++;
-            if (loadedCount === images.length) {
-              scrollToBottom('auto');
-            }
-          };
-
-          images.forEach(img => {
-            if (img.complete) {
-              checkAllLoaded();
-            } else {
-              img.addEventListener('load', checkAllLoaded);
-              img.addEventListener('error', checkAllLoaded); // Handle broken images
-            }
-          });
-        }
-      }
-
-      scrollAfterLoad();
+      // Scroll to bottom is handled by the sessionSwitchScrollPending useEffect
+      // which properly waits for images to load after React re-renders
     } catch (err) {
       console.error('Error loading conversation history:', err);
     }
@@ -559,6 +588,7 @@ const Conversation = () => {
             {showScrollTopButton && (
               <button
                 onClick={() => scrollToTop('smooth')}
+                aria-label="Scroll to oldest messages"
                 className="bg-primary-600 text-white rounded-full p-2 shadow-lg hover:bg-primary-700 transition-all transform hover:scale-110"
                 title="Scroll to top"
               >
@@ -573,6 +603,8 @@ const Conversation = () => {
           <div
             ref={messagesContainerRef}
             onScroll={handleScroll}
+            role="region"
+            aria-label="Conversation messages"
             className={`flex-1 p-2 md:p-4 space-y-2 scroll-smooth ${messages.length === 0 ? 'overflow-hidden' : 'overflow-y-auto'}`}
           >
             {messages.length === 0 ? (
@@ -740,6 +772,7 @@ const Conversation = () => {
             <div className="absolute bottom-32 sm:bottom-28 md:bottom-24 right-3 sm:right-4 md:right-6 z-10">
               <button
                 onClick={() => scrollToBottom('smooth')}
+                aria-label="Scroll to newest messages"
                 className="bg-primary-600 text-white rounded-full p-2 md:p-3 shadow-lg hover:bg-primary-700 transition-all transform hover:scale-110"
                 title="Scroll to bottom"
               >

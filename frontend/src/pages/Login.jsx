@@ -72,15 +72,15 @@ function Login() {
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
         {/* Logo */}
         <div className="flex justify-center">
-          <div className="flex items-center space-x-3">
+          <div className="flex items-center space-x-4">
             <img
               src={logo}
               alt="AretaCare Logo"
-              className="w-12 h-12 object-contain"
+              className="w-16 h-16 object-contain"
             />
             <div>
-              <h1 className="text-2xl font-bold text-gray-900 dark:text-white">AretaCare<span className="font-normal">™</span></h1>
-              <p className="text-xs text-gray-500 dark:text-gray-400">Care | Clarity | Confidence</p>
+              <h1 className="text-3xl font-bold text-gray-900 dark:text-white">AretaCare<span className="font-normal">™</span></h1>
+              <p className="text-sm text-gray-500 dark:text-gray-400">Care | Clarity | Confidence</p>
             </div>
           </div>
         </div>

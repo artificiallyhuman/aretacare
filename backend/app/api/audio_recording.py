@@ -19,10 +19,12 @@ async def get_audio_recordings(
     session_id: str,
     category: str = None,
     search: str = None,
+    limit: int = 50,
+    offset: int = 0,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """Get all audio recordings for a session with optional filtering and search"""
+    """Get audio recordings for a session with optional filtering, search, and pagination"""
     # Verify session belongs to current user
     session = db.query(SessionModel).filter(SessionModel.id == session_id).first()
     if not session:
@@ -50,10 +52,17 @@ async def get_audio_recordings(
             (AudioRecording.transcribed_text.ilike(search_term))
         )
 
-    # Get recordings ordered by date
-    recordings = query.order_by(AudioRecording.created_at.desc()).all()
+    # Get total count before pagination
+    total = query.count()
 
-    return {"recordings": recordings}
+    # Get recordings ordered by date with pagination
+    recordings = query.order_by(AudioRecording.created_at.desc()).offset(offset).limit(limit).all()
+
+    return {
+        "recordings": recordings,
+        "has_more": (offset + len(recordings)) < total,
+        "total": total
+    }
 
 
 @router.get("/{session_id}/{recording_id}", response_model=AudioRecordingResponse)

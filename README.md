@@ -22,7 +22,7 @@ AretaCare was built from exactly this experience—sitting beside a loved one in
 
 **Multi-Session Support** — Create up to 3 personal sessions to keep different care situations organized (e.g., separate sessions for different family members or health journeys). Switch between sessions using the header dropdown. Each session maintains its own conversations, documents, journal, and daily plans. Sessions can be renamed (15-character limit) and shared with others.
 
-**Session Collaboration** — Invite family members to collaborate on a session. Up to 10 people can share the same view, keeping everyone informed and aligned even when you're in different cities. Manage all your collaborations from the dedicated Collaboration page—add or remove collaborators, transfer session ownership, track pending invitations, and leave shared sessions. Receive email notifications when collaborators are added or removed, and when ownership is transferred.
+**Session Collaboration** — Invite family members to collaborate on a session. Up to 10 people can share the same view (including pending invitations), keeping everyone informed and aligned even when you're in different cities. Manage all your collaborations from the dedicated Collaboration page—add or remove collaborators, transfer session ownership, resend or cancel pending invitations, and leave shared sessions. Receive email notifications when collaborators are added or removed, and when ownership is transferred.
 
 **Journal** — Your care journey automatically organized into a searchable timeline. Medical updates, treatment changes, appointments, insights, and milestones—all captured and categorized from your conversations so nothing falls through the cracks. Navigate by date using the sticky sidebar, jump to today with one click, and see future entries visually distinguished with blue shading. Entries are created with intelligent date interpretation (understands "Thursday", "next week", "yesterday").
 
@@ -36,7 +36,7 @@ AretaCare was built from exactly this experience—sitting beside a loved one in
 
 **Account Security** — Comprehensive email notifications keep you informed of important account changes including password updates, email changes, session collaboration activities, and password reset requests. Password reset via email with time-limited tokens (1-hour expiration). JWT-based authentication with 7-day token expiration.
 
-**Admin Console** — For administrators (configured via ADMIN_EMAILS): Timezone-aware metrics dashboard with interactive charts tracking users, sessions, documents, messages, errors, and security events. Tools include user management with search and activity tracking, inactive account detection, error logs with filtering and 30-day auto-cleanup, security logs, system health monitoring, S3 orphan file detection and cleanup, and audit logging with automatic retention (90 days default). All timestamps display in the admin's local timezone.
+**Admin Console** — For administrators (configured via ADMIN_EMAILS): Timezone-aware metrics dashboard with interactive charts tracking users, sessions, collaborators, pending invitations, messages, journal entries, documents, audio recordings, errors, and security events. Tools include user management with search and activity tracking, inactive account detection, error logs with filtering and 30-day auto-cleanup, security logs, system health monitoring, S3 orphan file detection and cleanup, and audit logging with automatic retention (90 days default). All timestamps display in the admin's local timezone.
 
 ---
 
@@ -188,9 +188,9 @@ aretacare/
 - Delete individual sessions (removes all data including S3 files)
 
 ### Collaboration & Sharing
-- Share sessions with **up to 10 people total** (1 owner + 9 collaborators)
+- Share sessions with **up to 10 people total** (1 owner + 9 collaborators, includes pending invitations)
 - Dedicated **Collaboration page** (`/collaboration`) for managing all session sharing
-- **Email invitations** for non-registered users (pending for 30 days)
+- **Email invitations** for non-registered users (pending for 30 days, resend capability)
 - **Ownership transfer** with validation (target user must have <3 owned sessions)
 - **Full collaborator access** to all session data (documents, conversations, journal, daily plans, audio)
 - **Email notifications** for: collaborator added/removed, ownership transferred, invitation received
@@ -229,7 +229,7 @@ aretacare/
 
 ### Admin Console
 Requires email in `ADMIN_EMAILS` environment variable. Features include:
-- **Timezone-aware metrics dashboard** with interactive charts (users, sessions, documents, messages, errors, security)
+- **Timezone-aware metrics dashboard** with interactive charts (users, sessions, collaborators, pending invitations, messages, journal entries, documents, audio, errors, security)
 - **User management** with search and activity tracking
 - **Inactive account detection** and email notifications
 - **Error logs** with filtering and 30-day auto-cleanup

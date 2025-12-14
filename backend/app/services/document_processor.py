@@ -5,6 +5,7 @@ import pytesseract
 from pdf2image import convert_from_bytes
 from typing import Optional
 import logging
+import asyncio
 
 logger = logging.getLogger(__name__)
 
@@ -13,8 +14,8 @@ class DocumentProcessor:
     """Process various document types and extract text"""
 
     @staticmethod
-    def extract_text_from_pdf(file_content: bytes) -> Optional[str]:
-        """Extract text from PDF file"""
+    def _extract_text_from_pdf_sync(file_content: bytes) -> Optional[str]:
+        """Synchronous PDF text extraction (CPU-intensive)"""
         try:
             pdf_file = BytesIO(file_content)
             pdf_reader = PdfReader(pdf_file)
@@ -31,8 +32,15 @@ class DocumentProcessor:
             return None
 
     @staticmethod
-    def extract_text_from_image(file_content: bytes) -> Optional[str]:
-        """Extract text from image using OCR"""
+    async def extract_text_from_pdf(file_content: bytes) -> Optional[str]:
+        """Extract text from PDF file (runs in thread pool)"""
+        return await asyncio.to_thread(
+            DocumentProcessor._extract_text_from_pdf_sync, file_content
+        )
+
+    @staticmethod
+    def _extract_text_from_image_sync(file_content: bytes) -> Optional[str]:
+        """Synchronous OCR text extraction (CPU-intensive)"""
         try:
             image = Image.open(BytesIO(file_content))
             text = pytesseract.image_to_string(image)
@@ -42,8 +50,15 @@ class DocumentProcessor:
             return None
 
     @staticmethod
-    def generate_pdf_thumbnail(file_content: bytes, max_width: int = 300) -> Optional[bytes]:
-        """Generate thumbnail image from first page of PDF"""
+    async def extract_text_from_image(file_content: bytes) -> Optional[str]:
+        """Extract text from image using OCR (runs in thread pool)"""
+        return await asyncio.to_thread(
+            DocumentProcessor._extract_text_from_image_sync, file_content
+        )
+
+    @staticmethod
+    def _generate_pdf_thumbnail_sync(file_content: bytes, max_width: int = 300) -> Optional[bytes]:
+        """Synchronous PDF thumbnail generation (CPU-intensive)"""
         try:
             # Convert first page to image
             images = convert_from_bytes(file_content, first_page=1, last_page=1, dpi=150)
@@ -70,12 +85,19 @@ class DocumentProcessor:
             return None
 
     @staticmethod
-    def extract_text(file_content: bytes, content_type: str) -> Optional[str]:
-        """Extract text based on content type"""
+    async def generate_pdf_thumbnail(file_content: bytes, max_width: int = 300) -> Optional[bytes]:
+        """Generate thumbnail image from first page of PDF (runs in thread pool)"""
+        return await asyncio.to_thread(
+            DocumentProcessor._generate_pdf_thumbnail_sync, file_content, max_width
+        )
+
+    @staticmethod
+    async def extract_text(file_content: bytes, content_type: str) -> Optional[str]:
+        """Extract text based on content type (async)"""
         if content_type == "application/pdf":
-            return DocumentProcessor.extract_text_from_pdf(file_content)
+            return await DocumentProcessor.extract_text_from_pdf(file_content)
         elif content_type.startswith("image/"):
-            return DocumentProcessor.extract_text_from_image(file_content)
+            return await DocumentProcessor.extract_text_from_image(file_content)
         elif content_type.startswith("text/"):
             return file_content.decode('utf-8', errors='ignore')
         else:

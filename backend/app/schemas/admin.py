@@ -12,6 +12,7 @@ class PlatformMetrics(BaseModel):
     user_count: int
     session_count: int
     collaborator_count: int
+    pending_invitation_count: int
     document_count: int
     audio_count: int
     conversation_count: int

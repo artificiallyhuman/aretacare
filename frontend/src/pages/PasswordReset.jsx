@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { authAPI } from '../services/api';
 import logo from '../logos/large_logo.png';
@@ -6,7 +6,21 @@ import logo from '../logos/large_logo.png';
 export default function PasswordReset() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const token = searchParams.get('token');
+
+  // Store token in state and clear from URL for security
+  // This prevents the token from being exposed in browser history, referrer headers, and logs
+  const [token, setToken] = useState(null);
+
+  useEffect(() => {
+    const urlToken = searchParams.get('token');
+    if (urlToken) {
+      // Store token in state
+      setToken(urlToken);
+      // Remove token from URL without adding to history (security best practice)
+      // This prevents the token from appearing in browser history or being leaked via referrer
+      window.history.replaceState({}, document.title, '/password-reset');
+    }
+  }, [searchParams]);
 
   // Step 1: Request reset
   const [email, setEmail] = useState('');

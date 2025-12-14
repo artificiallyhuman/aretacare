@@ -64,8 +64,8 @@ The AretaCare Team
                     <!-- Header -->
                     <tr>
                         <td style="padding: 40px 40px 20px; text-align: center;">
-                            <h1 style="margin: 0; color: #059669; font-size: 28px;">AretaCare<span style="font-size: 16px; vertical-align: super;">™</span></h1>
-                            <p style="margin: 8px 0 0; color: #6b7280; font-size: 14px;">Care | Clarity | Confidence</p>
+                            <h1 style="margin: 0; color: #059669; font-size: 36px;">AretaCare<span style="font-size: 20px; vertical-align: super;">™</span></h1>
+                            <p style="margin: 10px 0 0; color: #6b7280; font-size: 18px; letter-spacing: 0.5px;">Care | Clarity | Confidence</p>
                         </td>
                     </tr>
 
@@ -150,7 +150,7 @@ The AretaCare Team
 
         except smtplib.SMTPAuthenticationError as e:
             logger.error(f"SMTP Authentication failed: {str(e)}")
-            logger.error("Please check your SMTP_USER and SMTP_PASSWORD (use Gmail App Password, not regular password)")
+            logger.error("Email authentication failed. Please verify SMTP credentials in environment configuration.")
             return False
         except smtplib.SMTPException as e:
             logger.error(f"SMTP error sending email: {str(e)}")
@@ -208,8 +208,8 @@ The AretaCare Team
                     <!-- Header -->
                     <tr>
                         <td style="padding: 40px 40px 20px; text-align: center;">
-                            <h1 style="margin: 0; color: #059669; font-size: 28px;">AretaCare<span style="font-size: 16px; vertical-align: super;">™</span></h1>
-                            <p style="margin: 8px 0 0; color: #6b7280; font-size: 14px;">Care | Clarity | Confidence</p>
+                            <h1 style="margin: 0; color: #059669; font-size: 36px;">AretaCare<span style="font-size: 20px; vertical-align: super;">™</span></h1>
+                            <p style="margin: 10px 0 0; color: #6b7280; font-size: 18px; letter-spacing: 0.5px;">Care | Clarity | Confidence</p>
                         </td>
                     </tr>
 
@@ -331,8 +331,8 @@ The AretaCare Team
                     <!-- Header -->
                     <tr>
                         <td style="padding: 40px 40px 20px; text-align: center;">
-                            <h1 style="margin: 0; color: #059669; font-size: 28px;">AretaCare<span style="font-size: 16px; vertical-align: super;">™</span></h1>
-                            <p style="margin: 8px 0 0; color: #6b7280; font-size: 14px;">Care | Clarity | Confidence</p>
+                            <h1 style="margin: 0; color: #059669; font-size: 36px;">AretaCare<span style="font-size: 20px; vertical-align: super;">™</span></h1>
+                            <p style="margin: 10px 0 0; color: #6b7280; font-size: 18px; letter-spacing: 0.5px;">Care | Clarity | Confidence</p>
                         </td>
                     </tr>
 
@@ -468,8 +468,8 @@ The AretaCare Team
                     <!-- Header -->
                     <tr>
                         <td style="padding: 40px 40px 20px; text-align: center;">
-                            <h1 style="margin: 0; color: #059669; font-size: 28px;">AretaCare<span style="font-size: 16px; vertical-align: super;">™</span></h1>
-                            <p style="margin: 8px 0 0; color: #6b7280; font-size: 14px;">Care | Clarity | Confidence</p>
+                            <h1 style="margin: 0; color: #059669; font-size: 36px;">AretaCare<span style="font-size: 20px; vertical-align: super;">™</span></h1>
+                            <p style="margin: 10px 0 0; color: #6b7280; font-size: 18px; letter-spacing: 0.5px;">Care | Clarity | Confidence</p>
                         </td>
                     </tr>
 
@@ -620,8 +620,8 @@ The AretaCare Team
                     <!-- Header -->
                     <tr>
                         <td style="padding: 40px 40px 20px; text-align: center;">
-                            <h1 style="margin: 0; color: #059669; font-size: 28px;">AretaCare<span style="font-size: 16px; vertical-align: super;">™</span></h1>
-                            <p style="margin: 8px 0 0; color: #6b7280; font-size: 14px;">Care | Clarity | Confidence</p>
+                            <h1 style="margin: 0; color: #059669; font-size: 36px;">AretaCare<span style="font-size: 20px; vertical-align: super;">™</span></h1>
+                            <p style="margin: 10px 0 0; color: #6b7280; font-size: 18px; letter-spacing: 0.5px;">Care | Clarity | Confidence</p>
                         </td>
                     </tr>
 
@@ -774,8 +774,8 @@ The AretaCare Team
                     <!-- Header -->
                     <tr>
                         <td style="padding: 40px 40px 20px; text-align: center;">
-                            <h1 style="margin: 0; color: #059669; font-size: 28px;">AretaCare<span style="font-size: 16px; vertical-align: super;">™</span></h1>
-                            <p style="margin: 8px 0 0; color: #6b7280; font-size: 14px;">Care | Clarity | Confidence</p>
+                            <h1 style="margin: 0; color: #059669; font-size: 36px;">AretaCare<span style="font-size: 20px; vertical-align: super;">™</span></h1>
+                            <p style="margin: 10px 0 0; color: #6b7280; font-size: 18px; letter-spacing: 0.5px;">Care | Clarity | Confidence</p>
                         </td>
                     </tr>
 
@@ -1011,8 +1011,8 @@ The AretaCare Team
                     <!-- Header -->
                     <tr>
                         <td style="padding: 40px 40px 20px; text-align: center;">
-                            <h1 style="margin: 0; color: #059669; font-size: 28px;">AretaCare<span style="font-size: 16px; vertical-align: super;">™</span></h1>
-                            <p style="margin: 8px 0 0; color: #6b7280; font-size: 14px;">Care | Clarity | Confidence</p>
+                            <h1 style="margin: 0; color: #059669; font-size: 36px;">AretaCare<span style="font-size: 20px; vertical-align: super;">™</span></h1>
+                            <p style="margin: 10px 0 0; color: #6b7280; font-size: 18px; letter-spacing: 0.5px;">Care | Clarity | Confidence</p>
                         </td>
                     </tr>
 
@@ -1171,8 +1171,8 @@ The AretaCare Team
                     <!-- Header -->
                     <tr>
                         <td style="padding: 40px 40px 20px; text-align: center;">
-                            <h1 style="margin: 0; color: #059669; font-size: 28px;">AretaCare<span style="font-size: 16px; vertical-align: super;">™</span></h1>
-                            <p style="margin: 8px 0 0; color: #6b7280; font-size: 14px;">Care | Clarity | Confidence</p>
+                            <h1 style="margin: 0; color: #059669; font-size: 36px;">AretaCare<span style="font-size: 20px; vertical-align: super;">™</span></h1>
+                            <p style="margin: 10px 0 0; color: #6b7280; font-size: 18px; letter-spacing: 0.5px;">Care | Clarity | Confidence</p>
                         </td>
                     </tr>
 
@@ -1290,7 +1290,7 @@ The AretaCare Team
 
         except smtplib.SMTPAuthenticationError as e:
             logger.error(f"SMTP Authentication failed: {str(e)}")
-            logger.error("Please check your SMTP_USER and SMTP_PASSWORD (use Gmail App Password, not regular password)")
+            logger.error("Email authentication failed. Please verify SMTP credentials in environment configuration.")
             return False
         except smtplib.SMTPException as e:
             logger.error(f"SMTP error sending email: {str(e)}")
@@ -1360,8 +1360,8 @@ The AretaCare Team
                     <!-- Header -->
                     <tr>
                         <td style="padding: 40px 40px 20px; text-align: center;">
-                            <h1 style="margin: 0; color: #059669; font-size: 28px;">AretaCare<span style="font-size: 16px; vertical-align: super;">™</span></h1>
-                            <p style="margin: 8px 0 0; color: #6b7280; font-size: 14px;">Care | Clarity | Confidence</p>
+                            <h1 style="margin: 0; color: #059669; font-size: 36px;">AretaCare<span style="font-size: 20px; vertical-align: super;">™</span></h1>
+                            <p style="margin: 10px 0 0; color: #6b7280; font-size: 18px; letter-spacing: 0.5px;">Care | Clarity | Confidence</p>
                         </td>
                     </tr>
 
@@ -1520,8 +1520,8 @@ The AretaCare Team
                     <!-- Header -->
                     <tr>
                         <td style="padding: 40px 40px 20px; text-align: center;">
-                            <h1 style="margin: 0; color: #059669; font-size: 28px;">AretaCare<span style="font-size: 16px; vertical-align: super;">™</span></h1>
-                            <p style="margin: 8px 0 0; color: #6b7280; font-size: 14px;">Care | Clarity | Confidence</p>
+                            <h1 style="margin: 0; color: #059669; font-size: 36px;">AretaCare<span style="font-size: 20px; vertical-align: super;">™</span></h1>
+                            <p style="margin: 10px 0 0; color: #6b7280; font-size: 18px; letter-spacing: 0.5px;">Care | Clarity | Confidence</p>
                         </td>
                     </tr>
 

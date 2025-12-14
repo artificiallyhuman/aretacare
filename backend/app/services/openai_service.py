@@ -51,8 +51,8 @@ class OpenAIService:
                     level="ERROR",
                     details={"model": self.model, "message_count": len(messages)}
                 )
-            except:
-                pass
+            except Exception:
+                pass  # Don't let error logging crash the app
 
             return None
 
@@ -523,8 +523,8 @@ class OpenAIService:
                     level="ERROR",
                     details={"filename": filename}
                 )
-            except:
-                pass
+            except Exception:
+                pass  # Don't let error logging crash the app
 
             return None
 

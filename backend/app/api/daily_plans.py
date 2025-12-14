@@ -1,34 +1,36 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import List, Optional
-from datetime import datetime, date, timedelta
+from datetime import datetime, date
 
 from ..core.database import get_db
 from ..api.auth import get_current_user
 from ..api.permissions import check_session_access
 from ..models.user import User
 from ..models.daily_plan import DailyPlan
+from ..models.daily_plan_view import DailyPlanView
 from ..models.session import Session as UserSession
 from ..schemas.daily_plan import (
     DailyPlanResponse,
     DailyPlanUpdate,
     DailyPlanMarkViewed,
-    DailyPlanCheckResponse
+    DailyPlanCheckResponse,
+    DailyPlanListResponse
 )
 from ..services.daily_plan_service import DailyPlanService
 
 router = APIRouter()
 
 
-@router.get("/{session_id}", response_model=List[DailyPlanResponse])
+@router.get("/{session_id}", response_model=DailyPlanListResponse)
 async def get_all_daily_plans(
     session_id: str,
+    limit: int = 50,
+    offset: int = 0,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    """Get all daily plans for a session, ordered by date (most recent first)"""
-    from app.models.daily_plan_view import DailyPlanView
-
+    """Get daily plans for a session with pagination, ordered by date (most recent first)"""
     # Verify user has access to session (owner or collaborator)
     session = db.query(UserSession).filter(UserSession.id == session_id).first()
 
@@ -37,10 +39,14 @@ async def get_all_daily_plans(
 
     check_session_access(session, current_user.id, db)
 
-    # Get all daily plans
-    plans = db.query(DailyPlan).filter(
-        DailyPlan.session_id == session_id
-    ).order_by(DailyPlan.date.desc()).all()
+    # Build base query
+    query = db.query(DailyPlan).filter(DailyPlan.session_id == session_id)
+
+    # Get total count before pagination
+    total = query.count()
+
+    # Get daily plans with pagination
+    plans = query.order_by(DailyPlan.date.desc()).offset(offset).limit(limit).all()
 
     # Get all view records for this user in one query
     plan_ids = [plan.id for plan in plans]
@@ -54,7 +60,11 @@ async def get_all_daily_plans(
     for plan in plans:
         plan.viewed = plan.id in viewed_plan_ids
 
-    return plans
+    return DailyPlanListResponse(
+        plans=plans,
+        has_more=(offset + len(plans)) < total,
+        total=total
+    )
 
 
 @router.get("/{session_id}/latest", response_model=Optional[DailyPlanResponse])
@@ -64,8 +74,6 @@ async def get_latest_daily_plan(
     current_user: User = Depends(get_current_user)
 ):
     """Get the latest daily plan for a session (returns null if none exist)"""
-    from app.models.daily_plan_view import DailyPlanView
-
     # Verify user has access to session (owner or collaborator)
     session = db.query(UserSession).filter(UserSession.id == session_id).first()
 
@@ -151,7 +159,6 @@ async def generate_daily_plan(
     plan = await DailyPlanService.generate_daily_plan(db, session_id, user_date)
 
     # Check if current user has viewed this plan (for existing plans returned by generate)
-    from app.models.daily_plan_view import DailyPlanView
     user_view = db.query(DailyPlanView).filter(
         DailyPlanView.daily_plan_id == plan.id,
         DailyPlanView.user_id == current_user.id
@@ -202,8 +209,6 @@ async def mark_plan_viewed(
     current_user: User = Depends(get_current_user)
 ):
     """Mark a daily plan as viewed (per-user tracking)"""
-    from app.models.daily_plan_view import DailyPlanView
-
     # Get the plan
     plan = db.query(DailyPlan).filter(DailyPlan.id == plan_id).first()
 

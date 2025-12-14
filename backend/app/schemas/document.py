@@ -48,3 +48,10 @@ class DocumentResponse(BaseModel):
 
 class DocumentUpdate(BaseModel):
     ai_description: Optional[str] = None
+
+
+class DocumentListResponse(BaseModel):
+    """Paginated response for document list"""
+    documents: list[DocumentResponse]
+    has_more: bool
+    total: int

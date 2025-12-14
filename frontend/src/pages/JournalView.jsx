@@ -3,6 +3,7 @@ import { useSessionContext } from '../contexts/SessionContext';
 import { journalAPI } from '../services/api';
 import JournalEntry from '../components/Journal/JournalEntry';
 import EntryEditor from '../components/Journal/EntryEditor';
+import { isToday, isFuture, formatDateShort } from '../utils/dateUtils';
 
 const ENTRY_TYPE_COLORS = {
   MEDICAL_UPDATE: 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300',
@@ -142,27 +143,6 @@ const JournalView = () => {
       month: 'long',
       day: 'numeric'
     });
-  };
-
-  const formatDateShort = (dateString) => {
-    const [year, month, day] = dateString.split('-').map(Number);
-    const date = new Date(year, month - 1, day);
-    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-  };
-
-  const isToday = (dateString) => {
-    const [year, month, day] = dateString.split('-').map(Number);
-    const date = new Date(year, month - 1, day);
-    const today = new Date();
-    return date.toDateString() === today.toDateString();
-  };
-
-  const isFuture = (dateString) => {
-    const [year, month, day] = dateString.split('-').map(Number);
-    const entryDate = new Date(year, month - 1, day, 0, 0, 0, 0);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    return entryDate > today;
   };
 
   // Sort dates in reverse chronological order (most recent first)

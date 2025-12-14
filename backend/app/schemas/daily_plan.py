@@ -42,3 +42,10 @@ class DailyPlanCheckResponse(BaseModel):
     latest_plan_date: Optional[date] = None
     hours_since_last_plan: Optional[float] = None
     reason: Optional[str] = None  # Explanation when should_generate is False
+
+
+class DailyPlanListResponse(BaseModel):
+    """Paginated response for daily plan list"""
+    plans: list[DailyPlanResponse]
+    has_more: bool
+    total: int

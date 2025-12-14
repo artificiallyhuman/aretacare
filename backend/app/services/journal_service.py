@@ -744,7 +744,7 @@ IMPORTANT: Respond with ONLY a valid JSON object in this exact format, with no a
                         "title": title[:100] if title else None
                     }
                 )
-            except:
+            except Exception:
                 pass  # Don't let error logging itself crash the app
 
             raise

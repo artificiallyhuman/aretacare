@@ -31,3 +31,5 @@ class AudioRecordingUpdate(BaseModel):
 
 class AudioRecordingListResponse(BaseModel):
     recordings: list[AudioRecordingResponse]
+    has_more: bool = False
+    total: int = 0

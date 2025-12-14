@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useSessionContext } from '../contexts/SessionContext';
 import { audioRecordingsAPI, conversationAPI } from '../services/api';
+import { isToday, formatDateShort } from '../utils/dateUtils';
 
 // Audio recording categories with labels and colors
 const CATEGORIES = [
@@ -92,7 +93,9 @@ const AudioRecordings = () => {
         selectedCategory === 'all' ? null : selectedCategory,
         debouncedSearchQuery || null
       );
-      setRecordings(response.data.recordings);
+      // Handle both paginated response and legacy array response
+      const recordingsData = response.data.recordings || response.data;
+      setRecordings(recordingsData);
       hasLoadedRef.current = true;
     } catch (err) {
       console.error('Error loading recordings:', err);
@@ -221,17 +224,6 @@ const AudioRecordings = () => {
     if (element) {
       element.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
-  };
-
-  const formatDateShort = (dateString) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-  };
-
-  const isToday = (dateString) => {
-    const date = new Date(dateString);
-    const today = new Date();
-    return date.toDateString() === today.toDateString();
   };
 
   const handleFileUpload = async (event) => {
@@ -675,16 +667,15 @@ const AudioPlayer = ({ recordingId, getAudioUrl }) => {
   const [audioUrl, setAudioUrl] = useState(null);
   const [loading, setLoading] = useState(false);
 
-  const loadAudio = async () => {
-    setLoading(true);
-    const url = await getAudioUrl(recordingId);
-    setAudioUrl(url);
-    setLoading(false);
-  };
-
   useEffect(() => {
+    const loadAudio = async () => {
+      setLoading(true);
+      const url = await getAudioUrl(recordingId);
+      setAudioUrl(url);
+      setLoading(false);
+    };
     loadAudio();
-  }, [recordingId]);
+  }, [recordingId, getAudioUrl]);
 
   if (loading) {
     return <div className="text-xs text-gray-500">Loading audio...</div>;

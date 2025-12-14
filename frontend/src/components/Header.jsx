@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import PropTypes from 'prop-types';
 import { Link, useNavigate } from 'react-router-dom';
 import { useSessionContext } from '../contexts/SessionContext';
 import { useTheme } from '../contexts/ThemeContext';
@@ -101,6 +102,9 @@ const Header = ({ onLogout, user }) => {
             <div className="relative" ref={toolsDropdownRef}>
               <button
                 onClick={() => setToolsDropdownOpen(!toolsDropdownOpen)}
+                aria-expanded={toolsDropdownOpen}
+                aria-haspopup="menu"
+                aria-label="Tools menu"
                 className="px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-200 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-md transition-colors flex items-center space-x-1"
               >
                 <span>Tools</span>
@@ -110,7 +114,7 @@ const Header = ({ onLogout, user }) => {
               </button>
 
               {toolsDropdownOpen && (
-                <div className="absolute top-full left-0 mt-1 w-48 bg-white dark:bg-gray-800 rounded-md shadow-lg border border-gray-200 dark:border-gray-700 py-1 z-10">
+                <div role="menu" className="absolute top-full left-0 mt-1 w-48 bg-white dark:bg-gray-800 rounded-md shadow-lg border border-gray-200 dark:border-gray-700 py-1 z-10">
                   <Link
                     to="/journal"
                     className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 hover:text-primary-600 dark:hover:text-primary-400"
@@ -176,6 +180,9 @@ const Header = ({ onLogout, user }) => {
               <div className="relative" ref={userDropdownRef}>
                 <button
                   onClick={() => setUserDropdownOpen(!userDropdownOpen)}
+                  aria-expanded={userDropdownOpen}
+                  aria-haspopup="menu"
+                  aria-label="User menu and session switcher"
                   className="flex items-center space-x-2 pl-2 px-3 py-2 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
                 >
                   <div className="w-8 h-8 bg-primary-100 dark:bg-primary-900 rounded-full flex items-center justify-center">
@@ -195,7 +202,7 @@ const Header = ({ onLogout, user }) => {
                 </button>
 
                 {userDropdownOpen && (
-                  <div className="absolute top-full right-0 mt-1 w-56 bg-white dark:bg-gray-800 rounded-md shadow-lg border border-gray-200 dark:border-gray-700 py-1 z-10">
+                  <div role="menu" className="absolute top-full right-0 mt-1 w-56 bg-white dark:bg-gray-800 rounded-md shadow-lg border border-gray-200 dark:border-gray-700 py-1 z-10">
                     {/* Owned Sessions Section */}
                     <div className="px-3 py-2 border-b border-gray-200 dark:border-gray-700">
                       <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">
@@ -324,7 +331,9 @@ const Header = ({ onLogout, user }) => {
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
               className="p-2 text-gray-700 dark:text-gray-200 hover:text-primary-600 dark:hover:text-primary-400 transition-colors"
-              aria-label="Toggle menu"
+              aria-label={mobileMenuOpen ? "Close menu" : "Open menu"}
+              aria-expanded={mobileMenuOpen}
+              aria-controls="mobile-menu"
             >
               {mobileMenuOpen ? (
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -341,7 +350,7 @@ const Header = ({ onLogout, user }) => {
 
         {/* Mobile Navigation Menu */}
         {mobileMenuOpen && (
-          <div className="lg:hidden border-t border-gray-200 dark:border-gray-700">
+          <div id="mobile-menu" className="lg:hidden border-t border-gray-200 dark:border-gray-700">
             {/* Navigation Block: Main pages + Tools dropdown */}
             <div className="py-2 bg-white dark:bg-gray-800">
               <div className="flex flex-col space-y-0.5">
@@ -634,6 +643,14 @@ const Header = ({ onLogout, user }) => {
       )}
     </header>
   );
+};
+
+Header.propTypes = {
+  onLogout: PropTypes.func.isRequired,
+  user: PropTypes.shape({
+    name: PropTypes.string,
+    email: PropTypes.string,
+  }).isRequired,
 };
 
 export default Header;

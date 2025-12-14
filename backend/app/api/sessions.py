@@ -226,64 +226,6 @@ async def create_session(
     )
 
 
-@router.post("/primary", response_model=SessionResponse)
-async def get_or_create_primary_session(
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    """Get or create the user's primary (long-running) session"""
-    # Check if user already has a primary session
-    primary_session = db.query(SessionModel).filter(
-        SessionModel.user_id == current_user.id,
-        SessionModel.is_primary == True
-    ).first()
-
-    if primary_session:
-        # Update last activity
-        primary_session.last_activity = datetime.utcnow()
-        db.commit()
-        db.refresh(primary_session)
-
-        # Get collaborators for response
-        collaborators = db.query(SessionCollaborator).filter(
-            SessionCollaborator.session_id == primary_session.id
-        ).all()
-
-        collaborator_infos = build_collaborator_infos(collaborators, db)
-
-        return SessionResponse(
-            id=primary_session.id,
-            name=primary_session.name,
-            created_at=primary_session.created_at,
-            last_activity=primary_session.last_activity,
-            is_active=primary_session.is_active,
-            owner_id=primary_session.owner_id,
-            is_owner=True,
-            collaborators=collaborator_infos
-        )
-
-    # Create new primary session
-    new_primary_session = SessionModel(
-        user_id=current_user.id,
-        owner_id=current_user.id,
-        is_primary=True
-    )
-    db.add(new_primary_session)
-    db.commit()
-    db.refresh(new_primary_session)
-
-    return SessionResponse(
-        id=new_primary_session.id,
-        name=new_primary_session.name,
-        created_at=new_primary_session.created_at,
-        last_activity=new_primary_session.last_activity,
-        is_active=new_primary_session.is_active,
-        owner_id=new_primary_session.owner_id,
-        is_owner=True,
-        collaborators=[]
-    )
-
-
 @router.get("/{session_id}", response_model=SessionResponse)
 async def get_session(
     session_id: str,
@@ -558,15 +500,22 @@ async def share_session(
     # Only owner can share
     check_session_access(session, current_user.id, db, require_owner=True)
 
-    # Check collaborator limit (max 10 total including owner means max 9 additional collaborators)
+    # Check collaborator limit (max 10 total including owner means max 9 additional)
+    # Count both existing collaborators AND pending invitations
     current_collab_count = db.query(func.count(SessionCollaborator.id)).filter(
         SessionCollaborator.session_id == session_id
     ).scalar()
 
-    if current_collab_count >= 9:
+    pending_invite_count = db.query(func.count(PendingInvitation.id)).filter(
+        PendingInvitation.session_id == session_id
+    ).scalar()
+
+    total_count = current_collab_count + pending_invite_count
+
+    if total_count >= 9:
         raise HTTPException(
             status_code=400,
-            detail="Maximum of 10 people (including owner) can collaborate on a session. Please remove a collaborator first."
+            detail="Maximum of 10 people (including owner) can collaborate on a session. Please remove a collaborator or cancel a pending invitation first."
         )
 
     # Look up user by email
@@ -863,6 +812,7 @@ async def send_invitation(
 
     if existing_invitation:
         # Update the invitation (refresh the timestamp and token)
+        # No limit check needed - we're just refreshing, not adding a new person
         existing_invitation.created_at = datetime.utcnow()
         import secrets
         existing_invitation.token = secrets.token_urlsafe(32)
@@ -870,6 +820,24 @@ async def send_invitation(
         db.refresh(existing_invitation)
         invitation = existing_invitation
     else:
+        # Creating a NEW invitation - check collaborator limit first
+        # Count both existing collaborators AND pending invitations
+        current_collab_count = db.query(func.count(SessionCollaborator.id)).filter(
+            SessionCollaborator.session_id == session_id
+        ).scalar()
+
+        pending_invite_count = db.query(func.count(PendingInvitation.id)).filter(
+            PendingInvitation.session_id == session_id
+        ).scalar()
+
+        total_count = current_collab_count + pending_invite_count
+
+        if total_count >= 9:
+            raise HTTPException(
+                status_code=400,
+                detail="Maximum of 10 people (including owner) can collaborate on a session. Please remove a collaborator or cancel a pending invitation first."
+            )
+
         # Create new invitation
         invitation = PendingInvitation(
             email=invitation_data.email,

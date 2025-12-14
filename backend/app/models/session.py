@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, DateTime, Boolean, Text, ForeignKey, Index
+from sqlalchemy import Column, String, DateTime, Boolean, ForeignKey
 from sqlalchemy.orm import relationship
 from datetime import datetime
 from app.core.database import Base
@@ -16,11 +16,6 @@ class Session(Base):
     last_activity = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
     is_active = Column(Boolean, default=True, nullable=False)
 
-    # Primary session support (one long-running session per user)
-    is_primary = Column(Boolean, default=False, nullable=False)
-    journal_entry_count = Column(Integer, default=0, nullable=False)
-    last_journal_synthesis = Column(DateTime, nullable=True)
-
     # Relationships
     user = relationship("User", back_populates="sessions", foreign_keys=[user_id])
     owner = relationship("User", foreign_keys=[owner_id])
@@ -31,7 +26,3 @@ class Session(Base):
     journal_entries = relationship("JournalEntry", back_populates="session", cascade="all, delete-orphan")
     audio_recordings = relationship("AudioRecording", back_populates="session", cascade="all, delete-orphan")
     daily_plans = relationship("DailyPlan", back_populates="session", cascade="all, delete-orphan")
-
-    __table_args__ = (
-        Index('idx_user_primary', 'user_id', 'is_primary', unique=True, postgresql_where=(is_primary == True)),
-    )

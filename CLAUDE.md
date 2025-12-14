@@ -24,7 +24,7 @@ AretaCare is an AI-powered medical care advocate assistant that helps families u
 - AI-powered Documents Manager (12 categories, AI descriptions, searchable, date navigation, direct upload)
 - AI-powered Audio Recordings (12 categories, AI summaries, searchable, date navigation, direct upload)
 - Complete data deletion - removes PostgreSQL data and S3 files (zero orphaned files)
-- Admin console - timezone-aware metrics dashboard with charts for users/sessions/documents/messages/errors/security, system health, S3 orphan cleanup, audit logging with automatic retention, error logs with filtering and cleanup, security logs. All timestamps display in admin's local timezone.
+- Admin console - timezone-aware metrics dashboard with charts for users/sessions/collaborators/pending invitations/messages/journal entries/documents/audio/errors/security, system health, S3 orphan cleanup, audit logging with automatic retention, error logs with filtering and cleanup, security logs. All timestamps display in admin's local timezone.
 - Mobile-optimized design with responsive layouts
 - Dark mode support via Tailwind CSS and ThemeContext
 - Network status monitoring with offline detection and reconnection banner
@@ -168,8 +168,8 @@ See `backend/app/config/README.md` for complete documentation on modifying AI be
 **Session Sharing:**
 - Dedicated Collaboration page at `/collaboration` for managing all session collaborations
 - Session owners can share sessions with other AretaCare users by email
-- Email invitations for non-users (pending invitations with expiration tracking)
-- Maximum 10 people per session (1 owner + 9 collaborators)
+- Email invitations for non-users (pending invitations with 30-day expiration, resend capability)
+- Maximum 10 people per session (1 owner + 9 collaborators, includes pending invitations)
 - Collaborators have full access to session data (documents, conversations, journal, daily plans, audio)
 - Only session owners can: rename session, delete session, share with others, revoke collaborator access, transfer ownership
 - Ownership transfer with validation (target user must have <3 owned sessions)
@@ -223,7 +223,7 @@ See `backend/app/config/README.md` for complete documentation on modifying AI be
 - `Conversation.jsx` - Main chat interface with daily plan panel, thumbnails load immediately after upload
 - `JournalView.jsx` - Journal with date navigation, "Jump to Today" button, future entries shown with blue background shading
 - `DailyPlan.jsx` - Daily plan history, editing, and copy-to-clipboard functionality (mobile-responsive buttons)
-- `Collaboration.jsx` - Dedicated collaboration management page (view owned/shared sessions, add/remove collaborators, transfer ownership, pending invitations, leave sessions)
+- `Collaboration.jsx` - Dedicated collaboration management page (view owned/shared sessions, add/remove collaborators, transfer ownership, pending invitations with resend/cancel, leave sessions)
 - `Settings.jsx` - Account management, session management
 - `tools/Documents.jsx` - AI-powered document manager (at `/tools/documents` route)
 - `AudioRecordings.jsx` - AI-powered audio manager
@@ -365,7 +365,7 @@ Theme managed via `ThemeContext.jsx`, persisted to localStorage.
 - Message editing (edit user messages, verify "(edited)" indicator appears)
 - Copy-to-clipboard (messages and daily plans, paste into Word/Google Docs to verify rich formatting)
 - Multi-session management (up to 3 sessions, rename, switch)
-- Collaboration page (add/remove collaborators, transfer ownership, pending invitations, leave session)
+- Collaboration page (add/remove collaborators, transfer ownership, pending invitations with resend, leave session)
 - Session sharing (share by email, collaborator access)
 - Email notifications (password changes, email changes, collaborator actions)
 - Journal with date navigation and timezone handling

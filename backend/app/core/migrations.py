@@ -285,6 +285,35 @@ def run_migrations():
             else:
                 logger.info("owner_id column already exists in sessions")
 
+            # Remove deprecated columns (is_primary, journal_entry_count, last_journal_synthesis)
+            # These were part of an older design and are no longer used
+            deprecated_columns = ['is_primary', 'journal_entry_count', 'last_journal_synthesis']
+            for col_name in deprecated_columns:
+                if col_name in columns:
+                    logger.info(f"Removing deprecated column '{col_name}' from sessions table...")
+                    try:
+                        conn.execute(text(f"ALTER TABLE sessions DROP COLUMN IF EXISTS {col_name}"))
+                        conn.commit()
+                        logger.info(f"Successfully removed '{col_name}' column from sessions")
+                    except Exception as e:
+                        logger.error(f"Failed to remove '{col_name}' column: {e}")
+                        conn.rollback()
+
+            # Remove deprecated index for primary sessions
+            try:
+                # Check if index exists before trying to drop it
+                result = conn.execute(text("""
+                    SELECT 1 FROM pg_indexes WHERE indexname = 'idx_user_primary'
+                """))
+                if result.fetchone():
+                    logger.info("Removing deprecated idx_user_primary index...")
+                    conn.execute(text("DROP INDEX IF EXISTS idx_user_primary"))
+                    conn.commit()
+                    logger.info("Successfully removed idx_user_primary index")
+            except Exception as e:
+                logger.error(f"Failed to remove idx_user_primary index: {e}")
+                conn.rollback()
+
         # Create session_collaborators table if it doesn't exist
         if 'session_collaborators' not in inspector.get_table_names():
             logger.info("Creating session_collaborators table...")
@@ -495,6 +524,42 @@ def run_migrations():
             logger.info("Created index idx_journal_entries_session_date")
         except Exception as e:
             logger.warning(f"Index idx_journal_entries_session_date may already exist: {e}")
+            conn.rollback()
+
+        # Add index on documents (category) for category filtering
+        try:
+            conn.execute(text("""
+                CREATE INDEX IF NOT EXISTS idx_documents_category
+                ON documents (category)
+            """))
+            conn.commit()
+            logger.info("Created index idx_documents_category")
+        except Exception as e:
+            logger.warning(f"Index idx_documents_category may already exist: {e}")
+            conn.rollback()
+
+        # Add index on audio_recordings (category) for category filtering
+        try:
+            conn.execute(text("""
+                CREATE INDEX IF NOT EXISTS idx_audio_recordings_category
+                ON audio_recordings (category)
+            """))
+            conn.commit()
+            logger.info("Created index idx_audio_recordings_category")
+        except Exception as e:
+            logger.warning(f"Index idx_audio_recordings_category may already exist: {e}")
+            conn.rollback()
+
+        # Add index on session_collaborators (session_id) for session lookups
+        try:
+            conn.execute(text("""
+                CREATE INDEX IF NOT EXISTS idx_session_collaborators_session
+                ON session_collaborators (session_id)
+            """))
+            conn.commit()
+            logger.info("Created index idx_session_collaborators_session")
+        except Exception as e:
+            logger.warning(f"Index idx_session_collaborators_session may already exist: {e}")
             conn.rollback()
 
         # ==========================================
@@ -770,8 +835,8 @@ def run_migrations():
                     logger.info(f"Column already nullable or error dropping NOT NULL: {e}")
                     try:
                         conn.rollback()
-                    except:
-                        pass
+                    except Exception:
+                        pass  # Rollback failure is acceptable
 
                 # Step 2: Remove any DEFAULT value from updated_at column
                 try:
@@ -786,8 +851,8 @@ def run_migrations():
                     logger.info(f"updated_at column already has no default: {e}")
                     try:
                         conn.rollback()
-                    except:
-                        pass
+                    except Exception:
+                        pass  # Rollback failure is acceptable
 
                 # Step 3: One-time reset of updated_at to NULL for all messages
                 # The message editing feature is new, so any non-NULL updated_at values
@@ -811,7 +876,7 @@ def run_migrations():
                         logger.error(f"Failed to reset updated_at for messages: {e}")
                         try:
                             conn.rollback()
-                        except:
-                            pass
+                        except Exception:
+                            pass  # Rollback failure is acceptable
                 else:
                     logger.info(f"Migration '{migration_name}' already applied, skipping")

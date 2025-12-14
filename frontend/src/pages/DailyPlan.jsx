@@ -3,6 +3,7 @@ import ReactMarkdown from 'react-markdown';
 import { useSessionContext } from '../contexts/SessionContext';
 import { dailyPlanAPI } from '../services/api';
 import { markdownToHtml } from '../utils/markdownUtils';
+import { isToday } from '../utils/dateUtils';
 
 const DailyPlan = () => {
   const { activeSessionId: sessionId } = useSessionContext();
@@ -26,11 +27,13 @@ const DailyPlan = () => {
     try {
       setLoading(true);
       const response = await dailyPlanAPI.getAll(sessionId);
-      setPlans(response.data);
+      // Handle paginated response { plans: [...], has_more, total }
+      const plansData = response.data.plans || response.data;
+      setPlans(plansData);
 
       // Auto-select only if there's a today's plan
-      if (response.data.length > 0) {
-        const latestPlan = response.data[0];
+      if (plansData.length > 0) {
+        const latestPlan = plansData[0];
         const today = new Date();
         const [year, month, day] = latestPlan.date.split('-').map(Number);
         const planDate = new Date(year, month - 1, day);
@@ -203,14 +206,6 @@ const DailyPlan = () => {
     const [year, month, day] = dateString.split('-').map(Number);
     const date = new Date(year, month - 1, day);
     return date.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
-  };
-
-  const isToday = (dateString) => {
-    // Parse as local date (YYYY-MM-DD) not UTC
-    const [year, month, day] = dateString.split('-').map(Number);
-    const date = new Date(year, month - 1, day);
-    const today = new Date();
-    return date.toDateString() === today.toDateString();
   };
 
   const hasTodaysPlan = () => {

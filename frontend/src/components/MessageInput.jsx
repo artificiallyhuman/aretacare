@@ -1,6 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
+import PropTypes from 'prop-types';
 import { conversationAPI } from '../services/api';
 import { useSessionContext } from '../contexts/SessionContext';
+import { formatTime } from '../utils/dateUtils';
 import AudioWaveform from './AudioWaveform';
 
 const MAX_RECORDING_SECONDS = 900; // 15 minutes (corresponds to ~50MB at typical WebM bitrate)
@@ -23,7 +25,7 @@ const ROTATING_PROMPTS_MOBILE = [
   "I'm exhausted from caring for…"
 ];
 
-const MessageInput = ({ onSendMessage, onFileUpload, loading, hasMessages = false }) => {
+const MessageInput = ({ onSendMessage, loading, hasMessages = false }) => {
   const { activeSessionId: sessionId } = useSessionContext();
   const [message, setMessage] = useState('');
   const [selectedFile, setSelectedFile] = useState(null);
@@ -103,14 +105,9 @@ const MessageInput = ({ onSendMessage, onFileUpload, loading, hasMessages = fals
         clearInterval(recordingTimerRef.current);
       }
     };
+    // Intentionally excluding stopRecording from deps - only restart timer when recording state changes
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isRecording]);
-
-  // Format time as MM:SS
-  const formatTime = (seconds) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
-  };
 
   // Auto-resize textarea as content grows
   const handleTextareaChange = (e) => {
@@ -330,6 +327,7 @@ const MessageInput = ({ onSendMessage, onFileUpload, loading, hasMessages = fals
               type="button"
               onClick={startRecording}
               disabled={loading || isTranscribing}
+              aria-label={isTranscribing ? "Transcribing audio" : "Start voice recording"}
               className={`p-1.5 md:p-2 rounded-lg transition text-primary-600 hover:text-primary-700 hover:bg-primary-50 flex-shrink-0 ${(loading || isTranscribing) ? 'opacity-50 cursor-not-allowed' : ''}`}
               title="Start recording"
             >
@@ -351,6 +349,8 @@ const MessageInput = ({ onSendMessage, onFileUpload, loading, hasMessages = fals
             <button
               type="button"
               onClick={stopRecording}
+              aria-label="Stop voice recording"
+              aria-pressed={isRecording}
               className="px-2 py-1.5 md:py-2 rounded-lg transition bg-red-600 hover:bg-red-700 text-white font-medium text-xs flex items-center gap-1 animate-pulse flex-shrink-0"
               title="Stop recording"
             >
@@ -402,6 +402,17 @@ const MessageInput = ({ onSendMessage, onFileUpload, loading, hasMessages = fals
       </div>
     </form>
   );
+};
+
+MessageInput.propTypes = {
+  onSendMessage: PropTypes.func.isRequired,
+  loading: PropTypes.bool,
+  hasMessages: PropTypes.bool,
+};
+
+MessageInput.defaultProps = {
+  loading: false,
+  hasMessages: false,
 };
 
 export default MessageInput;

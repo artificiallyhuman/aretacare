@@ -1,8 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Request
 from sqlalchemy.orm import Session
 from app.core.database import get_db
+from app.core.rate_limit import limiter, RateLimits
 from app.models import Document as DocumentModel, DocumentCategory, Session as SessionModel, User
-from app.schemas import DocumentUploadResponse, DocumentResponse, DocumentUpdate
+from app.schemas import DocumentUploadResponse, DocumentResponse, DocumentUpdate, DocumentListResponse
 from app.services import s3_service, document_processor
 from app.services.openai_service import openai_service
 from app.services.journal_service import JournalService
@@ -61,6 +62,7 @@ MAX_FILE_SIZE = 50 * 1024 * 1024  # 50MB
 
 
 @router.post("/upload", response_model=DocumentUploadResponse)
+@limiter.limit(RateLimits.FILE_UPLOAD)
 async def upload_document(
     request: Request,
     file: UploadFile = File(...),
@@ -197,13 +199,13 @@ async def upload_document(
         if not upload_success:
             raise HTTPException(status_code=500, detail="Failed to upload file to storage")
 
-        # Extract text from document
-        extracted_text = document_processor.extract_text(file_content, file.content_type)
+        # Extract text from document (runs in thread pool)
+        extracted_text = await document_processor.extract_text(file_content, file.content_type)
 
-        # Generate and upload thumbnail for PDFs
+        # Generate and upload thumbnail for PDFs (runs in thread pool)
         thumbnail_s3_key = None
         if file.content_type == "application/pdf":
-            thumbnail_bytes = document_processor.generate_pdf_thumbnail(file_content)
+            thumbnail_bytes = await document_processor.generate_pdf_thumbnail(file_content)
             if thumbnail_bytes:
                 thumbnail_s3_key = s3_service.get_prefixed_key(f"thumbnails/{session_id}/{uuid.uuid4()}.png")
                 thumbnail_upload_success = await s3_service.upload_file(
@@ -330,21 +332,23 @@ async def upload_document(
                     "file_size": len(file_content)
                 }
             )
-        except:
-            pass
+        except Exception:
+            pass  # Don't let error logging crash the app
 
         raise HTTPException(status_code=500, detail=f"Error uploading document: {str(e)}")
 
 
-@router.get("/session/{session_id}", response_model=List[DocumentResponse])
+@router.get("/session/{session_id}", response_model=DocumentListResponse)
 async def get_session_documents(
     session_id: str,
     category: Optional[str] = None,
     search: Optional[str] = None,
+    limit: int = 50,
+    offset: int = 0,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """Get all documents for a session with optional filtering and search"""
+    """Get documents for a session with optional filtering, search, and pagination"""
     session = db.query(SessionModel).filter(SessionModel.id == session_id).first()
 
     if not session:
@@ -372,9 +376,17 @@ async def get_session_documents(
             (DocumentModel.ai_description.ilike(search_term))
         )
 
-    documents = query.order_by(DocumentModel.uploaded_at.desc()).all()
+    # Get total count before pagination
+    total = query.count()
 
-    return documents
+    # Apply pagination
+    documents = query.order_by(DocumentModel.uploaded_at.desc()).offset(offset).limit(limit).all()
+
+    return DocumentListResponse(
+        documents=documents,
+        has_more=(offset + len(documents)) < total,
+        total=total
+    )
 
 
 @router.get("/{document_id}", response_model=DocumentResponse)

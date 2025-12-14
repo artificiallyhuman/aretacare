@@ -157,29 +157,30 @@ function Register() {
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
         {/* Logo */}
         <div className="flex justify-center">
-          <div className="flex items-center space-x-3">
+          <div className="flex items-center space-x-4">
             <img
               src={logo}
               alt="AretaCare Logo"
-              className="w-12 h-12 object-contain"
+              className="w-16 h-16 object-contain"
             />
             <div>
-              <h1 className="text-2xl font-bold text-gray-900 dark:text-white">AretaCare<span className="font-normal">™</span></h1>
-              <p className="text-xs text-gray-500 dark:text-gray-400">Care | Clarity | Confidence</p>
+              <h1 className="text-3xl font-bold text-gray-900 dark:text-white">AretaCare<span className="font-normal">™</span></h1>
+              <p className="text-sm text-gray-500 dark:text-gray-400">Care | Clarity | Confidence</p>
             </div>
           </div>
         </div>
 
-        <h2 className="mt-6 text-center text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">
-          Create your account
-        </h2>
-        <p className="mt-2 text-center text-sm text-gray-600 dark:text-gray-400">
-          Join AretaCare to get started
-        </p>
       </div>
 
       <div className="mt-6 sm:mx-auto sm:w-full sm:max-w-md">
         <div className="bg-white dark:bg-gray-800 py-6 px-4 shadow-md sm:rounded-xl sm:px-10 border border-gray-200 dark:border-gray-700 transition-colors duration-200">
+          <h2 className="text-center text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">
+            Create your account
+          </h2>
+          <p className="mt-2 mb-6 text-center text-sm text-gray-600 dark:text-gray-400">
+            Join AretaCare to get started
+          </p>
+
           {error && (
             <div className="mb-4 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300 px-4 py-3 rounded-lg text-sm">
               {error}

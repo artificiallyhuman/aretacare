@@ -3,6 +3,7 @@ from botocore.exceptions import ClientError
 from app.core.config import settings
 from typing import Optional
 import logging
+import asyncio
 
 logger = logging.getLogger(__name__)
 
@@ -30,16 +31,35 @@ class S3Service:
             return f"{self.key_prefix}{path}"
         return path
 
+    def _put_object_sync(self, key: str, file_content: bytes, content_type: str):
+        """Synchronous S3 put_object (for thread pool)"""
+        self.s3_client.put_object(
+            Bucket=self.bucket_name,
+            Key=key,
+            Body=file_content,
+            ContentType=content_type,
+            ServerSideEncryption='AES256'
+        )
+
+    def _get_object_sync(self, key: str) -> bytes:
+        """Synchronous S3 get_object (for thread pool)"""
+        response = self.s3_client.get_object(
+            Bucket=self.bucket_name,
+            Key=key
+        )
+        return response['Body'].read()
+
+    def _delete_object_sync(self, key: str):
+        """Synchronous S3 delete_object (for thread pool)"""
+        self.s3_client.delete_object(
+            Bucket=self.bucket_name,
+            Key=key
+        )
+
     async def upload_file(self, file_content: bytes, key: str, content_type: str) -> bool:
-        """Upload file to S3 bucket with AES-256 encryption"""
+        """Upload file to S3 bucket with AES-256 encryption (runs in thread pool)"""
         try:
-            self.s3_client.put_object(
-                Bucket=self.bucket_name,
-                Key=key,
-                Body=file_content,
-                ContentType=content_type,
-                ServerSideEncryption='AES256'
-            )
+            await asyncio.to_thread(self._put_object_sync, key, file_content, content_type)
             logger.info(f"Successfully uploaded file to S3: {key}")
             return True
         except ClientError as e:
@@ -54,19 +74,15 @@ class S3Service:
                     level="ERROR",
                     details={"key": key, "content_type": content_type}
                 )
-            except:
-                pass
+            except Exception:
+                pass  # Don't let error logging crash the app
 
             return False
 
     async def download_file(self, key: str) -> Optional[bytes]:
-        """Download file from S3 bucket"""
+        """Download file from S3 bucket (runs in thread pool)"""
         try:
-            response = self.s3_client.get_object(
-                Bucket=self.bucket_name,
-                Key=key
-            )
-            return response['Body'].read()
+            return await asyncio.to_thread(self._get_object_sync, key)
         except ClientError as e:
             logger.error(f"Failed to download file from S3: {e}")
 
@@ -79,18 +95,15 @@ class S3Service:
                     level="ERROR",
                     details={"key": key}
                 )
-            except:
-                pass
+            except Exception:
+                pass  # Don't let error logging crash the app
 
             return None
 
     async def delete_file(self, key: str) -> bool:
-        """Delete file from S3 bucket"""
+        """Delete file from S3 bucket (runs in thread pool)"""
         try:
-            self.s3_client.delete_object(
-                Bucket=self.bucket_name,
-                Key=key
-            )
+            await asyncio.to_thread(self._delete_object_sync, key)
             logger.info(f"Successfully deleted file from S3: {key}")
             return True
         except ClientError as e:
@@ -105,13 +118,13 @@ class S3Service:
                     level="WARNING",  # Deletion failures are often less critical
                     details={"key": key}
                 )
-            except:
-                pass
+            except Exception:
+                pass  # Don't let error logging crash the app
 
             return False
 
     def generate_presigned_url(self, key: str, expiration: int = 3600) -> Optional[str]:
-        """Generate presigned URL for file download"""
+        """Generate presigned URL for file download (CPU-bound, fast enough to be sync)"""
         try:
             url = self.s3_client.generate_presigned_url(
                 'get_object',

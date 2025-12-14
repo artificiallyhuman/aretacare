@@ -4,6 +4,7 @@ import { SessionProvider, useSessionContext } from './contexts/SessionContext';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { AdminProvider, useAdmin } from './contexts/AdminContext';
 import { NetworkProvider } from './contexts/NetworkContext';
+import ErrorBoundary from './components/ErrorBoundary';
 import Header from './components/Header';
 import Footer from './components/Footer';
 import NetworkStatusBanner from './components/NetworkStatusBanner';
@@ -325,15 +326,17 @@ function AppContent() {
 function App() {
   return (
     <ThemeProvider>
-      <Router>
-        <NetworkProvider>
-          <SessionProvider>
-            <AdminProvider>
-              <AppContent />
-            </AdminProvider>
-          </SessionProvider>
-        </NetworkProvider>
-      </Router>
+      <ErrorBoundary>
+        <Router>
+          <NetworkProvider>
+            <SessionProvider>
+              <AdminProvider>
+                <AppContent />
+              </AdminProvider>
+            </SessionProvider>
+          </NetworkProvider>
+        </Router>
+      </ErrorBoundary>
     </ThemeProvider>
   );
 }

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useSessionContext } from '../../contexts/SessionContext';
 import { documentAPI } from '../../services/api';
+import { isToday, formatDateShort } from '../../utils/dateUtils';
 
 // Document categories with labels and colors
 const CATEGORIES = [
@@ -95,7 +96,8 @@ const Documents = () => {
         selectedCategory === 'all' ? null : selectedCategory,
         debouncedSearchQuery || null
       );
-      const docs = response.data;
+      // Handle paginated response { documents: [...], has_more, total }
+      const docs = response.data.documents || response.data;
       setDocuments(docs);
       hasLoadedRef.current = true;
 
@@ -155,17 +157,6 @@ const Documents = () => {
     if (element) {
       element.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
-  };
-
-  const formatDateShort = (dateString) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-  };
-
-  const isToday = (dateString) => {
-    const date = new Date(dateString);
-    const today = new Date();
-    return date.toDateString() === today.toDateString();
   };
 
   const handleDownload = async (document) => {

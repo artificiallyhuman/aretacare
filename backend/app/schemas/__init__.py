@@ -8,7 +8,7 @@ from app.schemas.session import (
     CollaboratorInfo,
     TransferOwnershipRequest,
 )
-from app.schemas.document import DocumentUploadResponse, DocumentResponse, DocumentUpdate
+from app.schemas.document import DocumentUploadResponse, DocumentResponse, DocumentUpdate, DocumentListResponse
 from app.schemas.conversation import (
     MessageRequest,
     MessageResponse,
@@ -33,6 +33,7 @@ __all__ = [
     "DocumentUploadResponse",
     "DocumentResponse",
     "DocumentUpdate",
+    "DocumentListResponse",
     "MessageRequest",
     "MessageResponse",
     "ConversationHistory",

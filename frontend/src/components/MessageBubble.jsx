@@ -1,4 +1,5 @@
 import React, { memo, useState, useRef, useEffect } from 'react';
+import PropTypes from 'prop-types';
 import ReactMarkdown from 'react-markdown';
 import DocumentMessage from './DocumentMessage';
 import ImageMessage from './ImageMessage';
@@ -298,5 +299,26 @@ const MessageBubble = memo(({ message, onThumbnailLoad, onMessageUpdate }) => {
 
 // Display name for React DevTools
 MessageBubble.displayName = 'MessageBubble';
+
+MessageBubble.propTypes = {
+  message: PropTypes.shape({
+    id: PropTypes.number,
+    role: PropTypes.oneOf(['user', 'assistant']).isRequired,
+    content: PropTypes.string.isRequired,
+    message_type: PropTypes.string,
+    media_url: PropTypes.string,
+    thumbnail_url: PropTypes.string,
+    document_id: PropTypes.number,
+    created_at: PropTypes.string,
+    updated_at: PropTypes.string,
+  }).isRequired,
+  onThumbnailLoad: PropTypes.func,
+  onMessageUpdate: PropTypes.func,
+};
+
+MessageBubble.defaultProps = {
+  onThumbnailLoad: undefined,
+  onMessageUpdate: undefined,
+};
 
 export default MessageBubble;

@@ -86,7 +86,6 @@ export const authAPI = {
 export const sessionAPI = {
   list: () => api.get('/sessions/'),
   create: (name = null) => api.post('/sessions/', { name }),
-  getPrimary: () => api.post('/sessions/primary'),
   get: (sessionId) => api.get(`/sessions/${sessionId}`),
   rename: (sessionId, name) => api.patch(`/sessions/${sessionId}/rename`, { name }),
   getStatistics: (sessionId) => api.get(`/sessions/${sessionId}/statistics`),
@@ -268,24 +267,6 @@ export const adminAPI = {
 
   // System health
   getSystemHealth: () => api.get('/admin/health'),
-};
-
-// Medical API
-export const medicalAPI = {
-  generateSummary: (medicalText, sessionId) =>
-    api.post('/medical/summary', { medical_text: medicalText, session_id: sessionId }),
-
-  translateJargon: (medicalTerm, context = '') =>
-    api.post('/medical/translate', { medical_term: medicalTerm, context }),
-
-  getConversationCoach: (situation, sessionId) =>
-    api.post('/medical/coach', { situation, session_id: sessionId }),
-
-  chat: (content, sessionId) =>
-    api.post('/medical/chat', { content, session_id: sessionId }),
-
-  getConversationHistory: (sessionId) =>
-    api.get(`/medical/conversation/${sessionId}`),
 };
 
 export default api;
