@@ -159,7 +159,7 @@ aretacare/
 │       ├── api/              # FastAPI routes (auth, sessions, documents, audio, conversation, journal, daily plans, tools, admin)
 │       ├── config/           # AI configuration (models, prompts, safety boundaries, categories)
 │       ├── core/             # Auth utilities, migrations, config
-│       ├── models/           # SQLAlchemy models (11 tables: users, sessions, collaborators, documents, audio, conversations, journal, daily plans, logs)
+│       ├── models/           # SQLAlchemy models (12 tables: users, sessions, collaborators, documents, audio, conversations, journal, daily plans, logs, migration_history)
 │       ├── schemas/          # Pydantic schemas for API validation
 │       ├── services/         # Business logic (OpenAI, S3, document processing, email, admin, journal, daily plan)
 │       └── main.py           # FastAPI app initialization

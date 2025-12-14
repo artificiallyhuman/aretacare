@@ -62,7 +62,7 @@ python -c "import secrets; print(secrets.token_urlsafe(32))"  # Generate secret 
 - Protected routes redirect to login if not authenticated
 
 **Database (PostgreSQL)**
-- Eleven main tables: `users`, `sessions`, `session_collaborators`, `documents`, `audio_recordings`, `conversations`, `journal_entries`, `daily_plans`, `daily_plan_views`, `admin_audit_logs`, `security_logs`, `error_logs`
+- Twelve main tables: `users`, `sessions`, `session_collaborators`, `documents`, `audio_recordings`, `conversations`, `journal_entries`, `daily_plans`, `daily_plan_views`, `admin_audit_logs`, `security_logs`, `error_logs`, `migration_history`
 - User table stores authentication credentials (bcrypt hashed passwords) and password reset tokens (time-limited, 1-hour expiration)
 - **Sessions table** tied to user accounts via foreign key, supports up to 3 owned sessions per user (collaborator sessions don't count), includes `owner_id` for session ownership, name field (15-character limit, default "Session N"), created_at for automatic numbering
 - **Session collaborators table** links users to shared sessions with unique constraint on (session_id, user_id), cascading deletes when session or user is deleted
@@ -74,7 +74,7 @@ python -c "import secrets; print(secrets.token_urlsafe(32))"  # Generate secret 
 - **Error logs table** stores application errors (OpenAI API, S3, uploads, etc.) for debugging in production, auto-cleanup after 30 days
 - **Conversations table** includes rich media support (message_type, document_id, media_url fields) and edit tracking (updated_at field is NULL for unedited messages, set to timestamp when edited)
 - Cascading deletes: deleting user removes all sessions and associated data (including S3 files), deleting individual session removes all session data
-- **Database migrations** run automatically on startup via `run_migrations()` in `backend/app/core/migrations.py`
+- **Database migrations** run automatically on startup via `run_migrations()` in `backend/app/core/migrations.py`; one-time data migrations are tracked in `migration_history` table to prevent re-running
 - Database can be reset with `RESET_DB=true` environment variable (development/production)
 
 **Storage (AWS S3)**
@@ -214,7 +214,7 @@ See `backend/app/config/README.md` for complete documentation on modifying AI be
 - `admin_service.py` - Admin metrics, S3 orphan detection, audit log management
 
 **Core** (`backend/app/core/`):
-- `migrations.py` - Database migrations (auto-adds columns)
+- `migrations.py` - Database migrations (auto-adds columns, tracks one-time migrations in `migration_history`)
 - `auth.py` - JWT & bcrypt utilities
 - `config.py` - Pydantic settings
 
