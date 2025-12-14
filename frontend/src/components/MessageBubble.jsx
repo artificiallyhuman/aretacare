@@ -1,4 +1,4 @@
-import React, { memo, useState } from 'react';
+import React, { memo, useState, useRef, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 import DocumentMessage from './DocumentMessage';
 import ImageMessage from './ImageMessage';
@@ -11,8 +11,20 @@ const MessageBubble = memo(({ message, onThumbnailLoad, onMessageUpdate }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editedContent, setEditedContent] = useState(message.content);
   const [isSaving, setIsSaving] = useState(false);
+  const [contentSize, setContentSize] = useState({ width: 0, height: 0 });
+  const textareaRef = useRef(null);
+  const contentRef = useRef(null);
   const isUser = message.role === 'user';
   const messageType = message.message_type || 'text';
+
+  // Auto-resize textarea height as user types (only grow, keep width fixed)
+  useEffect(() => {
+    if (isEditing && textareaRef.current) {
+      const textarea = textareaRef.current;
+      textarea.style.height = 'auto';
+      textarea.style.height = `${Math.max(textarea.scrollHeight, contentSize.height)}px`;
+    }
+  }, [isEditing, editedContent, contentSize.height]);
 
   const handleCopy = async () => {
     try {
@@ -46,6 +58,11 @@ const MessageBubble = memo(({ message, onThumbnailLoad, onMessageUpdate }) => {
   };
 
   const handleEdit = () => {
+    // Measure the content size before switching to edit mode
+    if (contentRef.current) {
+      const rect = contentRef.current.getBoundingClientRect();
+      setContentSize({ width: rect.width, height: rect.height });
+    }
     setIsEditing(true);
     setEditedContent(message.content);
   };
@@ -118,9 +135,14 @@ const MessageBubble = memo(({ message, onThumbnailLoad, onMessageUpdate }) => {
           isEditing ? (
             <div className="space-y-2">
               <textarea
+                ref={textareaRef}
                 value={editedContent}
                 onChange={(e) => setEditedContent(e.target.value)}
-                className={`w-full min-h-[100px] p-2 rounded border ${
+                style={{
+                  minWidth: contentSize.width > 0 ? `${contentSize.width}px` : undefined,
+                  minHeight: contentSize.height > 0 ? `${contentSize.height}px` : '60px',
+                }}
+                className={`w-full max-h-[70vh] p-2 rounded border resize-none overflow-y-auto ${
                   isUser
                     ? 'bg-primary-700 text-white border-primary-500 placeholder-primary-300'
                     : 'bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600'
@@ -153,11 +175,14 @@ const MessageBubble = memo(({ message, onThumbnailLoad, onMessageUpdate }) => {
               </div>
             </div>
           ) : (
-            <div className={`prose prose-sm max-w-none ${
-              isUser
-                ? 'prose-invert prose-headings:text-white prose-p:text-white prose-li:text-white prose-strong:text-white'
-                : 'prose-gray prose-headings:text-gray-900 prose-p:text-gray-800'
-            }`}>
+            <div
+              ref={contentRef}
+              className={`prose prose-sm max-w-none ${
+                isUser
+                  ? 'prose-invert prose-headings:text-white prose-p:text-white prose-li:text-white prose-strong:text-white'
+                  : 'prose-gray prose-headings:text-gray-900 prose-p:text-gray-800'
+              }`}
+            >
               <ReactMarkdown
                 components={{
                   // Custom paragraph spacing
