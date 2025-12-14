@@ -162,7 +162,7 @@ See `backend/app/config/README.md` for complete documentation on modifying AI be
 - Sessions have both `user_id` (creator) and `owner_id` (current owner) for ownership tracking
 - Session naming: Default "Session 1/2/3" with smart numbering (fills gaps if sessions deleted), renameable up to 15 characters (owner only)
 - Session switching: Click user name in header to see session dropdown with all sessions (owned and shared), active session indicator, and "New Session" button
-- Deleting individual session removes all session data (database + S3 files: documents, thumbnails, audio) - owner only
+- Deleting individual session removes all session data (database + S3 files: documents, thumbnails, audio) - owner only; if active session is deleted, switches to most recent owned session (falls back to collaboration sessions only if no owned sessions remain)
 - Deleting user account removes all owned sessions and leaves all collaborations
 
 **Session Sharing:**
