@@ -20,7 +20,7 @@ If you discover a security vulnerability in AretaCare, please report it privatel
 
 If you prefer email or cannot use GitHub Security Advisories, send your report to:
 
-**aretacare@gmail.com**
+**security@aretacare.com**
 
 ### What to Include in Your Report
 
@@ -128,7 +128,7 @@ AretaCare implements several security measures:
 
 ## Questions?
 
-If you have questions about this security policy or responsible disclosure, please contact us at **aretacare@gmail.com**.
+If you have questions about this security policy or responsible disclosure, please contact us at **security@aretacare.com**.
 
 ---
 

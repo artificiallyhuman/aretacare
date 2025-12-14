@@ -34,7 +34,7 @@ const TermsOfService = () => {
             <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4 pb-2 border-b-2 border-primary-200 dark:border-primary-800">2. Open Source Project</h2>
             <div className="space-y-4">
               <p className="text-gray-700 dark:text-gray-300 leading-relaxed text-base">
-                AretaCare is an open source project released under the MIT License. The source code is available at{' '}
+                AretaCare is an open source project released under the MIT License with Commons Clause restrictions. The source code is available at{' '}
                 <a href="https://github.com/artificiallyhuman/aretacare" target="_blank" rel="noopener noreferrer" className="text-primary-600 hover:text-primary-700 font-medium underline">
                   https://github.com/artificiallyhuman/aretacare
                 </a>
@@ -297,7 +297,7 @@ const TermsOfService = () => {
           {/* Copyright */}
           <section className="bg-gray-50 dark:bg-gray-700 rounded-lg p-6 border border-gray-200 dark:border-gray-600">
             <p className="text-center text-gray-600 dark:text-gray-300 text-sm">
-              Copyright © 2025 AretaCare™. Released under the MIT License.
+              Copyright © 2025 AretaCare™. Released under the MIT License with Commons Clause.
             </p>
           </section>
         </div>

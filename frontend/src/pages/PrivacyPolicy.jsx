@@ -498,7 +498,7 @@ const PrivacyPolicy = () => {
           {/* Copyright */}
           <section className="bg-gray-50 dark:bg-gray-700 rounded-lg p-6 border border-gray-200 dark:border-gray-600">
             <p className="text-center text-gray-600 dark:text-gray-300 text-sm">
-              Copyright © 2025 AretaCare™. Released under the MIT License.
+              Copyright © 2025 AretaCare™. Released under the MIT License with Commons Clause.
             </p>
           </section>
         </div>
