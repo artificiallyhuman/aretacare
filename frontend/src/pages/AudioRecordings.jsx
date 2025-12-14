@@ -99,7 +99,7 @@ const AudioRecordings = () => {
       hasLoadedRef.current = true;
     } catch (err) {
       console.error('Error loading recordings:', err);
-      setError('Failed to load recordings: ' + err.message);
+      setError(err.response?.data?.detail || 'Failed to load recordings. Please try again.');
     } finally {
       setLoading(false);
       setSearching(false);

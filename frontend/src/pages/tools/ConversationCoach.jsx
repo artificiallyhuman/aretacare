@@ -65,7 +65,7 @@ const ConversationCoach = () => {
       const response = await toolsAPI.getConversationCoach(situation, sessionId);
       setCoaching(response.data);
     } catch (err) {
-      setError('Failed to get coaching: ' + err.message);
+      setError(err.response?.data?.detail || 'Failed to get coaching. Please try again.');
     } finally {
       setLoading(false);
     }

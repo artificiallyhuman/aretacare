@@ -124,7 +124,7 @@ const Documents = () => {
       setImageUrls(urls);
       setThumbnailUrls(thumbUrls);
     } catch (err) {
-      setError('Failed to load documents: ' + err.message);
+      setError(err.response?.data?.detail || 'Failed to load documents. Please try again.');
     } finally {
       setLoading(false);
       setSearching(false);
@@ -165,7 +165,7 @@ const Documents = () => {
       const url = response.data.download_url;
       window.open(url, '_blank');
     } catch (err) {
-      setError('Failed to download document: ' + err.message);
+      setError(err.response?.data?.detail || 'Failed to download document. Please try again.');
     }
   };
 
@@ -178,7 +178,7 @@ const Documents = () => {
       await documentAPI.delete(documentId);
       loadDocuments();
     } catch (err) {
-      setError('Failed to delete document: ' + err.message);
+      setError(err.response?.data?.detail || 'Failed to delete document. Please try again.');
     }
   };
 

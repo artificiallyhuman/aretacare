@@ -33,7 +33,7 @@ const MedicalSummary = () => {
         setError('Could not extract text from this file. Please try pasting the text manually.');
       }
     } catch (err) {
-      setError('Failed to upload document: ' + err.message);
+      setError(err.response?.data?.detail || 'Failed to upload document. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -52,7 +52,7 @@ const MedicalSummary = () => {
       const response = await toolsAPI.generateSummary(medicalText);
       setSummary(response.data);
     } catch (err) {
-      setError('Failed to generate summary: ' + err.message);
+      setError(err.response?.data?.detail || 'Failed to generate summary. Please try again.');
     } finally {
       setLoading(false);
     }

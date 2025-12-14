@@ -24,7 +24,7 @@ const JargonTranslator = () => {
       const response = await toolsAPI.translateJargon(medicalTerm, context, sessionId);
       setTranslation(response.data);
     } catch (err) {
-      setError('Failed to translate term: ' + err.message);
+      setError(err.response?.data?.detail || 'Failed to translate term. Please try again.');
     } finally {
       setLoading(false);
     }
