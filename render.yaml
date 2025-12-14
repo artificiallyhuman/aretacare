@@ -52,7 +52,7 @@ services:
   - type: web
     name: aretacare-frontend
     env: static
-    buildCommand: cd frontend && npm install && npm run build
+    buildCommand: cd frontend && rm -rf node_modules package-lock.json && npm install && npm run build
     staticPublishPath: ./frontend/dist
     routes:
       - type: rewrite
