@@ -795,9 +795,9 @@ IMPORTANT: Respond with ONLY a valid JSON object in this exact format, with no a
                     error=e,
                     session_id=session_id,
                     details={
-                        "entry_type": entry_type.value if entry_type else None,
+                        "entry_type": entry_data.entry_type.value if entry_data.entry_type else None,
                         "entry_date": entry_date.isoformat() if entry_date else None,
-                        "title": title[:100] if title else None
+                        "title": entry_data.title[:100] if entry_data.title else None
                     }
                 )
             except Exception:

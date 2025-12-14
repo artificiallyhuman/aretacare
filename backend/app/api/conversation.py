@@ -432,27 +432,15 @@ async def transcribe_audio(
         audio_temp_path = None
         mp3_temp_path = None
         try:
-            # Debug: Check audio content
-            logger.info(f"Audio content size: {len(audio_content)} bytes")
-            logger.info(f"First 20 bytes: {audio_content[:20].hex() if len(audio_content) >= 20 else audio_content.hex()}")
-
             # Determine file extension from original filename for format detection
             file_ext = '.' + audio.filename.split('.')[-1].lower() if '.' in audio.filename else '.webm'
-            logger.info(f"Original filename: {audio.filename}, using extension: {file_ext}")
 
             # Write audio content to temporary file with correct extension
             with tempfile.NamedTemporaryFile(delete=False, suffix=file_ext, mode='wb') as audio_temp:
-                bytes_written = audio_temp.write(audio_content)
+                audio_temp.write(audio_content)
                 audio_temp.flush()  # Ensure data is written to disk
                 os.fsync(audio_temp.fileno())  # Force write to disk
                 audio_temp_path = audio_temp.name
-                logger.info(f"Wrote {bytes_written} bytes to {audio_temp_path}")
-
-            # Verify file was written correctly
-            with open(audio_temp_path, 'rb') as verify:
-                file_size = os.path.getsize(audio_temp_path)
-                first_bytes = verify.read(20)
-                logger.info(f"Verified file size: {file_size} bytes, first 20 bytes: {first_bytes.hex()}")
 
             # Create temporary file for mp3 output
             mp3_temp_fd, mp3_temp_path = tempfile.mkstemp(suffix='.mp3')

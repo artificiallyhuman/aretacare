@@ -252,14 +252,14 @@ const MessageInput = ({ onSendMessage, loading, hasMessages = false }) => {
 
       // Show temporary notification about Audio Recordings near the message box
       const notification = document.createElement('div');
-      notification.className = 'fixed bottom-24 left-1/2 transform -translate-x-1/2 z-50 bg-blue-100 dark:bg-blue-900/90 border-2 border-blue-300 dark:border-blue-700 text-blue-900 dark:text-blue-100 px-4 py-3 rounded-lg shadow-lg max-w-sm mx-4 text-center';
+      notification.className = 'fixed bottom-24 left-4 right-4 z-50 bg-blue-100 dark:bg-blue-900/90 border-2 border-blue-300 dark:border-blue-700 text-blue-900 dark:text-blue-100 px-4 py-3 rounded-lg shadow-lg text-center';
       notification.style.opacity = '0';
       notification.style.animation = 'fadeIn 0.3s ease-out forwards';
       notification.innerHTML = `
         <style>
           @keyframes fadeIn {
-            from { opacity: 0; transform: translate(-50%, 20px); }
-            to { opacity: 1; transform: translate(-50%, 0); }
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
           }
         </style>
         <div class="flex items-center gap-3">
@@ -396,10 +396,10 @@ const MessageInput = ({ onSendMessage, loading, hasMessages = false }) => {
               onClick={stopRecording}
               aria-label="End voice recording"
               aria-pressed={isRecording}
-              className="px-2 py-1.5 md:py-2 rounded-lg transition bg-red-600 hover:bg-red-700 text-white font-medium text-xs flex items-center gap-1 animate-pulse flex-shrink-0"
+              className="p-1.5 md:p-2 px-2.5 md:px-3 rounded-lg transition bg-red-600 hover:bg-red-700 text-white font-medium text-xs flex items-center gap-1 animate-pulse flex-shrink-0"
               title="End recording and send"
             >
-              <svg className="w-3 h-3 md:w-4 md:h-4" fill="currentColor" viewBox="0 0 24 24">
+              <svg className="w-5 h-5 md:w-6 md:h-6" fill="currentColor" viewBox="0 0 24 24">
                 <rect x="6" y="6" width="12" height="12" rx="1" />
               </svg>
               <span>End</span>
