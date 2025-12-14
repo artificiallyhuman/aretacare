@@ -5,11 +5,55 @@ import logging
 logger = logging.getLogger(__name__)
 
 
+def has_migration_run(conn, migration_name: str) -> bool:
+    """Check if a one-time migration has already been applied"""
+    try:
+        result = conn.execute(
+            text("SELECT 1 FROM migration_history WHERE migration_name = :name"),
+            {"name": migration_name}
+        )
+        return result.fetchone() is not None
+    except Exception:
+        # Table doesn't exist yet
+        return False
+
+
+def mark_migration_complete(conn, migration_name: str):
+    """Record that a migration has been applied"""
+    try:
+        conn.execute(
+            text("INSERT INTO migration_history (migration_name) VALUES (:name)"),
+            {"name": migration_name}
+        )
+        conn.commit()
+        logger.info(f"Marked migration '{migration_name}' as complete")
+    except Exception as e:
+        logger.error(f"Failed to mark migration '{migration_name}' as complete: {e}")
+        conn.rollback()
+
+
 def run_migrations():
     """Run database migrations for schema changes without full rebuild"""
 
     with engine.connect() as conn:
         inspector = inspect(engine)
+
+        # Create migration_history table if it doesn't exist
+        if 'migration_history' not in inspector.get_table_names():
+            logger.info("Creating migration_history table...")
+            try:
+                conn.execute(text("""
+                    CREATE TABLE migration_history (
+                        id SERIAL PRIMARY KEY,
+                        migration_name VARCHAR(255) UNIQUE NOT NULL,
+                        applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    )
+                """))
+                conn.commit()
+                logger.info("Successfully created migration_history table")
+            except Exception as e:
+                logger.error(f"Failed to create migration_history table: {e}")
+                conn.rollback()
 
         # Check if documents table exists
         if 'documents' in inspector.get_table_names():
@@ -745,23 +789,29 @@ def run_migrations():
                     except:
                         pass
 
-                # Step 3: Reset ALL updated_at to NULL for unedited messages
+                # Step 3: One-time reset of updated_at to NULL for all messages
                 # The message editing feature is new, so any non-NULL updated_at values
                 # are from automatic setting (database default/trigger), not real edits
-                try:
-                    result = conn.execute(text("""
-                        UPDATE conversations
-                        SET updated_at = NULL
-                        WHERE updated_at IS NOT NULL
-                    """))
-                    conn.commit()
-                    if result.rowcount > 0:
-                        logger.info(f"Reset updated_at to NULL for {result.rowcount} messages (cleanup for new edit feature)")
-                    else:
-                        logger.info("No messages needed updating (all updated_at already NULL)")
-                except Exception as e:
-                    logger.error(f"Failed to reset updated_at for unedited messages: {e}")
+                # This only runs once to clean up existing data
+                migration_name = "reset_conversation_updated_at_v1"
+                if not has_migration_run(conn, migration_name):
                     try:
-                        conn.rollback()
-                    except:
-                        pass
+                        result = conn.execute(text("""
+                            UPDATE conversations
+                            SET updated_at = NULL
+                            WHERE updated_at IS NOT NULL
+                        """))
+                        conn.commit()
+                        if result.rowcount > 0:
+                            logger.info(f"Reset updated_at to NULL for {result.rowcount} messages (cleanup for new edit feature)")
+                        else:
+                            logger.info("No messages needed updating (all updated_at already NULL)")
+                        mark_migration_complete(conn, migration_name)
+                    except Exception as e:
+                        logger.error(f"Failed to reset updated_at for messages: {e}")
+                        try:
+                            conn.rollback()
+                        except:
+                            pass
+                else:
+                    logger.info(f"Migration '{migration_name}' already applied, skipping")
