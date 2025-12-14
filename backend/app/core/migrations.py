@@ -731,11 +731,15 @@ def run_migrations():
 
                 # Step 2: Reset updated_at to NULL for unedited messages (always run this)
                 try:
-                    # Set updated_at to NULL for messages where it equals created_at
-                    # (these are unedited messages that got the wrong timestamp from the old migration)
-                    result = conn.execute(text(
-                        "UPDATE conversations SET updated_at = NULL WHERE updated_at = created_at"
-                    ))
+                    # Set updated_at to NULL for messages where it's within 1 second of created_at
+                    # (these are unedited messages that got updated_at set automatically)
+                    # Using ABS() and interval comparison to handle microsecond differences
+                    result = conn.execute(text("""
+                        UPDATE conversations
+                        SET updated_at = NULL
+                        WHERE updated_at IS NOT NULL
+                        AND ABS(EXTRACT(EPOCH FROM (updated_at - created_at))) < 1
+                    """))
                     conn.commit()
                     if result.rowcount > 0:
                         logger.info(f"Reset updated_at to NULL for {result.rowcount} unedited messages")
