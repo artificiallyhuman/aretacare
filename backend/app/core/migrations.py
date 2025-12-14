@@ -745,22 +745,20 @@ def run_migrations():
                     except:
                         pass
 
-                # Step 3: Reset updated_at to NULL for unedited messages (always run this)
+                # Step 3: Reset ALL updated_at to NULL for unedited messages
+                # The message editing feature is new, so any non-NULL updated_at values
+                # are from automatic setting (database default/trigger), not real edits
                 try:
-                    # Set updated_at to NULL for messages where it's within 1 second of created_at
-                    # (these are unedited messages that got updated_at set automatically)
-                    # Using ABS() and interval comparison to handle microsecond differences
                     result = conn.execute(text("""
                         UPDATE conversations
                         SET updated_at = NULL
                         WHERE updated_at IS NOT NULL
-                        AND ABS(EXTRACT(EPOCH FROM (updated_at - created_at))) < 1
                     """))
                     conn.commit()
                     if result.rowcount > 0:
-                        logger.info(f"Reset updated_at to NULL for {result.rowcount} unedited messages")
+                        logger.info(f"Reset updated_at to NULL for {result.rowcount} messages (cleanup for new edit feature)")
                     else:
-                        logger.info("No unedited messages needed updating (already fixed)")
+                        logger.info("No messages needed updating (all updated_at already NULL)")
                 except Exception as e:
                     logger.error(f"Failed to reset updated_at for unedited messages: {e}")
                     try:

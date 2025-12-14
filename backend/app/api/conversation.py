@@ -141,9 +141,14 @@ async def send_message(
         # Mark messages as synthesized if entries were created
         if synthesis_result.should_create and len(synthesis_result.suggested_entries) > 0:
             # Use raw SQL to update without triggering onupdate on updated_at
+            # Explicitly preserve updated_at as NULL for new messages
             from sqlalchemy import text
             db.execute(
-                text("UPDATE conversations SET synthesized_to_journal = true WHERE id IN (:user_id, :assistant_id)"),
+                text("""
+                    UPDATE conversations
+                    SET synthesized_to_journal = true, updated_at = NULL
+                    WHERE id IN (:user_id, :assistant_id)
+                """),
                 {"user_id": user_message.id, "assistant_id": assistant_message.id}
             )
             db.commit()
