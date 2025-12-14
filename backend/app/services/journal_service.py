@@ -716,14 +716,6 @@ IMPORTANT: Respond with ONLY a valid JSON object in this exact format, with no a
             self.db.commit()
             self.db.refresh(entry)
 
-            # Update session journal count
-            from app.models.session import Session
-            session = self.db.query(Session).filter(Session.id == session_id).first()
-            if session:
-                session.journal_entry_count += 1
-                session.last_journal_synthesis = datetime.utcnow()
-                self.db.commit()
-
             return entry
 
         except Exception as e:
@@ -827,11 +819,6 @@ IMPORTANT: Respond with ONLY a valid JSON object in this exact format, with no a
                 return False
 
             self.db.delete(entry)
-
-            # Update session journal count
-            if session:
-                session.journal_entry_count = max(0, session.journal_entry_count - 1)
-
             self.db.commit()
             return True
 

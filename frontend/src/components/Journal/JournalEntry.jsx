@@ -6,6 +6,7 @@ const JournalEntry = ({ entry, colors, onEdit, onDelete }) => {
   const [expanded, setExpanded] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [isClamped, setIsClamped] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const contentRef = React.useRef(null);
 
   // Check if content is clamped after render
@@ -16,19 +17,19 @@ const JournalEntry = ({ entry, colors, onEdit, onDelete }) => {
     }
   }, [entry.content, expanded]);
 
-  const handleDelete = async () => {
-    if (!window.confirm('Are you sure you want to delete this journal entry?')) {
-      return;
-    }
+  const handleDelete = () => {
+    setShowDeleteConfirm(true);
+  };
 
+  const confirmDelete = async () => {
+    setShowDeleteConfirm(false);
     setDeleting(true);
     try {
       await journalAPI.deleteEntry(entry.id);
       onDelete();
     } catch (err) {
       console.error('Error deleting entry:', err);
-      alert('Failed to delete entry');
-    } finally {
+      // Show error in a nicer way
       setDeleting(false);
     }
   };
@@ -131,6 +132,80 @@ const JournalEntry = ({ entry, colors, onEdit, onDelete }) => {
           minute: '2-digit'
         })}
       </div>
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 dark:bg-opacity-70 flex items-center justify-center p-4 z-50">
+          <div className="bg-white dark:bg-gray-800 rounded-lg max-w-lg w-full max-h-[90vh] overflow-y-auto">
+            <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+              <div className="flex items-center justify-between">
+                <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Delete Journal Entry</h2>
+                <button
+                  onClick={() => setShowDeleteConfirm(false)}
+                  className="text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            <div className="px-6 py-4 space-y-4">
+              <div className="flex items-start gap-3">
+                <div className="flex-shrink-0 w-12 h-12 bg-orange-100 dark:bg-orange-900/30 rounded-full flex items-center justify-center">
+                  <svg className="w-6 h-6 text-orange-600 dark:text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-sm font-medium text-gray-900 dark:text-white mb-1">
+                    Delete "{entry.title}"?
+                  </h3>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                    This journal entry will be permanently removed
+                  </p>
+                </div>
+              </div>
+
+              <div className="bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded px-4 py-3">
+                <p className="text-sm text-orange-900 dark:text-orange-200 mb-2 font-medium">
+                  Entry Details:
+                </p>
+                <ul className="text-sm text-orange-800 dark:text-orange-300 space-y-1.5">
+                  <li>• <strong>Type:</strong> {entry.entry_type.replace('_', ' ')}</li>
+                  {entry.created_by === 'ai' && (
+                    <li>• <strong>Created by:</strong> AI</li>
+                  )}
+                  <li>• <strong>Created:</strong> {new Date(entry.created_at + 'Z').toLocaleString()}</li>
+                </ul>
+              </div>
+
+              <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded px-4 py-3">
+                <p className="text-sm text-red-900 dark:text-red-200 font-bold">
+                  This action cannot be undone. The journal entry will be permanently deleted.
+                </p>
+              </div>
+
+              <div className="flex space-x-2 pt-4 border-t border-gray-200 dark:border-gray-700">
+                <button
+                  onClick={() => setShowDeleteConfirm(false)}
+                  className="flex-1 px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded hover:bg-gray-300 dark:hover:bg-gray-600"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={confirmDelete}
+                  disabled={deleting}
+                  className="flex-1 px-4 py-2 bg-orange-600 dark:bg-orange-700 text-white rounded hover:bg-orange-700 dark:hover:bg-orange-600 font-medium disabled:opacity-50"
+                >
+                  {deleting ? 'Deleting...' : 'Delete Entry'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

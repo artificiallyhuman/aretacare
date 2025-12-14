@@ -228,6 +228,7 @@ const MessageBubble = memo(({ message, onThumbnailLoad, onMessageUpdate }) => {
         {messageType === 'image' && (
           <ImageMessage
             content={message.content}
+            documentId={message.document_id}
             mediaUrl={message.media_url}
             extractedText={message.extracted_text}
             onThumbnailLoad={onThumbnailLoad}
