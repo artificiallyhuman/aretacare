@@ -52,13 +52,16 @@ const AudioWaveform = ({ stream, isRecording }) => {
 
       analyser.getByteTimeDomainData(dataArray);
 
+      // Check for dark mode
+      const isDarkMode = document.documentElement.classList.contains('dark');
+
       // Clear canvas
-      canvasContext.fillStyle = 'rgb(254, 242, 242)'; // red-50
+      canvasContext.fillStyle = isDarkMode ? 'rgb(127, 29, 29)' : 'rgb(254, 242, 242)'; // dark:red-900 : red-50
       canvasContext.fillRect(0, 0, width, height);
 
       // Draw waveform
       canvasContext.lineWidth = 2;
-      canvasContext.strokeStyle = 'rgb(220, 38, 38)'; // red-600
+      canvasContext.strokeStyle = isDarkMode ? 'rgb(252, 165, 165)' : 'rgb(220, 38, 38)'; // dark:red-300 : red-600
       canvasContext.beginPath();
 
       const sliceWidth = width / bufferLength;
@@ -94,11 +97,11 @@ const AudioWaveform = ({ stream, isRecording }) => {
   }, [stream, isRecording]);
 
   return (
-    <div className="w-full h-16 md:h-20 bg-red-50 rounded-lg border-2 border-red-300 overflow-hidden">
+    <div className="w-full h-6 rounded overflow-hidden">
       <canvas
         ref={canvasRef}
         width={600}
-        height={80}
+        height={24}
         className="w-full h-full"
       />
     </div>

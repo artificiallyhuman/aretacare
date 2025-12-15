@@ -37,6 +37,7 @@ const MessageInput = ({ onSendMessage, loading, hasMessages = false }) => {
   const [currentPromptIndex, setCurrentPromptIndex] = useState(0);
   const [isMobile, setIsMobile] = useState(false);
   const [audioRecordingId, setAudioRecordingId] = useState(null);
+  const [showNotification, setShowNotification] = useState(false);
   const fileInputRef = useRef(null);
   const mediaRecorderRef = useRef(null);
   const audioChunksRef = useRef([]);
@@ -109,6 +110,17 @@ const MessageInput = ({ onSendMessage, loading, hasMessages = false }) => {
     // Intentionally excluding stopRecording from deps - only restart timer when recording state changes
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isRecording]);
+
+  // Auto-hide notification after 5 seconds
+  useEffect(() => {
+    if (showNotification) {
+      const timer = setTimeout(() => {
+        setShowNotification(false);
+      }, 5000);
+
+      return () => clearTimeout(timer);
+    }
+  }, [showNotification]);
 
   // Auto-resize textarea as content grows
   const handleTextareaChange = (e) => {
@@ -250,33 +262,8 @@ const MessageInput = ({ onSendMessage, loading, hasMessages = false }) => {
       // Send the message with the audio recording ID
       await onSendMessage(finalMessage, null, recordingId);
 
-      // Show temporary notification about Audio Recordings near the message box
-      const notification = document.createElement('div');
-      notification.className = 'fixed bottom-24 left-4 right-4 z-50 bg-blue-100 dark:bg-blue-900/90 border-2 border-blue-300 dark:border-blue-700 text-blue-900 dark:text-blue-100 px-4 py-3 rounded-lg shadow-lg text-center';
-      notification.style.opacity = '0';
-      notification.style.animation = 'fadeIn 0.3s ease-out forwards';
-      notification.innerHTML = `
-        <style>
-          @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(20px); }
-            to { opacity: 1; transform: translateY(0); }
-          }
-        </style>
-        <div class="flex items-center gap-3">
-          <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-          </svg>
-          <span class="text-sm font-medium">You can view and delete this audio recording in the Audio Recordings page</span>
-        </div>
-      `;
-      document.body.appendChild(notification);
-
-      // Remove notification after 5 seconds
-      setTimeout(() => {
-        notification.style.opacity = '0';
-        notification.style.transition = 'opacity 0.5s ease-out';
-        setTimeout(() => notification.remove(), 500);
-      }, 5000);
+      // Show temporary notification about Audio Recordings
+      setShowNotification(true);
 
     } catch (error) {
       console.error('Error transcribing audio:', error);
@@ -289,40 +276,17 @@ const MessageInput = ({ onSendMessage, loading, hasMessages = false }) => {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="border-t-2 border-primary-200 dark:border-primary-800 bg-gradient-to-r from-primary-50 to-blue-50 dark:from-gray-800 dark:to-gray-800 p-2 md:p-4 pb-[max(0.5rem,env(safe-area-inset-bottom))] md:pb-[max(1rem,env(safe-area-inset-bottom))] shadow-lg transition-colors duration-200 flex-shrink-0">
-      {/* Recording/Transcribing status */}
-      {isRecording && (
-        <div className="mb-2 md:mb-3 p-2 md:p-3 bg-red-100 dark:bg-red-900/30 rounded-lg border-2 border-red-300 dark:border-red-800 shadow-sm space-y-2">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-2">
-              <div className="w-2.5 h-2.5 md:w-3 md:h-3 bg-red-600 rounded-full animate-pulse"></div>
-              <span className="text-xs md:text-sm font-medium text-red-800 dark:text-red-300">Recording... Click "End" when finished</span>
-            </div>
-            <div className="flex items-center space-x-2">
-              <svg className="w-4 h-4 md:w-5 md:h-5 text-red-700 dark:text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              <span className={`text-sm md:text-base font-bold font-mono ${recordingTimeLeft < 60 ? 'text-red-700 dark:text-red-300 animate-pulse' : 'text-red-800 dark:text-red-300'}`}>
-                {formatTime(recordingTimeLeft)}
-              </span>
-            </div>
+    <form onSubmit={handleSubmit} className="mt-1 md:mt-2 border-t-2 border-primary-200 dark:border-primary-800 bg-gradient-to-r from-primary-50 to-blue-50 dark:from-gray-800 dark:to-gray-800 p-2 md:p-4 pb-[max(0.5rem,env(safe-area-inset-bottom))] md:pb-[max(1rem,env(safe-area-inset-bottom))] shadow-lg transition-colors duration-200 flex-shrink-0">
+
+      {/* Audio recording saved notification */}
+      {showNotification && (
+        <div className="mb-2 md:mb-3 bg-blue-100 dark:bg-blue-900/90 border-2 border-blue-300 dark:border-blue-700 text-blue-900 dark:text-blue-100 px-4 py-3 rounded-lg shadow-lg animate-fade-in">
+          <div className="flex items-center gap-3">
+            <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            </svg>
+            <span className="text-sm font-medium">You can view and delete this recording in the Audio Recordings tool</span>
           </div>
-          {/* Live waveform visualization */}
-          <AudioWaveform stream={audioStream} isRecording={isRecording} />
-          {recordingTimeLeft < 60 && (
-            <div className="text-xs text-red-700 dark:text-red-300 font-medium text-center">
-              ⚠️ Less than 1 minute remaining
-            </div>
-          )}
-        </div>
-      )}
-      {isTranscribing && (
-        <div className="mb-2 md:mb-3 flex items-center space-x-2 p-2 md:p-3 bg-blue-100 dark:bg-blue-900/30 rounded-lg border-2 border-blue-300 dark:border-blue-800 shadow-sm">
-          <svg className="w-4 h-4 md:w-5 md:h-5 text-blue-700 dark:text-blue-400 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-          </svg>
-          <span className="text-xs md:text-sm font-medium text-blue-800 dark:text-blue-300">Transcribing your audio...</span>
         </div>
       )}
 
@@ -346,7 +310,7 @@ const MessageInput = ({ onSendMessage, loading, hasMessages = false }) => {
       {/* Input area */}
       <div className="bg-white dark:bg-gray-800 rounded-lg md:rounded-xl shadow-md border border-primary-200 dark:border-gray-700 transition-colors duration-200">
         {/* Top row: Action buttons and textarea */}
-        <div className="flex items-end space-x-1.5 md:space-x-2 p-1.5 md:p-2">
+        <div className="flex items-center space-x-1.5 md:space-x-2 p-1.5 md:p-2">
           {/* File upload button */}
           <input
             type="file"
@@ -406,22 +370,47 @@ const MessageInput = ({ onSendMessage, loading, hasMessages = false }) => {
             </button>
           )}
 
-          {/* Text input */}
-          <textarea
-            ref={textareaRef}
-            value={message}
-            onChange={handleTextareaChange}
-            onKeyPress={handleKeyPress}
-            placeholder={
-              hasMessages
-                ? "Type your message..."
-                : (isMobile ? ROTATING_PROMPTS_MOBILE[currentPromptIndex] : ROTATING_PROMPTS[currentPromptIndex])
-            }
-            className="flex-1 resize-none border-0 rounded-lg px-2 py-2 md:px-3 focus:outline-none focus:ring-2 focus:ring-primary-500 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 max-h-[200px] overflow-y-auto text-base transition-all duration-500"
-            rows={1}
-            disabled={loading}
-            style={{ minHeight: '40px' }}
-          />
+          {/* Text input / Recording / Transcribing area */}
+          {isRecording ? (
+            <div className="flex-1 flex items-center gap-2 px-2 py-2 md:px-3 bg-red-50 dark:bg-red-900/30 rounded-lg border-2 border-red-300 dark:border-red-800" style={{ minHeight: '40px' }}>
+              <div className="w-2 h-2 bg-red-600 rounded-full animate-pulse flex-shrink-0"></div>
+              <div className="flex-1 min-w-0">
+                <AudioWaveform stream={audioStream} isRecording={isRecording} />
+              </div>
+              <div className="flex items-center gap-1 flex-shrink-0">
+                {recordingTimeLeft < 60 && (
+                  <span className="text-red-600 dark:text-red-400 text-xs md:text-sm">⚠️</span>
+                )}
+                <span className={`text-xs md:text-sm font-bold font-mono ${recordingTimeLeft < 60 ? 'text-red-700 dark:text-red-300 animate-pulse' : 'text-red-800 dark:text-red-300'}`}>
+                  {formatTime(recordingTimeLeft)}
+                </span>
+              </div>
+            </div>
+          ) : isTranscribing ? (
+            <div className="flex-1 flex items-center space-x-2 px-2 py-2 md:px-3 bg-blue-50 dark:bg-blue-900/30 rounded-lg border-2 border-blue-300 dark:border-blue-800" style={{ minHeight: '40px' }}>
+              <svg className="w-4 h-4 md:w-5 md:h-5 text-blue-700 dark:text-blue-400 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              <span className="text-xs md:text-sm font-medium text-blue-800 dark:text-blue-300">Transcribing your audio...</span>
+            </div>
+          ) : (
+            <textarea
+              ref={textareaRef}
+              value={message}
+              onChange={handleTextareaChange}
+              onKeyPress={handleKeyPress}
+              placeholder={
+                hasMessages
+                  ? "Type your message..."
+                  : (isMobile ? ROTATING_PROMPTS_MOBILE[currentPromptIndex] : ROTATING_PROMPTS[currentPromptIndex])
+              }
+              className="flex-1 resize-none border-0 rounded-lg px-2 py-2 md:px-3 focus:outline-none focus:ring-2 focus:ring-primary-500 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 max-h-[200px] overflow-y-auto text-base transition-all duration-500"
+              rows={1}
+              disabled={loading}
+              style={{ minHeight: '40px' }}
+            />
+          )}
         </div>
 
         {/* Bottom row: Send button (full width on mobile) */}
