@@ -28,6 +28,7 @@ AretaCare is an AI-powered medical care advocate assistant that helps families u
 - Mobile-optimized design with responsive layouts
 - Dark mode support via Tailwind CSS and ThemeContext
 - Network status monitoring with offline detection and reconnection banner
+- Feedback system - contact form with hCaptcha spam prevention, rate limiting, email notifications (desktop: floating tab, mobile: menu item)
 - Specialized tools: Jargon Translator (with audio input), Conversation Coach (with audio input)
 
 ## Development Commands
@@ -192,6 +193,7 @@ See `backend/app/config/README.md` for complete documentation on modifying AI be
 - `journal.py` - Journal CRUD operations
 - `daily_plans.py` - Daily plan management (generate, list, update)
 - `tools.py` - Standalone tools (Jargon Translator, Conversation Coach)
+- `feedback.py` - Feedback form submission with hCaptcha verification, rate limiting, and email notifications
 - `admin.py` - Admin console (metrics, health, S3 cleanup, admin logs)
 
 **Models** (`backend/app/models/`): `user.py`, `session.py`, `session_collaborator.py`, `document.py`, `audio_recording.py`, `journal.py`, `daily_plan.py`, `conversation.py`, `admin_audit_log.py`
@@ -232,16 +234,18 @@ See `backend/app/config/README.md` for complete documentation on modifying AI be
 - `AudioRecordings.jsx` - AI-powered audio manager
 - `Login.jsx`, `Register.jsx`, `PasswordReset.jsx` - Authentication (Login has prominent "Learn about AretaCare" secondary button)
 - `About.jsx`, `TermsOfService.jsx`, `PrivacyPolicy.jsx` - Info pages
+- `Contact.jsx` - Feedback form with hCaptcha, source page tracking, and return navigation
 - `tools/JargonTranslator.jsx`, `tools/ConversationCoach.jsx` - Standalone AI tools
 - `admin/` - Admin console pages (Dashboard with timezone-aware charts, ErrorLogs, SecurityLogs, Health, Accounts, Users, S3Cleanup, AdminLogs)
 
 **Components** (`frontend/src/components/`):
-- `Header.jsx` - Navigation with session switcher and top-level Collaboration link
+- `Header.jsx` - Navigation with session switcher, top-level Collaboration link, and mobile "Send Feedback" menu item
 - `MessageBubble.jsx` - Chat message display with message editing (Edit button for user messages, inline textarea, "(edited)" indicator), copy-to-clipboard, and contextual timestamps
 - `MessageInput.jsx` - Chat input with audio recording
 - `AudioWaveform.jsx` - Real-time waveform visualization
 - `DailyPlan/DailyPlanPanel.jsx` - Collapsible daily plan sidebar
 - `NetworkStatusBanner.jsx` - Offline/reconnection notification banner
+- `FeedbackTab.jsx` - Floating feedback tab (desktop only, hidden on mobile)
 
 **Context & Services**:
 - `contexts/SessionContext.jsx` - Multi-session state management
@@ -419,3 +423,4 @@ Database migrations run automatically on startup.
 - `docs/API_USAGE.md` - API endpoint examples and reference
 - `docs/SAFETY_GUIDELINES.md` - **Critical**: Safety requirements and boundaries
 - `docs/AWS_IAM_POLICY.md` - AWS S3 IAM policy configuration
+- `docs/FEEDBACK_SYSTEM.md` - Feedback system configuration and testing

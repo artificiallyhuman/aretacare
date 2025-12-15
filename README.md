@@ -36,6 +36,8 @@ AretaCare was built from exactly this experience—sitting beside a loved one in
 
 **Account Security** — Comprehensive email notifications keep you informed of important account changes including password updates, email changes, session collaboration activities, and password reset requests. Password reset via email with time-limited tokens (1-hour expiration). JWT-based authentication with 7-day token expiration.
 
+**Feedback** — Share bug reports, improvement suggestions, feature requests, or general feedback through the built-in contact form. Access via the floating tab on desktop or "Send Feedback" in the mobile menu. Includes hCaptcha spam prevention, rate limiting (3 submissions/hour), and dual email notifications (team receives detailed report, user receives confirmation). Source page tracking helps diagnose issues.
+
 **Admin Console** — For administrators (configured via ADMIN_EMAILS): Timezone-aware metrics dashboard with interactive charts tracking users, sessions, collaborators, pending invitations, messages, journal entries, documents, audio recordings, errors, and security events. Tools include user management with search and activity tracking, inactive account detection, error logs with filtering and 30-day auto-cleanup, security logs, system health monitoring, S3 orphan file detection and cleanup, and audit logging with automatic retention (90 days default). All timestamps display in the admin's local timezone.
 
 ---
@@ -251,6 +253,7 @@ Requires email in `ADMIN_EMAILS` environment variable. Features include:
 | [docs/SAFETY_GUIDELINES.md](docs/SAFETY_GUIDELINES.md) | AI safety requirements and boundaries |
 | [docs/AWS_IAM_POLICY.md](docs/AWS_IAM_POLICY.md) | Required S3 permissions for document storage |
 | [docs/EMAIL_SETUP.md](docs/EMAIL_SETUP.md) | Email notification configuration (Gmail SMTP setup) |
+| [docs/FEEDBACK_SYSTEM.md](docs/FEEDBACK_SYSTEM.md) | Feedback system setup (hCaptcha, email, testing) |
 | [backend/app/config/README.md](backend/app/config/README.md) | AI configuration guide (models, prompts, categories) |
 
 ---

@@ -5,7 +5,7 @@
 This application includes a comprehensive user feedback system that allows users to submit bug reports, suggest improvements, request new features, or provide general feedback. The system includes:
 
 1. **Contact/Feedback Page** (`/contact`) - Full form with auto-populated user information
-2. **Floating Feedback Tab** - Visible on all pages (except `/contact`) for easy access
+2. **Feedback Access** - Desktop: floating tab on right side; Mobile: "Send Feedback" in menu
 3. **hCaptcha Integration** - Spam prevention
 4. **Email Notifications** - Both to the team and user confirmation
 5. **Security Features** - Rate limiting, input sanitization, XSS prevention
@@ -27,12 +27,17 @@ This application includes a comprehensive user feedback system that allows users
 - **Success Screen** - Confirmation with auto-redirect after 3 seconds
 - **Privacy Notice** - Transparent about data collection
 
-### 2. Floating Feedback Tab
-- **Fixed Position** - Right side of screen at middle height
-- **Visible on All Pages** - Except `/contact` page itself
+### 2. Feedback Access
+**Desktop (Floating Tab)**
+- **Fixed Position** - Right side of screen at middle height, vertical orientation
+- **Visible on All Pages** - Except `/contact` page and admin console
 - **Hover Animation** - Expands slightly on hover
 - **Click Action** - Navigates to `/contact` page with return URL saved
-- **Mobile-Friendly** - Touch-optimized with tooltip
+
+**Mobile (Menu Item)**
+- **Location** - "Send Feedback" link in the mobile menu (under Settings)
+- **Source Tracking** - Passes current page as source for diagnostic metadata
+- **Return Navigation** - Redirects back to original page after form submission
 
 ### 3. Backend API (`/api/feedback/submit`)
 - **Authentication Required** - Must be logged in
@@ -122,8 +127,8 @@ docker compose up --build
 ### Manual Testing Checklist
 
 #### Desktop Testing
-- [ ] Navigate to any page, verify feedback tab is visible on right side
-- [ ] Click feedback tab, verify navigation to `/contact` page
+- [ ] Navigate to any page, verify feedback tab is visible on right side (vertical orientation)
+- [ ] Click feedback tab, verify navigation to `/contact` page with correct source page
 - [ ] Verify name and email are auto-populated
 - [ ] Select each feedback type option
 - [ ] Type a message (test character counter)
@@ -134,12 +139,14 @@ docker compose up --build
 - [ ] Check email for confirmation message
 
 #### Mobile Testing
-- [ ] Verify feedback tab is visible and touch-friendly
-- [ ] Tap feedback tab, verify navigation works
+- [ ] Verify feedback tab is NOT visible on mobile (hidden)
+- [ ] Open mobile menu, verify "Send Feedback" link appears under Settings
+- [ ] Tap "Send Feedback", verify navigation to `/contact` page with correct source page
 - [ ] Verify form is mobile-responsive
 - [ ] Test submit/cancel buttons layout
 - [ ] Complete and submit form on mobile
 - [ ] Verify success screen is mobile-friendly
+- [ ] Verify redirect back to original page after submission
 
 #### Security Testing
 - [ ] Submit 4 forms rapidly, verify 4th is rate-limited
@@ -177,7 +184,8 @@ frontend/src/
 ├── pages/
 │   └── Contact.jsx              # Contact/feedback page
 ├── components/
-│   └── FeedbackTab.jsx          # Floating feedback tab
+│   ├── FeedbackTab.jsx          # Floating feedback tab (desktop only)
+│   └── Header.jsx               # Mobile menu includes "Send Feedback" link
 ├── services/
 │   └── api.js                   # feedbackAPI (lines 272-275)
 └── App.jsx                      # Route & FeedbackTab integration
@@ -262,11 +270,16 @@ frontend/src/
 - Check `useSessionContext()` is working
 - Open browser console, check for React errors
 
-### Feedback Tab Not Showing
+### Feedback Tab Not Showing (Desktop)
 - Verify user is logged in (only shows for authenticated users)
-- Check page is not `/contact` (hidden on that page)
+- Check page is not `/contact` or admin console (hidden on those pages)
+- Verify viewport is desktop width (tab is hidden on mobile; use menu instead)
 - Verify `FeedbackTab` is imported in `App.jsx`
 - Check for CSS conflicts (z-index: 40)
+
+### "Send Feedback" Not in Mobile Menu
+- Verify user is logged in (only shows for authenticated users)
+- Check that Header.jsx includes the "Send Feedback" button in mobile menu
 
 ## Privacy & Security
 
