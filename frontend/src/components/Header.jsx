@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import PropTypes from 'prop-types';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useSessionContext } from '../contexts/SessionContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { useAdmin } from '../contexts/AdminContext';
@@ -8,6 +8,7 @@ import logo from '../logos/large_logo.png';
 
 const Header = ({ onLogout, user }) => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { sessions, activeSession, switchSession, createSession } = useSessionContext();
   const { isDark, toggleTheme } = useTheme();
   const { isAdmin } = useAdmin();
@@ -571,13 +572,15 @@ const Header = ({ onLogout, user }) => {
                   Settings
                 </Link>
 
-                <Link
-                  to="/contact"
-                  className="block px-3 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-200 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-                  onClick={() => setMobileMenuOpen(false)}
+                <button
+                  onClick={() => {
+                    setMobileMenuOpen(false);
+                    navigate('/contact', { state: { from: location.pathname } });
+                  }}
+                  className="w-full text-left px-3 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-200 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
                 >
                   Send Feedback
-                </Link>
+                </button>
 
                 {isAdmin && (
                   <Link
