@@ -3,7 +3,7 @@ databases:
   - name: aretacare-db
     databaseName: aretacare
     user: aretacare
-    plan: free
+    plan: basic-1gb
 
 services:
 
