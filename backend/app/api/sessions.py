@@ -21,6 +21,29 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/sessions", tags=["sessions"])
 
 
+def get_unique_session_name(base_name: str, user_id: str, db: Session, exclude_session_id: str = None) -> str:
+    """
+    Generate a unique session name for a user's owned sessions.
+    If base_name already exists, appends (2), (3), etc.
+    """
+    # Get all owned session names for this user
+    query = db.query(SessionModel.name).filter(SessionModel.user_id == user_id)
+    if exclude_session_id:
+        query = query.filter(SessionModel.id != exclude_session_id)
+    existing_names = {s.name for s in query.all()}
+
+    # If name doesn't exist, use it as-is
+    if base_name not in existing_names:
+        return base_name
+
+    # Find the next available suffix
+    counter = 2
+    while f"{base_name} ({counter})" in existing_names:
+        counter += 1
+
+    return f"{base_name} ({counter})"
+
+
 def build_collaborator_infos(collaborators, db: Session) -> list[CollaboratorInfo]:
     """
     Build list of CollaboratorInfo objects with owned session counts.
@@ -290,6 +313,19 @@ async def rename_session(
 
     # Only owner can rename
     check_session_access(session, current_user.id, db, require_owner=True)
+
+    # Check if another owned session already has this name
+    existing_session = db.query(SessionModel).filter(
+        SessionModel.user_id == current_user.id,
+        SessionModel.name == rename_data.name,
+        SessionModel.id != session_id
+    ).first()
+
+    if existing_session:
+        raise HTTPException(
+            status_code=400,
+            detail=f"You already have a session named \"{rename_data.name}\". Please choose a different name."
+        )
 
     session.name = rename_data.name
     db.commit()
@@ -719,10 +755,16 @@ async def transfer_ownership(
             detail=f"{new_owner.name} already has 3 owned sessions. They must delete a session before accepting ownership."
         )
 
+    # Check for name conflict with new owner's existing sessions and auto-rename if needed
+    unique_name = get_unique_session_name(session.name, new_owner.id, db)
+    if unique_name != session.name:
+        logger.info(f"Auto-renamed session from '{session.name}' to '{unique_name}' due to name conflict for new owner {new_owner.email}")
+
     # Transfer ownership
     old_owner_id = session.owner_id
     session.owner_id = new_owner.id
     session.user_id = new_owner.id  # Update user_id as well for consistency
+    session.name = unique_name  # Apply the (potentially renamed) session name
 
     # Remove new owner from collaborators
     db.delete(new_owner_collab)
