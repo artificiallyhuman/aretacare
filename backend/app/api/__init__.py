@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from app.api import auth, sessions, documents, medical, journal, conversation, tools, audio_recording, daily_plans, admin
+from app.api import auth, sessions, documents, medical, journal, conversation, tools, audio_recording, daily_plans, admin, feedback
 
 api_router = APIRouter()
 
@@ -26,6 +26,9 @@ api_router.include_router(daily_plans.router, prefix="/daily-plans", tags=["dail
 
 # Tools (new - standalone tools)
 api_router.include_router(tools.router)
+
+# Feedback
+api_router.include_router(feedback.router, prefix="/feedback", tags=["feedback"])
 
 # Medical (legacy - keep for backwards compatibility during transition)
 api_router.include_router(medical.router)

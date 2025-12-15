@@ -8,6 +8,7 @@ import ErrorBoundary from './components/ErrorBoundary';
 import Header from './components/Header';
 import Footer from './components/Footer';
 import NetworkStatusBanner from './components/NetworkStatusBanner';
+import FeedbackTab from './components/FeedbackTab';
 
 // Eagerly load critical pages (login flow and main conversation)
 import Login from './pages/Login';
@@ -27,6 +28,7 @@ const Documents = lazy(() => import('./pages/tools/Documents'));
 const PasswordReset = lazy(() => import('./pages/PasswordReset'));
 const TermsOfService = lazy(() => import('./pages/TermsOfService'));
 const PrivacyPolicy = lazy(() => import('./pages/PrivacyPolicy'));
+const Contact = lazy(() => import('./pages/Contact'));
 
 // Admin pages
 const AdminDashboard = lazy(() => import('./pages/admin/AdminDashboard'));
@@ -135,6 +137,7 @@ function AppContent() {
     <div className="h-full flex flex-col bg-gray-50 dark:bg-gray-900 transition-colors duration-200 overflow-hidden">
       <NetworkStatusBanner />
       {user && <Header onLogout={handleLogout} user={user} />}
+      {user && <FeedbackTab />}
       <main className="flex-1 overflow-auto">
       <Suspense fallback={<PageLoadingFallback />}>
         <Routes>
@@ -247,6 +250,16 @@ function AppContent() {
             element={
               <ProtectedRoute>
                 <Documents />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Contact/Feedback Route (not in menu) */}
+          <Route
+            path="/contact"
+            element={
+              <ProtectedRoute>
+                <Contact />
               </ProtectedRoute>
             }
           />

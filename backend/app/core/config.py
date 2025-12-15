@@ -32,7 +32,7 @@ class Settings(BaseSettings):
             return []
         return [email.strip().lower() for email in self.ADMIN_EMAILS.split(",") if email.strip()]
 
-    # Email (for password reset)
+    # Email (for password reset and notifications)
     SMTP_HOST: str = "smtp.gmail.com"
     SMTP_PORT: int = 587
     SMTP_USER: str = "noreply@aretacare.com"
@@ -40,6 +40,10 @@ class Settings(BaseSettings):
     SMTP_FROM_EMAIL: str = "noreply@aretacare.com"
     SMTP_FROM_NAME: str = "AretaCare"
     FRONTEND_URL: str = "http://localhost:3001"
+    FEEDBACK_EMAIL: str = "feedback@aretacare.com"  # Email address to receive feedback submissions
+
+    # hCaptcha (for spam prevention)
+    HCAPTCHA_SECRET_KEY: str = ""  # hCaptcha secret key
 
     @property
     def cors_origins_list(self) -> List[str]:

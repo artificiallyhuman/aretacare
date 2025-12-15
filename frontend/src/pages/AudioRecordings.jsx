@@ -266,7 +266,7 @@ const AudioRecordings = () => {
       // Pass false for skipJournalSynthesis so journal entries ARE created for direct uploads
       await conversationAPI.transcribeAudio(file, sessionId, false);
 
-      setUploadProgress('Audio processed successfully! Journal entries may have been created.');
+      setUploadProgress('Audio processed successfully. Journal entries may have been created.');
 
       // Reload recordings to show the new one
       await loadRecordings();

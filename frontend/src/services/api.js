@@ -269,4 +269,9 @@ export const adminAPI = {
   getSystemHealth: () => api.get('/admin/health'),
 };
 
+// Feedback API
+export const feedbackAPI = {
+  submit: (feedbackData) => api.post('/feedback/submit', feedbackData),
+};
+
 export default api;

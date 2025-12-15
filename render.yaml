@@ -32,21 +32,35 @@ services:
       - key: DEBUG
         value: false
       - key: CORS_ORIGINS
-        value: https://aretacare.com,https://www.aretacare.com
+        sync: false  # Set to your frontend domain(s), e.g., https://yourdomain.com
       - key: SMTP_HOST
         value: smtp.gmail.com
       - key: SMTP_PORT
         value: 587
       - key: SMTP_USER
-        value: noreply@aretacare.com
+        sync: false  # Your SMTP username, e.g., noreply@yourdomain.com
       - key: SMTP_PASSWORD
         sync: false
       - key: SMTP_FROM_EMAIL
-        value: noreply@aretacare.com
+        sync: false  # Email address that sends notifications, e.g., noreply@yourdomain.com
       - key: SMTP_FROM_NAME
-        value: AretaCare
+        sync: false  # Sender name shown in emails, e.g., Your App Name
       - key: FRONTEND_URL
-        value: https://www.aretacare.com
+        sync: false  # Your frontend URL, e.g., https://yourdomain.com
+      - key: ADMIN_EMAILS
+        sync: false  # Comma-separated admin emails
+      - key: AUDIT_LOG_RETENTION_DAYS
+        value: 90
+      - key: ERROR_LOG_RETENTION_DAYS
+        value: 30
+      - key: SESSION_TIMEOUT_MINUTES
+        value: 60
+      - key: S3_KEY_PREFIX
+        value: prod/
+      - key: HCAPTCHA_SECRET_KEY
+        sync: false  # Optional: Get from https://www.hcaptcha.com/
+      - key: FEEDBACK_EMAIL
+        sync: false  # Email to receive feedback, e.g., feedback@yourdomain.com
 
   # Frontend
   - type: web
@@ -60,4 +74,6 @@ services:
         destination: /index.html
     envVars:
       - key: VITE_API_URL
-        value: https://aretacare-backend.onrender.com/api
+        sync: false  # Your backend URL, e.g., https://your-backend.onrender.com/api
+      - key: VITE_HCAPTCHA_SITE_KEY
+        sync: false  # Optional: Get from https://www.hcaptcha.com/

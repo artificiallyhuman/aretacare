@@ -111,7 +111,7 @@ export default function Collaboration() {
 
     try {
       await sessionAPI.share(selectedSession.id, email);
-      setSuccess('Session shared successfully!');
+      setSuccess('Session shared successfully.');
       await refreshSessions();
       setTimeout(() => {
         setStep('view');
@@ -139,7 +139,7 @@ export default function Collaboration() {
 
     try {
       await sessionAPI.revokeAccess(selectedSession.id, userToRemove.userId);
-      setSuccess('Access revoked successfully!');
+      setSuccess('Access revoked successfully.');
       await refreshSessions();
       setTimeout(() => {
         setStep('view');
@@ -163,7 +163,7 @@ export default function Collaboration() {
 
     try {
       await sessionAPI.leave(selectedSession.id);
-      setSuccess('Left session successfully!');
+      setSuccess('Left session successfully.');
       await refreshSessions();
       setTimeout(() => {
         setExpandedSessionId(null);
@@ -218,7 +218,7 @@ export default function Collaboration() {
 
     try {
       await sessionAPI.sendInvitation(selectedSession.id, email);
-      setSuccess('Invitation sent successfully!');
+      setSuccess('Invitation sent successfully.');
       fetchPendingInvitations(selectedSession.id);
       setTimeout(() => {
         setStep('view');
@@ -243,7 +243,7 @@ export default function Collaboration() {
 
     try {
       await sessionAPI.sendInvitation(selectedSession.id, invitationEmail);
-      setSuccess('Invitation resent successfully!');
+      setSuccess('Invitation resent successfully.');
       fetchPendingInvitations(selectedSession.id);
       setTimeout(() => {
         setSuccess(null);
@@ -263,7 +263,7 @@ export default function Collaboration() {
 
     try {
       await sessionAPI.cancelInvitation(selectedSession.id, invitationToCancel.invitationId);
-      setSuccess('Invitation cancelled successfully!');
+      setSuccess('Invitation cancelled successfully.');
       fetchPendingInvitations(selectedSession.id);
       setTimeout(() => {
         setStep('view');

@@ -1334,7 +1334,7 @@ The AretaCare Team
             text_content = f"""
 Hello {owner_name},
 
-Great news! {new_user_name} ({new_user_email}) has accepted your invitation and created an AretaCare account.
+Great news: {new_user_name} ({new_user_email}) has accepted your invitation and created an AretaCare account.
 
 They now have full access to your session "{session_name}" and can view and edit all session data, including conversations, journal entries, documents, and audio recordings.
 
@@ -1368,12 +1368,12 @@ The AretaCare Team
                     <!-- Content -->
                     <tr>
                         <td style="padding: 20px 40px;">
-                            <h2 style="margin: 0 0 16px; color: #111827; font-size: 24px;">Invitation Accepted!</h2>
+                            <h2 style="margin: 0 0 16px; color: #111827; font-size: 24px;">Invitation Accepted</h2>
                             <p style="margin: 0 0 16px; color: #374151; font-size: 16px; line-height: 24px;">
                                 Hello {owner_name},
                             </p>
                             <p style="margin: 0 0 16px; color: #374151; font-size: 16px; line-height: 24px;">
-                                Great news! <strong>{new_user_name}</strong> ({new_user_email}) has accepted your invitation and created an AretaCare account.
+                                Great news: <strong>{new_user_name}</strong> ({new_user_email}) has accepted your invitation and created an AretaCare account.
                             </p>
                         </td>
                     </tr>
@@ -1454,6 +1454,319 @@ The AretaCare Team
 
         except Exception as e:
             logger.error(f"Error sending invitation accepted email: {str(e)}")
+            return False
+
+    @staticmethod
+    def send_feedback_to_team(
+        user_name: str,
+        user_email: str,
+        feedback_types: str,
+        message: str,
+        metadata: dict
+    ) -> bool:
+        """
+        Send feedback submission to AretaCare team
+
+        Args:
+            user_name: Name of the user submitting feedback
+            user_email: Email of the user submitting feedback
+            feedback_types: Types of feedback (comma-separated: bug, improvement, feature, other)
+            message: The feedback message
+            metadata: Additional diagnostic metadata
+
+        Returns:
+            bool: True if email sent successfully, False otherwise
+        """
+        try:
+            # Format feedback types for display
+            type_mapping = {
+                "bug": "Bug Report",
+                "improvement": "Suggested Improvement",
+                "feature": "New Feature Request",
+                "other": "Other Feedback"
+            }
+
+            # Convert comma-separated types to display format
+            types_list = [t.strip() for t in feedback_types.split(",")]
+            feedback_type_display = ", ".join([type_mapping.get(t, t.title()) for t in types_list])
+
+            # Create message
+            email_message = MIMEMultipart("alternative")
+            email_message["Subject"] = f"[{feedback_type_display}] Feedback from {user_name}"
+            email_message["From"] = f"{settings.SMTP_FROM_NAME} <{settings.SMTP_FROM_EMAIL}>"
+            email_message["To"] = settings.FEEDBACK_EMAIL
+            email_message["Reply-To"] = user_email
+
+            # Plain text version
+            text_content = f"""
+New Feedback Submission
+
+Type: {feedback_type_display}
+From: {user_name} ({user_email})
+
+Message:
+{message}
+
+---
+Diagnostic Information:
+User ID: {metadata.get('user_id', 'N/A')}
+Page URL: {metadata.get('page_url', 'N/A')}
+User Agent: {metadata.get('user_agent', 'N/A')}
+Client IP: {metadata.get('client_ip', 'N/A')}
+"""
+
+            # HTML version
+            html_content = f"""
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f3f4f6;">
+    <table role="presentation" style="width: 100%; border-collapse: collapse;">
+        <tr>
+            <td align="center" style="padding: 40px 0;">
+                <table role="presentation" style="width: 600px; max-width: 100%; background-color: #ffffff; border-radius: 8px; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);">
+                    <!-- Header -->
+                    <tr>
+                        <td style="padding: 40px 40px 20px; text-align: center;">
+                            <h1 style="margin: 0; color: #059669; font-size: 36px;">AretaCare<span style="font-size: 20px; vertical-align: super;">™</span></h1>
+                            <p style="margin: 10px 0 0; color: #6b7280; font-size: 18px; letter-spacing: 0.5px;">Feedback Submission</p>
+                        </td>
+                    </tr>
+
+                    <!-- Content -->
+                    <tr>
+                        <td style="padding: 20px 40px;">
+                            <h2 style="margin: 0 0 16px; color: #111827; font-size: 24px;">New {feedback_type_display}</h2>
+
+                            <!-- User Info Box -->
+                            <div style="background-color: #f9fafb; border: 1px solid #e5e7eb; padding: 16px; border-radius: 4px; margin: 24px 0;">
+                                <p style="margin: 0 0 8px; color: #6b7280; font-size: 14px; font-weight: 600;">Submitted by:</p>
+                                <p style="margin: 4px 0; color: #374151; font-size: 14px;">
+                                    <strong>Name:</strong> {user_name}
+                                </p>
+                                <p style="margin: 4px 0; color: #374151; font-size: 14px;">
+                                    <strong>Email:</strong> <a href="mailto:{user_email}" style="color: #059669; text-decoration: none;">{user_email}</a>
+                                </p>
+                            </div>
+
+                            <!-- Message -->
+                            <div style="background-color: #ffffff; border: 1px solid #e5e7eb; padding: 16px; border-radius: 4px; margin: 24px 0;">
+                                <p style="margin: 0 0 8px; color: #6b7280; font-size: 14px; font-weight: 600;">Message:</p>
+                                <p style="margin: 0; color: #374151; font-size: 14px; line-height: 20px; white-space: pre-wrap;">{message}</p>
+                            </div>
+
+                            <!-- Diagnostic Info -->
+                            <div style="background-color: #f0f9ff; border-left: 4px solid #3b82f6; padding: 16px; border-radius: 4px; margin: 24px 0;">
+                                <p style="margin: 0 0 8px; color: #1e40af; font-size: 12px; font-weight: 600;">Diagnostic Information:</p>
+                                <p style="margin: 4px 0; color: #1e40af; font-size: 12px;">
+                                    <strong>User ID:</strong> {metadata.get('user_id', 'N/A')}
+                                </p>
+                                <p style="margin: 4px 0; color: #1e40af; font-size: 12px; word-break: break-all;">
+                                    <strong>Page URL:</strong> {metadata.get('page_url', 'N/A')}
+                                </p>
+                                <p style="margin: 4px 0; color: #1e40af; font-size: 12px; word-break: break-all;">
+                                    <strong>User Agent:</strong> {metadata.get('user_agent', 'N/A')}
+                                </p>
+                                <p style="margin: 4px 0; color: #1e40af; font-size: 12px;">
+                                    <strong>Client IP:</strong> {metadata.get('client_ip', 'N/A')}
+                                </p>
+                            </div>
+                        </td>
+                    </tr>
+
+                    <!-- Footer -->
+                    <tr>
+                        <td style="padding: 20px 40px; background-color: #f9fafb; border-top: 1px solid #e5e7eb; border-radius: 0 0 8px 8px;">
+                            <p style="margin: 0; color: #6b7280; font-size: 12px; line-height: 18px; text-align: center;">
+                                AretaCare Feedback System
+                            </p>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>
+"""
+
+            # Attach both versions
+            part1 = MIMEText(text_content, "plain")
+            part2 = MIMEText(html_content, "html")
+            email_message.attach(part1)
+            email_message.attach(part2)
+
+            # Check if SMTP password is configured
+            if not settings.SMTP_PASSWORD:
+                logger.warning("SMTP_PASSWORD not configured. Email not sent. Using development mode.")
+                return False
+
+            # Send email
+            with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT) as server:
+                server.starttls()
+                server.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
+                server.send_message(email_message)
+
+            logger.info(f"Feedback email sent to team from {user_email}")
+            return True
+
+        except Exception as e:
+            logger.error(f"Error sending feedback to team: {str(e)}")
+            return False
+
+    @staticmethod
+    def send_feedback_confirmation(
+        user_email: str,
+        user_name: str,
+        feedback_types: str,
+        message: str
+    ) -> bool:
+        """
+        Send confirmation email to user after feedback submission
+
+        Args:
+            user_email: User's email address
+            user_name: User's name
+            feedback_types: Types of feedback submitted (comma-separated)
+            message: The feedback message they submitted
+
+        Returns:
+            bool: True if email sent successfully, False otherwise
+        """
+        try:
+            # Format feedback types for display
+            type_mapping = {
+                "bug": "bug report",
+                "improvement": "suggested improvement",
+                "feature": "new feature request",
+                "other": "feedback"
+            }
+
+            # Convert comma-separated types to display format
+            types_list = [t.strip() for t in feedback_types.split(",")]
+            feedback_type_display = ", ".join([type_mapping.get(t, t) for t in types_list])
+
+            # Create message
+            email_message = MIMEMultipart("alternative")
+            email_message["Subject"] = f"Thank you for your feedback - AretaCare"
+            email_message["From"] = f"{settings.SMTP_FROM_NAME} <{settings.SMTP_FROM_EMAIL}>"
+            email_message["To"] = user_email
+
+            # Plain text version
+            text_content = f"""
+Hello {user_name},
+
+Thank you for taking the time to share your feedback with us. We've received your submission and will review it carefully.
+
+Your feedback helps us improve AretaCare for everyone. We appreciate you being part of our community.
+
+What you submitted:
+
+{message}
+
+---
+
+If you have any additional information to share, please feel free to submit another feedback form or contact us at feedback@aretacare.com.
+
+Best regards,
+The AretaCare Team
+"""
+
+            # HTML version
+            html_content = f"""
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f3f4f6;">
+    <table role="presentation" style="width: 100%; border-collapse: collapse;">
+        <tr>
+            <td align="center" style="padding: 40px 0;">
+                <table role="presentation" style="width: 600px; max-width: 100%; background-color: #ffffff; border-radius: 8px; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);">
+                    <!-- Header -->
+                    <tr>
+                        <td style="padding: 40px 40px 20px; text-align: center;">
+                            <h1 style="margin: 0; color: #059669; font-size: 36px;">AretaCare<span style="font-size: 20px; vertical-align: super;">™</span></h1>
+                            <p style="margin: 10px 0 0; color: #6b7280; font-size: 18px; letter-spacing: 0.5px;">Care | Clarity | Confidence</p>
+                        </td>
+                    </tr>
+
+                    <!-- Content -->
+                    <tr>
+                        <td style="padding: 20px 40px;">
+                            <h2 style="margin: 0 0 16px; color: #111827; font-size: 24px;">Thank you for your feedback</h2>
+                            <p style="margin: 0 0 16px; color: #374151; font-size: 16px; line-height: 24px;">
+                                Hello {user_name},
+                            </p>
+                            <p style="margin: 0 0 16px; color: #374151; font-size: 16px; line-height: 24px;">
+                                Thank you for taking the time to share your feedback with us. We've received your submission and will review it carefully.
+                            </p>
+                            <p style="margin: 0 0 16px; color: #374151; font-size: 16px; line-height: 24px;">
+                                Your feedback helps us improve AretaCare for everyone. We appreciate you being part of our community.
+                            </p>
+                        </td>
+                    </tr>
+
+                    <!-- Feedback Preview -->
+                    <tr>
+                        <td style="padding: 0 40px 40px;">
+                            <div style="background-color: #ecfdf5; border-left: 4px solid #059669; padding: 16px; border-radius: 4px;">
+                                <p style="margin: 0 0 8px; color: #065f46; font-size: 14px; font-weight: 600;">
+                                    What you submitted:
+                                </p>
+                                <p style="margin: 0; color: #065f46; font-size: 14px; line-height: 20px; white-space: pre-wrap;">{message}</p>
+                            </div>
+
+                            <p style="margin: 24px 0 0; color: #6b7280; font-size: 14px; line-height: 20px;">
+                                If you have any additional information to share, please feel free to submit another feedback form or contact us at <a href="mailto:feedback@aretacare.com" style="color: #059669; text-decoration: none;">feedback@aretacare.com</a>.
+                            </p>
+                        </td>
+                    </tr>
+
+                    <!-- Footer -->
+                    <tr>
+                        <td style="padding: 20px 40px; background-color: #f9fafb; border-top: 1px solid #e5e7eb; border-radius: 0 0 8px 8px;">
+                            <p style="margin: 0; color: #6b7280; font-size: 12px; line-height: 18px; text-align: center;">
+                                Best regards,<br>
+                                The AretaCare Team
+                            </p>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>
+"""
+
+            # Attach both versions
+            part1 = MIMEText(text_content, "plain")
+            part2 = MIMEText(html_content, "html")
+            email_message.attach(part1)
+            email_message.attach(part2)
+
+            # Check if SMTP password is configured
+            if not settings.SMTP_PASSWORD:
+                logger.warning("SMTP_PASSWORD not configured. Email not sent. Using development mode.")
+                return False
+
+            # Send email
+            with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT) as server:
+                server.starttls()
+                server.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
+                server.send_message(email_message)
+
+            logger.info(f"Feedback confirmation sent to {user_email}")
+            return True
+
+        except Exception as e:
+            logger.error(f"Error sending feedback confirmation: {str(e)}")
             return False
 
     @staticmethod

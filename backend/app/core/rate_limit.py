@@ -65,3 +65,6 @@ class RateLimits:
     # AI/LLM endpoints (expensive)
     AI_CHAT = "30/minute"           # 30 chat requests per minute per user
     AI_SYNTHESIS = "20/minute"      # 20 synthesis requests per minute per user
+
+    # Feedback submission (spam prevention)
+    FEEDBACK_SUBMIT = "3/hour"      # 3 feedback submissions per hour per IP

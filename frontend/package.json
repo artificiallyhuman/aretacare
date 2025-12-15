@@ -4,6 +4,7 @@
   "description": "AretaCare - Care. Clarity. Confidence.",
   "private": true,
   "dependencies": {
+    "@hcaptcha/react-hcaptcha": "^1.10.1",
     "@heroicons/react": "^2.1.1",
     "axios": "^1.6.2",
     "prop-types": "^15.8.1",
