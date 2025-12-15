@@ -19,7 +19,7 @@ function FeedbackTab() {
   return (
     <button
       onClick={handleClick}
-      className="fixed right-0 top-1/2 -translate-y-1/2 bg-primary-600 hover:bg-primary-700 text-white font-medium py-4 px-2 rounded-l-lg shadow-lg transition-all duration-200 hover:shadow-xl z-40 group writing-mode-vertical"
+      className="hidden md:flex fixed right-0 top-1/2 -translate-y-1/2 bg-primary-600 hover:bg-primary-700 text-white font-medium py-4 px-2 rounded-l-lg shadow-lg transition-all duration-200 hover:shadow-xl z-40"
       style={{ writingMode: 'vertical-rl' }}
       aria-label="Send Feedback"
       title="Send Feedback"

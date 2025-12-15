@@ -571,6 +571,14 @@ const Header = ({ onLogout, user }) => {
                   Settings
                 </Link>
 
+                <Link
+                  to="/contact"
+                  className="block px-3 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-200 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  Send Feedback
+                </Link>
+
                 {isAdmin && (
                   <Link
                     to="/admin"
