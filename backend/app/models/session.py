@@ -26,3 +26,4 @@ class Session(Base):
     journal_entries = relationship("JournalEntry", back_populates="session", cascade="all, delete-orphan")
     audio_recordings = relationship("AudioRecording", back_populates="session", cascade="all, delete-orphan")
     daily_plans = relationship("DailyPlan", back_populates="session", cascade="all, delete-orphan")
+    profile = relationship("Profile", back_populates="session", uselist=False, cascade="all, delete-orphan")

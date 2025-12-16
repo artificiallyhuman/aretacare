@@ -12,6 +12,7 @@ AretaCare is an AI-powered medical care advocate assistant that helps families u
 - Session sharing - share sessions with up to 9 collaborators (10 people total), collaborators have full access to session data
 - Dedicated Collaboration page - manage collaborators across all sessions, add/remove users, transfer ownership, pending invitations, leave shared sessions
 - Daily Plan - AI-generated summaries, user editable, delete and regenerate capability, copy-to-clipboard (converts markdown to formatted HTML)
+- Care Profile - AI-powered long-term memory for patient info, caregivers, providers, conditions, medications, allergies, events, and preferences. Auto-updates from conversations/journal, user controls all data, diff view for AI-proposed changes, copy-to-clipboard and PDF export (accessible at /profile, not in menu)
 - AI Journal Synthesis - extracts medical updates from conversations, audio uploads, and document uploads with local timezone support and intelligent date interpretation (handles "Thursday", "next week", etc.)
 - Journal with date navigation - reverse chronological, sticky sidebar, scroll-to-date functionality, "Jump to Today" button, future entries visually distinguished with blue background shading
 - GPT-5.2 native file support for PDFs and images via Responses API
@@ -63,10 +64,11 @@ python -c "import secrets; print(secrets.token_urlsafe(32))"  # Generate secret 
 - Protected routes redirect to login if not authenticated
 
 **Database (PostgreSQL)**
-- Twelve main tables: `users`, `sessions`, `session_collaborators`, `documents`, `audio_recordings`, `conversations`, `journal_entries`, `daily_plans`, `daily_plan_views`, `admin_audit_logs`, `security_logs`, `error_logs`, `migration_history`
+- Thirteen main tables: `users`, `sessions`, `session_collaborators`, `profiles`, `documents`, `audio_recordings`, `conversations`, `journal_entries`, `daily_plans`, `daily_plan_views`, `admin_audit_logs`, `security_logs`, `error_logs`, `migration_history`
 - User table stores authentication credentials (bcrypt hashed passwords) and password reset tokens (time-limited, 1-hour expiration)
 - **Sessions table** tied to user accounts via foreign key, supports up to 3 owned sessions per user (collaborator sessions don't count), includes `owner_id` for session ownership, name field (15-character limit, default "Session N"), created_at for automatic numbering
 - **Session collaborators table** links users to shared sessions with unique constraint on (session_id, user_id), cascading deletes when session or user is deleted
+- **Profiles table** stores AI-generated long-term memory per session (JSONB profile_data), pending changes requiring user approval, tracks last processed conversation/journal IDs for incremental updates, cascading deletes with session
 - **Documents table** with AI categorization (12 categories), AI-generated descriptions (user-editable, up to 200 characters), text extraction, and thumbnail support, timezone-aware upload dates
 - **Audio recordings table** with AI categorization (12 categories), AI-generated summaries (user-editable, up to 150 characters), transcription, and duration tracking
 - Journal entries with AI-generated content, metadata, and entry types
@@ -192,11 +194,12 @@ See `backend/app/config/README.md` for complete documentation on modifying AI be
 - `conversation.py` - Conversation endpoints with rich media support, message editing (PATCH /{message_id})
 - `journal.py` - Journal CRUD operations
 - `daily_plans.py` - Daily plan management (generate, list, update)
+- `profile.py` - Profile management (get, update, save, pending changes review, regenerate, delete, PDF export)
 - `tools.py` - Standalone tools (Jargon Translator, Conversation Coach)
 - `feedback.py` - Feedback form submission with hCaptcha verification, rate limiting, and email notifications
 - `admin.py` - Admin console (metrics, health, S3 cleanup, admin logs)
 
-**Models** (`backend/app/models/`): `user.py`, `session.py`, `session_collaborator.py`, `document.py`, `audio_recording.py`, `journal.py`, `daily_plan.py`, `conversation.py`, `admin_audit_log.py`
+**Models** (`backend/app/models/`): `user.py`, `session.py`, `session_collaborator.py`, `profile.py`, `document.py`, `audio_recording.py`, `journal.py`, `daily_plan.py`, `conversation.py`, `admin_audit_log.py`
 
 **AI Configuration** (CRITICAL):
 - `backend/app/config/ai_config.py` - All models, prompts, safety boundaries, categories
@@ -213,6 +216,11 @@ See `backend/app/config/README.md` for complete documentation on modifying AI be
 - `daily_plan_service.py` - Daily plan generation
   - Context: ALL journal entries (grouped by type, max 5 per type), last 7 days conversations (max 50 messages), last 10 documents (with text preview), last 3 daily plans
   - Generates concise daily priorities, reminders, and questions for care team
+- `profile_service.py` - Profile generation and updates
+  - Gathers new conversations and journal entries since last profile update
+  - Initial profile generation creates from all available historical data
+  - Incremental updates: additions applied directly, edits/deletions proposed as pending changes
+  - User controls all data; AI never overwrites without approval
 - `s3_service.py` - S3 upload/download/delete, presigned URLs (24-hour expiration)
 - `document_processor.py` - Text extraction (PDF via pypdf, images via Tesseract OCR), thumbnail generation (PDFs)
 - `email_service.py` - Email notifications via Gmail SMTP (password changes, email changes, collaborator management, password reset)
@@ -228,6 +236,7 @@ See `backend/app/config/README.md` for complete documentation on modifying AI be
 - `Conversation.jsx` - Main chat interface with daily plan panel, thumbnails load immediately after upload
 - `JournalView.jsx` - Journal with date navigation, "Jump to Today" button, future entries shown with blue background shading
 - `DailyPlan.jsx` - Daily plan history, editing, and copy-to-clipboard functionality (mobile-responsive buttons)
+- `Profile.jsx` - Care profile page (at `/profile`, not in menu) with AI-powered long-term memory, edit mode, pending changes diff view, copy-to-clipboard, PDF export, regenerate and delete
 - `Collaboration.jsx` - Dedicated collaboration management page (view owned/shared sessions, add/remove collaborators, transfer ownership, pending invitations with resend/cancel, leave sessions)
 - `Settings.jsx` - Account management, session management
 - `tools/Documents.jsx` - AI-powered document manager (at `/tools/documents` route)

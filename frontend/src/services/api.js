@@ -277,4 +277,19 @@ export const feedbackAPI = {
   submit: (feedbackData) => api.post('/feedback/submit', feedbackData),
 };
 
+// Profile API
+export const profileAPI = {
+  get: (sessionId) => api.get(`/profile/${sessionId}`),
+  check: (sessionId) => api.get(`/profile/${sessionId}/check`),
+  update: (sessionId) => api.post(`/profile/${sessionId}/update`),
+  save: (sessionId, profileData) => api.put(`/profile/${sessionId}`, { profile_data: profileData }),
+  updateSection: (sessionId, section, data) => api.patch(`/profile/${sessionId}/section`, { section, data }),
+  getPendingChanges: (sessionId) => api.get(`/profile/${sessionId}/pending-changes`),
+  reviewPendingChanges: (sessionId, decisions) => api.post(`/profile/${sessionId}/pending-changes/review`, { decisions }),
+  regenerate: (sessionId, confirm = true) => api.post(`/profile/${sessionId}/regenerate`, { confirm }),
+  delete: (sessionId) => api.delete(`/profile/${sessionId}`),
+  exportJson: (sessionId) => api.get(`/profile/${sessionId}/export?format=json`, { responseType: 'blob' }),
+  exportPdf: (sessionId) => api.get(`/profile/${sessionId}/export?format=pdf`, { responseType: 'blob' }),
+};
+
 export default api;

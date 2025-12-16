@@ -1085,3 +1085,42 @@ def run_migrations():
                     conn.rollback()
             else:
                 logger.info("user_id column already exists in api_logs")
+
+        # ==========================================
+        # PROFILE TABLE
+        # ==========================================
+
+        # Create profiles table if it doesn't exist
+        if 'profiles' not in inspector.get_table_names():
+            logger.info("Creating profiles table...")
+            try:
+                conn.execute(text("""
+                    CREATE TABLE profiles (
+                        id SERIAL PRIMARY KEY,
+                        session_id VARCHAR(36) NOT NULL UNIQUE REFERENCES sessions(id) ON DELETE CASCADE,
+                        profile_data JSONB NOT NULL DEFAULT '{}',
+                        pending_changes JSONB DEFAULT '[]',
+                        last_ai_update TIMESTAMP NULL,
+                        last_user_update TIMESTAMP NULL,
+                        last_processed_conversation_id INTEGER NULL,
+                        last_processed_journal_id INTEGER NULL,
+                        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                        updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+                    )
+                """))
+                conn.commit()
+                logger.info("Successfully created profiles table")
+
+                # Create index for session lookups
+                conn.execute(text("""
+                    CREATE INDEX IF NOT EXISTS idx_profiles_session
+                    ON profiles (session_id)
+                """))
+                conn.commit()
+                logger.info("Created index idx_profiles_session")
+
+            except Exception as e:
+                logger.error(f"Failed to create profiles table: {e}")
+                conn.rollback()
+        else:
+            logger.info("profiles table already exists")
