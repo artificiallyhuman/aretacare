@@ -40,14 +40,6 @@ const Footer = () => {
             >
               Privacy Policy
             </Link>
-            <a
-              href="https://github.com/artificiallyhuman/aretacare/issues"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 transition-colors"
-            >
-              Report Issue
-            </a>
           </div>
         </div>
       </div>
