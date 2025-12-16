@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { useSessionContext } from '../../contexts/SessionContext';
 import { documentAPI } from '../../services/api';
 import { isToday, formatDateShort, formatLocalDate } from '../../utils/dateUtils';
@@ -842,96 +843,97 @@ const Documents = () => {
           )}
         </div>
 
-        {/* Preview Modal */}
-        {previewDoc && (
-        <div className="fixed inset-0 z-50 overflow-y-auto">
-          <div className="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
-            {/* Background overlay */}
-            <div
-              className="fixed inset-0 transition-opacity bg-gray-500 bg-opacity-75"
-              onClick={closePreview}
-            ></div>
+        {/* Preview Modal - rendered via portal to escape stacking context */}
+        {previewDoc && createPortal(
+          <div className="fixed inset-0 z-50 overflow-y-auto">
+            <div className="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
+              {/* Background overlay */}
+              <div
+                className="fixed inset-0 transition-opacity bg-gray-500 bg-opacity-75"
+                onClick={closePreview}
+              ></div>
 
-            {/* Modal panel */}
-            <div className="inline-block align-bottom bg-white dark:bg-gray-800 rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-3xl sm:w-full">
-              {/* Header */}
-              <div className="bg-white dark:bg-gray-800 px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <h3 className="text-lg font-medium text-gray-900 dark:text-white">
-                      {previewDoc.filename}
-                    </h3>
-                    {previewDoc.ai_description && (
-                      <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">{previewDoc.ai_description}</p>
+              {/* Modal panel */}
+              <div className="inline-block align-bottom bg-white dark:bg-gray-800 rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-3xl sm:w-full">
+                {/* Header */}
+                <div className="bg-white dark:bg-gray-800 px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <h3 className="text-lg font-medium text-gray-900 dark:text-white">
+                        {previewDoc.filename}
+                      </h3>
+                      {previewDoc.ai_description && (
+                        <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">{previewDoc.ai_description}</p>
+                      )}
+                    </div>
+                    <button
+                      onClick={closePreview}
+                      className="ml-3 text-gray-400 hover:text-gray-500 dark:text-gray-500 dark:hover:text-gray-400"
+                    >
+                      <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </div>
+
+                  {/* Preview Content */}
+                  <div className="mt-4">
+                    {previewDoc.content_type?.includes('image') && previewUrl ? (
+                      <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 flex items-center justify-center">
+                        <img
+                          src={previewUrl}
+                          alt={previewDoc.filename}
+                          className="max-w-full max-h-96 object-contain"
+                        />
+                      </div>
+                    ) : previewDoc.content_type === 'application/pdf' && previewUrl ? (
+                      <div className="bg-gray-50 dark:bg-gray-700 rounded-lg overflow-hidden" style={{ height: '600px' }}>
+                        <iframe
+                          src={previewUrl}
+                          className="w-full h-full"
+                          title={previewDoc.filename}
+                        />
+                      </div>
+                    ) : previewDoc.extracted_text ? (
+                      <>
+                        <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Extracted Text:</h4>
+                        <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 max-h-96 overflow-y-auto">
+                          <pre className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap font-sans">
+                            {previewDoc.extracted_text}
+                          </pre>
+                        </div>
+                      </>
+                    ) : (
+                      <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 text-center text-gray-500 dark:text-gray-400">
+                        <p>No preview available for this document.</p>
+                      </div>
                     )}
                   </div>
+                </div>
+
+                {/* Footer */}
+                <div className="bg-gray-50 dark:bg-gray-900 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+                  <button
+                    onClick={() => handleDownload(previewDoc)}
+                    className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-primary-600 text-base font-medium text-white hover:bg-primary-700 sm:ml-3 sm:w-auto sm:text-sm"
+                  >
+                    Download Original
+                  </button>
                   <button
                     onClick={closePreview}
-                    className="ml-3 text-gray-400 hover:text-gray-500 dark:text-gray-500 dark:hover:text-gray-400"
+                    className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 dark:border-gray-600 shadow-sm px-4 py-2 bg-white dark:bg-gray-800 text-base font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 sm:mt-0 sm:w-auto sm:text-sm"
                   >
-                    <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                    </svg>
+                    Close
                   </button>
                 </div>
-
-                {/* Preview Content */}
-                <div className="mt-4">
-                  {previewDoc.content_type?.includes('image') && previewUrl ? (
-                    <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 flex items-center justify-center">
-                      <img
-                        src={previewUrl}
-                        alt={previewDoc.filename}
-                        className="max-w-full max-h-96 object-contain"
-                      />
-                    </div>
-                  ) : previewDoc.content_type === 'application/pdf' && previewUrl ? (
-                    <div className="bg-gray-50 dark:bg-gray-700 rounded-lg overflow-hidden" style={{ height: '600px' }}>
-                      <iframe
-                        src={previewUrl}
-                        className="w-full h-full"
-                        title={previewDoc.filename}
-                      />
-                    </div>
-                  ) : previewDoc.extracted_text ? (
-                    <>
-                      <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Extracted Text:</h4>
-                      <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 max-h-96 overflow-y-auto">
-                        <pre className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap font-sans">
-                          {previewDoc.extracted_text}
-                        </pre>
-                      </div>
-                    </>
-                  ) : (
-                    <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 text-center text-gray-500 dark:text-gray-400">
-                      <p>No preview available for this document.</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Footer */}
-              <div className="bg-gray-50 dark:bg-gray-900 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
-                <button
-                  onClick={() => handleDownload(previewDoc)}
-                  className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-primary-600 text-base font-medium text-white hover:bg-primary-700 sm:ml-3 sm:w-auto sm:text-sm"
-                >
-                  Download Original
-                </button>
-                <button
-                  onClick={closePreview}
-                  className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 dark:border-gray-600 shadow-sm px-4 py-2 bg-white dark:bg-gray-800 text-base font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 sm:mt-0 sm:w-auto sm:text-sm"
-                >
-                  Close
-                </button>
               </div>
             </div>
-          </div>
-        </div>
-      )}
+          </div>,
+          document.body
+        )}
 
-      {/* Document Delete Confirmation Modal */}
-      {documentToDelete && (
+      {/* Document Delete Confirmation Modal - rendered via portal to escape stacking context */}
+      {documentToDelete && createPortal(
         <div className="fixed inset-0 bg-black bg-opacity-50 dark:bg-opacity-70 flex items-center justify-center p-4 z-50">
           <div className="bg-white dark:bg-gray-800 rounded-lg max-w-lg w-full max-h-[90vh] overflow-y-auto">
             <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
@@ -1000,7 +1002,8 @@ const Documents = () => {
               </div>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
