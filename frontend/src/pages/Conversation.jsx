@@ -399,7 +399,9 @@ const Conversation = () => {
           // Only show banner if the plan is from today and hasn't been viewed
           if (latestPlan.data && !latestPlan.data.viewed) {
             // Check if the plan is from today
-            const planDate = new Date(latestPlan.data.date);
+            // Parse as local date (YYYY-MM-DD) not UTC to avoid timezone issues
+            const [year, month, day] = latestPlan.data.date.split('-').map(Number);
+            const planDate = new Date(year, month - 1, day);
             const today = new Date();
             const isToday = planDate.getFullYear() === today.getFullYear() &&
                             planDate.getMonth() === today.getMonth() &&
