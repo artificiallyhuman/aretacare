@@ -3,7 +3,6 @@ from sqlalchemy.orm import Session as DBSession
 import httpx
 import logging
 import html
-import re
 
 from app.core.database import get_db
 from app.core.config import settings
@@ -70,11 +69,8 @@ def sanitize_input(text: str) -> str:
     Returns:
         str: Sanitized text
     """
-    # HTML escape
+    # HTML escape (converts < to &lt; and > to &gt;)
     text = html.escape(text)
-
-    # Remove any remaining HTML tags
-    text = re.sub(r'<[^>]+>', '', text)
 
     # Normalize whitespace
     text = ' '.join(text.split())
