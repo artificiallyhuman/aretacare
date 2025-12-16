@@ -575,9 +575,14 @@ PROFILE SECTIONS:
   - emergency_instructions: Single text field for critical emergency information
   - additional_notes: Catch-all for other relevant information
 
-IMPORTANT CONTEXT:
-- Caregivers may include the session owner and collaborators
-- Pay attention to who is speaking in conversations to understand relationships
+IMPORTANT CONTEXT - DETERMINING ROLES:
+- The session owner could be THE PATIENT themselves (e.g., "I was admitted", "my diagnosis")
+- The session owner could be a CAREGIVER or family member (e.g., "my mother was admitted", "caring for my husband")
+- Collaborators could be other family members, caregivers, or even the patient
+- INFER roles from conversation content - look for first-person statements about medical experiences
+- If someone says "I was admitted" or "I have [condition]" - they are likely the patient, NOT a caregiver
+- If someone says "my [relative] was admitted" or "caring for [person]" - they are a caregiver
+- Do NOT assume the session owner is a caregiver - let the content guide you
 - Providers are healthcare professionals involved in patient care
 - Only include substantive, verifiable information
 
@@ -595,13 +600,21 @@ EXISTING PROFILE:
 NEW ACTIVITY SINCE LAST UPDATE:
 {new_activity}
 
-Analyze the new activity and return a JSON array of suggested changes. Each suggestion is either adding something new or updating something existing.
+Analyze the new activity and return a JSON array of suggested changes. Changes can add new information, update existing information, or DELETE outdated information.
 
 CRITICAL - AVOID DUPLICATES:
 - Before suggesting a new item, check if something similar already exists
 - Name variations are the SAME entity: "Dr. Kremen" = "Thomas Kremen, MD" = "Kremen"
 - If an entity exists, suggest an UPDATE (change_type: "edit"), not a new addition
 - NEVER suggest both adding AND editing the same logical entity
+
+WHEN TO SUGGEST DELETIONS:
+- Emergency instructions that are no longer relevant (e.g., post-surgery instructions after recovery)
+- Medications that have been discontinued or completed
+- Conditions marked as resolved (or suggest changing status to "resolved" instead)
+- Temporary caregiving guidelines that no longer apply
+- Providers no longer involved in care
+- Information explicitly contradicted by new activity (e.g., "I stopped taking that medication")
 
 For each suggestion, specify:
 - change_type: "add" (new item), "edit" (update existing), or "delete" (remove)
@@ -637,6 +650,15 @@ RESPONSE FORMAT (JSON only):
       "old_value": {{"id": "pro_abc123", "name": "Dr. Kremen", "specialty": null}},
       "new_value": {{"id": "pro_abc123", "name": "Thomas Kremen, MD", "specialty": "Orthopaedic Surgery", "organization": "UCLA Health", "contact_info": "(424) 259-9856"}},
       "reasoning": "Updated provider details from discharge instructions"
+    }},
+    {{
+      "change_type": "delete",
+      "section": "preferences",
+      "item_id": null,
+      "field_path": "preferences.emergency_instructions",
+      "old_value": "Call surgeon immediately if fever exceeds 101°F",
+      "new_value": null,
+      "reasoning": "Post-surgery recovery complete, emergency instructions no longer needed"
     }}
   ]
 }}
@@ -658,7 +680,8 @@ FIELD NAMES - Use these exact field names for each section:
 RULES:
 - Return empty changes array if nothing relevant in new activity
 - Be thorough - extract all relevant information
-- Be conservative with deletions
+- Proactively suggest deletions when information becomes outdated or irrelevant
+- For temporary information (emergency instructions, post-procedure guidelines), look for signs that the situation has resolved
 - Include clear reasoning for each suggestion"""
 
 PROFILE_INITIAL_PROMPT = """Create an initial profile based on the following historical data from this care journey.
@@ -769,7 +792,8 @@ RESPONSE FORMAT (JSON only, no other text):
 
 RULES:
 - Only include information explicitly stated in the data
-- Use null for unknown fields, don't guess
+- Use null for unknown fields - NEVER use placeholders like "None", "Not specified", "Unknown", or "N/A"
+- Omit optional fields entirely if no data exists (especially emergency_instructions, additional_notes)
 - Generate unique IDs for all list items
 - Translate medical jargon to plain language in descriptions
 - Be thorough but accurate - capture everything mentioned"""

@@ -2,6 +2,7 @@ import openai
 import logging
 import json
 import uuid
+import time
 from sqlalchemy.orm import Session
 from sqlalchemy.orm.attributes import flag_modified
 from datetime import datetime
@@ -19,6 +20,54 @@ logger = logging.getLogger(__name__)
 
 # Initialize OpenAI client
 client = openai.OpenAI(api_key=settings.OPENAI_API_KEY)
+
+# Token budget for profile generation (128K context window)
+MAX_PROFILE_TOKENS = 115000  # Leave ~13K buffer for response + overhead
+ESTIMATED_EXISTING_PROFILE_TOKENS = 15000  # Reserve for existing profile JSON in updates
+ESTIMATED_SYSTEM_PROMPT_TOKENS = 5000  # Reserve for system + user prompt templates
+
+
+def _estimate_tokens(text: str) -> int:
+    """Estimate token count from text (roughly 4 chars per token for English)"""
+    if not text:
+        return 0
+    return len(text) // 4
+
+
+def _log_profile_api_call(
+    feature: str,
+    response,
+    start_time: float,
+    success: bool,
+    user_id: Optional[str] = None,
+    error_message: Optional[str] = None
+):
+    """Log an API call from profile service"""
+    try:
+        from app.services.openai_service import log_api_call
+
+        input_tokens = 0
+        output_tokens = 0
+        model = ai_config.CHAT_MODEL
+
+        if success and response and hasattr(response, "usage") and response.usage:
+            input_tokens = getattr(response.usage, "input_tokens", 0) or 0
+            output_tokens = getattr(response.usage, "output_tokens", 0) or 0
+
+        response_time_ms = int((time.time() - start_time) * 1000)
+
+        log_api_call(
+            feature=feature,
+            input_tokens=input_tokens,
+            output_tokens=output_tokens,
+            success=success,
+            model=model,
+            response_time_ms=response_time_ms,
+            user_id=user_id,
+            error_message=error_message
+        )
+    except Exception as e:
+        logger.error(f"Failed to log profile API call: {e}")
 
 
 class ProfileService:
@@ -69,7 +118,8 @@ class ProfileService:
     @staticmethod
     async def update_profile_from_activity(
         db: Session,
-        session_id: str
+        session_id: str,
+        user_id: Optional[str] = None
     ) -> Tuple[Profile, bool]:
         """
         Update profile based on new activity (conversations, journal entries).
@@ -83,6 +133,7 @@ class ProfileService:
         Args:
             db: Database session
             session_id: The session ID
+            user_id: Optional user ID for API logging
 
         Returns:
             Tuple[Profile, bool]: The updated profile and whether any updates were made
@@ -91,25 +142,25 @@ class ProfileService:
             # Get or create profile
             profile = await ProfileService.get_or_create_profile(db, session_id)
 
-            # Gather new activity since last update
-            new_activity = await ProfileService._gather_new_activity(db, session_id, profile)
+            # Check if this is an initial profile (empty) - needed for token budget calculation
+            is_initial = ProfileService._is_profile_empty(profile.profile_data)
+
+            # Gather new activity since last update (uses more tokens for initial generation)
+            new_activity = await ProfileService._gather_new_activity(db, session_id, profile, is_initial=is_initial)
 
             if not new_activity:
                 logger.info(f"No new activity for profile update in session {session_id}")
                 return profile, False
 
-            # Check if this is an initial profile (empty)
-            is_initial = ProfileService._is_profile_empty(profile.profile_data)
-
             if is_initial:
                 # Generate initial profile from all available data
                 updated_profile = await ProfileService._generate_initial_profile(
-                    db, profile, new_activity
+                    db, profile, new_activity, user_id=user_id
                 )
             else:
                 # Update existing profile with new activity
                 updated_profile = await ProfileService._update_existing_profile(
-                    db, profile, new_activity
+                    db, profile, new_activity, user_id=user_id
                 )
 
             return updated_profile, True
@@ -123,9 +174,17 @@ class ProfileService:
     async def _gather_new_activity(
         db: Session,
         session_id: str,
-        profile: Profile
+        profile: Profile,
+        is_initial: bool = False
     ) -> Dict:
-        """Gather new conversations and journal entries since last profile update"""
+        """
+        Gather new conversations and journal entries since last profile update.
+
+        Uses token-based truncation to maximize context usage:
+        - Prioritizes journal entries (more structured, higher signal)
+        - Fills remaining budget with conversations
+        - For updates, reserves tokens for existing profile JSON
+        """
 
         activity = {
             "conversations": [],
@@ -133,7 +192,16 @@ class ProfileService:
             "session_info": {}
         }
 
-        # Get session info including owner and collaborators
+        # Calculate available token budget
+        # For updates, reserve space for existing profile; for initial, use full budget
+        reserved_tokens = ESTIMATED_SYSTEM_PROMPT_TOKENS
+        if not is_initial:
+            reserved_tokens += ESTIMATED_EXISTING_PROFILE_TOKENS
+
+        available_tokens = MAX_PROFILE_TOKENS - reserved_tokens
+        total_tokens = 0
+
+        # Get session info including owner and collaborators (small, always include)
         session = db.query(UserSession).filter(UserSession.id == session_id).first()
         if session:
             owner = db.query(User).filter(User.id == session.owner_id).first()
@@ -143,40 +211,33 @@ class ProfileService:
                     "email": owner.email
                 }
 
-            # Get collaborators
+            # Get collaborators - single query to avoid N+1
             collaborators = db.query(SessionCollaborator).filter(
                 SessionCollaborator.session_id == session_id
             ).all()
 
             activity["session_info"]["collaborators"] = []
-            for collab in collaborators:
-                user = db.query(User).filter(User.id == collab.user_id).first()
-                if user:
-                    activity["session_info"]["collaborators"].append({
-                        "name": user.name,
-                        "email": user.email
-                    })
+            if collaborators:
+                # Fetch all collaborator users in one query
+                collaborator_user_ids = [c.user_id for c in collaborators]
+                collaborator_users = db.query(User).filter(
+                    User.id.in_(collaborator_user_ids)
+                ).all()
+                user_map = {u.id: u for u in collaborator_users}
 
-        # Get new conversations
-        conv_query = db.query(Conversation).filter(
-            Conversation.session_id == session_id
-        )
+                for collab in collaborators:
+                    user = user_map.get(collab.user_id)
+                    if user:
+                        activity["session_info"]["collaborators"].append({
+                            "name": user.name,
+                            "email": user.email
+                        })
 
-        if profile.last_processed_conversation_id:
-            conv_query = conv_query.filter(
-                Conversation.id > profile.last_processed_conversation_id
-            )
+        # Estimate tokens for session info
+        session_info_text = json.dumps(activity["session_info"])
+        total_tokens += _estimate_tokens(session_info_text)
 
-        conversations = conv_query.order_by(Conversation.created_at.asc()).limit(100).all()
-
-        for conv in conversations:
-            activity["conversations"].append({
-                "role": conv.role,
-                "content": conv.content[:1000],  # Limit content length
-                "timestamp": conv.created_at.isoformat()
-            })
-
-        # Get new journal entries
+        # PRIORITY 1: Get journal entries (higher signal, more structured)
         journal_query = db.query(JournalEntry).filter(
             JournalEntry.session_id == session_id
         )
@@ -186,21 +247,73 @@ class ProfileService:
                 JournalEntry.id > profile.last_processed_journal_id
             )
 
-        journal_entries = journal_query.order_by(JournalEntry.created_at.asc()).limit(50).all()
+        # Fetch all journal entries (no arbitrary limit), ordered by date
+        journal_entries = journal_query.order_by(JournalEntry.created_at.asc()).all()
 
+        last_journal_id = None
         for entry in journal_entries:
-            activity["journal_entries"].append({
+            entry_data = {
                 "title": entry.title,
-                "content": entry.content[:2000],  # Limit content length
-                "entry_type": entry.entry_type,
+                "content": entry.content,  # Full content, no truncation
+                "entry_type": entry.entry_type.value if hasattr(entry.entry_type, 'value') else str(entry.entry_type),
                 "entry_date": entry.entry_date.isoformat() if entry.entry_date else None
-            })
+            }
 
-        # Update last processed IDs
-        if conversations:
-            profile.last_processed_conversation_id = conversations[-1].id
-        if journal_entries:
-            profile.last_processed_journal_id = journal_entries[-1].id
+            # Estimate tokens for this entry
+            entry_text = f"{entry_data['title']} {entry_data['content']} {entry_data['entry_type']} {entry_data['entry_date']}"
+            entry_tokens = _estimate_tokens(entry_text)
+
+            # Check if adding this entry would exceed budget
+            if total_tokens + entry_tokens > available_tokens:
+                break
+
+            activity["journal_entries"].append(entry_data)
+            total_tokens += entry_tokens
+            last_journal_id = entry.id
+
+        # Update last processed journal ID
+        if last_journal_id:
+            profile.last_processed_journal_id = last_journal_id
+
+        # PRIORITY 2: Fill remaining budget with conversations
+        remaining_tokens = available_tokens - total_tokens
+
+        if remaining_tokens > 1000:  # Only add conversations if we have meaningful space
+            conv_query = db.query(Conversation).filter(
+                Conversation.session_id == session_id
+            )
+
+            if profile.last_processed_conversation_id:
+                conv_query = conv_query.filter(
+                    Conversation.id > profile.last_processed_conversation_id
+                )
+
+            # Fetch all conversations (no arbitrary limit)
+            conversations = conv_query.order_by(Conversation.created_at.asc()).all()
+
+            last_conv_id = None
+            for conv in conversations:
+                conv_data = {
+                    "role": conv.role.value if hasattr(conv.role, 'value') else str(conv.role),
+                    "content": conv.content,  # Full content, no truncation
+                    "timestamp": conv.created_at.isoformat()
+                }
+
+                # Estimate tokens for this conversation
+                conv_text = f"{conv_data['role']} {conv_data['content']} {conv_data['timestamp']}"
+                conv_tokens = _estimate_tokens(conv_text)
+
+                # Check if adding this would exceed budget
+                if total_tokens + conv_tokens > available_tokens:
+                    break
+
+                activity["conversations"].append(conv_data)
+                total_tokens += conv_tokens
+                last_conv_id = conv.id
+
+            # Update last processed conversation ID
+            if last_conv_id:
+                profile.last_processed_conversation_id = last_conv_id
 
         # Return None if no new activity
         if not activity["conversations"] and not activity["journal_entries"]:
@@ -238,9 +351,12 @@ class ProfileService:
     async def _generate_initial_profile(
         db: Session,
         profile: Profile,
-        activity: Dict
+        activity: Dict,
+        user_id: Optional[str] = None
     ) -> Profile:
         """Generate initial profile from historical data"""
+        start_time = time.time()
+        response = None
         try:
             # Format historical data for the prompt
             historical_data = ProfileService._format_activity_for_prompt(activity)
@@ -270,6 +386,9 @@ class ProfileService:
             if not text:
                 raise Exception("No response from AI for initial profile")
 
+            # Log successful API call
+            _log_profile_api_call("profile_initial", response, start_time, True, user_id)
+
             # Parse JSON response
             profile_data = ProfileService._parse_json_response(text)
 
@@ -285,6 +404,8 @@ class ProfileService:
             return profile
 
         except Exception as e:
+            # Log failed API call
+            _log_profile_api_call("profile_initial", response, start_time, False, user_id, str(e))
             logger.error(f"Error generating initial profile: {str(e)}", exc_info=True)
             db.rollback()
             raise
@@ -293,9 +414,12 @@ class ProfileService:
     async def _update_existing_profile(
         db: Session,
         profile: Profile,
-        activity: Dict
+        activity: Dict,
+        user_id: Optional[str] = None
     ) -> Profile:
         """Update existing profile with new activity"""
+        start_time = time.time()
+        response = None
         try:
             # Format data for the prompt
             existing_profile = json.dumps(profile.profile_data, indent=2)
@@ -326,6 +450,9 @@ class ProfileService:
 
             if not text:
                 raise Exception("No response from AI for profile update")
+
+            # Log successful API call
+            _log_profile_api_call("profile_update", response, start_time, True, user_id)
 
             # Parse JSON response
             update_data = ProfileService._parse_json_response(text)
@@ -368,6 +495,8 @@ class ProfileService:
             return profile
 
         except Exception as e:
+            # Log failed API call
+            _log_profile_api_call("profile_update", response, start_time, False, user_id, str(e))
             logger.error(f"Error updating existing profile: {str(e)}", exc_info=True)
             db.rollback()
             raise
@@ -377,14 +506,15 @@ class ProfileService:
         """Format activity data for AI prompt"""
         parts = []
 
-        # Session info
+        # Session info - use neutral terms, let AI infer roles from content
         if activity.get("session_info"):
             info = activity["session_info"]
-            parts.append("## Session Information")
+            parts.append("## Session Users")
+            parts.append("(Note: Determine each person's role - patient, caregiver, family member - from conversation content, not from their session role)")
             if info.get("owner"):
-                parts.append(f"Owner: {info['owner']['name']} ({info['owner']['email']})")
+                parts.append(f"Session creator: {info['owner']['name']} ({info['owner']['email']})")
             if info.get("collaborators"):
-                parts.append("Collaborators:")
+                parts.append("Other users with access:")
                 for collab in info["collaborators"]:
                     parts.append(f"  - {collab['name']} ({collab['email']})")
 
@@ -597,7 +727,8 @@ class ProfileService:
     @staticmethod
     async def regenerate_profile(
         db: Session,
-        session_id: str
+        session_id: str,
+        user_id: Optional[str] = None
     ) -> Profile:
         """
         Regenerate the profile from scratch using all available data.
@@ -632,7 +763,7 @@ class ProfileService:
         db.refresh(profile)
 
         # Now update with all available activity
-        profile, _ = await ProfileService.update_profile_from_activity(db, session_id)
+        profile, _ = await ProfileService.update_profile_from_activity(db, session_id, user_id=user_id)
 
         return profile
 

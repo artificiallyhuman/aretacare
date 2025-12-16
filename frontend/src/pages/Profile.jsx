@@ -130,6 +130,9 @@ const Profile = () => {
     preferences: true
   });
 
+  // Track if new activity is available (don't auto-trigger AI)
+  const [newActivityAvailable, setNewActivityAvailable] = useState(false);
+
   // Load profile on mount and when session changes
   const loadProfile = useCallback(async () => {
     if (!sessionId) return;
@@ -138,23 +141,18 @@ const Profile = () => {
       setLoading(true);
       setError(null);
 
-      // Check if update is needed
+      // Check if update is needed (but don't auto-trigger AI)
       const checkResponse = await profileAPI.check(sessionId);
       const { needs_update, has_profile, new_conversation_count, new_journal_count } = checkResponse.data;
 
-      if (needs_update || !has_profile) {
-        // Trigger AI update
-        setActivityCounts({ conversations: new_conversation_count || 0, journal: new_journal_count || 0 });
-        setUpdating(true);
-        const updateResponse = await profileAPI.update(sessionId);
-        setProfile(updateResponse.data);
-        setPendingChanges(updateResponse.data.pending_changes || []);
-      } else {
-        // Just get existing profile
-        const response = await profileAPI.get(sessionId);
-        setProfile(response.data);
-        setPendingChanges(response.data.pending_changes || []);
-      }
+      // Store activity counts for display
+      setActivityCounts({ conversations: new_conversation_count || 0, journal: new_journal_count || 0 });
+      setNewActivityAvailable(needs_update);
+
+      // Get existing profile (or empty one if none exists)
+      const response = await profileAPI.get(sessionId);
+      setProfile(response.data);
+      setPendingChanges(response.data.pending_changes || []);
     } catch (err) {
       console.error('Error loading profile:', err);
       setError(err.response?.data?.detail || 'Failed to load profile');
@@ -183,6 +181,8 @@ const Profile = () => {
       const response = await profileAPI.update(sessionId);
       setProfile(response.data);
       setPendingChanges(response.data.pending_changes || []);
+      setNewActivityAvailable(false);
+      setActivityCounts({ conversations: 0, journal: 0 });
     } catch (err) {
       console.error('Error updating profile:', err);
       setError(err.response?.data?.detail || 'Failed to update profile');
@@ -655,7 +655,49 @@ const Profile = () => {
         </div>
       )}
 
-      {/* Action Buttons */}
+      {/* New Activity Available Banner - only show when profile has data */}
+      {(newActivityAvailable || updating) && !isEmpty && (
+        <div className="mb-6 bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300 px-4 py-3 rounded flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            {updating ? (
+              <>
+                <svg className="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <span>Updating profile...</span>
+              </>
+            ) : (
+              <>
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span>
+                  New activity available
+                  {(activityCounts.conversations > 0 || activityCounts.journal > 0) && (
+                    <span className="text-sm ml-1">
+                      ({activityCounts.conversations > 0 && `${activityCounts.conversations} conversation${activityCounts.conversations !== 1 ? 's' : ''}`}
+                      {activityCounts.conversations > 0 && activityCounts.journal > 0 && ', '}
+                      {activityCounts.journal > 0 && `${activityCounts.journal} journal entr${activityCounts.journal !== 1 ? 'ies' : 'y'}`})
+                    </span>
+                  )}
+                </span>
+              </>
+            )}
+          </div>
+          {!updating && (
+            <button
+              onClick={handleRefresh}
+              className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded transition-colors"
+            >
+              Update Profile
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* Action Buttons - only show when profile has data */}
+      {!isEmpty && (
       <div className="mb-6 space-y-3">
         {!isEditing ? (
           <>
@@ -803,6 +845,7 @@ const Profile = () => {
           </div>
         )}
       </div>
+      )}
 
       {/* Empty State */}
       {isEmpty && !isEditing && (
@@ -818,9 +861,19 @@ const Profile = () => {
             <button
               onClick={handleRefresh}
               disabled={updating}
-              className="btn-primary"
+              className="btn-primary inline-flex items-center justify-center gap-2"
             >
-              {updating ? 'Checking for data...' : 'Check for Data'}
+              {updating ? (
+                <>
+                  <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  <span>Checking for data...</span>
+                </>
+              ) : (
+                'Check for Data'
+              )}
             </button>
           </div>
         </div>
@@ -1230,13 +1283,23 @@ const Profile = () => {
                   <>
                     {/* Emergency Instructions */}
                     <div>
-                      <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Emergency Instructions</h4>
+                      <div className="flex items-center justify-between mb-2">
+                        <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300">Emergency Instructions</h4>
+                        {editedData?.preferences?.emergency_instructions && (
+                          <button
+                            onClick={() => updatePreferenceField('emergency_instructions', null)}
+                            className="text-xs text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300"
+                          >
+                            Clear
+                          </button>
+                        )}
+                      </div>
                       <textarea
                         value={editedData?.preferences?.emergency_instructions || ''}
                         onChange={(e) => updatePreferenceField('emergency_instructions', e.target.value || null)}
                         className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                         rows={3}
-                        placeholder="Critical emergency information..."
+                        placeholder="Critical emergency information (optional)..."
                       />
                     </div>
 
@@ -1497,7 +1560,8 @@ const Profile = () => {
             <div className="px-6 py-4 space-y-4">
               {pendingChanges.map((change) => (
                 <div key={change.id} className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
-                  <div className="flex items-center justify-between mb-2">
+                  {/* Header: Section name prominently displayed */}
+                  <div className="flex items-center gap-2 mb-3">
                     <span className={`px-2 py-1 text-xs font-medium rounded-full ${
                       change.change_type === 'add' ? 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300' :
                       change.change_type === 'edit' ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300' :
@@ -1505,7 +1569,15 @@ const Profile = () => {
                     }`}>
                       {change.change_type.toUpperCase()}
                     </span>
-                    <span className="text-sm text-gray-500 dark:text-gray-400">{change.section}</span>
+                    <span className="text-base font-semibold text-gray-900 dark:text-white capitalize">
+                      {change.section.replace(/_/g, ' ')}
+                    </span>
+                    {/* Show item name if available for context */}
+                    {(change.new_value?.name || change.old_value?.name) && (
+                      <span className="text-gray-500 dark:text-gray-400">
+                        — {change.new_value?.name || change.old_value?.name}
+                      </span>
+                    )}
                   </div>
 
                   {change.change_type === 'add' && (

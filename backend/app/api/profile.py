@@ -88,7 +88,7 @@ async def update_profile_from_activity(
     check_session_access(session, current_user.id, db)
 
     try:
-        profile, updated = await ProfileService.update_profile_from_activity(db, session_id)
+        profile, updated = await ProfileService.update_profile_from_activity(db, session_id, user_id=current_user.id)
         return profile
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to update profile: {str(e)}")
@@ -252,7 +252,7 @@ async def regenerate_profile(
         )
 
     try:
-        profile = await ProfileService.regenerate_profile(db, session_id)
+        profile = await ProfileService.regenerate_profile(db, session_id, user_id=current_user.id)
         return profile
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to regenerate profile: {str(e)}")
