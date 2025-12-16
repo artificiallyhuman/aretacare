@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { createPortal } from 'react-dom';
 import ReactMarkdown from 'react-markdown';
 
 const ImageMessage = ({ content, documentId, mediaUrl, extractedText, onThumbnailLoad, wasDeleted }) => {
@@ -86,7 +87,7 @@ const ImageMessage = ({ content, documentId, mediaUrl, extractedText, onThumbnai
       )}
 
       {/* Full image modal */}
-      {showFullImage && (
+      {showFullImage && createPortal(
         <div
           className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4"
           onClick={() => setShowFullImage(false)}
@@ -103,7 +104,8 @@ const ImageMessage = ({ content, documentId, mediaUrl, extractedText, onThumbnai
           >
             ×
           </button>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

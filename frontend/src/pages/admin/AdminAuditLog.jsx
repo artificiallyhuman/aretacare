@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import AdminLayout from '../../components/admin/AdminLayout';
 import { adminAPI } from '../../services/api';
 import { formatLocalDateTime } from '../../utils/dateUtils';
@@ -216,7 +217,7 @@ export default function AdminAuditLog() {
       </div>
 
       {/* Details Modal */}
-      {selectedEntry && (
+      {selectedEntry && createPortal(
         <div className="fixed inset-0 z-50 overflow-y-auto">
           <div className="flex items-center justify-center min-h-screen px-4">
             <div className="fixed inset-0 bg-black/50" onClick={() => setSelectedEntry(null)}></div>
@@ -264,7 +265,8 @@ export default function AdminAuditLog() {
               </div>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </AdminLayout>
   );

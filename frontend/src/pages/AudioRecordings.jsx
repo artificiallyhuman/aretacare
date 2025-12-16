@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { useSessionContext } from '../contexts/SessionContext';
 import { audioRecordingsAPI, conversationAPI } from '../services/api';
 import { isToday, formatDateShort, formatLocalDate } from '../utils/dateUtils';
@@ -666,7 +667,7 @@ const AudioRecordings = () => {
       </div>
 
       {/* Audio Recording Delete Confirmation Modal */}
-      {recordingToDelete && (
+      {recordingToDelete && createPortal(
         <div className="fixed inset-0 bg-black bg-opacity-50 dark:bg-opacity-70 flex items-center justify-center p-4 z-50">
           <div className="bg-white dark:bg-gray-800 rounded-lg max-w-lg w-full max-h-[90vh] overflow-y-auto">
             <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
@@ -736,7 +737,8 @@ const AudioRecordings = () => {
               </div>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

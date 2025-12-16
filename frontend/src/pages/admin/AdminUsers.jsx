@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { createPortal } from 'react-dom';
 import AdminLayout from '../../components/admin/AdminLayout';
 import { adminAPI } from '../../services/api';
 import { formatLocalDate } from '../../utils/dateUtils';
@@ -6,7 +7,7 @@ import { formatLocalDate } from '../../utils/dateUtils';
 function ConfirmModal({ isOpen, onClose, onConfirm, title, message, confirmText = 'Confirm', danger = false }) {
   if (!isOpen) return null;
 
-  return (
+  return createPortal(
     <div className="fixed inset-0 z-50 overflow-y-auto">
       <div className="flex items-center justify-center min-h-screen px-4">
         <div className="fixed inset-0 bg-black/50" onClick={onClose}></div>
@@ -33,7 +34,8 @@ function ConfirmModal({ isOpen, onClose, onConfirm, title, message, confirmText 
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 
@@ -68,7 +70,7 @@ function UserDetail({ user, onClose, onAction }) {
     }
   };
 
-  return (
+  return createPortal(
     <div className="fixed inset-0 z-50 overflow-y-auto">
       <div className="flex items-center justify-center min-h-screen px-4 py-4">
         <div className="fixed inset-0 bg-black/50" onClick={onClose}></div>
@@ -197,7 +199,8 @@ function UserDetail({ user, onClose, onAction }) {
         confirmText="Delete User"
         danger
       />
-    </div>
+    </div>,
+    document.body
   );
 }
 

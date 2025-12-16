@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import PropTypes from 'prop-types';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useSessionContext } from '../contexts/SessionContext';
@@ -613,8 +614,8 @@ const Header = ({ onLogout, user }) => {
         )}
       </div>
 
-      {/* Session Error Modal */}
-      {sessionError && (
+      {/* Session Error Modal - rendered via portal */}
+      {sessionError && createPortal(
         <div className="fixed inset-0 bg-black bg-opacity-50 dark:bg-opacity-70 flex items-center justify-center p-4 z-50">
           <div className="bg-white dark:bg-gray-800 rounded-lg max-w-lg w-full">
             <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
@@ -650,7 +651,8 @@ const Header = ({ onLogout, user }) => {
               </div>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </header>
   );

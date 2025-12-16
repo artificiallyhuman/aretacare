@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
 import { useSessionContext } from '../contexts/SessionContext';
 import { conversationAPI, documentAPI, dailyPlanAPI } from '../services/api';
@@ -577,7 +578,7 @@ const Conversation = () => {
         </div>
 
         {/* Mobile Daily Plan Modal */}
-        {dailyPlanPanelOpen && (
+        {dailyPlanPanelOpen && createPortal(
           <div className="md:hidden fixed inset-0 bg-black bg-opacity-50 z-50">
             <div className="absolute inset-y-0 right-0 w-full sm:w-96 bg-gray-50 dark:bg-gray-800 shadow-xl">
               <DailyPlanPanel
@@ -587,7 +588,8 @@ const Conversation = () => {
                 onPlanViewed={handleDismissBanner}
               />
             </div>
-          </div>
+          </div>,
+          document.body
         )}
 
         {/* Conversation area */}

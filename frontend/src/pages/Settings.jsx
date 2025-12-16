@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { authAPI, sessionAPI } from '../services/api';
 import { useSessionContext } from '../contexts/SessionContext';
@@ -809,7 +810,7 @@ export default function Settings() {
       </div>
 
       {/* Session Deletion Confirmation Modal */}
-      {sessionToDelete && (
+      {sessionToDelete && createPortal(
         <div className="fixed inset-0 bg-black bg-opacity-50 dark:bg-opacity-70 flex items-center justify-center p-4 z-50">
           <div className="bg-white dark:bg-gray-800 rounded-lg max-w-lg w-full max-h-[90vh] overflow-y-auto">
             <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
@@ -888,11 +889,12 @@ export default function Settings() {
               </div>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Account Deletion Confirmation Modal */}
-      {accountDeleteConfirm && (
+      {accountDeleteConfirm && createPortal(
         <div className="fixed inset-0 bg-black bg-opacity-50 dark:bg-opacity-70 flex items-center justify-center p-4 z-50">
           <div className="bg-white dark:bg-gray-800 rounded-lg max-w-lg w-full max-h-[90vh] overflow-y-auto">
             <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
@@ -980,7 +982,8 @@ export default function Settings() {
               </div>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
