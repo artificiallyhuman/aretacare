@@ -58,7 +58,8 @@ BLOCKED_MIME_TYPES = [
     'text/javascript', 'application/x-sh',
 ]
 
-MAX_FILE_SIZE = 50 * 1024 * 1024  # 50MB
+MAX_FILE_SIZE = 50 * 1024 * 1024  # 50MB for document manager
+MAX_CONVERSATION_FILE_SIZE = 20 * 1024 * 1024  # 20MB for conversation uploads
 
 
 @router.post("/upload", response_model=DocumentUploadResponse)
@@ -171,8 +172,11 @@ async def upload_document(
     file_content = await file.read()
 
     try:
-        # Validate file size
-        if len(file_content) > MAX_FILE_SIZE:
+        # Validate file size (different limits for conversation vs document manager)
+        is_conversation_upload = skip_journal_synthesis.lower() == "true"
+        max_size = MAX_CONVERSATION_FILE_SIZE if is_conversation_upload else MAX_FILE_SIZE
+
+        if len(file_content) > max_size:
             # Log upload failure for monitoring
             security_service.log_event(
                 db=db,
@@ -184,10 +188,16 @@ async def upload_document(
                 endpoint="/api/documents/upload",
                 details=f"File size exceeds limit: {len(file_content)} bytes, filename: {file.filename}"
             )
-            raise HTTPException(
-                status_code=400,
-                detail=f"File size exceeds maximum allowed size of {MAX_FILE_SIZE / 1024 / 1024}MB"
-            )
+            if is_conversation_upload:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"File size exceeds {int(MAX_CONVERSATION_FILE_SIZE / 1024 / 1024)}MB limit for conversation. For larger files (up to 50MB), use the Documents page."
+                )
+            else:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"File size exceeds maximum allowed size of {int(MAX_FILE_SIZE / 1024 / 1024)}MB"
+                )
 
         # Generate unique S3 key (with optional environment prefix for shared buckets)
         file_extension = file.filename.split('.')[-1] if '.' in file.filename else 'bin'
@@ -229,7 +239,8 @@ async def upload_document(
                 filename=file.filename,
                 content_type=file.content_type,
                 document_url=document_url,
-                extracted_text=extracted_text or ""
+                extracted_text=extracted_text or "",
+                user_id=current_user.id
             )
             # Convert category string to enum (with fallback to OTHER)
             try:
@@ -284,7 +295,8 @@ async def upload_document(
                     content_type=file.content_type,
                     extracted_text=extracted_text or "",  # Fallback only if URL unavailable
                     entry_date=entry_date,
-                    document_id=document.id
+                    document_id=document.id,
+                    user_id=current_user.id
                 )
 
                 if synthesis_result.should_create and len(synthesis_result.suggested_entries) > 0:

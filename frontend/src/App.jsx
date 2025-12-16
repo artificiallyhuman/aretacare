@@ -38,6 +38,7 @@ const AdminS3Cleanup = lazy(() => import('./pages/admin/AdminS3Cleanup'));
 const AdminAuditLog = lazy(() => import('./pages/admin/AdminAuditLog'));
 const AdminErrorLogs = lazy(() => import('./pages/admin/AdminErrorLogs'));
 const AdminSecurityLogs = lazy(() => import('./pages/admin/AdminSecurityLogs'));
+const AdminApiLogs = lazy(() => import('./pages/admin/AdminApiLogs'));
 const AdminHealth = lazy(() => import('./pages/admin/AdminHealth'));
 
 // Loading fallback component for lazy-loaded routes
@@ -318,6 +319,14 @@ function AppContent() {
             element={
               <AdminRoute>
                 <AdminSecurityLogs />
+              </AdminRoute>
+            }
+          />
+          <Route
+            path="/admin/api-logs"
+            element={
+              <AdminRoute>
+                <AdminApiLogs />
               </AdminRoute>
             }
           />

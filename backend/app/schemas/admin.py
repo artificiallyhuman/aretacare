@@ -297,3 +297,41 @@ class ErrorLogResponse(BaseModel):
 class ErrorLogCleanupResponse(BaseModel):
     """Response from cleaning up old error logs."""
     deleted_count: int
+
+
+# ==========================================
+# API Log Schemas
+# ==========================================
+
+class ApiLogEntry(BaseModel):
+    """Single API log entry (no sensitive user data)."""
+    id: int
+    feature: str
+    input_tokens: int
+    output_tokens: int
+    success: bool
+    error_message: Optional[str] = None
+    model: Optional[str] = None
+    response_time_ms: Optional[int] = None
+    user_id: Optional[str] = None
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class ApiLogSummary(BaseModel):
+    """Summary metrics for API logs."""
+    total_requests: int
+    successful_requests: int
+    failed_requests: int
+    success_rate: float
+    total_input_tokens: int
+    total_output_tokens: int
+    avg_response_time_ms: Optional[float] = None
+
+
+class ApiLogResponse(BaseModel):
+    """API log response with summary and entries."""
+    summary: ApiLogSummary
+    logs: List[ApiLogEntry]

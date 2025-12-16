@@ -557,7 +557,7 @@ MAX_CONVERSATION_CONTEXT = 15  # Reduced from 30 to focus on recent exchanges
 MAX_SUMMARY_CONTEXT = 50
 
 # Maximum tokens for journal context (approximate: 1 token ≈ 4 characters)
-MAX_JOURNAL_TOKENS = 10000
+MAX_JOURNAL_TOKENS = 50000
 
 # Journal context marker (used to detect empty journal)
 EMPTY_JOURNAL_MARKER = "# Care Journal\n\nNo journal entries yet."

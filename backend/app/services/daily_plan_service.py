@@ -1,5 +1,6 @@
 import openai
 import logging
+import time
 from sqlalchemy.orm import Session
 from datetime import datetime, date, timedelta
 from typing import Optional, List, Dict
@@ -18,6 +19,51 @@ logger = logging.getLogger(__name__)
 client = openai.OpenAI(api_key=settings.OPENAI_API_KEY)
 s3_service = S3Service()
 
+# Token budget for daily plan generation (128K total minus system prompt overhead)
+MAX_DAILY_PLAN_TOKENS = 120000
+
+
+def _estimate_tokens(text: str) -> int:
+    """Estimate token count from text (roughly 1 token per 4 characters)"""
+    if not text:
+        return 0
+    return len(text) // 4
+
+
+def _log_daily_plan_api_call(
+    response,
+    start_time: float,
+    success: bool,
+    user_id: Optional[str] = None,
+    error_message: Optional[str] = None
+):
+    """Log an API call from daily plan service"""
+    try:
+        from app.services.openai_service import log_api_call
+
+        input_tokens = 0
+        output_tokens = 0
+        model = ai_config.CHAT_MODEL
+
+        if success and response and hasattr(response, "usage") and response.usage:
+            input_tokens = getattr(response.usage, "input_tokens", 0) or 0
+            output_tokens = getattr(response.usage, "output_tokens", 0) or 0
+
+        response_time_ms = int((time.time() - start_time) * 1000)
+
+        log_api_call(
+            feature="daily_plan",
+            input_tokens=input_tokens,
+            output_tokens=output_tokens,
+            success=success,
+            model=model,
+            response_time_ms=response_time_ms,
+            user_id=user_id,
+            error_message=error_message
+        )
+    except Exception as e:
+        logger.error(f"Failed to log daily plan API call: {e}")
+
 
 class DailyPlanService:
     """Service for generating and managing daily plans"""
@@ -26,7 +72,8 @@ class DailyPlanService:
     async def generate_daily_plan(
         db: Session,
         session_id: str,
-        user_date: str = None
+        user_date: str = None,
+        user_id: str = None
     ) -> DailyPlan:
         """
         Generate a new daily plan for today based on all available context.
@@ -85,9 +132,9 @@ class DailyPlanService:
                     detail="Insufficient data to generate daily plan. Please add journal entries or have conversations first."
                 )
 
-            # 5. Generate plan using GPT-4o
+            # 5. Generate plan using GPT-5.2
             logger.info(f"Generating plan content via OpenAI")
-            plan_content = await DailyPlanService._generate_plan_content(context)
+            plan_content = await DailyPlanService._generate_plan_content(context, user_id=user_id)
             logger.info(f"Plan content generated successfully, length: {len(plan_content)}")
 
             # 6. Create and save the plan
@@ -180,17 +227,17 @@ class DailyPlanService:
                 JournalEntry.session_id == session_id
             ).order_by(JournalEntry.entry_date.desc()).all()
 
-            # Get recent conversations (last 7 days)
+            # Get recent conversations (last 7 days) - no arbitrary limit, token truncation handles it
             seven_days_ago = datetime.utcnow() - timedelta(days=7)
             new_conversations = db.query(Conversation).filter(
                 Conversation.session_id == session_id,
                 Conversation.created_at >= seven_days_ago
-            ).order_by(Conversation.created_at.asc()).limit(50).all()
+            ).order_by(Conversation.created_at.asc()).all()
 
-            # Get recent documents
+            # Get all documents - no arbitrary limit, token truncation handles it
             new_documents = db.query(Document).filter(
                 Document.session_id == session_id
-            ).order_by(Document.uploaded_at.desc()).limit(10).all()
+            ).order_by(Document.uploaded_at.desc()).all()
 
             context["is_first_plan"] = True
 
@@ -205,11 +252,11 @@ class DailyPlanService:
             for entry in journal_entries
         ]
 
-        # Format conversations
+        # Format conversations - include full content, token truncation handles limits
         context["conversations"] = [
             {
                 "role": conv.role,
-                "content": conv.content[:500],  # Limit length
+                "content": conv.content,
                 "timestamp": conv.created_at.isoformat()
             }
             for conv in new_conversations
@@ -223,25 +270,28 @@ class DailyPlanService:
                 "uploaded_at": doc.uploaded_at.isoformat()
             }
 
-            # Add extracted text if available
+            # Add extracted text if available - include more for context
             if doc.extracted_text:
-                doc_info["text_preview"] = doc.extracted_text[:300]  # First 300 chars
+                doc_info["text_preview"] = doc.extracted_text[:1000]  # First 1000 chars
 
             context["documents"].append(doc_info)
 
         return context
 
     @staticmethod
-    async def _generate_plan_content(context: Dict) -> str:
+    async def _generate_plan_content(context: Dict, user_id: str = None) -> str:
         """
         Use GPT-5.2 to generate the daily plan content.
 
         Args:
             context: Dictionary containing all gathered context
+            user_id: Optional user ID for logging
 
         Returns:
             str: The generated daily plan in markdown format
         """
+        start_time = time.time()
+        response = None
         try:
             # Build the user prompt with all context
             user_prompt = DailyPlanService._build_user_prompt(context)
@@ -254,6 +304,9 @@ class DailyPlanService:
                     {"role": "user", "content": user_prompt}
                 ]
             )
+
+            # Log successful API call
+            _log_daily_plan_api_call(response, start_time, True, user_id)
 
             # Extract text from Responses API
             text = getattr(response, "output_text", None)
@@ -269,29 +322,35 @@ class DailyPlanService:
             return text.strip()
 
         except Exception as e:
+            # Log failed API call
+            _log_daily_plan_api_call(response, start_time, False, user_id, str(e)[:500])
             logger.error(f"Error calling OpenAI API: {str(e)}")
             raise
 
     @staticmethod
     def _build_user_prompt(context: Dict) -> str:
-        """Build the user prompt from gathered context"""
+        """Build the user prompt from gathered context with token-based truncation"""
 
         # Get today's date from context if available, otherwise use server date
         today_str = context.get('today', date.today().strftime('%B %d, %Y'))
         prompt_parts = [f"Today's date: {today_str}\n"]
+        total_tokens = _estimate_tokens(prompt_parts[0])
 
         is_first_plan = context.get("is_first_plan", False)
 
         if is_first_plan:
             # First plan: provide comprehensive overview
-            prompt_parts.append("\n## FIRST DAILY PLAN")
-            prompt_parts.append("This is the first daily plan for this care journey. Review all available context below.\n")
+            header = "\n## FIRST DAILY PLAN\nThis is the first daily plan for this care journey. Review all available context below.\n"
+            prompt_parts.append(header)
+            total_tokens += _estimate_tokens(header)
         else:
             # Subsequent plan: show previous plan and what's NEW
             if context["previous_plan"]:
                 prev_plan_date = context['previous_plan']['date']
-                prompt_parts.append(f"\n## Most Recent Daily Plan (from {prev_plan_date})")
-                prompt_parts.append(context['previous_plan']['content'])
+                prev_content = context['previous_plan']['content']
+                header = f"\n## Most Recent Daily Plan (from {prev_plan_date})\n{prev_content}"
+                prompt_parts.append(header)
+                total_tokens += _estimate_tokens(header)
 
                 # Check if there's any new data
                 has_new_data = (
@@ -301,16 +360,19 @@ class DailyPlanService:
                 )
 
                 if has_new_data:
-                    prompt_parts.append(f"\n## NEW INFORMATION SINCE {prev_plan_date}")
-                    prompt_parts.append(f"The sections below contain ONLY data created since the {prev_plan_date} plan.\n")
+                    info = f"\n## NEW INFORMATION SINCE {prev_plan_date}\nThe sections below contain ONLY data created since the {prev_plan_date} plan.\n"
                 else:
-                    prompt_parts.append(f"\n## NO NEW INFORMATION SINCE {prev_plan_date}")
-                    prompt_parts.append("There have been no new conversations, journal entries, or documents since the last plan. You can either maintain the previous plan's content or adjust based on any specific user instructions in the regeneration request.\n")
+                    info = f"\n## NO NEW INFORMATION SINCE {prev_plan_date}\nThere have been no new conversations, journal entries, or documents since the last plan. You can either maintain the previous plan's content or adjust based on any specific user instructions in the regeneration request.\n"
+                prompt_parts.append(info)
+                total_tokens += _estimate_tokens(info)
 
-        # Add journal entries
-        if context["journal_entries"]:
+        # Add journal entries with token tracking
+        if context["journal_entries"] and total_tokens < MAX_DAILY_PLAN_TOKENS:
             header = "Journal Entries" if is_first_plan else "New Journal Entries"
-            prompt_parts.append(f"\n## {header}")
+            section_header = f"\n## {header}\n"
+            prompt_parts.append(section_header)
+            total_tokens += _estimate_tokens(section_header)
+
             # Group by type
             by_type = {}
             for entry in context["journal_entries"]:
@@ -320,34 +382,67 @@ class DailyPlanService:
                 by_type[entry_type].append(entry)
 
             for entry_type, entries in by_type.items():
-                prompt_parts.append(f"\n### {entry_type.title()}s")
-                for entry in entries[:5]:  # Limit to 5 per type
-                    prompt_parts.append(f"- **{entry['date']}**: {entry['title']}")
-                    if entry['content']:
-                        prompt_parts.append(f"  {entry['content'][:200]}")  # Truncate long content
+                if total_tokens >= MAX_DAILY_PLAN_TOKENS:
+                    break
+                type_header = f"\n### {entry_type.title()}s\n"
+                prompt_parts.append(type_header)
+                total_tokens += _estimate_tokens(type_header)
 
-        # Add conversations
-        if context["conversations"]:
+                # Add entries until token limit (no arbitrary count limit)
+                for entry in entries:
+                    if total_tokens >= MAX_DAILY_PLAN_TOKENS:
+                        break
+                    # Include full content, truncate only if single entry is huge
+                    content = entry['content'] if entry['content'] else ""
+                    if len(content) > 2000:
+                        content = content[:2000] + "..."
+                    entry_text = f"- **{entry['date']}**: {entry['title']}\n  {content}\n"
+                    entry_tokens = _estimate_tokens(entry_text)
+
+                    if total_tokens + entry_tokens <= MAX_DAILY_PLAN_TOKENS:
+                        prompt_parts.append(entry_text)
+                        total_tokens += entry_tokens
+
+        # Add conversations with token tracking
+        if context["conversations"] and total_tokens < MAX_DAILY_PLAN_TOKENS:
             header = "Recent Conversations" if is_first_plan else "New Conversations Since Last Plan"
-            prompt_parts.append(f"\n## {header}")
-            # For subsequent plans, show ALL new conversations (not limited)
-            # For first plans, limit to last 30
-            conv_limit = 30 if is_first_plan else None
-            convs_to_show = context["conversations"][-conv_limit:] if conv_limit else context["conversations"]
-            for conv in convs_to_show:
-                prompt_parts.append(f"- **{conv['role']}**: {conv['content']}")
+            section_header = f"\n## {header}\n"
+            prompt_parts.append(section_header)
+            total_tokens += _estimate_tokens(section_header)
 
-        # Add documents
-        if context["documents"]:
+            # Add conversations from most recent, no arbitrary limit
+            for conv in context["conversations"]:
+                if total_tokens >= MAX_DAILY_PLAN_TOKENS:
+                    break
+                conv_text = f"- **{conv['role']}**: {conv['content']}\n"
+                conv_tokens = _estimate_tokens(conv_text)
+
+                if total_tokens + conv_tokens <= MAX_DAILY_PLAN_TOKENS:
+                    prompt_parts.append(conv_text)
+                    total_tokens += conv_tokens
+
+        # Add documents with token tracking
+        if context["documents"] and total_tokens < MAX_DAILY_PLAN_TOKENS:
             header = "Uploaded Documents" if is_first_plan else "New Documents Since Last Plan"
-            prompt_parts.append(f"\n## {header}")
-            for doc in context["documents"][:10]:  # Show up to 10
-                prompt_parts.append(f"- {doc['filename']} ({doc['file_type']}) - uploaded {doc['uploaded_at']}")
-                if "text_preview" in doc:
-                    prompt_parts.append(f"  Preview: {doc['text_preview']}")
+            section_header = f"\n## {header}\n"
+            prompt_parts.append(section_header)
+            total_tokens += _estimate_tokens(section_header)
 
+            for doc in context["documents"]:
+                if total_tokens >= MAX_DAILY_PLAN_TOKENS:
+                    break
+                doc_text = f"- {doc['filename']} ({doc['file_type']}) - uploaded {doc['uploaded_at']}\n"
+                if "text_preview" in doc:
+                    doc_text += f"  Preview: {doc['text_preview']}\n"
+                doc_tokens = _estimate_tokens(doc_text)
+
+                if total_tokens + doc_tokens <= MAX_DAILY_PLAN_TOKENS:
+                    prompt_parts.append(doc_text)
+                    total_tokens += doc_tokens
+
+        # Add closing instruction
         if is_first_plan:
-            prompt_parts.append("\n\nBased on all this context, create a comprehensive daily plan for TODAY. IMPORTANT: Check the recent conversations above for any specific user instructions about what should be included in today's daily plan. If the user provided specific guidance, follow it exactly.")
+            closing = "\n\nBased on all this context, create a comprehensive daily plan for TODAY. IMPORTANT: Check the recent conversations above for any specific user instructions about what should be included in today's daily plan. If the user provided specific guidance, follow it exactly."
         else:
             prev_plan_date = context.get('previous_plan', {}).get('date', 'the previous')
             has_new_data = (
@@ -357,11 +452,13 @@ class DailyPlanService:
             )
 
             if has_new_data:
-                prompt_parts.append(f"\n\nBased on the {prev_plan_date} plan and the NEW information above, create an updated daily plan for TODAY. Maintain continuity from the previous plan while incorporating all new developments. IMPORTANT: Check the new conversations above for any specific user instructions about what should be included in today's daily plan. If the user provided specific guidance, follow it exactly.")
+                closing = f"\n\nBased on the {prev_plan_date} plan and the NEW information above, create an updated daily plan for TODAY. Maintain continuity from the previous plan while incorporating all new developments. IMPORTANT: Check the new conversations above for any specific user instructions about what should be included in today's daily plan. If the user provided specific guidance, follow it exactly."
             else:
-                prompt_parts.append(f"\n\nSince there is no new information since the {prev_plan_date} plan, you can maintain the previous plan's content for TODAY or make minor adjustments as needed. The user may have specific instructions in their regeneration request - if so, follow them exactly.")
+                closing = f"\n\nSince there is no new information since the {prev_plan_date} plan, you can maintain the previous plan's content for TODAY or make minor adjustments as needed. The user may have specific instructions in their regeneration request - if so, follow them exactly."
 
-        return "\n".join(prompt_parts)
+        prompt_parts.append(closing)
+
+        return "".join(prompt_parts)
 
     @staticmethod
     def _has_sufficient_data(context: Dict) -> bool:

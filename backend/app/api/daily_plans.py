@@ -156,7 +156,7 @@ async def generate_daily_plan(
     check_session_access(session, current_user.id, db)
 
     # Generate the plan (HTTPException will pass through to FastAPI)
-    plan = await DailyPlanService.generate_daily_plan(db, session_id, user_date)
+    plan = await DailyPlanService.generate_daily_plan(db, session_id, user_date, user_id=current_user.id)
 
     # Check if current user has viewed this plan (for existing plans returned by generate)
     user_view = db.query(DailyPlanView).filter(

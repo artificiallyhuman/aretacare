@@ -267,6 +267,9 @@ export const adminAPI = {
 
   // System health
   getSystemHealth: () => api.get('/admin/health'),
+
+  // API logs (GPT-5.2 request monitoring)
+  getApiLogs: (params = {}) => api.get('/admin/api-logs', { params }),
 };
 
 // Feedback API

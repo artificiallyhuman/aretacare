@@ -16,7 +16,7 @@ from app.api.auth import get_current_user
 from app.api.permissions import check_is_admin, require_admin
 from app.models import (
     User, Session as SessionModel, SessionCollaborator,
-    Document, AudioRecording, AdminAuditLog, SecurityLog, ErrorLog
+    Document, AudioRecording, AdminAuditLog, SecurityLog, ErrorLog, ApiLog
 )
 from app.schemas.admin import (
     PlatformMetrics, MetricsTrendResponse, MetricsTrend,
@@ -29,7 +29,8 @@ from app.schemas.admin import (
     AdminCheckResponse,
     SecurityLogEntry, SecurityLogResponse,
     EmailInactiveUsersRequest, EmailInactiveUsersResponse,
-    ErrorLogEntry, ErrorLogResponse, ErrorLogCleanupResponse
+    ErrorLogEntry, ErrorLogResponse, ErrorLogCleanupResponse,
+    ApiLogEntry, ApiLogSummary, ApiLogResponse
 )
 from app.services.admin_service import admin_service
 from app.services.s3_service import s3_service
@@ -741,3 +742,67 @@ async def cleanup_error_logs(
     logger.info(f"Admin {admin.email} deleted {deleted_count} error logs older than {days} days")
 
     return ErrorLogCleanupResponse(deleted_count=deleted_count)
+
+
+# ==========================================
+# API Logs (GPT-5.2 Request Monitoring)
+# ==========================================
+
+@router.get("/api-logs", response_model=ApiLogResponse)
+async def get_api_logs(
+    feature: Optional[str] = Query(None, description="Filter by feature (e.g., conversation, daily_plan)"),
+    success: Optional[bool] = Query(None, description="Filter by success status"),
+    db: DBSession = Depends(get_db),
+    admin: User = Depends(get_admin_user)
+):
+    """
+    Get GPT-5.2 API request logs from the last 24 hours.
+
+    Returns summary metrics and individual log entries in reverse chronological order.
+    No sensitive user data is disclosed - only user IDs for reference.
+
+    Requires admin authentication.
+    """
+    from sqlalchemy import func
+
+    # Get logs from last 24 hours
+    cutoff_time = datetime.utcnow() - timedelta(hours=24)
+
+    # Build base query
+    query = db.query(ApiLog).filter(ApiLog.created_at >= cutoff_time)
+
+    if feature:
+        query = query.filter(ApiLog.feature == feature)
+    if success is not None:
+        query = query.filter(ApiLog.success == success)
+
+    # Get logs sorted by created_at descending (most recent first)
+    logs = query.order_by(ApiLog.created_at.desc()).all()
+
+    # Calculate summary metrics from the filtered logs
+    total_requests = len(logs)
+    successful_requests = sum(1 for log in logs if log.success)
+    failed_requests = total_requests - successful_requests
+    success_rate = (successful_requests / total_requests * 100) if total_requests > 0 else 0.0
+
+    total_input_tokens = sum(log.input_tokens or 0 for log in logs)
+    total_output_tokens = sum(log.output_tokens or 0 for log in logs)
+
+    # Calculate average response time (only for logs that have it)
+    response_times = [log.response_time_ms for log in logs if log.response_time_ms is not None]
+    avg_response_time_ms = sum(response_times) / len(response_times) if response_times else None
+
+    summary = ApiLogSummary(
+        total_requests=total_requests,
+        successful_requests=successful_requests,
+        failed_requests=failed_requests,
+        success_rate=round(success_rate, 2),
+        total_input_tokens=total_input_tokens,
+        total_output_tokens=total_output_tokens,
+        avg_response_time_ms=round(avg_response_time_ms, 0) if avg_response_time_ms else None
+    )
+
+    return ApiLogResponse(
+        summary=summary,
+        logs=[ApiLogEntry.model_validate(log) for log in logs]
+    )

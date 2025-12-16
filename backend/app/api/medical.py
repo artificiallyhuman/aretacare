@@ -58,7 +58,8 @@ async def generate_medical_summary(
     # Generate summary
     summary_data = await openai_service.generate_medical_summary(
         request.medical_text,
-        context
+        context,
+        user_id=current_user.id
     )
 
     # Store the interaction
@@ -90,7 +91,8 @@ async def translate_medical_jargon(
 
     translation = await openai_service.translate_jargon(
         request.medical_term,
-        request.context
+        request.context,
+        user_id=current_user.id
     )
 
     return JargonTranslationResponse(**translation)
@@ -118,7 +120,8 @@ async def get_conversation_coaching(
     # Generate coaching
     coaching_data = await openai_service.generate_conversation_coaching(
         request.situation,
-        context
+        journal_context=context,
+        user_id=current_user.id
     )
 
     # Store the interaction
@@ -170,7 +173,7 @@ async def chat(
     db.refresh(user_message)
 
     # Generate response
-    response_text = await openai_service.chat(request.content, context)
+    response_text = await openai_service.chat(request.content, context, user_id=current_user.id)
 
     # Store assistant response
     assistant_message = Conversation(

@@ -111,7 +111,8 @@ async def send_message(
             older_journal_context=older_journal,
             recent_journal_context=recent_journal,
             document_url=generated_media_url if document_id else None,
-            document_type=message_type if document_id else None
+            document_type=message_type if document_id else None,
+            user_id=current_user.id
         )
 
         # Create assistant message
@@ -146,7 +147,8 @@ async def send_message(
                 content_type=doc.content_type if doc else None,
                 extracted_text=extracted_text or "",  # Fallback only if URL unavailable
                 entry_date=user_date,
-                document_id=document_id
+                document_id=document_id,
+                user_id=current_user.id
             )
         else:
             # Regular conversational synthesis
@@ -156,7 +158,8 @@ async def send_message(
                 session_id=session_id,
                 conversation_id=user_message.id,
                 entry_date=user_date,
-                audio_recording_id=user_message.audio_recording_id
+                audio_recording_id=user_message.audio_recording_id,
+                user_id=current_user.id
             )
 
         # Mark messages as synthesized if entries were created
@@ -334,7 +337,7 @@ async def update_message(
     )
 
 
-MAX_AUDIO_FILE_SIZE = 50 * 1024 * 1024  # 50MB
+MAX_AUDIO_FILE_SIZE = 20 * 1024 * 1024  # 20MB for conversation audio
 
 # Blocked audio file types for security
 BLOCKED_AUDIO_EXTENSIONS = [
@@ -580,7 +583,8 @@ async def transcribe_audio(
         try:
             categorization = await openai_service.categorize_audio_recording(
                 transcribed_text or "",
-                duration_seconds
+                duration_seconds,
+                user_id=current_user.id
             )
             # Convert category string to enum (with fallback to OTHER)
             try:
@@ -632,7 +636,8 @@ async def transcribe_audio(
                     duration=duration_seconds,
                     session_id=session_id,
                     entry_date=entry_date,
-                    audio_id=audio_recording.id
+                    audio_id=audio_recording.id,
+                    user_id=current_user.id
                 )
 
                 if synthesis_result.should_create and len(synthesis_result.suggested_entries) > 0:

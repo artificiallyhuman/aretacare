@@ -1,10 +1,80 @@
 from openai import OpenAI
 from app.core.config import settings
 from app.config import ai_config
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Any
 import logging
+import time
 
 logger = logging.getLogger(__name__)
+
+
+def log_api_call(
+    feature: str,
+    input_tokens: int,
+    output_tokens: int,
+    success: bool,
+    model: str,
+    response_time_ms: int,
+    user_id: Optional[str] = None,
+    error_message: Optional[str] = None
+):
+    """Log an API call to the database for admin monitoring"""
+    try:
+        from app.core.database import SessionLocal
+        from app.models.api_log import ApiLog
+
+        db = SessionLocal()
+        try:
+            api_log = ApiLog(
+                feature=feature,
+                input_tokens=input_tokens,
+                output_tokens=output_tokens,
+                success=success,
+                model=model,
+                response_time_ms=response_time_ms,
+                user_id=user_id,
+                error_message=error_message
+            )
+            db.add(api_log)
+            db.commit()
+        finally:
+            db.close()
+    except Exception as e:
+        logger.error(f"Failed to log API call: {e}")
+
+# Token budgets (total: 128,000)
+# - System prompts: ~1,500 tokens (fixed)
+# - Conversation history: up to 20,000 tokens
+# - Current message + media: up to 50,000 tokens (20MB file limit)
+# - Journal context: up to 50,000 tokens
+# - Buffer: ~6,500 tokens
+MAX_CONVERSATION_TOKENS = 20000
+MAX_CURRENT_MESSAGE_TOKENS = 50000  # Includes document/audio if attached
+MAX_JOURNAL_TOKENS = 50000  # Configured in ai_config.py
+
+
+def estimate_tokens(text: str) -> int:
+    """Estimate token count from text (roughly 1 token per 4 characters)"""
+    if not text:
+        return 0
+    return len(text) // 4
+
+
+def estimate_message_tokens(message: Dict[str, Any]) -> int:
+    """Estimate tokens for a single message, handling multi-modal content"""
+    content = message.get("content", "")
+    if isinstance(content, str):
+        return estimate_tokens(content)
+    elif isinstance(content, list):
+        # Multi-modal message - only count text parts
+        total = 0
+        for part in content:
+            if isinstance(part, dict):
+                if part.get("type") in ("text", "input_text"):
+                    total += estimate_tokens(part.get("text", ""))
+                # Images/files are handled by the API separately, don't count here
+        return total
+    return 0
 
 
 class OpenAIService:
@@ -17,12 +87,36 @@ class OpenAIService:
     def _create_chat_completion(
         self,
         messages: List[Dict[str, str]],
+        feature: str = "unknown",
+        user_id: Optional[str] = None,
     ) -> Optional[str]:
         """Create chat completion with error handling using Responses API"""
+        start_time = time.time()
+        input_tokens = 0
+        output_tokens = 0
+
         try:
             response = self.client.responses.create(
                 model=self.model,
                 input=messages,
+            )
+
+            # Extract token usage from response
+            if hasattr(response, "usage") and response.usage:
+                input_tokens = getattr(response.usage, "input_tokens", 0) or 0
+                output_tokens = getattr(response.usage, "output_tokens", 0) or 0
+
+            response_time_ms = int((time.time() - start_time) * 1000)
+
+            # Log successful API call
+            log_api_call(
+                feature=feature,
+                input_tokens=input_tokens,
+                output_tokens=output_tokens,
+                success=True,
+                model=self.model,
+                response_time_ms=response_time_ms,
+                user_id=user_id
             )
 
             # Prefer the convenience property if available
@@ -40,6 +134,21 @@ class OpenAIService:
             return None
 
         except Exception as e:
+            response_time_ms = int((time.time() - start_time) * 1000)
+            error_msg = str(e)[:500]  # Truncate error message
+
+            # Log failed API call
+            log_api_call(
+                feature=feature,
+                input_tokens=input_tokens,
+                output_tokens=output_tokens,
+                success=False,
+                model=self.model,
+                response_time_ms=response_time_ms,
+                user_id=user_id,
+                error_message=error_msg
+            )
+
             logger.error(f"OpenAI API error: {e}")
 
             # Log to database for admin visibility
@@ -59,7 +168,8 @@ class OpenAIService:
     async def generate_medical_summary(
         self,
         medical_text: str,
-        context: List[Dict[str, str]] = None
+        context: List[Dict[str, str]] = None,
+        user_id: Optional[str] = None
     ) -> Dict:
         """Generate structured medical summary from provided text"""
 
@@ -72,7 +182,7 @@ class OpenAIService:
 
         messages.append({"role": "user", "content": prompt})
 
-        response = self._create_chat_completion(messages)
+        response = self._create_chat_completion(messages, feature="medical_summary", user_id=user_id)
 
         if response:
             return {"content": response}
@@ -164,7 +274,13 @@ class OpenAIService:
             "family_notes": '\n'.join(family_notes).strip()
         }
 
-    async def translate_jargon(self, medical_term: str, context: str = "", journal_context: Optional[str] = None) -> Dict:
+    async def translate_jargon(
+        self,
+        medical_term: str,
+        context: str = "",
+        journal_context: Optional[str] = None,
+        user_id: Optional[str] = None
+    ) -> Dict:
         """Translate medical jargon into plain language with optional journal context"""
 
         prompt = ai_config.get_jargon_translation_prompt(medical_term, context)
@@ -179,7 +295,7 @@ class OpenAIService:
 
         messages.append({"role": "user", "content": prompt})
 
-        response = self._create_chat_completion(messages)
+        response = self._create_chat_completion(messages, feature="jargon_translator", user_id=user_id)
 
         if response:
             return {
@@ -197,7 +313,8 @@ class OpenAIService:
     async def generate_conversation_coaching(
         self,
         situation: str,
-        journal_context: Optional[str] = None
+        journal_context: Optional[str] = None,
+        user_id: Optional[str] = None
     ) -> Dict:
         """Help families prepare for healthcare conversations with optional journal context"""
 
@@ -211,7 +328,7 @@ class OpenAIService:
 
         messages.append({"role": "user", "content": prompt})
 
-        response = self._create_chat_completion(messages)
+        response = self._create_chat_completion(messages, feature="conversation_coach", user_id=user_id)
 
         if response:
             return {"content": response}
@@ -223,7 +340,8 @@ class OpenAIService:
         filename: str,
         content_type: str,
         document_url: str,
-        extracted_text: str = ""
+        extracted_text: str = "",
+        user_id: Optional[str] = None
     ) -> Dict:
         """Categorize a document and generate a brief description using AI.
 
@@ -262,7 +380,7 @@ class OpenAIService:
             # Fallback to text-only if no URL (shouldn't happen normally)
             messages.append({"role": "user", "content": prompt})
 
-        response = self._create_chat_completion(messages)
+        response = self._create_chat_completion(messages, feature="document_categorization", user_id=user_id)
 
         if response:
             try:
@@ -294,11 +412,18 @@ class OpenAIService:
                 "description": f"Document: {filename}"[:200]
             }
 
-    async def categorize_audio_recording(self, transcribed_text: str, duration: float = None) -> Dict:
+    async def categorize_audio_recording(
+        self,
+        transcribed_text: str,
+        duration: float = None,
+        user_id: Optional[str] = None
+    ) -> Dict:
         """Categorize an audio recording and generate a brief summary using AI"""
 
-        # Take first 5000 characters for categorization to avoid token limits
-        text_sample = transcribed_text[:5000] if transcribed_text else ""
+        # Audio is chunked for transcription (20min chunks), so total text can be large.
+        # Categorization uses 128K model. Allow up to ~100K tokens (~400K chars).
+        max_chars = 400000
+        text_sample = transcribed_text[:max_chars] if transcribed_text else ""
 
         prompt = ai_config.get_audio_categorization_prompt(text_sample, duration)
 
@@ -307,7 +432,7 @@ class OpenAIService:
             {"role": "user", "content": prompt}
         ]
 
-        response = self._create_chat_completion(messages)
+        response = self._create_chat_completion(messages, feature="audio_categorization", user_id=user_id)
 
         if response:
             try:
@@ -403,14 +528,19 @@ class OpenAIService:
             "preparation_tips": tips
         }
 
-    async def chat(self, message: str, conversation_history: List[Dict[str, str]]) -> str:
+    async def chat(
+        self,
+        message: str,
+        conversation_history: List[Dict[str, str]],
+        user_id: Optional[str] = None
+    ) -> str:
         """General chat interface with safety boundaries"""
 
         messages = [{"role": "system", "content": ai_config.SYSTEM_PROMPT}]
         messages.extend(conversation_history[-ai_config.MAX_CONVERSATION_CONTEXT:])
         messages.append({"role": "user", "content": message})
 
-        response = self._create_chat_completion(messages)
+        response = self._create_chat_completion(messages, feature="chat", user_id=user_id)
 
         return response if response else ai_config.FALLBACK_CHAT
 
@@ -423,7 +553,8 @@ class OpenAIService:
         document_url: Optional[str] = None,
         document_type: Optional[str] = None,
         # Legacy parameter for backwards compatibility
-        journal_context: Optional[str] = None
+        journal_context: Optional[str] = None,
+        user_id: Optional[str] = None
     ) -> str:
         """Chat interface with journal context and native file/image support
 
@@ -448,8 +579,23 @@ class OpenAIService:
                 "content": older_journal_context
             })
 
-        # Add recent conversation history (no wrapper needed)
-        messages.extend(conversation_history[-ai_config.MAX_CONVERSATION_CONTEXT:])
+        # Add recent conversation history with token-based truncation
+        # Start with most recent messages and work backwards until we hit token limit
+        recent_history = conversation_history[-ai_config.MAX_CONVERSATION_CONTEXT:]
+        total_tokens = 0
+        truncated_history = []
+
+        # Process from newest to oldest, keeping track of tokens
+        for msg in reversed(recent_history):
+            msg_tokens = estimate_message_tokens(msg)
+            if total_tokens + msg_tokens <= MAX_CONVERSATION_TOKENS:
+                truncated_history.insert(0, msg)  # Insert at beginning to maintain order
+                total_tokens += msg_tokens
+            else:
+                # Stop adding older messages once we hit the limit
+                break
+
+        messages.extend(truncated_history)
 
         # Add recent journal context as assistant message (system-provided knowledge, not user input)
         if recent_journal_context and recent_journal_context.strip():
@@ -497,7 +643,7 @@ class OpenAIService:
             # Text-only message
             messages.append({"role": "user", "content": message})
 
-        response = self._create_chat_completion(messages)
+        response = self._create_chat_completion(messages, feature="conversation", user_id=user_id)
 
         return response if response else ai_config.FALLBACK_CHAT
 

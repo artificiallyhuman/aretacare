@@ -996,3 +996,92 @@ def run_migrations():
                             pass  # Rollback failure is acceptable
                 else:
                     logger.info(f"Migration '{migration_name}' already applied, skipping")
+
+        # Create api_logs table if it doesn't exist
+        if 'api_logs' not in inspector.get_table_names():
+            logger.info("Creating api_logs table...")
+            try:
+                conn.execute(text("""
+                    CREATE TABLE api_logs (
+                        id SERIAL PRIMARY KEY,
+                        feature VARCHAR(50) NOT NULL,
+                        input_tokens INTEGER NOT NULL DEFAULT 0,
+                        output_tokens INTEGER NOT NULL DEFAULT 0,
+                        success BOOLEAN NOT NULL DEFAULT TRUE,
+                        error_message TEXT,
+                        model VARCHAR(50),
+                        response_time_ms INTEGER,
+                        user_id VARCHAR(36) REFERENCES users(id) ON DELETE SET NULL,
+                        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+                    )
+                """))
+                conn.commit()
+                logger.info("Successfully created api_logs table")
+
+                # Create indexes for efficient queries
+                conn.execute(text("""
+                    CREATE INDEX IF NOT EXISTS idx_api_logs_feature
+                    ON api_logs (feature)
+                """))
+                conn.commit()
+                logger.info("Created index idx_api_logs_feature")
+
+                conn.execute(text("""
+                    CREATE INDEX IF NOT EXISTS idx_api_logs_created_at
+                    ON api_logs (created_at)
+                """))
+                conn.commit()
+                logger.info("Created index idx_api_logs_created_at")
+
+                conn.execute(text("""
+                    CREATE INDEX IF NOT EXISTS idx_api_logs_user_id
+                    ON api_logs (user_id)
+                """))
+                conn.commit()
+                logger.info("Created index idx_api_logs_user_id")
+
+            except Exception as e:
+                logger.error(f"Failed to create api_logs table: {e}")
+                conn.rollback()
+        else:
+            logger.info("api_logs table already exists")
+
+            # Add response_time_ms and user_id columns if they don't exist
+            api_logs_columns = [col['name'] for col in inspector.get_columns('api_logs')]
+
+            if 'response_time_ms' not in api_logs_columns:
+                logger.info("Adding response_time_ms column to api_logs table...")
+                try:
+                    conn.execute(text("""
+                        ALTER TABLE api_logs
+                        ADD COLUMN response_time_ms INTEGER
+                    """))
+                    conn.commit()
+                    logger.info("Successfully added response_time_ms column to api_logs")
+                except Exception as e:
+                    logger.error(f"Failed to add response_time_ms column: {e}")
+                    conn.rollback()
+            else:
+                logger.info("response_time_ms column already exists in api_logs")
+
+            if 'user_id' not in api_logs_columns:
+                logger.info("Adding user_id column to api_logs table...")
+                try:
+                    conn.execute(text("""
+                        ALTER TABLE api_logs
+                        ADD COLUMN user_id VARCHAR(36) REFERENCES users(id) ON DELETE SET NULL
+                    """))
+                    conn.commit()
+                    logger.info("Successfully added user_id column to api_logs")
+
+                    conn.execute(text("""
+                        CREATE INDEX IF NOT EXISTS idx_api_logs_user_id
+                        ON api_logs (user_id)
+                    """))
+                    conn.commit()
+                    logger.info("Created index idx_api_logs_user_id")
+                except Exception as e:
+                    logger.error(f"Failed to add user_id column: {e}")
+                    conn.rollback()
+            else:
+                logger.info("user_id column already exists in api_logs")

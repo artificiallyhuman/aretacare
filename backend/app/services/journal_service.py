@@ -15,8 +15,45 @@ from datetime import datetime, date, timedelta
 from collections import defaultdict
 import logging
 import json
+import time
 
 logger = logging.getLogger(__name__)
+
+
+def _log_journal_api_call(
+    feature: str,
+    response,
+    start_time: float,
+    success: bool,
+    user_id: Optional[str] = None,
+    error_message: Optional[str] = None
+):
+    """Log an API call from journal service"""
+    try:
+        from app.services.openai_service import log_api_call
+
+        input_tokens = 0
+        output_tokens = 0
+        model = ai_config.CHAT_MODEL
+
+        if success and response and hasattr(response, "usage") and response.usage:
+            input_tokens = getattr(response.usage, "input_tokens", 0) or 0
+            output_tokens = getattr(response.usage, "output_tokens", 0) or 0
+
+        response_time_ms = int((time.time() - start_time) * 1000)
+
+        log_api_call(
+            feature=feature,
+            input_tokens=input_tokens,
+            output_tokens=output_tokens,
+            success=success,
+            model=model,
+            response_time_ms=response_time_ms,
+            user_id=user_id,
+            error_message=error_message
+        )
+    except Exception as e:
+        logger.error(f"Failed to log journal API call: {e}")
 
 
 class JournalService:
@@ -78,7 +115,8 @@ class JournalService:
         content_type: Optional[str] = None,
         extracted_text: Optional[str] = None,
         entry_date: Optional[date] = None,
-        document_id: Optional[int] = None
+        document_id: Optional[int] = None,
+        user_id: Optional[str] = None
     ) -> JournalSynthesisResult:
         """Synthesize comprehensive journal entry from uploaded medical document using native file support"""
         try:
@@ -191,11 +229,18 @@ IMPORTANT: Respond with ONLY a valid JSON object in this exact format, with no a
                 # Fallback to text-only if no URL (uses extracted text from prompt)
                 messages.append({"role": "user", "content": prompt})
 
-            # Use Responses API
-            response = self.client.responses.create(
-                model=self.model,
-                input=messages
-            )
+            # Use Responses API with logging
+            start_time = time.time()
+            response = None
+            try:
+                response = self.client.responses.create(
+                    model=self.model,
+                    input=messages
+                )
+                _log_journal_api_call("journal_document_synthesis", response, start_time, True, user_id)
+            except Exception as api_error:
+                _log_journal_api_call("journal_document_synthesis", None, start_time, False, user_id, str(api_error)[:500])
+                raise
 
             # Extract text from Responses API
             text = getattr(response, "output_text", None)
@@ -290,7 +335,8 @@ IMPORTANT: Respond with ONLY a valid JSON object in this exact format, with no a
         duration: float,
         session_id: str,
         entry_date: Optional[date] = None,
-        audio_id: Optional[int] = None
+        audio_id: Optional[int] = None,
+        user_id: Optional[str] = None
     ) -> JournalSynthesisResult:
         """Synthesize comprehensive journal entry from audio recording transcription"""
         try:
@@ -302,7 +348,8 @@ IMPORTANT: Respond with ONLY a valid JSON object in this exact format, with no a
             today_str = today.isoformat()
             day_of_week = today.strftime('%A')
 
-            # Prepare audio content
+            # Prepare audio content with token limit (~100K tokens = ~400K chars)
+            max_transcription_chars = 400000
             duration_min = int(duration // 60)
             duration_sec = int(duration % 60)
             audio_content = f"Filename: {filename}\n"
@@ -310,7 +357,11 @@ IMPORTANT: Respond with ONLY a valid JSON object in this exact format, with no a
             if ai_summary:
                 audio_content += f"Recording Type/Summary: {ai_summary}\n\n"
             if transcribed_text:
-                audio_content += f"Full Transcription:\n{transcribed_text}"
+                # Truncate very long transcriptions to fit within token limit
+                truncated_text = transcribed_text[:max_transcription_chars]
+                if len(transcribed_text) > max_transcription_chars:
+                    truncated_text += "\n\n[Transcription truncated due to length]"
+                audio_content += f"Full Transcription:\n{truncated_text}"
             else:
                 audio_content += "No transcription available for this recording."
 
@@ -384,11 +435,18 @@ IMPORTANT: Respond with ONLY a valid JSON object in this exact format, with no a
                 {"role": "user", "content": prompt}
             ]
 
-            # Use Responses API
-            response = self.client.responses.create(
-                model=self.model,
-                input=messages
-            )
+            # Use Responses API with logging
+            start_time = time.time()
+            response = None
+            try:
+                response = self.client.responses.create(
+                    model=self.model,
+                    input=messages
+                )
+                _log_journal_api_call("journal_audio_synthesis", response, start_time, True, user_id)
+            except Exception as api_error:
+                _log_journal_api_call("journal_audio_synthesis", None, start_time, False, user_id, str(api_error)[:500])
+                raise
 
             # Extract text from Responses API
             text = getattr(response, "output_text", None)
@@ -482,7 +540,8 @@ IMPORTANT: Respond with ONLY a valid JSON object in this exact format, with no a
         session_id: str,
         conversation_id: Optional[int] = None,
         entry_date: Optional[date] = None,
-        audio_recording_id: Optional[int] = None
+        audio_recording_id: Optional[int] = None,
+        user_id: Optional[str] = None
     ) -> JournalSynthesisResult:
         """Assess if conversation contains journal-worthy information"""
         try:
@@ -577,11 +636,18 @@ IMPORTANT: Respond with ONLY a valid JSON object in this exact format, with no a
                 {"role": "user", "content": prompt}
             ]
 
-            # Use Responses API
-            response = self.client.responses.create(
-                model=self.model,
-                input=messages
-            )
+            # Use Responses API with logging
+            start_time = time.time()
+            response = None
+            try:
+                response = self.client.responses.create(
+                    model=self.model,
+                    input=messages
+                )
+                _log_journal_api_call("journal_conversation_synthesis", response, start_time, True, user_id)
+            except Exception as api_error:
+                _log_journal_api_call("journal_conversation_synthesis", None, start_time, False, user_id, str(api_error)[:500])
+                raise
 
             # Extract text from Responses API
             text = getattr(response, "output_text", None)
@@ -672,12 +738,21 @@ IMPORTANT: Respond with ONLY a valid JSON object in this exact format, with no a
                 suggested_entries=[]
             )
 
+    def _estimate_tokens(self, text: str) -> int:
+        """Estimate token count from text (roughly 1 token per 4 characters)"""
+        if not text:
+            return 0
+        return len(text) // 4
+
     async def format_journal_context_split(
         self,
         session_id: str,
         max_tokens: int = None
     ) -> tuple[str, str]:
-        """Format journal context split into older and recent parts for better AI context management"""
+        """Format journal context split into older and recent parts for better AI context management.
+
+        Prioritizes recent entries and truncates oldest entries if token limit is exceeded.
+        """
         if max_tokens is None:
             max_tokens = ai_config.MAX_JOURNAL_TOKENS
         try:
@@ -703,36 +778,88 @@ IMPORTANT: Respond with ONLY a valid JSON object in this exact format, with no a
                 else:
                     titles_only.append(entry)
 
-            # OLDER CONTEXT (8+ days ago) - shown first in prompt, farther from current message
-            older_context = ""
-            if titles_only or summarized:
-                older_context = "# Background Journal Context (Older History)\n\n"
+            # Build context with token tracking, prioritizing recent entries
+            total_tokens = 0
 
-                # Older entries (titles only) - show oldest first
-                if titles_only:
-                    older_context += "## Earlier History (30+ Days Ago)\n\n"
-                    by_month = self._group_by_month(titles_only)
-                    sorted_months = sorted(by_month.items(), key=lambda x: datetime.strptime(x[0], "%B %Y"))
-                    for month, month_entries in sorted_months:
-                        reversed_entries = list(reversed(month_entries))
-                        older_context += f"**{month}**: "
-                        older_context += ", ".join([e.title for e in reversed_entries])
-                        older_context += "\n\n"
-
-                # Mid-range entries (summarized) - show oldest first
-                if summarized:
-                    older_context += "## Previous Entries (8-30 Days Ago)\n\n"
-                    for e in reversed(summarized):
-                        summary = e.content[:150] + "..." if len(e.content) > 150 else e.content
-                        older_context += f"**{e.entry_date}** {e.title}: {summary}\n\n"
-
-            # RECENT CONTEXT (last 7 days) - will be shown later in prompt, closer to current message
+            # RECENT CONTEXT (last 7 days) - highest priority, built first
             recent_context = ""
+            recent_entries_added = []
             if full_detail:
-                recent_context = "# Recent Journal Context (Last 7 Days) ⚡\n\n"
-                recent_context += "_This is the MOST RECENT journal information. Prioritize this over older context._\n\n"
-                for e in reversed(full_detail):
-                    recent_context += f"**{e.entry_date}** [{e.entry_type.value}] **{e.title}**\n{e.content}\n\n"
+                header = "# Recent Journal Context (Last 7 Days) ⚡\n\n"
+                header += "_This is the MOST RECENT journal information. Prioritize this over older context._\n\n"
+                header_tokens = self._estimate_tokens(header)
+
+                if total_tokens + header_tokens <= max_tokens:
+                    recent_context = header
+                    total_tokens += header_tokens
+
+                    # Add recent entries from oldest to newest (reversed full_detail)
+                    for e in reversed(full_detail):
+                        entry_text = f"**{e.entry_date}** [{e.entry_type.value}] **{e.title}**\n{e.content}\n\n"
+                        entry_tokens = self._estimate_tokens(entry_text)
+
+                        if total_tokens + entry_tokens <= max_tokens:
+                            recent_entries_added.append(entry_text)
+                            total_tokens += entry_tokens
+                        else:
+                            # Stop adding if we hit the limit
+                            break
+
+                    recent_context += "".join(recent_entries_added)
+
+            # OLDER CONTEXT (8+ days ago) - lower priority, only if room remains
+            older_context = ""
+            if (titles_only or summarized) and total_tokens < max_tokens:
+                header = "# Background Journal Context (Older History)\n\n"
+                header_tokens = self._estimate_tokens(header)
+
+                if total_tokens + header_tokens <= max_tokens:
+                    older_context = header
+                    total_tokens += header_tokens
+
+                    # Mid-range entries (8-30 days, summarized) - medium priority
+                    if summarized and total_tokens < max_tokens:
+                        section_header = "## Previous Entries (8-30 Days Ago)\n\n"
+                        section_tokens = self._estimate_tokens(section_header)
+
+                        if total_tokens + section_tokens <= max_tokens:
+                            older_context += section_header
+                            total_tokens += section_tokens
+
+                            # Add from oldest to newest
+                            for e in reversed(summarized):
+                                summary = e.content[:150] + "..." if len(e.content) > 150 else e.content
+                                entry_text = f"**{e.entry_date}** {e.title}: {summary}\n\n"
+                                entry_tokens = self._estimate_tokens(entry_text)
+
+                                if total_tokens + entry_tokens <= max_tokens:
+                                    older_context += entry_text
+                                    total_tokens += entry_tokens
+                                else:
+                                    break
+
+                    # Oldest entries (30+ days, titles only) - lowest priority
+                    if titles_only and total_tokens < max_tokens:
+                        section_header = "## Earlier History (30+ Days Ago)\n\n"
+                        section_tokens = self._estimate_tokens(section_header)
+
+                        if total_tokens + section_tokens <= max_tokens:
+                            older_context += section_header
+                            total_tokens += section_tokens
+
+                            by_month = self._group_by_month(titles_only)
+                            sorted_months = sorted(by_month.items(), key=lambda x: datetime.strptime(x[0], "%B %Y"))
+
+                            for month, month_entries in sorted_months:
+                                reversed_entries = list(reversed(month_entries))
+                                month_text = f"**{month}**: " + ", ".join([e.title for e in reversed_entries]) + "\n\n"
+                                month_tokens = self._estimate_tokens(month_text)
+
+                                if total_tokens + month_tokens <= max_tokens:
+                                    older_context += month_text
+                                    total_tokens += month_tokens
+                                else:
+                                    break
 
             return older_context, recent_context
 

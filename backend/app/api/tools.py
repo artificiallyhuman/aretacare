@@ -32,7 +32,8 @@ async def generate_medical_summary(
     # Generate summary without conversation context (standalone mode)
     summary_data = await openai_service.generate_medical_summary(
         medical_text,
-        context=None  # No conversation context for standalone tool
+        context=None,  # No conversation context for standalone tool
+        user_id=current_user.id
     )
 
     return MedicalSummaryResponse(**summary_data)
@@ -67,7 +68,8 @@ async def translate_medical_jargon(
     translation = await openai_service.translate_jargon(
         medical_term,
         context,
-        journal_context=journal_context
+        journal_context=journal_context,
+        user_id=current_user.id
     )
 
     return JargonTranslationResponse(**translation)
@@ -101,7 +103,8 @@ async def get_conversation_coaching(
     # Generate coaching with journal context
     coaching_data = await openai_service.generate_conversation_coaching(
         situation,
-        journal_context=journal_context
+        journal_context=journal_context,
+        user_id=current_user.id
     )
 
     return ConversationCoachResponse(**coaching_data)
