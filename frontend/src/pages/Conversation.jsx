@@ -220,8 +220,10 @@ const Conversation = () => {
     const images = container.querySelectorAll('img');
 
     if (images.length === 0) {
-      // No images, just scroll immediately
-      requestAnimationFrame(() => scrollToBottom('auto'));
+      // No images - use double RAF to ensure DOM is fully laid out
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => scrollToBottom('auto'));
+      });
       return;
     }
 
@@ -233,7 +235,10 @@ const Conversation = () => {
     const doScroll = () => {
       if (hasScrolled) return; // Prevent duplicate scrolls
       hasScrolled = true;
-      requestAnimationFrame(() => scrollToBottom('auto'));
+      // Double RAF to ensure DOM is fully laid out after image loads
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => scrollToBottom('auto'));
+      });
     };
 
     const onImageLoad = () => {
