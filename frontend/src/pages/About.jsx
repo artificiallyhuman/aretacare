@@ -168,15 +168,15 @@ const About = () => {
           <ul className="text-gray-600 dark:text-gray-400 space-y-2 leading-relaxed">
             <li className="flex items-start">
               <span className="text-purple-600 dark:text-purple-400 mr-2 mt-1">•</span>
-              <span>Journal, Documents, and Audio keep everything organized in one place</span>
+              <span>Care Journal and Care Profile keep all your information organized</span>
             </li>
             <li className="flex items-start">
               <span className="text-purple-600 dark:text-purple-400 mr-2 mt-1">•</span>
-              <span>Coach helps you prepare thoughtful questions before appointments</span>
+              <span>Documents and Audio Recordings store and categorize your files</span>
             </li>
             <li className="flex items-start">
               <span className="text-purple-600 dark:text-purple-400 mr-2 mt-1">•</span>
-              <span>Translator explains medical terms in language you can understand</span>
+              <span>Coach and Translator help you prepare questions and understand medical terms</span>
             </li>
           </ul>
         </div>
