@@ -82,7 +82,7 @@ const About = () => {
           </div>
           <h4 className="text-lg font-semibold text-gray-900 dark:text-white">Privacy & Security</h4>
         </div>
-        <p className="text-gray-600 dark:text-gray-400 mb-3">Your personal data is never sold and is stored securely:</p>
+        <p className="text-gray-600 dark:text-gray-400 mb-3">Your personal data is stored securely and never sold:</p>
         <ul className="text-gray-600 dark:text-gray-400 space-y-2 leading-relaxed">
           <li className="flex items-start">
             <span className="text-gray-600 dark:text-gray-400 mr-2 mt-1">•</span>
