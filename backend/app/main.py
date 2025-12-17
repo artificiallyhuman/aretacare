@@ -112,6 +112,42 @@ async def startup_cleanup():
     except Exception as e:
         logger.error(f"Failed to run error log cleanup: {e}")
 
+    # Clean up old API logs
+    try:
+        from app.models.api_log import ApiLog
+        from datetime import datetime, timedelta
+
+        db = SessionLocal()
+        cutoff_date = datetime.utcnow() - timedelta(days=settings.API_LOG_RETENTION_DAYS)
+        deleted_count = db.query(ApiLog).filter(ApiLog.created_at < cutoff_date).delete()
+        db.commit()
+
+        if deleted_count > 0:
+            logger.info(f"✓ API log cleanup: {deleted_count} old entries removed")
+        else:
+            logger.info(f"✓ API log cleanup: No old entries to remove (retention: {settings.API_LOG_RETENTION_DAYS} days)")
+        db.close()
+    except Exception as e:
+        logger.error(f"Failed to run API log cleanup: {e}")
+
+    # Clean up old security logs
+    try:
+        from app.models.security_log import SecurityLog
+        from datetime import datetime, timedelta
+
+        db = SessionLocal()
+        cutoff_date = datetime.utcnow() - timedelta(days=settings.SECURITY_LOG_RETENTION_DAYS)
+        deleted_count = db.query(SecurityLog).filter(SecurityLog.created_at < cutoff_date).delete()
+        db.commit()
+
+        if deleted_count > 0:
+            logger.info(f"✓ Security log cleanup: {deleted_count} old entries removed")
+        else:
+            logger.info(f"✓ Security log cleanup: No old entries to remove (retention: {settings.SECURITY_LOG_RETENTION_DAYS} days)")
+        db.close()
+    except Exception as e:
+        logger.error(f"Failed to run security log cleanup: {e}")
+
     # Clean up expired invitations (older than 30 days)
     try:
         from app.models.pending_invitation import PendingInvitation
