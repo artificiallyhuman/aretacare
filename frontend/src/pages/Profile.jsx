@@ -641,7 +641,7 @@ const Profile = () => {
           <div className="flex-1">
             <h3 className="text-sm font-semibold text-amber-800 dark:text-amber-400 mb-1.5">Important</h3>
             <p className="text-sm text-amber-800 dark:text-amber-300 leading-relaxed">
-              This profile is AI-generated from your conversation history and journal entries. Important information may be missing or inaccurate. Please review and edit before sharing with healthcare providers or others.
+              This summary is generated from your conversations and journal entries. It may be incomplete or contain errors. Please review and edit it before sharing with healthcare providers or others.
             </p>
           </div>
         </div>
