@@ -1223,7 +1223,7 @@ const Profile = () => {
                         )}
                         {cg.contact_info && (
                           <p className="text-xs text-gray-600 dark:text-gray-400 mt-2">
-                            📞 {cg.contact_info}
+                            {cg.contact_info}
                           </p>
                         )}
                         {cg.location && (
@@ -1289,7 +1289,7 @@ const Profile = () => {
                         )}
                         {p.contact_info && (
                           <p className="text-xs text-gray-600 dark:text-gray-400 mt-2">
-                            📞 {p.contact_info}
+                            {p.contact_info}
                           </p>
                         )}
                       </div>
