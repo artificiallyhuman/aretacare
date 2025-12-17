@@ -673,7 +673,7 @@ RESPONSE FORMAT (JSON only):
       "change_type": "add",
       "section": "medications",
       "item_id": null,
-      "new_value": {{"name": "Metformin", "dose": "500mg", "frequency": "twice daily"}},
+      "new_value": {{"name": "Metformin", "dose": "500mg", "frequency": "twice daily", "category": "diabetes", "description": "Diabetes medication for blood sugar control"}},
       "old_value": null,
       "reasoning": "New medication mentioned in discharge instructions"
     }},
@@ -781,7 +781,8 @@ RESPONSE FORMAT (JSON only, no other text):
       "frequency": "string or null",
       "start_date": "string or null",
       "prescriber": "string or null",
-      "notes": "string or null"
+      "notes": "string or null",
+      "category": "REQUIRED - one of: multiple/pain_management/cardiovascular/diabetes/mental_health/antibiotics/respiratory/gastrointestinal/neurological/endocrine/oncology/immunosuppressant/vitamins_supplements/other"
     }}
   ],
   "allergies": [
