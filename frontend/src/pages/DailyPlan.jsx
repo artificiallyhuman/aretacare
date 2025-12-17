@@ -316,7 +316,7 @@ const DailyPlan = () => {
               <div className="p-3 md:p-4 border-b border-gray-200 dark:border-gray-700">
                 <h2 className="text-base md:text-lg font-semibold text-gray-900 dark:text-white">All Plans</h2>
               </div>
-              <div className="divide-y divide-gray-200 dark:divide-gray-700 max-h-64 lg:max-h-[calc(100vh-12rem)] overflow-y-auto">
+              <div className="divide-y divide-gray-200 dark:divide-gray-700 max-h-64 lg:max-h-[calc(100vh-17rem)] overflow-y-auto">
                 {plans.map((plan) => (
                   <button
                     key={plan.id}

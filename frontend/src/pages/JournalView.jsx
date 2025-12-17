@@ -315,7 +315,7 @@ const JournalView = () => {
                     return null;
                   })()}
                 </div>
-                <div className="divide-y divide-gray-200 dark:divide-gray-700 max-h-64 lg:max-h-[calc(100vh-12rem)] overflow-y-auto">
+                <div className="divide-y divide-gray-200 dark:divide-gray-700 max-h-64 lg:max-h-[calc(100vh-17rem)] overflow-y-auto">
                   {sortedDates.map((date) => (
                     <button
                       key={date}

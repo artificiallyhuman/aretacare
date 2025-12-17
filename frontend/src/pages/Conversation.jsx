@@ -199,7 +199,8 @@ const Conversation = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeSessionId]);
 
-  // Handle scroll to bottom after session switch (waits for images to load)
+  // Handle scroll to bottom after session switch
+  // Uses RAF loop to scroll until scrollHeight stabilizes
   useEffect(() => {
     if (!sessionSwitchScrollPending.current || messages.length === 0) {
       return;
@@ -216,52 +217,32 @@ const Conversation = () => {
     const container = messagesContainerRef.current;
     if (!container) return;
 
-    // Find all images in the rendered messages
-    const images = container.querySelectorAll('img');
+    // Track scrollHeight stability
+    let lastScrollHeight = 0;
+    let stableFrames = 0;
+    let animationId;
 
-    if (images.length === 0) {
-      // No images - use double RAF to ensure DOM is fully laid out
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => scrollToBottom('auto'));
-      });
-      return;
-    }
+    // Scroll loop: keeps scrolling until scrollHeight is stable
+    // This handles async content (markdown, images, fonts) naturally
+    const scrollLoop = () => {
+      const currentScrollHeight = container.scrollHeight;
+      container.scrollTop = currentScrollHeight;
 
-    // Track state for this scroll operation
-    let loadedCount = 0;
-    let hasScrolled = false;
-    const totalImages = images.length;
-
-    const doScroll = () => {
-      if (hasScrolled) return; // Prevent duplicate scrolls
-      hasScrolled = true;
-      // Double RAF to ensure DOM is fully laid out after image loads
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => scrollToBottom('auto'));
-      });
-    };
-
-    const onImageLoad = () => {
-      loadedCount++;
-      if (loadedCount >= totalImages) {
-        doScroll();
-      }
-    };
-
-    // Check each image
-    images.forEach(img => {
-      if (img.complete && img.naturalHeight !== 0) {
-        onImageLoad();
+      if (currentScrollHeight === lastScrollHeight) {
+        stableFrames++;
+        // Stop after scrollHeight stable for ~300ms (20 frames at 60fps)
+        if (stableFrames >= 20) return;
       } else {
-        img.addEventListener('load', onImageLoad, { once: true });
-        img.addEventListener('error', onImageLoad, { once: true });
+        lastScrollHeight = currentScrollHeight;
+        stableFrames = 0;
       }
-    });
 
-    // Fallback: scroll after a delay in case images take too long
-    const fallbackTimer = setTimeout(doScroll, 800);
+      animationId = requestAnimationFrame(scrollLoop);
+    };
 
-    return () => clearTimeout(fallbackTimer);
+    animationId = requestAnimationFrame(scrollLoop);
+
+    return () => cancelAnimationFrame(animationId);
   }, [messages]);
 
   // Periodic check for daily plan (every 30 minutes)
