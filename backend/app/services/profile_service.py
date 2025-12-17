@@ -825,8 +825,14 @@ class ProfileService:
                 Conversation.session_id == session_id
             )
             if profile.last_processed_conversation_id:
+                # Use ID-based filter if we have a last processed ID
                 conv_count = conv_count.filter(
                     Conversation.id > profile.last_processed_conversation_id
+                )
+            else:
+                # Fallback to time-based filter using profile creation time
+                conv_count = conv_count.filter(
+                    Conversation.created_at > profile.created_at
                 )
             new_convs = conv_count.count()
 
@@ -835,8 +841,14 @@ class ProfileService:
                 JournalEntry.session_id == session_id
             )
             if profile.last_processed_journal_id:
+                # Use ID-based filter if we have a last processed ID
                 journal_count = journal_count.filter(
                     JournalEntry.id > profile.last_processed_journal_id
+                )
+            else:
+                # Fallback to time-based filter using profile creation time
+                journal_count = journal_count.filter(
+                    JournalEntry.created_at > profile.created_at
                 )
             new_journals = journal_count.count()
 

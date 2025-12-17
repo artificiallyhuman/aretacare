@@ -28,6 +28,8 @@ AretaCare was built from exactly this experience—sitting beside a loved one in
 
 **Daily Plan** — AI-generated summaries of today's priorities, important reminders, and questions to ask at your next appointment. Fully editable and regenerated daily based on your current situation. Each collaborator sees their own "new plan" notifications for independent tracking. Copy plans to your clipboard as formatted text for sharing with family or healthcare providers. Plans are generated from comprehensive context including all journal entries, recent conversations, latest documents, and previous plans.
 
+**Care Profile** — AI-powered long-term memory that builds a comprehensive picture of the care situation. Automatically extracts and organizes: patient information, caregivers, healthcare providers, conditions, medications, allergies, significant events, and preferences. Updates incrementally from conversations and journal entries. You control all data—AI proposes changes through a diff view, and you approve or reject each one. Supports copy-to-clipboard and PDF export. Access at `/profile` (not shown in navigation menu).
+
 **Documents** — AI-powered document manager with 12 categories for organizing medical records. Upload PDFs, images (PNG, JPG), and text files up to 20MB. Documents are automatically categorized by AI, text is extracted (PDFs via pypdf, images via OCR), and thumbnails are generated for quick preview. Search by content, navigate by date, and edit AI-generated descriptions (up to 200 characters). Journal entries are automatically created from meaningful uploads.
 
 **Audio Recordings** — AI-powered audio manager with 12 categories for organizing voice notes and appointment recordings. Upload audio files (MP3, M4A, WAV, WebM, OGG) up to 20MB or record directly in the app with live waveform visualization and 15-minute countdown timer. Audio is automatically transcribed (using GPT-4o-transcribe), categorized by AI, and converted to browser-friendly MP3 format. Long files are automatically chunked for processing. Search by content, navigate by date, and edit AI-generated summaries (up to 150 characters).
@@ -36,9 +38,9 @@ AretaCare was built from exactly this experience—sitting beside a loved one in
 
 **Account Security** — Comprehensive email notifications keep you informed of important account changes including password updates, email changes, session collaboration activities, and password reset requests. Password reset via email with time-limited tokens (1-hour expiration). JWT-based authentication with 7-day token expiration.
 
-**Feedback** — Share bug reports, improvement suggestions, feature requests, or general feedback through the built-in contact form. Access via the floating tab on desktop or "Send Feedback" in the mobile menu. Includes hCaptcha spam prevention, rate limiting (3 submissions/hour), and dual email notifications (team receives detailed report, user receives confirmation). Source page tracking helps diagnose issues.
+**Feedback** — Share bug reports, improvement suggestions, feature requests, or general feedback through the built-in contact form. Access via the floating tab on desktop or "Feedback" in the mobile menu. Includes hCaptcha spam prevention, rate limiting (3 submissions/hour), and dual email notifications (team receives detailed report, user receives confirmation). Source page tracking helps diagnose issues.
 
-**Admin Console** — For administrators (configured via ADMIN_EMAILS): Timezone-aware metrics dashboard with interactive charts tracking users, sessions, collaborators, pending invitations, messages, journal entries, documents, audio recordings, errors, and security events. Tools include user management with search and activity tracking, inactive account detection, error logs with filtering and 30-day auto-cleanup, security logs, system health monitoring, S3 orphan file detection and cleanup, and audit logging with automatic retention (90 days default). All timestamps display in the admin's local timezone.
+**Admin Console** — For administrators (configured via ADMIN_EMAILS): Timezone-aware metrics dashboard with interactive charts tracking users, sessions, collaborators, pending invitations, messages, journal entries, documents, audio recordings, errors, and security events. Tools include user management with search and activity tracking, inactive account detection, error logs with filtering, security logs, API logs with time range filter (1/7/30 days), system health monitoring, S3 orphan file detection and cleanup, and audit logging. All log tables auto-cleanup on startup (audit: 90 days, error/API: 30 days, security: 90 days). All timestamps display in the admin's local timezone.
 
 ---
 
@@ -99,6 +101,8 @@ ADMIN_EMAILS=your-email@example.com
 S3_KEY_PREFIX=dev/                    # For shared S3 buckets
 AUDIT_LOG_RETENTION_DAYS=90          # Auto-delete audit logs (default: 90)
 ERROR_LOG_RETENTION_DAYS=30          # Auto-delete error logs (default: 30)
+API_LOG_RETENTION_DAYS=30            # Auto-delete API logs (default: 30)
+SECURITY_LOG_RETENTION_DAYS=90       # Auto-delete security logs (default: 90)
 RESET_DB=false                        # Set to "true" to reset database on startup
 ```
 
@@ -148,7 +152,7 @@ docker compose down -v   # Stop and reset database
 - **Centralized AI config** - All models, prompts, and safety boundaries in `backend/app/config/ai_config.py`
 - **Email notifications** - SMTP integration for password reset, account changes, and collaboration
 - **Security logging** - Invalid token tracking, IP logging, security event monitoring
-- **Auto-cleanup** - Audit logs (90 days), error logs (30 days), expired invitations (30 days)
+- **Auto-cleanup on startup** - Audit logs (90 days), error logs (30 days), API logs (30 days), security logs (90 days), expired invitations (30 days)
 
 ---
 
@@ -158,16 +162,16 @@ docker compose down -v   # Stop and reset database
 aretacare/
 ├── backend/
 │   └── app/
-│       ├── api/              # FastAPI routes (auth, sessions, documents, audio, conversation, journal, daily plans, tools, admin)
+│       ├── api/              # FastAPI routes (auth, sessions, documents, audio, conversation, journal, daily plans, profile, tools, admin)
 │       ├── config/           # AI configuration (models, prompts, safety boundaries, categories)
 │       ├── core/             # Auth utilities, migrations, config
-│       ├── models/           # SQLAlchemy models (12 tables: users, sessions, collaborators, documents, audio, conversations, journal, daily plans, logs, migration_history)
+│       ├── models/           # SQLAlchemy models (14 tables: users, sessions, collaborators, profiles, documents, audio, conversations, journal, daily plans, audit/error/api/security logs, migration_history)
 │       ├── schemas/          # Pydantic schemas for API validation
-│       ├── services/         # Business logic (OpenAI, S3, document processing, email, admin, journal, daily plan)
+│       ├── services/         # Business logic (OpenAI, S3, document processing, email, admin, journal, daily plan, profile)
 │       └── main.py           # FastAPI app initialization
 ├── frontend/
 │   └── src/
-│       ├── pages/            # React pages (Conversation, Journal, DailyPlan, Collaboration, Settings, Documents, AudioRecordings, Tools, Admin)
+│       ├── pages/            # React pages (Conversation, Journal, DailyPlan, Profile, Collaboration, Settings, Documents, AudioRecordings, Tools, Admin)
 │       ├── components/       # UI components (Header, MessageBubble, MessageInput, AudioWaveform, DailyPlanPanel, NetworkStatusBanner)
 │       ├── contexts/         # State management (SessionContext, ThemeContext, AdminContext, NetworkContext)
 │       ├── services/         # API client (axios with auth interceptor)
@@ -203,6 +207,7 @@ aretacare/
 - **Conversation interface** with GPT-5.2, "Thinking..." status, markdown rendering, copy-to-clipboard (converts markdown to formatted HTML)
 - **Journal synthesis** - Automatically creates entries from conversations, documents, and audio using native file support (6 entry types: medical update, treatment change, appointment, insight, milestone, other). Analyzes actual files for faster, more accurate synthesis.
 - **Daily plan generation** - AI-generated daily priorities, reminders, and questions based on comprehensive context
+- **Care Profile** - AI-powered long-term memory organizing patient info, caregivers, providers, conditions, medications, allergies, events, and preferences. Incremental updates with user-controlled diff review, copy-to-clipboard and PDF export
 - **Document categorization** - 12 categories with AI-generated descriptions (user-editable, max 200 characters)
 - **Audio categorization** - 12 categories with AI-generated summaries (user-editable, max 150 characters)
 - **Jargon Translator** - Explains medical terminology with journal context, supports audio input
@@ -234,11 +239,13 @@ Requires email in `ADMIN_EMAILS` environment variable. Features include:
 - **Timezone-aware metrics dashboard** with interactive charts (users, sessions, collaborators, pending invitations, messages, journal entries, documents, audio, errors, security)
 - **User management** with search and activity tracking
 - **Inactive account detection** and email notifications
-- **Error logs** with filtering and 30-day auto-cleanup
-- **Security logs** for monitoring authentication attempts
+- **Error logs** with filtering (30-day auto-cleanup)
+- **Security logs** for monitoring authentication attempts (90-day auto-cleanup)
+- **API logs** with time range filter (1/7/30 days), tracks OpenAI API usage (30-day auto-cleanup)
 - **System health monitoring**
 - **S3 orphan file detection** and cleanup
 - **Audit logging** with automatic retention (90 days default)
+- All log tables auto-cleanup on server startup
 
 ---
 
@@ -266,7 +273,7 @@ AretaCare deploys to Render using the included `render.yaml` blueprint:
 2. Connect repository in Render dashboard
 3. Add environment variables:
    - **Required**: `OPENAI_API_KEY`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `S3_BUCKET_NAME`, `ADMIN_EMAILS`
-   - **Optional**: `S3_KEY_PREFIX` (for shared S3 buckets), `AUDIT_LOG_RETENTION_DAYS`, `ERROR_LOG_RETENTION_DAYS`
+   - **Optional**: `S3_KEY_PREFIX` (for shared S3 buckets), `AUDIT_LOG_RETENTION_DAYS`, `ERROR_LOG_RETENTION_DAYS`, `API_LOG_RETENTION_DAYS`, `SECURITY_LOG_RETENTION_DAYS`
    - **Auto-configured**: `DATABASE_URL`, `SECRET_KEY`, `CORS_ORIGINS`
 4. Deploy
 

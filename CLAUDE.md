@@ -25,7 +25,7 @@ AretaCare is an AI-powered medical care advocate assistant that helps families u
 - AI-powered Documents Manager (12 categories, AI descriptions, searchable, date navigation, direct upload)
 - AI-powered Audio Recordings (12 categories, AI summaries, searchable, date navigation, direct upload)
 - Complete data deletion - removes PostgreSQL data and S3 files (zero orphaned files)
-- Admin console - timezone-aware metrics dashboard with charts for users/sessions/collaborators/pending invitations/messages/journal entries/documents/audio/errors/security, system health, S3 orphan cleanup, audit logging with automatic retention, error logs with filtering and cleanup, security logs. All timestamps display in admin's local timezone.
+- Admin console - timezone-aware metrics dashboard with charts for users/sessions/collaborators/pending invitations/messages/journal entries/documents/audio/errors/security, system health, S3 orphan cleanup, audit logging with automatic retention, error logs with filtering and cleanup, security logs, API logs with time range filter (1/7/30 days). All timestamps display in admin's local timezone. All log tables auto-cleanup on startup.
 - Mobile-optimized design with responsive layouts
 - Dark mode support via Tailwind CSS and ThemeContext
 - Network status monitoring with offline detection and reconnection banner
@@ -64,7 +64,7 @@ python -c "import secrets; print(secrets.token_urlsafe(32))"  # Generate secret 
 - Protected routes redirect to login if not authenticated
 
 **Database (PostgreSQL)**
-- Thirteen main tables: `users`, `sessions`, `session_collaborators`, `profiles`, `documents`, `audio_recordings`, `conversations`, `journal_entries`, `daily_plans`, `daily_plan_views`, `admin_audit_logs`, `security_logs`, `error_logs`, `migration_history`
+- Fourteen main tables: `users`, `sessions`, `session_collaborators`, `profiles`, `documents`, `audio_recordings`, `conversations`, `journal_entries`, `daily_plans`, `daily_plan_views`, `admin_audit_logs`, `security_logs`, `error_logs`, `api_logs`, `migration_history`
 - User table stores authentication credentials (bcrypt hashed passwords) and password reset tokens (time-limited, 1-hour expiration)
 - **Sessions table** tied to user accounts via foreign key, supports up to 3 owned sessions per user (collaborator sessions don't count), includes `owner_id` for session ownership, name field (15-character limit, default "Session N"), created_at for automatic numbering
 - **Session collaborators table** links users to shared sessions with unique constraint on (session_id, user_id), cascading deletes when session or user is deleted
@@ -74,7 +74,9 @@ python -c "import secrets; print(secrets.token_urlsafe(32))"  # Generate secret 
 - Journal entries with AI-generated content, metadata, and entry types
 - Daily plans with AI-generated content, user edits, and date tracking
 - **Daily plan views table** tracks per-user view status - each collaborator has independent view tracking, ensures "new plan" banners show correctly for each user
-- **Error logs table** stores application errors (OpenAI API, S3, uploads, etc.) for debugging in production, auto-cleanup after 30 days
+- **Error logs table** stores application errors (OpenAI API, S3, uploads, etc.) for debugging in production, auto-cleanup on startup (30 days retention)
+- **API logs table** tracks all OpenAI API calls (feature, model, tokens, response time, success/failure), auto-cleanup on startup (30 days retention)
+- **Security logs table** tracks authentication events (logins, failures, password changes), auto-cleanup on startup (90 days retention)
 - **Conversations table** includes rich media support (message_type, document_id, media_url fields) and edit tracking (updated_at field is NULL for unedited messages, set to timestamp when edited)
 - Cascading deletes: deleting user removes all sessions and associated data (including S3 files), deleting individual session removes all session data
 - **Database migrations** run automatically on startup via `run_migrations()` in `backend/app/core/migrations.py`; one-time data migrations are tracked in `migration_history` table to prevent re-running
@@ -245,10 +247,10 @@ See `backend/app/config/README.md` for complete documentation on modifying AI be
 - `About.jsx`, `TermsOfService.jsx`, `PrivacyPolicy.jsx` - Info pages
 - `Contact.jsx` - Feedback form with hCaptcha, source page tracking, and return navigation
 - `tools/JargonTranslator.jsx`, `tools/ConversationCoach.jsx` - Standalone AI tools
-- `admin/` - Admin console pages (Dashboard with timezone-aware charts, ErrorLogs, SecurityLogs, Health, Accounts, Users, S3Cleanup, AdminLogs)
+- `admin/` - Admin console pages (Dashboard with timezone-aware charts, ErrorLogs, SecurityLogs, ApiLogs, Health, Accounts, Users, S3Cleanup, AdminLogs)
 
 **Components** (`frontend/src/components/`):
-- `Header.jsx` - Navigation with session switcher, top-level Collaboration link, and mobile "Send Feedback" menu item
+- `Header.jsx` - Navigation with session switcher, top-level Collaboration link, and mobile "Feedback" menu item
 - `MessageBubble.jsx` - Chat message display with message editing (Edit button for user messages, inline textarea, "(edited)" indicator), copy-to-clipboard, and contextual timestamps
 - `MessageInput.jsx` - Chat input with audio recording
 - `AudioWaveform.jsx` - Real-time waveform visualization
@@ -290,6 +292,9 @@ Backend requires (`backend/.env`):
 - `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM_EMAIL`, `SMTP_FROM_NAME`, `FRONTEND_URL` - For email notifications: password reset, password changes, email changes, collaborator management (see docs/EMAIL_SETUP.md)
 - `ADMIN_EMAILS` - Comma-separated list of admin email addresses (e.g., `admin@example.com,other@example.com`)
 - `AUDIT_LOG_RETENTION_DAYS` - Auto-delete audit logs older than this (default: 90)
+- `ERROR_LOG_RETENTION_DAYS` - Auto-delete error logs older than this (default: 30)
+- `API_LOG_RETENTION_DAYS` - Auto-delete API logs older than this (default: 30)
+- `SECURITY_LOG_RETENTION_DAYS` - Auto-delete security logs older than this (default: 90)
 - `S3_KEY_PREFIX` - Environment prefix for shared S3 buckets (e.g., `dev/` or `prod/`)
 - `RESET_DB` - Optional: Set to "true" to drop and recreate database on startup (development/production)
 
@@ -418,7 +423,7 @@ Services: PostgreSQL DB, FastAPI backend, React static site
 
 Required env vars: `OPENAI_API_KEY`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `S3_BUCKET_NAME`, `ADMIN_EMAILS`
 
-Optional: `S3_KEY_PREFIX` (for shared buckets), `AUDIT_LOG_RETENTION_DAYS` (default: 90)
+Optional: `S3_KEY_PREFIX` (for shared buckets), `AUDIT_LOG_RETENTION_DAYS` (default: 90), `ERROR_LOG_RETENTION_DAYS` (default: 30), `API_LOG_RETENTION_DAYS` (default: 30), `SECURITY_LOG_RETENTION_DAYS` (default: 90)
 
 Auto-configured: `DATABASE_URL`, `SECRET_KEY`, `CORS_ORIGINS`
 
