@@ -178,58 +178,105 @@ export default function AdminApiLogs() {
             No API logs found in the last 24 hours
           </div>
         ) : (
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[900px]">
-                <thead className="bg-gray-50 dark:bg-gray-700">
-                  <tr>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Time</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Feature</th>
-                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Input Tokens</th>
-                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Output Tokens</th>
-                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Response Time</th>
-                    <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Status</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">User ID</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                  {data.logs.map((log) => (
-                    <tr key={log.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
-                      <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400 whitespace-nowrap">
-                        {formatLocalDateTime(log.created_at)}
-                      </td>
-                      <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">
-                        {featureLabels[log.feature] || log.feature}
-                      </td>
-                      <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400 text-right font-mono">
-                        {log.input_tokens.toLocaleString()}
-                      </td>
-                      <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400 text-right font-mono">
-                        {log.output_tokens.toLocaleString()}
-                      </td>
-                      <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400 text-right font-mono">
-                        {formatMs(log.response_time_ms)}
-                      </td>
-                      <td className="px-4 py-3 text-center">
-                        {log.success ? (
-                          <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300">
-                            Success
-                          </span>
-                        ) : (
-                          <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300" title={log.error_message}>
-                            Failed
-                          </span>
-                        )}
-                      </td>
-                      <td className="px-4 py-3 text-sm text-gray-500 dark:text-gray-500 font-mono truncate max-w-[120px]" title={log.user_id}>
-                        {log.user_id ? log.user_id.substring(0, 8) + '...' : '-'}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+          <>
+            {/* Mobile: Card-based layout */}
+            <div className="md:hidden space-y-3">
+              {data.logs.map((log) => (
+                <div key={log.id} className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm font-medium text-gray-900 dark:text-white">
+                      {featureLabels[log.feature] || log.feature}
+                    </span>
+                    {log.success ? (
+                      <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300">
+                        Success
+                      </span>
+                    ) : (
+                      <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300">
+                        Failed
+                      </span>
+                    )}
+                  </div>
+                  <div className="text-xs text-gray-500 dark:text-gray-400 mb-3">
+                    {formatLocalDateTime(log.created_at)}
+                  </div>
+                  <div className="grid grid-cols-3 gap-2 text-center">
+                    <div>
+                      <div className="text-xs text-gray-500 dark:text-gray-400">Input</div>
+                      <div className="text-sm font-mono text-gray-900 dark:text-white">{formatTokens(log.input_tokens)}</div>
+                    </div>
+                    <div>
+                      <div className="text-xs text-gray-500 dark:text-gray-400">Output</div>
+                      <div className="text-sm font-mono text-gray-900 dark:text-white">{formatTokens(log.output_tokens)}</div>
+                    </div>
+                    <div>
+                      <div className="text-xs text-gray-500 dark:text-gray-400">Time</div>
+                      <div className="text-sm font-mono text-gray-900 dark:text-white">{formatMs(log.response_time_ms)}</div>
+                    </div>
+                  </div>
+                  {log.user_id && (
+                    <div className="mt-2 pt-2 border-t border-gray-100 dark:border-gray-700">
+                      <span className="text-xs text-gray-400 dark:text-gray-500 font-mono">{log.user_id.substring(0, 12)}...</span>
+                    </div>
+                  )}
+                </div>
+              ))}
             </div>
-          </div>
+
+            {/* Desktop: Table layout */}
+            <div className="hidden md:block bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-gray-50 dark:bg-gray-700">
+                    <tr>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Time</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Feature</th>
+                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Input Tokens</th>
+                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Output Tokens</th>
+                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Response Time</th>
+                      <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Status</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">User ID</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                    {data.logs.map((log) => (
+                      <tr key={log.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                        <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400 whitespace-nowrap">
+                          {formatLocalDateTime(log.created_at)}
+                        </td>
+                        <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">
+                          {featureLabels[log.feature] || log.feature}
+                        </td>
+                        <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400 text-right font-mono">
+                          {log.input_tokens.toLocaleString()}
+                        </td>
+                        <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400 text-right font-mono">
+                          {log.output_tokens.toLocaleString()}
+                        </td>
+                        <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400 text-right font-mono">
+                          {formatMs(log.response_time_ms)}
+                        </td>
+                        <td className="px-4 py-3 text-center">
+                          {log.success ? (
+                            <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300">
+                              Success
+                            </span>
+                          ) : (
+                            <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300" title={log.error_message}>
+                              Failed
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-4 py-3 text-sm text-gray-500 dark:text-gray-500 font-mono truncate max-w-[120px]" title={log.user_id}>
+                          {log.user_id ? log.user_id.substring(0, 8) + '...' : '-'}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </>
         )}
 
         {/* Info about data window */}

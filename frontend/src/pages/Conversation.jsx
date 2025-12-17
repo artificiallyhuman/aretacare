@@ -8,7 +8,7 @@ import MessageInput from '../components/MessageInput';
 import DailyPlanPanel from '../components/DailyPlan/DailyPlanPanel';
 import TypingIndicator from '../components/TypingIndicator';
 
-const MESSAGE_PAGE_SIZE = 50;
+const MESSAGE_PAGE_SIZE = 25;
 
 const Conversation = () => {
   const { activeSessionId, loading: sessionLoading } = useSessionContext();
