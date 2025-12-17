@@ -7,6 +7,13 @@ from typing import Optional
 class MessageRequest(BaseModel):
     content: str
     session_id: str
+    message_type: str = "text"
+    document_id: Optional[int] = None
+    audio_recording_id: Optional[int] = None
+    media_url: Optional[str] = None
+    entry_date: Optional[str] = None
+    user_timezone: Optional[str] = None
+    current_time: Optional[str] = None
 
 
 class MessageResponse(BaseModel):
@@ -32,18 +39,10 @@ class ConversationHistory(BaseModel):
     has_more: bool
 
 
-class MedicalSummaryRequest(BaseModel):
-    medical_text: str
-    session_id: str
-
-
-class MedicalSummaryResponse(BaseModel):
-    content: str
-
-
 class JargonTranslationRequest(BaseModel):
     medical_term: str
     context: str = ""
+    session_id: Optional[str] = None
 
 
 class JargonTranslationResponse(BaseModel):
@@ -54,7 +53,7 @@ class JargonTranslationResponse(BaseModel):
 
 class ConversationCoachRequest(BaseModel):
     situation: str
-    session_id: str
+    session_id: Optional[str] = None
 
 
 class ConversationCoachResponse(BaseModel):

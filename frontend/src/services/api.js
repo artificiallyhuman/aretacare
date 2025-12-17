@@ -135,7 +135,7 @@ export const documentAPI = {
 // Conversation API (new)
 export const conversationAPI = {
   sendMessage: (data) =>
-    api.post('/conversation/message', null, { params: data }),
+    api.post('/conversation/message', data),
   getHistory: (sessionId, limit = 50, offset = 0) =>
     api.get(`/conversation/${sessionId}/history`, { params: { limit, offset } }),
   transcribeAudio: (audioFile, sessionId, skipJournalSynthesis = false) => {
@@ -206,12 +206,10 @@ export const dailyPlanAPI = {
 
 // Tools API (new - standalone with optional journal context)
 export const toolsAPI = {
-  generateSummary: (medicalText) =>
-    api.post('/tools/medical-summary', null, { params: { medical_text: medicalText } }),
   translateJargon: (medicalTerm, context = '', sessionId = null) =>
-    api.post('/tools/jargon-translator', null, { params: { medical_term: medicalTerm, context, session_id: sessionId } }),
+    api.post('/tools/jargon-translator', { medical_term: medicalTerm, context, session_id: sessionId }),
   getConversationCoach: (situation, sessionId = null) =>
-    api.post('/tools/conversation-coach', null, { params: { situation, session_id: sessionId } }),
+    api.post('/tools/conversation-coach', { situation, session_id: sessionId }),
 };
 
 // Admin API

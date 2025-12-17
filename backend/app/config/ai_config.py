@@ -127,22 +127,6 @@ When responding to conversational messages:
 # TASK-SPECIFIC PROMPTS
 # ============================================================================
 
-def get_medical_summary_prompt(medical_text: str) -> str:
-    """Generate prompt for medical text summarization"""
-    return f"""Please analyze the following medical information and provide a structured summary.
-
-Medical Information:
-{medical_text}
-
-Remember to:
-- Only summarize what is explicitly stated
-- Flag any unclear or ambiguous information
-- Avoid making diagnoses or predictions
-- Use clear, non-alarmist language
-- Encourage confirmation with healthcare providers
-"""
-
-
 def get_jargon_translation_prompt(medical_term: str, context: str = "") -> str:
     """Generate prompt for medical jargon translation"""
     return f"""Please explain the following medical term in simple, clear language:
@@ -346,8 +330,6 @@ AUDIO_CLASSIFIER_PROMPT = "You are a medical audio recording classifier. Always 
 # ============================================================================
 # FALLBACK MESSAGES
 # ============================================================================
-
-FALLBACK_SUMMARY = "Unable to generate summary at this time. Please consult with your healthcare team directly."
 
 FALLBACK_JARGON_TRANSLATION = "Please ask your healthcare team to explain '{term}' in the context of your loved one's care."
 

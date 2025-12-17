@@ -1,9 +1,11 @@
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, Request
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 from app.core.database import get_db
 from app.core.rate_limit import limiter, RateLimits
 from app.models import User, Session as SessionModel, Conversation, Document, AudioRecording
 from app.models.conversation import MessageRole, MessageType
+from app.models.journal import JournalEntry
 from app.schemas.conversation import MessageRequest, MessageResponse, ConversationHistory, UpdateMessageRequest, UpdateMessageResponse
 from app.services.openai_service import openai_service
 from app.services.journal_service import JournalService
@@ -12,7 +14,7 @@ from app.services.security_service import SecurityService
 from app.api.auth import get_current_user
 from app.api.permissions import check_session_access
 from typing import Optional
-from datetime import datetime, date as date_type
+from datetime import datetime, date as date_type, timedelta
 import uuid
 import logging
 import io
@@ -34,6 +36,57 @@ def _export_audio_segment(audio_segment: AudioSegment, output_path: str, format:
     """Export audio segment to file (CPU-intensive)"""
     audio_segment.export(output_path, format=format)
 
+
+def _calculate_usage_patterns(db: Session, session_id: str) -> dict:
+    """Calculate usage patterns for the current session"""
+    now = datetime.utcnow()
+
+    # Calculate time ranges
+    one_day_ago = now - timedelta(days=1)
+    seven_days_ago = now - timedelta(days=7)
+    thirty_days_ago = now - timedelta(days=30)
+
+    # Count conversations in each time period
+    conversations_1d = db.query(func.count(Conversation.id)).filter(
+        Conversation.session_id == session_id,
+        Conversation.created_at >= one_day_ago
+    ).scalar() or 0
+
+    conversations_7d = db.query(func.count(Conversation.id)).filter(
+        Conversation.session_id == session_id,
+        Conversation.created_at >= seven_days_ago
+    ).scalar() or 0
+
+    conversations_30d = db.query(func.count(Conversation.id)).filter(
+        Conversation.session_id == session_id,
+        Conversation.created_at >= thirty_days_ago
+    ).scalar() or 0
+
+    # Count journal entries in each time period
+    journal_1d = db.query(func.count(JournalEntry.id)).filter(
+        JournalEntry.session_id == session_id,
+        JournalEntry.created_at >= one_day_ago
+    ).scalar() or 0
+
+    journal_7d = db.query(func.count(JournalEntry.id)).filter(
+        JournalEntry.session_id == session_id,
+        JournalEntry.created_at >= seven_days_ago
+    ).scalar() or 0
+
+    journal_30d = db.query(func.count(JournalEntry.id)).filter(
+        JournalEntry.session_id == session_id,
+        JournalEntry.created_at >= thirty_days_ago
+    ).scalar() or 0
+
+    return {
+        "conversations_1d": conversations_1d,
+        "conversations_7d": conversations_7d,
+        "conversations_30d": conversations_30d,
+        "journal_entries_1d": journal_1d,
+        "journal_entries_7d": journal_7d,
+        "journal_entries_30d": journal_30d
+    }
+
 router = APIRouter(prefix="/conversation", tags=["conversation"])
 
 
@@ -41,17 +94,22 @@ router = APIRouter(prefix="/conversation", tags=["conversation"])
 @limiter.limit(RateLimits.AI_CHAT)
 async def send_message(
     request: Request,
-    content: str,
-    session_id: str,
-    message_type: str = "text",
-    document_id: Optional[int] = None,
-    audio_recording_id: Optional[int] = None,
-    media_url: Optional[str] = None,
-    entry_date: Optional[str] = None,  # User's local date (YYYY-MM-DD)
+    message_request: MessageRequest,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """Send a message in the conversation (with optional rich media)"""
+    # Extract parameters from request model
+    content = message_request.content
+    session_id = message_request.session_id
+    message_type = message_request.message_type
+    document_id = message_request.document_id
+    audio_recording_id = message_request.audio_recording_id
+    media_url = message_request.media_url
+    entry_date = message_request.entry_date
+    user_timezone = message_request.user_timezone
+    current_time = message_request.current_time
+
     # Verify user has access to session (owner or collaborator)
     session = db.query(SessionModel).filter(SessionModel.id == session_id).first()
     if not session:
@@ -104,7 +162,10 @@ async def send_message(
         if extracted_text:
             complete_message = f"{content}\n\n[Document content]:\n{extracted_text}"
 
-        # Get AI response with journal context and native file/image support
+        # Calculate usage patterns for user context
+        usage_patterns = _calculate_usage_patterns(db, session_id)
+
+        # Get AI response with journal context, usage metadata, and native file/image support
         ai_response_text = await openai_service.chat_with_journal(
             message=content,  # Don't include extracted text - use native file support
             conversation_history=history_messages,
@@ -112,6 +173,9 @@ async def send_message(
             recent_journal_context=recent_journal,
             document_url=generated_media_url if document_id else None,
             document_type=message_type if document_id else None,
+            user_timezone=user_timezone,
+            current_time=current_time,
+            usage_patterns=usage_patterns,
             user_id=current_user.id
         )
 

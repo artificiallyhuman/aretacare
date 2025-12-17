@@ -167,115 +167,6 @@ class OpenAIService:
 
             return None
 
-    async def generate_medical_summary(
-        self,
-        medical_text: str,
-        context: List[Dict[str, str]] = None,
-        user_id: Optional[str] = None
-    ) -> Dict:
-        """Generate structured medical summary from provided text"""
-
-        prompt = ai_config.get_medical_summary_prompt(medical_text)
-
-        messages = [{"role": "system", "content": ai_config.SYSTEM_PROMPT}]
-
-        if context:
-            messages.extend(context[-ai_config.MAX_SUMMARY_CONTEXT:])
-
-        messages.append({"role": "user", "content": prompt})
-
-        response = self._create_chat_completion(messages, feature="medical_summary", user_id=user_id)
-
-        if response:
-            return {"content": response}
-        else:
-            return {"content": ai_config.FALLBACK_SUMMARY}
-
-    def _parse_medical_summary(self, response: str) -> Dict:
-        """Parse structured summary from response, preserving markdown"""
-        lines = response.split('\n')
-
-        summary = []
-        key_changes = []
-        questions = []
-        family_notes = []
-
-        current_section = None
-        current_item = []
-
-        def is_bullet_start(line):
-            """Check if line starts a new bullet point"""
-            stripped = line.lstrip()
-            return (stripped.startswith('-') or
-                   stripped.startswith('•') or
-                   (len(stripped) > 0 and stripped[0].isdigit() and '.' in stripped[:3]))
-
-        def save_current_item():
-            """Save accumulated item to appropriate section"""
-            if not current_item:
-                return
-            content = '\n'.join(current_item).strip()
-            if not content:
-                return
-
-            if current_section == "changes":
-                key_changes.append(content)
-            elif current_section == "questions":
-                questions.append(content)
-
-        for line in lines:
-            stripped_line = line.strip()
-            if not stripped_line:
-                continue
-
-            lower_line = stripped_line.lower()
-
-            # Check for section headers
-            if "summary of update" in lower_line or (lower_line == "summary" or lower_line.startswith("## summary")):
-                save_current_item()
-                current_item = []
-                current_section = "summary"
-                continue
-            elif "key changes" in lower_line or "findings" in lower_line:
-                save_current_item()
-                current_item = []
-                current_section = "changes"
-                continue
-            elif "recommended questions" in lower_line or lower_line.startswith("## questions"):
-                save_current_item()
-                current_item = []
-                current_section = "questions"
-                continue
-            elif "family notes" in lower_line or "next actions" in lower_line:
-                save_current_item()
-                current_item = []
-                current_section = "notes"
-                continue
-
-            # Handle content based on section
-            if current_section == "summary":
-                summary.append(stripped_line)
-            elif current_section == "notes":
-                family_notes.append(stripped_line)
-            elif current_section in ["changes", "questions"]:
-                # If this is a new bullet point, save previous and start new
-                if is_bullet_start(line):
-                    save_current_item()
-                    current_item = [stripped_line]
-                else:
-                    # Continue accumulating content for current bullet
-                    current_item.append(stripped_line)
-
-        # Save any remaining item
-        save_current_item()
-
-        return {
-            "summary": '\n'.join(summary).strip(),
-            "key_changes": key_changes,
-            "recommended_questions": questions,
-            "family_notes": '\n'.join(family_notes).strip()
-        }
-
     async def translate_jargon(
         self,
         medical_term: str,
@@ -554,6 +445,9 @@ class OpenAIService:
         recent_journal_context: str = "",
         document_url: Optional[str] = None,
         document_type: Optional[str] = None,
+        user_timezone: Optional[str] = None,
+        current_time: Optional[str] = None,
+        usage_patterns: Optional[Dict] = None,
         # Legacy parameter for backwards compatibility
         journal_context: Optional[str] = None,
         user_id: Optional[str] = None
@@ -577,6 +471,28 @@ class OpenAIService:
             {"role": "system", "content": ai_config.SYSTEM_PROMPT},
             {"role": "system", "content": ai_config.CONVERSATION_INSTRUCTIONS}
         ]
+
+        # Add user metadata context (timezone, time, usage patterns)
+        if user_timezone or current_time or usage_patterns:
+            metadata_parts = ["---\nUSER CONTEXT METADATA:\n"]
+
+            if user_timezone and current_time:
+                metadata_parts.append(f"**User's Timezone:** {user_timezone}")
+                metadata_parts.append(f"**Current Time (User's Local Time):** {current_time}")
+
+            if usage_patterns:
+                metadata_parts.append("\n**Recent Activity:**")
+                metadata_parts.append(f"- Last 24 hours: {usage_patterns.get('conversations_1d', 0)} conversation messages (user + AI back-and-forth), {usage_patterns.get('journal_entries_1d', 0)} journal entries (AI-generated summaries)")
+                metadata_parts.append(f"- Last 7 days: {usage_patterns.get('conversations_7d', 0)} conversation messages, {usage_patterns.get('journal_entries_7d', 0)} journal entries")
+                metadata_parts.append(f"- Last 30 days: {usage_patterns.get('conversations_30d', 0)} conversation messages, {usage_patterns.get('journal_entries_30d', 0)} journal entries")
+
+            metadata_parts.append("\nNote: Conversation messages are the chat exchanges between user and AI. Journal entries are AI-generated daily summaries of important updates.")
+            metadata_parts.append("---")
+
+            messages.append({
+                "role": "system",
+                "content": "\n".join(metadata_parts)
+            })
 
         # Add background context (health profile + older journal) as assistant message
         # This provides long-term memory that complements short-term journal entries

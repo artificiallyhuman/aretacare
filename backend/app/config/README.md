@@ -59,7 +59,6 @@ Each feature has dedicated prompts and functions:
 
 | Feature | Function/Constant | Purpose |
 |---------|------------------|---------|
-| Medical Summary | `get_medical_summary_prompt()` | Summarize medical text |
 | Jargon Translation | `get_jargon_translation_prompt()` | Explain medical terms |
 | Conversation Coaching | `get_conversation_coaching_prompt()` | Help prepare for appointments |
 | Document Categorization | `get_document_categorization_prompt()` | Classify uploaded documents using native file support |
@@ -80,7 +79,6 @@ Document and audio categories are defined in:
 ### Fallback Messages
 
 Default responses when AI calls fail:
-- `FALLBACK_SUMMARY` - Medical summary failure
 - `FALLBACK_JARGON_TRANSLATION` - Translation failure
 - `FALLBACK_COACHING` - Coaching failure
 - `FALLBACK_CHAT` - Chat failure

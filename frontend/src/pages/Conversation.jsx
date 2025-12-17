@@ -504,6 +504,19 @@ const Conversation = () => {
       const today = new Date();
       const userDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
 
+      // Get user's timezone and current time in their local timezone
+      const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      const currentTime = today.toLocaleString('en-US', {
+        timeZone: userTimezone,
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: true
+      });
+
       // Mark that we're expecting an AI response
       expectingAIResponse.current = true;
 
@@ -517,14 +530,16 @@ const Conversation = () => {
         }
       });
 
-      // Send message
+      // Send message with user context (timezone, time, session activity)
       const response = await conversationAPI.sendMessage({
         content,
         session_id: activeSessionId,
         message_type: messageType,
         document_id: documentId,
         audio_recording_id: audioRecordingId,
-        entry_date: userDate
+        entry_date: userDate,
+        user_timezone: userTimezone,
+        current_time: currentTime
       });
 
       // Reload conversation history to get the real messages (user + AI response)
