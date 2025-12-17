@@ -78,7 +78,7 @@ export default function AdminApiLogs() {
 
         {/* Summary Cards */}
         {data?.summary && (
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
             <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4">
               <div className="text-sm text-gray-600 dark:text-gray-400">Total Requests</div>
               <div className="text-2xl font-bold text-gray-900 dark:text-white mt-1">
@@ -95,6 +95,18 @@ export default function AdminApiLogs() {
               </div>
             </div>
             <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4">
+              <div className="text-sm text-gray-600 dark:text-gray-400">Avg Response Time</div>
+              <div className="text-2xl font-bold text-gray-900 dark:text-white mt-1">
+                {formatMs(data.summary.avg_response_time_ms)}
+              </div>
+            </div>
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4">
+              <div className="text-sm text-gray-600 dark:text-gray-400">Total Tokens</div>
+              <div className="text-2xl font-bold text-gray-900 dark:text-white mt-1">
+                {formatTokens(data.summary.total_input_tokens + data.summary.total_output_tokens)}
+              </div>
+            </div>
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4">
               <div className="text-sm text-gray-600 dark:text-gray-400">Input Tokens</div>
               <div className="text-2xl font-bold text-blue-600 dark:text-blue-400 mt-1">
                 {formatTokens(data.summary.total_input_tokens)}
@@ -104,30 +116,6 @@ export default function AdminApiLogs() {
               <div className="text-sm text-gray-600 dark:text-gray-400">Output Tokens</div>
               <div className="text-2xl font-bold text-purple-600 dark:text-purple-400 mt-1">
                 {formatTokens(data.summary.total_output_tokens)}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Additional Metrics Row */}
-        {data?.summary && (
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4">
-              <div className="text-sm text-gray-600 dark:text-gray-400">Avg Response Time</div>
-              <div className="text-xl font-bold text-gray-900 dark:text-white mt-1">
-                {formatMs(data.summary.avg_response_time_ms)}
-              </div>
-            </div>
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4">
-              <div className="text-sm text-gray-600 dark:text-gray-400">Failed Requests</div>
-              <div className={`text-xl font-bold mt-1 ${data.summary.failed_requests > 0 ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'}`}>
-                {data.summary.failed_requests}
-              </div>
-            </div>
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4">
-              <div className="text-sm text-gray-600 dark:text-gray-400">Total Tokens</div>
-              <div className="text-xl font-bold text-gray-900 dark:text-white mt-1">
-                {formatTokens(data.summary.total_input_tokens + data.summary.total_output_tokens)}
               </div>
             </div>
           </div>

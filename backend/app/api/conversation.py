@@ -282,6 +282,7 @@ async def get_conversation_history(
 
         msg_dict = {
             "id": msg.id,
+            "session_id": msg.session_id,
             "role": msg.role,
             "content": msg.content,
             "created_at": msg.created_at,

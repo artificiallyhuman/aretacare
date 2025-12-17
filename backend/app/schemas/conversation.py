@@ -11,6 +11,7 @@ class MessageRequest(BaseModel):
 
 class MessageResponse(BaseModel):
     id: int
+    session_id: str
     role: MessageRole
     content: str
     created_at: datetime

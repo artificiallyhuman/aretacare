@@ -103,26 +103,36 @@ const Documents = () => {
       setDocuments(docs);
       hasLoadedRef.current = true;
 
-      // Load preview URLs for images and PDF thumbnails
+      // Load preview URLs for images and PDF thumbnails IN PARALLEL
       const urls = {};
       const thumbUrls = {};
-      for (const doc of docs) {
-        if (doc.content_type?.includes('image')) {
+
+      // Separate documents by type for parallel loading
+      const imagePromises = docs
+        .filter(doc => doc.content_type?.includes('image'))
+        .map(async (doc) => {
           try {
             const urlResponse = await documentAPI.getDownloadUrl(doc.id);
             urls[doc.id] = urlResponse.data.download_url;
           } catch (err) {
             console.error('Failed to load image preview:', err);
           }
-        } else if (doc.content_type === 'application/pdf') {
+        });
+
+      const pdfPromises = docs
+        .filter(doc => doc.content_type === 'application/pdf')
+        .map(async (doc) => {
           try {
             const thumbnailResponse = await documentAPI.getThumbnailUrl(doc.id);
             thumbUrls[doc.id] = thumbnailResponse.data.thumbnail_url;
           } catch (err) {
             console.error('Failed to load PDF thumbnail:', err);
           }
-        }
-      }
+        });
+
+      // Wait for all thumbnails to load in parallel
+      await Promise.all([...imagePromises, ...pdfPromises]);
+
       setImageUrls(urls);
       setThumbnailUrls(thumbUrls);
     } catch (err) {

@@ -33,7 +33,7 @@ const Conversation = () => {
   const previousMessageCountRef = useRef(0);
   const expectingAIResponse = useRef(false);
   const typingIndicatorRef = useRef(null);
-  const sessionSwitchScrollPending = useRef(false);
+  const sessionSwitchScrollPending = useRef(null); // Stores session ID to scroll for
 
   const scrollToBottom = (behavior = 'smooth') => {
     if (messagesContainerRef.current) {
@@ -192,8 +192,11 @@ const Conversation = () => {
       setShowBanner(false);
       setDailyPlanPanelOpen(false);
 
-      // Mark that we need to scroll after messages load
-      sessionSwitchScrollPending.current = true;
+      // Reset AI response flag (may have been waiting for response in previous session)
+      expectingAIResponse.current = false;
+
+      // Mark that we need to scroll after messages load for THIS session
+      sessionSwitchScrollPending.current = activeSessionId;
       sessionSwitchScrollWindow.current = true;
       loadConversationHistory();
       checkDailyPlan();
@@ -213,17 +216,20 @@ const Conversation = () => {
   // Handle scroll to bottom after session switch
   // Uses RAF loop to scroll until scrollHeight stabilizes
   useEffect(() => {
+    // Only scroll if we have a pending scroll
     if (!sessionSwitchScrollPending.current || messages.length === 0) {
       return;
     }
 
-    // Clear the flag
-    sessionSwitchScrollPending.current = false;
-
-    // Skip if we're expecting an AI response
-    if (expectingAIResponse.current) {
+    // Verify messages are actually for the session we're waiting to scroll
+    // (messages have session_id field - check first message belongs to pending session)
+    const messagesSessionId = messages[0]?.session_id;
+    if (messagesSessionId !== sessionSwitchScrollPending.current) {
       return;
     }
+
+    // Clear the flag
+    sessionSwitchScrollPending.current = null;
 
     const container = messagesContainerRef.current;
     if (!container) return;
