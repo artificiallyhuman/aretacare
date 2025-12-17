@@ -84,9 +84,18 @@ function Login() {
             </div>
           </div>
         </div>
+        <p className="mt-2 text-center text-sm text-gray-500 dark:text-gray-400 text-balance">
+          A platform created for patients and caregivers navigating the healthcare system.{' '}
+          <Link
+            to="/about"
+            className="text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 hover:underline transition-colors"
+          >
+            Learn more →
+          </Link>
+        </p>
       </div>
 
-      <div className="mt-6 sm:mx-auto sm:w-full sm:max-w-md">
+      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
         <div className="bg-white dark:bg-gray-800 py-6 px-4 shadow-md sm:rounded-xl sm:px-10 border border-gray-200 dark:border-gray-700 transition-colors duration-200">
           {error && (
             <div className="mb-4 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300 px-4 py-3 rounded-lg text-sm">
@@ -166,15 +175,6 @@ function Login() {
                 Create a free account
               </Link>
 
-              {/* Learn more link */}
-              <Link
-                to="/about"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="block w-full text-center px-4 py-2 border border-gray-300 dark:border-gray-600 hover:border-primary-400 dark:hover:border-primary-500 rounded-lg text-gray-600 dark:text-gray-400 hover:text-primary-600 dark:hover:text-primary-400 transition-colors"
-              >
-                Learn about AretaCare
-              </Link>
             </div>
           </div>
         </div>
