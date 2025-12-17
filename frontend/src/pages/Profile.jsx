@@ -1274,7 +1274,7 @@ const Profile = () => {
                           </p>
                         )}
                         {cg.location && (
-                          <p className="text-xs text-gray-600 dark:text-gray-400">
+                          <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
                             📍 {cg.location}
                           </p>
                         )}
