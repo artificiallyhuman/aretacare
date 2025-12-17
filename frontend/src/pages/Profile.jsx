@@ -103,6 +103,16 @@ const AddItemButton = ({ onClick, label }) => (
   </button>
 );
 
+// Event type display labels
+const EVENT_TYPE_LABELS = {
+  hospitalization: 'Hospitalization',
+  surgery: 'Surgery',
+  er_visit: 'ER Visit',
+  major_diagnosis: 'Major Diagnosis',
+  procedure: 'Procedure',
+  other: 'Other'
+};
+
 const Profile = () => {
   const { activeSessionId: sessionId } = useSessionContext();
   const [profile, setProfile] = useState(null);
@@ -391,7 +401,7 @@ const Profile = () => {
     if (data?.events?.length > 0) {
       text += '## Medical History & Events\n';
       data.events.forEach(e => {
-        text += `- **${(e.event_type || 'Event').replace('_', ' ')}**`;
+        text += `- **${EVENT_TYPE_LABELS[e.event_type] || e.event_type || 'Event'}**`;
         if (e.date) text += ` (${e.date})`;
         if (e.description) text += `: ${e.description}`;
         text += '\n';
@@ -1273,7 +1283,7 @@ const Profile = () => {
                       <div key={e.id || index} className="p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
                         <div className="flex items-center justify-between">
                           <div className="font-medium text-gray-900 dark:text-white">
-                            {(e.event_type || 'Event').replace('_', ' ').replace(/\b\w/g, c => c.toUpperCase())}
+                            {EVENT_TYPE_LABELS[e.event_type] || e.event_type || 'Event'}
                           </div>
                           {e.date && <span className="text-sm text-gray-500 dark:text-gray-400">{e.date}</span>}
                         </div>

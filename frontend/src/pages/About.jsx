@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import logo from '../logos/large_logo.png';
+import signature from '../logos/jason_signature.png';
 
 const About = () => {
   const [activeTab, setActiveTab] = useState('story');
@@ -267,6 +268,15 @@ const About = () => {
             <p>
               This is why I created AretaCare. It grew from sitting beside my mother and seeing how easily information can scatter and become overwhelming. It grew from watching how hard families work to stay informed and united. My hope is that AretaCare will give families the care, clarity, and confidence I wished we had during those long nights and complicated days.
             </p>
+
+            {/* Signature */}
+            <div className="mt-8 flex justify-center">
+              <img
+                src={signature}
+                alt="Jason Whiteman"
+                className="h-24 w-auto invert-0 dark:invert dark:brightness-200"
+              />
+            </div>
           </div>
         </div>
       </div>

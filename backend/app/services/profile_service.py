@@ -94,6 +94,15 @@ class ProfileService:
         if profile:
             return profile
 
+        # Get current max IDs so we don't count existing data as "new"
+        from sqlalchemy import func
+        max_conv_id = db.query(func.max(Conversation.id)).filter(
+            Conversation.session_id == session_id
+        ).scalar()
+        max_journal_id = db.query(func.max(JournalEntry.id)).filter(
+            JournalEntry.session_id == session_id
+        ).scalar()
+
         # Create new profile with empty data
         profile = Profile(
             session_id=session_id,
@@ -107,7 +116,9 @@ class ProfileService:
                 "events": [],
                 "preferences": None
             },
-            pending_changes=[]
+            pending_changes=[],
+            last_processed_conversation_id=max_conv_id,
+            last_processed_journal_id=max_journal_id
         )
         db.add(profile)
         db.commit()
@@ -820,37 +831,43 @@ class ProfileService:
         if profile:
             result["last_update"] = profile.last_ai_update or profile.created_at
 
-            # Count new conversations
-            conv_count = db.query(Conversation).filter(
-                Conversation.session_id == session_id
-            )
-            if profile.last_processed_conversation_id:
-                # Use ID-based filter if we have a last processed ID
-                conv_count = conv_count.filter(
-                    Conversation.id > profile.last_processed_conversation_id
-                )
-            else:
-                # Fallback to time-based filter using profile creation time
-                conv_count = conv_count.filter(
-                    Conversation.created_at > profile.created_at
-                )
-            new_convs = conv_count.count()
+            # Fix legacy profiles that have None for last_processed IDs
+            # by setting them to current max IDs (marks existing data as "seen")
+            needs_commit = False
+            from sqlalchemy import func
 
-            # Count new journal entries
-            journal_count = db.query(JournalEntry).filter(
-                JournalEntry.session_id == session_id
-            )
+            if profile.last_processed_conversation_id is None:
+                max_conv_id = db.query(func.max(Conversation.id)).filter(
+                    Conversation.session_id == session_id
+                ).scalar()
+                profile.last_processed_conversation_id = max_conv_id
+                needs_commit = True
+
+            if profile.last_processed_journal_id is None:
+                max_journal_id = db.query(func.max(JournalEntry.id)).filter(
+                    JournalEntry.session_id == session_id
+                ).scalar()
+                profile.last_processed_journal_id = max_journal_id
+                needs_commit = True
+
+            if needs_commit:
+                db.commit()
+
+            # Count new conversations (after last processed ID)
+            new_convs = 0
+            if profile.last_processed_conversation_id:
+                new_convs = db.query(Conversation).filter(
+                    Conversation.session_id == session_id,
+                    Conversation.id > profile.last_processed_conversation_id
+                ).count()
+
+            # Count new journal entries (after last processed ID)
+            new_journals = 0
             if profile.last_processed_journal_id:
-                # Use ID-based filter if we have a last processed ID
-                journal_count = journal_count.filter(
+                new_journals = db.query(JournalEntry).filter(
+                    JournalEntry.session_id == session_id,
                     JournalEntry.id > profile.last_processed_journal_id
-                )
-            else:
-                # Fallback to time-based filter using profile creation time
-                journal_count = journal_count.filter(
-                    JournalEntry.created_at > profile.created_at
-                )
-            new_journals = journal_count.count()
+                ).count()
 
             result["new_conversation_count"] = new_convs
             result["new_journal_count"] = new_journals
