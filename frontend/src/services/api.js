@@ -42,14 +42,15 @@ api.interceptors.response.use(
 
 // Auth API
 export const authAPI = {
-  register: (name, email, password, acknowledgeNotMedicalAdvice, acknowledgeBetaVersion, acknowledgeEmailCommunications) =>
+  register: (name, email, password, acknowledgeNotMedicalAdvice, acknowledgeBetaVersion, acknowledgeEmailCommunications, invitationToken = null) =>
     api.post('/auth/register', {
       name,
       email,
       password,
       acknowledge_not_medical_advice: acknowledgeNotMedicalAdvice,
       acknowledge_beta_version: acknowledgeBetaVersion,
-      acknowledge_email_communications: acknowledgeEmailCommunications
+      acknowledge_email_communications: acknowledgeEmailCommunications,
+      invitation_token: invitationToken
     }),
 
   login: (email, password) =>

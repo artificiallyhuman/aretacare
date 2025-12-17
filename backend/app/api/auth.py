@@ -146,6 +146,15 @@ def register(request: Request, user_data: UserRegister, db: DBSession = Depends(
         PendingInvitation.email == user_data.email
     ).all()
 
+    # If an invitation token was provided, validate it
+    if user_data.invitation_token and pending_invitations:
+        token_valid = any(inv.token == user_data.invitation_token for inv in pending_invitations)
+        if not token_valid:
+            # Token doesn't match any pending invitation - log security event
+            logger.warning(f"Invalid invitation token provided during registration for email: {user_data.email}")
+            # Don't fail registration, but don't process invitations with invalid token
+            pending_invitations = []
+
     if pending_invitations:
         # Filter out expired invitations (older than 30 days)
         now = datetime.utcnow()

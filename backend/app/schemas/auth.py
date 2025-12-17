@@ -10,6 +10,7 @@ class UserRegister(BaseModel):
     acknowledge_not_medical_advice: bool = Field(..., description="User acknowledges AretaCare is not medical advice")
     acknowledge_beta_version: bool = Field(..., description="User acknowledges beta status and potential data loss")
     acknowledge_email_communications: bool = Field(..., description="User acknowledges they will receive email communications")
+    invitation_token: str | None = Field(None, description="Optional invitation token for accepting session invitations")
 
 
 class UserLogin(BaseModel):

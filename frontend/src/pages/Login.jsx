@@ -88,6 +88,8 @@ function Login() {
           A platform created for patients and caregivers navigating the healthcare system.{' '}
           <Link
             to="/about"
+            target="_blank"
+            rel="noopener noreferrer"
             className="text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 hover:underline transition-colors"
           >
             Learn more →

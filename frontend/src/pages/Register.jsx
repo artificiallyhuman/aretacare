@@ -83,7 +83,8 @@ function Register() {
         password,
         acknowledgeNotMedicalAdvice,
         acknowledgeBetaVersion,
-        acknowledgeEmailCommunications
+        acknowledgeEmailCommunications,
+        invitationToken
       );
       const { access_token, user } = response.data;
 

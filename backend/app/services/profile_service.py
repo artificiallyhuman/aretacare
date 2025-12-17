@@ -328,6 +328,21 @@ class ProfileService:
             if last_conv_id:
                 profile.last_processed_conversation_id = last_conv_id
 
+        # For initial profile generation, set last_processed IDs to MAX in session
+        # This ensures all existing data is marked as "seen" even if it didn't fit in budget
+        if is_initial:
+            from sqlalchemy import func
+            max_conv_id = db.query(func.max(Conversation.id)).filter(
+                Conversation.session_id == session_id
+            ).scalar()
+            max_journal_id = db.query(func.max(JournalEntry.id)).filter(
+                JournalEntry.session_id == session_id
+            ).scalar()
+            if max_conv_id:
+                profile.last_processed_conversation_id = max_conv_id
+            if max_journal_id:
+                profile.last_processed_journal_id = max_journal_id
+
         # Return None if no new activity
         if not activity["conversations"] and not activity["journal_entries"]:
             return None
