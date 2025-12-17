@@ -12,7 +12,7 @@ AretaCare is an AI-powered medical care advocate assistant that helps families u
 - Session sharing - share sessions with up to 9 collaborators (10 people total), collaborators have full access to session data
 - Dedicated Collaboration page - manage collaborators across all sessions, add/remove users, transfer ownership, pending invitations, leave shared sessions
 - Daily Plan - AI-generated summaries, user editable, delete and regenerate capability, copy-to-clipboard (converts markdown to formatted HTML)
-- Care Profile - AI-powered long-term memory for patient info, caregivers, providers, conditions, medications, allergies, events, and preferences. Auto-updates from conversations/journal, user controls all data, diff view for AI-proposed changes, copy-to-clipboard and PDF export
+- Care Profile - AI-powered long-term memory for patient info, caregivers, providers, conditions, medications (14 AI-categorized medication categories: pain management, cardiovascular, diabetes, mental health, etc.), allergies, events, and preferences. Features color-coded section icons with gradients, timeline visualization for events, status badges (Active/Inactive for medications, severity-based for conditions/allergies), completeness progress indicator, and improved typography hierarchy. Auto-updates from conversations/journal, user controls all data, diff view for AI-proposed changes, copy-to-clipboard and PDF export (both group medications by category)
 - AI Journal Synthesis - extracts medical updates from conversations, audio uploads, and document uploads with local timezone support and intelligent date interpretation (handles "Thursday", "next week", etc.)
 - Journal with date navigation - reverse chronological, sticky sidebar, scroll-to-date functionality, "Jump to Today" button, future entries visually distinguished with blue background shading
 - GPT-5.2 native file support for PDFs and images via Responses API
@@ -111,9 +111,13 @@ STRICT SAFETY BOUNDARIES - YOU MUST NEVER:
 
 **AI Configuration Structure:**
 - **Models**: `CHAT_MODEL = "gpt-5.2"`, `TRANSCRIPTION_MODEL = "gpt-4o-transcribe"`
-- **All Prompts**: System prompt, conversation instructions, task-specific prompts (jargon translation, conversation coaching, document/audio categorization, journal synthesis, daily plan generation)
-- **Categories**: Document categories (12 types), Audio categories (12 types)
-- **Context Settings**: Conversation history (30 messages), journal context (10,000 tokens with tiered loading)
+- **All Prompts**: System prompt (includes personal information handling guidance), conversation instructions, task-specific prompts (jargon translation, conversation coaching, document/audio categorization, journal synthesis, daily plan generation, profile generation with medication categorization)
+- **Categories**: Document categories (12 types), Audio categories (12 types), Medication categories (14 types: multiple, pain_management, cardiovascular, diabetes, mental_health, antibiotics, respiratory, gastrointestinal, neurological, endocrine, oncology, immunosuppressant, vitamins_supplements, other)
+- **Context Settings**: 150K total context window with prioritized loading:
+  - Last 30 conversation messages
+  - Recent journal (last 7 days, full entries)
+  - Mid-range journal (8-30 days, summarized)
+  - Health Profile (up to 25K tokens, replaces 30+ day journal titles) - provides long-term structured memory for patient info, conditions, medications by category, allergies, providers, caregivers, emergency instructions
 - **Fallback Messages**: Error responses when AI calls fail
 - **All services use OpenAI Responses API**
 
@@ -196,7 +200,7 @@ See `backend/app/config/README.md` for complete documentation on modifying AI be
 - `conversation.py` - Conversation endpoints with rich media support, message editing (PATCH /{message_id})
 - `journal.py` - Journal CRUD operations
 - `daily_plans.py` - Daily plan management (generate, list, update)
-- `profile.py` - Profile management (get, update, save, pending changes review, regenerate, delete, PDF export)
+- `profile.py` - Profile management (get, update, save, pending changes review, regenerate, delete, PDF export with medications grouped by category)
 - `tools.py` - Standalone tools (Jargon Translator, Conversation Coach)
 - `feedback.py` - Feedback form submission with hCaptcha verification, rate limiting, and email notifications
 - `admin.py` - Admin console (metrics, health, S3 cleanup, admin logs)
@@ -209,12 +213,15 @@ See `backend/app/config/README.md` for complete documentation on modifying AI be
 
 **Services** (`backend/app/services/`):
 - `openai_service.py` - GPT-5.2 integration via Responses API, all LLM interactions
-  - Conversation: Uses last 30 messages + full journal context (tiered: 7 days full, 8-30 days summarized, 30+ days titles)
+  - Conversation context (150K tokens total): Last 30 messages + tiered journal (7 days full, 8-30 days summarized) + Health Profile (up to 25K tokens, replaces 30+ day journal titles)
+  - Health Profile provides long-term structured memory: patient info, conditions, medications by category, allergies, providers, caregivers, emergency instructions
+  - Context structure explanation system message helps AI understand relationship between profile (stable, long-term) and journal (dynamic, short-term)
   - Document categorization: Native file analysis prioritized over OCR text fallback
 - `journal_service.py` - Conversation analysis and journal synthesis
   - Creates entries for all substantive caregiving conversations (6 entry types)
   - Uses last 7 days of journal context for synthesis decisions
   - **Uses native file support** - passes presigned S3 URLs for document/audio analysis instead of extracted text (faster, more accurate)
+  - `_format_profile_context()` - Formats health profile for conversation context with token-aware prioritization (patient, conditions, medications by category, allergies, providers, caregivers, emergency instructions)
 - `daily_plan_service.py` - Daily plan generation
   - Context: ALL journal entries (grouped by type, max 5 per type), last 7 days conversations (max 50 messages), last 10 documents (with text preview), last 3 daily plans
   - Generates concise daily priorities, reminders, and questions for care team
@@ -238,7 +245,9 @@ See `backend/app/config/README.md` for complete documentation on modifying AI be
 - `Conversation.jsx` - Main chat interface with daily plan panel, thumbnails load immediately after upload
 - `JournalView.jsx` - Journal with date navigation, "Jump to Today" button, future entries shown with blue background shading
 - `DailyPlan.jsx` - Daily plan history, editing, and copy-to-clipboard functionality (mobile-responsive buttons)
-- `Profile.jsx` - Care profile page (at `/profile`, not in menu) with AI-powered long-term memory, edit mode, pending changes diff view, copy-to-clipboard, PDF export, regenerate and delete
+- `Profile.jsx` - Care profile page (at `/profile`, not in menu) with AI-powered long-term memory, edit mode, pending changes diff view, copy-to-clipboard (groups medications by category), PDF export (groups medications by category), regenerate and delete
+  - Visual enhancements: color-coded section icons with gradient backgrounds (SECTION_CONFIG), completeness progress indicator with gradient bar, timeline visualization for events with colored dots, status badges (Active/Inactive for medications, severity-based colors for conditions/allergies), improved typography hierarchy
+  - Medication taxonomy: 14 categories with user-friendly labels (MEDICATION_CATEGORY_LABELS), category dropdown in edit mode, grouped display by category in both view and edit modes
 - `Collaboration.jsx` - Dedicated collaboration management page (view owned/shared sessions, add/remove collaborators, transfer ownership, pending invitations with resend/cancel, leave sessions)
 - `Settings.jsx` - Account management, session management
 - `tools/Documents.jsx` - AI-powered document manager (at `/tools/documents` route)
@@ -391,6 +400,7 @@ Theme managed via `ThemeContext.jsx`, persisted to localStorage.
 - Email notifications (password changes, email changes, collaborator actions)
 - Journal with date navigation and timezone handling
 - Daily Plan generation, editing, and copy-to-clipboard
+- Care Profile: medication categorization (14 categories), visual enhancements (color-coded icons, progress indicator, timeline, status badges), copy-to-clipboard and PDF export (both group medications by category), Update Profile vs Regenerate Profile, pending changes diff view
 - Documents/Audio with AI categorization
 - Settings: account updates, session management, password reset
 - Admin console (requires email in ADMIN_EMAILS): timezone-aware metrics dashboard, error logs, security logs, system health, accounts, users, S3 cleanup, audit logs

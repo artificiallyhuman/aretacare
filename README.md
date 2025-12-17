@@ -28,7 +28,7 @@ AretaCare was built from exactly this experience—sitting beside a loved one in
 
 **Daily Plan** — AI-generated summaries of today's priorities, important reminders, and questions to ask at your next appointment. Fully editable and regenerated daily based on your current situation. Each collaborator sees their own "new plan" notifications for independent tracking. Copy plans to your clipboard as formatted text for sharing with family or healthcare providers. Plans are generated from comprehensive context including all journal entries, recent conversations, latest documents, and previous plans.
 
-**Care Profile** — AI-powered long-term memory that builds a comprehensive picture of the care situation. Automatically extracts and organizes: patient information, caregivers, healthcare providers, conditions, medications, allergies, significant events, and preferences. Updates incrementally from conversations and journal entries. You control all data—AI proposes changes through a diff view, and you approve or reject each one. Supports copy-to-clipboard and PDF export.
+**Care Profile** — AI-powered long-term memory that builds a comprehensive picture of the care situation. Automatically extracts and organizes: patient information, caregivers, healthcare providers, conditions, medications (with 14 AI-categorized categories like pain management, cardiovascular, diabetes, mental health, etc.), allergies, significant events, and preferences. Visual enhancements include color-coded section icons with gradients, timeline visualization for events, status badges (Active/Inactive for medications, severity-based for conditions/allergies), and a completeness progress indicator. Updates incrementally from conversations and journal entries. You control all data—AI proposes changes through a diff view, and you approve or reject each one. Copy-to-clipboard and PDF export both group medications by category for easy reading.
 
 **Documents** — AI-powered document manager with 12 categories for organizing medical records. Upload PDFs, images (PNG, JPG), and text files up to 20MB. Documents are automatically categorized by AI, text is extracted (PDFs via pypdf, images via OCR), and thumbnails are generated for quick preview. Search by content, navigate by date, and edit AI-generated descriptions (up to 200 characters). Journal entries are automatically created from meaningful uploads.
 
@@ -140,7 +140,7 @@ docker compose down -v   # Stop and reset database
 |-------|------------|---------|
 | Frontend | React 18, Vite, Tailwind CSS | Dark mode support, responsive design, code splitting for performance |
 | Backend | FastAPI, SQLAlchemy, PostgreSQL | Auto-migrations, JWT auth with bcrypt, GZip compression |
-| AI | OpenAI GPT-5.2, GPT-4o-transcribe | Responses API for chat and file analysis, native PDF/image support |
+| AI | OpenAI GPT-5.2, GPT-4o-transcribe | Responses API for chat and file analysis, native PDF/image support, 150K context window |
 | Storage | AWS S3 | Presigned URLs (24-hour expiration), cascade cleanup, orphan detection |
 | Deployment | Docker Compose, Render | Multi-service orchestration, production blueprint |
 
@@ -149,7 +149,8 @@ docker compose down -v   # Stop and reset database
 - **Session collaboration** - Up to 10 people per session (owner + 9 collaborators)
 - **Cascade deletes** - User/session deletion removes all data including S3 files
 - **Database migrations** - Auto-run on startup via `run_migrations()`
-- **Centralized AI config** - All models, prompts, and safety boundaries in `backend/app/config/ai_config.py`
+- **Centralized AI config** - All models, prompts, safety boundaries, and categories in `backend/app/config/ai_config.py` (including 14 medication categories for profile organization)
+- **150K context window** - Prioritized loading: 30 messages + tiered journal (7 days full, 8-30 days summarized) + health profile (up to 25K tokens, replaces 30+ day journal titles)
 - **Email notifications** - SMTP integration for password reset, account changes, and collaboration
 - **Security logging** - Invalid token tracking, IP logging, security event monitoring
 - **Auto-cleanup on startup** - Audit logs (90 days), error logs (30 days), API logs (30 days), security logs (90 days), expired invitations (30 days)
@@ -207,7 +208,7 @@ aretacare/
 - **Conversation interface** with GPT-5.2, "Thinking..." status, markdown rendering, copy-to-clipboard (converts markdown to formatted HTML)
 - **Journal synthesis** - Automatically creates entries from conversations, documents, and audio using native file support (6 entry types: medical update, treatment change, appointment, insight, milestone, other). Analyzes actual files for faster, more accurate synthesis.
 - **Daily plan generation** - AI-generated daily priorities, reminders, and questions based on comprehensive context
-- **Care Profile** - AI-powered long-term memory organizing patient info, caregivers, providers, conditions, medications, allergies, events, and preferences. Incremental updates with user-controlled diff review, copy-to-clipboard and PDF export
+- **Care Profile** - AI-powered long-term memory organizing patient info, caregivers, providers, conditions, medications (14 AI-categorized categories: pain management, cardiovascular, diabetes, mental health, etc.), allergies, events, and preferences. Visual enhancements include color-coded section icons with gradients, timeline visualization for events, status badges, and completeness progress indicator. Incremental updates with user-controlled diff review. Copy-to-clipboard and PDF export group medications by category. Also serves as long-term context in conversations (up to 25K tokens in 150K total context window)
 - **Document categorization** - 12 categories with AI-generated descriptions (user-editable, max 200 characters)
 - **Audio categorization** - 12 categories with AI-generated summaries (user-editable, max 150 characters)
 - **Jargon Translator** - Explains medical terminology with journal context, supports audio input

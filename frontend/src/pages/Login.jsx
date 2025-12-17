@@ -85,7 +85,7 @@ function Login() {
           </div>
         </div>
         <p className="mt-2 text-center text-sm text-gray-500 dark:text-gray-400 text-balance">
-          A platform created for patients and caregivers navigating the healthcare system.{' '}
+          A platform for patients and caregivers navigating the healthcare system.{' '}
           <Link
             to="/about"
             target="_blank"

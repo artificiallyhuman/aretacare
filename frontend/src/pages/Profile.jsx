@@ -293,7 +293,7 @@ const Profile = () => {
   const { activeSessionId: sessionId } = useSessionContext();
   const [profile, setProfile] = useState(null);
   const [pendingChanges, setPendingChanges] = useState([]);
-  const [isEditing, setIsEditing] = useState(false);
+  const [editingSection, setEditingSection] = useState(null); // Track which section is being edited
   const [editedData, setEditedData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
@@ -377,14 +377,14 @@ const Profile = () => {
     }
   };
 
-  // Handle edit mode
-  const handleEditClick = () => {
-    setIsEditing(true);
+  // Handle edit mode for a specific section
+  const handleEditSection = (section) => {
+    setEditingSection(section);
     setEditedData(JSON.parse(JSON.stringify(profile.profile_data)));
   };
 
   const handleCancelEdit = () => {
-    setIsEditing(false);
+    setEditingSection(null);
     setEditedData(null);
   };
 
@@ -393,7 +393,7 @@ const Profile = () => {
       setUpdating(true);
       const response = await profileAPI.save(sessionId, editedData);
       setProfile(response.data);
-      setIsEditing(false);
+      setEditingSection(null);
       setEditedData(null);
     } catch (err) {
       console.error('Error saving profile:', err);
@@ -771,42 +771,79 @@ const Profile = () => {
     setEditedData(newData);
   };
 
-  // Render section header with expand/collapse and icon
+  // Render section header with expand/collapse, icon, and edit controls
   const SectionHeader = ({ title, section, count }) => {
     const config = SECTION_CONFIG[section];
+    const isEditingThis = editingSection === section;
+    const hasData = profile?.profile_data?.[section] && (
+      Array.isArray(profile.profile_data[section])
+        ? profile.profile_data[section].length > 0
+        : Object.keys(profile.profile_data[section]).length > 0
+    );
+
     return (
-      <button
-        onClick={() => toggleSection(section)}
-        className="w-full flex items-center justify-between p-4 bg-gradient-to-r hover:shadow-md transition-all duration-200 rounded-t-lg"
-        style={{
-          background: expandedSections[section]
-            ? `linear-gradient(to right, var(--tw-gradient-stops))`
-            : 'transparent'
-        }}
-      >
-        <div className="flex items-center space-x-3">
+      <div className="flex items-center justify-between p-3 sm:p-4 bg-gradient-to-r rounded-t-lg">
+        <button
+          onClick={() => toggleSection(section)}
+          className="flex items-center space-x-2 sm:space-x-3 flex-1 hover:opacity-80 transition-opacity"
+        >
           {/* Icon with gradient background */}
-          <div className={`flex-shrink-0 w-10 h-10 rounded-lg bg-gradient-to-br ${config.gradient} flex items-center justify-center text-white shadow-sm`}>
+          <div className={`flex-shrink-0 w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-gradient-to-br ${config.gradient} flex items-center justify-center text-white shadow-sm`}>
             {config.icon}
           </div>
           <div className="flex items-center space-x-2">
-            <h3 className="text-lg font-bold text-gray-900 dark:text-white">{title}</h3>
+            <h3 className="text-base sm:text-lg font-bold text-gray-900 dark:text-white">{title}</h3>
             {count !== undefined && (
               <span className="px-2 py-0.5 text-xs font-semibold rounded-full bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300">
                 {count}
               </span>
             )}
           </div>
-        </div>
-        <svg
-          className={`w-5 h-5 text-gray-500 dark:text-gray-400 transition-transform ${expandedSections[section] ? 'rotate-180' : ''}`}
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-        </svg>
-      </button>
+          <svg
+            className={`w-4 h-4 sm:w-5 sm:h-5 text-gray-500 dark:text-gray-400 transition-transform ${expandedSections[section] ? 'rotate-180' : ''}`}
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+          </svg>
+        </button>
+
+        {/* Edit/Save/Cancel buttons */}
+        {expandedSections[section] && hasData && (
+          <div className="flex items-center gap-1 sm:gap-2 ml-2">
+            {isEditingThis ? (
+              <>
+                <button
+                  onClick={handleCancelEdit}
+                  className="px-2 py-1 sm:px-3 sm:py-1.5 text-xs sm:text-sm bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
+                  disabled={updating}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSaveEdit}
+                  className="px-2 py-1 sm:px-3 sm:py-1.5 text-xs sm:text-sm bg-primary-600 text-white rounded hover:bg-primary-700 transition-colors disabled:opacity-50"
+                  disabled={updating}
+                >
+                  {updating ? 'Saving...' : 'Save'}
+                </button>
+              </>
+            ) : (
+              <button
+                onClick={() => handleEditSection(section)}
+                className="px-2 py-1 sm:px-3 sm:py-1.5 text-xs sm:text-sm bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors flex items-center gap-1"
+                disabled={editingSection !== null} // Disable if another section is being edited
+              >
+                <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                </svg>
+                <span className="hidden sm:inline">Edit</span>
+              </button>
+            )}
+          </div>
+        )}
+      </div>
     );
   };
 
@@ -831,7 +868,15 @@ const Profile = () => {
     );
   }
 
-  const profileData = isEditing ? editedData : profile?.profile_data;
+  // Helper to get data for a section (edited if editing that section, otherwise normal)
+  const getSectionData = (section) => {
+    if (editingSection === section && editedData) {
+      return editedData[section];
+    }
+    return profile?.profile_data?.[section];
+  };
+
+  const profileData = profile?.profile_data;
   const isEmpty = !profileData || (
     !profileData.patient &&
     (!profileData.caregivers || profileData.caregivers.length === 0) &&
@@ -956,156 +1001,116 @@ const Profile = () => {
       {/* Action Buttons - only show when profile has data */}
       {!isEmpty && (
       <div className="mb-6 space-y-3">
-        {!isEditing ? (
-          <>
-            {/* Review Changes - prominent when present */}
-            {pendingChanges.length > 0 && (
-              <button
-                onClick={() => setShowPendingChanges(true)}
-                className="w-full btn-primary flex items-center justify-center space-x-2"
-              >
-                <span className="w-5 h-5 flex items-center justify-center bg-white text-primary-600 rounded-full text-xs font-bold">
-                  {pendingChanges.length}
-                </span>
-                <span>Review Suggested Changes</span>
-              </button>
-            )}
-
-            {/* Desktop: single row | Mobile: two rows */}
-            <div className="hidden sm:flex sm:flex-wrap sm:gap-2">
-              <button
-                onClick={handleEditClick}
-                disabled={isEmpty || updating}
-                className="btn-secondary flex items-center space-x-2"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                </svg>
-                <span>Edit</span>
-              </button>
-              <button
-                onClick={handleCopy}
-                disabled={isEmpty || updating}
-                className="btn-secondary flex items-center space-x-2"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                </svg>
-                <span>{copied ? 'Copied!' : 'Copy'}</span>
-              </button>
-              <button
-                onClick={handleExportPdf}
-                disabled={isEmpty || updating}
-                className="btn-secondary flex items-center space-x-2"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
-                <span>PDF</span>
-              </button>
-              <div className="flex-1"></div>
-              <button
-                onClick={() => setShowRegenerateConfirm(true)}
-                disabled={updating}
-                className="btn-secondary text-orange-700 dark:text-orange-400 hover:bg-orange-50 dark:hover:bg-orange-900/30 flex items-center space-x-2"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                </svg>
-                <span>Regenerate</span>
-              </button>
-              <button
-                onClick={() => setShowDeleteConfirm(true)}
-                disabled={isEmpty || updating}
-                className="btn-secondary text-red-700 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 flex items-center space-x-2"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                </svg>
-                <span>Delete</span>
-              </button>
-            </div>
-
-            {/* Mobile: grid with icons and labels */}
-            <div className="grid grid-cols-5 gap-2 sm:hidden">
-              <button
-                onClick={handleEditClick}
-                disabled={isEmpty || updating}
-                className="btn-secondary flex flex-col items-center justify-center py-2"
-              >
-                <svg className="w-5 h-5 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                </svg>
-                <span className="text-xs">Edit</span>
-              </button>
-              <button
-                onClick={handleCopy}
-                disabled={isEmpty || updating}
-                className="btn-secondary flex flex-col items-center justify-center py-2"
-              >
-                <svg className="w-5 h-5 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  {copied ? (
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                  ) : (
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                  )}
-                </svg>
-                <span className="text-xs">{copied ? 'Copied' : 'Copy'}</span>
-              </button>
-              <button
-                onClick={handleExportPdf}
-                disabled={isEmpty || updating}
-                className="btn-secondary flex flex-col items-center justify-center py-2"
-              >
-                <svg className="w-5 h-5 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
-                <span className="text-xs">PDF</span>
-              </button>
-              <button
-                onClick={() => setShowRegenerateConfirm(true)}
-                disabled={updating}
-                className="btn-secondary text-orange-700 dark:text-orange-400 flex flex-col items-center justify-center py-2"
-              >
-                <svg className="w-5 h-5 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                </svg>
-                <span className="text-xs">Regen</span>
-              </button>
-              <button
-                onClick={() => setShowDeleteConfirm(true)}
-                disabled={isEmpty || updating}
-                className="btn-secondary text-red-700 dark:text-red-400 flex flex-col items-center justify-center py-2"
-              >
-                <svg className="w-5 h-5 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                </svg>
-                <span className="text-xs">Delete</span>
-              </button>
-            </div>
-          </>
-        ) : (
-          <div className="flex gap-2">
-            <button
-              onClick={handleCancelEdit}
-              className="flex-1 sm:flex-none btn-secondary"
-            >
-              Cancel
-            </button>
-            <button
-              onClick={handleSaveEdit}
-              disabled={updating}
-              className="flex-1 sm:flex-none btn-primary"
-            >
-              {updating ? 'Saving...' : 'Save Changes'}
-            </button>
-          </div>
+        {/* Review Changes - prominent when present */}
+        {pendingChanges.length > 0 && (
+          <button
+            onClick={() => setShowPendingChanges(true)}
+            className="w-full btn-primary flex items-center justify-center space-x-2"
+          >
+            <span className="w-5 h-5 flex items-center justify-center bg-white text-primary-600 rounded-full text-xs font-bold">
+              {pendingChanges.length}
+            </span>
+            <span>Review Suggested Changes</span>
+          </button>
         )}
+
+        {/* Desktop: single row */}
+        <div className="hidden sm:flex sm:flex-wrap sm:gap-2">
+          <button
+            onClick={handleCopy}
+            disabled={isEmpty || updating}
+            className="btn-secondary flex items-center space-x-2"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+            </svg>
+            <span>{copied ? 'Copied!' : 'Copy'}</span>
+          </button>
+          <button
+            onClick={handleExportPdf}
+            disabled={isEmpty || updating}
+            className="btn-secondary flex items-center space-x-2"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+            <span>PDF</span>
+          </button>
+          <div className="flex-1"></div>
+          <button
+            onClick={() => setShowRegenerateConfirm(true)}
+            disabled={updating}
+            className="btn-secondary text-orange-700 dark:text-orange-400 hover:bg-orange-50 dark:hover:bg-orange-900/30 flex items-center space-x-2"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+            <span>Regenerate</span>
+          </button>
+          <button
+            onClick={() => setShowDeleteConfirm(true)}
+            disabled={isEmpty || updating}
+            className="btn-secondary text-red-700 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 flex items-center space-x-2"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+            </svg>
+            <span>Delete</span>
+          </button>
+        </div>
+
+        {/* Mobile: grid with icons and labels */}
+        <div className="grid grid-cols-4 gap-2 sm:hidden">
+          <button
+            onClick={handleCopy}
+            disabled={isEmpty || updating}
+            className="btn-secondary flex flex-col items-center justify-center py-2"
+          >
+            <svg className="w-5 h-5 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              {copied ? (
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              ) : (
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+              )}
+            </svg>
+            <span className="text-xs">{copied ? 'Copied' : 'Copy'}</span>
+          </button>
+          <button
+            onClick={handleExportPdf}
+            disabled={isEmpty || updating}
+            className="btn-secondary flex flex-col items-center justify-center py-2"
+          >
+            <svg className="w-5 h-5 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+            <span className="text-xs">PDF</span>
+          </button>
+          <button
+            onClick={() => setShowRegenerateConfirm(true)}
+            disabled={updating}
+            className="btn-secondary text-orange-700 dark:text-orange-400 flex flex-col items-center justify-center py-2"
+          >
+            <svg className="w-5 h-5 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+            <span className="text-xs">Regen</span>
+          </button>
+          <button
+            onClick={() => setShowDeleteConfirm(true)}
+            disabled={isEmpty || updating}
+            className="btn-secondary text-red-700 dark:text-red-400 flex flex-col items-center justify-center py-2"
+          >
+            <svg className="w-5 h-5 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+            </svg>
+            <span className="text-xs">Delete</span>
+          </button>
+        </div>
       </div>
       )}
 
       {/* Empty State */}
-      {isEmpty && !isEditing && (
+      {isEmpty && editingSection === null && (
         <div className="text-center py-12">
           <div className="bg-gradient-to-r from-primary-50 to-blue-50 dark:from-gray-800 dark:to-gray-900 rounded-lg border-2 border-primary-200 dark:border-gray-700 px-6 py-8 max-w-2xl mx-auto">
             <svg className="w-16 h-16 text-primary-600 dark:text-primary-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1162,7 +1167,7 @@ const Profile = () => {
             <SectionHeader title="Patient Information" section="patient" />
             {expandedSections.patient && (
               <div className="p-4">
-                {isEditing ? (
+                {editingSection === 'patient' ? (
                   <>
                     <EditableField label="Full Name" path="patient.full_name" editedData={editedData} setEditedData={setEditedData} />
                     <EditableField label="Preferred Name" path="patient.preferred_name" editedData={editedData} setEditedData={setEditedData} />
@@ -1224,7 +1229,7 @@ const Profile = () => {
             <SectionHeader title="Caregivers" section="caregivers" count={profileData?.caregivers?.length || 0} />
             {expandedSections.caregivers && (
               <div className="p-4">
-                {isEditing ? (
+                {editingSection === 'caregivers' ? (
                   <>
                     <div className="space-y-4">
                       {(editedData?.caregivers || []).map((cg, index) => (
@@ -1293,7 +1298,7 @@ const Profile = () => {
             <SectionHeader title="Healthcare Providers" section="providers" count={profileData?.providers?.length || 0} />
             {expandedSections.providers && (
               <div className="p-4">
-                {isEditing ? (
+                {editingSection === 'providers' ? (
                   <>
                     <div className="space-y-4">
                       {(editedData?.providers || []).map((p, index) => (
@@ -1354,7 +1359,7 @@ const Profile = () => {
             <SectionHeader title="Conditions & Diagnoses" section="conditions" count={profileData?.conditions?.length || 0} />
             {expandedSections.conditions && (
               <div className="p-4">
-                {isEditing ? (
+                {editingSection === 'conditions' ? (
                   <>
                     <div className="space-y-4">
                       {(editedData?.conditions || []).map((c, index) => (
@@ -1450,7 +1455,7 @@ const Profile = () => {
             <SectionHeader title="Medications" section="medications" count={profileData?.medications?.length || 0} />
             {expandedSections.medications && (
               <div className="p-4">
-                {isEditing ? (
+                {editingSection === 'medications' ? (
                   <>
                     <div className="space-y-4">
                       {(editedData?.medications || []).map((m, index) => (
@@ -1570,7 +1575,7 @@ const Profile = () => {
             <SectionHeader title="Medical History & Events" section="events" count={profileData?.events?.length || 0} />
             {expandedSections.events && (
               <div className="p-4">
-                {isEditing ? (
+                {editingSection === 'events' ? (
                   <>
                     <div className="space-y-4">
                       {(editedData?.events || []).map((e, index) => (
@@ -1663,7 +1668,7 @@ const Profile = () => {
             <SectionHeader title="Allergies & Sensitivities" section="allergies" count={profileData?.allergies?.length || 0} />
             {expandedSections.allergies && (
               <div className="p-4">
-                {isEditing ? (
+                {editingSection === 'allergies' ? (
                   <>
                     <div className="space-y-4">
                       {(editedData?.allergies || []).map((a, index) => (
@@ -1735,7 +1740,7 @@ const Profile = () => {
             <SectionHeader title="Preferences & Guidelines" section="preferences" />
             {expandedSections.preferences && (
               <div className="p-4 space-y-6">
-                {isEditing ? (
+                {editingSection === 'preferences' ? (
                   <>
                     {/* Emergency Instructions */}
                     <div>
