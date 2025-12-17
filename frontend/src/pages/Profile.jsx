@@ -2232,8 +2232,11 @@ const Profile = () => {
                 <p className="text-sm text-orange-900 dark:text-orange-200 mb-2">
                   This will delete your current profile and create a new one from scratch using all available conversations and journal entries.
                 </p>
-                <p className="text-sm text-orange-900 dark:text-orange-200 font-bold">
+                <p className="text-sm text-orange-900 dark:text-orange-200 font-bold mb-2">
                   All manual edits will be lost.
+                </p>
+                <p className="text-sm text-orange-900 dark:text-orange-200 italic">
+                  Tip: If you only want to incorporate recent changes, click "Update Profile" in the menu instead.
                 </p>
               </div>
             </div>

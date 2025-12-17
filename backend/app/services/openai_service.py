@@ -42,15 +42,17 @@ def log_api_call(
     except Exception as e:
         logger.error(f"Failed to log API call: {e}")
 
-# Token budgets (total: 128,000)
+# Token budgets (total: 150,000)
 # - System prompts: ~1,500 tokens (fixed)
 # - Conversation history: up to 20,000 tokens
 # - Current message + media: up to 50,000 tokens (20MB file limit)
 # - Journal context: up to 50,000 tokens
-# - Buffer: ~6,500 tokens
+# - Health profile: up to 25,000 tokens
+# - Buffer: ~3,500 tokens
 MAX_CONVERSATION_TOKENS = 20000
 MAX_CURRENT_MESSAGE_TOKENS = 50000  # Includes document/audio if attached
 MAX_JOURNAL_TOKENS = 50000  # Configured in ai_config.py
+MAX_PROFILE_TOKENS = 25000  # Health profile context
 
 
 def estimate_tokens(text: str) -> int:
@@ -556,15 +558,19 @@ class OpenAIService:
         journal_context: Optional[str] = None,
         user_id: Optional[str] = None
     ) -> str:
-        """Chat interface with journal context and native file/image support
+        """Chat interface with journal context, health profile, and native file/image support
 
         Optimized context structure:
         1. System prompts (rules and instructions)
-        2. Older journal (8+ days) - as user message (context, not rules)
+        2. Background context: Health Profile + Older Journal (8-30 days)
         3. Recent conversation (last 15 messages)
-        4. Recent journal (last 7 days) - as user message (prioritized context)
+        4. Recent journal (last 7 days) - highest priority
         5. Immediate context reminder (system - rules for interpreting next message)
         6. Current user message
+
+        The older_journal_context parameter now includes:
+        - Health Profile: Long-term structured patient/caregiver/provider/medication info
+        - Journal entries from 8-30 days ago (summarized)
         """
 
         messages = [
@@ -572,11 +578,40 @@ class OpenAIService:
             {"role": "system", "content": ai_config.CONVERSATION_INSTRUCTIONS}
         ]
 
-        # Add older journal context as assistant message (system-provided knowledge, not user input)
+        # Add background context (health profile + older journal) as assistant message
+        # This provides long-term memory that complements short-term journal entries
         if older_journal_context and older_journal_context.strip():
             messages.append({
                 "role": "assistant",
                 "content": older_journal_context
+            })
+
+            # Add explanation of context structure for the AI
+            messages.append({
+                "role": "system",
+                "content": """---
+CONTEXT STRUCTURE EXPLANATION:
+
+You have been provided with multiple sources of information:
+
+1. **Health Profile** - Long-term, structured memory containing:
+   - Patient demographics, caregivers, healthcare providers
+   - Active conditions, medications (organized by category), allergies
+   - Emergency instructions and preferences
+   - This is STABLE information that changes infrequently
+
+2. **Journal Entries (8-30 days)** - Recent care history:
+   - Summarized updates from the past few weeks
+   - Provides context for ongoing situations
+
+3. **Recent Journal (last 7 days)** - Will be provided next with ⚡ marker:
+   - Most current and actionable information
+   - PRIORITIZE this over older context when answering
+
+Use the Health Profile for baseline facts (medications, conditions, providers).
+Use the Journal for understanding recent developments and timeline.
+When information conflicts, trust more recent sources.
+---"""
             })
 
         # Add recent conversation history with token-based truncation

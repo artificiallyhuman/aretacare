@@ -587,9 +587,29 @@ PROFILE SECTIONS:
 - caregivers: Name, relationship to patient, role in caregiving, contact info, location (can be multiple)
 - providers: Name, specialty, organization, contact info (can be multiple)
 - conditions: Clinical term, non-jargon description, status (active/resolved/monitoring), diagnosis date, important details
-- medications: Name, non-jargon description, dose, frequency, start date, prescriber, notes (side effects, adherence), category (REQUIRED: multiple/pain_management/cardiovascular/diabetes/mental_health/antibiotics/respiratory/gastrointestinal/neurological/endocrine/oncology/immunosuppressant/vitamins_supplements/other - based on medication's primary indication/purpose)
+- medications: Name, non-jargon description, dose, frequency, start date, prescriber, notes (side effects, adherence), category (REQUIRED - must be set based on medication's primary purpose)
 - allergies: Substance, reaction, severity (mild/moderate/severe)
 - events: Event type (hospitalization/surgery/er_visit/major_diagnosis), description, date, details
+
+MEDICATION CATEGORY ASSIGNMENT (CRITICAL):
+Each medication MUST be assigned to ONE category based on its PRIMARY indication/purpose. Use these exact category values:
+
+- multiple: Medication treats multiple conditions or has multiple indications
+- pain_management: Pain relievers, analgesics, opioids, anti-inflammatory medications (NSAIDs, acetaminophen, morphine, oxycodone, ibuprofen, etc.)
+- cardiovascular: Blood pressure medications, heart medications, cholesterol medications, blood thinners (lisinopril, metoprolol, atorvastatin, warfarin, aspirin for heart, etc.)
+- diabetes: Diabetes medications, insulin, blood sugar control (metformin, insulin, glipizide, etc.)
+- mental_health: Antidepressants, anti-anxiety, antipsychotics, mood stabilizers (sertraline, fluoxetine, alprazolam, lithium, etc.)
+- antibiotics: Antibiotics, antifungals, antivirals, anti-infection medications (amoxicillin, azithromycin, fluconazole, acyclovir, etc.)
+- respiratory: Asthma inhalers, COPD medications, breathing treatments (albuterol, fluticasone, montelukast, etc.)
+- gastrointestinal: Stomach medications, acid reducers, anti-nausea, digestive medications (omeprazole, ondansetron, loperamide, etc.)
+- neurological: Seizure medications, migraine medications, Parkinson's medications, dementia medications (levetiracetam, topiramate, carbidopa-levodopa, donepezil, etc.)
+- endocrine: Thyroid medications, hormone medications (levothyroxine, estrogen, testosterone, etc.)
+- oncology: Cancer medications, chemotherapy drugs, immunotherapy
+- immunosuppressant: Immunosuppressants, autoimmune disease medications (prednisone, methotrexate, infliximab, etc.)
+- vitamins_supplements: Vitamins, minerals, supplements, over-the-counter wellness products
+- other: Medications that don't fit the above categories
+
+IMPORTANT: Look at the medication name and description to determine its purpose, then assign the appropriate category. Do NOT use "other" unless the medication truly doesn't fit any of the specific categories above.
 - preferences: Structured section containing:
   - communication_preferences: List of preferences with category (medical_discussions/daily_care/emotional_support/appointments/updates), preference text, and optional details
   - caregiving_guidelines: List of guidelines with category (daily_routine/medical_care/nutrition/mobility/safety/comfort/sleep), guideline text, importance level (critical/important/preferred), and optional details

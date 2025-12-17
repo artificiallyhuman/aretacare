@@ -2,6 +2,7 @@ from openai import OpenAI
 from app.core.config import settings
 from app.config import ai_config
 from app.models.journal import JournalEntry, EntryType
+from app.models.profile import Profile
 from app.schemas.journal import (
     JournalEntryCreate,
     JournalEntryUpdate,
@@ -744,6 +745,169 @@ IMPORTANT: Respond with ONLY a valid JSON object in this exact format, with no a
             return 0
         return len(text) // 4
 
+    def _format_profile_context(self, session_id: str, max_tokens: int) -> str:
+        """Format health profile for conversation context.
+
+        Provides long-term memory and key patient information that complements
+        the short-term journal entries.
+        """
+        try:
+            # Fetch profile from database
+            profile = self.db.query(Profile).filter(
+                Profile.session_id == session_id
+            ).first()
+
+            if not profile or not profile.profile_data:
+                return ""
+
+            profile_data = profile.profile_data
+            context = "# Health Profile (Long-Term Memory)\n\n"
+            context += "_This is the HEALTH PROFILE - long-term, structured information about the patient, caregivers, providers, and care details. This complements the journal's day-to-day updates._\n\n"
+
+            total_tokens = self._estimate_tokens(context)
+
+            # Helper to add section if under token limit
+            def try_add_section(section_text: str) -> bool:
+                nonlocal context, total_tokens
+                section_tokens = self._estimate_tokens(section_text)
+                if total_tokens + section_tokens <= max_tokens:
+                    context += section_text
+                    total_tokens += section_tokens
+                    return True
+                return False
+
+            # Patient Information (highest priority)
+            patient = profile_data.get("patient")
+            if patient:
+                section = "**Patient:** "
+                parts = []
+                if patient.get("full_name"):
+                    parts.append(patient["full_name"])
+                if patient.get("preferred_name"):
+                    parts.append(f'(goes by "{patient["preferred_name"]}")')
+                if patient.get("age"):
+                    parts.append(f"Age {patient['age']}")
+                if patient.get("date_of_birth"):
+                    parts.append(f"DOB {patient['date_of_birth']}")
+
+                if parts:
+                    section += ", ".join(parts) + "\n\n"
+                    try_add_section(section)
+
+            # Conditions (high priority)
+            conditions = profile_data.get("conditions", [])
+            if conditions:
+                section = "**Conditions:** "
+                active_conditions = [c for c in conditions if c.get("status") == "active"]
+                if active_conditions:
+                    condition_list = []
+                    for c in active_conditions[:10]:  # Limit to 10 most important
+                        cond_text = c.get("clinical_term") or "Unknown"
+                        if c.get("description"):
+                            cond_text += f" ({c['description']})"
+                        condition_list.append(cond_text)
+                    section += "; ".join(condition_list) + "\n\n"
+                    if not try_add_section(section):
+                        return context  # Out of tokens
+
+            # Medications (high priority) - grouped by category
+            medications = profile_data.get("medications", [])
+            if medications:
+                # Group by category
+                by_category = {}
+                for m in medications:
+                    cat = m.get("category", "other")
+                    if cat not in by_category:
+                        by_category[cat] = []
+                    by_category[cat].append(m)
+
+                section = "**Medications:**\n"
+                for category, meds in by_category.items():
+                    # Category labels
+                    category_labels = {
+                        "multiple": "Multiple Uses",
+                        "pain_management": "Pain Relief",
+                        "cardiovascular": "Heart & Blood Pressure",
+                        "diabetes": "Diabetes",
+                        "mental_health": "Mental Health",
+                        "antibiotics": "Infection",
+                        "respiratory": "Breathing",
+                        "gastrointestinal": "Digestion",
+                        "neurological": "Brain/Nerves",
+                        "endocrine": "Hormones",
+                        "oncology": "Cancer Treatment",
+                        "immunosuppressant": "Immune System",
+                        "vitamins_supplements": "Vitamins",
+                        "other": "Other"
+                    }
+                    cat_label = category_labels.get(category, category)
+                    section += f"  • {cat_label}: "
+                    med_names = []
+                    for m in meds[:5]:  # Limit per category
+                        med_text = m.get("name") or "Unknown"
+                        if m.get("dose"):
+                            med_text += f" {m['dose']}"
+                        med_names.append(med_text)
+                    section += ", ".join(med_names) + "\n"
+                section += "\n"
+
+                if not try_add_section(section):
+                    return context  # Out of tokens
+
+            # Allergies (critical safety information)
+            allergies = profile_data.get("allergies", [])
+            if allergies:
+                section = "**Allergies:** "
+                allergy_list = []
+                for a in allergies[:10]:  # Limit to 10
+                    allergy_text = a.get("substance") or "Unknown"
+                    if a.get("severity"):
+                        allergy_text += f" [{a['severity'].upper()}]"
+                    if a.get("reaction"):
+                        allergy_text += f" - {a['reaction']}"
+                    allergy_list.append(allergy_text)
+                section += "; ".join(allergy_list) + "\n\n"
+                if not try_add_section(section):
+                    return context  # Out of tokens
+
+            # Providers (medium priority)
+            providers = profile_data.get("providers", [])
+            if providers:
+                section = "**Healthcare Team:** "
+                provider_list = []
+                for p in providers[:8]:  # Limit to 8
+                    prov_text = p.get("name") or "Unknown"
+                    if p.get("specialty"):
+                        prov_text += f" ({p['specialty']})"
+                    provider_list.append(prov_text)
+                section += "; ".join(provider_list) + "\n\n"
+                try_add_section(section)  # Optional, won't break if runs out
+
+            # Caregivers (medium priority)
+            caregivers = profile_data.get("caregivers", [])
+            if caregivers:
+                section = "**Caregivers:** "
+                caregiver_list = []
+                for cg in caregivers[:5]:  # Limit to 5
+                    cg_text = cg.get("name") or "Unknown"
+                    if cg.get("relationship"):
+                        cg_text += f" ({cg['relationship']})"
+                    caregiver_list.append(cg_text)
+                section += "; ".join(caregiver_list) + "\n\n"
+                try_add_section(section)  # Optional
+
+            # Emergency Instructions (if present)
+            preferences = profile_data.get("preferences")
+            if preferences and preferences.get("emergency_instructions"):
+                section = f"**⚠️ EMERGENCY INSTRUCTIONS:** {preferences['emergency_instructions']}\n\n"
+                try_add_section(section)  # Optional but important
+
+            return context
+
+        except Exception as e:
+            logger.error(f"Error formatting profile context: {e}")
+            return ""
+
     async def format_journal_context_split(
         self,
         session_id: str,
@@ -838,28 +1002,17 @@ IMPORTANT: Respond with ONLY a valid JSON object in this exact format, with no a
                                 else:
                                     break
 
-                    # Oldest entries (30+ days, titles only) - lowest priority
-                    if titles_only and total_tokens < max_tokens:
-                        section_header = "## Earlier History (30+ Days Ago)\n\n"
-                        section_tokens = self._estimate_tokens(section_header)
+                    # Health Profile - provides long-term structured memory
+                    # This replaces the old "30+ days journal titles" with more useful information
+                    if total_tokens < max_tokens:
+                        from app.services.openai_service import MAX_PROFILE_TOKENS
+                        remaining_tokens = min(max_tokens - total_tokens, MAX_PROFILE_TOKENS)
 
-                        if total_tokens + section_tokens <= max_tokens:
-                            older_context += section_header
-                            total_tokens += section_tokens
-
-                            by_month = self._group_by_month(titles_only)
-                            sorted_months = sorted(by_month.items(), key=lambda x: datetime.strptime(x[0], "%B %Y"))
-
-                            for month, month_entries in sorted_months:
-                                reversed_entries = list(reversed(month_entries))
-                                month_text = f"**{month}**: " + ", ".join([e.title for e in reversed_entries]) + "\n\n"
-                                month_tokens = self._estimate_tokens(month_text)
-
-                                if total_tokens + month_tokens <= max_tokens:
-                                    older_context += month_text
-                                    total_tokens += month_tokens
-                                else:
-                                    break
+                        if remaining_tokens > 1000:  # Only add if we have meaningful space
+                            profile_context = self._format_profile_context(session_id, remaining_tokens)
+                            if profile_context:
+                                older_context += profile_context
+                                total_tokens += self._estimate_tokens(profile_context)
 
             return older_context, recent_context
 
