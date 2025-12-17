@@ -591,10 +591,21 @@ async def _generate_profile_pdf(profile: Profile, session: UserSession) -> bytes
                 add_section_divider(story)
             sections_added.append('events')
             story.append(Paragraph("Medical History & Events", section_style))
+            # Event type labels for proper display
+            event_type_labels = {
+                'hospitalization': 'Hospitalization',
+                'surgery': 'Surgery',
+                'er_visit': 'ER Visit',
+                'major_diagnosis': 'Major Diagnosis',
+                'procedure': 'Procedure',
+                'other': 'Other'
+            }
             # Sort by date (newest first)
             sorted_events = sorted(events, key=lambda e: e.get("date", "") or "", reverse=True)
             for e in sorted_events:
-                title = f"<b>{e.get('event_type', 'Event').replace('_', ' ').title()}</b>"
+                event_type = e.get('event_type', 'Event')
+                event_label = event_type_labels.get(event_type, event_type.replace('_', ' ').title() if event_type else 'Event')
+                title = f"<b>{event_label}</b>"
                 if e.get("date"):
                     title += f" · {e['date']}"
                 story.append(Paragraph(title, item_title_style))
