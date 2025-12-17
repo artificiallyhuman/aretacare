@@ -290,7 +290,10 @@ export const profileAPI = {
   regenerate: (sessionId, confirm = true) => api.post(`/profile/${sessionId}/regenerate`, { confirm }),
   delete: (sessionId) => api.delete(`/profile/${sessionId}`),
   exportJson: (sessionId) => api.get(`/profile/${sessionId}/export?format=json`, { responseType: 'blob' }),
-  exportPdf: (sessionId) => api.get(`/profile/${sessionId}/export?format=pdf`, { responseType: 'blob' }),
+  exportPdf: (sessionId) => {
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    return api.get(`/profile/${sessionId}/export?format=pdf&timezone=${encodeURIComponent(tz)}`, { responseType: 'blob' });
+  },
 };
 
 export default api;
