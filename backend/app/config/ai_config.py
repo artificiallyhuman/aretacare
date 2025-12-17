@@ -304,6 +304,28 @@ For the summary:
 
 
 # ============================================================================
+# MEDICATION CATEGORIZATION
+# ============================================================================
+
+MEDICATION_CATEGORIES = {
+    "multiple": "Medication treats multiple conditions or has multiple indications",
+    "pain_management": "Pain relievers, analgesics, opioids, anti-inflammatory medications (NSAIDs, acetaminophen, morphine, oxycodone, ibuprofen, etc.)",
+    "cardiovascular": "Blood pressure medications, heart medications, cholesterol medications, blood thinners (lisinopril, metoprolol, atorvastatin, warfarin, aspirin for heart, etc.)",
+    "diabetes": "Diabetes medications, insulin, blood sugar control (metformin, insulin, glipizide, etc.)",
+    "mental_health": "Antidepressants, anti-anxiety, antipsychotics, mood stabilizers (sertraline, fluoxetine, alprazolam, lithium, etc.)",
+    "antibiotics": "Antibiotics, antifungals, antivirals, anti-infection medications (amoxicillin, azithromycin, fluconazole, acyclovir, etc.)",
+    "respiratory": "Asthma inhalers, COPD medications, breathing treatments (albuterol, fluticasone, montelukast, etc.)",
+    "gastrointestinal": "Stomach medications, acid reducers, anti-nausea, digestive medications (omeprazole, ondansetron, loperamide, etc.)",
+    "neurological": "Seizure medications, migraine medications, Parkinson's medications, dementia medications (levetiracetam, topiramate, carbidopa-levodopa, donepezil, etc.)",
+    "endocrine": "Thyroid medications, hormone medications (levothyroxine, estrogen, testosterone, etc.)",
+    "oncology": "Cancer medications, chemotherapy drugs, immunotherapy",
+    "immunosuppressant": "Immunosuppressants, autoimmune disease medications (prednisone, methotrexate, infliximab, etc.)",
+    "vitamins_supplements": "Vitamins, minerals, supplements, over-the-counter wellness products",
+    "other": "Medications that don't fit the above categories"
+}
+
+
+# ============================================================================
 # CLASSIFIER SYSTEM PROMPTS
 # ============================================================================
 
@@ -565,7 +587,7 @@ PROFILE SECTIONS:
 - caregivers: Name, relationship to patient, role in caregiving, contact info, location (can be multiple)
 - providers: Name, specialty, organization, contact info (can be multiple)
 - conditions: Clinical term, non-jargon description, status (active/resolved/monitoring), diagnosis date, important details
-- medications: Name, non-jargon description, dose, frequency, start date, prescriber, notes (side effects, adherence)
+- medications: Name, non-jargon description, dose, frequency, start date, prescriber, notes (side effects, adherence), category (REQUIRED: multiple/pain_management/cardiovascular/diabetes/mental_health/antibiotics/respiratory/gastrointestinal/neurological/endocrine/oncology/immunosuppressant/vitamins_supplements/other - based on medication's primary indication/purpose)
 - allergies: Substance, reaction, severity (mild/moderate/severe)
 - events: Event type (hospitalization/surgery/er_visit/major_diagnosis), description, date, details
 - preferences: Structured section containing:

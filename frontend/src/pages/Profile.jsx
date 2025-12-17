@@ -113,6 +113,42 @@ const EVENT_TYPE_LABELS = {
   other: 'Other'
 };
 
+// Medication category labels and display order
+const MEDICATION_CATEGORY_LABELS = {
+  multiple: 'Multiple Uses',
+  pain_management: 'Pain Relief',
+  cardiovascular: 'Heart & Blood Pressure',
+  diabetes: 'Diabetes & Blood Sugar',
+  mental_health: 'Mental Health',
+  antibiotics: 'Infection & Antibiotics',
+  respiratory: 'Breathing & Lungs',
+  gastrointestinal: 'Stomach & Digestion',
+  neurological: 'Brain & Nerves',
+  endocrine: 'Hormones',
+  oncology: 'Cancer Treatment',
+  immunosuppressant: 'Immune System',
+  vitamins_supplements: 'Vitamins & Supplements',
+  other: 'Other'
+};
+
+// Display order: multiple first, other last, rest alphabetically by label
+const MEDICATION_CATEGORY_ORDER = [
+  'multiple',
+  'pain_management',
+  'cardiovascular',
+  'diabetes',
+  'mental_health',
+  'antibiotics',
+  'respiratory',
+  'gastrointestinal',
+  'neurological',
+  'endocrine',
+  'oncology',
+  'immunosuppressant',
+  'vitamins_supplements',
+  'other'
+];
+
 // Section configuration with icons and colors
 const SECTION_CONFIG = {
   patient: {
@@ -516,15 +552,26 @@ const Profile = () => {
     }
 
     if (data?.medications?.length > 0) {
-      text += '## Medications\n';
-      data.medications.forEach(m => {
-        text += `- **${m.name || 'Unknown'}**`;
-        if (m.dose) text += ` ${m.dose}`;
-        if (m.frequency) text += `, ${m.frequency}`;
-        if (m.description) text += ` - ${m.description}`;
-        text += '\n';
+      text += '## Medications\n\n';
+
+      // Group medications by category
+      MEDICATION_CATEGORY_ORDER.forEach(categoryKey => {
+        const medsInCategory = data.medications.filter(m =>
+          (m.category || 'other') === categoryKey
+        );
+
+        if (medsInCategory.length > 0) {
+          text += `### ${MEDICATION_CATEGORY_LABELS[categoryKey]}\n`;
+          medsInCategory.forEach(m => {
+            text += `- **${m.name || 'Unknown'}**`;
+            if (m.dose) text += ` ${m.dose}`;
+            if (m.frequency) text += `, ${m.frequency}`;
+            if (m.description) text += ` - ${m.description}`;
+            text += '\n';
+          });
+          text += '\n';
+        }
       });
-      text += '\n';
     }
 
     if (data?.events?.length > 0) {
@@ -1415,6 +1462,7 @@ const Profile = () => {
                             <InlineField label="Frequency" value={m.frequency} onChange={(v) => updateListItem('medications', index, 'frequency', v)} />
                             <InlineField label="Prescriber" value={m.prescriber} onChange={(v) => updateListItem('medications', index, 'prescriber', v)} />
                             <InlineField label="Start Date" value={m.start_date} onChange={(v) => updateListItem('medications', index, 'start_date', v)} />
+                            <InlineField label="Category" value={m.category || 'other'} onChange={(v) => updateListItem('medications', index, 'category', v)} options={MEDICATION_CATEGORY_ORDER.map(key => ({ value: key, label: MEDICATION_CATEGORY_LABELS[key] }))} />
                             <div className="md:col-span-2">
                               <InlineField label="Description" value={m.description} onChange={(v) => updateListItem('medications', index, 'description', v)} />
                             </div>
@@ -1425,63 +1473,87 @@ const Profile = () => {
                         </div>
                       ))}
                     </div>
-                    <AddItemButton onClick={() => addListItem('medications', { name: '', dose: '', frequency: '', prescriber: '', start_date: '', description: '', notes: '' })} label="Add medication" />
+                    <AddItemButton onClick={() => addListItem('medications', { name: '', dose: '', frequency: '', prescriber: '', start_date: '', description: '', notes: '', category: 'other' })} label="Add medication" />
                   </>
                 ) : profileData?.medications?.length > 0 ? (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {profileData.medications.map((m, index) => {
-                      // Determine if medication is active (default to active if not specified)
-                      const isActive = m.status !== 'discontinued' && m.status !== 'inactive';
+                  <div className="space-y-6">
+                    {/* Group medications by category */}
+                    {MEDICATION_CATEGORY_ORDER.map(categoryKey => {
+                      const medsInCategory = profileData.medications.filter(m =>
+                        (m.category || 'other') === categoryKey
+                      );
+
+                      if (medsInCategory.length === 0) return null;
 
                       return (
-                        <div
-                          key={m.id || index}
-                          className={`p-4 rounded-lg border-l-4 shadow-sm transition-all hover:shadow-md ${
-                            isActive
-                              ? 'bg-gradient-to-r from-pink-50 to-white dark:from-pink-900/20 dark:to-gray-700 border-pink-500'
-                              : 'bg-gradient-to-r from-gray-50 to-white dark:from-gray-800 dark:to-gray-700 border-gray-400 opacity-75'
-                          }`}
-                        >
-                          <div className="flex items-start justify-between mb-2">
-                            <div className="flex-1">
-                              <div className="flex items-center space-x-2 mb-1">
-                                <h4 className="font-bold text-gray-900 dark:text-white text-base">
-                                  {m.name || 'Unknown'}
-                                </h4>
-                                <span className={`px-2 py-0.5 text-xs font-semibold rounded-full ${
-                                  isActive
-                                    ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300'
-                                    : 'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400'
-                                }`}>
-                                  {isActive ? 'Active' : 'Inactive'}
-                                </span>
-                              </div>
-                              <div className="flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-300">
-                                {m.dose && <span className="font-medium">{m.dose}</span>}
-                                {m.frequency && <span>• {m.frequency}</span>}
-                              </div>
-                            </div>
+                        <div key={categoryKey}>
+                          {/* Category header */}
+                          <h4 className="text-sm font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide mb-3 flex items-center">
+                            <span className="flex-1">{MEDICATION_CATEGORY_LABELS[categoryKey]}</span>
+                            <span className="text-xs font-normal text-gray-500 dark:text-gray-400">
+                              {medsInCategory.length} {medsInCategory.length === 1 ? 'medication' : 'medications'}
+                            </span>
+                          </h4>
+
+                          {/* Medications in this category */}
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {medsInCategory.map((m, index) => {
+                              // Determine if medication is active (default to active if not specified)
+                              const isActive = m.status !== 'discontinued' && m.status !== 'inactive';
+
+                              return (
+                                <div
+                                  key={m.id || index}
+                                  className={`p-4 rounded-lg border-l-4 shadow-sm transition-all hover:shadow-md ${
+                                    isActive
+                                      ? 'bg-gradient-to-r from-pink-50 to-white dark:from-pink-900/20 dark:to-gray-700 border-pink-500'
+                                      : 'bg-gradient-to-r from-gray-50 to-white dark:from-gray-800 dark:to-gray-700 border-gray-400 opacity-75'
+                                  }`}
+                                >
+                                  <div className="flex items-start justify-between mb-2">
+                                    <div className="flex-1">
+                                      <div className="flex items-center space-x-2 mb-1">
+                                        <h4 className="font-bold text-gray-900 dark:text-white text-base">
+                                          {m.name || 'Unknown'}
+                                        </h4>
+                                        <span className={`px-2 py-0.5 text-xs font-semibold rounded-full ${
+                                          isActive
+                                            ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300'
+                                            : 'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400'
+                                        }`}>
+                                          {isActive ? 'Active' : 'Inactive'}
+                                        </span>
+                                      </div>
+                                      <div className="flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-300">
+                                        {m.dose && <span className="font-medium">{m.dose}</span>}
+                                        {m.frequency && <span>• {m.frequency}</span>}
+                                      </div>
+                                    </div>
+                                  </div>
+                                  {m.description && (
+                                    <p className="text-sm text-gray-600 dark:text-gray-300 mt-2 leading-relaxed">
+                                      {m.description}
+                                    </p>
+                                  )}
+                                  {m.prescriber && (
+                                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                                      Prescribed by: <span className="font-medium">{m.prescriber}</span>
+                                    </p>
+                                  )}
+                                  {m.start_date && (
+                                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                                      Started: {m.start_date}
+                                    </p>
+                                  )}
+                                  {m.notes && (
+                                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 italic">
+                                      {m.notes}
+                                    </p>
+                                  )}
+                                </div>
+                              );
+                            })}
                           </div>
-                          {m.description && (
-                            <p className="text-sm text-gray-600 dark:text-gray-300 mt-2 leading-relaxed">
-                              {m.description}
-                            </p>
-                          )}
-                          {m.prescriber && (
-                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-                              Prescribed by: <span className="font-medium">{m.prescriber}</span>
-                            </p>
-                          )}
-                          {m.start_date && (
-                            <p className="text-xs text-gray-500 dark:text-gray-400">
-                              Started: {m.start_date}
-                            </p>
-                          )}
-                          {m.notes && (
-                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 italic">
-                              {m.notes}
-                            </p>
-                          )}
                         </div>
                       );
                     })}

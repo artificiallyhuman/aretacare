@@ -576,29 +576,79 @@ async def _generate_profile_pdf(profile: Profile, session: UserSession, timezone
                 if c.get("details"):
                     story.append(Paragraph(c['details'], item_detail_style))
 
-        # Medications
+        # Medications - grouped by category
         medications = profile_data.get("medications", [])
         if medications:
             if sections_added:
                 add_section_divider(story)
             sections_added.append('medications')
             story.append(Paragraph("Medications", section_style))
-            for m in medications:
-                title = f"<b>{m.get('name', 'Unknown')}</b>"
-                dosage_parts = []
-                if m.get("dose"):
-                    dosage_parts.append(m['dose'])
-                if m.get("frequency"):
-                    dosage_parts.append(m['frequency'])
-                if dosage_parts:
-                    title += f" · {', '.join(dosage_parts)}"
-                story.append(Paragraph(title, item_title_style))
-                if m.get("description"):
-                    story.append(Paragraph(m['description'], item_detail_style))
-                if m.get("prescriber"):
-                    story.append(Paragraph(f"Prescribed by: {m['prescriber']}", item_detail_style))
-                if m.get("notes"):
-                    story.append(Paragraph(f"Note: {m['notes']}", item_detail_style))
+
+            # Category labels for medications
+            medication_category_labels = {
+                "multiple": "Multiple Uses",
+                "pain_management": "Pain Relief",
+                "cardiovascular": "Heart & Blood Pressure",
+                "diabetes": "Diabetes & Blood Sugar",
+                "mental_health": "Mental Health",
+                "antibiotics": "Infection & Antibiotics",
+                "respiratory": "Breathing & Lungs",
+                "gastrointestinal": "Stomach & Digestion",
+                "neurological": "Brain & Nerves",
+                "endocrine": "Hormones",
+                "oncology": "Cancer Treatment",
+                "immunosuppressant": "Immune System",
+                "vitamins_supplements": "Vitamins & Supplements",
+                "other": "Other"
+            }
+
+            # Category order
+            category_order = [
+                "multiple", "pain_management", "cardiovascular", "diabetes",
+                "mental_health", "antibiotics", "respiratory", "gastrointestinal",
+                "neurological", "endocrine", "oncology", "immunosuppressant",
+                "vitamins_supplements", "other"
+            ]
+
+            # Subsection style for categories
+            category_style = ParagraphStyle(
+                'CategorySubtitle',
+                parent=styles['Normal'],
+                fontSize=11,
+                spaceBefore=12,
+                spaceAfter=6,
+                textColor=colors.HexColor('#4b5563'),
+                fontName='Helvetica-Bold'
+            )
+
+            # Group medications by category
+            for category_key in category_order:
+                meds_in_category = [m for m in medications if m.get('category', 'other') == category_key]
+
+                if meds_in_category:
+                    # Add category header
+                    story.append(Paragraph(
+                        medication_category_labels.get(category_key, category_key),
+                        category_style
+                    ))
+
+                    # Add medications in this category
+                    for m in meds_in_category:
+                        title = f"<b>{m.get('name', 'Unknown')}</b>"
+                        dosage_parts = []
+                        if m.get("dose"):
+                            dosage_parts.append(m['dose'])
+                        if m.get("frequency"):
+                            dosage_parts.append(m['frequency'])
+                        if dosage_parts:
+                            title += f" · {', '.join(dosage_parts)}"
+                        story.append(Paragraph(title, item_title_style))
+                        if m.get("description"):
+                            story.append(Paragraph(m['description'], item_detail_style))
+                        if m.get("prescriber"):
+                            story.append(Paragraph(f"Prescribed by: {m['prescriber']}", item_detail_style))
+                        if m.get("notes"):
+                            story.append(Paragraph(f"Note: {m['notes']}", item_detail_style))
 
         # Events/History
         events = profile_data.get("events", [])
