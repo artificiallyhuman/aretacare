@@ -125,6 +125,13 @@ const Header = ({ onLogout, user }) => {
                     Care Journal
                   </Link>
                   <Link
+                    to="/profile"
+                    className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 hover:text-primary-600 dark:hover:text-primary-400"
+                    onClick={() => setToolsDropdownOpen(false)}
+                  >
+                    Care Profile
+                  </Link>
+                  <Link
                     to="/tools/documents"
                     className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 hover:text-primary-600 dark:hover:text-primary-400"
                     onClick={() => setToolsDropdownOpen(false)}
@@ -402,6 +409,13 @@ const Header = ({ onLogout, user }) => {
                       onClick={() => setMobileMenuOpen(false)}
                     >
                       Care Journal
+                    </Link>
+                    <Link
+                      to="/profile"
+                      className="block pl-6 pr-3 py-2 text-sm text-gray-600 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-primary-50 dark:hover:bg-gray-700 transition-colors"
+                      onClick={() => setMobileMenuOpen(false)}
+                    >
+                      Care Profile
                     </Link>
                     <Link
                       to="/tools/documents"

@@ -12,7 +12,7 @@ AretaCare is an AI-powered medical care advocate assistant that helps families u
 - Session sharing - share sessions with up to 9 collaborators (10 people total), collaborators have full access to session data
 - Dedicated Collaboration page - manage collaborators across all sessions, add/remove users, transfer ownership, pending invitations, leave shared sessions
 - Daily Plan - AI-generated summaries, user editable, delete and regenerate capability, copy-to-clipboard (converts markdown to formatted HTML)
-- Care Profile - AI-powered long-term memory for patient info, caregivers, providers, conditions, medications, allergies, events, and preferences. Auto-updates from conversations/journal, user controls all data, diff view for AI-proposed changes, copy-to-clipboard and PDF export (accessible at /profile, not in menu)
+- Care Profile - AI-powered long-term memory for patient info, caregivers, providers, conditions, medications, allergies, events, and preferences. Auto-updates from conversations/journal, user controls all data, diff view for AI-proposed changes, copy-to-clipboard and PDF export
 - AI Journal Synthesis - extracts medical updates from conversations, audio uploads, and document uploads with local timezone support and intelligent date interpretation (handles "Thursday", "next week", etc.)
 - Journal with date navigation - reverse chronological, sticky sidebar, scroll-to-date functionality, "Jump to Today" button, future entries visually distinguished with blue background shading
 - GPT-5.2 native file support for PDFs and images via Responses API
