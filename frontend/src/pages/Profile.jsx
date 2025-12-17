@@ -329,7 +329,7 @@ const Profile = () => {
 
   // Generate profile text for clipboard
   const generateProfileText = (data) => {
-    let text = '# Care Profile\n\n';
+    let text = '# Health Profile\n\n';
 
     if (data?.patient) {
       text += '## Patient Information\n';
@@ -387,23 +387,23 @@ const Profile = () => {
       text += '\n';
     }
 
-    if (data?.allergies?.length > 0) {
-      text += '## Allergies & Sensitivities\n';
-      data.allergies.forEach(a => {
-        text += `- **${a.substance || 'Unknown'}**`;
-        if (a.severity) text += ` [${a.severity.toUpperCase()}]`;
-        if (a.reaction) text += `: ${a.reaction}`;
-        text += '\n';
-      });
-      text += '\n';
-    }
-
     if (data?.events?.length > 0) {
       text += '## Medical History & Events\n';
       data.events.forEach(e => {
         text += `- **${EVENT_TYPE_LABELS[e.event_type] || e.event_type || 'Event'}**`;
         if (e.date) text += ` (${e.date})`;
         if (e.description) text += `: ${e.description}`;
+        text += '\n';
+      });
+      text += '\n';
+    }
+
+    if (data?.allergies?.length > 0) {
+      text += '## Allergies & Sensitivities\n';
+      data.allergies.forEach(a => {
+        text += `- **${a.substance || 'Unknown'}**`;
+        if (a.severity) text += ` [${a.severity.toUpperCase()}]`;
+        if (a.reaction) text += `: ${a.reaction}`;
         text += '\n';
       });
       text += '\n';
@@ -661,7 +661,7 @@ const Profile = () => {
       <div className="mb-6 sm:mb-8">
         <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4">
           <div className="flex-1">
-            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">Care Profile</h1>
+            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">Health Profile</h1>
             <p className="mt-2 text-sm sm:text-base text-gray-600 dark:text-gray-400">
               A living summary of patient, caregiver, provider, and care details. You stay in control at all times, with full ability to edit, copy, download, or reset it, and nothing is changed without your approval.
             </p>
@@ -1192,58 +1192,6 @@ const Profile = () => {
             )}
           </div>
 
-          {/* Allergies */}
-          <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
-            <SectionHeader title="Allergies & Sensitivities" section="allergies" count={profileData?.allergies?.length || 0} />
-            {expandedSections.allergies && (
-              <div className="p-4">
-                {isEditing ? (
-                  <>
-                    <div className="space-y-4">
-                      {(editedData?.allergies || []).map((a, index) => (
-                        <div key={a.id || index} className="relative p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
-                          <DeleteItemButton onClick={() => deleteListItem('allergies', index)} />
-                          <div className="grid grid-cols-1 md:grid-cols-3 gap-2 pr-6">
-                            <InlineField label="Substance" value={a.substance} onChange={(v) => updateListItem('allergies', index, 'substance', v)} />
-                            <InlineField label="Severity" value={a.severity} onChange={(v) => updateListItem('allergies', index, 'severity', v)} options={[
-                              { value: 'mild', label: 'Mild' },
-                              { value: 'moderate', label: 'Moderate' },
-                              { value: 'severe', label: 'Severe' }
-                            ]} />
-                            <InlineField label="Reaction" value={a.reaction} onChange={(v) => updateListItem('allergies', index, 'reaction', v)} />
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                    <AddItemButton onClick={() => addListItem('allergies', { substance: '', severity: '', reaction: '' })} label="Add allergy" />
-                  </>
-                ) : profileData?.allergies?.length > 0 ? (
-                  <div className="space-y-4">
-                    {profileData.allergies.map((a, index) => (
-                      <div key={a.id || index} className="p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
-                        <div className="flex items-center justify-between">
-                          <div className="font-medium text-gray-900 dark:text-white">{a.substance || 'Unknown'}</div>
-                          {a.severity && (
-                            <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                              a.severity === 'severe' ? 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300' :
-                              a.severity === 'moderate' ? 'bg-orange-100 dark:bg-orange-900/30 text-orange-800 dark:text-orange-300' :
-                              'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300'
-                            }`}>
-                              {a.severity.toUpperCase()}
-                            </span>
-                          )}
-                        </div>
-                        {a.reaction && <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">Reaction: {a.reaction}</p>}
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-gray-500 dark:text-gray-400 italic">No allergies recorded yet</p>
-                )}
-              </div>
-            )}
-          </div>
-
           {/* Events/History */}
           <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
             <SectionHeader title="Medical History & Events" section="events" count={profileData?.events?.length || 0} />
@@ -1294,6 +1242,58 @@ const Profile = () => {
                   </div>
                 ) : (
                   <p className="text-gray-500 dark:text-gray-400 italic">No events recorded yet</p>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Allergies */}
+          <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
+            <SectionHeader title="Allergies & Sensitivities" section="allergies" count={profileData?.allergies?.length || 0} />
+            {expandedSections.allergies && (
+              <div className="p-4">
+                {isEditing ? (
+                  <>
+                    <div className="space-y-4">
+                      {(editedData?.allergies || []).map((a, index) => (
+                        <div key={a.id || index} className="relative p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                          <DeleteItemButton onClick={() => deleteListItem('allergies', index)} />
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-2 pr-6">
+                            <InlineField label="Substance" value={a.substance} onChange={(v) => updateListItem('allergies', index, 'substance', v)} />
+                            <InlineField label="Severity" value={a.severity} onChange={(v) => updateListItem('allergies', index, 'severity', v)} options={[
+                              { value: 'mild', label: 'Mild' },
+                              { value: 'moderate', label: 'Moderate' },
+                              { value: 'severe', label: 'Severe' }
+                            ]} />
+                            <InlineField label="Reaction" value={a.reaction} onChange={(v) => updateListItem('allergies', index, 'reaction', v)} />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    <AddItemButton onClick={() => addListItem('allergies', { substance: '', severity: '', reaction: '' })} label="Add allergy" />
+                  </>
+                ) : profileData?.allergies?.length > 0 ? (
+                  <div className="space-y-4">
+                    {profileData.allergies.map((a, index) => (
+                      <div key={a.id || index} className="p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                        <div className="flex items-center justify-between">
+                          <div className="font-medium text-gray-900 dark:text-white">{a.substance || 'Unknown'}</div>
+                          {a.severity && (
+                            <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+                              a.severity === 'severe' ? 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300' :
+                              a.severity === 'moderate' ? 'bg-orange-100 dark:bg-orange-900/30 text-orange-800 dark:text-orange-300' :
+                              'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300'
+                            }`}>
+                              {a.severity.toUpperCase()}
+                            </span>
+                          )}
+                        </div>
+                        {a.reaction && <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">Reaction: {a.reaction}</p>}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-gray-500 dark:text-gray-400 italic">No allergies recorded yet</p>
                 )}
               </div>
             )}

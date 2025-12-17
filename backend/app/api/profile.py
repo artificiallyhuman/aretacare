@@ -338,16 +338,28 @@ async def _generate_profile_pdf(profile: Profile, session: UserSession) -> bytes
         from reportlab.lib.pagesizes import letter
         from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
         from reportlab.lib.units import inch
-        from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, HRFlowable
+        from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, HRFlowable, PageBreak
         from reportlab.lib import colors
-        from reportlab.lib.enums import TA_CENTER
+        from reportlab.lib.enums import TA_CENTER, TA_RIGHT
 
         buffer = io.BytesIO()
+
+        # Custom page template with footer
+        def add_page_number(canvas, doc):
+            canvas.saveState()
+            canvas.setFont('Helvetica', 9)
+            canvas.setFillColor(colors.HexColor('#9ca3af'))
+            # Page number on right
+            canvas.drawRightString(letter[0] - 0.75*inch, 0.5*inch, f"Page {doc.page}")
+            # AretaCare on left
+            canvas.drawString(0.75*inch, 0.5*inch, "AretaCare Health Profile")
+            canvas.restoreState()
+
         doc = SimpleDocTemplate(
             buffer,
             pagesize=letter,
             topMargin=0.75*inch,
-            bottomMargin=0.75*inch,
+            bottomMargin=0.85*inch,
             leftMargin=0.75*inch,
             rightMargin=0.75*inch
         )
@@ -417,11 +429,24 @@ async def _generate_profile_pdf(profile: Profile, session: UserSession) -> bytes
             spaceBefore=8,
             spaceAfter=8
         )
+        disclaimer_style = ParagraphStyle(
+            'Disclaimer',
+            parent=styles['Normal'],
+            fontSize=8,
+            textColor=colors.HexColor('#9ca3af'),
+            alignment=TA_CENTER,
+            spaceBefore=4
+        )
+
+        # Helper to add section divider
+        def add_section_divider(story_list):
+            story_list.append(Spacer(1, 6))
+            story_list.append(HRFlowable(width="100%", thickness=0.5, color=colors.HexColor('#e5e7eb')))
 
         story = []
 
         # Title Block
-        story.append(Paragraph("Care Profile", title_style))
+        story.append(Paragraph("Health Profile", title_style))
         story.append(Paragraph(f"{session.name}", subtitle_style))
         if profile.last_ai_update:
             story.append(Paragraph(
@@ -448,9 +473,15 @@ async def _generate_profile_pdf(profile: Profile, session: UserSession) -> bytes
             else:
                 return f'<font color="#1e40af">[{status_upper}]</font>'
 
+        # Track if we've added any sections (for dividers)
+        sections_added = []
+
         # Patient Information
         patient = profile_data.get("patient")
         if patient:
+            if sections_added:
+                add_section_divider(story)
+            sections_added.append('patient')
             story.append(Paragraph("Patient Information", section_style))
             # Build patient info as a clean block
             if patient.get("full_name"):
@@ -473,6 +504,9 @@ async def _generate_profile_pdf(profile: Profile, session: UserSession) -> bytes
         # Caregivers
         caregivers = profile_data.get("caregivers", [])
         if caregivers:
+            if sections_added:
+                add_section_divider(story)
+            sections_added.append('caregivers')
             story.append(Paragraph("Caregivers", section_style))
             for cg in caregivers:
                 title = f"<b>{cg.get('name', 'Unknown')}</b>"
@@ -487,6 +521,9 @@ async def _generate_profile_pdf(profile: Profile, session: UserSession) -> bytes
         # Providers
         providers = profile_data.get("providers", [])
         if providers:
+            if sections_added:
+                add_section_divider(story)
+            sections_added.append('providers')
             story.append(Paragraph("Healthcare Providers", section_style))
             for p in providers:
                 title = f"<b>{p.get('name', 'Unknown')}</b>"
@@ -501,6 +538,9 @@ async def _generate_profile_pdf(profile: Profile, session: UserSession) -> bytes
         # Conditions
         conditions = profile_data.get("conditions", [])
         if conditions:
+            if sections_added:
+                add_section_divider(story)
+            sections_added.append('conditions')
             story.append(Paragraph("Conditions & Diagnoses", section_style))
             # Sort by status (active first) then by date
             status_order = {"active": 0, "monitoring": 1, "resolved": 2}
@@ -523,6 +563,9 @@ async def _generate_profile_pdf(profile: Profile, session: UserSession) -> bytes
         # Medications
         medications = profile_data.get("medications", [])
         if medications:
+            if sections_added:
+                add_section_divider(story)
+            sections_added.append('medications')
             story.append(Paragraph("Medications", section_style))
             for m in medications:
                 title = f"<b>{m.get('name', 'Unknown')}</b>"
@@ -541,21 +584,12 @@ async def _generate_profile_pdf(profile: Profile, session: UserSession) -> bytes
                 if m.get("notes"):
                     story.append(Paragraph(f"Note: {m['notes']}", item_detail_style))
 
-        # Allergies
-        allergies = profile_data.get("allergies", [])
-        if allergies:
-            story.append(Paragraph("Allergies & Sensitivities", section_style))
-            for a in allergies:
-                title = f"<b>{a.get('substance', 'Unknown')}</b>"
-                if a.get("severity"):
-                    title += f" {format_status(a['severity'])}"
-                story.append(Paragraph(title, item_title_style))
-                if a.get("reaction"):
-                    story.append(Paragraph(f"Reaction: {a['reaction']}", item_detail_style))
-
         # Events/History
         events = profile_data.get("events", [])
         if events:
+            if sections_added:
+                add_section_divider(story)
+            sections_added.append('events')
             story.append(Paragraph("Medical History & Events", section_style))
             # Sort by date (newest first)
             sorted_events = sorted(events, key=lambda e: e.get("date", "") or "", reverse=True)
@@ -569,9 +603,39 @@ async def _generate_profile_pdf(profile: Profile, session: UserSession) -> bytes
                 if e.get("details"):
                     story.append(Paragraph(e['details'], item_detail_style))
 
+        # Allergies
+        allergies = profile_data.get("allergies", [])
+        if allergies:
+            if sections_added:
+                add_section_divider(story)
+            sections_added.append('allergies')
+            story.append(Paragraph("Allergies & Sensitivities", section_style))
+            # Sort by severity (severe first)
+            severity_order = {"severe": 0, "moderate": 1, "mild": 2}
+            sorted_allergies = sorted(
+                allergies,
+                key=lambda a: severity_order.get(a.get("severity", "").lower(), 3)
+            )
+            for a in sorted_allergies:
+                title = f"<b>{a.get('substance', 'Unknown')}</b>"
+                severity = a.get("severity", "").lower()
+                if severity:
+                    if severity == "severe":
+                        title += f' <font color="#dc2626"><b>[SEVERE]</b></font>'
+                    elif severity == "moderate":
+                        title += f' <font color="#d97706">[MODERATE]</font>'
+                    else:
+                        title += f' <font color="#6b7280">[{severity.upper()}]</font>'
+                story.append(Paragraph(title, item_title_style))
+                if a.get("reaction"):
+                    story.append(Paragraph(f"Reaction: {a['reaction']}", item_detail_style))
+
         # Preferences
         preferences = profile_data.get("preferences")
         if preferences:
+            if sections_added:
+                add_section_divider(story)
+            sections_added.append('preferences')
             story.append(Paragraph("Preferences & Guidelines", section_style))
 
             # Emergency Instructions first (highlighted with alert styling)
@@ -622,7 +686,7 @@ async def _generate_profile_pdf(profile: Profile, session: UserSession) -> bytes
                 story.append(Paragraph("<b>Additional Notes</b>", item_title_style))
                 story.append(Paragraph(preferences['additional_notes'], item_detail_style))
 
-        # Footer
+        # Footer with disclaimer
         story.append(Spacer(1, 30))
         story.append(HRFlowable(width="100%", thickness=1, color=colors.HexColor('#e5e7eb')))
         story.append(Spacer(1, 10))
@@ -631,7 +695,7 @@ async def _generate_profile_pdf(profile: Profile, session: UserSession) -> bytes
             footer_style
         ))
 
-        doc.build(story)
+        doc.build(story, onFirstPage=add_page_number, onLaterPages=add_page_number)
         return buffer.getvalue()
 
     except ImportError:

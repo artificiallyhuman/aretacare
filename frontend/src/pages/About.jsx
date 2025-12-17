@@ -168,7 +168,7 @@ const About = () => {
           <ul className="text-gray-600 dark:text-gray-400 space-y-2 leading-relaxed">
             <li className="flex items-start">
               <span className="text-purple-600 dark:text-purple-400 mr-2 mt-1">•</span>
-              <span>Care Journal and Care Profile keep all your information organized</span>
+              <span>Care Journal and Health Profile keep all your information organized</span>
             </li>
             <li className="flex items-start">
               <span className="text-purple-600 dark:text-purple-400 mr-2 mt-1">•</span>
