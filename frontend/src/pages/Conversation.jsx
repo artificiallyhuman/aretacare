@@ -182,6 +182,9 @@ const Conversation = () => {
     // When typing stops, don't auto-scroll - let the messages useEffect handle it
   }, [isAITyping]);
 
+  // Track if we're in a session switch scroll window (for re-scrolling after banner appears)
+  const sessionSwitchScrollWindow = useRef(false);
+
   useEffect(() => {
     if (activeSessionId) {
       // Reset daily plan state when switching sessions
@@ -191,8 +194,16 @@ const Conversation = () => {
 
       // Mark that we need to scroll after messages load
       sessionSwitchScrollPending.current = true;
+      sessionSwitchScrollWindow.current = true;
       loadConversationHistory();
       checkDailyPlan();
+
+      // Close the scroll window after 2 seconds (enough time for daily plan check)
+      const windowTimer = setTimeout(() => {
+        sessionSwitchScrollWindow.current = false;
+      }, 2000);
+
+      return () => clearTimeout(windowTimer);
     }
     // Intentionally excluding loadConversationHistory and checkDailyPlan from deps
     // to prevent infinite re-renders - only trigger on session change
@@ -244,6 +255,18 @@ const Conversation = () => {
 
     return () => cancelAnimationFrame(animationId);
   }, [messages]);
+
+  // Re-scroll when daily plan banner appears during session switch
+  // The banner takes space above messages, causing a layout shift
+  useEffect(() => {
+    if (sessionSwitchScrollWindow.current && showBanner) {
+      // Small delay to let layout settle after banner appears
+      const timer = setTimeout(() => {
+        scrollToBottom('auto');
+      }, 50);
+      return () => clearTimeout(timer);
+    }
+  }, [showBanner]);
 
   // Periodic check for daily plan (every 30 minutes)
   useEffect(() => {
@@ -646,7 +669,7 @@ const Conversation = () => {
             onScroll={handleScroll}
             role="region"
             aria-label="Conversation messages"
-            className={`flex-1 p-2 md:p-4 space-y-2 scroll-smooth overscroll-contain ${messages.length === 0 ? 'overflow-hidden' : 'overflow-y-auto'}`}
+            className={`flex-1 p-2 md:p-4 space-y-2 overscroll-contain ${messages.length === 0 ? 'overflow-hidden' : 'overflow-y-auto'}`}
           >
             {messages.length === 0 ? (
               <div className="flex items-center justify-center h-full">
