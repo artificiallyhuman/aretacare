@@ -113,6 +113,146 @@ const EVENT_TYPE_LABELS = {
   other: 'Other'
 };
 
+// Section configuration with icons and colors
+const SECTION_CONFIG = {
+  patient: {
+    icon: (
+      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+      </svg>
+    ),
+    gradient: 'from-purple-500 to-indigo-600',
+    bgColor: 'bg-purple-50 dark:bg-purple-900/20',
+    borderColor: 'border-purple-200 dark:border-purple-800'
+  },
+  caregivers: {
+    icon: (
+      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+      </svg>
+    ),
+    gradient: 'from-green-500 to-emerald-600',
+    bgColor: 'bg-green-50 dark:bg-green-900/20',
+    borderColor: 'border-green-200 dark:border-green-800'
+  },
+  providers: {
+    icon: (
+      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+      </svg>
+    ),
+    gradient: 'from-teal-500 to-cyan-600',
+    bgColor: 'bg-teal-50 dark:bg-teal-900/20',
+    borderColor: 'border-teal-200 dark:border-teal-800'
+  },
+  conditions: {
+    icon: (
+      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+      </svg>
+    ),
+    gradient: 'from-orange-500 to-red-600',
+    bgColor: 'bg-orange-50 dark:bg-orange-900/20',
+    borderColor: 'border-orange-200 dark:border-orange-800'
+  },
+  medications: {
+    icon: (
+      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
+      </svg>
+    ),
+    gradient: 'from-pink-500 to-rose-600',
+    bgColor: 'bg-pink-50 dark:bg-pink-900/20',
+    borderColor: 'border-pink-200 dark:border-pink-800'
+  },
+  allergies: {
+    icon: (
+      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+      </svg>
+    ),
+    gradient: 'from-red-500 to-pink-600',
+    bgColor: 'bg-red-50 dark:bg-red-900/20',
+    borderColor: 'border-red-200 dark:border-red-800'
+  },
+  events: {
+    icon: (
+      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+      </svg>
+    ),
+    gradient: 'from-blue-500 to-indigo-600',
+    bgColor: 'bg-blue-50 dark:bg-blue-900/20',
+    borderColor: 'border-blue-200 dark:border-blue-800'
+  },
+  preferences: {
+    icon: (
+      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+      </svg>
+    ),
+    gradient: 'from-indigo-500 to-purple-600',
+    bgColor: 'bg-indigo-50 dark:bg-indigo-900/20',
+    borderColor: 'border-indigo-200 dark:border-indigo-800'
+  }
+};
+
+// Calculate profile completeness
+const calculateCompleteness = (profileData) => {
+  if (!profileData) return 0;
+
+  let totalSections = 8;
+  let completedSections = 0;
+
+  // Patient info
+  if (profileData.patient && (profileData.patient.full_name || profileData.patient.preferred_name)) {
+    completedSections++;
+  }
+
+  // Caregivers
+  if (profileData.caregivers && profileData.caregivers.length > 0) {
+    completedSections++;
+  }
+
+  // Providers
+  if (profileData.providers && profileData.providers.length > 0) {
+    completedSections++;
+  }
+
+  // Conditions
+  if (profileData.conditions && profileData.conditions.length > 0) {
+    completedSections++;
+  }
+
+  // Medications
+  if (profileData.medications && profileData.medications.length > 0) {
+    completedSections++;
+  }
+
+  // Allergies
+  if (profileData.allergies && profileData.allergies.length > 0) {
+    completedSections++;
+  }
+
+  // Events
+  if (profileData.events && profileData.events.length > 0) {
+    completedSections++;
+  }
+
+  // Preferences
+  if (profileData.preferences && (
+    profileData.preferences.emergency_instructions ||
+    profileData.preferences.communication_preferences?.length > 0 ||
+    profileData.preferences.caregiving_guidelines?.length > 0 ||
+    profileData.preferences.important_context?.length > 0 ||
+    profileData.preferences.additional_notes
+  )) {
+    completedSections++;
+  }
+
+  return Math.round((completedSections / totalSections) * 100);
+};
+
 const Profile = () => {
   const { activeSessionId: sessionId } = useSessionContext();
   const [profile, setProfile] = useState(null);
@@ -584,28 +724,44 @@ const Profile = () => {
     setEditedData(newData);
   };
 
-  // Render section header with expand/collapse
-  const SectionHeader = ({ title, section, count }) => (
-    <button
-      onClick={() => toggleSection(section)}
-      className="w-full flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 rounded-lg transition"
-    >
-      <div className="flex items-center space-x-2">
-        <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{title}</h3>
-        {count !== undefined && (
-          <span className="text-sm text-gray-500 dark:text-gray-400">({count})</span>
-        )}
-      </div>
-      <svg
-        className={`w-5 h-5 text-gray-500 transition-transform ${expandedSections[section] ? 'rotate-180' : ''}`}
-        fill="none"
-        stroke="currentColor"
-        viewBox="0 0 24 24"
+  // Render section header with expand/collapse and icon
+  const SectionHeader = ({ title, section, count }) => {
+    const config = SECTION_CONFIG[section];
+    return (
+      <button
+        onClick={() => toggleSection(section)}
+        className="w-full flex items-center justify-between p-4 bg-gradient-to-r hover:shadow-md transition-all duration-200 rounded-t-lg"
+        style={{
+          background: expandedSections[section]
+            ? `linear-gradient(to right, var(--tw-gradient-stops))`
+            : 'transparent'
+        }}
       >
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-      </svg>
-    </button>
-  );
+        <div className="flex items-center space-x-3">
+          {/* Icon with gradient background */}
+          <div className={`flex-shrink-0 w-10 h-10 rounded-lg bg-gradient-to-br ${config.gradient} flex items-center justify-center text-white shadow-sm`}>
+            {config.icon}
+          </div>
+          <div className="flex items-center space-x-2">
+            <h3 className="text-lg font-bold text-gray-900 dark:text-white">{title}</h3>
+            {count !== undefined && (
+              <span className="px-2 py-0.5 text-xs font-semibold rounded-full bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300">
+                {count}
+              </span>
+            )}
+          </div>
+        </div>
+        <svg
+          className={`w-5 h-5 text-gray-500 dark:text-gray-400 transition-transform ${expandedSections[section] ? 'rotate-180' : ''}`}
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+    );
+  };
 
   // Loading state
   if (loading) {
@@ -661,17 +817,46 @@ const Profile = () => {
       <div className="mb-6 sm:mb-8">
         <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4">
           <div className="flex-1">
-            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">Health Profile</h1>
-            <p className="mt-2 text-sm sm:text-base text-gray-600 dark:text-gray-400">
+            <h1 className="text-3xl sm:text-4xl font-extrabold text-gray-900 dark:text-white tracking-tight">Health Profile</h1>
+            <p className="mt-3 text-sm sm:text-base text-gray-600 dark:text-gray-400 leading-relaxed">
               A living summary of patient, caregiver, provider, and care details. You stay in control at all times, with full ability to edit, copy, download, or reset it, and nothing is changed without your approval.
             </p>
             {profile?.last_ai_update && (
-              <p className="mt-1 text-xs text-gray-500 dark:text-gray-500">
+              <p className="mt-2 text-xs text-gray-500 dark:text-gray-500">
                 Last updated: {formatDate(profile.last_ai_update)}
               </p>
             )}
           </div>
         </div>
+
+        {/* Progress Indicator */}
+        {!isEmpty && (
+          <div className="mt-6 bg-gradient-to-r from-purple-50 to-blue-50 dark:from-gray-800 dark:to-gray-900 rounded-lg border border-purple-200 dark:border-gray-700 p-4">
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center space-x-2">
+                <svg className="w-5 h-5 text-purple-600 dark:text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span className="text-sm font-semibold text-gray-900 dark:text-white">Profile Completeness</span>
+              </div>
+              <span className="text-2xl font-bold text-purple-600 dark:text-purple-400">
+                {calculateCompleteness(profileData)}%
+              </span>
+            </div>
+            <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-3 overflow-hidden">
+              <div
+                className="h-full bg-gradient-to-r from-purple-500 to-blue-500 rounded-full transition-all duration-500 shadow-sm"
+                style={{ width: `${calculateCompleteness(profileData)}%` }}
+              />
+            </div>
+            <p className="mt-2 text-xs text-gray-600 dark:text-gray-400">
+              {calculateCompleteness(profileData) === 100
+                ? '🎉 Your profile is complete!'
+                : 'Continue chatting to grow your profile, or edit it directly'
+              }
+            </p>
+          </div>
+        )}
       </div>
 
       {error && (
@@ -906,28 +1091,27 @@ const Profile = () => {
 
       {/* Profile Content */}
       {!isEmpty && (
-        <div className="space-y-4">
+        <div className="space-y-6">
           {/* Expand/Collapse All */}
-          <div className="flex justify-end space-x-2 text-sm">
+          <div className="flex justify-end space-x-3 text-sm">
             <button
               onClick={expandAll}
               disabled={allExpanded}
-              className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-3 py-1.5 rounded-md font-medium text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               Expand all
             </button>
-            <span className="text-gray-300 dark:text-gray-600">|</span>
             <button
               onClick={collapseAll}
               disabled={allCollapsed}
-              className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-3 py-1.5 rounded-md font-medium text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               Collapse all
             </button>
           </div>
 
           {/* Patient Information */}
-          <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
+          <div className="bg-white dark:bg-gray-800 rounded-xl border-2 border-gray-200 dark:border-gray-700 overflow-hidden shadow-sm hover:shadow-md transition-shadow">
             <SectionHeader title="Patient Information" section="patient" />
             {expandedSections.patient && (
               <div className="p-4">
@@ -941,43 +1125,45 @@ const Profile = () => {
                     <EditableField label="Location" path="patient.location" editedData={editedData} setEditedData={setEditedData} />
                   </>
                 ) : profileData?.patient ? (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {profileData.patient.full_name && (
-                      <div>
-                        <span className="text-sm text-gray-500 dark:text-gray-400">Full Name</span>
-                        <p className="text-gray-900 dark:text-white font-medium">{profileData.patient.full_name}</p>
-                      </div>
-                    )}
-                    {profileData.patient.preferred_name && (
-                      <div>
-                        <span className="text-sm text-gray-500 dark:text-gray-400">Preferred Name</span>
-                        <p className="text-gray-900 dark:text-white font-medium">{profileData.patient.preferred_name}</p>
-                      </div>
-                    )}
-                    {profileData.patient.date_of_birth && (
-                      <div>
-                        <span className="text-sm text-gray-500 dark:text-gray-400">Date of Birth</span>
-                        <p className="text-gray-900 dark:text-white">{profileData.patient.date_of_birth}</p>
-                      </div>
-                    )}
-                    {profileData.patient.age && (
-                      <div>
-                        <span className="text-sm text-gray-500 dark:text-gray-400">Age</span>
-                        <p className="text-gray-900 dark:text-white">{profileData.patient.age}</p>
-                      </div>
-                    )}
-                    {profileData.patient.contact_info && (
-                      <div>
-                        <span className="text-sm text-gray-500 dark:text-gray-400">Contact</span>
-                        <p className="text-gray-900 dark:text-white">{profileData.patient.contact_info}</p>
-                      </div>
-                    )}
-                    {profileData.patient.location && (
-                      <div>
-                        <span className="text-sm text-gray-500 dark:text-gray-400">Location</span>
-                        <p className="text-gray-900 dark:text-white">{profileData.patient.location}</p>
-                      </div>
-                    )}
+                  <div className="bg-gradient-to-br from-purple-50 to-indigo-50 dark:from-purple-900/20 dark:to-indigo-900/20 rounded-lg p-5 border-l-4 border-purple-500 shadow-sm">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {profileData.patient.full_name && (
+                        <div>
+                          <span className="text-xs font-semibold text-purple-700 dark:text-purple-400 uppercase tracking-wide">Full Name</span>
+                          <p className="text-gray-900 dark:text-white font-bold text-lg mt-1">{profileData.patient.full_name}</p>
+                        </div>
+                      )}
+                      {profileData.patient.preferred_name && (
+                        <div>
+                          <span className="text-xs font-semibold text-purple-700 dark:text-purple-400 uppercase tracking-wide">Preferred Name</span>
+                          <p className="text-gray-900 dark:text-white font-bold text-lg mt-1">{profileData.patient.preferred_name}</p>
+                        </div>
+                      )}
+                      {profileData.patient.date_of_birth && (
+                        <div>
+                          <span className="text-xs font-semibold text-purple-700 dark:text-purple-400 uppercase tracking-wide">Date of Birth</span>
+                          <p className="text-gray-900 dark:text-white font-medium mt-1">{profileData.patient.date_of_birth}</p>
+                        </div>
+                      )}
+                      {profileData.patient.age && (
+                        <div>
+                          <span className="text-xs font-semibold text-purple-700 dark:text-purple-400 uppercase tracking-wide">Age</span>
+                          <p className="text-gray-900 dark:text-white font-medium mt-1">{profileData.patient.age}</p>
+                        </div>
+                      )}
+                      {profileData.patient.contact_info && (
+                        <div>
+                          <span className="text-xs font-semibold text-purple-700 dark:text-purple-400 uppercase tracking-wide">Contact</span>
+                          <p className="text-gray-900 dark:text-white font-medium mt-1">{profileData.patient.contact_info}</p>
+                        </div>
+                      )}
+                      {profileData.patient.location && (
+                        <div>
+                          <span className="text-xs font-semibold text-purple-700 dark:text-purple-400 uppercase tracking-wide">Location</span>
+                          <p className="text-gray-900 dark:text-white font-medium mt-1">{profileData.patient.location}</p>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 ) : (
                   <p className="text-gray-500 dark:text-gray-400 italic">No patient information yet</p>
@@ -987,7 +1173,7 @@ const Profile = () => {
           </div>
 
           {/* Caregivers */}
-          <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
+          <div className="bg-white dark:bg-gray-800 rounded-xl border-2 border-gray-200 dark:border-gray-700 overflow-hidden shadow-sm hover:shadow-md transition-shadow">
             <SectionHeader title="Caregivers" section="caregivers" count={profileData?.caregivers?.length || 0} />
             {expandedSections.caregivers && (
               <div className="p-4">
@@ -1010,16 +1196,41 @@ const Profile = () => {
                     <AddItemButton onClick={() => addListItem('caregivers', { name: '', relationship: '', role: '', contact_info: '', location: '' })} label="Add caregiver" />
                   </>
                 ) : profileData?.caregivers?.length > 0 ? (
-                  <div className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {profileData.caregivers.map((cg, index) => (
-                      <div key={cg.id || index} className="p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
-                        <div className="font-medium text-gray-900 dark:text-white">
-                          {cg.name || 'Unknown'}
-                          {cg.relationship && <span className="text-gray-500 dark:text-gray-400 ml-2">({cg.relationship})</span>}
+                      <div
+                        key={cg.id || index}
+                        className="p-4 rounded-lg shadow-sm transition-all hover:shadow-md border-l-4 border-green-500 bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20"
+                      >
+                        <div className="flex items-start justify-between mb-2">
+                          <div className="flex-1">
+                            <div className="flex items-center space-x-2 mb-1">
+                              <h4 className="font-bold text-gray-900 dark:text-white text-base">
+                                {cg.name || 'Unknown'}
+                              </h4>
+                            </div>
+                            {cg.relationship && (
+                              <p className="text-sm text-gray-600 dark:text-gray-400 font-medium">
+                                {cg.relationship}
+                              </p>
+                            )}
+                          </div>
                         </div>
-                        {cg.role && <p className="text-sm text-gray-600 dark:text-gray-300">{cg.role}</p>}
-                        {cg.contact_info && <p className="text-sm text-gray-500 dark:text-gray-400">{cg.contact_info}</p>}
-                        {cg.location && <p className="text-sm text-gray-500 dark:text-gray-400">{cg.location}</p>}
+                        {cg.role && (
+                          <p className="text-sm text-gray-700 dark:text-gray-300 mt-2">
+                            {cg.role}
+                          </p>
+                        )}
+                        {cg.contact_info && (
+                          <p className="text-xs text-gray-600 dark:text-gray-400 mt-2">
+                            📞 {cg.contact_info}
+                          </p>
+                        )}
+                        {cg.location && (
+                          <p className="text-xs text-gray-600 dark:text-gray-400">
+                            📍 {cg.location}
+                          </p>
+                        )}
                       </div>
                     ))}
                   </div>
@@ -1031,7 +1242,7 @@ const Profile = () => {
           </div>
 
           {/* Providers */}
-          <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
+          <div className="bg-white dark:bg-gray-800 rounded-xl border-2 border-gray-200 dark:border-gray-700 overflow-hidden shadow-sm hover:shadow-md transition-shadow">
             <SectionHeader title="Healthcare Providers" section="providers" count={profileData?.providers?.length || 0} />
             {expandedSections.providers && (
               <div className="p-4">
@@ -1053,15 +1264,34 @@ const Profile = () => {
                     <AddItemButton onClick={() => addListItem('providers', { name: '', specialty: '', organization: '', contact_info: '' })} label="Add provider" />
                   </>
                 ) : profileData?.providers?.length > 0 ? (
-                  <div className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {profileData.providers.map((p, index) => (
-                      <div key={p.id || index} className="p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
-                        <div className="font-medium text-gray-900 dark:text-white">
-                          {p.name || 'Unknown'}
-                          {p.specialty && <span className="text-primary-600 dark:text-primary-400 ml-2">{p.specialty}</span>}
+                      <div
+                        key={p.id || index}
+                        className="p-4 rounded-lg shadow-sm transition-all hover:shadow-md border-l-4 border-teal-500 bg-gradient-to-r from-teal-50 to-cyan-50 dark:from-teal-900/20 dark:to-cyan-900/20"
+                      >
+                        <div className="flex items-start justify-between mb-2">
+                          <div className="flex-1">
+                            <h4 className="font-bold text-gray-900 dark:text-white text-base mb-1">
+                              {p.name || 'Unknown'}
+                            </h4>
+                            {p.specialty && (
+                              <span className="inline-block px-2 py-0.5 text-xs font-semibold rounded-full bg-teal-100 dark:bg-teal-900/50 text-teal-700 dark:text-teal-300">
+                                {p.specialty}
+                              </span>
+                            )}
+                          </div>
                         </div>
-                        {p.organization && <p className="text-sm text-gray-600 dark:text-gray-300">{p.organization}</p>}
-                        {p.contact_info && <p className="text-sm text-gray-500 dark:text-gray-400">{p.contact_info}</p>}
+                        {p.organization && (
+                          <p className="text-sm text-gray-700 dark:text-gray-300 mt-2 font-medium">
+                            🏥 {p.organization}
+                          </p>
+                        )}
+                        {p.contact_info && (
+                          <p className="text-xs text-gray-600 dark:text-gray-400 mt-2">
+                            📞 {p.contact_info}
+                          </p>
+                        )}
                       </div>
                     ))}
                   </div>
@@ -1073,7 +1303,7 @@ const Profile = () => {
           </div>
 
           {/* Conditions */}
-          <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
+          <div className="bg-white dark:bg-gray-800 rounded-xl border-2 border-gray-200 dark:border-gray-700 overflow-hidden shadow-sm hover:shadow-md transition-shadow">
             <SectionHeader title="Conditions & Diagnoses" section="conditions" count={profileData?.conditions?.length || 0} />
             {expandedSections.conditions && (
               <div className="p-4">
@@ -1113,25 +1343,53 @@ const Profile = () => {
                         const dateB = b.diagnosis_date ? new Date(b.diagnosis_date) : new Date(0);
                         return dateB - dateA;
                       })
-                      .map((c, index) => (
-                      <div key={c.id || index} className="p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
-                        <div className="flex items-center justify-between">
-                          <div className="font-medium text-gray-900 dark:text-white">{c.clinical_term || 'Unknown'}</div>
-                          {c.status && (
-                            <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                              c.status === 'active' ? 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300' :
-                              c.status === 'resolved' ? 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300' :
-                              'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300'
-                            }`}>
-                              {c.status.toUpperCase()}
-                            </span>
-                          )}
-                        </div>
-                        {c.description && <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">{c.description}</p>}
-                        {c.diagnosis_date && <p className="text-sm text-gray-500 dark:text-gray-400">Diagnosed: {c.diagnosis_date}</p>}
-                        {c.details && <p className="text-sm text-gray-500 dark:text-gray-400">{c.details}</p>}
-                      </div>
-                    ))}
+                      .map((c, index) => {
+                        const statusColors = {
+                          active: 'border-red-500 bg-gradient-to-r from-red-50 to-orange-50 dark:from-red-900/20 dark:to-orange-900/20',
+                          monitoring: 'border-yellow-500 bg-gradient-to-r from-yellow-50 to-amber-50 dark:from-yellow-900/20 dark:to-amber-900/20',
+                          resolved: 'border-green-500 bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20'
+                        };
+                        const borderColor = statusColors[c.status] || 'border-gray-300 bg-gray-50 dark:bg-gray-700';
+
+                        return (
+                          <div
+                            key={c.id || index}
+                            className={`p-4 rounded-lg shadow-sm transition-all hover:shadow-md border-l-4 ${borderColor}`}
+                          >
+                            <div className="flex items-start justify-between mb-2">
+                              <div className="flex-1">
+                                <h4 className="font-bold text-gray-900 dark:text-white text-base mb-1">
+                                  {c.clinical_term || 'Unknown'}
+                                </h4>
+                                {c.status && (
+                                  <span className={`inline-block px-2.5 py-1 text-xs font-semibold rounded-full ${
+                                    c.status === 'active' ? 'bg-red-100 dark:bg-red-900/50 text-red-700 dark:text-red-300' :
+                                    c.status === 'resolved' ? 'bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-300' :
+                                    'bg-yellow-100 dark:bg-yellow-900/50 text-yellow-700 dark:text-yellow-300'
+                                  }`}>
+                                    {c.status.toUpperCase()}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                            {c.description && (
+                              <p className="text-sm text-gray-700 dark:text-gray-300 mt-2 leading-relaxed">
+                                {c.description}
+                              </p>
+                            )}
+                            {c.diagnosis_date && (
+                              <p className="text-xs text-gray-600 dark:text-gray-400 mt-2">
+                                📅 Diagnosed: <span className="font-medium">{c.diagnosis_date}</span>
+                              </p>
+                            )}
+                            {c.details && (
+                              <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
+                                {c.details}
+                              </p>
+                            )}
+                          </div>
+                        );
+                      })}
                   </div>
                 ) : (
                   <p className="text-gray-500 dark:text-gray-400 italic">No conditions recorded yet</p>
@@ -1141,7 +1399,7 @@ const Profile = () => {
           </div>
 
           {/* Medications */}
-          <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
+          <div className="bg-white dark:bg-gray-800 rounded-xl border-2 border-gray-200 dark:border-gray-700 overflow-hidden shadow-sm hover:shadow-md transition-shadow">
             <SectionHeader title="Medications" section="medications" count={profileData?.medications?.length || 0} />
             {expandedSections.medications && (
               <div className="p-4">
@@ -1170,20 +1428,63 @@ const Profile = () => {
                     <AddItemButton onClick={() => addListItem('medications', { name: '', dose: '', frequency: '', prescriber: '', start_date: '', description: '', notes: '' })} label="Add medication" />
                   </>
                 ) : profileData?.medications?.length > 0 ? (
-                  <div className="space-y-4">
-                    {profileData.medications.map((m, index) => (
-                      <div key={m.id || index} className="p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
-                        <div className="font-medium text-gray-900 dark:text-white">
-                          {m.name || 'Unknown'}
-                          {m.dose && <span className="text-gray-600 dark:text-gray-300 ml-2">{m.dose}</span>}
-                          {m.frequency && <span className="text-gray-500 dark:text-gray-400 ml-2">({m.frequency})</span>}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {profileData.medications.map((m, index) => {
+                      // Determine if medication is active (default to active if not specified)
+                      const isActive = m.status !== 'discontinued' && m.status !== 'inactive';
+
+                      return (
+                        <div
+                          key={m.id || index}
+                          className={`p-4 rounded-lg border-l-4 shadow-sm transition-all hover:shadow-md ${
+                            isActive
+                              ? 'bg-gradient-to-r from-pink-50 to-white dark:from-pink-900/20 dark:to-gray-700 border-pink-500'
+                              : 'bg-gradient-to-r from-gray-50 to-white dark:from-gray-800 dark:to-gray-700 border-gray-400 opacity-75'
+                          }`}
+                        >
+                          <div className="flex items-start justify-between mb-2">
+                            <div className="flex-1">
+                              <div className="flex items-center space-x-2 mb-1">
+                                <h4 className="font-bold text-gray-900 dark:text-white text-base">
+                                  {m.name || 'Unknown'}
+                                </h4>
+                                <span className={`px-2 py-0.5 text-xs font-semibold rounded-full ${
+                                  isActive
+                                    ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300'
+                                    : 'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400'
+                                }`}>
+                                  {isActive ? 'Active' : 'Inactive'}
+                                </span>
+                              </div>
+                              <div className="flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-300">
+                                {m.dose && <span className="font-medium">{m.dose}</span>}
+                                {m.frequency && <span>• {m.frequency}</span>}
+                              </div>
+                            </div>
+                          </div>
+                          {m.description && (
+                            <p className="text-sm text-gray-600 dark:text-gray-300 mt-2 leading-relaxed">
+                              {m.description}
+                            </p>
+                          )}
+                          {m.prescriber && (
+                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                              Prescribed by: <span className="font-medium">{m.prescriber}</span>
+                            </p>
+                          )}
+                          {m.start_date && (
+                            <p className="text-xs text-gray-500 dark:text-gray-400">
+                              Started: {m.start_date}
+                            </p>
+                          )}
+                          {m.notes && (
+                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 italic">
+                              {m.notes}
+                            </p>
+                          )}
                         </div>
-                        {m.description && <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">{m.description}</p>}
-                        {m.prescriber && <p className="text-sm text-gray-500 dark:text-gray-400">Prescribed by: {m.prescriber}</p>}
-                        {m.start_date && <p className="text-sm text-gray-500 dark:text-gray-400">Started: {m.start_date}</p>}
-                        {m.notes && <p className="text-sm text-gray-500 dark:text-gray-400">{m.notes}</p>}
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 ) : (
                   <p className="text-gray-500 dark:text-gray-400 italic">No medications recorded yet</p>
@@ -1193,7 +1494,7 @@ const Profile = () => {
           </div>
 
           {/* Events/History */}
-          <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
+          <div className="bg-white dark:bg-gray-800 rounded-xl border-2 border-gray-200 dark:border-gray-700 overflow-hidden shadow-sm hover:shadow-md transition-shadow">
             <SectionHeader title="Medical History & Events" section="events" count={profileData?.events?.length || 0} />
             {expandedSections.events && (
               <div className="p-4">
@@ -1226,19 +1527,57 @@ const Profile = () => {
                     <AddItemButton onClick={() => addListItem('events', { event_type: '', date: '', description: '', details: '' })} label="Add event" />
                   </>
                 ) : profileData?.events?.length > 0 ? (
-                  <div className="space-y-4">
-                    {sortByDateDesc(profileData.events, 'date').map((e, index) => (
-                      <div key={e.id || index} className="p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
-                        <div className="flex items-center justify-between">
-                          <div className="font-medium text-gray-900 dark:text-white">
-                            {EVENT_TYPE_LABELS[e.event_type] || e.event_type || 'Event'}
+                  <div className="relative pl-8 space-y-6">
+                    {/* Timeline line */}
+                    <div className="absolute left-3 top-0 bottom-0 w-0.5 bg-gradient-to-b from-blue-500 to-indigo-500" />
+
+                    {sortByDateDesc(profileData.events, 'date').map((e, index) => {
+                      // Color coding for event types
+                      const eventColors = {
+                        hospitalization: 'bg-red-500',
+                        surgery: 'bg-purple-500',
+                        er_visit: 'bg-orange-500',
+                        major_diagnosis: 'bg-pink-500',
+                        procedure: 'bg-blue-500',
+                        other: 'bg-gray-500'
+                      };
+                      const dotColor = eventColors[e.event_type] || 'bg-gray-500';
+
+                      return (
+                        <div key={e.id || index} className="relative">
+                          {/* Timeline dot */}
+                          <div className={`absolute -left-8 top-2 w-4 h-4 rounded-full ${dotColor} ring-4 ring-white dark:ring-gray-800 shadow-sm`} />
+
+                          {/* Event card */}
+                          <div className="bg-gradient-to-br from-white to-gray-50 dark:from-gray-700 dark:to-gray-800 rounded-lg p-4 shadow-sm border border-gray-200 dark:border-gray-600 hover:shadow-md transition-shadow">
+                            <div className="flex items-start justify-between mb-2">
+                              <div className="flex-1">
+                                <div className="flex items-center space-x-2 mb-1">
+                                  <span className={`inline-block px-2.5 py-1 text-xs font-semibold rounded-full ${dotColor} text-white shadow-sm`}>
+                                    {EVENT_TYPE_LABELS[e.event_type] || e.event_type || 'Event'}
+                                  </span>
+                                  {e.date && (
+                                    <span className="text-sm font-medium text-gray-600 dark:text-gray-400">
+                                      {e.date}
+                                    </span>
+                                  )}
+                                </div>
+                                {e.description && (
+                                  <h4 className="font-semibold text-gray-900 dark:text-white text-base leading-tight">
+                                    {e.description}
+                                  </h4>
+                                )}
+                              </div>
+                            </div>
+                            {e.details && (
+                              <p className="text-sm text-gray-600 dark:text-gray-300 leading-relaxed mt-2">
+                                {e.details}
+                              </p>
+                            )}
                           </div>
-                          {e.date && <span className="text-sm text-gray-500 dark:text-gray-400">{e.date}</span>}
                         </div>
-                        {e.description && <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">{e.description}</p>}
-                        {e.details && <p className="text-sm text-gray-500 dark:text-gray-400">{e.details}</p>}
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 ) : (
                   <p className="text-gray-500 dark:text-gray-400 italic">No events recorded yet</p>
@@ -1248,7 +1587,7 @@ const Profile = () => {
           </div>
 
           {/* Allergies */}
-          <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
+          <div className="bg-white dark:bg-gray-800 rounded-xl border-2 border-gray-200 dark:border-gray-700 overflow-hidden shadow-sm hover:shadow-md transition-shadow">
             <SectionHeader title="Allergies & Sensitivities" section="allergies" count={profileData?.allergies?.length || 0} />
             {expandedSections.allergies && (
               <div className="p-4">
@@ -1273,24 +1612,44 @@ const Profile = () => {
                     <AddItemButton onClick={() => addListItem('allergies', { substance: '', severity: '', reaction: '' })} label="Add allergy" />
                   </>
                 ) : profileData?.allergies?.length > 0 ? (
-                  <div className="space-y-4">
-                    {profileData.allergies.map((a, index) => (
-                      <div key={a.id || index} className="p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
-                        <div className="flex items-center justify-between">
-                          <div className="font-medium text-gray-900 dark:text-white">{a.substance || 'Unknown'}</div>
-                          {a.severity && (
-                            <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                              a.severity === 'severe' ? 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300' :
-                              a.severity === 'moderate' ? 'bg-orange-100 dark:bg-orange-900/30 text-orange-800 dark:text-orange-300' :
-                              'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300'
-                            }`}>
-                              {a.severity.toUpperCase()}
-                            </span>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {profileData.allergies.map((a, index) => {
+                      const severityStyles = {
+                        severe: 'border-red-500 bg-gradient-to-r from-red-50 to-pink-50 dark:from-red-900/30 dark:to-pink-900/30',
+                        moderate: 'border-orange-500 bg-gradient-to-r from-orange-50 to-amber-50 dark:from-orange-900/20 dark:to-amber-900/20',
+                        mild: 'border-yellow-500 bg-gradient-to-r from-yellow-50 to-amber-50 dark:from-yellow-900/20 dark:to-amber-900/20'
+                      };
+                      const cardStyle = severityStyles[a.severity] || 'border-gray-300 bg-gray-50 dark:bg-gray-700';
+
+                      return (
+                        <div
+                          key={a.id || index}
+                          className={`p-4 rounded-lg shadow-sm transition-all hover:shadow-md border-l-4 ${cardStyle}`}
+                        >
+                          <div className="flex items-start justify-between mb-2">
+                            <div className="flex-1">
+                              <h4 className="font-bold text-gray-900 dark:text-white text-base mb-1">
+                                ⚠️ {a.substance || 'Unknown'}
+                              </h4>
+                              {a.severity && (
+                                <span className={`inline-block px-2.5 py-1 text-xs font-semibold rounded-full ${
+                                  a.severity === 'severe' ? 'bg-red-100 dark:bg-red-900/50 text-red-700 dark:text-red-300' :
+                                  a.severity === 'moderate' ? 'bg-orange-100 dark:bg-orange-900/50 text-orange-700 dark:text-orange-300' :
+                                  'bg-yellow-100 dark:bg-yellow-900/50 text-yellow-700 dark:text-yellow-300'
+                                }`}>
+                                  {a.severity.toUpperCase()}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          {a.reaction && (
+                            <p className="text-sm text-gray-700 dark:text-gray-300 mt-2 leading-relaxed">
+                              <span className="font-semibold">Reaction:</span> {a.reaction}
+                            </p>
                           )}
                         </div>
-                        {a.reaction && <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">Reaction: {a.reaction}</p>}
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 ) : (
                   <p className="text-gray-500 dark:text-gray-400 italic">No allergies recorded yet</p>
@@ -1300,7 +1659,7 @@ const Profile = () => {
           </div>
 
           {/* Preferences */}
-          <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
+          <div className="bg-white dark:bg-gray-800 rounded-xl border-2 border-gray-200 dark:border-gray-700 overflow-hidden shadow-sm hover:shadow-md transition-shadow">
             <SectionHeader title="Preferences & Guidelines" section="preferences" />
             {expandedSections.preferences && (
               <div className="p-4 space-y-6">

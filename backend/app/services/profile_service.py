@@ -21,10 +21,10 @@ logger = logging.getLogger(__name__)
 # Initialize OpenAI client
 client = openai.OpenAI(api_key=settings.OPENAI_API_KEY)
 
-# Token budget for profile generation (128K context window)
-MAX_PROFILE_TOKENS = 115000  # Leave ~13K buffer for response + overhead
-ESTIMATED_EXISTING_PROFILE_TOKENS = 15000  # Reserve for existing profile JSON in updates
-ESTIMATED_SYSTEM_PROMPT_TOKENS = 5000  # Reserve for system + user prompt templates
+# Token budget for profile generation (256K context window)
+MAX_PROFILE_TOKENS = 230000  # Leave ~26K buffer for response + overhead
+ESTIMATED_EXISTING_PROFILE_TOKENS = 30000  # Reserve for existing profile JSON in updates
+ESTIMATED_SYSTEM_PROMPT_TOKENS = 10000  # Reserve for system + user prompt templates
 
 
 def _estimate_tokens(text: str) -> int:
