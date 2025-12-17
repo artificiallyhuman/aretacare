@@ -1173,7 +1173,7 @@ const Profile = () => {
                   </>
                 ) : profileData?.patient ? (
                   <div className="bg-gradient-to-br from-purple-50 to-indigo-50 dark:from-purple-900/20 dark:to-indigo-900/20 rounded-lg p-5 border-l-4 border-purple-500 shadow-sm">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       {profileData.patient.full_name && (
                         <div>
                           <span className="text-xs font-semibold text-purple-700 dark:text-purple-400 uppercase tracking-wide">Full Name</span>
