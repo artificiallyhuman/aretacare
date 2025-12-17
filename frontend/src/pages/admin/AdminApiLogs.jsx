@@ -25,16 +25,17 @@ export default function AdminApiLogs() {
   const [error, setError] = useState('');
   const [featureFilter, setFeatureFilter] = useState('');
   const [successFilter, setSuccessFilter] = useState('');
+  const [daysFilter, setDaysFilter] = useState(1);
 
   useEffect(() => {
     fetchApiLogs();
-  }, [featureFilter, successFilter]);
+  }, [featureFilter, successFilter, daysFilter]);
 
   const fetchApiLogs = async () => {
     setLoading(true);
     setError('');
     try {
-      const params = {};
+      const params = { days: daysFilter };
       if (featureFilter) params.feature = featureFilter;
       if (successFilter !== '') params.success = successFilter === 'true';
 
@@ -45,6 +46,11 @@ export default function AdminApiLogs() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const getDaysLabel = () => {
+    if (daysFilter === 1) return 'last 24 hours';
+    return `last ${daysFilter} days`;
   };
 
   const formatTokens = (tokens) => {
@@ -67,7 +73,7 @@ export default function AdminApiLogs() {
       <div className="space-y-6">
         <div>
           <h1 className="text-xl md:text-2xl font-bold text-gray-900 dark:text-white">API Logs</h1>
-          <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">GPT-5.2 API requests (last 24 hours)</p>
+          <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">GPT-5.2 API requests ({getDaysLabel()})</p>
         </div>
 
         {/* Summary Cards */}
@@ -129,6 +135,18 @@ export default function AdminApiLogs() {
 
         {/* Filters */}
         <div className="flex flex-col md:flex-row md:items-center gap-4">
+          <div className="flex items-center gap-2">
+            <label className="text-sm text-gray-600 dark:text-gray-400 whitespace-nowrap">Time Range:</label>
+            <select
+              value={daysFilter}
+              onChange={(e) => setDaysFilter(Number(e.target.value))}
+              className="px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
+            >
+              <option value={1}>Last 24 Hours</option>
+              <option value={7}>Last 7 Days</option>
+              <option value={30}>Last 30 Days</option>
+            </select>
+          </div>
           <div className="flex items-center gap-2">
             <label className="text-sm text-gray-600 dark:text-gray-400 whitespace-nowrap">Feature:</label>
             <select
@@ -281,7 +299,7 @@ export default function AdminApiLogs() {
 
         {/* Info about data window */}
         <div className="text-center text-sm text-gray-500 dark:text-gray-500">
-          Showing {data?.logs?.length || 0} requests from the last 24 hours
+          Showing {data?.logs?.length || 0} requests from the {getDaysLabel()}
         </div>
       </div>
     </AdminLayout>

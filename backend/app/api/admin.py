@@ -752,11 +752,12 @@ async def cleanup_error_logs(
 async def get_api_logs(
     feature: Optional[str] = Query(None, description="Filter by feature (e.g., conversation, daily_plan)"),
     success: Optional[bool] = Query(None, description="Filter by success status"),
+    days: int = Query(1, ge=1, le=30, description="Number of days to look back (1-30)"),
     db: DBSession = Depends(get_db),
     admin: User = Depends(get_admin_user)
 ):
     """
-    Get GPT-5.2 API request logs from the last 24 hours.
+    Get GPT-5.2 API request logs from the specified time range.
 
     Returns summary metrics and individual log entries in reverse chronological order.
     No sensitive user data is disclosed - only user IDs for reference.
@@ -765,8 +766,8 @@ async def get_api_logs(
     """
     from sqlalchemy import func
 
-    # Get logs from last 24 hours
-    cutoff_time = datetime.utcnow() - timedelta(hours=24)
+    # Get logs from specified days
+    cutoff_time = datetime.utcnow() - timedelta(days=days)
 
     # Build base query
     query = db.query(ApiLog).filter(ApiLog.created_at >= cutoff_time)
