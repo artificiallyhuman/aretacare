@@ -253,7 +253,8 @@ class ProfileService:
             JournalEntry.session_id == session_id
         )
 
-        if profile.last_processed_journal_id:
+        # For initial profile generation, get ALL data (ignore last_processed filter)
+        if not is_initial and profile.last_processed_journal_id:
             journal_query = journal_query.filter(
                 JournalEntry.id > profile.last_processed_journal_id
             )
@@ -294,7 +295,8 @@ class ProfileService:
                 Conversation.session_id == session_id
             )
 
-            if profile.last_processed_conversation_id:
+            # For initial profile generation, get ALL data (ignore last_processed filter)
+            if not is_initial and profile.last_processed_conversation_id:
                 conv_query = conv_query.filter(
                     Conversation.id > profile.last_processed_conversation_id
                 )
