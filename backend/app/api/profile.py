@@ -342,7 +342,7 @@ async def _generate_profile_pdf(profile: Profile, session: UserSession, timezone
         from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, HRFlowable, PageBreak
         from reportlab.lib import colors
         from reportlab.lib.enums import TA_CENTER, TA_RIGHT
-        import pytz
+        from zoneinfo import ZoneInfo
 
         # Helper to convert UTC to local timezone
         def to_local_time(utc_dt):
@@ -350,8 +350,8 @@ async def _generate_profile_pdf(profile: Profile, session: UserSession, timezone
                 return None
             if timezone:
                 try:
-                    local_tz = pytz.timezone(timezone)
-                    utc_dt = utc_dt.replace(tzinfo=pytz.UTC)
+                    local_tz = ZoneInfo(timezone)
+                    utc_dt = utc_dt.replace(tzinfo=ZoneInfo('UTC'))
                     return utc_dt.astimezone(local_tz)
                 except Exception:
                     pass
