@@ -15,6 +15,8 @@ const featureLabels = {
   journal_document_synthesis: 'Journal (Document)',
   journal_audio_synthesis: 'Journal (Audio)',
   journal_conversation_synthesis: 'Journal (Conversation)',
+  profile_initial: 'Profile (Initial)',
+  profile_update: 'Profile (Update)',
 };
 
 export default function AdminApiLogs() {

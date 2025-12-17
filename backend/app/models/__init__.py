@@ -12,10 +12,11 @@ from app.models.admin_audit_log import AdminAuditLog
 from app.models.security_log import SecurityLog
 from app.models.error_log import ErrorLog
 from app.models.api_log import ApiLog
+from app.models.profile import Profile
 
 __all__ = [
     "User", "Session", "SessionCollaborator", "PendingInvitation", "Document", "DocumentCategory",
     "Conversation", "MessageRole", "AudioRecording", "AudioRecordingCategory",
     "JournalEntry", "EntryType", "DailyPlan", "DailyPlanView", "AdminAuditLog", "SecurityLog", "ErrorLog",
-    "ApiLog"
+    "ApiLog", "Profile"
 ]
