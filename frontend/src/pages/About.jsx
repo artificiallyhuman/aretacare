@@ -72,6 +72,37 @@ const About = () => {
       {/* The Platform Tab */}
       {activeTab === 'platform' && (
       <>
+      {/* Privacy & Security */}
+      <div className="mb-6 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6 shadow-sm hover:shadow-md transition">
+        <div className="flex items-center mb-4">
+          <div className="flex items-center justify-center w-12 h-12 bg-gray-100 dark:bg-gray-700 rounded-lg mr-4">
+            <svg className="w-7 h-7 text-gray-600 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+            </svg>
+          </div>
+          <h4 className="text-lg font-semibold text-gray-900 dark:text-white">Privacy & Security</h4>
+        </div>
+        <p className="text-gray-600 dark:text-gray-400 mb-3">Your personal data is never sold and is stored securely:</p>
+        <ul className="text-gray-600 dark:text-gray-400 space-y-2 leading-relaxed">
+          <li className="flex items-start">
+            <span className="text-gray-600 dark:text-gray-400 mr-2 mt-1">•</span>
+            <span>Each session keeps conversations, journal, documents, and audio recordings separate</span>
+          </li>
+          <li className="flex items-start">
+            <span className="text-gray-600 dark:text-gray-400 mr-2 mt-1">•</span>
+            <span>Delete individual sessions or your entire account anytime from Settings</span>
+          </li>
+          <li className="flex items-start">
+            <span className="text-gray-600 dark:text-gray-400 mr-2 mt-1">•</span>
+            <span>Deletion is <strong>permanent</strong> and removes all associated personal data from our servers</span>
+          </li>
+          <li className="flex items-start">
+            <span className="text-gray-600 dark:text-gray-400 mr-2 mt-1">•</span>
+            <span>You control who has access to your sessions through collaboration settings</span>
+          </li>
+        </ul>
+      </div>
+
       <div className="grid md:grid-cols-2 gap-6">
         {/* Conversation */}
         <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6 shadow-sm hover:shadow-md transition">
@@ -181,37 +212,6 @@ const About = () => {
           </ul>
         </div>
 
-      </div>
-
-      {/* Privacy & Security */}
-      <div className="mt-6 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6 shadow-sm hover:shadow-md transition">
-        <div className="flex items-center mb-4">
-          <div className="flex items-center justify-center w-12 h-12 bg-gray-100 dark:bg-gray-700 rounded-lg mr-4">
-            <svg className="w-7 h-7 text-gray-600 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-            </svg>
-          </div>
-          <h4 className="text-lg font-semibold text-gray-900 dark:text-white">Privacy & Security</h4>
-        </div>
-        <p className="text-gray-600 dark:text-gray-400 mb-3">Your personal data is never sold and is stored securely:</p>
-        <ul className="text-gray-600 dark:text-gray-400 space-y-2 leading-relaxed">
-          <li className="flex items-start">
-            <span className="text-gray-600 dark:text-gray-400 mr-2 mt-1">•</span>
-            <span>Each session keeps conversations, journal, documents, and audio recordings separate</span>
-          </li>
-          <li className="flex items-start">
-            <span className="text-gray-600 dark:text-gray-400 mr-2 mt-1">•</span>
-            <span>Delete individual sessions or your entire account anytime from Settings</span>
-          </li>
-          <li className="flex items-start">
-            <span className="text-gray-600 dark:text-gray-400 mr-2 mt-1">•</span>
-            <span>Deletion is <strong>permanent</strong> and removes all associated personal data from our servers</span>
-          </li>
-          <li className="flex items-start">
-            <span className="text-gray-600 dark:text-gray-400 mr-2 mt-1">•</span>
-            <span>You control who has access to your sessions through collaboration settings</span>
-          </li>
-        </ul>
       </div>
       </>
       )}
