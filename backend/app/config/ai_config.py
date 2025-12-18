@@ -578,7 +578,7 @@ PROFILE SECTIONS:
 - caregivers: Name, relationship to patient, role in caregiving, contact info, location (can be multiple)
 - providers: Name, specialty, organization, contact info (can be multiple)
 - conditions: Clinical term, non-jargon description, status (active/resolved/monitoring), diagnosis date, important details
-- medications: Name, non-jargon description, dose, frequency, start date, prescriber, notes (side effects, adherence), status (active/inactive/discontinued), category (REQUIRED - must be set based on medication's primary purpose)
+- medications: Name, non-jargon description, dose, frequency, start date, prescriber, notes (side effects, adherence), status (active/paused/discontinued), category (REQUIRED - must be set based on medication's primary purpose)
 - allergies: Substance, reaction, severity (mild/moderate/severe)
 - events: Event type (hospitalization/surgery/er_visit/major_diagnosis), description, date, details
 
@@ -701,7 +701,7 @@ FIELD NAMES - Use these exact field names for each section:
 - caregivers: name, relationship, role, contact_info, location
 - providers: name, specialty, organization, contact_info
 - conditions: clinical_term, description, status (active/resolved/monitoring), diagnosis_date, details
-- medications: name, description, dose, frequency, start_date, prescriber, notes, status (active/inactive/discontinued), category
+- medications: name, description, dose, frequency, start_date, prescriber, notes, status (active/paused/discontinued), category
 - allergies: substance, reaction, severity (mild/moderate/severe)
 - events: event_type, description, date, details
 - preferences.communication_preferences: category, preference, details
@@ -773,7 +773,7 @@ RESPONSE FORMAT (JSON only, no other text):
       "start_date": "string or null",
       "prescriber": "string or null",
       "notes": "string or null",
-      "status": "active/inactive/discontinued or null (defaults to active if not specified)",
+      "status": "active/paused/discontinued or null (defaults to active if not specified)",
       "category": "REQUIRED - one of: multiple/pain_management/cardiovascular/diabetes/mental_health/antibiotics/respiratory/gastrointestinal/neurological/endocrine/oncology/immunosuppressant/vitamins_supplements/other"
     }}
   ],

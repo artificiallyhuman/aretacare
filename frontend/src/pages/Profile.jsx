@@ -1469,7 +1469,7 @@ const Profile = () => {
                             <InlineField label="Start Date" value={m.start_date} onChange={(v) => updateListItem('medications', index, 'start_date', v)} />
                             <InlineField label="Status" value={m.status || 'active'} onChange={(v) => updateListItem('medications', index, 'status', v)} options={[
                               { value: 'active', label: 'Active' },
-                              { value: 'inactive', label: 'Inactive' },
+                              { value: 'paused', label: 'Paused' },
                               { value: 'discontinued', label: 'Discontinued' }
                             ]} />
                             <InlineField label="Category" value={m.category || 'other'} onChange={(v) => updateListItem('medications', index, 'category', v)} options={MEDICATION_CATEGORY_ORDER.map(key => ({ value: key, label: MEDICATION_CATEGORY_LABELS[key] }))} />
@@ -1509,7 +1509,7 @@ const Profile = () => {
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             {medsInCategory.map((m, index) => {
                               // Determine if medication is active (default to active if not specified)
-                              const isActive = m.status !== 'discontinued' && m.status !== 'inactive';
+                              const isActive = m.status !== 'discontinued' && m.status !== 'paused';
 
                               return (
                                 <div
@@ -1527,11 +1527,13 @@ const Profile = () => {
                                           {m.name || 'Unknown'}
                                         </h4>
                                         <span className={`px-2 py-0.5 text-xs font-semibold rounded-full ${
-                                          isActive
+                                          m.status === 'active' || !m.status
                                             ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300'
+                                            : m.status === 'paused'
+                                            ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300'
                                             : 'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400'
                                         }`}>
-                                          {isActive ? 'Active' : 'Inactive'}
+                                          {m.status === 'paused' ? 'Paused' : m.status === 'discontinued' ? 'Discontinued' : 'Active'}
                                         </span>
                                       </div>
                                       <div className="flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-300">
