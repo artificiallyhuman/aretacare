@@ -1467,6 +1467,11 @@ const Profile = () => {
                             <InlineField label="Frequency" value={m.frequency} onChange={(v) => updateListItem('medications', index, 'frequency', v)} />
                             <InlineField label="Prescriber" value={m.prescriber} onChange={(v) => updateListItem('medications', index, 'prescriber', v)} />
                             <InlineField label="Start Date" value={m.start_date} onChange={(v) => updateListItem('medications', index, 'start_date', v)} />
+                            <InlineField label="Status" value={m.status || 'active'} onChange={(v) => updateListItem('medications', index, 'status', v)} options={[
+                              { value: 'active', label: 'Active' },
+                              { value: 'inactive', label: 'Inactive' },
+                              { value: 'discontinued', label: 'Discontinued' }
+                            ]} />
                             <InlineField label="Category" value={m.category || 'other'} onChange={(v) => updateListItem('medications', index, 'category', v)} options={MEDICATION_CATEGORY_ORDER.map(key => ({ value: key, label: MEDICATION_CATEGORY_LABELS[key] }))} />
                             <div className="md:col-span-2">
                               <InlineField label="Description" value={m.description} onChange={(v) => updateListItem('medications', index, 'description', v)} />
@@ -1478,7 +1483,7 @@ const Profile = () => {
                         </div>
                       ))}
                     </div>
-                    <AddItemButton onClick={() => addListItem('medications', { name: '', dose: '', frequency: '', prescriber: '', start_date: '', description: '', notes: '', category: 'other' })} label="Add medication" />
+                    <AddItemButton onClick={() => addListItem('medications', { name: '', dose: '', frequency: '', prescriber: '', start_date: '', description: '', notes: '', status: 'active', category: 'other' })} label="Add medication" />
                   </>
                 ) : profileData?.medications?.length > 0 ? (
                   <div className="space-y-6">
