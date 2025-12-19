@@ -556,9 +556,12 @@ const Profile = () => {
 
       // Group medications by category
       MEDICATION_CATEGORY_ORDER.forEach(categoryKey => {
-        const medsInCategory = data.medications.filter(m =>
-          (m.category || 'other') === categoryKey
-        );
+        const medsInCategory = data.medications
+          .filter(m => (m.category || 'other') === categoryKey)
+          .sort((a, b) => {
+            const statusOrder = { active: 0, paused: 1, discontinued: 2 };
+            return (statusOrder[a.status] ?? 0) - (statusOrder[b.status] ?? 0);
+          });
 
         if (medsInCategory.length > 0) {
           text += `### ${MEDICATION_CATEGORY_LABELS[categoryKey]}\n`;
@@ -1489,9 +1492,15 @@ const Profile = () => {
                   <div className="space-y-6">
                     {/* Group medications by category */}
                     {MEDICATION_CATEGORY_ORDER.map(categoryKey => {
-                      const medsInCategory = profileData.medications.filter(m =>
-                        (m.category || 'other') === categoryKey
-                      );
+                      const medsInCategory = profileData.medications
+                        .filter(m => (m.category || 'other') === categoryKey)
+                        .sort((a, b) => {
+                          // Sort: Active first, then Paused, then Discontinued
+                          const statusOrder = { active: 0, paused: 1, discontinued: 2 };
+                          const aOrder = statusOrder[a.status] ?? 0;
+                          const bOrder = statusOrder[b.status] ?? 0;
+                          return aOrder - bOrder;
+                        });
 
                       if (medsInCategory.length === 0) return null;
 

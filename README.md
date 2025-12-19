@@ -81,7 +81,7 @@ Edit `backend/.env` with your credentials:
 OPENAI_API_KEY=sk-your-key
 AWS_ACCESS_KEY_ID=your-key
 AWS_SECRET_ACCESS_KEY=your-secret
-AWS_REGION=us-east-1
+AWS_REGION=your-bucket-region
 S3_BUCKET_NAME=your-bucket
 SECRET_KEY=generate-with-python-secrets
 
@@ -91,7 +91,7 @@ SMTP_PORT=587
 SMTP_USER=your-email@gmail.com
 SMTP_PASSWORD=your-gmail-app-password
 SMTP_FROM_EMAIL=your-email@gmail.com
-SMTP_FROM_NAME=AretaCare
+SMTP_FROM_NAME=your-organization
 FRONTEND_URL=http://localhost:3001
 
 # Admin (your email to access admin console)
@@ -150,7 +150,7 @@ docker compose down -v   # Stop and reset database
 - **Cascade deletes** - User/session deletion removes all data including S3 files
 - **Database migrations** - Auto-run on startup via `run_migrations()`
 - **Centralized AI config** - All models, prompts, safety boundaries, and categories in `backend/app/config/ai_config.py` (including 14 medication categories for profile organization)
-- **150K context window** - Prioritized loading: 30 messages + tiered journal (7 days full, 8-30 days summarized) + health profile (up to 25K tokens, replaces 30+ day journal titles)
+- **150K context window** - Prioritized loading: 30 messages + tiered journal (7 days full, 8-30 days summarized) + health profile (up to 25K tokens)
 - **Email notifications** - SMTP integration for password reset, account changes, and collaboration
 - **Security logging** - Invalid token tracking, IP logging, security event monitoring
 - **Auto-cleanup on startup** - Audit logs (90 days), error logs (30 days), API logs (30 days), security logs (90 days), expired invitations (30 days)

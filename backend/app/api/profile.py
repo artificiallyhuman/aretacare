@@ -621,9 +621,13 @@ async def _generate_profile_pdf(profile: Profile, session: UserSession, timezone
                 fontName='Helvetica-Bold'
             )
 
-            # Group medications by category
+            # Group medications by category, sorted by status (active first)
+            status_order = {'active': 0, 'paused': 1, 'discontinued': 2}
             for category_key in category_order:
-                meds_in_category = [m for m in medications if m.get('category', 'other') == category_key]
+                meds_in_category = sorted(
+                    [m for m in medications if m.get('category', 'other') == category_key],
+                    key=lambda m: status_order.get(m.get('status', 'active'), 0)
+                )
 
                 if meds_in_category:
                     # Add category header
