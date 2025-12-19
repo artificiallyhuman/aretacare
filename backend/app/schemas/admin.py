@@ -96,6 +96,7 @@ class AdminUserDetail(BaseModel):
     total_documents: int
     total_audio: int
     total_conversations: int
+    total_journals: int
 
 
 class AdminUserSummary(BaseModel):

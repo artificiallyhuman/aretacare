@@ -204,7 +204,7 @@ function UserDetail({ user, onClose, onAction }) {
             {/* Token Management */}
             <div className="mt-6 pt-4 border-t border-gray-200 dark:border-gray-700">
               <div className="flex items-center justify-between mb-3">
-                <h3 className="text-sm font-semibold text-gray-900 dark:text-white">Active Sessions</h3>
+                <h3 className="text-sm font-semibold text-gray-900 dark:text-white">Active Tokens</h3>
                 <button
                   onClick={() => {
                     setShowTokens(!showTokens);
@@ -214,14 +214,14 @@ function UserDetail({ user, onClose, onAction }) {
                   }}
                   className="px-3 py-1.5 text-xs font-medium text-primary-700 dark:text-primary-300 bg-primary-50 dark:bg-primary-900/30 hover:bg-primary-100 dark:hover:bg-primary-900/50 rounded-lg transition-colors"
                 >
-                  {showTokens ? 'Hide' : 'View'} Sessions
+                  {showTokens ? 'Hide' : 'View'} Tokens
                 </button>
               </div>
 
               {showTokens && (
                 <div className="space-y-3">
                   {loadingTokens ? (
-                    <p className="text-sm text-gray-500 dark:text-gray-400">Loading sessions...</p>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">Loading tokens...</p>
                   ) : tokens ? (
                     <>
                       <div className="flex items-center justify-between text-sm">
@@ -257,7 +257,7 @@ function UserDetail({ user, onClose, onAction }) {
                                     </span>
                                   </div>
                                   {token.device_info && (
-                                    <p className="text-gray-700 dark:text-gray-300 truncate">
+                                    <p className="text-gray-700 dark:text-gray-300 break-all">
                                       {token.device_info}
                                     </p>
                                   )}
@@ -288,12 +288,12 @@ function UserDetail({ user, onClose, onAction }) {
 
                       {tokens.total_active === 0 && (
                         <p className="text-sm text-gray-500 dark:text-gray-400 italic">
-                          No active sessions
+                          No active tokens
                         </p>
                       )}
                     </>
                   ) : (
-                    <p className="text-sm text-gray-500 dark:text-gray-400">Failed to load sessions</p>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">Failed to load tokens</p>
                   )}
                 </div>
               )}
