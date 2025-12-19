@@ -20,6 +20,7 @@ This document provides detailed technical documentation of all security measures
 10. [CORS Configuration](#cors-configuration)
 11. [Security Headers](#security-headers)
 12. [Docker Container Security](#docker-container-security)
+13. [Edge Security (Cloudflare)](#edge-security-cloudflare)
 
 ---
 
@@ -716,6 +717,41 @@ USER node
 - Prevents processes from modifying system files
 - Follows principle of least privilege
 - Required by many security compliance frameworks
+
+---
+
+## Edge Security (Cloudflare)
+
+AretaCare uses Cloudflare as a security and performance layer in front of the application.
+
+### Protection Features
+
+- **DDoS Protection**: Automatic mitigation of distributed denial-of-service attacks
+- **Web Application Firewall (WAF)**: Filters malicious traffic before it reaches the application
+- **Bot Protection**: Identifies and blocks malicious automated traffic
+- **IP Blocking**: Ability to block specific IPs or ranges via dashboard
+- **Rate Limiting**: Edge-level rate limiting in addition to application-level limits
+- **SSL/TLS**: Full encryption between client and Cloudflare, and Cloudflare to origin
+- **HSTS**: HTTP Strict Transport Security enforced at the edge
+
+### Client IP Handling
+
+The application correctly identifies client IPs when behind Cloudflare:
+
+```python
+def get_client_ip(request: Request) -> str:
+    # Cloudflare sets this header with the actual client IP
+    cf_ip = request.headers.get("CF-Connecting-IP")
+    if cf_ip:
+        return cf_ip.strip()
+    # Fallback for non-Cloudflare requests
+    forwarded = request.headers.get("X-Forwarded-For")
+    if forwarded:
+        return forwarded.split(",")[0].strip()
+    return request.client.host
+```
+
+This ensures rate limiting, security logging, and access controls use the real client IP, not Cloudflare's proxy IP.
 
 ---
 

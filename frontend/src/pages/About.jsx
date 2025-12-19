@@ -714,7 +714,7 @@ const About = () => {
             </button>
             {expandedFaq === 6 && (
               <div className="px-6 pt-5 pb-6 text-gray-600 dark:text-gray-400 leading-relaxed border-t border-blue-200 dark:border-blue-800 mt-2">
-                Yes. Your data is encrypted in transit and at rest. Files are stored in encrypted cloud storage, and accounts use hashed passwords, secure login tokens, and email verification.
+                Yes. Your data is encrypted in transit and at rest. All traffic is protected by enterprise-grade edge security including DDoS protection and web application firewall. Files are stored in encrypted cloud storage, and accounts use hashed passwords, secure login tokens, and email verification.
               </div>
             )}
           </div>
