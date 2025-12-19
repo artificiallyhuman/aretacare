@@ -15,7 +15,7 @@ const PrivacyPolicy = () => {
           </Link>
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-6 sm:p-8">
             <h1 className="text-4xl sm:text-5xl font-bold text-gray-900 dark:text-white mb-2">Privacy Policy</h1>
-            <p className="text-sm text-gray-500 dark:text-gray-400">Last Updated: November 29, 2025</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400">Last Updated: December 19, 2025</p>
           </div>
         </div>
 
@@ -29,7 +29,7 @@ const PrivacyPolicy = () => {
                 AretaCare™ is an open source project designed to help families understand medical information. This Privacy Policy explains how we collect, use, and protect your information.
               </p>
               <p className="text-gray-700 dark:text-gray-300 leading-relaxed text-base">
-                This is an open source project, not a commercial service. The source code is available at{' '}
+                AretaCare is operated by AretaCare, LLC, a limited liability company registered in Illinois. The source code is available at{' '}
                 <a href="https://github.com/artificiallyhuman/aretacare" target="_blank" rel="noopener noreferrer" className="text-primary-600 hover:text-primary-700 font-medium underline">
                   https://github.com/artificiallyhuman/aretacare
                 </a>
@@ -504,7 +504,7 @@ const PrivacyPolicy = () => {
           {/* Copyright */}
           <section className="bg-gray-50 dark:bg-gray-700 rounded-lg p-6 border border-gray-200 dark:border-gray-600">
             <p className="text-center text-gray-600 dark:text-gray-300 text-sm">
-              Copyright © 2025 AretaCare™. Released under the MIT License with Commons Clause.
+              Copyright © 2025 AretaCare, LLC. Released under the MIT License with Commons Clause.
             </p>
           </section>
         </div>

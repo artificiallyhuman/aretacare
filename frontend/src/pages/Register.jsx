@@ -15,6 +15,7 @@ function Register() {
   const [acknowledgeHIPAA, setAcknowledgeHIPAA] = useState(false);
   const [acknowledgeBetaVersion, setAcknowledgeBetaVersion] = useState(false);
   const [acknowledgeEmailCommunications, setAcknowledgeEmailCommunications] = useState(false);
+  const [agreeToTerms, setAgreeToTerms] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
@@ -71,6 +72,11 @@ function Register() {
 
     if (!acknowledgeEmailCommunications) {
       setError('You must acknowledge that you will receive email communications');
+      return;
+    }
+
+    if (!agreeToTerms) {
+      setError('You must agree to the Terms of Service and Privacy Policy');
       return;
     }
 
@@ -282,7 +288,7 @@ function Register() {
                   required
                 />
                 <label htmlFor="acknowledgeNotMedicalAdvice" className="ml-3 text-sm text-gray-700 dark:text-gray-300 cursor-pointer">
-                  I understand that AretaCare is an AI assistant, not a medical professional, and I will consult my care team for any medical decisions.
+                  I understand that AretaCare provides informational and organizational support only, does not provide medical advice, and is not a substitute for professional medical care. I will consult my care team for any medical decisions.
                 </label>
               </div>
 
@@ -328,6 +334,28 @@ function Register() {
                 />
                 <label htmlFor="acknowledgeEmailCommunications" className="ml-3 text-sm text-gray-700 dark:text-gray-300 cursor-pointer">
                   I understand I will receive email communications from AretaCare, including notifications about password changes, account updates, and session sharing activities.
+                </label>
+              </div>
+
+              <div className="flex items-start">
+                <input
+                  type="checkbox"
+                  id="agreeToTerms"
+                  checked={agreeToTerms}
+                  onChange={(e) => setAgreeToTerms(e.target.checked)}
+                  disabled={loading}
+                  className="mt-1 h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 dark:border-gray-600 rounded cursor-pointer"
+                  required
+                />
+                <label htmlFor="agreeToTerms" className="ml-3 text-sm text-gray-700 dark:text-gray-300 cursor-pointer">
+                  By creating an account, I agree to the{' '}
+                  <Link to="/terms" className="text-primary-600 dark:text-primary-400 hover:underline" target="_blank">
+                    Terms of Service
+                  </Link>
+                  {' '}and{' '}
+                  <Link to="/privacy" className="text-primary-600 dark:text-primary-400 hover:underline" target="_blank">
+                    Privacy Policy
+                  </Link>.
                 </label>
               </div>
             </div>

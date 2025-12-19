@@ -15,7 +15,7 @@ const TermsOfService = () => {
           </Link>
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-6 sm:p-8">
             <h1 className="text-4xl sm:text-5xl font-bold text-gray-900 dark:text-white mb-2">Terms of Service</h1>
-            <p className="text-sm text-gray-500 dark:text-gray-400">Last Updated: November 29, 2025</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400">Last Updated: December 19, 2025</p>
           </div>
         </div>
 
@@ -40,7 +40,7 @@ const TermsOfService = () => {
                 </a>
               </p>
               <p className="text-gray-700 dark:text-gray-300 leading-relaxed text-base">
-                This project is not managed by a company or commercial entity. All inquiries, bug reports, and contributions should be directed to the GitHub repository.
+                AretaCare is operated by AretaCare, LLC, a limited liability company registered in Illinois. For inquiries, bug reports, and contributions, please visit the GitHub repository.
               </p>
             </div>
           </section>
@@ -297,7 +297,7 @@ const TermsOfService = () => {
           {/* Copyright */}
           <section className="bg-gray-50 dark:bg-gray-700 rounded-lg p-6 border border-gray-200 dark:border-gray-600">
             <p className="text-center text-gray-600 dark:text-gray-300 text-sm">
-              Copyright © 2025 AretaCare™. Released under the MIT License with Commons Clause.
+              Copyright © 2025 AretaCare, LLC. Released under the MIT License with Commons Clause.
             </p>
           </section>
         </div>
