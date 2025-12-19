@@ -729,25 +729,32 @@ const Conversation = () => {
                       </button>
 
                       {showHowItWorks && (
-                        <div className="mt-3 space-y-2 text-xs md:text-sm text-gray-700 dark:text-gray-300 pl-3 animate-fadeIn">
-                          <p className="flex items-start">
-                            <svg className="w-4 h-4 text-primary-600 dark:text-primary-400 mr-2 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                            </svg>
-                            <span>AI generates your <Link to="/daily-plan" className="font-bold text-gray-700 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 underline">Daily Plan</Link> and <Link to="/journal" className="font-bold text-gray-700 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 underline">Care Journal</Link> automatically</span>
+                        <div className="mt-3 space-y-2 text-xs md:text-sm text-gray-700 dark:text-gray-300 animate-fadeIn">
+                          {/* Centered descriptor */}
+                          <p className="text-center text-sm font-medium text-gray-700 dark:text-gray-300 italic pb-1">
+                            Take your time exploring. There's no need to rush.
                           </p>
-                          <p className="flex items-start">
-                            <svg className="w-4 h-4 text-primary-600 dark:text-primary-400 mr-2 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
-                            </svg>
-                            <span>Bring others into the conversation under <Link to="/collaboration" className="font-bold text-gray-700 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 underline">Collaboration</Link></span>
-                          </p>
+
+                          {/* Bullet points */}
+                          <div className="space-y-2 pl-3">
+                            <p className="flex items-start">
+                              <svg className="w-4 h-4 text-primary-600 dark:text-primary-400 mr-2 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                              </svg>
+                              <span>Bring others into the conversation under <Link to="/collaboration" className="font-bold text-gray-700 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 underline">Collaboration</Link></span>
+                            </p>
                           <p className="flex items-start">
                             <svg className="w-4 h-4 text-primary-600 dark:text-primary-400 mr-2 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                             </svg>
                             <span>Rename or delete this session in <Link to="/settings" className="font-bold text-gray-700 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 underline">Settings → Manage Sessions</Link></span>
+                          </p>
+                          <p className="flex items-start">
+                            <svg className="w-4 h-4 text-primary-600 dark:text-primary-400 mr-2 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                            </svg>
+                            <span>AI generates your <Link to="/daily-plan" className="font-bold text-gray-700 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 underline">Daily Plan</Link> and <Link to="/journal" className="font-bold text-gray-700 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 underline">Care Journal</Link> automatically</span>
                           </p>
                           <p className="flex items-start">
                             <svg className="w-4 h-4 text-primary-600 dark:text-primary-400 mr-2 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -761,6 +768,7 @@ const Conversation = () => {
                             </svg>
                             <span>Learn more about AretaCare on the <Link to="/about" className="font-bold text-gray-700 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 underline">About</Link> page</span>
                           </p>
+                          </div>
                         </div>
                       )}
                     </div>
