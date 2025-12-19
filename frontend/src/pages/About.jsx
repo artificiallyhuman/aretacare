@@ -224,49 +224,66 @@ const About = () => {
 
           <div className="prose prose-gray dark:prose-invert max-w-none text-gray-700 dark:text-gray-300 space-y-4 leading-relaxed">
             <p>
-              AretaCare began for me on a late-night flight to San Antonio. I traveled because my mother was in the hospital, and I knew I needed to be there with her. When I arrived just before midnight, I walked through the quiet hallways and into her room, trying to understand the situation as clearly as possible.
+              AretaCare began for me on a late-night flight from Chicago to San Antonio. I was traveling because my mother was in the hospital, and I knew I needed to be there with her. When I arrived just before midnight, I walked through quiet hallways and into her room, trying to understand what was happening as clearly as possible.
             </p>
 
             <p>
-              My mother was alert and in excruciating pain. She had an NG tube in her nose and had not been allowed to drink any water. She was uncomfortable and frustrated, trying to stay steady as her care plan continued to evolve.
+              My mother was alert and in severe pain. She had an NG tube in her nose and had not been allowed to drink any water. She was uncomfortable and frustrated, doing her best to stay steady as her care plan continued to evolve.
             </p>
 
             <p>
-              Not long after I walked in, she asked me if I could help her to the bathroom. She wanted to get up and walk on her own. Before I could move to help her, a nurse entered and told us, "Doctor's orders are not to move her."
+              Not long after I arrived, she asked if I could help her to the bathroom. She wanted to get up and walk on her own. Before I could move, a nurse entered the room and said, "Doctor's orders are not to move her."
             </p>
 
             <p>
-              This did not match what I had been told earlier. I knew she was supposed to move. That moment showed me how difficult it can be for families to navigate conflicting instructions. The nurse was doing her best with the information she had. I was trying to support my mother. Yet the details did not align, leaving me to try to understand what was actually safe and correct.
+              That instruction did not match what I had been told earlier. I understood that she was supposed to move. In that moment, I saw how difficult it can be for families to navigate conflicting information. The nurse was doing her best with the information she had. I was trying to support my mother. Yet the details did not align, leaving me unsure what was actually safe or correct.
             </p>
 
             <p>
-              I stayed at her bedside. I slept in the chair next to her and woke whenever someone entered the room. Over the next hours and days, nurses came and went. Some explained things clearly. Others were moving quickly, balancing many patients. Doctors came through during rounds. Each specialist offered a piece of the overall picture, but the pieces did not always connect.
+              I stayed at her bedside. I slept in the chair next to her and woke whenever someone entered the room. Over the next hours and days, nurses rotated in and out. Some explained things carefully. Others were moving quickly while managing many patients. Doctors came through during rounds. Each specialist offered a piece of the picture, but the pieces did not always connect.
             </p>
 
             <p>
-              There were tests. Multiple CT scans. Multiple MRI scans. Each one produced radiology reports filled with technical language that raised new questions for us. There were medications to track, instructions that shifted between day and night shifts, and a whiteboard that tried to help but never captured the whole story.
+              There were tests. Multiple CT scans. Multiple MRI scans. Each produced radiology reports filled with technical language that raised new questions. Medications changed. Instructions shifted between day and night shifts. A whiteboard tried to help, but it never captured the full story.
             </p>
 
             <p>
-              My family worked hard to stay up to date. We shared group texts, exchanged notes, and tried to keep everyone on the same page, even though we were in different cities. Everyone wanted to make sure my mother felt supported and understood.
+              Our family worked hard to stay aligned. We shared group texts, exchanged notes, and tried to keep everyone informed across different cities. Everyone wanted to make sure my mother felt supported and understood.
             </p>
 
             <p>
-              My cousin in Michigan is a nurse practitioner, and she helped guide us from afar. She reviewed every update, translated the medical terms, and helped us prepare questions. Her help was invaluable, but it also revealed something important. Families should not have to rely on a medical professional in the family to understand what is happening to someone they love.
+              My cousin in Michigan is a nurse practitioner, and she helped guide us from afar. She reviewed updates, translated medical language, and helped us prepare questions. Her support was invaluable, but it also revealed something important. Families should not have to rely on having a medical professional in the family to understand what is happening to someone they love.
             </p>
 
             <p>
-              During those days, I realized what I wished we had. I wanted a straightforward way to keep track of every change. I wanted someone who could explain updates in plain English, help organize the information, and guide us in preparing thoughtful questions for the care team. A steady presence. A calm partner. Someone who helps a family stay grounded during moments that can feel confusing and constant.
+              During those days, I realized what I wished we had.
+            </p>
+
+            <p>
+              I wanted a simple and reliable way to track changes as they happened. I wanted someone who could explain updates in plain English, help organize information, and guide us in preparing thoughtful questions for the care team. A steady presence. A calm partner. Someone who helps families stay grounded when everything feels complex and constantly in motion.
             </p>
 
             <p className="font-medium text-gray-900 dark:text-white">
               Not a doctor.<br />
-              Not someone giving medical advice.<br />
-              A guide. A companion who helps families understand what is happening and what to ask next.
+              Not someone giving medical advice.
+            </p>
+
+            <p className="font-medium text-gray-900 dark:text-white">
+              A guide.<br />
+              A companion.<br />
+              Someone who helps families understand what is happening and what to ask next.
             </p>
 
             <p>
-              This is why I created AretaCare. It grew from sitting beside my mother and seeing how easily information can scatter and become overwhelming. It grew from watching how hard families work to stay informed and united. My hope is that AretaCare will give families the care, clarity, and confidence I wished we had during those long nights and complicated days.
+              That experience shaped the vision that became AretaCare.
+            </p>
+
+            <p>
+              As the idea for AretaCare took shape, it became clear that it would require strong technical execution alongside empathy and clarity. Rob and I have been close friends for over twenty years, and that long-standing trust made him the natural partner to build the platform. Rob designed and developed the website and the systems that power AretaCare, transforming a deeply personal experience into a practical, dependable tool for families. His work provides the technical foundation that enables AretaCare to serve families consistently, with care and reliability.
+            </p>
+
+            <p>
+              AretaCare grew from sitting beside my mother and seeing how easily information can scatter and become overwhelming. It grew from watching how hard families work to stay informed and united. Our hope is that AretaCare gives families the clarity, confidence, and support I wish we had during those long nights and complicated days.
             </p>
 
             {/* Signature */}
