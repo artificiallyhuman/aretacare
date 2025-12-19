@@ -10,6 +10,22 @@ const api = axios.create({
   },
 });
 
+// Track if we're currently refreshing to avoid multiple refresh attempts
+let isRefreshing = false;
+let failedQueue = [];
+
+const processQueue = (error, token = null) => {
+  failedQueue.forEach(prom => {
+    if (error) {
+      prom.reject(error);
+    } else {
+      prom.resolve(token);
+    }
+  });
+
+  failedQueue = [];
+};
+
 // Add auth token to requests if it exists
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('auth_token');
@@ -27,14 +43,102 @@ export const setGlobalErrorHandler = (handler) => {
   globalErrorHandler = handler;
 };
 
-// Add response interceptor for global error handling
+// Add response interceptor for global error handling and token refresh
 api.interceptors.response.use(
   (response) => response,
-  (error) => {
-    // Call global error handler if set
+  async (error) => {
+    const originalRequest = error.config;
+
+    // If error is 401 and we haven't already tried to refresh
+    if (error.response?.status === 401 && !originalRequest._retry) {
+      // Don't try to refresh on the refresh endpoint itself or login/register
+      if (originalRequest.url.includes('/auth/refresh') ||
+          originalRequest.url.includes('/auth/login') ||
+          originalRequest.url.includes('/auth/register')) {
+        // Call global error handler
+        if (globalErrorHandler) {
+          globalErrorHandler(error);
+        }
+        return Promise.reject(error);
+      }
+
+      // If already refreshing, queue this request
+      if (isRefreshing) {
+        return new Promise((resolve, reject) => {
+          failedQueue.push({ resolve, reject });
+        }).then(token => {
+          originalRequest.headers.Authorization = `Bearer ${token}`;
+          return api(originalRequest);
+        }).catch(err => {
+          return Promise.reject(err);
+        });
+      }
+
+      originalRequest._retry = true;
+      isRefreshing = true;
+
+      const refreshToken = localStorage.getItem('refresh_token');
+
+      if (!refreshToken) {
+        // No refresh token, user needs to log in
+        isRefreshing = false;
+        processQueue(error, null);
+
+        // Clear tokens and redirect to login
+        localStorage.removeItem('auth_token');
+        localStorage.removeItem('refresh_token');
+        localStorage.removeItem('user');
+
+        if (globalErrorHandler) {
+          globalErrorHandler(error);
+        }
+        return Promise.reject(error);
+      }
+
+      try {
+        // Attempt to refresh the token
+        const response = await axios.post(`${API_BASE_URL}/auth/refresh`, {
+          refresh_token: refreshToken
+        });
+
+        const { access_token, refresh_token: new_refresh_token } = response.data;
+
+        // Store new tokens
+        localStorage.setItem('auth_token', access_token);
+        localStorage.setItem('refresh_token', new_refresh_token);
+
+        // Update the authorization header
+        api.defaults.headers.common['Authorization'] = `Bearer ${access_token}`;
+        originalRequest.headers.Authorization = `Bearer ${access_token}`;
+
+        // Process queued requests with new token
+        processQueue(null, access_token);
+        isRefreshing = false;
+
+        // Retry the original request
+        return api(originalRequest);
+      } catch (refreshError) {
+        // Refresh failed, clear everything and log out
+        processQueue(refreshError, null);
+        isRefreshing = false;
+
+        localStorage.removeItem('auth_token');
+        localStorage.removeItem('refresh_token');
+        localStorage.removeItem('user');
+        localStorage.removeItem('session_id');
+
+        // Redirect to login
+        window.location.href = '/login';
+
+        return Promise.reject(refreshError);
+      }
+    }
+
+    // Call global error handler for other errors
     if (globalErrorHandler) {
       globalErrorHandler(error);
     }
+
     // Still reject so component-level error handling works too
     return Promise.reject(error);
   }
@@ -78,9 +182,13 @@ export const authAPI = {
 
   logout: () => {
     localStorage.removeItem('auth_token');
+    localStorage.removeItem('refresh_token');
     localStorage.removeItem('user');
     localStorage.removeItem('session_id');
   },
+
+  logoutEverywhere: () =>
+    api.post('/auth/logout-everywhere'),
 };
 
 // Session API
@@ -269,6 +377,11 @@ export const adminAPI = {
 
   // API logs (GPT-5.2 request monitoring)
   getApiLogs: (params = {}) => api.get('/admin/api-logs', { params }),
+
+  // Token management
+  getUserTokens: (userId) => api.get(`/admin/users/${userId}/tokens`),
+  revokeAllUserTokens: (userId) => api.post(`/admin/users/${userId}/tokens/revoke-all`),
+  revokeToken: (tokenId) => api.delete(`/admin/tokens/${tokenId}`),
 };
 
 // Feedback API

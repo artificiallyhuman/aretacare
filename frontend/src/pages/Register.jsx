@@ -86,10 +86,11 @@ function Register() {
         acknowledgeEmailCommunications,
         invitationToken
       );
-      const { access_token, user } = response.data;
+      const { access_token, refresh_token, user } = response.data;
 
-      // Store auth token
+      // Store auth tokens
       localStorage.setItem('auth_token', access_token);
+      localStorage.setItem('refresh_token', refresh_token);
 
       // Reload to home page to reinitialize session
       window.location.href = '/';

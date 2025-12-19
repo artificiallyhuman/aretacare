@@ -29,3 +29,8 @@ class User(Base):
         cascade="all, delete-orphan",
         foreign_keys="Session.user_id"
     )
+    refresh_tokens = relationship(
+        "RefreshToken",
+        back_populates="user",
+        cascade="all, delete-orphan"
+    )

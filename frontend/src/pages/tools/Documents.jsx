@@ -363,10 +363,11 @@ const Documents = () => {
       setError(`Failed to upload ${failCount} document${failCount > 1 ? 's' : ''}.`);
     }
 
-    // Clear progress after 5 seconds
+    // Clear progress and error after 5 seconds
     setTimeout(() => {
       setUploadProgress([]);
       setUploading(false);
+      setError(null);
     }, 5000);
   };
 

@@ -18,10 +18,10 @@ AretaCare is an AI-powered medical care advocate assistant that helps families u
 - GPT-5.2 native file support for PDFs and images via Responses API
 - Audio recording with live waveform visualization, 15-minute countdown timer, and real-time transcription
 - Audio file uploads - supports MP3, M4A, WAV, WebM, OGG (20MB limit, auto-chunks long files, converts to MP3 for browser playback)
-- Document uploads - supports PDF, PNG, JPG, TXT (20MB limit) with text extraction and AI categorization
-- JWT-based authentication with bcrypt password hashing, registration requires four acknowledgement checkboxes
+- Document uploads - supports PDF, PNG, JPG, TXT (20MB limit) with text extraction, AI categorization, and image validation
+- JWT-based authentication with short-lived access tokens (1 hour) + long-lived refresh tokens (30 days), automatic token refresh, bcrypt password hashing, registration requires four acknowledgement checkboxes
 - Email notifications - password changes, email changes, collaborator management (sent via Gmail SMTP)
-- Settings page - account management, password reset via email, manage sessions, account deletion
+- Settings page - account management, password reset via email, security (logout everywhere), manage sessions, account deletion
 - AI-powered Documents Manager (12 categories, AI descriptions, searchable, date navigation, direct upload)
 - AI-powered Audio Recordings (12 categories, AI summaries, searchable, date navigation, direct upload)
 - Complete data deletion - removes PostgreSQL data and S3 files (zero orphaned files)
@@ -64,7 +64,7 @@ python -c "import secrets; print(secrets.token_urlsafe(32))"  # Generate secret 
 - Protected routes redirect to login if not authenticated
 
 **Database (PostgreSQL)**
-- Fourteen main tables: `users`, `sessions`, `session_collaborators`, `profiles`, `documents`, `audio_recordings`, `conversations`, `journal_entries`, `daily_plans`, `daily_plan_views`, `admin_audit_logs`, `security_logs`, `error_logs`, `api_logs`, `migration_history`
+- Fifteen main tables: `users`, `sessions`, `session_collaborators`, `profiles`, `documents`, `audio_recordings`, `conversations`, `journal_entries`, `daily_plans`, `daily_plan_views`, `refresh_tokens`, `admin_audit_logs`, `security_logs`, `error_logs`, `api_logs`, `migration_history`
 - User table stores authentication credentials (bcrypt hashed passwords) and password reset tokens (time-limited, 1-hour expiration)
 - **Sessions table** tied to user accounts via foreign key, supports up to 3 owned sessions per user (collaborator sessions don't count), includes `owner_id` for session ownership, name field (15-character limit, default "Session N"), created_at for automatic numbering
 - **Session collaborators table** links users to shared sessions with unique constraint on (session_id, user_id), cascading deletes when session or user is deleted
@@ -157,11 +157,14 @@ See `backend/app/config/README.md` for complete documentation on modifying AI be
 ### Authentication & Privacy Model
 
 **User Authentication:**
-- JWT-based authentication with 7-day token expiration
+- Two-token JWT system: short-lived access tokens (1 hour) + long-lived refresh tokens (30 days)
+- Automatic token refresh via axios interceptor - seamless re-authentication when access token expires
+- Refresh tokens stored in database with device info, IP address, and usage tracking
+- "Logout everywhere" feature revokes all active refresh tokens for a user
 - Passwords hashed with bcrypt (72-byte maximum due to bcrypt limitation)
 - Minimum password length: 8 characters
 - Registration requires four acknowledgements: not medical advice, HIPAA limitations, beta version/data loss, email communications
-- Auth token stored in localStorage, included in API requests via Authorization header
+- Auth tokens stored in localStorage, included in API requests via Authorization header
 - Protected routes on both frontend (React Router) and backend (FastAPI dependencies)
 - Email notifications sent for password changes, email changes, and collaborator actions
 
@@ -192,10 +195,10 @@ See `backend/app/config/README.md` for complete documentation on modifying AI be
 
 ### Backend
 **API Routes** (`backend/app/api/`):
-- `auth.py` - Authentication (register, login, /me) and user management (update account, password reset, deletion)
+- `auth.py` - Authentication (register, login, /me, /refresh, /logout-everywhere) and user management (update account, password reset, deletion)
 - `sessions.py` - Multi-session management (3 owned session limit, rename, delete with S3 cleanup, sharing/collaboration)
 - `permissions.py` - Shared permission checking (`check_session_access()` for owner/collaborator validation)
-- `documents.py` - Document upload/management with AI categorization, returns presigned URLs (media_url/thumbnail_url) for immediate display
+- `documents.py` - Document upload/management with AI categorization, image validation (PIL), returns presigned URLs (media_url/thumbnail_url) for immediate display
 - `audio_recording.py` - Audio recording management with AI categorization
 - `conversation.py` - Conversation endpoints with rich media support, message editing (PATCH /{message_id})
 - `journal.py` - Journal CRUD operations
@@ -205,7 +208,7 @@ See `backend/app/config/README.md` for complete documentation on modifying AI be
 - `feedback.py` - Feedback form submission with hCaptcha verification, rate limiting, and email notifications
 - `admin.py` - Admin console (metrics, health, S3 cleanup, admin logs)
 
-**Models** (`backend/app/models/`): `user.py`, `session.py`, `session_collaborator.py`, `profile.py`, `document.py`, `audio_recording.py`, `journal.py`, `daily_plan.py`, `conversation.py`, `admin_audit_log.py`
+**Models** (`backend/app/models/`): `user.py`, `session.py`, `session_collaborator.py`, `profile.py`, `document.py`, `audio_recording.py`, `journal.py`, `daily_plan.py`, `conversation.py`, `refresh_token.py`, `admin_audit_log.py`
 
 **AI Configuration** (CRITICAL):
 - `backend/app/config/ai_config.py` - All models, prompts, safety boundaries, categories
@@ -237,7 +240,7 @@ See `backend/app/config/README.md` for complete documentation on modifying AI be
 
 **Core** (`backend/app/core/`):
 - `migrations.py` - Database migrations (auto-adds columns, tracks one-time migrations in `migration_history`)
-- `auth.py` - JWT & bcrypt utilities
+- `auth.py` - JWT & bcrypt utilities, refresh token management (create, verify, revoke)
 - `config.py` - Pydantic settings
 
 ### Frontend
@@ -249,7 +252,7 @@ See `backend/app/config/README.md` for complete documentation on modifying AI be
   - Visual enhancements: color-coded section icons with gradient backgrounds (SECTION_CONFIG), completeness progress indicator with gradient bar, timeline visualization for events with colored dots, status badges (Active/Inactive for medications, severity-based colors for conditions/allergies), improved typography hierarchy
   - Medication taxonomy: 14 categories with user-friendly labels (MEDICATION_CATEGORY_LABELS), category dropdown in edit mode, grouped display by category in both view and edit modes
 - `Collaboration.jsx` - Dedicated collaboration management page (view owned/shared sessions, add/remove collaborators, transfer ownership, pending invitations with resend/cancel, leave sessions)
-- `Settings.jsx` - Account management, session management
+- `Settings.jsx` - Account management, security (logout everywhere), session management
 - `tools/Documents.jsx` - AI-powered document manager (at `/tools/documents` route)
 - `AudioRecordings.jsx` - AI-powered audio manager
 - `Login.jsx`, `Register.jsx`, `PasswordReset.jsx` - Authentication (Login has prominent "Learn about AretaCare" secondary button)
@@ -271,7 +274,7 @@ See `backend/app/config/README.md` for complete documentation on modifying AI be
 - `contexts/SessionContext.jsx` - Multi-session state management
 - `contexts/AdminContext.jsx` - Admin authorization state
 - `contexts/NetworkContext.jsx` - Network status monitoring (online/offline detection)
-- `services/api.js` - Axios instance with auth interceptor
+- `services/api.js` - Axios instance with auth interceptor and automatic token refresh
 - `utils/dateUtils.js` - Timezone utilities for converting UTC to local time (used in admin console)
 - `utils/markdownUtils.js` - Shared markdown to HTML converter for clipboard operations (used by MessageBubble and DailyPlan)
 

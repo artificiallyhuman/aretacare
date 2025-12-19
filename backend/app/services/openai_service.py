@@ -1,9 +1,14 @@
-from openai import OpenAI
+from openai import OpenAI, BadRequestError
 from app.core.config import settings
 from app.config import ai_config
 from typing import List, Dict, Optional, Any
 import logging
 import time
+
+
+class ImageProcessingError(Exception):
+    """Raised when OpenAI cannot process an image file"""
+    pass
 
 logger = logging.getLogger(__name__)
 
@@ -132,6 +137,47 @@ class OpenAIService:
                 if getattr(first_item, "content", None):
                     first_content = first_item.content[0]
                     return getattr(first_content, "text", None)
+
+            return None
+
+        except BadRequestError as e:
+            response_time_ms = int((time.time() - start_time) * 1000)
+            error_msg = str(e)[:500]
+
+            # Log failed API call
+            log_api_call(
+                feature=feature,
+                input_tokens=input_tokens,
+                output_tokens=output_tokens,
+                success=False,
+                model=self.model,
+                response_time_ms=response_time_ms,
+                user_id=user_id,
+                error_message=error_msg
+            )
+
+            logger.error(f"OpenAI BadRequestError: {e}")
+
+            # Check if this is an image-related error
+            error_str = str(e).lower()
+            if "image" in error_str and ("invalid" in error_str or "not represent" in error_str or "could not process" in error_str):
+                # Raise a specific error for image processing failures
+                raise ImageProcessingError(
+                    "The image could not be processed by the AI. This may happen if the file is corrupted, "
+                    "too small, or in an unsupported format. Please try uploading a different image (JPEG, PNG, GIF, or WEBP)."
+                )
+
+            # Log to database for admin visibility
+            try:
+                from app.services.error_logger import log_error_standalone
+                log_error_standalone(
+                    source="services.openai._create_chat_completion",
+                    error=e,
+                    level="ERROR",
+                    details={"model": self.model, "message_count": len(messages)}
+                )
+            except Exception:
+                pass
 
             return None
 

@@ -546,7 +546,11 @@ const Conversation = () => {
       await loadConversationHistory(activeSessionId);
     } catch (err) {
       console.error('Error sending message:', err);
-      setError('Failed to send message. Please try again.');
+      // Use specific error message from API if available
+      const errorMessage = err.response?.data?.detail || 'Failed to send message. Please try again.';
+      setError(errorMessage);
+      // Auto-clear error after 8 seconds
+      setTimeout(() => setError(''), 8000);
       // Remove the temporary message on error
       setMessages(prevMessages => prevMessages.filter(msg => msg.id !== tempUserMessage.id));
       // Reset the flag on error

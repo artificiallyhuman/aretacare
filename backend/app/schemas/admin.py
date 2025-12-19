@@ -335,3 +335,39 @@ class ApiLogResponse(BaseModel):
     """API log response with summary and entries."""
     summary: ApiLogSummary
     logs: List[ApiLogEntry]
+
+
+# ==========================================
+# Token Management Schemas
+# ==========================================
+
+class RefreshTokenInfo(BaseModel):
+    """Information about a user's refresh token."""
+    id: int
+    created_at: datetime
+    expires_at: datetime
+    last_used_at: Optional[datetime] = None
+    is_revoked: bool
+    revoked_at: Optional[datetime] = None
+    device_info: Optional[str] = None
+    ip_address: Optional[str] = None
+    is_expired: bool
+
+    class Config:
+        from_attributes = True
+
+
+class UserTokensResponse(BaseModel):
+    """Response containing all tokens for a user."""
+    user_id: str
+    user_email: str
+    active_tokens: List[RefreshTokenInfo]
+    revoked_tokens: List[RefreshTokenInfo]
+    total_active: int
+    total_revoked: int
+
+
+class RevokeTokenResponse(BaseModel):
+    """Response after revoking a token."""
+    message: str
+    revoked_token_id: int

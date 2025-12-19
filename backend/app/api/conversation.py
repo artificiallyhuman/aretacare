@@ -7,7 +7,7 @@ from app.models import User, Session as SessionModel, Conversation, Document, Au
 from app.models.conversation import MessageRole, MessageType
 from app.models.journal import JournalEntry
 from app.schemas.conversation import MessageRequest, MessageResponse, ConversationHistory, UpdateMessageRequest, UpdateMessageResponse
-from app.services.openai_service import openai_service
+from app.services.openai_service import openai_service, ImageProcessingError
 from app.services.journal_service import JournalService
 from app.services.s3_service import s3_service
 from app.services.security_service import SecurityService
@@ -265,6 +265,11 @@ async def send_message(
                 ]
             } if synthesis_result.should_create else None
         }
+
+    except ImageProcessingError as e:
+        db.rollback()
+        # Return a user-friendly error for image processing issues
+        raise HTTPException(status_code=400, detail=str(e))
 
     except Exception as e:
         db.rollback()
