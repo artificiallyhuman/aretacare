@@ -331,35 +331,35 @@ const About = () => {
           <div className="px-6 py-8">
             <div className="prose prose-gray dark:prose-invert max-w-none text-gray-700 dark:text-gray-300 space-y-4 leading-relaxed">
               <p>
-                Listening to Jason talk about caring for his mom brought back memories of my own family's experiences.
+                Listening to Jason talk about caring for his mom brought back memories of my own family.
               </p>
 
               <p>
-                I was young when my grandmother had a series of strokes, and at the time I didn't fully understand what was happening. It wasn't until years later that I grasped how much my parents had been navigating, how many long drives to the hospital, how many phone calls, how many late nights managing details I never saw.
+                My mom stood by my stepfather as Alzheimer's slowly took his mind and body. Illnesses and injuries don't just affect the patient. They reshape the lives of everyone around them. My mom became a full-time caregiver, managing appointments, medications, daily logistics, and the emotional weight of watching someone she loved slowly slip away.
               </p>
 
               <p>
-                Even though I wasn't the one coordinating her care, I remember the heaviness in our house during that time. I remember the strain on my mom, the quiet exhaustion that came with trying to support someone while still handling everything else. Looking back, I can see how much the uncertainty weighed on everyone.
+                Caregiving is difficult even before you factor in the added burden of the healthcare system. Most of us aren't trained to navigate medical jargon, shifting instructions, or fragmented conversations with care teams. Information arrives in pieces, rarely when you're calm and rested.
               </p>
 
               <p>
-                When Jason described the confusion of his mother's hospital stay, it clicked. I imagined my own parents trying to keep track of shifting instructions, conflicting updates, and unfamiliar terminology. No one walked them through what questions to ask. No one helped translate the medical jargon into something they could act on. They just did their best with what they had.
+                As we started building AretaCare, I kept thinking about what my mom's experience might have been like if something like this had existed then. I can't turn back time, but I can try to ease the burden for people facing similar situations now. That's why Jason's experience resonated so deeply with me, and why I was eager to build AretaCare with him.
               </p>
 
               <p>
-                That's a big part of why AretaCare resonated with me. It isn't about replacing doctors or giving medical advice. It's about providing families with an extra layer of organization and understanding when everything feels overwhelming.
+                I've been working with AI since 2015, long enough to understand both its promise and its risks. The future of AI isn't preordained. What we choose to do with it matters. The real power of AI isn't automating the work we already do. It's making things possible that were previously out of reach. AretaCare is just an idea without AI.
               </p>
 
               <p>
-                From a technical standpoint, I've worked to build a platform that's both secure and easy to use. I wanted families to feel confident storing sensitive documents and conversations in one place. I also wanted the AI to be genuinely helpful: translating jargon, surfacing relevant details, helping people prepare questions they might not have known to ask.
+                Still, the technology was never the point.
               </p>
 
               <p>
-                There's something deeply human about standing beside someone who's vulnerable and trying to make sense of what's happening. I've thought a lot about how technology can support that moment without getting in the way. The goal is to give families more clarity so they can focus on what really matters: being present with the person they love.
+                For me, AretaCare is a way to turn my optimism about AI into action. A way to help families stay organized, informed, and a little more confident during stressful moments.
               </p>
 
               <p>
-                I don't know if AretaCare could have changed anything for my grandmother or my parents all those years ago. But I do believe it can make a difference for families going through similar situations now. And if it helps even one person feel less lost, the sense that they don't have to carry the burden alone.
+                My hope is that AretaCare can give families a bit more clarity, a bit more confidence, and the sense that they don't have to carry the burden alone.
               </p>
             </div>
           </div>
