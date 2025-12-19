@@ -32,6 +32,9 @@ env/
 .env.local
 .env.*.local
 
+# Internal documentation (contains architecture details)
+CLAUDE.md
+
 # IDEs
 .vscode/
 .idea/
