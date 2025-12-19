@@ -36,7 +36,7 @@ AretaCare was built from exactly this experience—sitting beside a loved one in
 
 **Specialized Tools** — Access dedicated tools for specific tasks: Jargon Translator (explains medical terminology with journal context, supports audio input), and Conversation Coach (helps prepare questions for healthcare teams, supports audio input with 15-minute recording limit).
 
-**Account Security** — Comprehensive email notifications keep you informed of important account changes including password updates, email changes, session collaboration activities, and password reset requests. Password reset via email with time-limited tokens (1-hour expiration). JWT-based authentication with 7-day token expiration.
+**Account Security** — Comprehensive email notifications keep you informed of important account changes including password updates, email changes, session collaboration activities, and password reset requests. Password reset via email with time-limited tokens (1-hour expiration). Two-token JWT authentication with short-lived access tokens (1 hour) and long-lived refresh tokens (30 days), automatic token refresh, and "logout everywhere" capability.
 
 **Feedback** — Share bug reports, improvement suggestions, feature requests, or general feedback through the built-in contact form. Access via the floating tab on desktop or "Feedback" in the mobile menu. Includes hCaptcha spam prevention, rate limiting (3 submissions/hour), and dual email notifications (team receives detailed report, user receives confirmation). Source page tracking helps diagnose issues.
 
@@ -166,7 +166,7 @@ aretacare/
 │       ├── api/              # FastAPI routes (auth, sessions, documents, audio, conversation, journal, daily plans, profile, tools, admin)
 │       ├── config/           # AI configuration (models, prompts, safety boundaries, categories)
 │       ├── core/             # Auth utilities, migrations, config
-│       ├── models/           # SQLAlchemy models (14 tables: users, sessions, collaborators, profiles, documents, audio, conversations, journal, daily plans, audit/error/api/security logs, migration_history)
+│       ├── models/           # SQLAlchemy models (15 tables: users, sessions, collaborators, profiles, documents, audio, conversations, journal, daily plans, refresh_tokens, audit/error/api/security logs, migration_history)
 │       ├── schemas/          # Pydantic schemas for API validation
 │       ├── services/         # Business logic (OpenAI, S3, document processing, email, admin, journal, daily plan, profile)
 │       └── main.py           # FastAPI app initialization
@@ -228,7 +228,9 @@ aretacare/
   - Search by transcription, navigate by date
 
 ### Security & Privacy
-- **JWT-based authentication** with 7-day token expiration
+- **Two-token JWT authentication** - Short-lived access tokens (1 hour) + long-lived refresh tokens (30 days)
+- **Automatic token refresh** - Seamless re-authentication via axios interceptor
+- **Logout everywhere** - Revoke all active sessions from Settings
 - **Bcrypt password hashing** with 8-character minimum
 - **Password reset** via email with time-limited tokens (1-hour expiration)
 - **Email notifications** for: password changes, email changes, collaborator activities, password reset requests

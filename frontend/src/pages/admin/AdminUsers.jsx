@@ -42,6 +42,50 @@ function ConfirmModal({ isOpen, onClose, onConfirm, title, message, confirmText 
 function UserDetail({ user, onClose, onAction }) {
   const [loading, setLoading] = useState(false);
   const [confirmModal, setConfirmModal] = useState(null);
+  const [tokens, setTokens] = useState(null);
+  const [loadingTokens, setLoadingTokens] = useState(false);
+  const [showTokens, setShowTokens] = useState(false);
+
+  const loadTokens = async () => {
+    setLoadingTokens(true);
+    try {
+      const response = await adminAPI.getUserTokens(user.id);
+      setTokens(response.data);
+    } catch (err) {
+      onAction('Failed to load tokens', true);
+    } finally {
+      setLoadingTokens(false);
+    }
+  };
+
+  const handleRevokeAllTokens = async () => {
+    setLoading(true);
+    try {
+      const response = await adminAPI.revokeAllUserTokens(user.id);
+      onAction(response.data.message || 'All tokens revoked');
+      // Reload tokens to show updated state
+      await loadTokens();
+    } catch (err) {
+      onAction(err.response?.data?.detail || 'Failed to revoke tokens', true);
+    } finally {
+      setLoading(false);
+      setConfirmModal(null);
+    }
+  };
+
+  const handleRevokeToken = async (tokenId) => {
+    setLoading(true);
+    try {
+      await adminAPI.revokeToken(tokenId);
+      onAction('Token revoked successfully');
+      // Reload tokens to show updated state
+      await loadTokens();
+    } catch (err) {
+      onAction(err.response?.data?.detail || 'Failed to revoke token', true);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleResetPassword = async () => {
     setLoading(true);
@@ -157,6 +201,104 @@ function UserDetail({ user, onClose, onAction }) {
               </div>
             )}
 
+            {/* Token Management */}
+            <div className="mt-6 pt-4 border-t border-gray-200 dark:border-gray-700">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-sm font-semibold text-gray-900 dark:text-white">Active Sessions</h3>
+                <button
+                  onClick={() => {
+                    setShowTokens(!showTokens);
+                    if (!showTokens && !tokens) {
+                      loadTokens();
+                    }
+                  }}
+                  className="px-3 py-1.5 text-xs font-medium text-primary-700 dark:text-primary-300 bg-primary-50 dark:bg-primary-900/30 hover:bg-primary-100 dark:hover:bg-primary-900/50 rounded-lg transition-colors"
+                >
+                  {showTokens ? 'Hide' : 'View'} Sessions
+                </button>
+              </div>
+
+              {showTokens && (
+                <div className="space-y-3">
+                  {loadingTokens ? (
+                    <p className="text-sm text-gray-500 dark:text-gray-400">Loading sessions...</p>
+                  ) : tokens ? (
+                    <>
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-gray-600 dark:text-gray-400">
+                          {tokens.total_active} active {tokens.total_active === 1 ? 'device' : 'devices'}
+                        </span>
+                        {tokens.total_active > 0 && (
+                          <button
+                            onClick={() => setConfirmModal('revokeAll')}
+                            disabled={loading}
+                            className="px-3 py-1 text-xs font-medium text-red-700 dark:text-red-300 bg-red-50 dark:bg-red-900/30 hover:bg-red-100 dark:hover:bg-red-900/50 rounded transition-colors disabled:opacity-50"
+                          >
+                            Logout All Devices
+                          </button>
+                        )}
+                      </div>
+
+                      {tokens.active_tokens.length > 0 && (
+                        <div className="space-y-2">
+                          {tokens.active_tokens.map((token) => (
+                            <div
+                              key={token.id}
+                              className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3 border border-gray-200 dark:border-gray-600"
+                            >
+                              <div className="flex items-start justify-between">
+                                <div className="flex-1 text-xs space-y-1">
+                                  <div className="flex items-center gap-2">
+                                    <span className="px-2 py-0.5 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 rounded-full font-medium">
+                                      Active
+                                    </span>
+                                    <span className="text-gray-500 dark:text-gray-400">
+                                      ID: {token.id}
+                                    </span>
+                                  </div>
+                                  {token.device_info && (
+                                    <p className="text-gray-700 dark:text-gray-300 truncate">
+                                      {token.device_info}
+                                    </p>
+                                  )}
+                                  <p className="text-gray-500 dark:text-gray-400">
+                                    Created: {formatLocalDate(token.created_at)}
+                                  </p>
+                                  {token.last_used_at && (
+                                    <p className="text-gray-500 dark:text-gray-400">
+                                      Last used: {formatLocalDate(token.last_used_at)}
+                                    </p>
+                                  )}
+                                  <p className="text-gray-500 dark:text-gray-400">
+                                    Expires: {formatLocalDate(token.expires_at)}
+                                  </p>
+                                </div>
+                                <button
+                                  onClick={() => handleRevokeToken(token.id)}
+                                  disabled={loading}
+                                  className="ml-2 px-2 py-1 text-xs font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 rounded transition-colors disabled:opacity-50"
+                                >
+                                  Revoke
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {tokens.total_active === 0 && (
+                        <p className="text-sm text-gray-500 dark:text-gray-400 italic">
+                          No active sessions
+                        </p>
+                      )}
+                    </>
+                  ) : (
+                    <p className="text-sm text-gray-500 dark:text-gray-400">Failed to load sessions</p>
+                  )}
+                </div>
+              )}
+            </div>
+
             {/* Actions */}
             <div className="mt-6 pt-4 border-t border-gray-200 dark:border-gray-700">
               <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">Actions</h3>
@@ -197,6 +339,16 @@ function UserDetail({ user, onClose, onAction }) {
         title="Delete User"
         message={`Are you sure you want to delete ${user.name}? This will permanently delete all their sessions, documents, and data. This action cannot be undone.`}
         confirmText="Delete User"
+        danger
+      />
+
+      <ConfirmModal
+        isOpen={confirmModal === 'revokeAll'}
+        onClose={() => setConfirmModal(null)}
+        onConfirm={handleRevokeAllTokens}
+        title="Logout All Devices"
+        message={`Revoke all active sessions for ${user.name}? This will log them out of all devices and browsers. They will need to log in again.`}
+        confirmText="Logout All"
         danger
       />
     </div>,

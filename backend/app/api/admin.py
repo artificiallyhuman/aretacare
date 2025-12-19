@@ -16,7 +16,8 @@ from app.api.auth import get_current_user
 from app.api.permissions import check_is_admin, require_admin
 from app.models import (
     User, Session as SessionModel, SessionCollaborator,
-    Document, AudioRecording, AdminAuditLog, SecurityLog, ErrorLog, ApiLog
+    Document, AudioRecording, AdminAuditLog, SecurityLog, ErrorLog, ApiLog,
+    RefreshToken
 )
 from app.schemas.admin import (
     PlatformMetrics, MetricsTrendResponse, MetricsTrend,
@@ -30,7 +31,8 @@ from app.schemas.admin import (
     SecurityLogEntry, SecurityLogResponse,
     EmailInactiveUsersRequest, EmailInactiveUsersResponse,
     ErrorLogEntry, ErrorLogResponse, ErrorLogCleanupResponse,
-    ApiLogEntry, ApiLogSummary, ApiLogResponse
+    ApiLogEntry, ApiLogSummary, ApiLogResponse,
+    RefreshTokenInfo, UserTokensResponse, RevokeTokenResponse
 )
 from app.services.admin_service import admin_service
 from app.services.s3_service import s3_service
@@ -359,6 +361,164 @@ async def admin_delete_user(
     db.commit()
 
     return {"message": f"User {user_email} deleted successfully"}
+
+
+# ==========================================
+# Token Management
+# ==========================================
+
+@router.get("/users/{user_id}/tokens", response_model=UserTokensResponse)
+async def get_user_tokens(
+    user_id: str,
+    admin_user: User = Depends(get_admin_user),
+    db: DBSession = Depends(get_db)
+):
+    """
+    Get all refresh tokens for a user (both active and revoked).
+
+    Returns tokens with device information and usage statistics.
+    """
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    # Get all tokens for this user
+    all_tokens = db.query(RefreshToken).filter(
+        RefreshToken.user_id == user_id
+    ).order_by(RefreshToken.created_at.desc()).all()
+
+    active_tokens = []
+    revoked_tokens = []
+    now = datetime.utcnow()
+
+    for token in all_tokens:
+        is_expired = now > token.expires_at
+        token_info = RefreshTokenInfo(
+            id=token.id,
+            created_at=token.created_at,
+            expires_at=token.expires_at,
+            last_used_at=token.last_used_at,
+            is_revoked=token.is_revoked,
+            revoked_at=token.revoked_at,
+            device_info=token.device_info,
+            ip_address=token.ip_address,
+            is_expired=is_expired
+        )
+
+        if token.is_revoked or is_expired:
+            revoked_tokens.append(token_info)
+        else:
+            active_tokens.append(token_info)
+
+    # Log the action
+    admin_service.log_action(
+        db=db,
+        admin_user=admin_user,
+        action="view_user_tokens",
+        target_type="user",
+        target_id=str(user.id),
+        details={
+            "user_email": user.email,
+            "active_tokens": len(active_tokens),
+            "revoked_tokens": len(revoked_tokens)
+        }
+    )
+
+    return UserTokensResponse(
+        user_id=str(user.id),
+        user_email=user.email,
+        active_tokens=active_tokens,
+        revoked_tokens=revoked_tokens,
+        total_active=len(active_tokens),
+        total_revoked=len(revoked_tokens)
+    )
+
+
+@router.post("/users/{user_id}/tokens/revoke-all")
+async def revoke_all_user_tokens_admin(
+    user_id: str,
+    admin_user: User = Depends(get_admin_user),
+    db: DBSession = Depends(get_db)
+):
+    """
+    Revoke all active refresh tokens for a user (admin version of logout everywhere).
+
+    This will force the user to re-authenticate on all devices.
+    Useful for security incidents or account compromise.
+    """
+    from app.core.auth import revoke_all_user_tokens
+
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    # Revoke all tokens
+    count = revoke_all_user_tokens(db, user_id)
+
+    # Log the action
+    admin_service.log_action(
+        db=db,
+        admin_user=admin_user,
+        action="revoke_all_tokens",
+        target_type="user",
+        target_id=str(user.id),
+        details={
+            "user_email": user.email,
+            "tokens_revoked": count
+        }
+    )
+
+    return {
+        "message": f"Revoked {count} token(s) for user {user.email}",
+        "tokens_revoked": count,
+        "user_email": user.email
+    }
+
+
+@router.delete("/tokens/{token_id}", response_model=RevokeTokenResponse)
+async def revoke_single_token(
+    token_id: int,
+    admin_user: User = Depends(get_admin_user),
+    db: DBSession = Depends(get_db)
+):
+    """
+    Revoke a specific refresh token by ID.
+
+    Use this to log out a user from a specific device.
+    """
+    from app.core.auth import revoke_refresh_token
+
+    token = db.query(RefreshToken).filter(RefreshToken.id == token_id).first()
+    if not token:
+        raise HTTPException(status_code=404, detail="Token not found")
+
+    # Get user info for logging
+    user = db.query(User).filter(User.id == token.user_id).first()
+
+    # Revoke the token
+    success = revoke_refresh_token(db, token_id)
+    if not success:
+        raise HTTPException(status_code=400, detail="Failed to revoke token")
+
+    # Log the action
+    admin_service.log_action(
+        db=db,
+        admin_user=admin_user,
+        action="revoke_token",
+        target_type="refresh_token",
+        target_id=str(token_id),
+        details={
+            "user_id": str(token.user_id),
+            "user_email": user.email if user else None,
+            "device_info": token.device_info,
+            "ip_address": token.ip_address
+        }
+    )
+
+    return RevokeTokenResponse(
+        message=f"Token {token_id} revoked successfully",
+        revoked_token_id=token_id
+    )
 
 
 # ==========================================

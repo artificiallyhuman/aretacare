@@ -153,6 +153,29 @@ export default function Settings() {
     }
   };
 
+  const handleLogoutEverywhere = async () => {
+    setLoading((prev) => ({ ...prev, security: true }));
+    clearMessages('security');
+
+    try {
+      const response = await authAPI.logoutEverywhere();
+      setSuccess((prev) => ({ ...prev, security: response.data.message || 'Logged out of all devices' }));
+
+      // Log out current session after a short delay
+      setTimeout(() => {
+        authAPI.logout();
+        window.location.href = '/login';
+      }, 2000);
+    } catch (error) {
+      setErrors((prev) => ({
+        ...prev,
+        security: error.response?.data?.detail || 'Failed to logout everywhere',
+      }));
+    } finally {
+      setLoading((prev) => ({ ...prev, security: false }));
+    }
+  };
+
   const handleDeleteSession = (sessionId) => {
     const session = sessions.find(s => s.id === sessionId);
     const stats = sessionStatistics[sessionId];
@@ -499,6 +522,63 @@ export default function Settings() {
                   </button>
                 </div>
               </form>
+            )}
+          </div>
+
+          {/* Manage Security */}
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 transition-colors duration-200">
+            <button
+              onClick={() => toggleSection('security')}
+              className="w-full px-4 sm:px-6 py-4 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+            >
+              <div className="text-left">
+                <h2 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white">Manage Security</h2>
+                <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Manage active logins and devices</p>
+              </div>
+              <svg
+                className={`w-5 h-5 text-gray-400 transition-transform ${
+                  expandedSection === 'security' ? 'rotate-180' : ''
+                }`}
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+
+            {expandedSection === 'security' && (
+              <div className="px-4 sm:px-6 pb-4 border-t border-gray-100 dark:border-gray-700">
+                <div className="mt-4 space-y-4">
+                  <div>
+                    <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-2">
+                      Logout From All Devices
+                    </h3>
+                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
+                      This will log you out of all devices and browsers where you're currently signed in.
+                      You'll need to log in again on all devices.
+                    </p>
+                    <button
+                      onClick={handleLogoutEverywhere}
+                      disabled={loading.security}
+                      className="px-4 py-2 text-sm font-medium rounded-lg transition-colors w-full sm:w-auto bg-amber-500 hover:bg-amber-600 text-white disabled:bg-gray-300 dark:disabled:bg-gray-600 disabled:cursor-not-allowed"
+                    >
+                      {loading.security ? 'Logging Out...' : 'Logout Everywhere'}
+                    </button>
+                  </div>
+
+                  {errors.security && (
+                    <div className="text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/30 px-3 py-2 rounded">
+                      {errors.security}
+                    </div>
+                  )}
+                  {success.security && (
+                    <div className="text-sm text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/30 px-3 py-2 rounded">
+                      {success.security}
+                    </div>
+                  )}
+                </div>
+              </div>
             )}
           </div>
 

@@ -11,6 +11,8 @@ from app.services.security_service import SecurityService
 from app.api.auth import get_current_user
 from app.api.permissions import check_session_access
 from typing import List, Optional
+from PIL import Image
+from io import BytesIO
 import uuid
 import logging
 
@@ -60,6 +62,57 @@ BLOCKED_MIME_TYPES = [
 
 MAX_FILE_SIZE = 50 * 1024 * 1024  # 50MB for document manager
 MAX_CONVERSATION_FILE_SIZE = 20 * 1024 * 1024  # 20MB for conversation uploads
+
+# Image formats supported by OpenAI GPT-5.2
+OPENAI_SUPPORTED_IMAGE_FORMATS = ['JPEG', 'PNG', 'GIF', 'WEBP']
+
+
+def validate_image_content(file_content: bytes, content_type: str) -> tuple[bool, str]:
+    """
+    Validate that file content is actually a valid image that OpenAI can process.
+
+    Returns:
+        tuple: (is_valid, error_message)
+    """
+    if not content_type.startswith('image/'):
+        return True, ""  # Not an image, skip validation
+
+    try:
+        # Try to open the image with PIL
+        img = Image.open(BytesIO(file_content))
+
+        # Verify the image can be fully loaded (catches truncated/corrupted images)
+        img.verify()
+
+        # Re-open after verify (verify() can only be called once)
+        img = Image.open(BytesIO(file_content))
+
+        # Check if format is supported by OpenAI
+        if img.format not in OPENAI_SUPPORTED_IMAGE_FORMATS:
+            return False, f"Image format '{img.format}' is not supported by the AI. Supported formats: JPEG, PNG, GIF, WEBP."
+
+        # Check image dimensions (OpenAI has limits, but they're generous)
+        width, height = img.size
+        if width < 10 or height < 10:
+            return False, "Image is too small. Minimum dimensions are 10x10 pixels."
+
+        # Very large images may cause issues - warn but don't block
+        if width > 8192 or height > 8192:
+            logger.warning(f"Large image uploaded: {width}x{height} pixels")
+
+        return True, ""
+
+    except Exception as e:
+        error_msg = str(e)
+        logger.warning(f"Image validation failed: {error_msg}")
+
+        # Provide user-friendly error messages
+        if "cannot identify image file" in error_msg.lower():
+            return False, "The file appears to be corrupted or is not a valid image. Please try uploading a different file."
+        elif "truncated" in error_msg.lower():
+            return False, "The image file appears to be incomplete or corrupted. Please try uploading again."
+        else:
+            return False, "Unable to process this image. Please ensure it's a valid JPEG, PNG, GIF, or WEBP file."
 
 
 @router.post("/upload", response_model=DocumentUploadResponse)
@@ -197,6 +250,26 @@ async def upload_document(
                 raise HTTPException(
                     status_code=400,
                     detail=f"File size exceeds maximum allowed size of {int(MAX_FILE_SIZE / 1024 / 1024)}MB"
+                )
+
+        # Validate image content if this is an image file
+        if file.content_type.startswith('image/'):
+            is_valid, error_message = validate_image_content(file_content, file.content_type)
+            if not is_valid:
+                # Log upload failure for monitoring
+                security_service.log_event(
+                    db=db,
+                    event_type="upload_failure",
+                    email=current_user.email,
+                    user_id=current_user.id,
+                    ip_address=security_service.get_client_ip(request),
+                    user_agent=security_service.get_user_agent(request),
+                    endpoint="/api/documents/upload",
+                    details=f"Invalid image content: {error_message}, filename: {file.filename}"
+                )
+                raise HTTPException(
+                    status_code=400,
+                    detail=error_message
                 )
 
         # Generate unique S3 key (with optional environment prefix for shared buckets)

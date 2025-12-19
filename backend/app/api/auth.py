@@ -7,7 +7,10 @@ import secrets
 import logging
 
 from app.core.database import get_db
-from app.core.auth import verify_password, get_password_hash, create_access_token, decode_access_token
+from app.core.auth import (
+    verify_password, get_password_hash, create_access_token, decode_access_token,
+    create_refresh_token_record, verify_refresh_token, revoke_all_user_tokens
+)
 from app.core.config import settings
 from app.core.rate_limit import limiter, RateLimits
 from app.models.user import User
@@ -17,7 +20,7 @@ from app.models.audio_recording import AudioRecording
 from app.schemas.auth import (
     UserRegister, UserLogin, TokenResponse, UserResponse,
     UpdateName, UpdateEmail, UpdatePassword, DeleteAccount,
-    PasswordResetRequest, PasswordReset
+    PasswordResetRequest, PasswordReset, RefreshTokenRequest
 )
 from app.services.email_service import email_service
 from app.services.s3_service import s3_service
@@ -230,8 +233,19 @@ def register(request: Request, user_data: UserRegister, db: DBSession = Depends(
     # Create access token
     access_token = create_access_token(data={"sub": new_user.id})
 
+    # Create refresh token
+    device_info = request.headers.get("user-agent")
+    ip_address = request.client.host if request.client else None
+    refresh_token, _ = create_refresh_token_record(
+        db=db,
+        user_id=new_user.id,
+        device_info=device_info,
+        ip_address=ip_address
+    )
+
     return TokenResponse(
         access_token=access_token,
+        refresh_token=refresh_token,
         user=UserResponse.model_validate(new_user)
     )
 
@@ -279,8 +293,19 @@ def login(request: Request, user_data: UserLogin, db: DBSession = Depends(get_db
     # Create access token
     access_token = create_access_token(data={"sub": user.id})
 
+    # Create refresh token
+    device_info = request.headers.get("user-agent")
+    ip_address = request.client.host if request.client else None
+    refresh_token, _ = create_refresh_token_record(
+        db=db,
+        user_id=user.id,
+        device_info=device_info,
+        ip_address=ip_address
+    )
+
     return TokenResponse(
         access_token=access_token,
+        refresh_token=refresh_token,
         user=UserResponse.model_validate(user)
     )
 
@@ -370,6 +395,9 @@ def update_password(
 
     # Send password changed notification email
     email_service.send_password_changed_email(current_user.email, current_user.name)
+
+    # Revoke all refresh tokens when password changes (security best practice)
+    revoke_all_user_tokens(db, current_user.id)
 
     return UserResponse.model_validate(current_user)
 
@@ -493,4 +521,63 @@ def reset_password(request: Request, data: PasswordReset, db: DBSession = Depend
     # Send password changed notification email
     email_service.send_password_changed_email(user.email, user.name)
 
+    # Revoke all refresh tokens when password is reset (security best practice)
+    revoke_all_user_tokens(db, user.id)
+
     return {"message": "Password reset successful"}
+
+
+@router.post("/refresh", response_model=TokenResponse)
+@limiter.limit(RateLimits.LOGIN)  # Use same rate limit as login
+def refresh_access_token(request: Request, data: RefreshTokenRequest, db: DBSession = Depends(get_db)):
+    """
+    Refresh an access token using a valid refresh token.
+
+    This endpoint allows clients to obtain a new access token when their current one expires
+    without requiring the user to log in again. The refresh token must be valid (not expired,
+    not revoked).
+    """
+    # Verify the refresh token
+    token_record = verify_refresh_token(db, data.refresh_token)
+
+    if not token_record:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired refresh token"
+        )
+
+    # Get the user
+    user = db.query(User).filter(User.id == token_record.user_id).first()
+    if not user or not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="User not found or inactive"
+        )
+
+    # Create a new access token
+    access_token = create_access_token(data={"sub": user.id})
+
+    # Return the new access token along with the same refresh token
+    # The refresh token is still valid, so we return it unchanged
+    return TokenResponse(
+        access_token=access_token,
+        refresh_token=data.refresh_token,
+        user=UserResponse.model_validate(user)
+    )
+
+
+@router.post("/logout-everywhere", status_code=status.HTTP_200_OK)
+def logout_everywhere(current_user: User = Depends(get_current_user), db: DBSession = Depends(get_db)):
+    """
+    Revoke all refresh tokens for the current user.
+
+    This logs the user out of all devices by invalidating all their refresh tokens.
+    The user will need to log in again on all devices.
+    """
+    # Revoke all refresh tokens for this user
+    count = revoke_all_user_tokens(db, current_user.id)
+
+    return {
+        "message": f"Logged out of {count} device(s)",
+        "devices_logged_out": count
+    }

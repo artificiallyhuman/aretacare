@@ -1124,3 +1124,56 @@ def run_migrations():
                 conn.rollback()
         else:
             logger.info("profiles table already exists")
+
+        # ==========================================
+        # REFRESH TOKENS TABLE
+        # ==========================================
+
+        # Create refresh_tokens table if it doesn't exist
+        if 'refresh_tokens' not in inspector.get_table_names():
+            logger.info("Creating refresh_tokens table...")
+            try:
+                conn.execute(text("""
+                    CREATE TABLE refresh_tokens (
+                        id SERIAL PRIMARY KEY,
+                        user_id VARCHAR(36) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                        token VARCHAR(255) NOT NULL UNIQUE,
+                        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                        expires_at TIMESTAMP NOT NULL,
+                        last_used_at TIMESTAMP NULL,
+                        is_revoked BOOLEAN NOT NULL DEFAULT FALSE,
+                        revoked_at TIMESTAMP NULL,
+                        device_info VARCHAR(500) NULL,
+                        ip_address VARCHAR(45) NULL
+                    )
+                """))
+                conn.commit()
+                logger.info("Successfully created refresh_tokens table")
+
+                # Create indexes for efficient queries
+                conn.execute(text("""
+                    CREATE INDEX IF NOT EXISTS idx_refresh_tokens_user
+                    ON refresh_tokens (user_id)
+                """))
+                conn.commit()
+                logger.info("Created index idx_refresh_tokens_user")
+
+                conn.execute(text("""
+                    CREATE INDEX IF NOT EXISTS idx_refresh_tokens_token
+                    ON refresh_tokens (token)
+                """))
+                conn.commit()
+                logger.info("Created index idx_refresh_tokens_token")
+
+                conn.execute(text("""
+                    CREATE INDEX IF NOT EXISTS idx_refresh_tokens_expires
+                    ON refresh_tokens (expires_at)
+                """))
+                conn.commit()
+                logger.info("Created index idx_refresh_tokens_expires")
+
+            except Exception as e:
+                logger.error(f"Failed to create refresh_tokens table: {e}")
+                conn.rollback()
+        else:
+            logger.info("refresh_tokens table already exists")

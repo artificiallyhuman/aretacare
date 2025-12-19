@@ -13,10 +13,11 @@ from app.models.security_log import SecurityLog
 from app.models.error_log import ErrorLog
 from app.models.api_log import ApiLog
 from app.models.profile import Profile
+from app.models.refresh_token import RefreshToken
 
 __all__ = [
     "User", "Session", "SessionCollaborator", "PendingInvitation", "Document", "DocumentCategory",
     "Conversation", "MessageRole", "AudioRecording", "AudioRecordingCategory",
     "JournalEntry", "EntryType", "DailyPlan", "DailyPlanView", "AdminAuditLog", "SecurityLog", "ErrorLog",
-    "ApiLog", "Profile"
+    "ApiLog", "Profile", "RefreshToken"
 ]
