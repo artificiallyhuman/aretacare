@@ -1,4 +1,4 @@
-import openai
+from openai import AsyncOpenAI
 import logging
 import json
 import uuid
@@ -19,7 +19,7 @@ from ..config import ai_config
 logger = logging.getLogger(__name__)
 
 # Initialize OpenAI client
-client = openai.OpenAI(api_key=settings.OPENAI_API_KEY)
+client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
 
 # Token budget for profile generation (256K context window)
 MAX_PROFILE_TOKENS = 230000  # Leave ~26K buffer for response + overhead
@@ -395,7 +395,7 @@ class ProfileService:
             )
 
             # Call OpenAI
-            response = client.responses.create(
+            response = await client.responses.create(
                 model=ai_config.CHAT_MODEL,
                 input=[
                     {"role": "system", "content": ai_config.PROFILE_SYSTEM_PROMPT},
@@ -460,7 +460,7 @@ class ProfileService:
             )
 
             # Call OpenAI
-            response = client.responses.create(
+            response = await client.responses.create(
                 model=ai_config.CHAT_MODEL,
                 input=[
                     {"role": "system", "content": ai_config.PROFILE_SYSTEM_PROMPT},

@@ -1,4 +1,4 @@
-import openai
+from openai import AsyncOpenAI
 import logging
 import time
 from sqlalchemy.orm import Session
@@ -16,7 +16,7 @@ from .s3_service import S3Service
 logger = logging.getLogger(__name__)
 
 # Initialize OpenAI client
-client = openai.OpenAI(api_key=settings.OPENAI_API_KEY)
+client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
 s3_service = S3Service()
 
 # Token budget for daily plan generation (128K total minus system prompt overhead)
@@ -297,7 +297,7 @@ class DailyPlanService:
             user_prompt = DailyPlanService._build_user_prompt(context)
 
             # Call OpenAI Responses API
-            response = client.responses.create(
+            response = await client.responses.create(
                 model=ai_config.CHAT_MODEL,
                 input=[
                     {"role": "system", "content": ai_config.DAILY_PLAN_SYSTEM_PROMPT},

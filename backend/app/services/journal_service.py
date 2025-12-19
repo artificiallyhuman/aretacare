@@ -1,4 +1,4 @@
-from openai import OpenAI
+from openai import AsyncOpenAI
 from app.core.config import settings
 from app.config import ai_config
 from app.models.journal import JournalEntry, EntryType
@@ -104,7 +104,7 @@ class JournalService:
 
     def __init__(self, db: Session):
         self.db = db
-        self.client = OpenAI(api_key=settings.OPENAI_API_KEY)
+        self.client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
         self.model = ai_config.CHAT_MODEL
 
     async def synthesize_from_document(
@@ -234,7 +234,7 @@ IMPORTANT: Respond with ONLY a valid JSON object in this exact format, with no a
             start_time = time.time()
             response = None
             try:
-                response = self.client.responses.create(
+                response = await self.client.responses.create(
                     model=self.model,
                     input=messages
                 )
@@ -440,7 +440,7 @@ IMPORTANT: Respond with ONLY a valid JSON object in this exact format, with no a
             start_time = time.time()
             response = None
             try:
-                response = self.client.responses.create(
+                response = await self.client.responses.create(
                     model=self.model,
                     input=messages
                 )
@@ -641,7 +641,7 @@ IMPORTANT: Respond with ONLY a valid JSON object in this exact format, with no a
             start_time = time.time()
             response = None
             try:
-                response = self.client.responses.create(
+                response = await self.client.responses.create(
                     model=self.model,
                     input=messages
                 )

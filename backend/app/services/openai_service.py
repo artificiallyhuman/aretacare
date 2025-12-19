@@ -1,4 +1,4 @@
-from openai import OpenAI, BadRequestError
+from openai import AsyncOpenAI, BadRequestError
 from app.core.config import settings
 from app.config import ai_config
 from typing import List, Dict, Optional, Any
@@ -88,10 +88,10 @@ class OpenAIService:
     """Service for OpenAI API interactions with safety boundaries"""
 
     def __init__(self):
-        self.client = OpenAI(api_key=settings.OPENAI_API_KEY)
+        self.client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
         self.model = ai_config.CHAT_MODEL
 
-    def _create_chat_completion(
+    async def _create_chat_completion(
         self,
         messages: List[Dict[str, str]],
         feature: str = "unknown",
@@ -103,7 +103,7 @@ class OpenAIService:
         output_tokens = 0
 
         try:
-            response = self.client.responses.create(
+            response = await self.client.responses.create(
                 model=self.model,
                 input=messages,
             )
@@ -234,7 +234,7 @@ class OpenAIService:
 
         messages.append({"role": "user", "content": prompt})
 
-        response = self._create_chat_completion(messages, feature="jargon_translator", user_id=user_id)
+        response = await self._create_chat_completion(messages, feature="jargon_translator", user_id=user_id)
 
         if response:
             return {
@@ -267,7 +267,7 @@ class OpenAIService:
 
         messages.append({"role": "user", "content": prompt})
 
-        response = self._create_chat_completion(messages, feature="conversation_coach", user_id=user_id)
+        response = await self._create_chat_completion(messages, feature="conversation_coach", user_id=user_id)
 
         if response:
             return {"content": response}
@@ -319,7 +319,7 @@ class OpenAIService:
             # Fallback to text-only if no URL (shouldn't happen normally)
             messages.append({"role": "user", "content": prompt})
 
-        response = self._create_chat_completion(messages, feature="document_categorization", user_id=user_id)
+        response = await self._create_chat_completion(messages, feature="document_categorization", user_id=user_id)
 
         if response:
             try:
@@ -371,7 +371,7 @@ class OpenAIService:
             {"role": "user", "content": prompt}
         ]
 
-        response = self._create_chat_completion(messages, feature="audio_categorization", user_id=user_id)
+        response = await self._create_chat_completion(messages, feature="audio_categorization", user_id=user_id)
 
         if response:
             try:
@@ -479,7 +479,7 @@ class OpenAIService:
         messages.extend(conversation_history[-ai_config.MAX_CONVERSATION_CONTEXT:])
         messages.append({"role": "user", "content": message})
 
-        response = self._create_chat_completion(messages, feature="chat", user_id=user_id)
+        response = await self._create_chat_completion(messages, feature="chat", user_id=user_id)
 
         return response if response else ai_config.FALLBACK_CHAT
 
@@ -640,7 +640,7 @@ When information conflicts, trust more recent sources.
             # Text-only message
             messages.append({"role": "user", "content": message})
 
-        response = self._create_chat_completion(messages, feature="conversation", user_id=user_id)
+        response = await self._create_chat_completion(messages, feature="conversation", user_id=user_id)
 
         return response if response else ai_config.FALLBACK_CHAT
 
@@ -648,7 +648,7 @@ When information conflicts, trust more recent sources.
         """Transcribe audio file using OpenAI's speech-to-text API"""
         try:
             # OpenAI expects a tuple of (filename, file_content, content_type) for in-memory files
-            transcription = self.client.audio.transcriptions.create(
+            transcription = await self.client.audio.transcriptions.create(
                 model=ai_config.TRANSCRIPTION_MODEL,
                 file=(filename, audio_file, "audio/mpeg"),
                 response_format="text"
