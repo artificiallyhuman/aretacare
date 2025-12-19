@@ -663,14 +663,18 @@ def refresh_access_token(
     # Create a new access token
     access_token = create_access_token(data={"sub": user.id})
 
+    # Use the verified token from the database record (not the user-supplied value)
+    # This ensures we're setting a known-safe value in the cookie
+    verified_refresh_token = token_record.token
+
     # Set refresh token cookie (keep the same token, just refresh the cookie expiry)
-    set_refresh_token_cookie(response, refresh_token_value)
+    set_refresh_token_cookie(response, verified_refresh_token)
 
     # Return the new access token along with the same refresh token
     # The refresh token is still valid, so we return it unchanged
     return TokenResponse(
         access_token=access_token,
-        refresh_token=refresh_token_value,  # Also return in body for backward compatibility
+        refresh_token=verified_refresh_token,  # Also return in body for backward compatibility
         user=UserResponse.model_validate(user)
     )
 
