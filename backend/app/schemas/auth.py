@@ -33,16 +33,24 @@ class UserResponse(BaseModel):
 
 
 class TokenResponse(BaseModel):
-    """Schema for token response."""
+    """Schema for token response.
+
+    Note: refresh_token is no longer returned in the response body for security.
+    It is only sent via HttpOnly cookie to prevent XSS attacks from stealing it.
+    """
     access_token: str
-    refresh_token: str
     token_type: str = "bearer"
     user: UserResponse
 
 
 class RefreshTokenRequest(BaseModel):
-    """Schema for refresh token request."""
-    refresh_token: str
+    """Schema for refresh token request.
+
+    Note: refresh_token in body is deprecated. The HttpOnly cookie is the
+    primary mechanism. This field is kept for backward compatibility during
+    migration but will be ignored if the cookie is present.
+    """
+    refresh_token: str | None = None
 
 
 class UpdateName(BaseModel):

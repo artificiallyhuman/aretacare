@@ -78,38 +78,18 @@ api.interceptors.response.use(
       originalRequest._retry = true;
       isRefreshing = true;
 
-      const refreshToken = localStorage.getItem('refresh_token');
-
-      if (!refreshToken) {
-        // No refresh token, user needs to log in
-        isRefreshing = false;
-        processQueue(error, null);
-
-        // Clear tokens and redirect to login
-        localStorage.removeItem('auth_token');
-        localStorage.removeItem('refresh_token');
-        localStorage.removeItem('user');
-
-        if (globalErrorHandler) {
-          globalErrorHandler(error);
-        }
-        return Promise.reject(error);
-      }
-
       try {
-        // Attempt to refresh the token
-        // Send refresh token in body for backward compatibility (cookie sent automatically with credentials)
-        const response = await axios.post(`${API_BASE_URL}/auth/refresh`, {
-          refresh_token: refreshToken
-        }, {
+        // Attempt to refresh the token using HttpOnly cookie (sent automatically)
+        // No refresh token in body - relies entirely on secure HttpOnly cookie
+        const response = await axios.post(`${API_BASE_URL}/auth/refresh`, {}, {
           withCredentials: true  // Send HttpOnly cookie with request
         });
 
-        const { access_token, refresh_token: new_refresh_token } = response.data;
+        const { access_token } = response.data;
 
-        // Store new tokens (keep localStorage for backward compatibility during migration)
+        // Store new access token (short-lived, 1 hour)
+        // Note: refresh_token is handled exclusively via HttpOnly cookie for security
         localStorage.setItem('auth_token', access_token);
-        localStorage.setItem('refresh_token', new_refresh_token);
 
         // Update the authorization header
         api.defaults.headers.common['Authorization'] = `Bearer ${access_token}`;
@@ -126,8 +106,9 @@ api.interceptors.response.use(
         processQueue(refreshError, null);
         isRefreshing = false;
 
+        // Clear local storage
         localStorage.removeItem('auth_token');
-        localStorage.removeItem('refresh_token');
+        localStorage.removeItem('refresh_token');  // Clean up legacy values
         localStorage.removeItem('user');
         localStorage.removeItem('session_id');
 
@@ -184,9 +165,17 @@ export const authAPI = {
   resetPassword: (token, newPassword) =>
     api.post('/auth/password-reset/reset', { token, new_password: newPassword }),
 
-  logout: () => {
+  logout: async () => {
+    try {
+      // Call server to clear HttpOnly refresh token cookie and revoke token
+      await api.post('/auth/logout');
+    } catch (error) {
+      // Even if server call fails, still clear local storage
+      console.error('Logout request failed:', error);
+    }
+    // Clear local storage
     localStorage.removeItem('auth_token');
-    localStorage.removeItem('refresh_token');
+    localStorage.removeItem('refresh_token');  // Clean up legacy values
     localStorage.removeItem('user');
     localStorage.removeItem('session_id');
   },

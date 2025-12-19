@@ -62,15 +62,18 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         )
 
         # Content Security Policy
-        # Using a permissive policy to avoid breaking functionality
-        # This should be tightened based on actual resource needs
+        # Tightened policy for production security:
+        # - script-src: No unsafe-inline or unsafe-eval (Vite builds external JS files)
+        # - style-src: unsafe-inline required for Tailwind CSS and React inline styles
+        # - connect-src: Allow S3 for file uploads and hCaptcha for spam prevention
         response.headers["Content-Security-Policy"] = (
             "default-src 'self'; "
-            "script-src 'self' 'unsafe-inline' 'unsafe-eval'; "
+            "script-src 'self' https://js.hcaptcha.com https://newassets.hcaptcha.com; "
             "style-src 'self' 'unsafe-inline'; "
             "img-src 'self' data: https:; "
             "font-src 'self' data:; "
-            "connect-src 'self' https://*.amazonaws.com https://api.openai.com; "
+            "connect-src 'self' https://*.amazonaws.com https://api.openai.com https://hcaptcha.com https://*.hcaptcha.com; "
+            "frame-src 'self' https://newassets.hcaptcha.com https://*.hcaptcha.com; "
             "frame-ancestors 'self'; "
             "form-action 'self'; "
             "base-uri 'self'"

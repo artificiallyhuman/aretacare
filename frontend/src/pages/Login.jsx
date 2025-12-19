@@ -19,11 +19,11 @@ function Login() {
 
     try {
       const response = await authAPI.login(email, password);
-      const { access_token, refresh_token, user } = response.data;
+      const { access_token } = response.data;
 
-      // Store auth tokens
+      // Store access token (short-lived, 1 hour)
+      // Note: refresh_token is handled via HttpOnly cookie for security (set by server)
       localStorage.setItem('auth_token', access_token);
-      localStorage.setItem('refresh_token', refresh_token);
 
       // Reload to home page to reinitialize session
       window.location.href = '/';

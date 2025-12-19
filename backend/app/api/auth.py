@@ -10,7 +10,7 @@ import re
 from app.core.database import get_db
 from app.core.auth import (
     verify_password, get_password_hash, create_access_token, decode_access_token,
-    create_refresh_token_record, verify_refresh_token, revoke_all_user_tokens
+    create_refresh_token_record, verify_refresh_token, revoke_refresh_token, revoke_all_user_tokens
 )
 from app.core.config import settings
 from app.core.rate_limit import limiter, RateLimits
@@ -278,11 +278,11 @@ def register(request: Request, response: Response, user_data: UserRegister, db: 
     )
 
     # Set refresh token as HttpOnly cookie for security
+    # Note: refresh_token is NOT returned in body to prevent XSS attacks from stealing it
     set_refresh_token_cookie(response, refresh_token)
 
     return TokenResponse(
         access_token=access_token,
-        refresh_token=refresh_token,  # Also return in body for backward compatibility
         user=UserResponse.model_validate(new_user)
     )
 
@@ -383,11 +383,11 @@ def login(request: Request, response: Response, user_data: UserLogin, db: DBSess
     )
 
     # Set refresh token as HttpOnly cookie for security
+    # Note: refresh_token is NOT returned in body to prevent XSS attacks from stealing it
     set_refresh_token_cookie(response, refresh_token)
 
     return TokenResponse(
         access_token=access_token,
-        refresh_token=refresh_token,  # Also return in body for backward compatibility
         user=UserResponse.model_validate(user)
     )
 
@@ -621,13 +621,14 @@ def refresh_access_token(
     """
     Refresh an access token using a valid refresh token.
 
-    This endpoint allows clients to obtain a new access token when their current one expires
-    without requiring the user to log in again. The refresh token must be valid (not expired,
-    not revoked).
+    This endpoint implements REFRESH TOKEN ROTATION for enhanced security:
+    - The old refresh token is revoked immediately after use
+    - A new refresh token is generated and returned via HttpOnly cookie
+    - If a token is reused after rotation, it indicates potential theft
 
     The refresh token can be provided via:
     1. HttpOnly cookie (preferred, more secure)
-    2. Request body (for backward compatibility)
+    2. Request body (deprecated, for backward compatibility only)
     """
     # Get refresh token from cookie first, then fall back to body
     refresh_token_value = refresh_token_cookie
@@ -660,33 +661,77 @@ def refresh_access_token(
             detail="User not found or inactive"
         )
 
+    # REFRESH TOKEN ROTATION: Revoke the old token immediately
+    # This ensures each refresh token can only be used once
+    revoke_refresh_token(db, token_record.id)
+
     # Create a new access token
     access_token = create_access_token(data={"sub": user.id})
 
-    # Use the verified token from the database record (not the user-supplied value)
-    # This ensures we're setting a known-safe value in the cookie
-    verified_refresh_token = token_record.token
+    # Create a NEW refresh token (rotation)
+    device_info = request.headers.get("user-agent")
+    ip_address = request.client.host if request.client else None
+    new_refresh_token, _ = create_refresh_token_record(
+        db=db,
+        user_id=user.id,
+        device_info=device_info,
+        ip_address=ip_address
+    )
 
-    # Set refresh token cookie (keep the same token, just refresh the cookie expiry)
-    set_refresh_token_cookie(response, verified_refresh_token)
+    # Set the NEW refresh token cookie
+    # Note: refresh_token is NOT returned in body to prevent XSS attacks from stealing it
+    set_refresh_token_cookie(response, new_refresh_token)
 
-    # Return the new access token along with the same refresh token
-    # The refresh token is still valid, so we return it unchanged
     return TokenResponse(
         access_token=access_token,
-        refresh_token=verified_refresh_token,  # Also return in body for backward compatibility
         user=UserResponse.model_validate(user)
     )
 
 
+@router.post("/logout", status_code=status.HTTP_200_OK)
+def logout(
+    response: Response,
+    refresh_token_cookie: Optional[str] = Cookie(None, alias=REFRESH_TOKEN_COOKIE_NAME),
+    db: DBSession = Depends(get_db)
+):
+    """
+    Logout the current session by clearing the refresh token cookie.
+
+    This endpoint clears the HttpOnly refresh token cookie and optionally
+    revokes the token from the database if valid.
+    """
+    # Clear the refresh token cookie
+    clear_refresh_token_cookie(response)
+
+    # If a valid refresh token was provided, revoke it from the database
+    if refresh_token_cookie:
+        from app.models.refresh_token import RefreshToken
+        token_record = db.query(RefreshToken).filter(
+            RefreshToken.token == refresh_token_cookie,
+            RefreshToken.is_revoked == False
+        ).first()
+        if token_record:
+            token_record.is_revoked = True
+            db.commit()
+
+    return {"message": "Logged out successfully"}
+
+
 @router.post("/logout-everywhere", status_code=status.HTTP_200_OK)
-def logout_everywhere(current_user: User = Depends(get_current_user), db: DBSession = Depends(get_db)):
+def logout_everywhere(
+    response: Response,
+    current_user: User = Depends(get_current_user),
+    db: DBSession = Depends(get_db)
+):
     """
     Revoke all refresh tokens for the current user.
 
     This logs the user out of all devices by invalidating all their refresh tokens.
     The user will need to log in again on all devices.
     """
+    # Clear the refresh token cookie for this device
+    clear_refresh_token_cookie(response)
+
     # Revoke all refresh tokens for this user
     count = revoke_all_user_tokens(db, current_user.id)
 
