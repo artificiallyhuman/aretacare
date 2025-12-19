@@ -31,15 +31,27 @@ class S3Service:
             return f"{self.key_prefix}{path}"
         return path
 
-    def _put_object_sync(self, key: str, file_content: bytes, content_type: str):
+    def _put_object_sync(self, key: str, file_content: bytes, content_type: str, filename: str = None):
         """Synchronous S3 put_object (for thread pool)"""
-        self.s3_client.put_object(
-            Bucket=self.bucket_name,
-            Key=key,
-            Body=file_content,
-            ContentType=content_type,
-            ServerSideEncryption='AES256'
-        )
+        params = {
+            'Bucket': self.bucket_name,
+            'Key': key,
+            'Body': file_content,
+            'ContentType': content_type,
+            'ServerSideEncryption': 'AES256'
+        }
+
+        # Add Content-Disposition header to prevent browser execution of uploaded files
+        # This forces download instead of inline rendering for security
+        if filename:
+            # Sanitize filename for Content-Disposition header
+            safe_filename = filename.replace('"', '\\"').replace('\n', '').replace('\r', '')
+            params['ContentDisposition'] = f'attachment; filename="{safe_filename}"'
+        else:
+            # Default to attachment without filename for security
+            params['ContentDisposition'] = 'attachment'
+
+        self.s3_client.put_object(**params)
 
     def _get_object_sync(self, key: str) -> bytes:
         """Synchronous S3 get_object (for thread pool)"""
@@ -56,10 +68,17 @@ class S3Service:
             Key=key
         )
 
-    async def upload_file(self, file_content: bytes, key: str, content_type: str) -> bool:
-        """Upload file to S3 bucket with AES-256 encryption (runs in thread pool)"""
+    async def upload_file(self, file_content: bytes, key: str, content_type: str, filename: str = None) -> bool:
+        """Upload file to S3 bucket with AES-256 encryption (runs in thread pool)
+
+        Args:
+            file_content: The file bytes to upload
+            key: S3 key (path) for the file
+            content_type: MIME type of the file
+            filename: Optional original filename for Content-Disposition header
+        """
         try:
-            await asyncio.to_thread(self._put_object_sync, key, file_content, content_type)
+            await asyncio.to_thread(self._put_object_sync, key, file_content, content_type, filename)
             logger.info(f"Successfully uploaded file to S3: {key}")
             return True
         except ClientError as e:

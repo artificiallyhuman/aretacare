@@ -107,16 +107,54 @@ We follow a **coordinated disclosure** model:
 
 ## Security Features
 
-AretaCare implements several security measures:
+AretaCare implements comprehensive security measures:
 
-- **Authentication**: JWT-based authentication with bcrypt password hashing
-- **Password Requirements**: Minimum 8 characters, maximum 72 characters
-- **Data Encryption**: TLS/SSL for data in transit
-- **Input Validation**: Parameterized queries to prevent SQL injection
-- **Session Management**: Secure session tokens with 7-day expiration
-- **Access Control**: Role-based permissions for all API endpoints
-- **Audit Logging**: Security events logged for admin review
-- **Data Deletion**: Complete data removal (database + S3 files) on account deletion
+### Authentication & Session Management
+- **Two-Token JWT System**: Short-lived access tokens (1 hour) + long-lived refresh tokens (30 days)
+- **HttpOnly Cookies**: Refresh tokens stored in HttpOnly cookies to prevent XSS access
+- **Password Hashing**: bcrypt with secure work factor
+- **Password Requirements**: Minimum 8 characters, maximum 72 characters (bcrypt limit)
+- **Account Lockout**: 5 failed login attempts triggers 15-minute lockout with progressive warnings
+- **Logout Everywhere**: Users can revoke all active sessions
+
+### Rate Limiting
+- **Login**: 5 attempts per minute per IP
+- **Registration**: 3 attempts per hour per IP
+- **Password Reset**: 3 requests per hour
+- **API General**: 100 requests per minute per user
+- **File Uploads**: 10 per minute (documents), 5 per minute (audio)
+
+### Data Protection
+- **Encryption in Transit**: TLS/SSL for all connections
+- **Encryption at Rest**: S3 server-side encryption (AES-256)
+- **SQL Injection Prevention**: SQLAlchemy ORM with parameterized queries
+- **XSS Prevention**: ReactMarkdown for safe content rendering
+- **Input Validation**: Pydantic schemas for all API requests
+- **Session Name Validation**: Character restrictions (alphanumeric, spaces, hyphens, underscores, apostrophes only)
+
+### File Upload Security
+- **Content-Disposition Headers**: Forces download instead of browser execution
+- **File Type Validation**: MIME type and extension checking
+- **File Size Limits**: 20MB maximum
+- **Image Validation**: PIL verification for image uploads
+
+### Access Control
+- **Session-Based Authorization**: Owner and collaborator access validation
+- **Admin Role Verification**: Email-based admin list
+- **Presigned URLs**: 24-hour expiration for S3 file access
+
+### Logging & Monitoring
+- **Security Event Logging**: Failed logins, invalid tokens, unauthorized access attempts, account lockouts
+- **Audit Logging**: Admin actions tracked with retention policies
+- **Error Logging**: Application errors logged for debugging (30-day retention)
+- **API Logging**: OpenAI API calls tracked (30-day retention)
+
+### Data Deletion
+- **Complete Removal**: Database records + S3 files (documents, thumbnails, audio)
+- **Cascading Deletes**: User deletion removes all associated data
+- **S3 Orphan Cleanup**: Admin tool to detect and remove orphaned files
+
+For detailed technical implementation, see `docs/SECURITY_IMPLEMENTATION.md`.
 
 ## Privacy Considerations
 
@@ -132,4 +170,4 @@ If you have questions about this security policy or responsible disclosure, plea
 
 ---
 
-**Last Updated**: 2025-12-04
+**Last Updated**: 2025-12-18

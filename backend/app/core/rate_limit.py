@@ -36,10 +36,22 @@ def rate_limit_exceeded_handler(request: Request, exc: RateLimitExceeded) -> JSO
     logger.warning(
         f"Rate limit exceeded: {get_client_ip(request)} on {request.url.path}"
     )
+
+    # Provide more specific messages for auth endpoints
+    path = request.url.path
+    if "/auth/login" in path:
+        message = "Too many login attempts. Please wait a minute before trying again."
+    elif "/auth/register" in path:
+        message = "Too many registration attempts. Please try again later."
+    elif "/auth/password-reset" in path:
+        message = "Too many password reset attempts. Please try again later."
+    else:
+        message = "Too many requests. Please try again later."
+
     return JSONResponse(
         status_code=429,
         content={
-            "detail": "Too many requests. Please try again later.",
+            "detail": message,
             "retry_after": exc.detail
         }
     )

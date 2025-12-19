@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import logo from '../logos/large_logo.png';
-import signature from '../logos/jason_signature.png';
+import jasonSignature from '../logos/jason_signature.png';
+import robSignature from '../logos/rob_signature.png';
 
 const About = () => {
   const [activeTab, setActiveTab] = useState('story');
@@ -286,11 +287,66 @@ const About = () => {
               AretaCare grew from sitting beside my mother and seeing how easily information can scatter and become overwhelming. It grew from watching how hard families work to stay informed and united. Our hope is that AretaCare gives families the clarity, confidence, and support I wish we had during those long nights and complicated days.
             </p>
 
-            {/* Signature */}
+            {/* Jason's Signature */}
             <div className="mt-8 flex justify-center">
               <img
-                src={signature}
+                src={jasonSignature}
                 alt="Jason Whiteman"
+                className="h-24 w-auto invert-0 dark:invert dark:brightness-200"
+              />
+            </div>
+
+            {/* Separator */}
+            <div className="my-12 flex items-center justify-center">
+              <div className="flex-grow border-t border-primary-200 dark:border-gray-600"></div>
+              <span className="mx-4 text-primary-400 dark:text-gray-500">
+                <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+                </svg>
+              </span>
+              <div className="flex-grow border-t border-primary-200 dark:border-gray-600"></div>
+            </div>
+
+            {/* Rob's Story */}
+            <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-6 text-center">Why I Built AretaCare</h3>
+
+            <p>
+              Listening to Jason talk about caring for his mom brought back memories of my own family's experiences.
+            </p>
+
+            <p>
+              I was young when my grandmother had a series of strokes, and at the time I didn't fully understand what was happening. It wasn't until years later that I grasped how much my parents had been navigating, how many long drives to the hospital, how many phone calls, how many late nights managing details I never saw.
+            </p>
+
+            <p>
+              Even though I wasn't the one coordinating her care, I remember the heaviness in our house during that time. I remember the strain on my mom, the quiet exhaustion that came with trying to support someone while still handling everything else. Looking back, I can see how much the uncertainty weighed on everyone.
+            </p>
+
+            <p>
+              When Jason described the confusion of his mother's hospital stay, it clicked. I imagined my own parents trying to keep track of shifting instructions, conflicting updates, and unfamiliar terminology. No one walked them through what questions to ask. No one helped translate the medical jargon into something they could act on. They just did their best with what they had.
+            </p>
+
+            <p>
+              That's a big part of why AretaCare resonated with me. It isn't about replacing doctors or giving medical advice. It's about providing families with an extra layer of organization and understanding when everything feels overwhelming.
+            </p>
+
+            <p>
+              From a technical standpoint, I've worked to build a platform that's both secure and easy to use. I wanted families to feel confident storing sensitive documents and conversations in one place. I also wanted the AI to be genuinely helpful: translating jargon, surfacing relevant details, helping people prepare questions they might not have known to ask.
+            </p>
+
+            <p>
+              There's something deeply human about standing beside someone who's vulnerable and trying to make sense of what's happening. I've thought a lot about how technology can support that moment without getting in the way. The goal is to give families more clarity so they can focus on what really matters: being present with the person they love.
+            </p>
+
+            <p>
+              I don't know if AretaCare could have changed anything for my grandmother or my parents all those years ago. But I do believe it can make a difference for families going through similar situations now. And if it helps even one person feel less lost, the sense that they don't have to carry the burden alone.
+            </p>
+
+            {/* Rob's Signature */}
+            <div className="mt-8 flex justify-center">
+              <img
+                src={robSignature}
+                alt="Rob Whiteman"
                 className="h-24 w-auto invert-0 dark:invert dark:brightness-200"
               />
             </div>

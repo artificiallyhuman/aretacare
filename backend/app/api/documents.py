@@ -276,8 +276,8 @@ async def upload_document(
         file_extension = file.filename.split('.')[-1] if '.' in file.filename else 'bin'
         s3_key = s3_service.get_prefixed_key(f"documents/{session_id}/{uuid.uuid4()}.{file_extension}")
 
-        # Upload to S3
-        upload_success = await s3_service.upload_file(file_content, s3_key, file.content_type)
+        # Upload to S3 (with Content-Disposition header for security)
+        upload_success = await s3_service.upload_file(file_content, s3_key, file.content_type, file.filename)
 
         if not upload_success:
             raise HTTPException(status_code=500, detail="Failed to upload file to storage")

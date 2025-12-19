@@ -5,12 +5,13 @@ import { adminAPI } from '../../services/api';
 import { formatLocalDateTime } from '../../utils/dateUtils';
 
 const actionLabels = {
-  password_reset: { label: 'Password Reset', color: 'blue' },
-  user_delete: { label: 'User Deleted', color: 'red' },
-  session_delete: { label: 'Session Deleted', color: 'orange' },
-  session_transfer: { label: 'Session Transfer', color: 'purple' },
-  s3_orphan_delete: { label: 'S3 Cleanup', color: 'green' },
-  audit_log_cleanup: { label: 'Log Cleanup', color: 'gray' },
+  password_reset: { label: 'Password Reset', className: 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300' },
+  user_delete: { label: 'User Deleted', className: 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300' },
+  session_delete: { label: 'Session Deleted', className: 'bg-orange-100 dark:bg-orange-900/30 text-orange-800 dark:text-orange-300' },
+  session_transfer: { label: 'Session Transfer', className: 'bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-300' },
+  s3_orphan_delete: { label: 'S3 Cleanup', className: 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300' },
+  audit_log_cleanup: { label: 'Log Cleanup', className: 'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-300' },
+  view_user_tokens: { label: 'View Tokens', className: 'bg-cyan-100 dark:bg-cyan-900/30 text-cyan-800 dark:text-cyan-300' },
 };
 
 export default function AdminAuditLog() {
@@ -120,6 +121,7 @@ export default function AdminAuditLog() {
             <option value="session_transfer">Session Transfer</option>
             <option value="s3_orphan_delete">S3 Cleanup</option>
             <option value="audit_log_cleanup">Log Cleanup</option>
+            <option value="view_user_tokens">View Tokens</option>
           </select>
         </div>
 
@@ -151,7 +153,7 @@ export default function AdminAuditLog() {
                 </thead>
                 <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
                   {entries.map((entry) => {
-                    const actionInfo = actionLabels[entry.action] || { label: entry.action, color: 'gray' };
+                    const actionInfo = actionLabels[entry.action] || { label: entry.action, className: 'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-300' };
                     return (
                       <tr key={entry.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
                         <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">
@@ -161,7 +163,7 @@ export default function AdminAuditLog() {
                           {entry.admin_email}
                         </td>
                         <td className="px-4 py-3">
-                          <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-${actionInfo.color}-100 dark:bg-${actionInfo.color}-900/30 text-${actionInfo.color}-800 dark:text-${actionInfo.color}-300`}>
+                          <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${actionInfo.className}`}>
                             {actionInfo.label}
                           </span>
                         </td>

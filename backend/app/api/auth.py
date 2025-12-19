@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Request
+from fastapi import APIRouter, Depends, HTTPException, status, Request, Response, Cookie
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session as DBSession
 from typing import Optional
@@ -30,6 +30,31 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 security = HTTPBearer()
+
+# Cookie configuration for refresh tokens
+REFRESH_TOKEN_COOKIE_NAME = "refresh_token"
+REFRESH_TOKEN_MAX_AGE = 30 * 24 * 60 * 60  # 30 days in seconds
+
+
+def set_refresh_token_cookie(response: Response, refresh_token: str):
+    """Set HttpOnly cookie for refresh token."""
+    response.set_cookie(
+        key=REFRESH_TOKEN_COOKIE_NAME,
+        value=refresh_token,
+        max_age=REFRESH_TOKEN_MAX_AGE,
+        httponly=True,  # Prevents JavaScript access - protects against XSS
+        secure=not settings.DEBUG,  # HTTPS only in production
+        samesite="lax",  # Protects against CSRF while allowing normal navigation
+        path="/api/auth"  # Only send cookie to auth endpoints
+    )
+
+
+def clear_refresh_token_cookie(response: Response):
+    """Clear the refresh token cookie."""
+    response.delete_cookie(
+        key=REFRESH_TOKEN_COOKIE_NAME,
+        path="/api/auth"
+    )
 
 
 def get_current_user(
@@ -100,7 +125,7 @@ def get_current_user(
 
 @router.post("/register", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
 @limiter.limit(RateLimits.REGISTER)
-def register(request: Request, user_data: UserRegister, db: DBSession = Depends(get_db)):
+def register(request: Request, response: Response, user_data: UserRegister, db: DBSession = Depends(get_db)):
     """Register a new user."""
     # Validate acknowledgements - all must be True
     if not user_data.acknowledge_not_medical_advice:
@@ -243,17 +268,50 @@ def register(request: Request, user_data: UserRegister, db: DBSession = Depends(
         ip_address=ip_address
     )
 
+    # Set refresh token as HttpOnly cookie for security
+    set_refresh_token_cookie(response, refresh_token)
+
     return TokenResponse(
         access_token=access_token,
-        refresh_token=refresh_token,
+        refresh_token=refresh_token,  # Also return in body for backward compatibility
         user=UserResponse.model_validate(new_user)
     )
 
 
 @router.post("/login", response_model=TokenResponse)
 @limiter.limit(RateLimits.LOGIN)
-def login(request: Request, user_data: UserLogin, db: DBSession = Depends(get_db)):
+def login(request: Request, response: Response, user_data: UserLogin, db: DBSession = Depends(get_db)):
     """Login user and return access token."""
+    ip_address = security_service.get_client_ip(request)
+    user_agent = security_service.get_user_agent(request)
+
+    # Check for account lockout before processing login
+    lockout_status = security_service.check_account_lockout(
+        db=db,
+        email=user_data.email,
+        ip_address=ip_address
+    )
+
+    if lockout_status["is_locked"]:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Account temporarily locked due to too many failed login attempts. Please try again in 15 minutes."
+        )
+
+    # Helper to get appropriate error message after failed login
+    def get_failed_login_message(failed_attempts: int, threshold: int) -> str:
+        attempts_remaining = threshold - failed_attempts
+        if attempts_remaining == 1:
+            return (
+                "Incorrect email or password. "
+                "Warning: One more failed attempt will lock your account for 15 minutes. "
+                "Forgot your password? Use the password reset option."
+            )
+        elif attempts_remaining <= 0:
+            return "Account temporarily locked due to too many failed login attempts. Please try again in 15 minutes."
+        else:
+            return "Incorrect email or password"
+
     # Find user by email
     user = db.query(User).filter(User.email == user_data.email).first()
     if not user:
@@ -261,12 +319,18 @@ def login(request: Request, user_data: UserLogin, db: DBSession = Depends(get_db
         security_service.log_failed_login(
             db=db,
             email=user_data.email,
-            ip_address=security_service.get_client_ip(request),
-            user_agent=security_service.get_user_agent(request)
+            ip_address=ip_address,
+            user_agent=user_agent
         )
+
+        # Check status after this failure
+        new_lockout_status = security_service.check_account_lockout(db, user_data.email, ip_address)
+        if new_lockout_status["is_locked"] and new_lockout_status["failed_attempts"] == security_service.LOCKOUT_THRESHOLD:
+            security_service.log_account_lockout(db, user_data.email, ip_address, user_agent)
+
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect email or password"
+            detail=get_failed_login_message(new_lockout_status["failed_attempts"], new_lockout_status["threshold"])
         )
 
     # Verify password
@@ -275,12 +339,18 @@ def login(request: Request, user_data: UserLogin, db: DBSession = Depends(get_db
         security_service.log_failed_login(
             db=db,
             email=user_data.email,
-            ip_address=security_service.get_client_ip(request),
-            user_agent=security_service.get_user_agent(request)
+            ip_address=ip_address,
+            user_agent=user_agent
         )
+
+        # Check status after this failure
+        new_lockout_status = security_service.check_account_lockout(db, user_data.email, ip_address)
+        if new_lockout_status["is_locked"] and new_lockout_status["failed_attempts"] == security_service.LOCKOUT_THRESHOLD:
+            security_service.log_account_lockout(db, user_data.email, ip_address, user_agent)
+
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect email or password"
+            detail=get_failed_login_message(new_lockout_status["failed_attempts"], new_lockout_status["threshold"])
         )
 
     # Check if user is active
@@ -295,17 +365,20 @@ def login(request: Request, user_data: UserLogin, db: DBSession = Depends(get_db
 
     # Create refresh token
     device_info = request.headers.get("user-agent")
-    ip_address = request.client.host if request.client else None
+    ip_address_for_token = request.client.host if request.client else None
     refresh_token, _ = create_refresh_token_record(
         db=db,
         user_id=user.id,
         device_info=device_info,
-        ip_address=ip_address
+        ip_address=ip_address_for_token
     )
+
+    # Set refresh token as HttpOnly cookie for security
+    set_refresh_token_cookie(response, refresh_token)
 
     return TokenResponse(
         access_token=access_token,
-        refresh_token=refresh_token,
+        refresh_token=refresh_token,  # Also return in body for backward compatibility
         user=UserResponse.model_validate(user)
     )
 
@@ -529,18 +602,41 @@ def reset_password(request: Request, data: PasswordReset, db: DBSession = Depend
 
 @router.post("/refresh", response_model=TokenResponse)
 @limiter.limit(RateLimits.LOGIN)  # Use same rate limit as login
-def refresh_access_token(request: Request, data: RefreshTokenRequest, db: DBSession = Depends(get_db)):
+def refresh_access_token(
+    request: Request,
+    response: Response,
+    data: Optional[RefreshTokenRequest] = None,
+    refresh_token_cookie: Optional[str] = Cookie(None, alias=REFRESH_TOKEN_COOKIE_NAME),
+    db: DBSession = Depends(get_db)
+):
     """
     Refresh an access token using a valid refresh token.
 
     This endpoint allows clients to obtain a new access token when their current one expires
     without requiring the user to log in again. The refresh token must be valid (not expired,
     not revoked).
+
+    The refresh token can be provided via:
+    1. HttpOnly cookie (preferred, more secure)
+    2. Request body (for backward compatibility)
     """
+    # Get refresh token from cookie first, then fall back to body
+    refresh_token_value = refresh_token_cookie
+    if not refresh_token_value and data and data.refresh_token:
+        refresh_token_value = data.refresh_token
+
+    if not refresh_token_value:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Refresh token required"
+        )
+
     # Verify the refresh token
-    token_record = verify_refresh_token(db, data.refresh_token)
+    token_record = verify_refresh_token(db, refresh_token_value)
 
     if not token_record:
+        # Clear invalid cookie if present
+        clear_refresh_token_cookie(response)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or expired refresh token"
@@ -549,6 +645,7 @@ def refresh_access_token(request: Request, data: RefreshTokenRequest, db: DBSess
     # Get the user
     user = db.query(User).filter(User.id == token_record.user_id).first()
     if not user or not user.is_active:
+        clear_refresh_token_cookie(response)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="User not found or inactive"
@@ -557,11 +654,14 @@ def refresh_access_token(request: Request, data: RefreshTokenRequest, db: DBSess
     # Create a new access token
     access_token = create_access_token(data={"sub": user.id})
 
+    # Set refresh token cookie (keep the same token, just refresh the cookie expiry)
+    set_refresh_token_cookie(response, refresh_token_value)
+
     # Return the new access token along with the same refresh token
     # The refresh token is still valid, so we return it unchanged
     return TokenResponse(
         access_token=access_token,
-        refresh_token=data.refresh_token,
+        refresh_token=refresh_token_value,  # Also return in body for backward compatibility
         user=UserResponse.model_validate(user)
     )
 

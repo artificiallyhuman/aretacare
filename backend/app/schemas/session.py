@@ -1,10 +1,25 @@
-from pydantic import BaseModel, Field, EmailStr
+from pydantic import BaseModel, Field, EmailStr, field_validator
 from datetime import datetime
 from typing import Optional, List
+import re
+
+# Regex pattern for safe session names: alphanumeric, spaces, hyphens, underscores, apostrophes
+SESSION_NAME_PATTERN = re.compile(r"^[a-zA-Z0-9\s\-_']+$")
 
 
 class SessionCreate(BaseModel):
-    name: Optional[str] = None
+    name: Optional[str] = Field(None, max_length=15)
+
+    @field_validator('name')
+    @classmethod
+    def validate_session_name(cls, v):
+        if v is not None:
+            v = v.strip()
+            if len(v) == 0:
+                return None
+            if not SESSION_NAME_PATTERN.match(v):
+                raise ValueError('Session name can only contain letters, numbers, spaces, hyphens, underscores, and apostrophes')
+        return v
 
 
 class CollaboratorInfo(BaseModel):
@@ -36,6 +51,16 @@ class SessionResponse(BaseModel):
 
 class SessionRename(BaseModel):
     name: str = Field(..., min_length=1, max_length=15, description="New session name")
+
+    @field_validator('name')
+    @classmethod
+    def validate_session_name(cls, v):
+        v = v.strip()
+        if len(v) == 0:
+            raise ValueError('Session name cannot be empty')
+        if not SESSION_NAME_PATTERN.match(v):
+            raise ValueError('Session name can only contain letters, numbers, spaces, hyphens, underscores, and apostrophes')
+        return v
 
 
 class SessionShareRequest(BaseModel):

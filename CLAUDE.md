@@ -84,6 +84,8 @@ python -c "import secrets; print(secrets.token_urlsafe(32))"  # Generate secret 
 
 **Storage (AWS S3)**
 - Medical documents uploaded to S3 with unique keys
+- **Content-Disposition headers**: All uploads include `attachment` disposition to prevent browser execution of uploaded files (security measure against XSS)
+- **Server-side encryption**: AES-256 encryption at rest
 - Text extraction happens on upload (PDF, images via OCR)
 - Extracted text stored in database for quick access
 - Presigned URLs generated for secure document access (24-hour expiration)
@@ -158,15 +160,18 @@ See `backend/app/config/README.md` for complete documentation on modifying AI be
 
 **User Authentication:**
 - Two-token JWT system: short-lived access tokens (1 hour) + long-lived refresh tokens (30 days)
+- **HttpOnly cookies for refresh tokens**: Prevents XSS attacks from stealing tokens; cookies are `httponly`, `secure` (production), `samesite=lax`, scoped to `/api/auth`
 - Automatic token refresh via axios interceptor - seamless re-authentication when access token expires
 - Refresh tokens stored in database with device info, IP address, and usage tracking
 - "Logout everywhere" feature revokes all active refresh tokens for a user
+- **Account lockout**: 5 failed login attempts triggers 15-minute lockout; progressive warnings shown after 4th attempt suggesting password reset
 - Passwords hashed with bcrypt (72-byte maximum due to bcrypt limitation)
 - Minimum password length: 8 characters
 - Registration requires four acknowledgements: not medical advice, HIPAA limitations, beta version/data loss, email communications
 - Auth tokens stored in localStorage, included in API requests via Authorization header
 - Protected routes on both frontend (React Router) and backend (FastAPI dependencies)
 - Email notifications sent for password changes, email changes, and collaborator actions
+- **Rate limiting**: 5 login attempts/minute, 3 registrations/hour, 3 password resets/hour per IP
 
 **Session Management:**
 - **Multi-session support**: Each user can own up to 3 sessions. Collaborator sessions don't count toward this limit.
@@ -174,7 +179,7 @@ See `backend/app/config/README.md` for complete documentation on modifying AI be
 - Active session ID stored in browser localStorage
 - All data (documents, conversations, journal, daily plans, audio) tied to both user account and session ID
 - Sessions have both `user_id` (creator) and `owner_id` (current owner) for ownership tracking
-- Session naming: Default "Session 1/2/3" with smart numbering (fills gaps if sessions deleted), renameable up to 15 characters (owner only)
+- Session naming: Default "Session 1/2/3" with smart numbering (fills gaps if sessions deleted), renameable up to 15 characters (owner only), **character restrictions**: only letters, numbers, spaces, hyphens, underscores, apostrophes allowed
 - Session switching: Click user name in header to see session dropdown with all sessions (owned and shared), active session indicator, and "New Session" button
 - Deleting individual session removes all session data (database + S3 files: documents, thumbnails, audio) - owner only; if active session is deleted, switches to most recent owned session (falls back to collaboration sessions only if no owned sessions remain)
 - Deleting user account removes all owned sessions and leaves all collaborations
@@ -446,8 +451,10 @@ Database migrations run automatically on startup.
 
 - `README.md` - **Comprehensive project documentation**: Overview, quick start guide, architecture, setup, deployment, API reference
 - `CLAUDE.md` - This file: Guidance for Claude Code when working with the codebase
+- `SECURITY.md` - Security policy and vulnerability reporting
 - `docs/SETUP_GUIDE.md` - Detailed setup with AWS/OpenAI configuration
 - `docs/API_USAGE.md` - API endpoint examples and reference
 - `docs/SAFETY_GUIDELINES.md` - **Critical**: Safety requirements and boundaries
+- `docs/SECURITY_IMPLEMENTATION.md` - **Detailed security documentation**: Authentication, authorization, rate limiting, input validation, file security, logging
 - `docs/AWS_IAM_POLICY.md` - AWS S3 IAM policy configuration
 - `docs/FEEDBACK_SYSTEM.md` - Feedback system configuration and testing

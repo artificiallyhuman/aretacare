@@ -8,6 +8,7 @@ const api = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
+  withCredentials: true,  // Enable cookies for HttpOnly refresh token
 });
 
 // Track if we're currently refreshing to avoid multiple refresh attempts
@@ -97,13 +98,16 @@ api.interceptors.response.use(
 
       try {
         // Attempt to refresh the token
+        // Send refresh token in body for backward compatibility (cookie sent automatically with credentials)
         const response = await axios.post(`${API_BASE_URL}/auth/refresh`, {
           refresh_token: refreshToken
+        }, {
+          withCredentials: true  // Send HttpOnly cookie with request
         });
 
         const { access_token, refresh_token: new_refresh_token } = response.data;
 
-        // Store new tokens
+        // Store new tokens (keep localStorage for backward compatibility during migration)
         localStorage.setItem('auth_token', access_token);
         localStorage.setItem('refresh_token', new_refresh_token);
 

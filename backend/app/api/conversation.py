@@ -610,8 +610,11 @@ async def transcribe_audio(
                     if os.path.exists(full_mp3_path):
                         os.unlink(full_mp3_path)
 
-            # Upload MP3 to S3
-            await s3_service.upload_file(mp3_content, s3_key, 'audio/mpeg')
+            # Upload MP3 to S3 (with Content-Disposition header for security)
+            # Use original filename with .mp3 extension for Content-Disposition
+            original_name = audio.filename.rsplit('.', 1)[0] if '.' in audio.filename else audio.filename
+            mp3_filename = f"{original_name}.mp3"
+            await s3_service.upload_file(mp3_content, s3_key, 'audio/mpeg', mp3_filename)
             logger.info(f"Uploaded converted MP3 to S3: {s3_key}")
         except HTTPException:
             # Re-raise HTTPException (like duration validation)

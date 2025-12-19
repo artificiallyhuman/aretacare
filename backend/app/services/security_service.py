@@ -129,6 +129,94 @@ class SecurityService:
             return user_agent[:500]  # Truncate to match database column size
         return user_agent
 
+    # Account lockout configuration
+    LOCKOUT_THRESHOLD = 5  # Number of failed attempts before lockout
+    LOCKOUT_WINDOW_MINUTES = 15  # Time window to count failed attempts
+    LOCKOUT_DURATION_MINUTES = 15  # How long the account is locked
+
+    def check_account_lockout(
+        self,
+        db: DBSession,
+        email: str,
+        ip_address: Optional[str] = None
+    ) -> dict:
+        """
+        Check if an account or IP is locked out due to failed login attempts.
+
+        Args:
+            db: Database session
+            email: Email address to check
+            ip_address: IP address to check
+
+        Returns:
+            dict with 'is_locked', 'failed_attempts', 'lockout_remaining_seconds' keys
+        """
+        from datetime import datetime, timedelta
+        from sqlalchemy import and_, or_
+
+        cutoff_time = datetime.utcnow() - timedelta(minutes=self.LOCKOUT_WINDOW_MINUTES)
+
+        # Count failed login attempts for this email or IP in the time window
+        query = db.query(SecurityLog).filter(
+            and_(
+                SecurityLog.created_at >= cutoff_time,
+                SecurityLog.event_type == "failed_login"
+            )
+        )
+
+        # Check both email and IP
+        filters = [SecurityLog.email == email]
+        if ip_address:
+            filters.append(SecurityLog.ip_address == ip_address)
+
+        query = query.filter(or_(*filters))
+        failed_attempts = query.count()
+
+        is_locked = failed_attempts >= self.LOCKOUT_THRESHOLD
+
+        # Calculate remaining lockout time if locked
+        lockout_remaining_seconds = 0
+        if is_locked:
+            # Get the most recent failed attempt
+            most_recent = query.order_by(SecurityLog.created_at.desc()).first()
+            if most_recent:
+                lockout_end = most_recent.created_at + timedelta(minutes=self.LOCKOUT_DURATION_MINUTES)
+                now = datetime.utcnow()
+                # Handle timezone-aware vs naive datetime comparison
+                if lockout_end.tzinfo is not None:
+                    lockout_end = lockout_end.replace(tzinfo=None)
+                remaining = lockout_end - now
+                lockout_remaining_seconds = max(0, int(remaining.total_seconds()))
+
+                # If lockout has expired, account is not locked
+                if lockout_remaining_seconds == 0:
+                    is_locked = False
+
+        return {
+            "is_locked": is_locked,
+            "failed_attempts": failed_attempts,
+            "lockout_remaining_seconds": lockout_remaining_seconds,
+            "threshold": self.LOCKOUT_THRESHOLD
+        }
+
+    def log_account_lockout(
+        self,
+        db: DBSession,
+        email: str,
+        ip_address: Optional[str] = None,
+        user_agent: Optional[str] = None
+    ):
+        """Log when an account gets locked out."""
+        self.log_event(
+            db=db,
+            event_type="account_lockout",
+            email=email,
+            ip_address=ip_address,
+            user_agent=user_agent,
+            endpoint="/api/auth/login",
+            details=f"Account locked after {self.LOCKOUT_THRESHOLD} failed attempts"
+        )
+
     def check_repeated_upload_failures(
         self,
         db: DBSession,
