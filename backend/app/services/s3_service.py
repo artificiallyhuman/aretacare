@@ -31,6 +31,16 @@ class S3Service:
             return f"{self.key_prefix}{path}"
         return path
 
+    # Content types that are safe to display inline (no XSS risk)
+    INLINE_SAFE_CONTENT_TYPES = {
+        'image/jpeg',
+        'image/png',
+        'image/gif',
+        'image/webp',
+        'application/pdf',
+        'text/plain',
+    }
+
     def _put_object_sync(self, key: str, file_content: bytes, content_type: str, filename: str = None):
         """Synchronous S3 put_object (for thread pool)"""
         params = {
@@ -41,15 +51,16 @@ class S3Service:
             'ServerSideEncryption': 'AES256'
         }
 
-        # Add Content-Disposition header to prevent browser execution of uploaded files
-        # This forces download instead of inline rendering for security
+        # Use 'inline' for safe content types (images, PDFs, text) to allow preview
+        # Use 'attachment' for everything else to prevent browser execution (XSS protection)
+        disposition = 'inline' if content_type in self.INLINE_SAFE_CONTENT_TYPES else 'attachment'
+
         if filename:
             # Sanitize filename for Content-Disposition header
             safe_filename = filename.replace('"', '\\"').replace('\n', '').replace('\r', '')
-            params['ContentDisposition'] = f'attachment; filename="{safe_filename}"'
+            params['ContentDisposition'] = f'{disposition}; filename="{safe_filename}"'
         else:
-            # Default to attachment without filename for security
-            params['ContentDisposition'] = 'attachment'
+            params['ContentDisposition'] = disposition
 
         self.s3_client.put_object(**params)
 
