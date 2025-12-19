@@ -538,11 +538,16 @@ app.add_middleware(
 
 ---
 
-## Automated Security Scanning
+## GitHub Security Features
 
-### Dependabot
-Dependabot is enabled to automatically scan dependencies for known vulnerabilities and create pull requests for security updates.
+The following GitHub security features are enabled for this repository:
 
-### GitHub Code Scanning
-GitHub's code scanning is enabled to analyze code for potential security vulnerabilities and coding errors.
+| Feature | Description |
+|---------|-------------|
+| **Security Policy** | Defines how to securely report security vulnerabilities |
+| **Security Advisories** | Allows viewing and disclosing security advisories |
+| **Private Vulnerability Reporting** | Allows users to privately report potential security vulnerabilities |
+| **Dependabot Alerts** | Notifications when dependencies have known vulnerabilities |
+| **Code Scanning Alerts** | Automatic detection of common vulnerabilities and coding errors |
+| **Secret Scanning Alerts** | Notifications when secrets are accidentally pushed to the repository |
 
