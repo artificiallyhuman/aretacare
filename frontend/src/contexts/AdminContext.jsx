@@ -17,30 +17,11 @@ export function AdminProvider({ children }) {
         return;
       }
 
-      // Use user-specific cache key to avoid stale values across accounts
-      const cacheKey = `isAdmin_${user.id}`;
-
-      // Check sessionStorage first for cached admin status
-      const cachedStatus = sessionStorage.getItem(cacheKey);
-      if (cachedStatus !== null) {
-        setIsAdmin(cachedStatus === 'true');
-        setLoading(false);
-        // Still check in background to catch config changes
-        adminAPI.checkAdmin().then(response => {
-          const adminStatus = response.data.is_admin;
-          if (adminStatus !== (cachedStatus === 'true')) {
-            setIsAdmin(adminStatus);
-            sessionStorage.setItem(cacheKey, adminStatus.toString());
-          }
-        }).catch(() => {});
-        return;
-      }
-
+      // Always verify admin status with server - no client-side caching
+      // Admin authorization must be verified server-side on every check
       try {
         const response = await adminAPI.checkAdmin();
-        const adminStatus = response.data.is_admin;
-        setIsAdmin(adminStatus);
-        sessionStorage.setItem(cacheKey, adminStatus.toString());
+        setIsAdmin(response.data.is_admin);
       } catch (error) {
         console.error('Error checking admin status:', error);
         setIsAdmin(false);
@@ -50,18 +31,6 @@ export function AdminProvider({ children }) {
     };
 
     checkAdminStatus();
-  }, [user]);
-
-  // Clear cached admin status on logout
-  useEffect(() => {
-    if (!user) {
-      // Clear all isAdmin cache keys
-      Object.keys(sessionStorage).forEach(key => {
-        if (key.startsWith('isAdmin')) {
-          sessionStorage.removeItem(key);
-        }
-      });
-    }
   }, [user]);
 
   return (

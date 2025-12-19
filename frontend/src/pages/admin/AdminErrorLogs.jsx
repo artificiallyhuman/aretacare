@@ -191,10 +191,10 @@ export default function AdminErrorLogs() {
                               {entry.level}
                             </span>
                           </td>
-                          <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400 font-mono">
+                          <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400 font-mono max-w-[200px] truncate" title={entry.source}>
                             {entry.source}
                           </td>
-                          <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">
+                          <td className="px-4 py-3 text-sm text-gray-900 dark:text-white max-w-[300px] truncate" title={entry.message}>
                             {entry.message}
                           </td>
                           <td className="px-4 py-3">

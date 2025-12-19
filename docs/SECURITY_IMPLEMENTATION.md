@@ -419,6 +419,23 @@ def get_admin_user(
     return current_user
 ```
 
+**Frontend Admin Verification:**
+
+The frontend always verifies admin status with the server - no client-side caching:
+
+```javascript
+// frontend/src/contexts/AdminContext.jsx
+// Always verify admin status with server - no client-side caching
+// Admin authorization must be verified server-side on every check
+const response = await adminAPI.checkAdmin();
+setIsAdmin(response.data.is_admin);
+```
+
+**Security Benefits:**
+- Prevents sessionStorage manipulation to bypass admin UI checks
+- Admin status cannot be spoofed client-side
+- Changes to ADMIN_EMAILS take effect immediately
+
 ---
 
 ## Data Protection
