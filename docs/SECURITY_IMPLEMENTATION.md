@@ -538,43 +538,11 @@ app.add_middleware(
 
 ---
 
-## Security Checklist
+## Automated Security Scanning
 
-### Authentication
-- [x] JWT with short-lived access tokens
-- [x] HttpOnly cookies for refresh tokens
-- [x] bcrypt password hashing
-- [x] Account lockout after failed attempts
-- [x] Logout everywhere functionality
+### Dependabot
+Dependabot is enabled to automatically scan dependencies for known vulnerabilities and create pull requests for security updates.
 
-### Authorization
-- [x] Session-based access control
-- [x] Admin role verification
-- [x] Centralized permission checking
-
-### Input Validation
-- [x] Pydantic schema validation
-- [x] Session name character restrictions
-- [x] HTML escaping for user input
-- [x] File type validation
-
-### Data Protection
-- [x] TLS/SSL encryption
-- [x] S3 server-side encryption
-- [x] SQL injection prevention
-- [x] Complete data deletion
-
-### Rate Limiting
-- [x] Per-endpoint rate limits
-- [x] IP-based tracking
-- [x] Custom error messages
-
-### Logging & Monitoring
-- [x] Security event logging
-- [x] Admin audit trail
-- [x] Error logging
-
-### Dependency & Code Security
-- [x] Dependabot enabled for dependency vulnerability scanning
-- [x] GitHub code scanning enabled
+### GitHub Code Scanning
+GitHub's code scanning is enabled to analyze code for potential security vulnerabilities and coding errors.
 

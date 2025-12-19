@@ -5,6 +5,7 @@ from typing import Optional
 from datetime import datetime, timedelta
 import secrets
 import logging
+import re
 
 from app.core.database import get_db
 from app.core.auth import (
@@ -36,8 +37,16 @@ REFRESH_TOKEN_COOKIE_NAME = "refresh_token"
 REFRESH_TOKEN_MAX_AGE = 30 * 24 * 60 * 60  # 30 days in seconds
 
 
+# Valid JWT pattern: base64url characters and dots only
+JWT_PATTERN = re.compile(r'^[A-Za-z0-9_\-\.]+$')
+
+
 def set_refresh_token_cookie(response: Response, refresh_token: str):
     """Set HttpOnly cookie for refresh token."""
+    # Validate token contains only safe JWT characters to prevent cookie injection
+    if not refresh_token or not JWT_PATTERN.match(refresh_token):
+        raise ValueError("Invalid refresh token format")
+
     response.set_cookie(
         key=REFRESH_TOKEN_COOKIE_NAME,
         value=refresh_token,
