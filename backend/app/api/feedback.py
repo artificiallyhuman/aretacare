@@ -79,7 +79,12 @@ def sanitize_input(text: str) -> str:
 
 
 def get_client_ip(request: Request) -> str:
-    """Get client IP address, respecting X-Forwarded-For header"""
+    """Get client IP address, checking proxy headers in order of reliability."""
+    # Cloudflare sets this header with the actual client IP
+    cf_ip = request.headers.get("CF-Connecting-IP")
+    if cf_ip:
+        return cf_ip.strip()
+    # Standard proxy header (Render, nginx, etc.)
     forwarded = request.headers.get("X-Forwarded-For")
     if forwarded:
         return forwarded.split(",")[0].strip()

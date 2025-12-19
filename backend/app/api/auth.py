@@ -269,7 +269,7 @@ def register(request: Request, response: Response, user_data: UserRegister, db: 
 
     # Create refresh token
     device_info = request.headers.get("user-agent")
-    ip_address = request.client.host if request.client else None
+    ip_address = security_service.get_client_ip(request)
     refresh_token, _ = create_refresh_token_record(
         db=db,
         user_id=new_user.id,
@@ -374,7 +374,7 @@ def login(request: Request, response: Response, user_data: UserLogin, db: DBSess
 
     # Create refresh token
     device_info = request.headers.get("user-agent")
-    ip_address_for_token = request.client.host if request.client else None
+    ip_address_for_token = security_service.get_client_ip(request)
     refresh_token, _ = create_refresh_token_record(
         db=db,
         user_id=user.id,
@@ -670,7 +670,7 @@ def refresh_access_token(
 
     # Create a NEW refresh token (rotation)
     device_info = request.headers.get("user-agent")
-    ip_address = request.client.host if request.client else None
+    ip_address = security_service.get_client_ip(request)
     new_refresh_token, _ = create_refresh_token_record(
         db=db,
         user_id=user.id,

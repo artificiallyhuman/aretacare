@@ -17,9 +17,14 @@ logger = logging.getLogger(__name__)
 
 def get_client_ip(request: Request) -> str:
     """
-    Get client IP address, respecting X-Forwarded-For header for proxied requests.
-    Falls back to direct client IP if header not present.
+    Get client IP address, checking proxy headers in order of reliability.
+    Supports Cloudflare, standard proxies (Render, nginx), and direct connections.
     """
+    # Cloudflare sets this header with the actual client IP
+    cf_ip = request.headers.get("CF-Connecting-IP")
+    if cf_ip:
+        return cf_ip.strip()
+    # Standard proxy header (Render, nginx, etc.)
     forwarded = request.headers.get("X-Forwarded-For")
     if forwarded:
         # X-Forwarded-For can contain multiple IPs; first is the original client

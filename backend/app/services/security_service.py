@@ -104,17 +104,29 @@ class SecurityService:
         )
 
     def get_client_ip(self, request: Request) -> Optional[str]:
-        """Extract client IP address from request."""
-        # Check for proxied requests (Render, Cloudflare, etc.)
+        """Extract client IP address from request.
+
+        Checks headers in order of reliability:
+        1. CF-Connecting-IP (Cloudflare - most reliable when using CF)
+        2. X-Forwarded-For (standard proxy header, first IP is client)
+        3. X-Real-IP (nginx and other proxies)
+        4. Direct connection (request.client.host)
+        """
+        # Cloudflare sets this header with the actual client IP
+        cf_ip = request.headers.get("CF-Connecting-IP")
+        if cf_ip:
+            return cf_ip.strip()
+
+        # Standard proxy header (Render, nginx, etc.)
         forwarded_for = request.headers.get("X-Forwarded-For")
         if forwarded_for:
             # X-Forwarded-For can contain multiple IPs, get the first one
             return forwarded_for.split(",")[0].strip()
 
-        # Check other common headers
+        # Other common proxy header
         real_ip = request.headers.get("X-Real-IP")
         if real_ip:
-            return real_ip
+            return real_ip.strip()
 
         # Fallback to direct client
         if request.client:
