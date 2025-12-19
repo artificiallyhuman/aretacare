@@ -360,98 +360,8 @@ const Header = ({ onLogout, user }) => {
         {/* Mobile Navigation Menu */}
         {mobileMenuOpen && (
           <div id="mobile-menu" className="lg:hidden border-t border-gray-200 dark:border-gray-700">
-            {/* Navigation Block: Main pages + Tools dropdown */}
-            <div className="py-2 bg-white dark:bg-gray-800">
-              <div className="flex flex-col space-y-0.5">
-                <Link
-                  to="/"
-                  className="px-3 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-200 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-primary-50 dark:hover:bg-gray-700 transition-colors"
-                  onClick={() => setMobileMenuOpen(false)}
-                >
-                  Conversation
-                </Link>
-                <Link
-                  to="/daily-plan"
-                  className="px-3 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-200 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-primary-50 dark:hover:bg-gray-700 transition-colors"
-                  onClick={() => setMobileMenuOpen(false)}
-                >
-                  Daily Plan
-                </Link>
-                <Link
-                  to="/collaboration"
-                  className="px-3 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-200 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-primary-50 dark:hover:bg-gray-700 transition-colors"
-                  onClick={() => setMobileMenuOpen(false)}
-                >
-                  Collaboration
-                </Link>
-
-                {/* Tools Dropdown */}
-                <button
-                  onClick={() => setMobileToolsOpen(!mobileToolsOpen)}
-                  className="w-full flex items-center justify-between px-3 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-                >
-                  <span>Tools</span>
-                  <svg
-                    className={`w-4 h-4 transition-transform ${mobileToolsOpen ? 'rotate-180' : ''}`}
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                  </svg>
-                </button>
-
-                {mobileToolsOpen && (
-                  <div className="flex flex-col space-y-0.5 bg-white dark:bg-gray-800 border-l-2 border-primary-200 dark:border-primary-700 ml-3">
-                    <Link
-                      to="/journal"
-                      className="block pl-6 pr-3 py-2 text-sm text-gray-600 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-primary-50 dark:hover:bg-gray-700 transition-colors"
-                      onClick={() => setMobileMenuOpen(false)}
-                    >
-                      Care Journal
-                    </Link>
-                    <Link
-                      to="/profile"
-                      className="block pl-6 pr-3 py-2 text-sm text-gray-600 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-primary-50 dark:hover:bg-gray-700 transition-colors"
-                      onClick={() => setMobileMenuOpen(false)}
-                    >
-                      Health Profile
-                    </Link>
-                    <Link
-                      to="/tools/documents"
-                      className="block pl-6 pr-3 py-2 text-sm text-gray-600 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-primary-50 dark:hover:bg-gray-700 transition-colors"
-                      onClick={() => setMobileMenuOpen(false)}
-                    >
-                      Document Manager
-                    </Link>
-                    <Link
-                      to="/audio-recordings"
-                      className="block pl-6 pr-3 py-2 text-sm text-gray-600 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-primary-50 dark:hover:bg-gray-700 transition-colors"
-                      onClick={() => setMobileMenuOpen(false)}
-                    >
-                      Audio Recordings
-                    </Link>
-                    <Link
-                      to="/tools/jargon"
-                      className="block pl-6 pr-3 py-2 text-sm text-gray-600 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-primary-50 dark:hover:bg-gray-700 transition-colors"
-                      onClick={() => setMobileMenuOpen(false)}
-                    >
-                      Jargon Translator
-                    </Link>
-                    <Link
-                      to="/tools/coach"
-                      className="block pl-6 pr-3 py-2 text-sm text-gray-600 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-primary-50 dark:hover:bg-gray-700 transition-colors"
-                      onClick={() => setMobileMenuOpen(false)}
-                    >
-                      Conversation Coach
-                    </Link>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Account Section: User info + Sessions */}
-            <div className="py-3 bg-gray-50 dark:bg-gray-700/50 border-t border-gray-200 dark:border-gray-600">
+            {/* Account Section: User info + Sessions - At top of mobile menu */}
+            <div className="py-3 bg-gray-50 dark:bg-gray-700/50">
               {/* User Info Header */}
               <div className="flex items-center space-x-2 px-3 pb-3 border-b border-gray-300 dark:border-gray-600">
                 <div className="w-8 h-8 bg-primary-100 dark:bg-primary-900 rounded-full flex items-center justify-center">
@@ -563,6 +473,96 @@ const Header = ({ onLogout, user }) => {
                         </div>
                       </>
                     )}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Navigation Block: Main pages + Tools dropdown */}
+            <div className="py-2 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-600">
+              <div className="flex flex-col space-y-0.5">
+                <Link
+                  to="/"
+                  className="px-3 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-200 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-primary-50 dark:hover:bg-gray-700 transition-colors"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  Conversation
+                </Link>
+                <Link
+                  to="/daily-plan"
+                  className="px-3 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-200 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-primary-50 dark:hover:bg-gray-700 transition-colors"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  Daily Plan
+                </Link>
+                <Link
+                  to="/collaboration"
+                  className="px-3 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-200 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-primary-50 dark:hover:bg-gray-700 transition-colors"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  Collaboration
+                </Link>
+
+                {/* Tools Dropdown */}
+                <button
+                  onClick={() => setMobileToolsOpen(!mobileToolsOpen)}
+                  className="w-full flex items-center justify-between px-3 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                >
+                  <span>Tools</span>
+                  <svg
+                    className={`w-4 h-4 transition-transform ${mobileToolsOpen ? 'rotate-180' : ''}`}
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+
+                {mobileToolsOpen && (
+                  <div className="flex flex-col space-y-0.5 bg-white dark:bg-gray-800 border-l-2 border-primary-200 dark:border-primary-700 ml-3">
+                    <Link
+                      to="/journal"
+                      className="block pl-6 pr-3 py-2 text-sm text-gray-600 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-primary-50 dark:hover:bg-gray-700 transition-colors"
+                      onClick={() => setMobileMenuOpen(false)}
+                    >
+                      Care Journal
+                    </Link>
+                    <Link
+                      to="/profile"
+                      className="block pl-6 pr-3 py-2 text-sm text-gray-600 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-primary-50 dark:hover:bg-gray-700 transition-colors"
+                      onClick={() => setMobileMenuOpen(false)}
+                    >
+                      Health Profile
+                    </Link>
+                    <Link
+                      to="/tools/documents"
+                      className="block pl-6 pr-3 py-2 text-sm text-gray-600 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-primary-50 dark:hover:bg-gray-700 transition-colors"
+                      onClick={() => setMobileMenuOpen(false)}
+                    >
+                      Document Manager
+                    </Link>
+                    <Link
+                      to="/audio-recordings"
+                      className="block pl-6 pr-3 py-2 text-sm text-gray-600 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-primary-50 dark:hover:bg-gray-700 transition-colors"
+                      onClick={() => setMobileMenuOpen(false)}
+                    >
+                      Audio Recordings
+                    </Link>
+                    <Link
+                      to="/tools/jargon"
+                      className="block pl-6 pr-3 py-2 text-sm text-gray-600 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-primary-50 dark:hover:bg-gray-700 transition-colors"
+                      onClick={() => setMobileMenuOpen(false)}
+                    >
+                      Jargon Translator
+                    </Link>
+                    <Link
+                      to="/tools/coach"
+                      className="block pl-6 pr-3 py-2 text-sm text-gray-600 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-primary-50 dark:hover:bg-gray-700 transition-colors"
+                      onClick={() => setMobileMenuOpen(false)}
+                    >
+                      Conversation Coach
+                    </Link>
                   </div>
                 )}
               </div>
