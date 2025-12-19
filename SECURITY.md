@@ -125,12 +125,13 @@ AretaCare implements comprehensive security measures:
 - **File Uploads**: 10 per minute (documents), 5 per minute (audio)
 
 ### Data Protection
-- **Encryption in Transit**: TLS/SSL for all connections
+- **Encryption in Transit**: TLS/SSL for all connections, HSTS header enforces HTTPS (1-year max-age)
 - **Encryption at Rest**: S3 server-side encryption (AES-256)
 - **SQL Injection Prevention**: SQLAlchemy ORM with parameterized queries
 - **XSS Prevention**: ReactMarkdown for safe content rendering
 - **Input Validation**: Pydantic schemas for all API requests
 - **Session Name Validation**: Character restrictions (alphanumeric, spaces, hyphens, underscores, apostrophes only)
+- **Security Headers**: X-Content-Type-Options, X-Frame-Options, X-XSS-Protection, Referrer-Policy, Permissions-Policy, CSP
 
 ### File Upload Security
 - **Content-Disposition Headers**: Forces download instead of browser execution

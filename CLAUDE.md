@@ -247,6 +247,8 @@ See `backend/app/config/README.md` for complete documentation on modifying AI be
 - `migrations.py` - Database migrations (auto-adds columns, tracks one-time migrations in `migration_history`)
 - `auth.py` - JWT & bcrypt utilities, refresh token management (create, verify, revoke)
 - `config.py` - Pydantic settings
+- `rate_limit.py` - Rate limiting configuration via slowapi (login, registration, uploads, AI endpoints)
+- `security_headers.py` - Security headers middleware (HSTS, X-Content-Type-Options, X-Frame-Options, CSP, etc.)
 
 ### Frontend
 **Pages** (`frontend/src/pages/`):

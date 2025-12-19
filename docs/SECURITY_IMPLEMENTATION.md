@@ -18,6 +18,7 @@ This document provides detailed technical documentation of all security measures
 8. [Security Logging](#security-logging)
 9. [Frontend Security](#frontend-security)
 10. [CORS Configuration](#cors-configuration)
+11. [Security Headers](#security-headers)
 
 ---
 
@@ -535,6 +536,48 @@ app.add_middleware(
 - `allow_origins`: Explicit list, not `*` (required for credentials)
 - `allow_credentials=True`: Enables HttpOnly cookie transmission
 - Explicit methods and headers (principle of least privilege)
+
+---
+
+## Security Headers
+
+All API responses include security headers via `SecurityHeadersMiddleware`:
+
+```python
+# backend/app/core/security_headers.py
+class SecurityHeadersMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next) -> Response:
+        response = await call_next(request)
+
+        # HSTS: Force HTTPS for 1 year (production only)
+        if not settings.DEBUG:
+            response.headers["Strict-Transport-Security"] = (
+                "max-age=31536000; includeSubDomains"
+            )
+
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["X-Frame-Options"] = "SAMEORIGIN"
+        response.headers["X-XSS-Protection"] = "1; mode=block"
+        response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+        response.headers["Permissions-Policy"] = "camera=(), geolocation=(), microphone=(self), ..."
+        response.headers["Content-Security-Policy"] = "default-src 'self'; ..."
+
+        return response
+```
+
+### Headers Explained
+
+| Header | Value | Purpose |
+|--------|-------|---------|
+| **Strict-Transport-Security** | `max-age=31536000; includeSubDomains` | Forces HTTPS for 1 year, prevents protocol downgrade attacks (production only) |
+| **X-Content-Type-Options** | `nosniff` | Prevents MIME type sniffing attacks |
+| **X-Frame-Options** | `SAMEORIGIN` | Prevents clickjacking by blocking framing from other origins |
+| **X-XSS-Protection** | `1; mode=block` | Legacy XSS protection for older browsers |
+| **Referrer-Policy** | `strict-origin-when-cross-origin` | Controls referrer information sent with requests |
+| **Permissions-Policy** | `camera=(), microphone=(self), ...` | Restricts browser features (allows microphone for audio recording) |
+| **Content-Security-Policy** | `default-src 'self'; ...` | Controls resource loading, prevents XSS |
+
+**Note:** HSTS is only enabled in production (`DEBUG=False`) to avoid locking out local development.
 
 ---
 

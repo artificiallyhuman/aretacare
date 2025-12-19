@@ -8,6 +8,7 @@ common web vulnerabilities like clickjacking, MIME sniffing, and XSS.
 from fastapi import Request
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import Response
+from app.core.config import settings
 
 
 class SecurityHeadersMiddleware(BaseHTTPMiddleware):
@@ -15,19 +16,24 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
     Middleware to add security headers to all HTTP responses.
 
     Headers added:
+    - Strict-Transport-Security: Forces HTTPS connections (production only)
     - X-Content-Type-Options: Prevents MIME type sniffing
     - X-Frame-Options: Prevents clickjacking attacks
     - X-XSS-Protection: Legacy XSS protection (for older browsers)
     - Referrer-Policy: Controls referrer information sent with requests
     - Permissions-Policy: Restricts browser features
-    - Content-Security-Policy: Controls resource loading (report-only for now)
-
-    Note: Strict-Transport-Security (HSTS) should be configured at the
-    reverse proxy/load balancer level in production, not in the application.
+    - Content-Security-Policy: Controls resource loading
     """
 
     async def dispatch(self, request: Request, call_next) -> Response:
         response = await call_next(request)
+
+        # HSTS: Force HTTPS for 1 year, include subdomains
+        # Only enable in production to avoid locking out local development
+        if not settings.DEBUG:
+            response.headers["Strict-Transport-Security"] = (
+                "max-age=31536000; includeSubDomains"
+            )
 
         # Prevent MIME type sniffing
         response.headers["X-Content-Type-Options"] = "nosniff"

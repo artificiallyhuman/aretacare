@@ -20,7 +20,8 @@ class RefreshToken(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     user_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
 
-    # Token value (stored hashed for security)
+    # Token value (stored in plaintext - acceptable since tokens are cryptographically
+    # random 256-bit values from secrets.token_urlsafe(32), making brute-force infeasible)
     token = Column(String, nullable=False, unique=True, index=True)
 
     # Token metadata
