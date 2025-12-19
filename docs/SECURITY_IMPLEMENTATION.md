@@ -2,7 +2,7 @@
 
 This document provides detailed technical documentation of all security measures implemented in AretaCare.
 
-**Last Updated**: 2025-12-18
+**Last Updated**: 2025-12-19
 
 ---
 
@@ -19,6 +19,7 @@ This document provides detailed technical documentation of all security measures
 9. [Frontend Security](#frontend-security)
 10. [CORS Configuration](#cors-configuration)
 11. [Security Headers](#security-headers)
+12. [Docker Container Security](#docker-container-security)
 
 ---
 
@@ -30,8 +31,8 @@ AretaCare uses a two-token system for secure authentication:
 
 | Token Type | Lifetime | Storage | Purpose |
 |------------|----------|---------|---------|
-| Access Token | 1 hour | Memory/localStorage | API authentication |
-| Refresh Token | 30 days | HttpOnly cookie + localStorage | Token renewal |
+| Access Token | 1 hour | localStorage | API authentication |
+| Refresh Token | 30 days | HttpOnly cookie only | Token renewal |
 
 **Implementation Files:**
 - `backend/app/core/auth.py` - Token creation and verification
@@ -76,6 +77,54 @@ def set_refresh_token_cookie(response: Response, refresh_token: str):
 - `secure=True`: Cookie only sent over HTTPS in production
 - `samesite="lax"`: Prevents CSRF attacks while allowing normal navigation
 - `path="/api/auth"`: Cookie only sent to authentication endpoints
+
+### Refresh Token Rotation
+
+Refresh tokens are single-use: each time a token is used to obtain a new access token, the old refresh token is revoked and a new one is issued.
+
+```python
+# backend/app/api/auth.py - /refresh endpoint
+# REFRESH TOKEN ROTATION: Revoke the old token immediately
+revoke_refresh_token(db, token_record.id)
+
+# Create a NEW refresh token (rotation)
+new_refresh_token, _ = create_refresh_token_record(
+    db=db,
+    user_id=user.id,
+    device_info=device_info,
+    ip_address=ip_address
+)
+set_refresh_token_cookie(response, new_refresh_token)
+```
+
+**Security Benefits:**
+- Limits attack window if a refresh token is compromised
+- Stolen tokens become invalid after first use
+- Provides detection opportunity (original user's session fails)
+
+### Logout Endpoint
+
+A dedicated `/logout` endpoint clears the HttpOnly cookie and revokes the refresh token:
+
+```python
+@router.post("/logout", status_code=status.HTTP_200_OK)
+def logout(
+    response: Response,
+    refresh_token_cookie: Optional[str] = Cookie(None, alias=REFRESH_TOKEN_COOKIE_NAME),
+    db: DBSession = Depends(get_db)
+):
+    clear_refresh_token_cookie(response)
+    if refresh_token_cookie:
+        # Revoke the token in database
+        token_record = db.query(RefreshToken).filter(
+            RefreshToken.token == refresh_token_cookie,
+            RefreshToken.is_revoked == False
+        ).first()
+        if token_record:
+            token_record.is_revoked = True
+            db.commit()
+    return {"message": "Logged out successfully"}
+```
 
 ### Password Security
 
@@ -510,8 +559,14 @@ const api = axios.create({
 // Access token stored in localStorage (short-lived, acceptable risk)
 localStorage.setItem('auth_token', access_token);
 
-// Refresh token in HttpOnly cookie (secure, not accessible to JS)
+// Refresh token is ONLY in HttpOnly cookie (not accessible to JavaScript)
+// This prevents XSS attacks from stealing refresh tokens
 ```
+
+**Important:** Refresh tokens are never stored in localStorage or exposed to JavaScript. They are:
+- Set by the server via `Set-Cookie` header with `httponly` flag
+- Automatically sent by the browser for requests to `/api/auth/*`
+- Never returned in API response bodies
 
 ---
 
@@ -560,7 +615,19 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         response.headers["X-XSS-Protection"] = "1; mode=block"
         response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
         response.headers["Permissions-Policy"] = "camera=(), geolocation=(), microphone=(self), ..."
-        response.headers["Content-Security-Policy"] = "default-src 'self'; ..."
+        response.headers["Content-Security-Policy"] = (
+            "default-src 'self'; "
+            "script-src 'self' https://js.hcaptcha.com https://newassets.hcaptcha.com; "
+            "style-src 'self' 'unsafe-inline'; "
+            "img-src 'self' data: https:; "
+            "font-src 'self' data:; "
+            "connect-src 'self' https://*.amazonaws.com https://api.openai.com "
+            "https://hcaptcha.com https://*.hcaptcha.com; "
+            "frame-src 'self' https://newassets.hcaptcha.com https://*.hcaptcha.com; "
+            "frame-ancestors 'self'; "
+            "form-action 'self'; "
+            "base-uri 'self'"
+        )
 
         return response
 ```
@@ -575,9 +642,63 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
 | **X-XSS-Protection** | `1; mode=block` | Legacy XSS protection for older browsers |
 | **Referrer-Policy** | `strict-origin-when-cross-origin` | Controls referrer information sent with requests |
 | **Permissions-Policy** | `camera=(), microphone=(self), ...` | Restricts browser features (allows microphone for audio recording) |
-| **Content-Security-Policy** | `default-src 'self'; ...` | Controls resource loading, prevents XSS |
+| **Content-Security-Policy** | See below | Controls resource loading, prevents XSS |
+
+### Content Security Policy Details
+
+The CSP is configured to be restrictive while allowing necessary functionality:
+
+| Directive | Value | Purpose |
+|-----------|-------|---------|
+| `default-src` | `'self'` | Default: only allow resources from same origin |
+| `script-src` | `'self' https://js.hcaptcha.com https://newassets.hcaptcha.com` | Scripts only from self and hCaptcha (no `unsafe-inline` or `unsafe-eval`) |
+| `style-src` | `'self' 'unsafe-inline'` | Styles from self, inline styles for Tailwind CSS |
+| `img-src` | `'self' data: https:` | Images from self, data URIs, and any HTTPS source |
+| `connect-src` | `'self' https://*.amazonaws.com https://api.openai.com https://hcaptcha.com https://*.hcaptcha.com` | API connections |
+| `frame-src` | `'self' https://newassets.hcaptcha.com https://*.hcaptcha.com` | iframes for hCaptcha |
+| `frame-ancestors` | `'self'` | Prevents clickjacking |
+| `form-action` | `'self'` | Forms only submit to same origin |
+| `base-uri` | `'self'` | Prevents base tag injection |
+
+**Note:** `script-src` intentionally excludes `unsafe-inline` and `unsafe-eval` to prevent XSS attacks. The application uses external script files only.
 
 **Note:** HSTS is only enabled in production (`DEBUG=False`) to avoid locking out local development.
+
+---
+
+## Docker Container Security
+
+All Docker containers run as non-root users for defense-in-depth.
+
+### Backend Container
+
+```dockerfile
+# Dockerfile and backend/Dockerfile
+# Create non-root user for security
+# Using UID 1000 which is standard for first non-root user
+RUN useradd --create-home --shell /bin/bash --uid 1000 appuser \
+    && chown -R appuser:appuser /app
+
+# Switch to non-root user
+USER appuser
+```
+
+### Frontend Container
+
+```dockerfile
+# frontend/Dockerfile
+# Uses built-in 'node' user (UID 1000, already exists in node:alpine)
+RUN chown -R node:node /app
+
+# Switch to non-root user
+USER node
+```
+
+**Security Benefits:**
+- Limits damage from container escape vulnerabilities
+- Prevents processes from modifying system files
+- Follows principle of least privilege
+- Required by many security compliance frameworks
 
 ---
 
