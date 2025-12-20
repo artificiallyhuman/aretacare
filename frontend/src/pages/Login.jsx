@@ -10,15 +10,23 @@ function Login() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [idleLogout, setIdleLogout] = useState(false);
+  const [emailVerified, setEmailVerified] = useState(false);
+  const [emailNotVerified, setEmailNotVerified] = useState(false);
+  const [unverifiedEmail, setUnverifiedEmail] = useState('');
+  const [resendingVerification, setResendingVerification] = useState(false);
+  const [resendSuccess, setResendSuccess] = useState(false);
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { isDark, toggleTheme } = useTheme();
 
-  // Check if user was logged out due to idle timeout
+  // Check for URL parameters
   useEffect(() => {
     if (searchParams.get('idle') === 'true') {
       setIdleLogout(true);
-      // Clean up the URL
+      window.history.replaceState({}, '', '/login');
+    }
+    if (searchParams.get('verified') === 'true') {
+      setEmailVerified(true);
       window.history.replaceState({}, '', '/login');
     }
   }, [searchParams]);
@@ -26,6 +34,8 @@ function Login() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+    setEmailNotVerified(false);
+    setResendSuccess(false);
     setLoading(true);
 
     try {
@@ -39,9 +49,35 @@ function Login() {
       // Reload to home page to reinitialize session
       window.location.href = '/';
     } catch (err) {
-      setError(err.response?.data?.detail || 'Login failed. Please try again.');
+      const detail = err.response?.data?.detail;
+
+      // Check for EMAIL_NOT_VERIFIED error code
+      if (typeof detail === 'object' && detail?.code === 'EMAIL_NOT_VERIFIED') {
+        setEmailNotVerified(true);
+        setUnverifiedEmail(detail.email || email);
+        setError('');
+      } else if (typeof detail === 'object' && detail?.message) {
+        setError(detail.message);
+      } else {
+        setError(detail || 'Login failed. Please try again.');
+      }
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleResendVerification = async () => {
+    setResendingVerification(true);
+    setResendSuccess(false);
+
+    try {
+      await authAPI.resendVerification(unverifiedEmail);
+      setResendSuccess(true);
+    } catch (err) {
+      // Don't show error - the endpoint always returns success message for security
+      setResendSuccess(true);
+    } finally {
+      setResendingVerification(false);
     }
   };
 
@@ -111,12 +147,50 @@ function Login() {
 
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
         <div className="bg-white dark:bg-gray-800 py-6 px-4 shadow-md sm:rounded-xl sm:px-10 border border-gray-200 dark:border-gray-700 transition-colors duration-200">
+          {emailVerified && (
+            <div className="mb-4 bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-800 text-green-700 dark:text-green-300 px-4 py-3 rounded-lg text-sm flex items-start">
+              <svg className="w-5 h-5 mr-2 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+              <span>Your email has been verified. You can now sign in to AretaCare.</span>
+            </div>
+          )}
           {idleLogout && (
             <div className="mb-4 bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300 px-4 py-3 rounded-lg text-sm flex items-start">
               <svg className="w-5 h-5 mr-2 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
               <span>You were logged out due to inactivity. Please sign in again.</span>
+            </div>
+          )}
+          {emailNotVerified && (
+            <div className="mb-4 bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-800 px-4 py-4 rounded-lg">
+              <div className="flex items-start">
+                <svg className="w-5 h-5 text-amber-600 dark:text-amber-400 mr-2 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-amber-800 dark:text-amber-300">
+                    Email not verified
+                  </p>
+                  <p className="text-sm text-amber-700 dark:text-amber-400 mt-1">
+                    Please check your email and click the verification link to complete registration.
+                  </p>
+                  {resendSuccess ? (
+                    <p className="text-sm text-green-700 dark:text-green-400 mt-2">
+                      Verification email sent! Check your inbox.
+                    </p>
+                  ) : (
+                    <button
+                      onClick={handleResendVerification}
+                      disabled={resendingVerification}
+                      className="mt-2 text-sm font-medium text-amber-800 dark:text-amber-300 hover:text-amber-900 dark:hover:text-amber-200 underline disabled:opacity-50"
+                    >
+                      {resendingVerification ? 'Sending...' : 'Resend verification email'}
+                    </button>
+                  )}
+                </div>
+              </div>
             </div>
           )}
           {error && (

@@ -27,6 +27,7 @@ const JargonTranslator = lazy(() => import('./pages/tools/JargonTranslator'));
 const ConversationCoach = lazy(() => import('./pages/tools/ConversationCoach'));
 const Documents = lazy(() => import('./pages/tools/Documents'));
 const PasswordReset = lazy(() => import('./pages/PasswordReset'));
+const VerifyEmail = lazy(() => import('./pages/VerifyEmail'));
 const VerifyEmailChange = lazy(() => import('./pages/VerifyEmailChange'));
 const TermsOfService = lazy(() => import('./pages/TermsOfService'));
 const PrivacyPolicy = lazy(() => import('./pages/PrivacyPolicy'));
@@ -170,6 +171,10 @@ function AppContent() {
                 <PasswordReset />
               </PublicRoute>
             }
+          />
+          <Route
+            path="/verify-email"
+            element={<VerifyEmail />}
           />
           <Route
             path="/verify-email-change"

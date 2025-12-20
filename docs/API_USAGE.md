@@ -31,22 +31,61 @@ Content-Type: application/json
 {
   "name": "John Doe",
   "email": "john@example.com",
-  "password": "securepassword123"
+  "password": "securepassword123",
+  "acknowledge_not_medical_advice": true,
+  "acknowledge_hipaa": true,
+  "acknowledge_beta_version": true,
+  "acknowledge_email_communications": true,
+  "agree_to_terms": true
 }
 ```
 
 **Response:**
 ```json
 {
-  "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-  "token_type": "bearer",
-  "user": {
-    "id": 1,
-    "name": "John Doe",
-    "email": "john@example.com"
-  }
+  "message": "Registration successful! Please check your email to verify your account.",
+  "email": "john@example.com"
 }
 ```
+
+Note: Registration requires email verification before login. A verification email is sent automatically.
+
+#### Verify Email
+
+```bash
+GET /api/auth/verify-email?token=<verification_token>
+```
+
+**Response:**
+```json
+{
+  "message": "Email verified successfully! You can now log in.",
+  "verified": true
+}
+```
+
+#### Resend Verification Email
+
+```bash
+POST /api/auth/resend-verification
+Content-Type: application/json
+```
+
+**Request Body:**
+```json
+{
+  "email": "john@example.com"
+}
+```
+
+**Response:**
+```json
+{
+  "message": "If an account with that email exists and is not yet verified, a verification email has been sent."
+}
+```
+
+Note: Rate limited to 1 request per minute.
 
 #### Login
 

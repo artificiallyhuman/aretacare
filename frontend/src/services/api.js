@@ -181,6 +181,13 @@ export const authAPI = {
   cancelEmailChange: () =>
     api.delete('/auth/email/pending'),
 
+  // Email verification for new registrations
+  verifyEmail: (token) =>
+    api.get(`/auth/verify-email?token=${encodeURIComponent(token)}`),
+
+  resendVerification: (email) =>
+    api.post('/auth/resend-verification', { email }),
+
   updatePassword: (currentPassword, newPassword) =>
     api.put('/auth/password', { current_password: currentPassword, new_password: newPassword }),
 
@@ -210,6 +217,9 @@ export const authAPI = {
 
   logoutEverywhere: () =>
     api.post('/auth/logout-everywhere'),
+
+  checkSessionValid: () =>
+    api.get('/auth/session-valid'),
 };
 
 // Session API

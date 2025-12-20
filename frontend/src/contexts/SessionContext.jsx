@@ -123,6 +123,44 @@ export const SessionProvider = ({ children }) => {
     return () => window.removeEventListener('storage', handleStorageChange);
   }, []);
 
+  // Periodic session validation to detect "logout everywhere" from other devices
+  useEffect(() => {
+    if (!user) return;
+
+    const SESSION_CHECK_INTERVAL = 2 * 60 * 1000; // 2 minutes
+
+    const checkSession = async () => {
+      try {
+        const response = await authAPI.checkSessionValid();
+        if (response.data.valid === false) {
+          // Session has been revoked (e.g., via "logout everywhere" on another device)
+          console.log('Session revoked, logging out:', response.data.reason);
+          setUser(null);
+          setSessions([]);
+          setActiveSessionId(null);
+          localStorage.removeItem('auth_token');
+          localStorage.removeItem('user');
+          localStorage.removeItem('active_session_id');
+          window.location.replace('/login');
+        }
+      } catch (err) {
+        // If we get a 401, the access token is invalid - the interceptor will handle it
+        // For other errors, just log and continue - don't log user out on network issues
+        if (err.response?.status !== 401) {
+          console.error('Session validation failed:', err);
+        }
+      }
+    };
+
+    // Run immediately on mount
+    checkSession();
+
+    // Then run periodically
+    const intervalId = setInterval(checkSession, SESSION_CHECK_INTERVAL);
+
+    return () => clearInterval(intervalId);
+  }, [user]);
+
   const createSession = async (name = null) => {
     try {
       const response = await sessionAPI.create(name);

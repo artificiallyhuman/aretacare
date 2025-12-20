@@ -86,3 +86,14 @@ class PasswordReset(BaseModel):
     """Schema for resetting password."""
     token: str
     new_password: str = Field(..., min_length=8, max_length=72)
+
+
+class RegistrationResponse(BaseModel):
+    """Schema for registration response (before email verification)."""
+    message: str
+    email: str
+
+
+class ResendVerificationRequest(BaseModel):
+    """Schema for requesting verification email resend."""
+    email: EmailStr

@@ -21,7 +21,8 @@ from app.models.audio_recording import AudioRecording
 from app.schemas.auth import (
     UserRegister, UserLogin, TokenResponse, UserResponse,
     UpdateName, UpdateEmail, UpdatePassword, DeleteAccount,
-    PasswordResetRequest, PasswordReset, RefreshTokenRequest
+    PasswordResetRequest, PasswordReset, RefreshTokenRequest,
+    RegistrationResponse, ResendVerificationRequest
 )
 from app.services.email_service import email_service
 from app.services.s3_service import s3_service
@@ -132,10 +133,10 @@ def get_current_user(
     return user
 
 
-@router.post("/register", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/register", response_model=RegistrationResponse, status_code=status.HTTP_201_CREATED)
 @limiter.limit(RateLimits.REGISTER)
 def register(request: Request, response: Response, user_data: UserRegister, db: DBSession = Depends(get_db)):
-    """Register a new user."""
+    """Register a new user. Requires email verification before login."""
     # Validate acknowledgements - all must be True
     if not user_data.acknowledge_not_medical_advice:
         raise HTTPException(
@@ -163,12 +164,19 @@ def register(request: Request, response: Response, user_data: UserRegister, db: 
             detail="Email already registered"
         )
 
-    # Create new user
+    # Generate email verification token
+    verification_token = secrets.token_urlsafe(32)
+    verification_expires = datetime.utcnow() + timedelta(hours=1)
+
+    # Create new user with email verification pending
     hashed_password = get_password_hash(user_data.password)
     new_user = User(
         name=user_data.name,
         email=user_data.email,
-        password_hash=hashed_password
+        password_hash=hashed_password,
+        is_email_verified=False,
+        email_verification_token=verification_token,
+        email_verification_token_expires=verification_expires
     )
 
     db.add(new_user)
@@ -176,6 +184,7 @@ def register(request: Request, response: Response, user_data: UserRegister, db: 
     db.refresh(new_user)
 
     # Check for pending invitations and auto-add to sessions
+    # (User will be collaborator but can't access until verified)
     from app.models.pending_invitation import PendingInvitation
     from app.models.session_collaborator import SessionCollaborator
 
@@ -211,7 +220,7 @@ def register(request: Request, response: Response, user_data: UserRegister, db: 
             logger.info(f"Deleted expired invitation for {invitation.email} to session {invitation.session_id}")
 
         # Add user as collaborator to all valid invited sessions
-        sessions_joined = []  # Track sessions for notification emails
+        # Note: User can't access these until email is verified
         for invitation in valid_invitations:
             # Check if session still exists
             invited_session = db.query(Session).filter(Session.id == invitation.session_id).first()
@@ -223,67 +232,24 @@ def register(request: Request, response: Response, user_data: UserRegister, db: 
                 )
                 db.add(collaborator)
 
-                # Get session owner info for notification email
-                owner = db.query(User).filter(User.id == invited_session.owner_id).first()
-                if owner:
-                    sessions_joined.append({
-                        'session_name': invited_session.name,
-                        'owner_email': owner.email,
-                        'owner_name': owner.name
-                    })
-
         # Delete all processed valid invitations
         for invitation in valid_invitations:
             db.delete(invitation)
 
         db.commit()
 
-        # Send notification emails to session owners
-        for session_info in sessions_joined:
-            try:
-                email_service.send_invitation_accepted_email(
-                    owner_email=session_info['owner_email'],
-                    owner_name=session_info['owner_name'],
-                    new_user_name=new_user.name,
-                    new_user_email=new_user.email,
-                    session_name=session_info['session_name']
-                )
-            except Exception as e:
-                logger.error(f"Failed to send invitation accepted email: {str(e)}")
-
-    # Create initial session for the new user
-    initial_session = Session(
-        user_id=new_user.id,
-        owner_id=new_user.id,
-        name="Session 1"
-    )
-    db.add(initial_session)
-
-    # Set as user's last active session
-    new_user.last_active_session_id = initial_session.id
-    db.commit()
-    db.refresh(new_user)
-
-    # Create access token
-    access_token = create_access_token(data={"sub": new_user.id})
-
-    # Create refresh token
-    device_info = request.headers.get("user-agent")
-    ip_address = security_service.get_client_ip(request)
-    refresh_token, _ = create_refresh_token_record(
-        db=db,
-        user_id=new_user.id,
-        device_info=device_info,
-        ip_address=ip_address
+    # Send verification email
+    email_service.send_registration_verification(
+        to_email=new_user.email,
+        user_name=new_user.name,
+        verification_token=verification_token
     )
 
-    # Set refresh token as HttpOnly cookie for security
-    # Note: refresh_token is NOT returned in body to prevent XSS attacks from stealing it
-    set_refresh_token_cookie(response, refresh_token)
+    logger.info(f"User registered, verification email sent: {new_user.email}")
 
-    return TokenResponse(
-        access_token=access_token,
-        user=UserResponse.model_validate(new_user)
+    return RegistrationResponse(
+        message="Registration successful! Please check your email to verify your account.",
+        email=new_user.email
     )
 
 
@@ -369,6 +335,13 @@ def login(request: Request, response: Response, user_data: UserLogin, db: DBSess
             detail={"message": "Inactive user", "code": "INACTIVE_USER"}
         )
 
+    # Check if email is verified
+    if not user.is_email_verified:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={"message": "Email not verified. Please check your email for a verification link.", "code": "EMAIL_NOT_VERIFIED", "email": user.email}
+        )
+
     # Create access token
     access_token = create_access_token(data={"sub": user.id})
 
@@ -390,6 +363,125 @@ def login(request: Request, response: Response, user_data: UserLogin, db: DBSess
         access_token=access_token,
         user=UserResponse.model_validate(user)
     )
+
+
+@router.get("/verify-email")
+def verify_email(
+    token: str = Query(..., description="Email verification token"),
+    db: DBSession = Depends(get_db)
+):
+    """
+    Verify email address for new user registration.
+    Creates initial session for the user after successful verification.
+    """
+    # Find user by verification token
+    user = db.query(User).filter(
+        User.email_verification_token == token,
+        User.is_email_verified == False
+    ).first()
+
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid or expired verification link"
+        )
+
+    # Check if token is expired
+    if user.email_verification_token_expires < datetime.utcnow():
+        # Clear expired token
+        user.email_verification_token = None
+        user.email_verification_token_expires = None
+        db.commit()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Verification link has expired. Please request a new one."
+        )
+
+    # Mark email as verified
+    user.is_email_verified = True
+    user.email_verification_token = None
+    user.email_verification_token_expires = None
+
+    # Create initial session for the user (deferred from registration)
+    initial_session = Session(
+        user_id=user.id,
+        owner_id=user.id,
+        name="Session 1"
+    )
+    db.add(initial_session)
+
+    # Set as user's last active session
+    user.last_active_session_id = initial_session.id
+
+    db.commit()
+
+    # Send notification emails to session owners for any invitations that were accepted
+    from app.models.session_collaborator import SessionCollaborator
+
+    collaborations = db.query(SessionCollaborator).filter(
+        SessionCollaborator.user_id == user.id
+    ).all()
+
+    for collab in collaborations:
+        session = db.query(Session).filter(Session.id == collab.session_id).first()
+        if session:
+            owner = db.query(User).filter(User.id == session.owner_id).first()
+            if owner:
+                try:
+                    email_service.send_invitation_accepted_email(
+                        owner_email=owner.email,
+                        owner_name=owner.name,
+                        new_user_name=user.name,
+                        new_user_email=user.email,
+                        session_name=session.name
+                    )
+                except Exception as e:
+                    logger.error(f"Failed to send invitation accepted email: {str(e)}")
+
+    logger.info(f"Email verified for user: {user.email}")
+
+    return {"message": "Email verified successfully! You can now log in.", "verified": True}
+
+
+@router.post("/resend-verification")
+@limiter.limit("1/minute")
+def resend_verification(
+    request: Request,
+    data: ResendVerificationRequest,
+    db: DBSession = Depends(get_db)
+):
+    """
+    Resend email verification link.
+    Rate limited to 1 request per minute per email.
+    """
+    # Find unverified user by email
+    user = db.query(User).filter(
+        User.email == data.email,
+        User.is_email_verified == False
+    ).first()
+
+    if not user:
+        # Don't reveal whether email exists or is already verified
+        return {"message": "If an account with that email exists and is not yet verified, a verification email has been sent."}
+
+    # Generate new verification token
+    verification_token = secrets.token_urlsafe(32)
+    verification_expires = datetime.utcnow() + timedelta(hours=1)
+
+    user.email_verification_token = verification_token
+    user.email_verification_token_expires = verification_expires
+    db.commit()
+
+    # Send verification email
+    email_service.send_registration_verification(
+        to_email=user.email,
+        user_name=user.name,
+        verification_token=verification_token
+    )
+
+    logger.info(f"Verification email resent to: {user.email}")
+
+    return {"message": "If an account with that email exists and is not yet verified, a verification email has been sent."}
 
 
 @router.get("/me", response_model=UserResponse)
@@ -873,3 +965,32 @@ def logout_everywhere(
         "message": f"Logged out of {count} device(s)",
         "devices_logged_out": count
     }
+
+
+@router.get("/session-valid", status_code=status.HTTP_200_OK)
+def check_session_valid(
+    current_user: User = Depends(get_current_user),
+    db: DBSession = Depends(get_db)
+):
+    """
+    Lightweight endpoint to check if the user's session is still valid.
+
+    Returns valid=True if user has at least one active refresh token.
+    Returns valid=False if all tokens have been revoked (e.g., via logout-everywhere).
+
+    Frontend should call this periodically and log out if valid=False.
+    """
+    from app.models.refresh_token import RefreshToken
+
+    # Check if user has any active (non-revoked, non-expired) refresh tokens
+    active_token_count = db.query(RefreshToken).filter(
+        RefreshToken.user_id == current_user.id,
+        RefreshToken.is_revoked == False,
+        RefreshToken.expires_at > datetime.utcnow()
+    ).count()
+
+    if active_token_count == 0:
+        # No active tokens - session has been invalidated
+        return {"valid": False, "reason": "session_revoked"}
+
+    return {"valid": True}

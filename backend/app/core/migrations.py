@@ -1277,3 +1277,61 @@ def run_migrations():
                 else:
                     logger.error(f"Failed to add unique constraint to daily_plans: {e}")
                     conn.rollback()
+
+        # =================================================================
+        # Add email verification columns to users table
+        # For new user registration email verification (hard verification)
+        # =================================================================
+        migration_name = "add_email_verification_columns"
+        if not has_migration_run(conn, migration_name):
+            logger.info("Adding email verification columns to users table...")
+            try:
+                # Get current columns
+                result = conn.execute(text("""
+                    SELECT column_name FROM information_schema.columns
+                    WHERE table_name = 'users'
+                """))
+                columns = [row[0] for row in result]
+
+                # Add is_email_verified column (default True for existing users)
+                if 'is_email_verified' not in columns:
+                    conn.execute(text("""
+                        ALTER TABLE users
+                        ADD COLUMN is_email_verified BOOLEAN NOT NULL DEFAULT TRUE
+                    """))
+                    conn.commit()
+                    logger.info("Added is_email_verified column to users table")
+
+                # Add email_verification_token column
+                if 'email_verification_token' not in columns:
+                    conn.execute(text("""
+                        ALTER TABLE users
+                        ADD COLUMN email_verification_token VARCHAR
+                    """))
+                    conn.commit()
+                    logger.info("Added email_verification_token column to users table")
+
+                # Add email_verification_token_expires column
+                if 'email_verification_token_expires' not in columns:
+                    conn.execute(text("""
+                        ALTER TABLE users
+                        ADD COLUMN email_verification_token_expires TIMESTAMP
+                    """))
+                    conn.commit()
+                    logger.info("Added email_verification_token_expires column to users table")
+
+                # Add partial index on email_verification_token for faster lookups
+                conn.execute(text("""
+                    CREATE INDEX IF NOT EXISTS idx_users_email_verification_token
+                    ON users(email_verification_token)
+                    WHERE email_verification_token IS NOT NULL
+                """))
+                conn.commit()
+                logger.info("Added index on email_verification_token")
+
+                mark_migration_complete(conn, migration_name)
+                logger.info("Successfully added email verification columns")
+
+            except Exception as e:
+                logger.error(f"Failed to add email verification columns: {e}")
+                conn.rollback()

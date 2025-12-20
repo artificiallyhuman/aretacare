@@ -119,11 +119,14 @@ See [docs/EMAIL_SETUP.md](docs/EMAIL_SETUP.md) for Gmail app password setup.
 docker compose up --build
 ```
 
-Open http://localhost:3001 and create an account. You'll need to acknowledge four important notices during registration:
+Open http://localhost:3001 and create an account. You'll need to acknowledge five important notices during registration:
 - AretaCare is not medical advice (AI assistance for understanding medical information)
 - AretaCare is not a HIPAA-covered service (not an official medical record system)
 - The system is in beta (potential instability and data loss)
 - You'll receive email notifications for account security and collaboration activities
+- Agreement to Terms of Service and Privacy Policy
+
+After registration, check your email for a verification link (expires in 1 hour). Click the link to activate your account, then log in.
 
 ### Stop
 
