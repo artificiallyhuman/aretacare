@@ -202,6 +202,49 @@ def run_migrations():
             else:
                 logger.info("last_active_session_id column already exists")
 
+            # Add email change verification columns if they don't exist
+            if 'pending_email' not in columns:
+                logger.info("Adding pending_email column to users table...")
+                try:
+                    conn.execute(text(
+                        "ALTER TABLE users ADD COLUMN pending_email VARCHAR NULL"
+                    ))
+                    conn.commit()
+                    logger.info("Successfully added pending_email column")
+                except Exception as e:
+                    logger.error(f"Failed to add pending_email column: {e}")
+                    conn.rollback()
+            else:
+                logger.info("pending_email column already exists")
+
+            if 'email_change_token' not in columns:
+                logger.info("Adding email_change_token column to users table...")
+                try:
+                    conn.execute(text(
+                        "ALTER TABLE users ADD COLUMN email_change_token VARCHAR NULL"
+                    ))
+                    conn.commit()
+                    logger.info("Successfully added email_change_token column")
+                except Exception as e:
+                    logger.error(f"Failed to add email_change_token column: {e}")
+                    conn.rollback()
+            else:
+                logger.info("email_change_token column already exists")
+
+            if 'email_change_token_expires' not in columns:
+                logger.info("Adding email_change_token_expires column to users table...")
+                try:
+                    conn.execute(text(
+                        "ALTER TABLE users ADD COLUMN email_change_token_expires TIMESTAMP NULL"
+                    ))
+                    conn.commit()
+                    logger.info("Successfully added email_change_token_expires column")
+                except Exception as e:
+                    logger.error(f"Failed to add email_change_token_expires column: {e}")
+                    conn.rollback()
+            else:
+                logger.info("email_change_token_expires column already exists")
+
         # Check if sessions table exists
         if 'sessions' in inspector.get_table_names():
             columns = [col['name'] for col in inspector.get_columns('sessions')]

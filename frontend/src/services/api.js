@@ -153,6 +153,12 @@ export const authAPI = {
   updateEmail: (email, currentPassword) =>
     api.put('/auth/email', { email, current_password: currentPassword }),
 
+  verifyEmailChange: (token) =>
+    api.post(`/auth/email/verify?token=${encodeURIComponent(token)}`),
+
+  cancelEmailChange: () =>
+    api.delete('/auth/email/pending'),
+
   updatePassword: (currentPassword, newPassword) =>
     api.put('/auth/password', { current_password: currentPassword, new_password: newPassword }),
 

@@ -105,15 +105,24 @@ export default function Settings() {
 
     try {
       const response = await authAPI.updateEmail(emailForm.email, emailForm.password);
-      const updatedUser = response.data;
-      setUser(updatedUser);
-      setSuccess((prev) => ({ ...prev, email: 'Email updated successfully' }));
-      setEmailForm({ ...emailForm, password: '' });
-      setTimeout(() => setExpandedSection(null), 2000);
+      // Email change now requires verification - show pending message
+      setSuccess((prev) => ({
+        ...prev,
+        email: response.data.message || 'Verification email sent. Please check your new email to complete the change.'
+      }));
+      setEmailForm({ email: '', password: '' });
+
+      // Log out user after showing success message for security
+      if (response.data.logout) {
+        setTimeout(async () => {
+          await authAPI.logout();
+          window.location.href = '/login';
+        }, 3000);
+      }
     } catch (error) {
       setErrors((prev) => ({
         ...prev,
-        email: error.response?.data?.detail || 'Failed to update email',
+        email: error.response?.data?.detail || 'Failed to request email change',
       }));
     } finally {
       setLoading((prev) => ({ ...prev, email: false }));
@@ -138,11 +147,16 @@ export default function Settings() {
 
     try {
       const response = await authAPI.updatePassword(passwordForm.currentPassword, passwordForm.newPassword);
-      const updatedUser = response.data;
-      setUser(updatedUser);
-      setSuccess((prev) => ({ ...prev, password: 'Password updated successfully' }));
+      setSuccess((prev) => ({ ...prev, password: response.data.message || 'Password updated successfully' }));
       setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
-      setTimeout(() => setExpandedSection(null), 2000);
+
+      // Log out user after password change for security
+      if (response.data.logout) {
+        setTimeout(async () => {
+          await authAPI.logout();
+          window.location.href = '/login';
+        }, 2000);
+      }
     } catch (error) {
       setErrors((prev) => ({
         ...prev,
@@ -384,6 +398,12 @@ export default function Settings() {
             {expandedSection === 'email' && (
               <form onSubmit={handleUpdateEmail} className="px-4 sm:px-6 pb-4 border-t border-gray-100 dark:border-gray-700">
                 <div className="mt-4 space-y-4">
+                  {user?.pending_email && (
+                    <div className="text-sm text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/30 px-3 py-2 rounded border border-amber-200 dark:border-amber-800">
+                      <strong>Pending change:</strong> A verification email was sent to <strong>{user.pending_email}</strong>.
+                      Submitting a new request will cancel the pending change.
+                    </div>
+                  )}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                       New Email

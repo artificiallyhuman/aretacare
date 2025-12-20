@@ -148,6 +148,49 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
 - Minimum: 8 characters
 - Maximum: 72 characters (bcrypt limitation)
 
+### Email Change Verification
+
+Email changes require verification to prevent account takeover:
+
+1. User requests email change (password required)
+2. Verification link sent to NEW email address (1-hour expiration)
+3. User clicks link to complete change
+4. Old email notified of the change
+5. Security event logged
+
+**Database Fields (User model):**
+```python
+pending_email = Column(String, nullable=True)
+email_change_token = Column(String, nullable=True)
+email_change_token_expires = Column(DateTime, nullable=True)
+```
+
+**API Endpoints:**
+- `PUT /auth/email` - Request email change (initiates verification)
+- `POST /auth/email/verify?token=...` - Complete email change
+- `DELETE /auth/email/pending` - Cancel pending change
+
+**Security Features:**
+- Verification token is cryptographically secure (`secrets.token_urlsafe(32)`)
+- Only one pending change allowed (new requests supersede previous)
+- Pending change displayed in Settings with warning
+- Token cleared from URL immediately after reading (prevents exposure in browser history)
+
+### Security Logout on Sensitive Changes
+
+Users are automatically logged out (all refresh tokens revoked) when:
+- Requesting an email change
+- Completing email verification
+- Changing password
+
+```python
+# Revoke all tokens and clear cookie
+revoke_all_user_tokens(db, user.id)
+clear_refresh_token_cookie(response)
+```
+
+This ensures that if an attacker gains temporary access, they cannot maintain access after the legitimate user changes credentials.
+
 ---
 
 ## Account Lockout

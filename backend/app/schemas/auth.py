@@ -27,6 +27,7 @@ class UserResponse(BaseModel):
     is_active: bool
     created_at: datetime
     last_active_session_id: str | None = None
+    pending_email: str | None = None
 
     class Config:
         from_attributes = True

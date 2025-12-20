@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Request, Response, Cookie
+from fastapi import APIRouter, Depends, HTTPException, status, Request, Response, Cookie, Query
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session as DBSession
 from typing import Optional
@@ -408,7 +408,7 @@ def update_name(
     # Verify current password
     if not verify_password(data.current_password, current_user.password_hash):
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
+            status_code=status.HTTP_400_BAD_REQUEST,
             detail="Incorrect password"
         )
 
@@ -420,21 +420,34 @@ def update_name(
     return UserResponse.model_validate(current_user)
 
 
-@router.put("/email", response_model=UserResponse)
-def update_email(
+@router.put("/email")
+def request_email_change(
     data: UpdateEmail,
+    response: Response,
     current_user: User = Depends(get_current_user),
     db: DBSession = Depends(get_db)
 ):
-    """Update user email (requires password verification)."""
+    """
+    Request email change (requires password verification). Logs user out for security.
+
+    This initiates email verification - a verification link is sent to the new email address.
+    The email is not changed until the user clicks the verification link.
+    """
     # Verify current password
     if not verify_password(data.current_password, current_user.password_hash):
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
+            status_code=status.HTTP_400_BAD_REQUEST,
             detail="Incorrect password"
         )
 
-    # Check if new email is already taken
+    # Check if new email is the same as current
+    if data.email.lower() == current_user.email.lower():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="New email must be different from current email"
+        )
+
+    # Check if new email is already taken by another user
     existing_user = db.query(User).filter(User.email == data.email).first()
     if existing_user and existing_user.id != current_user.id:
         raise HTTPException(
@@ -442,46 +455,166 @@ def update_email(
             detail="Email already registered"
         )
 
-    # Store old email for notification
-    old_email = current_user.email
+    # Generate secure verification token
+    verification_token = secrets.token_urlsafe(32)
 
-    # Update email
-    current_user.email = data.email
+    # Store pending email and token
+    current_user.pending_email = data.email
+    current_user.email_change_token = verification_token
+    current_user.email_change_token_expires = datetime.utcnow() + timedelta(hours=1)  # 1 hour expiration
+
     db.commit()
-    db.refresh(current_user)
+
+    # Send verification email to the new email address
+    email_service.send_email_change_verification(data.email, current_user.name, verification_token)
+
+    # Revoke all refresh tokens and clear cookie (security best practice)
+    revoke_all_user_tokens(db, current_user.id)
+    clear_refresh_token_cookie(response)
+
+    return {
+        "message": "Verification email sent. Please check your new email to complete the change. You will be logged out for security.",
+        "pending_email": data.email,
+        "logout": True
+    }
+
+
+@router.post("/email/verify")
+def verify_email_change(
+    request: Request,
+    response: Response,
+    token: str = Query(..., description="Email verification token"),
+    db: DBSession = Depends(get_db)
+):
+    """
+    Verify and complete email change using the verification token.
+
+    This endpoint is called when the user clicks the verification link in the email.
+    Logs user out for security after email change.
+    """
+    # Find user with this verification token
+    user = db.query(User).filter(User.email_change_token == token).first()
+
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid or expired verification token"
+        )
+
+    # Check if token is expired
+    if not user.email_change_token_expires or user.email_change_token_expires < datetime.utcnow():
+        # Clear expired token
+        user.pending_email = None
+        user.email_change_token = None
+        user.email_change_token_expires = None
+        db.commit()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Verification link has expired. Please request a new email change."
+        )
+
+    # Check if pending email still doesn't exist for another user
+    if user.pending_email:
+        existing_user = db.query(User).filter(User.email == user.pending_email).first()
+        if existing_user and existing_user.id != user.id:
+            # Clear the pending change
+            user.pending_email = None
+            user.email_change_token = None
+            user.email_change_token_expires = None
+            db.commit()
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="This email address is now registered to another account"
+            )
+
+    # Store old email for notification
+    old_email = user.email
+    new_email = user.pending_email
+
+    # Complete the email change
+    user.email = new_email
+    user.pending_email = None
+    user.email_change_token = None
+    user.email_change_token_expires = None
+
+    db.commit()
 
     # Send notification to old email address
-    email_service.send_email_changed_notification(old_email, data.email, current_user.name)
+    email_service.send_email_changed_notification(old_email, new_email, user.name)
 
-    return UserResponse.model_validate(current_user)
+    # Log security event
+    security_service.log_event(
+        db=db,
+        event_type="email_changed",
+        email=new_email,
+        user_id=user.id,
+        ip_address=security_service.get_client_ip(request),
+        user_agent=request.headers.get("user-agent"),
+        endpoint=request.url.path,
+        details=f"Email changed from {old_email} to {new_email}"
+    )
+
+    # Revoke all refresh tokens and clear cookie (security best practice)
+    revoke_all_user_tokens(db, user.id)
+    clear_refresh_token_cookie(response)
+
+    return {
+        "message": "Email address successfully changed. Please log in again.",
+        "email": new_email,
+        "logout": True
+    }
 
 
-@router.put("/password", response_model=UserResponse)
-def update_password(
-    data: UpdatePassword,
+@router.delete("/email/pending")
+def cancel_email_change(
     current_user: User = Depends(get_current_user),
     db: DBSession = Depends(get_db)
 ):
-    """Update user password (requires current password verification)."""
+    """Cancel a pending email change request."""
+    if not current_user.pending_email:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No pending email change to cancel"
+        )
+
+    current_user.pending_email = None
+    current_user.email_change_token = None
+    current_user.email_change_token_expires = None
+    db.commit()
+
+    return {"message": "Pending email change cancelled"}
+
+
+@router.put("/password")
+def update_password(
+    data: UpdatePassword,
+    response: Response,
+    current_user: User = Depends(get_current_user),
+    db: DBSession = Depends(get_db)
+):
+    """Update user password (requires current password verification). Logs user out for security."""
     # Verify current password
     if not verify_password(data.current_password, current_user.password_hash):
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
+            status_code=status.HTTP_400_BAD_REQUEST,
             detail="Incorrect password"
         )
 
     # Hash and update password
     current_user.password_hash = get_password_hash(data.new_password)
     db.commit()
-    db.refresh(current_user)
 
     # Send password changed notification email
     email_service.send_password_changed_email(current_user.email, current_user.name)
 
-    # Revoke all refresh tokens when password changes (security best practice)
+    # Revoke all refresh tokens and clear cookie (security best practice)
     revoke_all_user_tokens(db, current_user.id)
+    clear_refresh_token_cookie(response)
 
-    return UserResponse.model_validate(current_user)
+    return {
+        "message": "Password updated successfully. Please log in again.",
+        "logout": True
+    }
 
 
 @router.delete("/account", status_code=status.HTTP_204_NO_CONTENT)
@@ -494,7 +627,7 @@ async def delete_account(
     # Verify password
     if not verify_password(data.password, current_user.password_hash):
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
+            status_code=status.HTTP_400_BAD_REQUEST,
             detail="Incorrect password"
         )
 

@@ -19,6 +19,11 @@ class User(Base):
     reset_token = Column(String, nullable=True)
     reset_token_expires = Column(DateTime, nullable=True)
 
+    # Email change verification fields
+    pending_email = Column(String, nullable=True)
+    email_change_token = Column(String, nullable=True)
+    email_change_token_expires = Column(DateTime, nullable=True)
+
     # Track last active session for user
     last_active_session_id = Column(String, nullable=True)
 
