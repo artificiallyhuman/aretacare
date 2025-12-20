@@ -392,8 +392,8 @@ async def upload_document(
             # For images, generate media_url from the document's s3_key
             media_url = s3_service.generate_presigned_url(s3_key)
         elif file.content_type == 'application/pdf' and thumbnail_s3_key:
-            # For PDFs, generate thumbnail_url
-            thumbnail_url = s3_service.generate_presigned_url(thumbnail_s3_key)
+            # For PDFs, generate thumbnail_url (6 hours for thumbnails)
+            thumbnail_url = s3_service.generate_presigned_url(thumbnail_s3_key, expiration=21600)
 
         # Add URLs to document for response
         document.media_url = media_url
@@ -611,7 +611,8 @@ async def get_document_thumbnail_url(
     if not document.thumbnail_s3_key:
         raise HTTPException(status_code=404, detail="No thumbnail available for this document")
 
-    url = s3_service.generate_presigned_url(document.thumbnail_s3_key)
+    # 6 hours for thumbnails
+    url = s3_service.generate_presigned_url(document.thumbnail_s3_key, expiration=21600)
 
     if not url:
         raise HTTPException(status_code=500, detail="Failed to generate thumbnail URL")

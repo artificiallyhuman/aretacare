@@ -191,7 +191,7 @@ async def get_audio_url(
     if not recording:
         raise HTTPException(status_code=404, detail="Recording not found")
 
-    # Generate presigned URL (24 hour expiration)
-    url = s3_service.generate_presigned_url(recording.s3_key, expiration=86400)
+    # Generate presigned URL (4 hour expiration for audio playback)
+    url = s3_service.generate_presigned_url(recording.s3_key, expiration=14400)
 
     return {"url": url}

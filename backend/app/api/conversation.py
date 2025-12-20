@@ -126,7 +126,7 @@ async def send_message(
             if doc:
                 extracted_text = doc.extracted_text
                 # Generate presigned URL for documents and images (for native GPT-5.2 file support)
-                generated_media_url = s3_service.generate_presigned_url(doc.s3_key, expiration=86400)  # 24 hours
+                generated_media_url = s3_service.generate_presigned_url(doc.s3_key, expiration=1800)  # 30 minutes
 
         # Create user message
         user_message = Conversation(
@@ -335,7 +335,7 @@ async def get_conversation_history(
     # Convert to response format (including rich media fields)
     message_responses = []
     for msg in messages:
-        # Regenerate presigned URLs for images and document thumbnails (they expire after 24h)
+        # Regenerate presigned URLs for images (30 min) and thumbnails (6 hours)
         media_url = msg.media_url
         thumbnail_url = None
 
@@ -343,11 +343,11 @@ async def get_conversation_history(
             doc = docs_by_id.get(msg.document_id)
             if doc:
                 if msg.message_type == MessageType.IMAGE:
-                    # For images, regenerate the image URL
-                    media_url = s3_service.generate_presigned_url(doc.s3_key, expiration=86400)
+                    # For images, regenerate the image URL (30 min)
+                    media_url = s3_service.generate_presigned_url(doc.s3_key, expiration=1800)
                 elif msg.message_type == MessageType.DOCUMENT and doc.thumbnail_s3_key:
-                    # For documents with thumbnails (PDFs), generate thumbnail URL
-                    thumbnail_url = s3_service.generate_presigned_url(doc.thumbnail_s3_key, expiration=86400)
+                    # For document thumbnails (PDFs), generate thumbnail URL (6 hours)
+                    thumbnail_url = s3_service.generate_presigned_url(doc.thumbnail_s3_key, expiration=21600)
 
         msg_dict = {
             "id": msg.id,

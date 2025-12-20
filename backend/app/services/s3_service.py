@@ -153,8 +153,12 @@ class S3Service:
 
             return False
 
-    def generate_presigned_url(self, key: str, expiration: int = 3600) -> Optional[str]:
-        """Generate presigned URL for file download (CPU-bound, fast enough to be sync)"""
+    def generate_presigned_url(self, key: str, expiration: int = 1800) -> Optional[str]:
+        """Generate presigned URL for file download (CPU-bound, fast enough to be sync)
+
+        Default expiration is 30 minutes (1800 seconds) for security.
+        Audio files use longer expiration (4 hours) for playback needs.
+        """
         try:
             url = self.s3_client.generate_presigned_url(
                 'get_object',
