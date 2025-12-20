@@ -48,6 +48,16 @@ const About = () => {
             Platform
           </button>
           <button
+            onClick={() => setActiveTab('security')}
+            className={`px-6 py-2 rounded-md text-sm font-medium transition-all ${
+              activeTab === 'security'
+                ? 'bg-primary-600 text-white shadow-sm'
+                : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-700'
+            }`}
+          >
+            Security
+          </button>
+          <button
             onClick={() => setActiveTab('principles')}
             className={`px-6 py-2 rounded-md text-sm font-medium transition-all ${
               activeTab === 'principles'
@@ -978,6 +988,260 @@ const About = () => {
                 Yes. Anyone can review how the platform works, suggest improvements, or verify how data is handled in our public <a href="https://github.com/artificiallyhuman/aretacare" target="_blank" rel="noopener noreferrer" className="text-primary-600 dark:text-primary-400 hover:underline font-medium">GitHub repository</a>.
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* The Security Tab */}
+      {activeTab === 'security' && (
+        <div className="space-y-6">
+          <div className="text-center mb-8">
+            <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-3">How AretaCare Protects Your Information</h3>
+            <p className="text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
+              No system can guarantee perfect security, but we use multiple layers of protection to keep your account safe, prevent abuse, and respond quickly if something looks suspicious.
+            </p>
+          </div>
+
+          {/* Account Security */}
+          <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6 shadow-sm">
+            <div className="flex items-center mb-4">
+              <div className="flex items-center justify-center w-12 h-12 bg-blue-100 dark:bg-blue-900/50 rounded-lg mr-4">
+                <svg className="w-7 h-7 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+                </svg>
+              </div>
+              <h4 className="text-xl font-semibold text-gray-900 dark:text-white">Account Security</h4>
+            </div>
+            <div className="space-y-4 text-gray-600 dark:text-gray-400">
+              <div>
+                <h5 className="font-semibold text-gray-900 dark:text-white mb-2">Secure Sign-In Sessions</h5>
+                <p className="leading-relaxed">
+                  When you sign in, AretaCare uses modern session tokens that expire after about an hour. A separate renewal token is stored securely in your browser in a way that website scripts cannot access, helping protect against common attacks.
+                </p>
+              </div>
+              <div>
+                <h5 className="font-semibold text-gray-900 dark:text-white mb-2">Automatic Timeout Protection</h5>
+                <p className="leading-relaxed">
+                  If you're inactive for 30 minutes, AretaCare automatically logs you out. This helps protect you if you leave your computer unattended at home, in a hospital, or on a shared device.
+                </p>
+              </div>
+              <div>
+                <h5 className="font-semibold text-gray-900 dark:text-white mb-2">Password Protection</h5>
+                <p className="leading-relaxed">
+                  Your password is never stored in plain text. We use strong, one-way encryption (called hashing) so even if someone could see the stored data, they couldn't reveal your actual password.
+                </p>
+              </div>
+              <div>
+                <h5 className="font-semibold text-gray-900 dark:text-white mb-2">Extra Protection for Sensitive Changes</h5>
+                <p className="leading-relaxed">
+                  When you change your email or password, we add extra verification steps and automatically sign you out of other sessions to prevent someone else from staying logged in.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Protection Against Attacks */}
+          <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6 shadow-sm">
+            <div className="flex items-center mb-4">
+              <div className="flex items-center justify-center w-12 h-12 bg-red-100 dark:bg-red-900/50 rounded-lg mr-4">
+                <svg className="w-7 h-7 text-red-600 dark:text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+              </div>
+              <h4 className="text-xl font-semibold text-gray-900 dark:text-white">Protection Against Attacks</h4>
+            </div>
+            <div className="space-y-4 text-gray-600 dark:text-gray-400">
+              <div>
+                <h5 className="font-semibold text-gray-900 dark:text-white mb-2">Account Lockouts Stop Password Guessing</h5>
+                <p className="leading-relaxed">
+                  After multiple failed login attempts, your account is temporarily locked for 15 minutes. You'll see a warning before this happens, giving you the option to reset your password if needed.
+                </p>
+              </div>
+              <div>
+                <h5 className="font-semibold text-gray-900 dark:text-white mb-2">Rate Limits Prevent Abuse</h5>
+                <p className="leading-relaxed">
+                  AretaCare limits how often certain actions can be attempted (like logins, account creation, and file uploads) to prevent automated attacks, spam, and service disruptions.
+                </p>
+              </div>
+              <div>
+                <h5 className="font-semibold text-gray-900 dark:text-white mb-2">Network Protection</h5>
+                <p className="leading-relaxed">
+                  We use Cloudflare as a protective layer in front of the site to block malicious traffic, DDoS attacks (traffic floods designed to overwhelm websites), and known bad actors before they ever reach our servers.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Data Protection */}
+          <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6 shadow-sm">
+            <div className="flex items-center mb-4">
+              <div className="flex items-center justify-center w-12 h-12 bg-green-100 dark:bg-green-900/50 rounded-lg mr-4">
+                <svg className="w-7 h-7 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                </svg>
+              </div>
+              <h4 className="text-xl font-semibold text-gray-900 dark:text-white">Data Protection</h4>
+            </div>
+            <div className="space-y-4 text-gray-600 dark:text-gray-400">
+              <div>
+                <h5 className="font-semibold text-gray-900 dark:text-white mb-2">Encryption Everywhere</h5>
+                <p className="leading-relaxed">
+                  Your connection is protected with HTTPS (the same standard banks use), so data can't be read or altered while traveling between your device and our servers. Files you upload are encrypted when stored on disk.
+                </p>
+              </div>
+              <div>
+                <h5 className="font-semibold text-gray-900 dark:text-white mb-2">Safe File Uploads</h5>
+                <p className="leading-relaxed">
+                  We only accept certain file types, limit file sizes, and configure uploaded files to download rather than execute in your browser. This reduces the risk of malicious files causing harm.
+                </p>
+              </div>
+              <div>
+                <h5 className="font-semibold text-gray-900 dark:text-white mb-2">Complete Data Deletion</h5>
+                <p className="leading-relaxed">
+                  When you delete your account, AretaCare removes both your database records and uploaded files. This isn't just marking things as deleted - we actually remove the data from our systems.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Access Control */}
+          <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6 shadow-sm">
+            <div className="flex items-center mb-4">
+              <div className="flex items-center justify-center w-12 h-12 bg-purple-100 dark:bg-purple-900/50 rounded-lg mr-4">
+                <svg className="w-7 h-7 text-purple-600 dark:text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                </svg>
+              </div>
+              <h4 className="text-xl font-semibold text-gray-900 dark:text-white">Access Control</h4>
+            </div>
+            <div className="space-y-4 text-gray-600 dark:text-gray-400">
+              <div>
+                <h5 className="font-semibold text-gray-900 dark:text-white mb-2">Session-Based Permissions</h5>
+                <p className="leading-relaxed">
+                  Your sessions and content are only accessible to you and people you explicitly invite as collaborators. Every request is checked on the server to verify you own the session or have been invited to collaborate. Sessions you create remain private unless you choose to share them.
+                </p>
+              </div>
+              <div>
+                <h5 className="font-semibold text-gray-900 dark:text-white mb-2">Unauthorized Access Protection</h5>
+                <p className="leading-relaxed">
+                  If someone tries to access a session without permission, the request is immediately blocked and the attempt is logged with details like IP address, timestamp, and what they tried to access. This helps identify suspicious activity and potential security issues.
+                </p>
+              </div>
+              <div>
+                <h5 className="font-semibold text-gray-900 dark:text-white mb-2">Principle of Least Privilege</h5>
+                <p className="leading-relaxed">
+                  Each part of AretaCare can only access the specific data it needs. For example, when you view a document, the system verifies you have permission for that specific session before generating a secure, temporary access link. Permissions are checked at every level, not just once at login.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Monitoring */}
+          <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6 shadow-sm">
+            <div className="flex items-center mb-4">
+              <div className="flex items-center justify-center w-12 h-12 bg-amber-100 dark:bg-amber-900/50 rounded-lg mr-4">
+                <svg className="w-7 h-7 text-amber-600 dark:text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                </svg>
+              </div>
+              <h4 className="text-xl font-semibold text-gray-900 dark:text-white">Security Monitoring</h4>
+            </div>
+            <div className="space-y-4 text-gray-600 dark:text-gray-400">
+              <div>
+                <h5 className="font-semibold text-gray-900 dark:text-white mb-2">Security Event Logging</h5>
+                <p className="leading-relaxed mb-2">
+                  AretaCare tracks security-related events to help detect patterns and investigate suspicious activity. Each event is logged with details like IP address, browser information, and timestamp. Events we monitor include:
+                </p>
+                <ul className="list-disc pl-6 space-y-1 text-sm">
+                  <li>Failed login attempts (helps identify password guessing attacks)</li>
+                  <li>Invalid or expired session tokens (detects stolen credential attempts)</li>
+                  <li>Unauthorized access attempts (blocked requests to sessions you don't own)</li>
+                  <li>Account lockouts (shows when too many login failures triggered a lock)</li>
+                  <li>File upload validation failures (catches malicious file upload attempts)</li>
+                </ul>
+              </div>
+              <div>
+                <h5 className="font-semibold text-gray-900 dark:text-white mb-2">Pattern Detection and Response</h5>
+                <p className="leading-relaxed">
+                  By tracking these events over time, we can spot concerning patterns - like the same IP address trying to access multiple accounts, repeated failed logins from different locations, or coordinated attack attempts. System administrators review these patterns and can quickly respond to potential security threats by filtering events, searching for specific IP addresses, and identifying trends.
+                </p>
+              </div>
+              <div>
+                <h5 className="font-semibold text-gray-900 dark:text-white mb-2">Privacy-Conscious Retention</h5>
+                <p className="leading-relaxed">
+                  Logs are automatically deleted after a limited period: 90 days for security events, 30 days for error and API logs. This provides enough time for investigation and troubleshooting while limiting how long detailed activity data is stored.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* What You Can Do */}
+          <div className="bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-gray-800 dark:to-blue-900/20 rounded-xl border-l-4 border-blue-500 dark:border-blue-400 shadow-md p-6">
+            <h4 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">What You Can Do to Stay Safe</h4>
+            <div className="text-gray-700 dark:text-gray-300 space-y-2">
+              <p className="flex items-start">
+                <span className="text-blue-600 dark:text-blue-400 mr-2 mt-1">•</span>
+                <span>Use a strong, unique password (don't reuse passwords from other sites)</span>
+              </p>
+              <p className="flex items-start">
+                <span className="text-blue-600 dark:text-blue-400 mr-2 mt-1">•</span>
+                <span>Enable device-level security like PIN, Touch ID, or Face ID</span>
+              </p>
+              <p className="flex items-start">
+                <span className="text-blue-600 dark:text-blue-400 mr-2 mt-1">•</span>
+                <span>Log out when using shared or public devices</span>
+              </p>
+              <p className="flex items-start">
+                <span className="text-blue-600 dark:text-blue-400 mr-2 mt-1">•</span>
+                <span>Be cautious with email links, especially password reset emails you didn't request</span>
+              </p>
+            </div>
+          </div>
+
+          {/* Technical Documentation Link */}
+          <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
+            <div className="flex items-start gap-4">
+              <div className="flex-shrink-0">
+                <svg className="w-6 h-6 text-gray-600 dark:text-gray-400 mt-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+              </div>
+              <div className="flex-1">
+                <h5 className="font-semibold text-gray-900 dark:text-white mb-2">For Technical Details</h5>
+                <p className="text-gray-600 dark:text-gray-400 mb-3">
+                  If you're interested in the technical implementation details, you can review our comprehensive security documentation on GitHub.
+                </p>
+                <a
+                  href="https://github.com/artificiallyhuman/aretacare/blob/main/docs/SECURITY_IMPLEMENTATION.md"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-gray-900 dark:bg-gray-700 text-white rounded-lg hover:bg-gray-800 dark:hover:bg-gray-600 transition-colors text-sm font-medium"
+                >
+                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                    <path fillRule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z" clipRule="evenodd" />
+                  </svg>
+                  View Security Implementation Details
+                </a>
+              </div>
+            </div>
+          </div>
+
+          {/* Security Contact */}
+          <div className="bg-amber-50 dark:bg-amber-900/20 rounded-lg border border-amber-200 dark:border-amber-800 p-6">
+            <div className="flex items-start gap-4">
+              <div className="flex-shrink-0">
+                <svg className="w-6 h-6 text-amber-600 dark:text-amber-400 mt-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+              </div>
+              <div className="flex-1">
+                <h5 className="font-semibold text-gray-900 dark:text-white mb-2">Found a Security Issue?</h5>
+                <p className="text-gray-700 dark:text-gray-300">
+                  If you believe you've found a security vulnerability, please contact us at <a href="mailto:security@aretacare.com" className="text-amber-600 dark:text-amber-400 hover:underline font-medium">security@aretacare.com</a> so we can investigate responsibly.
+                </p>
+              </div>
+            </div>
           </div>
         </div>
       )}
