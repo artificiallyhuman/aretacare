@@ -83,6 +83,13 @@ const About = () => {
       {/* The Platform Tab */}
       {activeTab === 'platform' && (
       <>
+      <div className="text-center mb-8">
+        <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-3">How AretaCare Works</h3>
+        <p className="text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
+          A platform designed to keep conversations, documents, and insights in one place. Share with others when you need support, or keep it private when you don't.
+        </p>
+      </div>
+
       {/* Privacy & Security */}
       <div className="mb-6 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6 shadow-sm hover:shadow-md transition">
         <div className="flex items-center mb-4">
@@ -380,6 +387,13 @@ const About = () => {
       {/* The Principles Tab */}
       {activeTab === 'principles' && (
         <div className="space-y-6">
+          <div className="text-center mb-8">
+            <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-3">The Values That Guide Us</h3>
+            <p className="text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
+              These principles shape every decision we make about AretaCare, from what features we build to how we handle your data.
+            </p>
+          </div>
+
           {/* Principle 1 */}
           <div className="bg-gradient-to-br from-white to-blue-50/30 dark:from-gray-800 dark:to-blue-900/10 rounded-xl border-l-4 border-blue-500 dark:border-blue-400 shadow-md">
             <div className="p-6 sm:p-8">
