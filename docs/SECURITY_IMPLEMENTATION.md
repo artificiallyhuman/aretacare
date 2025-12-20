@@ -103,6 +103,145 @@ set_refresh_token_cookie(response, new_refresh_token)
 - Stolen tokens become invalid after first use
 - Provides detection opportunity (original user's session fails)
 
+### Refresh Token Locking
+
+To prevent race conditions when multiple browser tabs try to refresh tokens simultaneously, the `verify_refresh_token` function uses `SELECT FOR UPDATE` to lock the token row:
+
+```python
+# backend/app/core/auth.py
+def verify_refresh_token(db, raw_token: str, for_rotation: bool = False):
+    query = db.query(RefreshToken).filter(
+        RefreshToken.token == raw_token,
+        RefreshToken.is_revoked == False,
+        RefreshToken.expires_at > datetime.utcnow()
+    )
+
+    # Use FOR UPDATE lock when rotating to prevent race conditions
+    if for_rotation:
+        query = query.with_for_update()
+
+    token_record = query.first()
+    # ...
+```
+
+**How it prevents race conditions:**
+1. Tab A calls refresh → locks the token row
+2. Tab B calls refresh → waits for lock
+3. Tab A revokes token, creates new one, commits → releases lock
+4. Tab B acquires lock → but token is now revoked → returns 401
+
+### Token Limit
+
+To prevent unbounded token accumulation from multiple browser tabs or devices, the system enforces a maximum of 5 active refresh tokens per user:
+
+```python
+# backend/app/core/auth.py
+MAX_ACTIVE_TOKENS_PER_USER = 5
+
+def _enforce_token_limit(db, user_id: str):
+    """
+    Enforce the maximum active tokens limit for a user.
+    Revokes the oldest tokens (by last_used_at, then created_at) if over the limit.
+    """
+    active_tokens = db.query(RefreshToken).filter(
+        RefreshToken.user_id == user_id,
+        RefreshToken.is_revoked == False,
+        RefreshToken.expires_at > datetime.utcnow()
+    ).order_by(
+        RefreshToken.last_used_at.asc(),
+        RefreshToken.created_at.asc()
+    ).all()
+
+    tokens_to_revoke = len(active_tokens) - MAX_ACTIVE_TOKENS_PER_USER
+    if tokens_to_revoke > 0:
+        for token in active_tokens[:tokens_to_revoke]:
+            token.is_revoked = True
+            token.revoked_at = datetime.utcnow()
+        db.commit()
+```
+
+**Security Benefits:**
+- Prevents token accumulation from users who don't explicitly log out
+- Oldest/least-used tokens are revoked first
+- Users stay logged in on their most recently active sessions
+
+### Token Cleanup
+
+Expired and old revoked tokens are automatically deleted on application startup:
+
+```python
+# backend/app/main.py - startup_cleanup()
+# Delete tokens that are:
+# 1. Expired (expires_at < now), OR
+# 2. Revoked more than 7 days ago
+deleted_count = db.query(RefreshToken).filter(
+    or_(
+        RefreshToken.expires_at < now,
+        (RefreshToken.is_revoked == True) & (RefreshToken.revoked_at < revoked_cutoff)
+    )
+).delete(synchronize_session=False)
+```
+
+**Security Benefits:**
+- Reduces database bloat from accumulated tokens
+- Maintains 7-day audit trail for revoked tokens
+- Cleanup runs automatically on each deployment
+
+### Idle Timeout
+
+The frontend automatically logs users out after 30 minutes of inactivity:
+
+```javascript
+// frontend/src/components/IdleTimeout.jsx
+const IDLE_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
+const WARNING_BEFORE_MS = 60 * 1000;     // Show warning 1 minute before
+
+// Activity events tracked: mousedown, mousemove, keydown, touchstart, scroll, click
+```
+
+**Behavior:**
+1. After 29 minutes of inactivity, a warning modal appears with a countdown
+2. User can click "Stay Logged In" to reset the timer
+3. After 30 minutes, user is automatically logged out
+4. Login page shows message explaining the idle logout
+
+**Security Benefits:**
+- Protects against session hijacking on unattended devices
+- Reduces window of opportunity for physical access attacks
+- Cleans up abandoned sessions automatically
+
+### Cross-Tab Logout Sync
+
+When a user logs out from one browser tab, all other tabs in the same browser are immediately notified and redirected to the login page:
+
+```javascript
+// frontend/src/contexts/SessionContext.jsx
+useEffect(() => {
+  const handleStorageChange = (event) => {
+    // If auth_token was removed by another tab, log out this tab too
+    if (event.key === 'auth_token' && event.newValue === null) {
+      setUser(null);
+      setSessions([]);
+      setActiveSessionId(null);
+      window.location.replace('/login');
+    }
+  };
+
+  window.addEventListener('storage', handleStorageChange);
+  return () => window.removeEventListener('storage', handleStorageChange);
+}, []);
+```
+
+**How it works:**
+- The `storage` event fires when localStorage is changed by **another** tab (not the same tab)
+- When one tab logs out and removes `auth_token`, all other tabs detect this and redirect
+- This prevents stale sessions from remaining active in unused tabs
+
+**Security Benefits:**
+- Ensures "logout everywhere" immediately affects all browser tabs
+- Prevents users from accidentally using stale sessions
+- Provides consistent logout behavior across the application
+
 ### Logout Endpoint
 
 A dedicated `/logout` endpoint clears the HttpOnly cookie and revokes the refresh token:

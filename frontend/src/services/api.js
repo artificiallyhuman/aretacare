@@ -112,10 +112,32 @@ api.interceptors.response.use(
         localStorage.removeItem('user');
         localStorage.removeItem('session_id');
 
-        // Redirect to login
-        window.location.href = '/login';
+        // Force immediate redirect - don't let any further code execute
+        window.location.replace('/login');
 
-        return Promise.reject(refreshError);
+        // Return a never-resolving promise to prevent further processing
+        return new Promise(() => {});
+      }
+    }
+
+    // Handle 403 (Forbidden) with specific error codes that require logout
+    // Backend returns { message: "...", code: "CODE" } for actionable errors
+    if (error.response?.status === 403) {
+      const detail = error.response?.data?.detail;
+      const errorCode = typeof detail === 'object' ? detail?.code : null;
+
+      // Error codes that require logout/redirect
+      const LOGOUT_CODES = ['INACTIVE_USER', 'SESSION_ACCESS_DENIED'];
+
+      if (errorCode && LOGOUT_CODES.includes(errorCode)) {
+        // Clear local storage and redirect
+        localStorage.removeItem('auth_token');
+        localStorage.removeItem('refresh_token');
+        localStorage.removeItem('user');
+        localStorage.removeItem('session_id');
+
+        window.location.replace('/login');
+        return new Promise(() => {});
       }
     }
 

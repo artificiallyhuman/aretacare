@@ -106,6 +106,23 @@ export const SessionProvider = ({ children }) => {
     initializeSession();
   }, []);
 
+  // Listen for logout from other tabs via localStorage changes
+  useEffect(() => {
+    const handleStorageChange = (event) => {
+      // If auth_token was removed by another tab, log out this tab too
+      if (event.key === 'auth_token' && event.newValue === null) {
+        setUser(null);
+        setSessions([]);
+        setActiveSessionId(null);
+        // Redirect to login
+        window.location.replace('/login');
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, []);
+
   const createSession = async (name = null) => {
     try {
       const response = await sessionAPI.create(name);

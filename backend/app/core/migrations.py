@@ -1220,3 +1220,60 @@ def run_migrations():
                 conn.rollback()
         else:
             logger.info("refresh_tokens table already exists")
+
+        # =================================================================
+        # Add unique constraint on daily_plans (session_id, date)
+        # This prevents duplicate daily plans for the same session and date
+        # =================================================================
+        migration_name = "add_daily_plans_unique_constraint"
+        if not has_migration_run(conn, migration_name):
+            logger.info("Adding unique constraint to daily_plans table...")
+            try:
+                # First, remove any duplicate plans (keep the oldest one per session/date)
+                # Also delete associated daily_plan_views to avoid FK constraint issues
+                result = conn.execute(text("""
+                    WITH duplicates AS (
+                        SELECT id
+                        FROM daily_plans
+                        WHERE id NOT IN (
+                            SELECT MIN(id)
+                            FROM daily_plans
+                            GROUP BY session_id, date
+                        )
+                    )
+                    DELETE FROM daily_plan_views
+                    WHERE daily_plan_id IN (SELECT id FROM duplicates)
+                """))
+                conn.commit()
+
+                result = conn.execute(text("""
+                    DELETE FROM daily_plans
+                    WHERE id NOT IN (
+                        SELECT MIN(id)
+                        FROM daily_plans
+                        GROUP BY session_id, date
+                    )
+                """))
+                deleted_count = result.rowcount
+                conn.commit()
+                if deleted_count > 0:
+                    logger.info(f"Removed {deleted_count} duplicate daily plans")
+
+                # Now add the unique constraint
+                conn.execute(text("""
+                    ALTER TABLE daily_plans
+                    ADD CONSTRAINT uq_daily_plan_session_date UNIQUE (session_id, date)
+                """))
+                conn.commit()
+                logger.info("Successfully added unique constraint to daily_plans")
+
+                mark_migration_complete(conn, migration_name)
+
+            except Exception as e:
+                # Constraint might already exist
+                if "already exists" in str(e).lower() or "duplicate" in str(e).lower():
+                    logger.info("Unique constraint on daily_plans already exists")
+                    mark_migration_complete(conn, migration_name)
+                else:
+                    logger.error(f"Failed to add unique constraint to daily_plans: {e}")
+                    conn.rollback()

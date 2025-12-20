@@ -166,6 +166,35 @@ async def startup_cleanup():
     except Exception as e:
         logger.error(f"Failed to run invitation cleanup: {e}")
 
+    # Clean up old refresh tokens (expired or revoked more than 7 days ago)
+    try:
+        from app.models.refresh_token import RefreshToken
+        from datetime import datetime, timedelta
+        from sqlalchemy import or_
+
+        db = SessionLocal()
+        now = datetime.utcnow()
+        revoked_cutoff = now - timedelta(days=7)  # Keep revoked tokens for 7 days for auditing
+
+        # Delete tokens that are:
+        # 1. Expired (expires_at < now), OR
+        # 2. Revoked more than 7 days ago
+        deleted_count = db.query(RefreshToken).filter(
+            or_(
+                RefreshToken.expires_at < now,
+                (RefreshToken.is_revoked == True) & (RefreshToken.revoked_at < revoked_cutoff)
+            )
+        ).delete(synchronize_session=False)
+        db.commit()
+
+        if deleted_count > 0:
+            logger.info(f"✓ Refresh token cleanup: {deleted_count} expired/revoked tokens removed")
+        else:
+            logger.info(f"✓ Refresh token cleanup: No old tokens to remove")
+        db.close()
+    except Exception as e:
+        logger.error(f"Failed to run refresh token cleanup: {e}")
+
 
 @app.get("/")
 async def root():

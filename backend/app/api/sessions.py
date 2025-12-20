@@ -269,7 +269,10 @@ async def get_session(
     ).first() is not None
 
     if not (is_owner or is_collaborator):
-        raise HTTPException(status_code=403, detail="Access denied")
+        raise HTTPException(
+            status_code=403,
+            detail={"message": "Access denied", "code": "SESSION_ACCESS_DENIED"}
+        )
 
     # Update last activity
     session.last_activity = datetime.utcnow()

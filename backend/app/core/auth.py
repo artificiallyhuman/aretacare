@@ -66,6 +66,10 @@ def decode_access_token(token: str) -> Optional[dict]:
         return None
 
 
+# Maximum active refresh tokens per user (oldest are revoked when limit exceeded)
+MAX_ACTIVE_TOKENS_PER_USER = 5
+
+
 def create_refresh_token_record(db, user_id: str, device_info: str = None, ip_address: str = None):
     """
     Create a refresh token record in the database.
@@ -74,6 +78,9 @@ def create_refresh_token_record(db, user_id: str, device_info: str = None, ip_ad
     Refresh tokens are already cryptographically secure random values,
     so hashing provides no additional security benefit while causing
     significant performance issues (would require checking all tokens).
+
+    Enforces a maximum of MAX_ACTIVE_TOKENS_PER_USER active tokens per user.
+    When the limit is exceeded, the oldest tokens are automatically revoked.
     """
     from app.models.refresh_token import RefreshToken
 
@@ -93,24 +100,73 @@ def create_refresh_token_record(db, user_id: str, device_info: str = None, ip_ad
     db.commit()
     db.refresh(refresh_token)
 
+    # Enforce token limit: revoke oldest tokens if over the limit
+    _enforce_token_limit(db, user_id)
+
     return token, refresh_token
 
 
-def verify_refresh_token(db, raw_token: str):
+def _enforce_token_limit(db, user_id: str):
+    """
+    Enforce the maximum active tokens limit for a user.
+    Revokes the oldest tokens (by last_used_at, then created_at) if over the limit.
+    """
+    from app.models.refresh_token import RefreshToken
+    from sqlalchemy import func, case
+
+    now = datetime.utcnow()
+
+    # Get all active tokens for this user, ordered by last activity (oldest first)
+    # Use last_used_at if available, otherwise fall back to created_at
+    active_tokens = db.query(RefreshToken).filter(
+        RefreshToken.user_id == user_id,
+        RefreshToken.is_revoked == False,
+        RefreshToken.expires_at > now
+    ).order_by(
+        # Sort by last_used_at (nulls last), then by created_at
+        case((RefreshToken.last_used_at.is_(None), 1), else_=0),
+        RefreshToken.last_used_at.asc(),
+        RefreshToken.created_at.asc()
+    ).all()
+
+    # If over the limit, revoke the oldest tokens
+    tokens_to_revoke = len(active_tokens) - MAX_ACTIVE_TOKENS_PER_USER
+    if tokens_to_revoke > 0:
+        for token in active_tokens[:tokens_to_revoke]:
+            token.is_revoked = True
+            token.revoked_at = now
+        db.commit()
+
+
+def verify_refresh_token(db, raw_token: str, for_rotation: bool = False):
     """
     Verify a refresh token and return the associated record if valid.
 
     Returns the RefreshToken record if valid, None otherwise.
     Uses indexed database lookup (O(1)) instead of iterating all tokens.
+
+    Args:
+        db: Database session
+        raw_token: The refresh token string to verify
+        for_rotation: If True, uses SELECT FOR UPDATE to lock the row,
+                      preventing race conditions when multiple requests
+                      try to rotate the same token simultaneously
     """
     from app.models.refresh_token import RefreshToken
 
-    # Direct database lookup using indexed token column
-    token_record = db.query(RefreshToken).filter(
+    # Build the query
+    query = db.query(RefreshToken).filter(
         RefreshToken.token == raw_token,
         RefreshToken.is_revoked == False,
         RefreshToken.expires_at > datetime.utcnow()
-    ).first()
+    )
+
+    # Use FOR UPDATE lock when rotating to prevent race conditions
+    # This ensures only one concurrent request can use a token for rotation
+    if for_rotation:
+        query = query.with_for_update()
+
+    token_record = query.first()
 
     if token_record:
         # Update last_used_at

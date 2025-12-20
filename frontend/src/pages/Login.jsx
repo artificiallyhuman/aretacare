@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { authAPI } from '../services/api';
 import { useTheme } from '../contexts/ThemeContext';
 import logo from '../logos/large_logo.png';
@@ -9,8 +9,19 @@ function Login() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [idleLogout, setIdleLogout] = useState(false);
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { isDark, toggleTheme } = useTheme();
+
+  // Check if user was logged out due to idle timeout
+  useEffect(() => {
+    if (searchParams.get('idle') === 'true') {
+      setIdleLogout(true);
+      // Clean up the URL
+      window.history.replaceState({}, '', '/login');
+    }
+  }, [searchParams]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -100,6 +111,14 @@ function Login() {
 
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
         <div className="bg-white dark:bg-gray-800 py-6 px-4 shadow-md sm:rounded-xl sm:px-10 border border-gray-200 dark:border-gray-700 transition-colors duration-200">
+          {idleLogout && (
+            <div className="mb-4 bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300 px-4 py-3 rounded-lg text-sm flex items-start">
+              <svg className="w-5 h-5 mr-2 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <span>You were logged out due to inactivity. Please sign in again.</span>
+            </div>
+          )}
           {error && (
             <div className="mb-4 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300 px-4 py-3 rounded-lg text-sm">
               {error}

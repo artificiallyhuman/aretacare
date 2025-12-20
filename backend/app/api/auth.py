@@ -126,7 +126,7 @@ def get_current_user(
     if not user.is_active:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Inactive user"
+            detail={"message": "Inactive user", "code": "INACTIVE_USER"}
         )
 
     return user
@@ -366,7 +366,7 @@ def login(request: Request, response: Response, user_data: UserLogin, db: DBSess
     if not user.is_active:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Inactive user"
+            detail={"message": "Inactive user", "code": "INACTIVE_USER"}
         )
 
     # Create access token
@@ -774,8 +774,9 @@ def refresh_access_token(
             detail="Refresh token required"
         )
 
-    # Verify the refresh token
-    token_record = verify_refresh_token(db, refresh_token_value)
+    # Verify the refresh token with FOR UPDATE lock to prevent race conditions
+    # This ensures only one concurrent request can rotate a given token
+    token_record = verify_refresh_token(db, refresh_token_value, for_rotation=True)
 
     if not token_record:
         # Clear invalid cookie if present

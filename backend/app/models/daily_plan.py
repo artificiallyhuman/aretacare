@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Text, DateTime, Boolean, ForeignKey, Date
+from sqlalchemy import Column, Integer, String, Text, DateTime, Boolean, ForeignKey, Date, UniqueConstraint
 from sqlalchemy.orm import relationship
 from datetime import datetime
 from ..core.database import Base
@@ -6,6 +6,9 @@ from ..core.database import Base
 
 class DailyPlan(Base):
     __tablename__ = "daily_plans"
+    __table_args__ = (
+        UniqueConstraint('session_id', 'date', name='uq_daily_plan_session_date'),
+    )
 
     id = Column(Integer, primary_key=True, index=True)
     session_id = Column(String, ForeignKey("sessions.id", ondelete="CASCADE"), nullable=False)

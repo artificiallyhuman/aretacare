@@ -146,11 +146,24 @@ class DailyPlanService:
                 viewed=False
             )
             db.add(daily_plan)
-            db.commit()
-            db.refresh(daily_plan)
 
-            logger.info(f"Daily plan created successfully for {today}, ID: {daily_plan.id}")
-            return daily_plan
+            try:
+                db.commit()
+                db.refresh(daily_plan)
+                logger.info(f"Daily plan created successfully for {today}, ID: {daily_plan.id}")
+                return daily_plan
+            except Exception as commit_error:
+                db.rollback()
+                # Handle race condition: if another request created a plan while we were generating
+                if "unique" in str(commit_error).lower() or "duplicate" in str(commit_error).lower():
+                    logger.info(f"Race condition detected - plan already exists for {today}, fetching existing")
+                    existing_plan = db.query(DailyPlan).filter(
+                        DailyPlan.session_id == session_id,
+                        DailyPlan.date == today
+                    ).first()
+                    if existing_plan:
+                        return existing_plan
+                raise
 
         except Exception as e:
             db.rollback()

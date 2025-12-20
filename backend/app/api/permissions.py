@@ -34,7 +34,10 @@ def check_session_access(session: SessionModel, user_id: str, db: Session, requi
         raise HTTPException(status_code=403, detail="Only the session owner can perform this action")
 
     if not (is_owner or is_collaborator):
-        raise HTTPException(status_code=403, detail="Access denied")
+        raise HTTPException(
+            status_code=403,
+            detail={"message": "Access denied", "code": "SESSION_ACCESS_DENIED"}
+        )
 
     return is_owner
 
