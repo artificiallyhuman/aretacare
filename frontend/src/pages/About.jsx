@@ -25,11 +25,11 @@ const About = () => {
       </div>
 
       {/* Tab Navigation */}
-      <div className="flex justify-center mb-8">
+      <div className="flex justify-center mb-8 overflow-x-auto">
         <div className="inline-flex rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-1 shadow-sm">
           <button
             onClick={() => setActiveTab('story')}
-            className={`px-6 py-2 rounded-md text-sm font-medium transition-all ${
+            className={`px-3 sm:px-6 py-2 rounded-md text-xs sm:text-sm font-medium transition-all whitespace-nowrap ${
               activeTab === 'story'
                 ? 'bg-primary-600 text-white shadow-sm'
                 : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-700'
@@ -39,7 +39,7 @@ const About = () => {
           </button>
           <button
             onClick={() => setActiveTab('platform')}
-            className={`px-6 py-2 rounded-md text-sm font-medium transition-all ${
+            className={`px-3 sm:px-6 py-2 rounded-md text-xs sm:text-sm font-medium transition-all whitespace-nowrap ${
               activeTab === 'platform'
                 ? 'bg-primary-600 text-white shadow-sm'
                 : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-700'
@@ -49,7 +49,7 @@ const About = () => {
           </button>
           <button
             onClick={() => setActiveTab('security')}
-            className={`px-6 py-2 rounded-md text-sm font-medium transition-all ${
+            className={`px-3 sm:px-6 py-2 rounded-md text-xs sm:text-sm font-medium transition-all whitespace-nowrap ${
               activeTab === 'security'
                 ? 'bg-primary-600 text-white shadow-sm'
                 : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-700'
@@ -59,7 +59,7 @@ const About = () => {
           </button>
           <button
             onClick={() => setActiveTab('principles')}
-            className={`px-6 py-2 rounded-md text-sm font-medium transition-all ${
+            className={`px-3 sm:px-6 py-2 rounded-md text-xs sm:text-sm font-medium transition-all whitespace-nowrap ${
               activeTab === 'principles'
                 ? 'bg-primary-600 text-white shadow-sm'
                 : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-700'
@@ -69,7 +69,7 @@ const About = () => {
           </button>
           <button
             onClick={() => setActiveTab('faq')}
-            className={`px-6 py-2 rounded-md text-sm font-medium transition-all ${
+            className={`px-3 sm:px-6 py-2 rounded-md text-xs sm:text-sm font-medium transition-all whitespace-nowrap ${
               activeTab === 'faq'
                 ? 'bg-primary-600 text-white shadow-sm'
                 : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-700'
