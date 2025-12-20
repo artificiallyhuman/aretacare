@@ -423,7 +423,7 @@ async def upload_document(
         except Exception:
             pass  # Don't let error logging crash the app
 
-        raise HTTPException(status_code=500, detail=f"Error uploading document: {str(e)}")
+        raise HTTPException(status_code=500, detail="Error uploading document. Please try again.")
 
 
 @router.get("/session/{session_id}", response_model=DocumentListResponse)

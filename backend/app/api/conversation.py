@@ -291,7 +291,7 @@ async def send_message(
         except Exception:
             pass  # Don't let error logging crash the app
 
-        raise HTTPException(status_code=500, detail=f"Error processing message: {str(e)}")
+        raise HTTPException(status_code=500, detail="Error processing message. Please try again.")
 
 
 @router.get("/{session_id}/history", response_model=ConversationHistory)
@@ -636,7 +636,7 @@ async def transcribe_audio(
             except Exception:
                 pass  # Don't let error logging crash the app
 
-            raise HTTPException(status_code=500, detail=f"Error processing audio file: {str(e)}")
+            raise HTTPException(status_code=500, detail="Error processing audio file. Please try again.")
         finally:
             # Clean up temporary files
             if audio_temp_path and os.path.exists(audio_temp_path):
@@ -751,4 +751,4 @@ async def transcribe_audio(
         except Exception:
             pass  # Don't let error logging crash the app
 
-        raise HTTPException(status_code=500, detail=f"Error transcribing audio: {str(e)}")
+        raise HTTPException(status_code=500, detail="Error transcribing audio. Please try again.")

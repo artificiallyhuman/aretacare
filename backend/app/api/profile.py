@@ -91,7 +91,7 @@ async def update_profile_from_activity(
         profile, updated = await ProfileService.update_profile_from_activity(db, session_id, user_id=current_user.id)
         return profile
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to update profile: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to update profile. Please try again.")
 
 
 @router.put("/{session_id}", response_model=ProfileResponse)
@@ -255,7 +255,7 @@ async def regenerate_profile(
         profile = await ProfileService.regenerate_profile(db, session_id, user_id=current_user.id)
         return profile
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to regenerate profile: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to regenerate profile. Please try again.")
 
 
 @router.delete("/{session_id}")
