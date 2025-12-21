@@ -17,7 +17,7 @@ class ImageProcessingError(Exception):
 logger = logging.getLogger(__name__)
 
 
-def log_api_call(
+def _log_api_call_sync(
     feature: str,
     input_tokens: int,
     output_tokens: int,
@@ -27,14 +27,44 @@ def log_api_call(
     user_id: Optional[str] = None,
     error_message: Optional[str] = None
 ):
-    """Log an API call to the database for admin monitoring"""
-    try:
-        from app.core.database import SessionLocal
-        from app.models.api_log import ApiLog
+    """Synchronous helper to log an API call to the database"""
+    from app.core.database import SessionLocal
+    from app.models.api_log import ApiLog
 
-        db = SessionLocal()
-        try:
-            api_log = ApiLog(
+    db = SessionLocal()
+    try:
+        api_log = ApiLog(
+            feature=feature,
+            input_tokens=input_tokens,
+            output_tokens=output_tokens,
+            success=success,
+            model=model,
+            response_time_ms=response_time_ms,
+            user_id=user_id,
+            error_message=error_message
+        )
+        db.add(api_log)
+        db.commit()
+    finally:
+        db.close()
+
+
+async def log_api_call(
+    feature: str,
+    input_tokens: int,
+    output_tokens: int,
+    success: bool,
+    model: str,
+    response_time_ms: int,
+    user_id: Optional[str] = None,
+    error_message: Optional[str] = None
+):
+    """Log an API call to the database for admin monitoring (non-blocking)"""
+    try:
+        loop = asyncio.get_event_loop()
+        await loop.run_in_executor(
+            None,  # Use default thread pool
+            lambda: _log_api_call_sync(
                 feature=feature,
                 input_tokens=input_tokens,
                 output_tokens=output_tokens,
@@ -44,10 +74,7 @@ def log_api_call(
                 user_id=user_id,
                 error_message=error_message
             )
-            db.add(api_log)
-            db.commit()
-        finally:
-            db.close()
+        )
     except Exception as e:
         logger.error(f"Failed to log API call: {e}")
 
@@ -132,7 +159,7 @@ class OpenAIService:
                 response_time_ms = int((time.time() - start_time) * 1000)
 
                 # Log successful API call
-                log_api_call(
+                await log_api_call(
                     feature=feature,
                     input_tokens=input_tokens,
                     output_tokens=output_tokens,
@@ -182,7 +209,7 @@ class OpenAIService:
                 error_msg = str(e)[:500]
 
                 # Log failed API call
-                log_api_call(
+                await log_api_call(
                     feature=feature,
                     input_tokens=input_tokens,
                     output_tokens=output_tokens,
@@ -224,7 +251,7 @@ class OpenAIService:
                 error_msg = str(e)[:500]
 
                 # Log failed API call
-                log_api_call(
+                await log_api_call(
                     feature=feature,
                     input_tokens=input_tokens,
                     output_tokens=output_tokens,
@@ -256,7 +283,7 @@ class OpenAIService:
             response_time_ms = int((time.time() - start_time) * 1000)
             error_msg = str(last_exception)[:500]
 
-            log_api_call(
+            await log_api_call(
                 feature=feature,
                 input_tokens=input_tokens,
                 output_tokens=output_tokens,

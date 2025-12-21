@@ -30,7 +30,7 @@ def _estimate_tokens(text: str) -> int:
     return len(text) // 4
 
 
-def _log_daily_plan_api_call(
+async def _log_daily_plan_api_call(
     response,
     start_time: float,
     success: bool,
@@ -51,7 +51,7 @@ def _log_daily_plan_api_call(
 
         response_time_ms = int((time.time() - start_time) * 1000)
 
-        log_api_call(
+        await log_api_call(
             feature="daily_plan",
             input_tokens=input_tokens,
             output_tokens=output_tokens,
@@ -319,7 +319,7 @@ class DailyPlanService:
             )
 
             # Log successful API call
-            _log_daily_plan_api_call(response, start_time, True, user_id)
+            await _log_daily_plan_api_call(response, start_time, True, user_id)
 
             # Extract text from Responses API
             text = getattr(response, "output_text", None)
@@ -336,7 +336,7 @@ class DailyPlanService:
 
         except Exception as e:
             # Log failed API call
-            _log_daily_plan_api_call(response, start_time, False, user_id, str(e)[:500])
+            await _log_daily_plan_api_call(response, start_time, False, user_id, str(e)[:500])
             logger.error(f"Error calling OpenAI API: {str(e)}")
             raise
 

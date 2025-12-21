@@ -21,7 +21,7 @@ import time
 logger = logging.getLogger(__name__)
 
 
-def _log_journal_api_call(
+async def _log_journal_api_call(
     feature: str,
     response,
     start_time: float,
@@ -43,7 +43,7 @@ def _log_journal_api_call(
 
         response_time_ms = int((time.time() - start_time) * 1000)
 
-        log_api_call(
+        await log_api_call(
             feature=feature,
             input_tokens=input_tokens,
             output_tokens=output_tokens,
@@ -238,9 +238,9 @@ IMPORTANT: Respond with ONLY a valid JSON object in this exact format, with no a
                     model=self.model,
                     input=messages
                 )
-                _log_journal_api_call("journal_document_synthesis", response, start_time, True, user_id)
+                await _log_journal_api_call("journal_document_synthesis", response, start_time, True, user_id)
             except Exception as api_error:
-                _log_journal_api_call("journal_document_synthesis", None, start_time, False, user_id, str(api_error)[:500])
+                await _log_journal_api_call("journal_document_synthesis", None, start_time, False, user_id, str(api_error)[:500])
                 raise
 
             # Extract text from Responses API
@@ -444,9 +444,9 @@ IMPORTANT: Respond with ONLY a valid JSON object in this exact format, with no a
                     model=self.model,
                     input=messages
                 )
-                _log_journal_api_call("journal_audio_synthesis", response, start_time, True, user_id)
+                await _log_journal_api_call("journal_audio_synthesis", response, start_time, True, user_id)
             except Exception as api_error:
-                _log_journal_api_call("journal_audio_synthesis", None, start_time, False, user_id, str(api_error)[:500])
+                await _log_journal_api_call("journal_audio_synthesis", None, start_time, False, user_id, str(api_error)[:500])
                 raise
 
             # Extract text from Responses API
@@ -645,9 +645,9 @@ IMPORTANT: Respond with ONLY a valid JSON object in this exact format, with no a
                     model=self.model,
                     input=messages
                 )
-                _log_journal_api_call("journal_conversation_synthesis", response, start_time, True, user_id)
+                await _log_journal_api_call("journal_conversation_synthesis", response, start_time, True, user_id)
             except Exception as api_error:
-                _log_journal_api_call("journal_conversation_synthesis", None, start_time, False, user_id, str(api_error)[:500])
+                await _log_journal_api_call("journal_conversation_synthesis", None, start_time, False, user_id, str(api_error)[:500])
                 raise
 
             # Extract text from Responses API

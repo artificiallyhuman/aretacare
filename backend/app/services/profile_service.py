@@ -34,7 +34,7 @@ def _estimate_tokens(text: str) -> int:
     return len(text) // 4
 
 
-def _log_profile_api_call(
+async def _log_profile_api_call(
     feature: str,
     response,
     start_time: float,
@@ -56,7 +56,7 @@ def _log_profile_api_call(
 
         response_time_ms = int((time.time() - start_time) * 1000)
 
-        log_api_call(
+        await log_api_call(
             feature=feature,
             input_tokens=input_tokens,
             output_tokens=output_tokens,
@@ -415,7 +415,7 @@ class ProfileService:
                 raise Exception("No response from AI for initial profile")
 
             # Log successful API call
-            _log_profile_api_call("profile_initial", response, start_time, True, user_id)
+            await _log_profile_api_call("profile_initial", response, start_time, True, user_id)
 
             # Parse JSON response
             profile_data = ProfileService._parse_json_response(text)
@@ -433,7 +433,7 @@ class ProfileService:
 
         except Exception as e:
             # Log failed API call
-            _log_profile_api_call("profile_initial", response, start_time, False, user_id, str(e))
+            await _log_profile_api_call("profile_initial", response, start_time, False, user_id, str(e))
             logger.error(f"Error generating initial profile: {str(e)}", exc_info=True)
             db.rollback()
             raise
@@ -480,7 +480,7 @@ class ProfileService:
                 raise Exception("No response from AI for profile update")
 
             # Log successful API call
-            _log_profile_api_call("profile_update", response, start_time, True, user_id)
+            await _log_profile_api_call("profile_update", response, start_time, True, user_id)
 
             # Parse JSON response
             update_data = ProfileService._parse_json_response(text)
@@ -524,7 +524,7 @@ class ProfileService:
 
         except Exception as e:
             # Log failed API call
-            _log_profile_api_call("profile_update", response, start_time, False, user_id, str(e))
+            await _log_profile_api_call("profile_update", response, start_time, False, user_id, str(e))
             logger.error(f"Error updating existing profile: {str(e)}", exc_info=True)
             db.rollback()
             raise
