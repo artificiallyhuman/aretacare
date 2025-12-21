@@ -1335,3 +1335,46 @@ def run_migrations():
             except Exception as e:
                 logger.error(f"Failed to add email verification columns: {e}")
                 conn.rollback()
+
+        # =================================================================
+        # Add unique constraint on pending_invitations (email, session_id)
+        # This prevents duplicate invitations via race conditions
+        # =================================================================
+        migration_name = "add_pending_invitations_unique_constraint"
+        if not has_migration_run(conn, migration_name):
+            logger.info("Adding unique constraint to pending_invitations table...")
+            try:
+                # First, remove any duplicate invitations (keep the newest one per email/session)
+                result = conn.execute(text("""
+                    DELETE FROM pending_invitations
+                    WHERE id NOT IN (
+                        SELECT id FROM (
+                            SELECT DISTINCT ON (email, session_id) id
+                            FROM pending_invitations
+                            ORDER BY email, session_id, created_at DESC
+                        ) AS newest
+                    )
+                """))
+                deleted_count = result.rowcount
+                conn.commit()
+                if deleted_count > 0:
+                    logger.info(f"Removed {deleted_count} duplicate pending invitations")
+
+                # Now add the unique constraint
+                conn.execute(text("""
+                    ALTER TABLE pending_invitations
+                    ADD CONSTRAINT uq_pending_invitation_email_session UNIQUE (email, session_id)
+                """))
+                conn.commit()
+                logger.info("Successfully added unique constraint to pending_invitations")
+
+                mark_migration_complete(conn, migration_name)
+
+            except Exception as e:
+                # Constraint might already exist
+                if "already exists" in str(e).lower() or "duplicate" in str(e).lower():
+                    logger.info("Unique constraint on pending_invitations already exists")
+                    mark_migration_complete(conn, migration_name)
+                else:
+                    logger.error(f"Failed to add unique constraint to pending_invitations: {e}")
+                    conn.rollback()

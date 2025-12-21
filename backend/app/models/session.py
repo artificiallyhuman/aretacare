@@ -17,13 +17,15 @@ class Session(Base):
     is_active = Column(Boolean, default=True, nullable=False)
 
     # Relationships
+    # Note: passive_deletes=True tells SQLAlchemy to let the database handle cascade deletes
+    # via ON DELETE CASCADE foreign keys, avoiding loading all children into memory
     user = relationship("User", back_populates="sessions", foreign_keys=[user_id])
     owner = relationship("User", foreign_keys=[owner_id])
-    collaborators = relationship("SessionCollaborator", back_populates="session", cascade="all, delete-orphan")
-    pending_invitations = relationship("PendingInvitation", back_populates="session", cascade="all, delete-orphan")
-    documents = relationship("Document", back_populates="session", cascade="all, delete-orphan")
-    conversations = relationship("Conversation", back_populates="session", cascade="all, delete-orphan")
-    journal_entries = relationship("JournalEntry", back_populates="session", cascade="all, delete-orphan")
-    audio_recordings = relationship("AudioRecording", back_populates="session", cascade="all, delete-orphan")
-    daily_plans = relationship("DailyPlan", back_populates="session", cascade="all, delete-orphan")
-    profile = relationship("Profile", back_populates="session", uselist=False, cascade="all, delete-orphan")
+    collaborators = relationship("SessionCollaborator", back_populates="session", cascade="all, delete-orphan", passive_deletes=True)
+    pending_invitations = relationship("PendingInvitation", back_populates="session", cascade="all, delete-orphan", passive_deletes=True)
+    documents = relationship("Document", back_populates="session", cascade="all, delete-orphan", passive_deletes=True)
+    conversations = relationship("Conversation", back_populates="session", cascade="all, delete-orphan", passive_deletes=True)
+    journal_entries = relationship("JournalEntry", back_populates="session", cascade="all, delete-orphan", passive_deletes=True)
+    audio_recordings = relationship("AudioRecording", back_populates="session", cascade="all, delete-orphan", passive_deletes=True)
+    daily_plans = relationship("DailyPlan", back_populates="session", cascade="all, delete-orphan", passive_deletes=True)
+    profile = relationship("Profile", back_populates="session", uselist=False, cascade="all, delete-orphan", passive_deletes=True)
