@@ -21,11 +21,12 @@ export default function AdminSecurityLogs() {
   const [selectedLog, setSelectedLog] = useState(null);
   const [eventTypeFilter, setEventTypeFilter] = useState('');
   const [emailFilter, setEmailFilter] = useState('');
+  const [includeInvalidTokens, setIncludeInvalidTokens] = useState(false);
   const limit = 50;
 
   useEffect(() => {
     fetchSecurityLogs();
-  }, [page, eventTypeFilter]);
+  }, [page, eventTypeFilter, includeInvalidTokens]);
 
   const fetchSecurityLogs = async () => {
     setLoading(true);
@@ -34,6 +35,7 @@ export default function AdminSecurityLogs() {
       const params = {
         page,
         page_size: limit,
+        exclude_invalid_tokens: !includeInvalidTokens,
         ...(eventTypeFilter && { event_type: eventTypeFilter }),
         ...(emailFilter && { email: emailFilter })
       };
@@ -97,6 +99,16 @@ export default function AdminSecurityLogs() {
               <option value="blocked_file_upload">Blocked File Upload</option>
               <option value="upload_failure">Upload Failure</option>
             </select>
+
+            <label className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={includeInvalidTokens}
+                onChange={(e) => { setIncludeInvalidTokens(e.target.checked); setPage(1); }}
+                className="w-4 h-4 rounded border-gray-300 dark:border-gray-600 text-primary-600 focus:ring-primary-500"
+              />
+              Include invalid tokens
+            </label>
           </div>
 
           <form onSubmit={handleEmailSearch} className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">

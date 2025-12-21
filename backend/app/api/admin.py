@@ -802,6 +802,7 @@ async def get_security_logs(
     page_size: int = Query(50, ge=1, le=200, description="Results per page"),
     event_type: Optional[str] = Query(None, description="Filter by event type: failed_login, invalid_token, unauthorized_access"),
     email: Optional[str] = Query(None, description="Filter by email"),
+    exclude_invalid_tokens: bool = Query(True, description="Exclude invalid_token events (they're common and expected)"),
     admin_user: User = Depends(get_admin_user),
     db: DBSession = Depends(get_db)
 ):
@@ -812,6 +813,9 @@ async def get_security_logs(
     # Apply filters
     if event_type:
         query = query.filter(SecurityLog.event_type == event_type)
+    elif exclude_invalid_tokens:
+        # Only exclude if not filtering by a specific event type
+        query = query.filter(SecurityLog.event_type != "invalid_token")
     if email:
         query = query.filter(SecurityLog.email.ilike(f"%{email}%"))
 
