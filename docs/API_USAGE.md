@@ -34,9 +34,9 @@ Content-Type: application/json
   "password": "securepassword123",
   "acknowledge_not_medical_advice": true,
   "acknowledge_hipaa": true,
-  "acknowledge_beta_version": true,
   "acknowledge_email_communications": true,
-  "agree_to_terms": true
+  "agree_to_terms": true,
+  "invitation_token": null
 }
 ```
 

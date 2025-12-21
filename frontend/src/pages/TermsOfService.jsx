@@ -132,25 +132,9 @@ const TermsOfService = () => {
             </div>
           </section>
 
-          {/* Section 6 - Beta Software */}
+          {/* Section 6 */}
           <section>
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4 pb-2 border-b-2 border-primary-200 dark:border-primary-800">6. Beta Software</h2>
-            <div className="space-y-4">
-              <div className="bg-amber-50 dark:bg-amber-900/30 border-l-4 border-amber-500 dark:border-amber-600 p-5 rounded-r-lg">
-                <p className="text-amber-900 dark:text-amber-200 font-medium mb-2">The system is currently in beta and may be unstable. Users may experience:</p>
-                <ul className="list-disc list-inside space-y-1 text-amber-800 dark:text-amber-300 pl-2">
-                  <li>Occasional data loss</li>
-                  <li>Service interruptions or downtime</li>
-                  <li>Bugs, errors, or unexpected behavior</li>
-                  <li>Changes to features or functionality without notice</li>
-                </ul>
-              </div>
-            </div>
-          </section>
-
-          {/* Section 7 */}
-          <section>
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4 pb-2 border-b-2 border-primary-200 dark:border-primary-800">7. User Responsibilities</h2>
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4 pb-2 border-b-2 border-primary-200 dark:border-primary-800">6. User Responsibilities</h2>
             <div className="space-y-4">
               <p className="text-gray-700 dark:text-gray-300 leading-relaxed text-base">You are responsible for:</p>
               <ul className="list-disc list-inside space-y-2 text-gray-700 dark:text-gray-300 dark:text-gray-300 pl-4">
@@ -163,9 +147,9 @@ const TermsOfService = () => {
             </div>
           </section>
 
-          {/* Section 8 - Email Communications */}
+          {/* Section 7 - Email Communications */}
           <section>
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4 pb-2 border-b-2 border-primary-200 dark:border-primary-800">8. Email Communications</h2>
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4 pb-2 border-b-2 border-primary-200 dark:border-primary-800">7. Email Communications</h2>
             <div className="space-y-4">
               <p className="text-gray-700 dark:text-gray-300 leading-relaxed text-base">
                 By creating an account, you consent to receive automated email notifications from AretaCare. These emails are essential for account security and session management.
@@ -202,9 +186,9 @@ const TermsOfService = () => {
             </div>
           </section>
 
-          {/* Section 9 */}
+          {/* Section 8 */}
           <section>
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4 pb-2 border-b-2 border-primary-200 dark:border-primary-800">9. Limitation of Liability</h2>
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4 pb-2 border-b-2 border-primary-200 dark:border-primary-800">8. Limitation of Liability</h2>
             <div className="space-y-4">
               <p className="text-gray-700 dark:text-gray-300 leading-relaxed text-base">
                 To the maximum extent permitted by law, the developers, contributors, and maintainers of AretaCare shall not be liable for any indirect, incidental, special, consequential, or punitive damages, or any loss of profits or revenues, whether incurred directly or indirectly, or any loss of data, use, goodwill, or other intangible losses resulting from:
@@ -219,9 +203,9 @@ const TermsOfService = () => {
             </div>
           </section>
 
-          {/* Section 10 */}
+          {/* Section 9 */}
           <section>
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4 pb-2 border-b-2 border-primary-200 dark:border-primary-800">10. Third-Party Services</h2>
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4 pb-2 border-b-2 border-primary-200 dark:border-primary-800">9. Third-Party Services</h2>
             <div className="space-y-4">
               <p className="text-gray-700 dark:text-gray-300 leading-relaxed text-base">AretaCare uses third-party services including:</p>
               <div className="grid gap-4 sm:grid-cols-2">
@@ -240,9 +224,9 @@ const TermsOfService = () => {
             </div>
           </section>
 
-          {/* Section 11 - Data Use */}
+          {/* Section 10 - Data Use */}
           <section>
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4 pb-2 border-b-2 border-primary-200 dark:border-primary-800">11. Data Use and Privacy</h2>
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4 pb-2 border-b-2 border-primary-200 dark:border-primary-800">10. Data Use and Privacy</h2>
             <div className="space-y-4">
               <p className="text-gray-700 dark:text-gray-300 leading-relaxed text-base">
                 AretaCare never sells your personal data or shares it with hospitals, insurers, advertisers, or data brokers.

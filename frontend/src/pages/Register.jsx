@@ -13,7 +13,6 @@ function Register() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [acknowledgeNotMedicalAdvice, setAcknowledgeNotMedicalAdvice] = useState(false);
   const [acknowledgeHIPAA, setAcknowledgeHIPAA] = useState(false);
-  const [acknowledgeBetaVersion, setAcknowledgeBetaVersion] = useState(false);
   const [acknowledgeEmailCommunications, setAcknowledgeEmailCommunications] = useState(false);
   const [agreeToTerms, setAgreeToTerms] = useState(false);
   const [error, setError] = useState('');
@@ -67,11 +66,6 @@ function Register() {
       return;
     }
 
-    if (!acknowledgeBetaVersion) {
-      setError('You must acknowledge the beta status and potential for data loss');
-      return;
-    }
-
     if (!acknowledgeEmailCommunications) {
       setError('You must acknowledge that you will receive email communications');
       return;
@@ -90,8 +84,9 @@ function Register() {
         email,
         password,
         acknowledgeNotMedicalAdvice,
-        acknowledgeBetaVersion,
+        acknowledgeHIPAA,
         acknowledgeEmailCommunications,
+        agreeToTerms,
         invitationToken
       );
 
@@ -339,21 +334,6 @@ function Register() {
                     />
                     <label htmlFor="acknowledgeHIPAA" className="ml-3 text-sm text-gray-700 dark:text-gray-300 cursor-pointer">
                       I understand this service is not HIPAA-covered and is intended for personal use. I will not rely on AretaCare as my primary source of medical information.
-                    </label>
-                  </div>
-
-                  <div className="flex items-start">
-                    <input
-                      type="checkbox"
-                      id="acknowledgeBetaVersion"
-                      checked={acknowledgeBetaVersion}
-                      onChange={(e) => setAcknowledgeBetaVersion(e.target.checked)}
-                      disabled={loading}
-                      className="mt-1 h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 dark:border-gray-600 rounded cursor-pointer"
-                      required
-                    />
-                    <label htmlFor="acknowledgeBetaVersion" className="ml-3 text-sm text-gray-700 dark:text-gray-300 cursor-pointer">
-                      I understand AretaCare is currently in beta and may experience instability and occasional data loss. I will not rely on it as the only place I store critical health information.
                     </label>
                   </div>
 

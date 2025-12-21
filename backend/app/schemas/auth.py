@@ -8,8 +8,9 @@ class UserRegister(BaseModel):
     email: EmailStr
     password: str = Field(..., min_length=8, max_length=72)
     acknowledge_not_medical_advice: bool = Field(..., description="User acknowledges AretaCare is not medical advice")
-    acknowledge_beta_version: bool = Field(..., description="User acknowledges beta status and potential data loss")
+    acknowledge_hipaa: bool = Field(..., description="User acknowledges HIPAA limitations")
     acknowledge_email_communications: bool = Field(..., description="User acknowledges they will receive email communications")
+    agree_to_terms: bool = Field(..., description="User agrees to Terms of Service and Privacy Policy")
     invitation_token: str | None = Field(None, description="Optional invitation token for accepting session invitations")
 
 

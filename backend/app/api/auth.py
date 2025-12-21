@@ -144,16 +144,22 @@ def register(request: Request, response: Response, user_data: UserRegister, db: 
             detail="You must acknowledge that AretaCare is not medical advice"
         )
 
-    if not user_data.acknowledge_beta_version:
+    if not user_data.acknowledge_hipaa:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="You must acknowledge the beta version status and potential data loss"
+            detail="You must acknowledge the HIPAA limitations"
         )
 
     if not user_data.acknowledge_email_communications:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="You must acknowledge that you will receive email communications"
+        )
+
+    if not user_data.agree_to_terms:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="You must agree to the Terms of Service and Privacy Policy"
         )
 
     # Check if user already exists

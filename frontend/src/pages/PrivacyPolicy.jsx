@@ -219,7 +219,7 @@ const PrivacyPolicy = () => {
                     <svg className="w-6 h-6 mr-2 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
                       <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
                     </svg>
-                    <span>IMPORTANT: While we implement security measures, we cannot guarantee absolute security. As a beta open source project:</span>
+                    <span>IMPORTANT: While we implement security measures, we cannot guarantee absolute security. As an open source project:</span>
                   </p>
                   <ul className="space-y-2 text-amber-800 dark:text-amber-300 pl-8">
                     <li className="flex items-start">
@@ -384,9 +384,9 @@ const PrivacyPolicy = () => {
             </p>
           </section>
 
-          {/* Section 11 - Beta Software Warning */}
+          {/* Section 11 - HIPAA and Data Practices */}
           <section>
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4 pb-2 border-b-2 border-primary-200 dark:border-primary-800">11. Beta Software, HIPAA, and Data Loss</h2>
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4 pb-2 border-b-2 border-primary-200 dark:border-primary-800">11. HIPAA and Data Practices</h2>
             <div className="bg-amber-50 dark:bg-amber-900/30 border-l-4 border-amber-500 dark:border-amber-600 p-5 rounded-r-lg space-y-3">
               <div>
                 <p className="text-amber-900 dark:text-amber-200 font-semibold mb-2">Direct-to-Consumer Tool</p>
@@ -397,13 +397,7 @@ const PrivacyPolicy = () => {
               <div>
                 <p className="text-amber-900 dark:text-amber-200 font-semibold mb-2">Not a HIPAA-Covered Service</p>
                 <p className="text-amber-900 dark:text-amber-200">
-                  AretaCare is not a HIPAA-covered service. The platform does not receive information directly from healthcare providers and is not intended to serve as a medical record system.
-                </p>
-              </div>
-              <div>
-                <p className="text-amber-900 dark:text-amber-200 font-semibold mb-2">Beta Software and Data Loss</p>
-                <p className="text-amber-900 dark:text-amber-200">
-                  The system is currently in beta and may be unstable with occasional data loss. We are not responsible for any lost data. Do not rely on it for storing critical health information.
+                  AretaCare is not a HIPAA-covered service. The platform does not receive information directly from healthcare providers and is not intended to serve as a medical record system. Do not rely on AretaCare as your only place to store critical health information.
                 </p>
               </div>
             </div>
