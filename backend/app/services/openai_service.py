@@ -1,9 +1,13 @@
-from openai import AsyncOpenAI, BadRequestError
+from openai import AsyncOpenAI, BadRequestError, RateLimitError, APIConnectionError, APITimeoutError, InternalServerError
 from app.core.config import settings
 from app.config import ai_config
 from typing import List, Dict, Optional, Any
 import logging
 import time
+import asyncio
+
+# Exception types that should trigger a retry (transient failures)
+RETRYABLE_EXCEPTIONS = (RateLimitError, APIConnectionError, APITimeoutError, InternalServerError)
 
 
 class ImageProcessingError(Exception):
@@ -88,7 +92,10 @@ class OpenAIService:
     """Service for OpenAI API interactions with safety boundaries"""
 
     def __init__(self):
-        self.client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
+        self.client = AsyncOpenAI(
+            api_key=settings.OPENAI_API_KEY,
+            timeout=settings.OPENAI_TIMEOUT_SECONDS
+        )
         self.model = ai_config.CHAT_MODEL
 
     async def _create_chat_completion(
@@ -97,54 +104,158 @@ class OpenAIService:
         feature: str = "unknown",
         user_id: Optional[str] = None,
     ) -> Optional[str]:
-        """Create chat completion with error handling using Responses API"""
+        """Create chat completion with error handling, timeout, and retry logic using Responses API
+
+        Includes:
+        - Configurable timeout per request (default: 60s)
+        - Configurable retries with exponential backoff for transient failures
+        - Retryable errors: RateLimitError, APIConnectionError, APITimeoutError, InternalServerError
+        """
         start_time = time.time()
         input_tokens = 0
         output_tokens = 0
+        last_exception = None
+        max_retries = settings.OPENAI_MAX_RETRIES
 
-        try:
-            response = await self.client.responses.create(
-                model=self.model,
-                input=messages,
-            )
+        for attempt in range(max_retries):
+            try:
+                response = await self.client.responses.create(
+                    model=self.model,
+                    input=messages,
+                )
 
-            # Extract token usage from response
-            if hasattr(response, "usage") and response.usage:
-                input_tokens = getattr(response.usage, "input_tokens", 0) or 0
-                output_tokens = getattr(response.usage, "output_tokens", 0) or 0
+                # Extract token usage from response
+                if hasattr(response, "usage") and response.usage:
+                    input_tokens = getattr(response.usage, "input_tokens", 0) or 0
+                    output_tokens = getattr(response.usage, "output_tokens", 0) or 0
 
+                response_time_ms = int((time.time() - start_time) * 1000)
+
+                # Log successful API call
+                log_api_call(
+                    feature=feature,
+                    input_tokens=input_tokens,
+                    output_tokens=output_tokens,
+                    success=True,
+                    model=self.model,
+                    response_time_ms=response_time_ms,
+                    user_id=user_id
+                )
+
+                # Prefer the convenience property if available
+                text = getattr(response, "output_text", None)
+                if text is not None:
+                    return text
+
+                # Fallback: extract first text segment from output
+                if getattr(response, "output", None):
+                    first_item = response.output[0]
+                    if getattr(first_item, "content", None):
+                        first_content = first_item.content[0]
+                        return getattr(first_content, "text", None)
+
+                return None
+
+            except RETRYABLE_EXCEPTIONS as e:
+                last_exception = e
+                retry_delay = min(
+                    settings.OPENAI_RETRY_DELAY * (2 ** attempt),
+                    settings.OPENAI_MAX_RETRY_DELAY
+                )
+
+                if attempt < max_retries - 1:
+                    logger.warning(
+                        f"OpenAI API transient error (attempt {attempt + 1}/{max_retries}): {type(e).__name__}. "
+                        f"Retrying in {retry_delay}s..."
+                    )
+                    await asyncio.sleep(retry_delay)
+                    continue  # Try again
+                else:
+                    # Final attempt failed
+                    logger.error(
+                        f"OpenAI API failed after {max_retries} attempts: {type(e).__name__}: {e}"
+                    )
+                    # Fall through to log the error
+
+            except BadRequestError as e:
+                response_time_ms = int((time.time() - start_time) * 1000)
+                error_msg = str(e)[:500]
+
+                # Log failed API call
+                log_api_call(
+                    feature=feature,
+                    input_tokens=input_tokens,
+                    output_tokens=output_tokens,
+                    success=False,
+                    model=self.model,
+                    response_time_ms=response_time_ms,
+                    user_id=user_id,
+                    error_message=error_msg
+                )
+
+                logger.error(f"OpenAI BadRequestError: {e}")
+
+                # Check if this is an image-related error
+                error_str = str(e).lower()
+                if "image" in error_str and ("invalid" in error_str or "not represent" in error_str or "could not process" in error_str):
+                    # Raise a specific error for image processing failures
+                    raise ImageProcessingError(
+                        "The image could not be processed by the AI. This may happen if the file is corrupted, "
+                        "too small, or in an unsupported format. Please try uploading a different image (JPEG, PNG, GIF, or WEBP)."
+                    )
+
+                # Log to database for admin visibility
+                try:
+                    from app.services.error_logger import log_error_standalone
+                    log_error_standalone(
+                        source="services.openai._create_chat_completion",
+                        error=e,
+                        level="ERROR",
+                        details={"model": self.model, "message_count": len(messages)}
+                    )
+                except Exception:
+                    pass
+
+                return None
+
+            except Exception as e:
+                last_exception = e
+                response_time_ms = int((time.time() - start_time) * 1000)
+                error_msg = str(e)[:500]
+
+                # Log failed API call
+                log_api_call(
+                    feature=feature,
+                    input_tokens=input_tokens,
+                    output_tokens=output_tokens,
+                    success=False,
+                    model=self.model,
+                    response_time_ms=response_time_ms,
+                    user_id=user_id,
+                    error_message=error_msg
+                )
+
+                logger.error(f"OpenAI API error: {e}")
+
+                # Log to database for admin visibility
+                try:
+                    from app.services.error_logger import log_error_standalone
+                    log_error_standalone(
+                        source="services.openai._create_chat_completion",
+                        error=e,
+                        level="ERROR",
+                        details={"model": self.model, "message_count": len(messages)}
+                    )
+                except Exception:
+                    pass
+
+                return None
+
+        # If we get here, all retries for transient errors were exhausted
+        if last_exception:
             response_time_ms = int((time.time() - start_time) * 1000)
+            error_msg = str(last_exception)[:500]
 
-            # Log successful API call
-            log_api_call(
-                feature=feature,
-                input_tokens=input_tokens,
-                output_tokens=output_tokens,
-                success=True,
-                model=self.model,
-                response_time_ms=response_time_ms,
-                user_id=user_id
-            )
-
-            # Prefer the convenience property if available
-            text = getattr(response, "output_text", None)
-            if text is not None:
-                return text
-
-            # Fallback: extract first text segment from output
-            if getattr(response, "output", None):
-                first_item = response.output[0]
-                if getattr(first_item, "content", None):
-                    first_content = first_item.content[0]
-                    return getattr(first_content, "text", None)
-
-            return None
-
-        except BadRequestError as e:
-            response_time_ms = int((time.time() - start_time) * 1000)
-            error_msg = str(e)[:500]
-
-            # Log failed API call
             log_api_call(
                 feature=feature,
                 input_tokens=input_tokens,
@@ -153,65 +264,21 @@ class OpenAIService:
                 model=self.model,
                 response_time_ms=response_time_ms,
                 user_id=user_id,
-                error_message=error_msg
+                error_message=f"Exhausted retries: {error_msg}"
             )
 
-            logger.error(f"OpenAI BadRequestError: {e}")
-
-            # Check if this is an image-related error
-            error_str = str(e).lower()
-            if "image" in error_str and ("invalid" in error_str or "not represent" in error_str or "could not process" in error_str):
-                # Raise a specific error for image processing failures
-                raise ImageProcessingError(
-                    "The image could not be processed by the AI. This may happen if the file is corrupted, "
-                    "too small, or in an unsupported format. Please try uploading a different image (JPEG, PNG, GIF, or WEBP)."
-                )
-
-            # Log to database for admin visibility
             try:
                 from app.services.error_logger import log_error_standalone
                 log_error_standalone(
                     source="services.openai._create_chat_completion",
-                    error=e,
+                    error=last_exception,
                     level="ERROR",
-                    details={"model": self.model, "message_count": len(messages)}
+                    details={"model": self.model, "message_count": len(messages), "retries_exhausted": True}
                 )
             except Exception:
                 pass
 
-            return None
-
-        except Exception as e:
-            response_time_ms = int((time.time() - start_time) * 1000)
-            error_msg = str(e)[:500]  # Truncate error message
-
-            # Log failed API call
-            log_api_call(
-                feature=feature,
-                input_tokens=input_tokens,
-                output_tokens=output_tokens,
-                success=False,
-                model=self.model,
-                response_time_ms=response_time_ms,
-                user_id=user_id,
-                error_message=error_msg
-            )
-
-            logger.error(f"OpenAI API error: {e}")
-
-            # Log to database for admin visibility
-            try:
-                from app.services.error_logger import log_error_standalone
-                log_error_standalone(
-                    source="services.openai._create_chat_completion",
-                    error=e,
-                    level="ERROR",
-                    details={"model": self.model, "message_count": len(messages)}
-                )
-            except Exception:
-                pass  # Don't let error logging crash the app
-
-            return None
+        return None
 
     async def translate_jargon(
         self,
@@ -645,30 +712,78 @@ When information conflicts, trust more recent sources.
         return response if response else ai_config.FALLBACK_CHAT
 
     async def transcribe_audio(self, audio_file, filename: str) -> Optional[str]:
-        """Transcribe audio file using OpenAI's speech-to-text API"""
-        try:
-            # OpenAI expects a tuple of (filename, file_content, content_type) for in-memory files
-            transcription = await self.client.audio.transcriptions.create(
-                model=ai_config.TRANSCRIPTION_MODEL,
-                file=(filename, audio_file, "audio/mpeg"),
-                response_format="text"
-            )
-            return transcription
-        except Exception as e:
-            logger.error(f"Audio transcription error: {e}")
+        """Transcribe audio file using OpenAI's speech-to-text API
 
-            # Log to database for admin visibility
+        Includes:
+        - Configurable timeout per request (configured on client)
+        - Configurable retries with exponential backoff for transient failures
+        """
+        last_exception = None
+        max_retries = settings.OPENAI_MAX_RETRIES
+
+        for attempt in range(max_retries):
+            try:
+                # OpenAI expects a tuple of (filename, file_content, content_type) for in-memory files
+                # Reset file position for retry attempts
+                if hasattr(audio_file, 'seek'):
+                    audio_file.seek(0)
+
+                transcription = await self.client.audio.transcriptions.create(
+                    model=ai_config.TRANSCRIPTION_MODEL,
+                    file=(filename, audio_file, "audio/mpeg"),
+                    response_format="text"
+                )
+                return transcription
+
+            except RETRYABLE_EXCEPTIONS as e:
+                last_exception = e
+                retry_delay = min(
+                    settings.OPENAI_RETRY_DELAY * (2 ** attempt),
+                    settings.OPENAI_MAX_RETRY_DELAY
+                )
+
+                if attempt < max_retries - 1:
+                    logger.warning(
+                        f"Audio transcription transient error (attempt {attempt + 1}/{max_retries}): {type(e).__name__}. "
+                        f"Retrying in {retry_delay}s..."
+                    )
+                    await asyncio.sleep(retry_delay)
+                    continue
+                else:
+                    logger.error(
+                        f"Audio transcription failed after {max_retries} attempts: {type(e).__name__}: {e}"
+                    )
+
+            except Exception as e:
+                logger.error(f"Audio transcription error: {e}")
+
+                # Log to database for admin visibility
+                try:
+                    from app.services.error_logger import log_error_standalone
+                    log_error_standalone(
+                        source="services.openai.transcribe_audio",
+                        error=e,
+                        level="ERROR",
+                        details={"filename": filename}
+                    )
+                except Exception:
+                    pass
+
+                return None
+
+        # If we get here, all retries for transient errors were exhausted
+        if last_exception:
             try:
                 from app.services.error_logger import log_error_standalone
                 log_error_standalone(
                     source="services.openai.transcribe_audio",
-                    error=e,
+                    error=last_exception,
                     level="ERROR",
-                    details={"filename": filename}
+                    details={"filename": filename, "retries_exhausted": True}
                 )
             except Exception:
-                pass  # Don't let error logging crash the app
+                pass
 
-            return None
+        return None
 
 openai_service = OpenAIService()

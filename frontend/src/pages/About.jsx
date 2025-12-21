@@ -21,7 +21,7 @@ const FAQ_DATA = [
   },
   {
     id: 'ai-response-speed',
-    title: 'Why are AI responses slow?',
+    title: 'Why are the AI responses so slow?',
     icon: 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z',
     content: "There's a tradeoff when it comes to AI. Small models are fast and cheap, but their responses aren't always reliable and they struggle processing complex information. Large models are slow and expensive, but they're highly capable. We care most about quality, so we use large models even though responses take a little longer and are more expensive to generate.",
   },
