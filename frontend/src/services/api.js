@@ -201,18 +201,20 @@ export const authAPI = {
     api.post('/auth/password-reset/reset', { token, new_password: newPassword }),
 
   logout: async () => {
-    try {
-      // Call server to clear HttpOnly refresh token cookie and revoke token
-      await api.post('/auth/logout');
-    } catch (error) {
-      // Even if server call fails, still clear local storage
-      console.error('Logout request failed:', error);
-    }
-    // Clear local storage
+    // Clear local storage FIRST (synchronously) before async server call
+    // This ensures logout happens immediately even if server call is slow or fails
     localStorage.removeItem('auth_token');
     localStorage.removeItem('refresh_token');  // Clean up legacy values
     localStorage.removeItem('user');
     localStorage.removeItem('session_id');
+
+    try {
+      // Call server to clear HttpOnly refresh token cookie and revoke token
+      await api.post('/auth/logout');
+    } catch (error) {
+      // Server call failed, but client-side logout already happened
+      console.error('Logout request failed:', error);
+    }
   },
 
   logoutEverywhere: () =>
