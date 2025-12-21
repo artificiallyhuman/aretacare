@@ -570,22 +570,10 @@ export default function Settings() {
             {expandedSection === 'security' && (
               <div className="px-4 sm:px-6 pb-4 border-t border-gray-100 dark:border-gray-700">
                 <div className="mt-4 space-y-4">
-                  <div>
-                    <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-2">
-                      Logout From All Devices
-                    </h3>
-                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
-                      This will log you out of all devices and browsers where you're currently signed in.
-                      You'll need to log in again on all devices.
-                    </p>
-                    <button
-                      onClick={handleLogoutEverywhere}
-                      disabled={loading.security}
-                      className="px-4 py-2 text-sm font-medium rounded-lg transition-colors w-full sm:w-auto bg-amber-500 hover:bg-amber-600 text-white disabled:bg-gray-300 dark:disabled:bg-gray-600 disabled:cursor-not-allowed"
-                    >
-                      {loading.security ? 'Logging Out...' : 'Logout Everywhere'}
-                    </button>
-                  </div>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                    This will log you out of all devices and browsers where you're currently signed in.
+                    You'll need to log in again on all devices.
+                  </p>
 
                   {errors.security && (
                     <div className="text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/30 px-3 py-2 rounded">
@@ -597,19 +585,27 @@ export default function Settings() {
                       {success.security}
                     </div>
                   )}
+
+                  <button
+                    onClick={handleLogoutEverywhere}
+                    disabled={loading.security}
+                    className="btn-primary w-full sm:w-auto"
+                  >
+                    {loading.security ? 'Logging Out...' : 'Logout Everywhere'}
+                  </button>
                 </div>
               </div>
             )}
           </div>
 
           {/* Manage Sessions */}
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-orange-300 dark:border-orange-700 transition-colors duration-200">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 transition-colors duration-200">
             <button
               onClick={() => toggleSection('sessions')}
-              className="w-full px-4 sm:px-6 py-4 flex items-center justify-between hover:bg-orange-50 dark:hover:bg-orange-900/20 transition-colors"
+              className="w-full px-4 sm:px-6 py-4 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
             >
               <div className="text-left">
-                <h2 className="text-base sm:text-lg font-semibold text-orange-600 dark:text-orange-400">Manage Sessions</h2>
+                <h2 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white">Manage Sessions</h2>
                 <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
                   View, rename, and delete your sessions
                 </p>
@@ -627,7 +623,7 @@ export default function Settings() {
             </button>
 
             {expandedSection === 'sessions' && (
-              <div className="px-4 sm:px-6 pb-4 border-t border-orange-100 dark:border-orange-900/30">
+              <div className="px-4 sm:px-6 pb-4 border-t border-gray-100 dark:border-gray-700">
                 <div className="mt-4 space-y-4">
                   {success.sessions && (
                     <div className="text-sm text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/30 px-3 py-2 rounded">
