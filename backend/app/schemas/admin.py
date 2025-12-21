@@ -10,13 +10,21 @@ from typing import Optional, List, Any
 class PlatformMetrics(BaseModel):
     """Current platform-wide metrics."""
     user_count: int
+    weekly_active_percentage: float
     session_count: int
+    avg_sessions_per_user: float
     collaborator_count: int
+    avg_collaborators_per_user: float
     pending_invitation_count: int
+    avg_pending_invitations_per_user: float
     document_count: int
+    avg_documents_per_user: float
     audio_count: int
+    avg_audio_per_user: float
     conversation_count: int
+    avg_messages_per_user: float
     journal_count: int
+    avg_journal_entries_per_user: float
     daily_plan_count: int
 
 

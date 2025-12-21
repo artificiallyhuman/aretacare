@@ -103,15 +103,61 @@ class AdminService:
 
     def get_platform_metrics(self, db: Session) -> dict:
         """Get current platform-wide metrics."""
+        user_count = db.query(User).count()
+
+        # Calculate weekly active users percentage
+        # A user is "active" if they've sent a message in the past 7 days
+        seven_days_ago = datetime.utcnow() - timedelta(days=7)
+
+        # Get distinct user IDs who have sent messages in the past 7 days
+        # We join through sessions to get the user_id
+        active_user_ids = db.query(SessionModel.user_id).join(
+            Conversation, Conversation.session_id == SessionModel.id
+        ).filter(
+            Conversation.created_at >= seven_days_ago,
+            Conversation.role == 'user'  # Only count user messages, not AI responses
+        ).distinct().count()
+
+        weekly_active_percentage = round((active_user_ids / user_count * 100), 1) if user_count > 0 else 0.0
+
+        session_count = db.query(SessionModel).count()
+        avg_sessions_per_user = round(session_count / user_count, 1) if user_count > 0 else 0.0
+
+        collaborator_count = db.query(SessionCollaborator).count()
+        avg_collaborators_per_user = round(collaborator_count / user_count, 1) if user_count > 0 else 0.0
+
+        pending_invitation_count = db.query(PendingInvitation).count()
+        avg_pending_invitations_per_user = round(pending_invitation_count / user_count, 1) if user_count > 0 else 0.0
+
+        document_count = db.query(Document).count()
+        avg_documents_per_user = round(document_count / user_count, 1) if user_count > 0 else 0.0
+
+        audio_count = db.query(AudioRecording).count()
+        avg_audio_per_user = round(audio_count / user_count, 1) if user_count > 0 else 0.0
+
+        conversation_count = db.query(Conversation).count()
+        avg_messages_per_user = round(conversation_count / user_count, 1) if user_count > 0 else 0.0
+
+        journal_count = db.query(JournalEntry).count()
+        avg_journal_entries_per_user = round(journal_count / user_count, 1) if user_count > 0 else 0.0
+
         return {
-            "user_count": db.query(User).count(),
-            "session_count": db.query(SessionModel).count(),
-            "collaborator_count": db.query(SessionCollaborator).count(),
-            "pending_invitation_count": db.query(PendingInvitation).count(),
-            "document_count": db.query(Document).count(),
-            "audio_count": db.query(AudioRecording).count(),
-            "conversation_count": db.query(Conversation).count(),
-            "journal_count": db.query(JournalEntry).count(),
+            "user_count": user_count,
+            "weekly_active_percentage": weekly_active_percentage,
+            "session_count": session_count,
+            "avg_sessions_per_user": avg_sessions_per_user,
+            "collaborator_count": collaborator_count,
+            "avg_collaborators_per_user": avg_collaborators_per_user,
+            "pending_invitation_count": pending_invitation_count,
+            "avg_pending_invitations_per_user": avg_pending_invitations_per_user,
+            "document_count": document_count,
+            "avg_documents_per_user": avg_documents_per_user,
+            "audio_count": audio_count,
+            "avg_audio_per_user": avg_audio_per_user,
+            "conversation_count": conversation_count,
+            "avg_messages_per_user": avg_messages_per_user,
+            "journal_count": journal_count,
+            "avg_journal_entries_per_user": avg_journal_entries_per_user,
             "daily_plan_count": db.query(DailyPlan).count()
         }
 

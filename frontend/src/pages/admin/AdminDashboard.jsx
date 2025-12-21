@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import AdminLayout from '../../components/admin/AdminLayout';
 import { adminAPI } from '../../services/api';
 
-function MetricCard({ title, value, icon, color, loading }) {
+function MetricCard({ title, value, subtitle, icon, color, loading }) {
   const colorClasses = {
     blue: 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400',
     green: 'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400',
@@ -22,9 +22,14 @@ function MetricCard({ title, value, icon, color, loading }) {
           {loading ? (
             <div className="h-6 md:h-8 w-12 md:w-16 bg-gray-200 dark:bg-gray-700 rounded animate-pulse mt-1"></div>
           ) : (
-            <p className="text-xl md:text-2xl font-bold text-gray-900 dark:text-white mt-1">
-              {value?.toLocaleString() ?? '-'}
-            </p>
+            <>
+              <p className="text-xl md:text-2xl font-bold text-gray-900 dark:text-white mt-1">
+                {value?.toLocaleString() ?? '-'}
+              </p>
+              {subtitle && (
+                <p className="text-xs text-gray-500 dark:text-gray-400">{subtitle}</p>
+              )}
+            </>
           )}
         </div>
         <div className={`p-2 md:p-3 rounded-full flex-shrink-0 ${colorClasses[color] || colorClasses.blue}`}>
@@ -165,6 +170,7 @@ export default function AdminDashboard() {
           <MetricCard
             title="Users"
             value={metrics?.user_count}
+            subtitle={metrics?.weekly_active_percentage != null ? `${metrics.weekly_active_percentage}% weekly active` : null}
             icon="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"
             color="blue"
             loading={loading}
@@ -172,6 +178,7 @@ export default function AdminDashboard() {
           <MetricCard
             title="Sessions"
             value={metrics?.session_count}
+            subtitle={metrics?.avg_sessions_per_user != null ? `${metrics.avg_sessions_per_user.toFixed(1)} avg per user` : null}
             icon="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"
             color="green"
             loading={loading}
@@ -179,6 +186,7 @@ export default function AdminDashboard() {
           <MetricCard
             title="Collaborators"
             value={metrics?.collaborator_count}
+            subtitle={metrics?.avg_collaborators_per_user != null ? `${metrics.avg_collaborators_per_user.toFixed(1)} avg per user` : null}
             icon="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
             color="indigo"
             loading={loading}
@@ -186,6 +194,7 @@ export default function AdminDashboard() {
           <MetricCard
             title="Pending Invites"
             value={metrics?.pending_invitation_count}
+            subtitle={metrics?.avg_pending_invitations_per_user != null ? `${metrics.avg_pending_invitations_per_user.toFixed(1)} avg per user` : null}
             icon="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
             color="orange"
             loading={loading}
@@ -193,6 +202,7 @@ export default function AdminDashboard() {
           <MetricCard
             title="Messages"
             value={metrics?.conversation_count}
+            subtitle={metrics?.avg_messages_per_user != null ? `${metrics.avg_messages_per_user.toFixed(1)} avg per user` : null}
             icon="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
             color="pink"
             loading={loading}
@@ -200,6 +210,7 @@ export default function AdminDashboard() {
           <MetricCard
             title="Journal Entries"
             value={metrics?.journal_count}
+            subtitle={metrics?.avg_journal_entries_per_user != null ? `${metrics.avg_journal_entries_per_user.toFixed(1)} avg per user` : null}
             icon="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
             color="cyan"
             loading={loading}
@@ -207,6 +218,7 @@ export default function AdminDashboard() {
           <MetricCard
             title="Documents"
             value={metrics?.document_count}
+            subtitle={metrics?.avg_documents_per_user != null ? `${metrics.avg_documents_per_user.toFixed(1)} avg per user` : null}
             icon="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
             color="purple"
             loading={loading}
@@ -214,6 +226,7 @@ export default function AdminDashboard() {
           <MetricCard
             title="Audio Recordings"
             value={metrics?.audio_count}
+            subtitle={metrics?.avg_audio_per_user != null ? `${metrics.avg_audio_per_user.toFixed(1)} avg per user` : null}
             icon="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"
             color="orange"
             loading={loading}
