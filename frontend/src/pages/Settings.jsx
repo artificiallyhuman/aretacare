@@ -176,8 +176,8 @@ export default function Settings() {
       setSuccess((prev) => ({ ...prev, security: response.data.message || 'Logged out of all devices' }));
 
       // Log out current session after a short delay
-      setTimeout(() => {
-        authAPI.logout();
+      setTimeout(async () => {
+        await authAPI.logout();
         window.location.href = '/login';
       }, 2000);
     } catch (error) {
@@ -264,7 +264,7 @@ export default function Settings() {
 
     try {
       await authAPI.deleteAccount(deleteForm.password);
-      authAPI.logout();
+      await authAPI.logout();
       window.location.href = '/login';
     } catch (error) {
       setErrors((prev) => ({

@@ -37,7 +37,7 @@ export const SessionProvider = ({ children }) => {
           setUser(userData);
         } catch (err) {
           // Token invalid, clear auth data
-          authAPI.logout();
+          await authAPI.logout();
           setLoading(false);
           return;
         }
@@ -265,8 +265,8 @@ export const SessionProvider = ({ children }) => {
     }
   };
 
-  const logout = () => {
-    authAPI.logout();
+  const logout = async () => {
+    await authAPI.logout();
     setUser(null);
     setSessions([]);
     setActiveSessionId(null);

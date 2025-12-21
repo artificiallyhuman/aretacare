@@ -223,6 +223,7 @@ function Login() {
                 </label>
                 <Link
                   to="/password-reset"
+                  tabIndex={-1}
                   className="text-xs text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300"
                 >
                   Forgot password?
