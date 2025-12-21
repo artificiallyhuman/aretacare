@@ -3,6 +3,193 @@ import logo from '../logos/large_logo.png';
 import jasonSignature from '../logos/jason_signature.png';
 import robSignature from '../logos/rob_signature.png';
 
+// FAQ data organized by category
+const FAQ_DATA = [
+  // GETTING STARTED
+  {
+    id: 'what-is-aretacare',
+    title: 'What is AretaCare?',
+    icon: 'M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z',
+    content: 'AretaCare is a secure platform for patients and caregivers to organize medical information, understand complex concepts, and prepare for clearer conversations with care teams. It keeps notes, documents, audio recordings, and updates together in one place.',
+    category: 'GETTING STARTED',
+  },
+  {
+    id: 'chatgpt-difference',
+    title: 'How is this different than ChatGPT?',
+    icon: 'M13 10V3L4 14h7v7l9-11h-7z',
+    content: "AretaCare uses the same AI models, but it's built for a specific purpose. Instead of one-off chats, you get a dedicated place to organize your care information and collaborate with family or other caregivers. You also stay in control of your data, with the ability to add, edit, or delete anything at any time.",
+  },
+  {
+    id: 'ai-response-speed',
+    title: 'Why are AI responses slow?',
+    icon: 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z',
+    content: "There's a tradeoff when it comes to AI. Small models are fast and cheap, but their responses aren't always reliable and they struggle processing complex information. Large models are slow and expensive, but they're highly capable. We care most about quality, so we use large models even though responses take a little longer and are more expensive to generate.",
+  },
+  {
+    id: 'ai-training',
+    title: 'Are AI models trained on my data?',
+    icon: 'M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z',
+    content: (
+      <>
+        No. We do not train our own models, and all data sent to OpenAI via the API is{' '}
+        <a href="https://platform.openai.com/docs/guides/your-data" target="_blank" rel="noopener noreferrer" className="text-primary-600 dark:text-primary-400 hover:underline font-medium">
+          excluded from their model training
+        </a>
+        . When you delete your AretaCare data, it's gone. There aren't any remnants in AI models due to training.
+      </>
+    ),
+  },
+  {
+    id: 'session-limit',
+    title: 'Why can I only have three owned sessions?',
+    icon: 'M7 20l4-16m2 16l4-16M6 9h14M4 15h14',
+    content: "Sessions are meant to be temporary workspaces. Limiting owned sessions helps keep things manageable. Sessions where you're a collaborator don't count against this limit. You can delete old sessions to create room for new ones in Settings.",
+  },
+  {
+    id: 'what-info-store',
+    title: 'What kind of information can I store in AretaCare?',
+    icon: 'M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4',
+    content: (
+      <div className="space-y-3">
+        <p>Anything that helps you manage care:</p>
+        <ul className="list-disc pl-6 space-y-1">
+          <li>Notes and questions</li>
+          <li>Documents and images</li>
+          <li>Audio recordings</li>
+          <li>Journal entries</li>
+          <li>Appointment details</li>
+          <li>Symptoms, medications, and updates</li>
+        </ul>
+        <p>If it helps you stay organized, it fits.</p>
+      </div>
+    ),
+  },
+  // SECURITY & PRIVACY
+  {
+    id: 'data-secure',
+    title: 'Is my data secure?',
+    icon: 'M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z',
+    content: (
+      <div className="space-y-3">
+        <p>Yes. Your data is encrypted in transit and at rest. All traffic is protected by enterprise-grade edge security including DDoS protection and web application firewall. Accounts use hashed passwords, secure login tokens, and email verification.</p>
+        <p>Documents, images, and audio files are stored securely in AWS (Amazon Web Services). Text data like conversation history, care journals, and daily plans are stored in AretaCare's own secure database.</p>
+      </div>
+    ),
+    category: 'SECURITY & PRIVACY',
+  },
+  {
+    id: 'who-can-see',
+    title: 'Who can see my information?',
+    icon: 'M15 12a3 3 0 11-6 0 3 3 0 016 0z',
+    iconSecondary: 'M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z',
+    content: 'Only you and the people you invite to collaborate on a session. AretaCare never sells your personal data or shares it with hospitals, insurers, advertisers, or data brokers.',
+  },
+  {
+    id: 'data-sharing',
+    title: 'Does AretaCare sell or share my data?',
+    icon: 'M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636',
+    content: (
+      <div className="space-y-3">
+        <p>No. Your personal data is never sold or used for advertising. You stay in control of what you add and what you delete.</p>
+        <p>To fund the platform, we may generate aggregate, population-level insights from patterns across many users, but these insights contain no individual records and cannot be traced back to any specific person.</p>
+      </div>
+    ),
+  },
+  {
+    id: 'hipaa',
+    title: 'Is AretaCare a HIPAA-covered service?',
+    icon: 'M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z',
+    content: (
+      <div className="space-y-3">
+        <p>No. AretaCare is a consumer-facing tool, not a HIPAA-covered entity or business associate. It does not connect to hospitals, insurers, or electronic health record systems, and it does not receive information directly from healthcare providers.</p>
+        <p>Even though HIPAA does not apply, AretaCare uses strong security and privacy practices like encrypted storage, secure authentication, and strict access controls.</p>
+      </div>
+    ),
+  },
+  // DATA MANAGEMENT
+  {
+    id: 'delete-data',
+    title: 'Can I delete my data?',
+    icon: 'M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16',
+    content: "Yes. You can delete documents, audio recordings, journal entries, sessions, or your entire account. When you delete something, it's permanently removed from both our database and AWS storage.",
+    category: 'DATA MANAGEMENT',
+  },
+  {
+    id: 'data-backup',
+    title: 'Is my data backed up?',
+    icon: 'M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z',
+    content: 'Your data is stored securely, but you should always keep your own copies of essential documents.',
+  },
+  // USAGE & LIMITATIONS
+  {
+    id: 'medical-advice',
+    title: 'Does AretaCare give medical advice?',
+    icon: 'M18.364 5.636a9 9 0 010 12.728m0 0l-2.829-2.829m2.829 2.829L21 21M15.536 8.464a5 5 0 010 7.072m0 0l-2.829-2.829m-4.243 2.829a4.978 4.978 0 01-1.414-2.83m-1.414 5.658a9 9 0 01-2.167-9.238m7.824 2.167a1 1 0 111.414 1.414m-1.414-1.414L3 3m8.293 8.293l1.414 1.414',
+    content: "No. AretaCare helps you understand information and stay organized, but it doesn't diagnose conditions, recommend treatments, or serve as medical advice.",
+    category: 'USAGE & LIMITATIONS',
+  },
+  {
+    id: 'doctors-use',
+    title: 'Can doctors use AretaCare with me?',
+    icon: 'M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z',
+    content: "Not right now. AretaCare is designed for personal use by patients and caregivers. It isn't part of clinical workflows and shouldn't replace any official medical systems.",
+  },
+  // PLATFORM DETAILS
+  {
+    id: 'why-free',
+    title: 'Why is AretaCare free?',
+    icon: 'M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z',
+    content: 'The goal is to make the platform accessible to anyone who needs help managing care. Optional ways to support AretaCare may be added later, but the core platform will remain free to use.',
+    category: 'PLATFORM DETAILS',
+  },
+  {
+    id: 'open-source',
+    title: 'Is AretaCare open source?',
+    icon: 'M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4',
+    content: (
+      <>
+        Yes. Anyone can review how the platform works, suggest improvements, or verify how data is handled in our public{' '}
+        <a href="https://github.com/artificiallyhuman/aretacare" target="_blank" rel="noopener noreferrer" className="text-primary-600 dark:text-primary-400 hover:underline font-medium">
+          GitHub repository
+        </a>.
+      </>
+    ),
+  },
+];
+
+// FaqItem component for rendering individual FAQs
+const FaqItem = ({ faq, isExpanded, onToggle }) => (
+  <div className="bg-gradient-to-r from-blue-50 to-white dark:from-blue-900/20 dark:to-gray-800 rounded-lg border-l-4 border-blue-500 dark:border-blue-400 shadow-sm hover:shadow-md transition-shadow">
+    <button
+      onClick={onToggle}
+      className="w-full px-6 py-4 flex items-center gap-4 hover:bg-blue-50/50 dark:hover:bg-blue-900/10 transition-colors"
+    >
+      <div className="flex-shrink-0 w-8 h-8 bg-blue-100 dark:bg-blue-900/50 rounded-lg flex items-center justify-center">
+        <svg className="w-5 h-5 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={faq.icon} />
+          {faq.iconSecondary && (
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={faq.iconSecondary} />
+          )}
+        </svg>
+      </div>
+      <span className="flex-1 text-left font-semibold text-gray-900 dark:text-white">{faq.title}</span>
+      <svg
+        className={`w-5 h-5 text-blue-500 dark:text-blue-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
+        fill="none"
+        stroke="currentColor"
+        viewBox="0 0 24 24"
+      >
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+      </svg>
+    </button>
+    {isExpanded && (
+      <div className="px-6 pt-5 pb-6 text-gray-600 dark:text-gray-400 leading-relaxed border-t border-blue-200 dark:border-blue-800 mt-2">
+        {typeof faq.content === 'string' ? faq.content : faq.content}
+      </div>
+    )}
+  </div>
+);
+
 const About = () => {
   const [activeTab, setActiveTab] = useState('story');
   const [expandedFaq, setExpandedFaq] = useState(null);
@@ -554,420 +741,14 @@ const About = () => {
       {activeTab === 'faq' && (
         <div className="space-y-4">
           <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-6 text-center">Frequently Asked Questions</h3>
-
-          {/* GETTING STARTED */}
-
-          {/* FAQ 1: What is AretaCare? */}
-          <div className="bg-gradient-to-r from-blue-50 to-white dark:from-blue-900/20 dark:to-gray-800 rounded-lg border-l-4 border-blue-500 dark:border-blue-400 shadow-sm hover:shadow-md transition-shadow">
-            <button
-              onClick={() => setExpandedFaq(expandedFaq === 1 ? null : 1)}
-              className="w-full px-6 py-4 flex items-center gap-4 hover:bg-blue-50/50 dark:hover:bg-blue-900/10 transition-colors"
-            >
-              <div className="flex-shrink-0 w-8 h-8 bg-blue-100 dark:bg-blue-900/50 rounded-lg flex items-center justify-center">
-                <svg className="w-5 h-5 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-              </div>
-              <span className="flex-1 text-left font-semibold text-gray-900 dark:text-white">What is AretaCare?</span>
-              <svg
-                className={`w-5 h-5 text-blue-500 dark:text-blue-400 transition-transform ${expandedFaq === 1 ? 'rotate-180' : ''}`}
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-              </svg>
-            </button>
-            {expandedFaq === 1 && (
-              <div className="px-6 pt-5 pb-6 text-gray-600 dark:text-gray-400 leading-relaxed border-t border-blue-200 dark:border-blue-800 mt-2">
-                AretaCare is a secure platform for patients and caregivers to organize medical information, understand complex concepts, and prepare for clearer conversations with care teams. It keeps notes, documents, audio recordings, and updates together in one place.
-              </div>
-            )}
-          </div>
-
-          {/* FAQ 2: How is this different than ChatGPT? */}
-          <div className="bg-gradient-to-r from-blue-50 to-white dark:from-blue-900/20 dark:to-gray-800 rounded-lg border-l-4 border-blue-500 dark:border-blue-400 shadow-sm hover:shadow-md transition-shadow">
-            <button
-              onClick={() => setExpandedFaq(expandedFaq === 2 ? null : 2)}
-              className="w-full px-6 py-4 flex items-center gap-4 hover:bg-blue-50/50 dark:hover:bg-blue-900/10 transition-colors"
-            >
-              <div className="flex-shrink-0 w-8 h-8 bg-blue-100 dark:bg-blue-900/50 rounded-lg flex items-center justify-center">
-                <svg className="w-5 h-5 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                </svg>
-              </div>
-              <span className="flex-1 text-left font-semibold text-gray-900 dark:text-white">How is this different than ChatGPT?</span>
-              <svg
-                className={`w-5 h-5 text-blue-500 dark:text-blue-400 transition-transform ${expandedFaq === 2 ? 'rotate-180' : ''}`}
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-              </svg>
-            </button>
-            {expandedFaq === 2 && (
-              <div className="px-6 pt-5 pb-6 text-gray-600 dark:text-gray-400 leading-relaxed border-t border-blue-200 dark:border-blue-800 mt-2">
-                AretaCare uses the same AI models, but it's built for a specific purpose. Instead of one-off chats, you get a dedicated place to organize your care information and collaborate with family or other caregivers. You also stay in control of your data, with the ability to add, edit, or delete anything at any time.
-              </div>
-            )}
-          </div>
-
-          {/* FAQ 3: Why can I only have three owned sessions? */}
-          <div className="bg-gradient-to-r from-blue-50 to-white dark:from-blue-900/20 dark:to-gray-800 rounded-lg border-l-4 border-blue-500 dark:border-blue-400 shadow-sm hover:shadow-md transition-shadow">
-            <button
-              onClick={() => setExpandedFaq(expandedFaq === 3 ? null : 3)}
-              className="w-full px-6 py-4 flex items-center gap-4 hover:bg-blue-50/50 dark:hover:bg-blue-900/10 transition-colors"
-            >
-              <div className="flex-shrink-0 w-8 h-8 bg-blue-100 dark:bg-blue-900/50 rounded-lg flex items-center justify-center">
-                <svg className="w-5 h-5 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 20l4-16m2 16l4-16M6 9h14M4 15h14" />
-                </svg>
-              </div>
-              <span className="flex-1 text-left font-semibold text-gray-900 dark:text-white">Why can I only have three owned sessions?</span>
-              <svg
-                className={`w-5 h-5 text-blue-500 dark:text-blue-400 transition-transform ${expandedFaq === 3 ? 'rotate-180' : ''}`}
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-              </svg>
-            </button>
-            {expandedFaq === 3 && (
-              <div className="px-6 pt-5 pb-6 text-gray-600 dark:text-gray-400 leading-relaxed border-t border-blue-200 dark:border-blue-800 mt-2">
-                Sessions are meant to be temporary workspaces. Limiting owned sessions helps keep things manageable. Sessions where you're a collaborator don't count against this limit. You can delete old sessions to create room for new ones in Settings.
-              </div>
-            )}
-          </div>
-
-          {/* FAQ 4: What kind of information can I store in AretaCare? */}
-          <div className="bg-gradient-to-r from-blue-50 to-white dark:from-blue-900/20 dark:to-gray-800 rounded-lg border-l-4 border-blue-500 dark:border-blue-400 shadow-sm hover:shadow-md transition-shadow">
-            <button
-              onClick={() => setExpandedFaq(expandedFaq === 4 ? null : 4)}
-              className="w-full px-6 py-4 flex items-center gap-4 hover:bg-blue-50/50 dark:hover:bg-blue-900/10 transition-colors"
-            >
-              <div className="flex-shrink-0 w-8 h-8 bg-blue-100 dark:bg-blue-900/50 rounded-lg flex items-center justify-center">
-                <svg className="w-5 h-5 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4" />
-                </svg>
-              </div>
-              <span className="flex-1 text-left font-semibold text-gray-900 dark:text-white">What kind of information can I store in AretaCare?</span>
-              <svg
-                className={`w-5 h-5 text-blue-500 dark:text-blue-400 transition-transform ${expandedFaq === 4 ? 'rotate-180' : ''}`}
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-              </svg>
-            </button>
-            {expandedFaq === 4 && (
-              <div className="px-6 pt-5 pb-6 text-gray-600 dark:text-gray-400 leading-relaxed border-t border-blue-200 dark:border-blue-800 mt-2 space-y-3">
-                <p>Anything that helps you manage care:</p>
-                <ul className="list-disc pl-6 space-y-1">
-                  <li>Notes and questions</li>
-                  <li>Documents and images</li>
-                  <li>Audio recordings</li>
-                  <li>Journal entries</li>
-                  <li>Appointment details</li>
-                  <li>Symptoms, medications, and updates</li>
-                </ul>
-                <p>If it helps you stay organized, it fits.</p>
-              </div>
-            )}
-          </div>
-
-          {/* SECURITY & PRIVACY */}
-
-          {/* FAQ 5: Is my data secure? */}
-          <div className="bg-gradient-to-r from-blue-50 to-white dark:from-blue-900/20 dark:to-gray-800 rounded-lg border-l-4 border-blue-500 dark:border-blue-400 shadow-sm hover:shadow-md transition-shadow">
-            <button
-              onClick={() => setExpandedFaq(expandedFaq === 5 ? null : 5)}
-              className="w-full px-6 py-4 flex items-center gap-4 hover:bg-blue-50/50 dark:hover:bg-blue-900/10 transition-colors"
-            >
-              <div className="flex-shrink-0 w-8 h-8 bg-blue-100 dark:bg-blue-900/50 rounded-lg flex items-center justify-center">
-                <svg className="w-5 h-5 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                </svg>
-              </div>
-              <span className="flex-1 text-left font-semibold text-gray-900 dark:text-white">Is my data secure?</span>
-              <svg
-                className={`w-5 h-5 text-blue-500 dark:text-blue-400 transition-transform ${expandedFaq === 5 ? 'rotate-180' : ''}`}
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-              </svg>
-            </button>
-            {expandedFaq === 5 && (
-              <div className="px-6 pt-5 pb-6 text-gray-600 dark:text-gray-400 leading-relaxed border-t border-blue-200 dark:border-blue-800 mt-2">
-                Yes. Your data is encrypted in transit and at rest. All traffic is protected by enterprise-grade edge security including DDoS protection and web application firewall. Files are stored in encrypted cloud storage, and accounts use hashed passwords, secure login tokens, and email verification.
-              </div>
-            )}
-          </div>
-
-          {/* FAQ 6: Who can see my information? */}
-          <div className="bg-gradient-to-r from-blue-50 to-white dark:from-blue-900/20 dark:to-gray-800 rounded-lg border-l-4 border-blue-500 dark:border-blue-400 shadow-sm hover:shadow-md transition-shadow">
-            <button
-              onClick={() => setExpandedFaq(expandedFaq === 6 ? null : 6)}
-              className="w-full px-6 py-4 flex items-center gap-4 hover:bg-blue-50/50 dark:hover:bg-blue-900/10 transition-colors"
-            >
-              <div className="flex-shrink-0 w-8 h-8 bg-blue-100 dark:bg-blue-900/50 rounded-lg flex items-center justify-center">
-                <svg className="w-5 h-5 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                </svg>
-              </div>
-              <span className="flex-1 text-left font-semibold text-gray-900 dark:text-white">Who can see my information?</span>
-              <svg
-                className={`w-5 h-5 text-blue-500 dark:text-blue-400 transition-transform ${expandedFaq === 6 ? 'rotate-180' : ''}`}
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-              </svg>
-            </button>
-            {expandedFaq === 6 && (
-              <div className="px-6 pt-5 pb-6 text-gray-600 dark:text-gray-400 leading-relaxed border-t border-blue-200 dark:border-blue-800 mt-2">
-                Only you and the people you invite to collaborate on a session. AretaCare never sells your personal data or shares it with hospitals, insurers, advertisers, or data brokers.
-              </div>
-            )}
-          </div>
-
-          {/* FAQ 7: Does AretaCare sell or share my data? */}
-          <div className="bg-gradient-to-r from-blue-50 to-white dark:from-blue-900/20 dark:to-gray-800 rounded-lg border-l-4 border-blue-500 dark:border-blue-400 shadow-sm hover:shadow-md transition-shadow">
-            <button
-              onClick={() => setExpandedFaq(expandedFaq === 7 ? null : 7)}
-              className="w-full px-6 py-4 flex items-center gap-4 hover:bg-blue-50/50 dark:hover:bg-blue-900/10 transition-colors"
-            >
-              <div className="flex-shrink-0 w-8 h-8 bg-blue-100 dark:bg-blue-900/50 rounded-lg flex items-center justify-center">
-                <svg className="w-5 h-5 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
-                </svg>
-              </div>
-              <span className="flex-1 text-left font-semibold text-gray-900 dark:text-white">Does AretaCare sell or share my data?</span>
-              <svg
-                className={`w-5 h-5 text-blue-500 dark:text-blue-400 transition-transform ${expandedFaq === 7 ? 'rotate-180' : ''}`}
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-              </svg>
-            </button>
-            {expandedFaq === 7 && (
-              <div className="px-6 pt-5 pb-6 text-gray-600 dark:text-gray-400 leading-relaxed border-t border-blue-200 dark:border-blue-800 mt-2 space-y-3">
-                <p>No. Your personal data is never sold or used for advertising. You stay in control of what you add and what you delete.</p>
-                <p>To fund the platform, we may generate aggregate, population-level insights from patterns across many users, but these insights contain no individual records and cannot be traced back to any specific person.</p>
-              </div>
-            )}
-          </div>
-
-          {/* FAQ 8: Is AretaCare a HIPAA-covered service? */}
-          <div className="bg-gradient-to-r from-blue-50 to-white dark:from-blue-900/20 dark:to-gray-800 rounded-lg border-l-4 border-blue-500 dark:border-blue-400 shadow-sm hover:shadow-md transition-shadow">
-            <button
-              onClick={() => setExpandedFaq(expandedFaq === 8 ? null : 8)}
-              className="w-full px-6 py-4 flex items-center gap-4 hover:bg-blue-50/50 dark:hover:bg-blue-900/10 transition-colors"
-            >
-              <div className="flex-shrink-0 w-8 h-8 bg-blue-100 dark:bg-blue-900/50 rounded-lg flex items-center justify-center">
-                <svg className="w-5 h-5 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-                </svg>
-              </div>
-              <span className="flex-1 text-left font-semibold text-gray-900 dark:text-white">Is AretaCare a HIPAA-covered service?</span>
-              <svg
-                className={`w-5 h-5 text-blue-500 dark:text-blue-400 transition-transform ${expandedFaq === 8 ? 'rotate-180' : ''}`}
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-              </svg>
-            </button>
-            {expandedFaq === 8 && (
-              <div className="px-6 pt-5 pb-6 text-gray-600 dark:text-gray-400 leading-relaxed border-t border-blue-200 dark:border-blue-800 mt-2 space-y-3">
-                <p>No. AretaCare is a consumer-facing tool, not a HIPAA-covered entity or business associate. It does not connect to hospitals, insurers, or electronic health record systems, and it does not receive information directly from healthcare providers.</p>
-                <p>Even though HIPAA does not apply, AretaCare uses strong security and privacy practices like encrypted storage, secure authentication, and strict access controls.</p>
-              </div>
-            )}
-          </div>
-
-          {/* DATA MANAGEMENT */}
-
-          {/* FAQ 9: Can I delete my data? */}
-          <div className="bg-gradient-to-r from-blue-50 to-white dark:from-blue-900/20 dark:to-gray-800 rounded-lg border-l-4 border-blue-500 dark:border-blue-400 shadow-sm hover:shadow-md transition-shadow">
-            <button
-              onClick={() => setExpandedFaq(expandedFaq === 9 ? null : 9)}
-              className="w-full px-6 py-4 flex items-center gap-4 hover:bg-blue-50/50 dark:hover:bg-blue-900/10 transition-colors"
-            >
-              <div className="flex-shrink-0 w-8 h-8 bg-blue-100 dark:bg-blue-900/50 rounded-lg flex items-center justify-center">
-                <svg className="w-5 h-5 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                </svg>
-              </div>
-              <span className="flex-1 text-left font-semibold text-gray-900 dark:text-white">Can I delete my data?</span>
-              <svg
-                className={`w-5 h-5 text-blue-500 dark:text-blue-400 transition-transform ${expandedFaq === 9 ? 'rotate-180' : ''}`}
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-              </svg>
-            </button>
-            {expandedFaq === 9 && (
-              <div className="px-6 pt-5 pb-6 text-gray-600 dark:text-gray-400 leading-relaxed border-t border-blue-200 dark:border-blue-800 mt-2">
-                Yes. You can delete documents, audio recordings, journal entries, sessions, or your entire account. When you delete something, it's removed from our database and from encrypted storage forever.
-              </div>
-            )}
-          </div>
-
-          {/* FAQ 10: Is my data backed up? */}
-          <div className="bg-gradient-to-r from-blue-50 to-white dark:from-blue-900/20 dark:to-gray-800 rounded-lg border-l-4 border-blue-500 dark:border-blue-400 shadow-sm hover:shadow-md transition-shadow">
-            <button
-              onClick={() => setExpandedFaq(expandedFaq === 10 ? null : 10)}
-              className="w-full px-6 py-4 flex items-center gap-4 hover:bg-blue-50/50 dark:hover:bg-blue-900/10 transition-colors"
-            >
-              <div className="flex-shrink-0 w-8 h-8 bg-blue-100 dark:bg-blue-900/50 rounded-lg flex items-center justify-center">
-                <svg className="w-5 h-5 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z" />
-                </svg>
-              </div>
-              <span className="flex-1 text-left font-semibold text-gray-900 dark:text-white">Is my data backed up?</span>
-              <svg
-                className={`w-5 h-5 text-blue-500 dark:text-blue-400 transition-transform ${expandedFaq === 10 ? 'rotate-180' : ''}`}
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-              </svg>
-            </button>
-            {expandedFaq === 10 && (
-              <div className="px-6 pt-5 pb-6 text-gray-600 dark:text-gray-400 leading-relaxed border-t border-blue-200 dark:border-blue-800 mt-2">
-                Your data is stored securely, but you should always keep your own copies of essential documents.
-              </div>
-            )}
-          </div>
-
-          {/* USAGE & LIMITATIONS */}
-
-          {/* FAQ 11: Does AretaCare give medical advice? */}
-          <div className="bg-gradient-to-r from-blue-50 to-white dark:from-blue-900/20 dark:to-gray-800 rounded-lg border-l-4 border-blue-500 dark:border-blue-400 shadow-sm hover:shadow-md transition-shadow">
-            <button
-              onClick={() => setExpandedFaq(expandedFaq === 11 ? null : 11)}
-              className="w-full px-6 py-4 flex items-center gap-4 hover:bg-blue-50/50 dark:hover:bg-blue-900/10 transition-colors"
-            >
-              <div className="flex-shrink-0 w-8 h-8 bg-blue-100 dark:bg-blue-900/50 rounded-lg flex items-center justify-center">
-                <svg className="w-5 h-5 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 5.636a9 9 0 010 12.728m0 0l-2.829-2.829m2.829 2.829L21 21M15.536 8.464a5 5 0 010 7.072m0 0l-2.829-2.829m-4.243 2.829a4.978 4.978 0 01-1.414-2.83m-1.414 5.658a9 9 0 01-2.167-9.238m7.824 2.167a1 1 0 111.414 1.414m-1.414-1.414L3 3m8.293 8.293l1.414 1.414" />
-                </svg>
-              </div>
-              <span className="flex-1 text-left font-semibold text-gray-900 dark:text-white">Does AretaCare give medical advice?</span>
-              <svg
-                className={`w-5 h-5 text-blue-500 dark:text-blue-400 transition-transform ${expandedFaq === 11 ? 'rotate-180' : ''}`}
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-              </svg>
-            </button>
-            {expandedFaq === 11 && (
-              <div className="px-6 pt-5 pb-6 text-gray-600 dark:text-gray-400 leading-relaxed border-t border-blue-200 dark:border-blue-800 mt-2">
-                No. AretaCare helps you understand information and stay organized, but it doesn't diagnose conditions, recommend treatments, or serve as medical advice.
-              </div>
-            )}
-          </div>
-
-          {/* FAQ 12: Can doctors use AretaCare with me? */}
-          <div className="bg-gradient-to-r from-blue-50 to-white dark:from-blue-900/20 dark:to-gray-800 rounded-lg border-l-4 border-blue-500 dark:border-blue-400 shadow-sm hover:shadow-md transition-shadow">
-            <button
-              onClick={() => setExpandedFaq(expandedFaq === 12 ? null : 12)}
-              className="w-full px-6 py-4 flex items-center gap-4 hover:bg-blue-50/50 dark:hover:bg-blue-900/10 transition-colors"
-            >
-              <div className="flex-shrink-0 w-8 h-8 bg-blue-100 dark:bg-blue-900/50 rounded-lg flex items-center justify-center">
-                <svg className="w-5 h-5 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-              </div>
-              <span className="flex-1 text-left font-semibold text-gray-900 dark:text-white">Can doctors use AretaCare with me?</span>
-              <svg
-                className={`w-5 h-5 text-blue-500 dark:text-blue-400 transition-transform ${expandedFaq === 12 ? 'rotate-180' : ''}`}
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-              </svg>
-            </button>
-            {expandedFaq === 12 && (
-              <div className="px-6 pt-5 pb-6 text-gray-600 dark:text-gray-400 leading-relaxed border-t border-blue-200 dark:border-blue-800 mt-2">
-                Not right now. AretaCare is designed for personal use by patients and caregivers. It isn't part of clinical workflows and shouldn't replace any official medical systems.
-              </div>
-            )}
-          </div>
-
-          {/* PLATFORM DETAILS */}
-
-          {/* FAQ 13: Why is AretaCare free? */}
-          <div className="bg-gradient-to-r from-blue-50 to-white dark:from-blue-900/20 dark:to-gray-800 rounded-lg border-l-4 border-blue-500 dark:border-blue-400 shadow-sm hover:shadow-md transition-shadow">
-            <button
-              onClick={() => setExpandedFaq(expandedFaq === 13 ? null : 13)}
-              className="w-full px-6 py-4 flex items-center gap-4 hover:bg-blue-50/50 dark:hover:bg-blue-900/10 transition-colors"
-            >
-              <div className="flex-shrink-0 w-8 h-8 bg-blue-100 dark:bg-blue-900/50 rounded-lg flex items-center justify-center">
-                <svg className="w-5 h-5 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-              </div>
-              <span className="flex-1 text-left font-semibold text-gray-900 dark:text-white">Why is AretaCare free?</span>
-              <svg
-                className={`w-5 h-5 text-blue-500 dark:text-blue-400 transition-transform ${expandedFaq === 13 ? 'rotate-180' : ''}`}
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-              </svg>
-            </button>
-            {expandedFaq === 13 && (
-              <div className="px-6 pt-5 pb-6 text-gray-600 dark:text-gray-400 leading-relaxed border-t border-blue-200 dark:border-blue-800 mt-2">
-                The goal is to make the platform accessible to anyone who needs help managing care. Optional ways to support AretaCare may be added later, but the core platform will remain free to use.
-              </div>
-            )}
-          </div>
-
-          {/* FAQ 14: Is AretaCare open source? */}
-          <div className="bg-gradient-to-r from-blue-50 to-white dark:from-blue-900/20 dark:to-gray-800 rounded-lg border-l-4 border-blue-500 dark:border-blue-400 shadow-sm hover:shadow-md transition-shadow">
-            <button
-              onClick={() => setExpandedFaq(expandedFaq === 14 ? null : 14)}
-              className="w-full px-6 py-4 flex items-center gap-4 hover:bg-blue-50/50 dark:hover:bg-blue-900/10 transition-colors"
-            >
-              <div className="flex-shrink-0 w-8 h-8 bg-blue-100 dark:bg-blue-900/50 rounded-lg flex items-center justify-center">
-                <svg className="w-5 h-5 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
-                </svg>
-              </div>
-              <span className="flex-1 text-left font-semibold text-gray-900 dark:text-white">Is AretaCare open source?</span>
-              <svg
-                className={`w-5 h-5 text-blue-500 dark:text-blue-400 transition-transform ${expandedFaq === 14 ? 'rotate-180' : ''}`}
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-              </svg>
-            </button>
-            {expandedFaq === 14 && (
-              <div className="px-6 pt-5 pb-6 text-gray-600 dark:text-gray-400 leading-relaxed border-t border-blue-200 dark:border-blue-800 mt-2">
-                Yes. Anyone can review how the platform works, suggest improvements, or verify how data is handled in our public <a href="https://github.com/artificiallyhuman/aretacare" target="_blank" rel="noopener noreferrer" className="text-primary-600 dark:text-primary-400 hover:underline font-medium">GitHub repository</a>.
-              </div>
-            )}
-          </div>
+          {FAQ_DATA.map((faq) => (
+            <FaqItem
+              key={faq.id}
+              faq={faq}
+              isExpanded={expandedFaq === faq.id}
+              onToggle={() => setExpandedFaq(expandedFaq === faq.id ? null : faq.id)}
+            />
+          ))}
         </div>
       )}
 

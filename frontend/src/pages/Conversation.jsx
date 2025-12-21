@@ -731,8 +731,8 @@ const Conversation = () => {
                       {showHowItWorks && (
                         <div className="mt-3 space-y-2 text-xs md:text-sm text-gray-700 dark:text-gray-300 animate-fadeIn">
                           {/* Centered descriptor */}
-                          <p className="text-center text-sm font-medium text-primary-600 dark:text-primary-400 italic pb-1">
-                            Take your time. There's no need to rush.
+                          <p className="text-center text-base font-medium text-primary-600 dark:text-primary-400 italic pb-1">
+                            Explore at your own pace
                           </p>
 
                           {/* Bullet points */}
