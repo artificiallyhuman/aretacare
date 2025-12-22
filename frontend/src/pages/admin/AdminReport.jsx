@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 import AdminLayout from '../../components/admin/AdminLayout';
 import { adminAPI } from '../../services/api';
+import { formatLocalDateTime } from '../../utils/dateUtils';
 
 export default function AdminReport() {
   const [reports, setReports] = useState([]);
@@ -246,7 +247,7 @@ export default function AdminReport() {
                         {formatDate(selectedReport.date)}
                       </h2>
                       <p className="text-xs text-gray-500 dark:text-gray-400">
-                        Generated at {new Date(selectedReport.created_at).toLocaleTimeString()}
+                        Generated at {formatLocalDateTime(selectedReport.created_at)}
                       </p>
                     </div>
                   </div>
