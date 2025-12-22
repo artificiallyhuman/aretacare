@@ -1378,3 +1378,40 @@ def run_migrations():
                 else:
                     logger.error(f"Failed to add unique constraint to pending_invitations: {e}")
                     conn.rollback()
+
+        # ==========================================
+        # ADMIN REPORTS TABLE
+        # ==========================================
+
+        # Create admin_reports table if it doesn't exist
+        if 'admin_reports' not in inspector.get_table_names():
+            logger.info("Creating admin_reports table...")
+            try:
+                conn.execute(text("""
+                    CREATE TABLE admin_reports (
+                        id SERIAL PRIMARY KEY,
+                        date DATE NOT NULL UNIQUE,
+                        content TEXT NOT NULL,
+                        has_concerns BOOLEAN NOT NULL DEFAULT FALSE,
+                        security_log_count INTEGER NOT NULL DEFAULT 0,
+                        error_log_count INTEGER NOT NULL DEFAULT 0,
+                        api_log_count INTEGER NOT NULL DEFAULT 0,
+                        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+                    )
+                """))
+                conn.commit()
+                logger.info("Successfully created admin_reports table")
+
+                # Create index on date for efficient queries
+                conn.execute(text("""
+                    CREATE INDEX IF NOT EXISTS idx_admin_reports_date
+                    ON admin_reports (date DESC)
+                """))
+                conn.commit()
+                logger.info("Created index idx_admin_reports_date")
+
+            except Exception as e:
+                logger.error(f"Failed to create admin_reports table: {e}")
+                conn.rollback()
+        else:
+            logger.info("admin_reports table already exists")

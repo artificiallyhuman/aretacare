@@ -354,10 +354,16 @@ export const toolsAPI = {
     api.post('/tools/conversation-coach', { situation, session_id: sessionId }),
 };
 
+// Helper to get user's local date in YYYY-MM-DD format
+const getUserLocalDate = () => {
+  const today = new Date();
+  return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+};
+
 // Admin API
 export const adminAPI = {
-  // Check if current user is admin
-  checkAdmin: () => api.get('/admin/check'),
+  // Check if current user is admin (also triggers report generation for user's local date)
+  checkAdmin: () => api.get('/admin/check', { params: { user_date: getUserLocalDate() } }),
 
   // Platform metrics
   getMetrics: () => api.get('/admin/metrics'),
@@ -416,6 +422,11 @@ export const adminAPI = {
   getUserTokens: (userId) => api.get(`/admin/users/${userId}/tokens`),
   revokeAllUserTokens: (userId) => api.post(`/admin/users/${userId}/tokens/revoke-all`),
   revokeToken: (tokenId) => api.delete(`/admin/tokens/${tokenId}`),
+
+  // Admin reports
+  getReports: () => api.get('/admin/reports'),
+  getLatestReport: () => api.get('/admin/reports/latest'),
+  generateReport: () => api.post('/admin/reports/generate', null, { params: { user_date: getUserLocalDate() } }),
 };
 
 // Feedback API

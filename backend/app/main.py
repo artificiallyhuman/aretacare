@@ -195,6 +195,20 @@ async def startup_cleanup():
     except Exception as e:
         logger.error(f"Failed to run refresh token cleanup: {e}")
 
+    # Clean up old admin reports
+    try:
+        from app.services.admin_report_service import admin_report_service
+
+        db = SessionLocal()
+        deleted_count = admin_report_service.cleanup_old_reports(db)
+        if deleted_count > 0:
+            logger.info(f"✓ Admin report cleanup: {deleted_count} old reports removed")
+        else:
+            logger.info(f"✓ Admin report cleanup: No old reports to remove (retention: {settings.ADMIN_REPORT_RETENTION_DAYS} days)")
+        db.close()
+    except Exception as e:
+        logger.error(f"Failed to run admin report cleanup: {e}")
+
 
 @app.get("/")
 async def root():

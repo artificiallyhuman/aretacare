@@ -3,9 +3,9 @@ Admin API endpoints for platform management.
 
 All endpoints require admin authentication via the ADMIN_EMAILS environment variable.
 """
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, BackgroundTasks
 from sqlalchemy.orm import Session as DBSession
-from datetime import datetime, timedelta
+from datetime import datetime, date, timedelta
 from typing import Optional
 import secrets
 import logging
@@ -34,7 +34,12 @@ from app.schemas.admin import (
     ApiLogEntry, ApiLogSummary, ApiLogResponse,
     RefreshTokenInfo, UserTokensResponse, RevokeTokenResponse
 )
+from app.schemas.admin_report import (
+    AdminReportResponse, AdminReportListResponse, AdminReportGenerateResponse
+)
 from app.services.admin_service import admin_service
+from app.services.admin_report_service import admin_report_service
+from app.models.admin_report import AdminReport
 from app.services.s3_service import s3_service
 from app.services.email_service import email_service
 
@@ -54,10 +59,47 @@ def get_admin_user(current_user: User = Depends(get_current_user)) -> User:
 
 @router.get("/check", response_model=AdminCheckResponse)
 async def check_admin_status(
-    current_user: User = Depends(get_current_user)
+    background_tasks: BackgroundTasks,
+    current_user: User = Depends(get_current_user),
+    db: DBSession = Depends(get_db),
+    user_date: str = Query(None, description="User's local date in YYYY-MM-DD format")
 ):
-    """Check if the current user is an admin."""
+    """Check if the current user is an admin.
+
+    If admin, also triggers daily report generation if one doesn't exist for the user's date.
+    """
     is_admin = check_is_admin(current_user)
+
+    # If admin, ensure today's report exists (generate if needed)
+    if is_admin:
+        # Parse user's local date or fall back to UTC
+        if user_date:
+            try:
+                report_date = datetime.strptime(user_date, "%Y-%m-%d").date()
+            except ValueError:
+                report_date = date.today()
+        else:
+            report_date = date.today()
+
+        existing_report = db.query(AdminReport).filter(
+            AdminReport.date == report_date
+        ).first()
+
+        if not existing_report:
+            # Generate report in background so it doesn't slow down the check
+            async def generate_daily_report():
+                from app.core.database import SessionLocal
+                report_db = SessionLocal()
+                try:
+                    await admin_report_service.generate_report(report_db, report_date)
+                    logger.info(f"Daily admin report generated for {report_date}")
+                except Exception as e:
+                    logger.error(f"Failed to generate daily admin report: {e}")
+                finally:
+                    report_db.close()
+
+            background_tasks.add_task(generate_daily_report)
+
     return AdminCheckResponse(is_admin=is_admin)
 
 
@@ -971,3 +1013,72 @@ async def get_api_logs(
         summary=summary,
         logs=[ApiLogEntry.model_validate(log) for log in logs]
     )
+
+
+# ==========================================
+# Admin Reports
+# ==========================================
+
+@router.get("/reports", response_model=AdminReportListResponse)
+async def get_admin_reports(
+    admin_user: User = Depends(get_admin_user),
+    db: DBSession = Depends(get_db)
+):
+    """Get all admin reports (within retention period)."""
+    reports = admin_report_service.get_all_reports(db)
+    return AdminReportListResponse(
+        reports=[AdminReportResponse.model_validate(r) for r in reports],
+        total=len(reports)
+    )
+
+
+@router.get("/reports/latest", response_model=Optional[AdminReportResponse])
+async def get_latest_admin_report(
+    admin_user: User = Depends(get_admin_user),
+    db: DBSession = Depends(get_db)
+):
+    """Get the most recent admin report."""
+    report = admin_report_service.get_latest_report(db)
+    if not report:
+        return None
+    return AdminReportResponse.model_validate(report)
+
+
+@router.post("/reports/generate", response_model=AdminReportGenerateResponse)
+async def generate_admin_report(
+    admin_user: User = Depends(get_admin_user),
+    db: DBSession = Depends(get_db),
+    user_date: str = Query(None, description="User's local date in YYYY-MM-DD format")
+):
+    """Generate a new admin report for the user's local date.
+
+    If a report already exists for that date, it will be replaced.
+    """
+    # Parse user's local date or fall back to UTC
+    if user_date:
+        try:
+            report_date = datetime.strptime(user_date, "%Y-%m-%d").date()
+        except ValueError:
+            report_date = date.today()
+    else:
+        report_date = date.today()
+
+    # Log the action
+    admin_service.log_action(
+        db=db,
+        admin_user=admin_user,
+        action="admin_report_generate",
+        target_type="admin_report",
+        target_id=None,
+        details={"triggered_by": "manual", "date": str(report_date)}
+    )
+
+    try:
+        report = await admin_report_service.generate_report(db, report_date)
+        return AdminReportGenerateResponse(
+            report=AdminReportResponse.model_validate(report),
+            message="Report generated successfully"
+        )
+    except Exception as e:
+        logger.error(f"Failed to generate admin report: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to generate report: {str(e)}")

@@ -36,6 +36,7 @@ const Profile = lazy(() => import('./pages/Profile'));
 
 // Admin pages
 const AdminDashboard = lazy(() => import('./pages/admin/AdminDashboard'));
+const AdminReport = lazy(() => import('./pages/admin/AdminReport'));
 const AdminUsers = lazy(() => import('./pages/admin/AdminUsers'));
 const AdminAccounts = lazy(() => import('./pages/admin/AdminAccounts'));
 const AdminS3Cleanup = lazy(() => import('./pages/admin/AdminS3Cleanup'));
@@ -294,6 +295,14 @@ function AppContent() {
             element={
               <AdminRoute>
                 <AdminDashboard />
+              </AdminRoute>
+            }
+          />
+          <Route
+            path="/admin/reports"
+            element={
+              <AdminRoute>
+                <AdminReport />
               </AdminRoute>
             }
           />

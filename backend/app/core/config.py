@@ -31,6 +31,7 @@ class Settings(BaseSettings):
     ERROR_LOG_RETENTION_DAYS: int = 30  # Auto-delete error logs older than this
     API_LOG_RETENTION_DAYS: int = 30  # Auto-delete API logs older than this
     SECURITY_LOG_RETENTION_DAYS: int = 90  # Auto-delete security logs older than this
+    ADMIN_REPORT_RETENTION_DAYS: int = 30  # Auto-delete admin reports older than this
 
     @property
     def admin_emails_list(self) -> List[str]:
