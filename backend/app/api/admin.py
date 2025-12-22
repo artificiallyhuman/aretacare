@@ -60,9 +60,9 @@ def get_admin_user(current_user: User = Depends(get_current_user)) -> User:
 @router.get("/check", response_model=AdminCheckResponse)
 async def check_admin_status(
     background_tasks: BackgroundTasks,
+    user_date: str = None,
     current_user: User = Depends(get_current_user),
-    db: DBSession = Depends(get_db),
-    user_date: str = Query(None, description="User's local date in YYYY-MM-DD format")
+    db: DBSession = Depends(get_db)
 ):
     """Check if the current user is an admin.
 
@@ -1046,9 +1046,9 @@ async def get_latest_admin_report(
 
 @router.post("/reports/generate", response_model=AdminReportGenerateResponse)
 async def generate_admin_report(
+    user_date: str = None,
     admin_user: User = Depends(get_admin_user),
-    db: DBSession = Depends(get_db),
-    user_date: str = Query(None, description="User's local date in YYYY-MM-DD format")
+    db: DBSession = Depends(get_db)
 ):
     """Generate a new admin report for the user's local date.
 
