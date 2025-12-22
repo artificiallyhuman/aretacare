@@ -46,7 +46,7 @@ class AdminReportService:
         logs_data = self._get_logs_since_last_report(db, today)
 
         # Generate AI analysis
-        content, has_concerns = await self._analyze_logs(logs_data)
+        content, has_concerns = await self._analyze_logs(logs_data, today)
 
         # Create new report
         report = AdminReport(
@@ -182,16 +182,20 @@ class AdminReportService:
             }
         }
 
-    async def _analyze_logs(self, logs_data: Dict[str, Any]) -> Tuple[str, bool]:
+    async def _analyze_logs(self, logs_data: Dict[str, Any], report_date: date) -> Tuple[str, bool]:
         """Use AI to analyze logs and generate report content.
+
+        Args:
+            logs_data: Aggregated log data
+            report_date: The date for the report (user's local date)
 
         Returns:
             Tuple of (markdown content, has_concerns)
         """
-        today = date.today().strftime("%B %d, %Y")
+        today = report_date.strftime("%B %d, %Y")
 
         # Build the prompt with log data
-        prompt = f"""Analyze the following system logs from {logs_data['cutoff_time']} to now and generate a security/operations report.
+        prompt = f"""Today's date is {today}. Analyze the following system logs from {logs_data['cutoff_time']} to now and generate a security/operations report for {today}.
 
 ## Log Summary
 
