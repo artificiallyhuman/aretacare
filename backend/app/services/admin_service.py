@@ -561,7 +561,7 @@ class AdminService:
         """List all files in S3 with the given prefix."""
         files = []
         try:
-            paginator = s3_service.s3_client.get_paginator('list_objects_v2')
+            paginator = s3_service._get_sync_client().get_paginator('list_objects_v2')
             for page in paginator.paginate(Bucket=s3_service.bucket_name, Prefix=prefix):
                 for obj in page.get('Contents', []):
                     files.append({
@@ -721,7 +721,7 @@ class AdminService:
         # Check S3
         s3_start = time.time()
         try:
-            s3_service.s3_client.head_bucket(Bucket=s3_service.bucket_name)
+            s3_service._get_sync_client().head_bucket(Bucket=s3_service.bucket_name)
             s3_latency = (time.time() - s3_start) * 1000
             services.append({
                 "name": "s3",

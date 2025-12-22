@@ -515,7 +515,7 @@ def _put_object_sync(self, key: str, file_content: bytes, content_type: str, fil
     else:
         params['ContentDisposition'] = 'attachment'
 
-    self.s3_client.put_object(**params)
+    client.put_object(**params)
 ```
 
 **Security Benefits:**
