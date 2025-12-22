@@ -43,7 +43,11 @@ const FAQ_DATA = [
     id: 'session-limit',
     title: 'Why can I only have three owned sessions?',
     icon: 'M7 20l4-16m2 16l4-16M6 9h14M4 15h14',
-    content: "Sessions are meant to be temporary workspaces. Limiting owned sessions helps keep things manageable. Sessions where you're a collaborator don't count against this limit. You can delete old sessions to create room for new ones in Settings.",
+    content: (
+      <>
+        Sessions are designed as focused workspaces, not permanent archives. Sessions where you're a collaborator don't count toward your owned session limit. You can delete sessions you no longer need in <strong>Settings → Manage Sessions</strong>, or transfer ownership to another collaborator using <strong>Collaboration → Make Owner</strong> to free up space for new sessions.
+      </>
+    ),
   },
   {
     id: 'what-info-store',

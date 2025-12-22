@@ -4,6 +4,7 @@ from app.core.config import settings
 from typing import Optional
 import logging
 import asyncio
+from urllib.parse import quote
 
 logger = logging.getLogger(__name__)
 
@@ -78,8 +79,21 @@ class S3Service:
 
         if filename:
             # Sanitize filename for Content-Disposition header
-            safe_filename = filename.replace('"', '\\"').replace('\n', '').replace('\r', '')
-            params['ContentDisposition'] = f'{disposition}; filename="{safe_filename}"'
+            # Handle non-ASCII characters using RFC 5987 encoding to prevent
+            # AWS SignatureDoesNotMatch errors from special characters
+            try:
+                # Try ASCII-only filename first (fastest path)
+                filename.encode('ascii')
+                safe_filename = filename.replace('"', '\\"').replace('\n', '').replace('\r', '')
+                params['ContentDisposition'] = f'{disposition}; filename="{safe_filename}"'
+            except UnicodeEncodeError:
+                # Filename contains non-ASCII characters - use RFC 5987 encoding
+                # Provide both ASCII fallback and UTF-8 encoded version
+                ascii_fallback = ''.join(c if ord(c) < 128 else '_' for c in filename)
+                ascii_fallback = ascii_fallback.replace('"', '_').replace('\n', '').replace('\r', '')
+                # RFC 5987: filename*=UTF-8''encoded_filename
+                encoded_filename = quote(filename, safe='')
+                params['ContentDisposition'] = f"{disposition}; filename=\"{ascii_fallback}\"; filename*=UTF-8''{encoded_filename}"
         else:
             params['ContentDisposition'] = disposition
 
