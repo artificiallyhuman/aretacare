@@ -10,14 +10,34 @@ logger = logging.getLogger(__name__)
 
 class S3Service:
     def __init__(self):
-        self.s3_client = boto3.client(
+        self.bucket_name = settings.S3_BUCKET_NAME
+        self.key_prefix = settings.S3_KEY_PREFIX  # e.g., "dev/" or "prod/"
+        # Shared client for synchronous operations (presigned URLs)
+        self._sync_client = None
+
+    def _get_sync_client(self):
+        """Get shared client for main thread operations (presigned URLs)."""
+        if self._sync_client is None:
+            self._sync_client = boto3.client(
+                's3',
+                aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
+                aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
+                region_name=settings.AWS_REGION
+            )
+        return self._sync_client
+
+    def _create_thread_client(self):
+        """Create fresh S3 client for thread pool operations.
+
+        Prevents SignatureDoesNotMatch errors during concurrent uploads
+        by avoiding shared client state across threads.
+        """
+        return boto3.client(
             's3',
             aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
             aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
             region_name=settings.AWS_REGION
         )
-        self.bucket_name = settings.S3_BUCKET_NAME
-        self.key_prefix = settings.S3_KEY_PREFIX  # e.g., "dev/" or "prod/"
 
     def get_prefixed_key(self, key: str) -> str:
         """Add environment prefix to S3 key for multi-environment bucket sharing."""
@@ -43,6 +63,7 @@ class S3Service:
 
     def _put_object_sync(self, key: str, file_content: bytes, content_type: str, filename: str = None):
         """Synchronous S3 put_object (for thread pool)"""
+        client = self._create_thread_client()
         params = {
             'Bucket': self.bucket_name,
             'Key': key,
@@ -62,11 +83,12 @@ class S3Service:
         else:
             params['ContentDisposition'] = disposition
 
-        self.s3_client.put_object(**params)
+        client.put_object(**params)
 
     def _get_object_sync(self, key: str) -> bytes:
         """Synchronous S3 get_object (for thread pool)"""
-        response = self.s3_client.get_object(
+        client = self._create_thread_client()
+        response = client.get_object(
             Bucket=self.bucket_name,
             Key=key
         )
@@ -74,7 +96,8 @@ class S3Service:
 
     def _delete_object_sync(self, key: str):
         """Synchronous S3 delete_object (for thread pool)"""
-        self.s3_client.delete_object(
+        client = self._create_thread_client()
+        client.delete_object(
             Bucket=self.bucket_name,
             Key=key
         )
@@ -160,7 +183,7 @@ class S3Service:
         Audio files use longer expiration (4 hours) for playback needs.
         """
         try:
-            url = self.s3_client.generate_presigned_url(
+            url = self._get_sync_client().generate_presigned_url(
                 'get_object',
                 Params={
                     'Bucket': self.bucket_name,
