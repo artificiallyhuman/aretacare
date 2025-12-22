@@ -718,7 +718,16 @@ class SecurityService:
 
 ### Admin Security Dashboard
 
-Admins can view security logs at `/admin/security-logs` with:
+Admins have access to comprehensive security monitoring tools:
+
+**Daily Reports** at `/admin/report`:
+- AI-powered analysis of system logs (security, error, API)
+- Automated detection of concerning patterns requiring investigation
+- Generates actionable insights and recommendations
+- On-demand report generation for any date
+- Highlights issues like failed logins, security events, API errors
+
+**Security Logs** at `/admin/security-logs`:
 - Filtering by event type
 - Time range selection
 - IP address tracking

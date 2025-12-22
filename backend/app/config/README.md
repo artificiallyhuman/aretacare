@@ -67,6 +67,7 @@ Each feature has dedicated prompts and functions:
 | Journal Synthesis (Documents) | `DOCUMENT_JOURNAL_SYNTHESIS_PROMPT` | Generate comprehensive journal entries from uploaded documents using native file support (analyzes actual PDFs/images via presigned URLs for faster, more accurate synthesis) |
 | Journal Synthesis (Audio) | `AUDIO_JOURNAL_SYNTHESIS_PROMPT` | Generate comprehensive journal entries from audio transcriptions |
 | Daily Plan | `DAILY_PLAN_SYSTEM_PROMPT` | Generate daily care plans |
+| Admin Report | `ADMIN_REPORT_SYSTEM_PROMPT` | Analyze security/error/API logs for concerning patterns and generate actionable insights for administrators |
 
 ### Categories
 

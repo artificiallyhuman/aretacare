@@ -922,9 +922,9 @@ const About = () => {
                 </ul>
               </div>
               <div>
-                <h5 className="font-semibold text-gray-900 dark:text-white mb-2">Pattern Detection and Response</h5>
+                <h5 className="font-semibold text-gray-900 dark:text-white mb-2">AI-Powered Pattern Detection and Response</h5>
                 <p className="leading-relaxed">
-                  By tracking these events over time, we can spot concerning patterns - like the same IP address trying to access multiple accounts, repeated failed logins from different locations, or coordinated attack attempts. System administrators review these patterns and can quickly respond to potential security threats by filtering events, searching for specific IP addresses, and identifying trends.
+                  By tracking these events over time, we can spot concerning patterns - like the same IP address trying to access multiple accounts, repeated failed logins from different locations, or coordinated attack attempts. AretaCare uses AI to automatically analyze security logs, error logs, and API logs to detect these patterns and generate daily security reports for administrators. These reports highlight issues that need investigation and provide actionable recommendations, helping us respond quickly to potential security threats.
                 </p>
               </div>
               <div>

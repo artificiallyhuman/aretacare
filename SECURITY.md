@@ -146,6 +146,7 @@ AretaCare implements comprehensive security measures:
 
 ### Logging & Monitoring
 - **Security Event Logging**: Failed logins, invalid tokens, unauthorized access attempts, account lockouts
+- **AI-Powered Daily Reports**: Automated analysis of security/error/API logs to detect concerning patterns and generate actionable insights for administrators
 - **Audit Logging**: Admin actions tracked with retention policies
 - **Error Logging**: Application errors logged for debugging (30-day retention)
 - **API Logging**: OpenAI API calls tracked (30-day retention)
