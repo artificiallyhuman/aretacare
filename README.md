@@ -20,7 +20,7 @@ AretaCare was built from exactly this experience—sitting beside a loved one in
 
 **Conversation** — Talk naturally about what's happening. Upload lab results, record voice notes, or type out questions. AretaCare helps translate medical jargon, organize information, and prepare you for conversations with the care team. Edit your own messages after sending to correct or clarify what you meant (edited messages are marked with an "(edited)" indicator). Copy any message to your clipboard as formatted text (markdown converts to rich HTML) for easy pasting into notes or documents. Contextual timestamps show time only for today's messages and date+time for older messages, helping you track when conversations occurred.
 
-**Multi-Session Support** — Create up to 3 personal sessions to keep different care situations organized (e.g., separate sessions for different family members or health journeys). Switch between sessions using the header dropdown. Each session maintains its own conversations, documents, journal, and daily plans. Sessions can be renamed (15-character limit) and shared with others.
+**Multi-Session Support** — Create up to 5 personal sessions to keep different care situations organized (e.g., separate sessions for different family members or health journeys). Switch between sessions using the header dropdown. Each session maintains its own conversations, documents, journal, and daily plans. Sessions can be renamed (15-character limit) and shared with others.
 
 **Session Collaboration** — Invite family members to collaborate on a session. Up to 10 people can share the same view (including pending invitations), keeping everyone informed and aligned even when you're in different cities. Manage all your collaborations from the dedicated Collaboration page—add or remove collaborators, transfer session ownership, resend or cancel pending invitations, and leave shared sessions. Receive email notifications when collaborators are added or removed, and when ownership is transferred.
 
@@ -147,7 +147,7 @@ docker compose down -v   # Stop and reset database
 | Deployment | Docker Compose, Render | Multi-service orchestration, production blueprint |
 
 **Key Architecture Patterns:**
-- **Multi-session support** - Each user owns up to 3 sessions, unlimited collaboration access
+- **Multi-session support** - Each user owns up to 5 sessions, unlimited collaboration access
 - **Session collaboration** - Up to 10 people per session (owner + 9 collaborators)
 - **Cascade deletes** - User/session deletion removes all data including S3 files
 - **Database migrations** - Auto-run on startup via `run_migrations()`
@@ -200,10 +200,10 @@ aretacare/
 - Share sessions with **up to 10 people total** (1 owner + 9 collaborators, includes pending invitations)
 - Dedicated **Collaboration page** (`/collaboration`) for managing all session sharing
 - **Email invitations** for non-registered users (pending for 30 days, resend capability)
-- **Ownership transfer** with validation (target user must have <3 owned sessions)
+- **Ownership transfer** with validation (target user must have <5 owned sessions)
 - **Full collaborator access** to all session data (documents, conversations, journal, daily plans, audio)
 - **Email notifications** for: collaborator added/removed, ownership transferred, invitation received
-- Shared sessions **don't count** toward collaborator's 3-session ownership limit
+- Shared sessions **don't count** toward collaborator's 5-session ownership limit
 - **Per-user view tracking** for daily plans (independent "new plan" notifications for each user)
 
 ### AI-Powered Features

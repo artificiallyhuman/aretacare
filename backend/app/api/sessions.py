@@ -186,16 +186,16 @@ async def create_session(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """Create a new session for the authenticated user (max 3 owned sessions per user)"""
+    """Create a new session for the authenticated user (max 5 owned sessions per user)"""
     # Check session limit (count only owned sessions, not collaborations)
     owned_session_count = db.query(func.count(SessionModel.id)).filter(
         SessionModel.user_id == current_user.id
     ).scalar()
 
-    if owned_session_count >= 3:
+    if owned_session_count >= 5:
         raise HTTPException(
             status_code=400,
-            detail="Maximum of 3 owned sessions allowed. Please delete a session in Settings → Manage Sessions before creating a new one."
+            detail="Maximum of 5 owned sessions allowed. Please delete a session in Settings → Manage Sessions before creating a new one."
         )
 
     # Generate default name if not provided
@@ -516,7 +516,7 @@ async def check_user_exists(
         )
 
     # No session limit check needed - users can be collaborators on unlimited sessions
-    # They just can't accept ownership if they have 3 owned sessions
+    # They just can't accept ownership if they have 5 owned sessions
     return UserExistsResponse(
         exists=True,
         user_id=target_user.id,
@@ -579,7 +579,7 @@ async def share_session(
         raise HTTPException(status_code=400, detail="User is already a collaborator")
 
     # No session limit check needed - users can be collaborators on unlimited sessions
-    # They just can't accept ownership transfer if they have 3 owned sessions
+    # They just can't accept ownership transfer if they have 5 owned sessions
 
     # Create collaboration
     new_collab = SessionCollaborator(
@@ -749,15 +749,15 @@ async def transfer_ownership(
     if not new_owner:
         raise HTTPException(status_code=404, detail="New owner user not found")
 
-    # Check if new owner already has 3 owned sessions (they can't accept ownership)
+    # Check if new owner already has 5 owned sessions (they can't accept ownership)
     new_owner_session_count = db.query(func.count(SessionModel.id)).filter(
         SessionModel.user_id == new_owner.id
     ).scalar()
 
-    if new_owner_session_count >= 3:
+    if new_owner_session_count >= 5:
         raise HTTPException(
             status_code=400,
-            detail=f"{new_owner.name} already has 3 owned sessions. They must delete a session before accepting ownership."
+            detail=f"{new_owner.name} already has 5 owned sessions. They must delete a session before accepting ownership."
         )
 
     # Check for name conflict with new owner's existing sessions and auto-rename if needed

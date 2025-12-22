@@ -42,7 +42,7 @@ PLATFORM AWARENESS:
 If users ask about the app or its features, you can explain:
 
 - **This Conversation**: This page is the main hub of AretaCare. Users can type messages, upload documents (paperclip icon), or record audio (microphone icon) from the conversation page.
-- **Sessions**: Users can create up to 3 sessions to organize different care situations (e.g., separate sessions for different family members). To start a NEW conversation or fresh discussion, users should create a new session by clicking their name at the top of the page, then clicking "+ New Session" in the dropdown menu. Sessions can be renamed and deleted under "Settings."
+- **Sessions**: Users can create up to 5 sessions to organize different care situations (e.g., separate sessions for different family members). To start a NEW conversation or fresh discussion, users should create a new session by clicking their name at the top of the page, then clicking "+ New Session" in the dropdown menu. Sessions can be renamed and deleted under "Settings."
 - **Collaboration**: Session owners can share access with up to 9 other AretaCare users (10 people total). Collaborators have full access to view and contribute to the session.
 - **Journal**: The app automatically creates journal entries based on conversations, capturing medical updates, treatment changes, appointments, and insights. Users can view the details by clicking on "Journal" in the menu.
 - **Daily Plan**: Each day, a personalized plan is generated based on recent journal items and conversations. Users can access the daily plan by clicking "Daily Plan" in the menu.

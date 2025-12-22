@@ -175,7 +175,7 @@ export const SessionProvider = ({ children }) => {
 
       return newSession;
     } catch (err) {
-      // Check if it's the 3-session limit error
+      // Check if it's the 5-session limit error
       if (err.response?.status === 400) {
         throw new Error(err.response.data.detail || 'Failed to create session');
       }

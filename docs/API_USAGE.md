@@ -419,7 +419,7 @@ Content-Type: application/json
 
 **Note:** Only the session owner can transfer ownership. Target user must:
 - Be an existing collaborator on the session
-- Own fewer than 3 sessions (users can own max 3 sessions)
+- Own fewer than 5 sessions (users can own max 5 sessions)
 
 **Request Body:**
 ```json
@@ -1255,7 +1255,7 @@ const cancelInvitation = async (sessionId, invitationId) => {
   return response.data;
 };
 
-// Transfer ownership (owner only, target must own <3 sessions)
+// Transfer ownership (owner only, target must own <5 sessions)
 const transferOwnership = async (sessionId, userId) => {
   const response = await api.post(`/sessions/${sessionId}/transfer`, { user_id: userId });
   return response.data;

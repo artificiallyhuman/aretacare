@@ -126,7 +126,7 @@ export default function CollaborationModal({ session, onClose, onSuccess }) {
   };
 
   const handleTransferOwnership = (userId, userName, ownedSessionCount) => {
-    if (ownedSessionCount >= 3) {
+    if (ownedSessionCount >= 5) {
       setUserToWarn({ userName });
       setStep('warningMaxSessions');
       return;
@@ -388,7 +388,7 @@ export default function CollaborationModal({ session, onClose, onSuccess }) {
 
               <div className="bg-blue-50 dark:bg-blue-900/50 border border-blue-200 dark:border-blue-800 rounded px-3 py-2">
                 <p className="text-xs text-blue-800 dark:text-blue-300">
-                  <strong>Note:</strong> There's no limit to how many collaborations someone can join. The 3-session limit only applies to owned sessions.
+                  <strong>Note:</strong> There's no limit to how many collaborations someone can join. The 5-session limit only applies to owned sessions.
                 </p>
               </div>
 
@@ -546,10 +546,10 @@ export default function CollaborationModal({ session, onClose, onSuccess }) {
 
               <div className="bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded px-4 py-3">
                 <p className="text-sm text-orange-900 dark:text-orange-200 mb-2 font-medium">
-                  {userToWarn.userName} already has 3 owned sessions.
+                  {userToWarn.userName} already has 5 owned sessions.
                 </p>
                 <p className="text-sm text-orange-800 dark:text-orange-300">
-                  Each user can only own up to 3 sessions at a time. To transfer ownership to {userToWarn.userName}, they must first delete one of their existing owned sessions.
+                  Each user can only own up to 5 sessions at a time. To transfer ownership to {userToWarn.userName}, they must first delete one of their existing owned sessions.
                 </p>
               </div>
 

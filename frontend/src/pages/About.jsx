@@ -41,7 +41,7 @@ const FAQ_DATA = [
   },
   {
     id: 'session-limit',
-    title: 'Why can I only have three owned sessions?',
+    title: 'Why can I only have five owned sessions?',
     icon: 'M7 20l4-16m2 16l4-16M6 9h14M4 15h14',
     content: (
       <>

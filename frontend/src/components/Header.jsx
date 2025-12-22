@@ -646,7 +646,7 @@ const Header = ({ onLogout, user }) => {
                   </div>
                   <div className="flex-1">
                     <p className="text-sm text-orange-900 dark:text-orange-200 mb-2 font-medium">
-                      You've reached the limit of 3 owned sessions.
+                      You've reached the limit of 5 owned sessions.
                     </p>
                     <p className="text-sm text-orange-800 dark:text-orange-300">
                       To create a new session, go to <strong>Settings → Manage Sessions</strong> and delete one of your existing owned sessions first.
