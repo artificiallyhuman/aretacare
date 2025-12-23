@@ -31,15 +31,15 @@ async def get_signup_mode():
 @router.post("/join", response_model=WaitlistJoinResponse)
 @limiter.limit(RateLimits.WAITLIST_JOIN)
 async def join_waitlist(
-    request_obj: Request,
-    request: WaitlistJoinRequest,
+    request: Request,
+    data: WaitlistJoinRequest,
     db: DBSession = Depends(get_db)
 ):
     """
     Add email to waitlist (public endpoint, no auth required).
     Only meaningful when CONTROL_SIGNUPS=TRUE.
     """
-    email = request.email.lower().strip()
+    email = data.email.lower().strip()
 
     # Check if already a registered user
     existing_user = db.query(User).filter(User.email == email).first()

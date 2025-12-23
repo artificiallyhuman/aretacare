@@ -38,9 +38,11 @@ AretaCare was built from exactly this experience—sitting beside a loved one in
 
 **Account Security** — Comprehensive email notifications keep you informed of important account changes including password updates, email changes, session collaboration activities, and password reset requests. Password reset via email with time-limited tokens (1-hour expiration). Two-token JWT authentication with short-lived access tokens (1 hour) and long-lived refresh tokens (30 days), automatic token refresh, token limit (max 5 active sessions per user), 30-minute idle timeout with warning, cross-tab logout sync, and "logout everywhere" capability.
 
+**Controlled Signups** — When `CONTROL_SIGNUPS=TRUE` (default), new users must join a waitlist and receive an invitation from an administrator before registering. This allows phased growth while ensuring platform quality. Administrators manage the waitlist from the admin console, sending invitations with 7-day expiration. When users try to invite non-registered users as collaborators, those users are automatically added to the waitlist with referrer tracking—and the inviter is notified when they register.
+
 **Feedback** — Share bug reports, improvement suggestions, feature requests, or general feedback through the built-in contact form. Access via the floating tab on desktop or "Feedback" in the mobile menu. Includes hCaptcha spam prevention, rate limiting (3 submissions/hour), and dual email notifications (team receives detailed report, user receives confirmation). Source page tracking helps diagnose issues.
 
-**Admin Console** — For administrators (configured via ADMIN_EMAILS): Timezone-aware metrics dashboard with interactive charts tracking users, sessions, collaborators, pending invitations, messages, journal entries, documents, audio recordings, errors, and security events. AI-powered daily reports provide automated security analysis by examining system logs for concerning patterns and generating actionable insights. Tools include user management with search and activity tracking, inactive account detection, error logs with filtering, security logs, API logs with time range filter (1/7/30 days), system health monitoring, S3 orphan file detection and cleanup, and audit logging. All log tables auto-cleanup on startup (audit: 90 days, error/API: 30 days, security: 90 days). All timestamps display in the admin's local timezone.
+**Admin Console** — For administrators (configured via ADMIN_EMAILS): Timezone-aware metrics dashboard with interactive charts tracking users, sessions, collaborators, pending invitations, messages, journal entries, documents, audio recordings, errors, and security events. AI-powered daily reports provide automated security analysis by examining system logs for concerning patterns and generating actionable insights. Tools include waitlist and invitations management (add users, send invitations, track referrers), user management with search and activity tracking, inactive account detection, error logs with filtering, security logs, API logs with time range filter (1/7/30 days), system health monitoring, S3 orphan file detection and cleanup, and audit logging. All log tables auto-cleanup on startup (audit: 90 days, error/API: 30 days, security: 90 days). All timestamps display in the admin's local timezone.
 
 ---
 
@@ -104,6 +106,7 @@ ERROR_LOG_RETENTION_DAYS=30          # Auto-delete error logs (default: 30)
 API_LOG_RETENTION_DAYS=30            # Auto-delete API logs (default: 30)
 SECURITY_LOG_RETENTION_DAYS=90       # Auto-delete security logs (default: 90)
 RESET_DB=false                        # Set to "true" to reset database on startup
+CONTROL_SIGNUPS=TRUE                  # Set to "FALSE" for open registration (default: TRUE = waitlist mode)
 ```
 
 Generate a secret key:
@@ -147,6 +150,7 @@ docker compose down -v   # Stop and reset database
 | Deployment | Docker Compose, Render | Multi-service orchestration, production blueprint |
 
 **Key Architecture Patterns:**
+- **Controlled signups** - Waitlist mode (default) requires admin invitation before registration
 - **Multi-session support** - Each user owns up to 5 sessions, unlimited collaboration access
 - **Session collaboration** - Up to 10 people per session (owner + 9 collaborators)
 - **Cascade deletes** - User/session deletion removes all data including S3 files
@@ -168,7 +172,7 @@ aretacare/
 │       ├── api/              # FastAPI routes (auth, sessions, documents, audio, conversation, journal, daily plans, profile, tools, admin)
 │       ├── config/           # AI configuration (models, prompts, safety boundaries, categories)
 │       ├── core/             # Auth utilities, migrations, config
-│       ├── models/           # SQLAlchemy models (15 tables: users, sessions, collaborators, profiles, documents, audio, conversations, journal, daily plans, refresh_tokens, audit/error/api/security logs, migration_history)
+│       ├── models/           # SQLAlchemy models (17 tables: users, sessions, collaborators, profiles, documents, audio, conversations, journal, daily plans, refresh_tokens, waitlist_entries, pending_invitations, audit/error/api/security logs, migration_history)
 │       ├── schemas/          # Pydantic schemas for API validation
 │       ├── services/         # Business logic (OpenAI, S3, document processing, email, admin, journal, daily plan, profile)
 │       └── main.py           # FastAPI app initialization
@@ -190,7 +194,7 @@ aretacare/
 ## Key Features
 
 ### Multi-Session Management
-- Create up to **3 personal sessions** per user
+- Create up to **5 personal sessions** per user
 - Switch sessions via header dropdown with active session indicator
 - **Session naming** with 15-character limit (default: "Session 1/2/3" with smart numbering)
 - Each session maintains separate: conversations, documents, journal entries, daily plans, audio recordings
@@ -242,6 +246,7 @@ aretacare/
 ### Admin Console
 Requires email in `ADMIN_EMAILS` environment variable. Features include:
 - **Timezone-aware metrics dashboard** with interactive charts (users, sessions, collaborators, pending invitations, messages, journal entries, documents, audio, errors, security)
+- **Waitlist & Invitations** - manage waitlist entries, send invitations (7-day expiration), view referrers, add notes
 - **User management** with search and activity tracking
 - **Inactive account detection** and email notifications
 - **Error logs** with filtering (30-day auto-cleanup)
@@ -278,7 +283,7 @@ AretaCare deploys to Render using the included `render.yaml` blueprint:
 2. Connect repository in Render dashboard
 3. Add environment variables:
    - **Required**: `OPENAI_API_KEY`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `S3_BUCKET_NAME`, `ADMIN_EMAILS`
-   - **Optional**: `S3_KEY_PREFIX` (for shared S3 buckets), `AUDIT_LOG_RETENTION_DAYS`, `ERROR_LOG_RETENTION_DAYS`, `API_LOG_RETENTION_DAYS`, `SECURITY_LOG_RETENTION_DAYS`
+   - **Optional**: `S3_KEY_PREFIX` (for shared S3 buckets), `CONTROL_SIGNUPS` (default: TRUE), `AUDIT_LOG_RETENTION_DAYS`, `ERROR_LOG_RETENTION_DAYS`, `API_LOG_RETENTION_DAYS`, `SECURITY_LOG_RETENTION_DAYS`
    - **Auto-configured**: `DATABASE_URL`, `SECRET_KEY`, `CORS_ORIGINS`
 4. Deploy
 
