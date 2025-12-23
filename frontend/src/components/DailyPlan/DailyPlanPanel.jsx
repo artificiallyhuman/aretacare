@@ -172,6 +172,13 @@ const DailyPlanPanel = ({ activeSessionId, isOpen, onToggle, onPlanViewed }) => 
               </div>
             </div>
 
+            {/* Disclaimer */}
+            <div className="mb-3 p-2 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded">
+              <p className="text-xs text-amber-800 dark:text-amber-200">
+                Summary based on information you've provided. Not medical advice.
+              </p>
+            </div>
+
             {/* Plan content */}
             <div className="prose prose-sm max-w-none">
               <ReactMarkdown

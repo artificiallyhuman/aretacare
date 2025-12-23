@@ -234,7 +234,7 @@ const DailyPlan = () => {
           <div className="flex-1">
             <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">Daily Plan</h1>
             <p className="mt-2 text-sm sm:text-base text-gray-600 dark:text-gray-400">
-              View AI-generated daily summaries of priorities, reminders, and questions
+              View AI-generated summaries of reminders, notes, and questions to discuss with your care team
             </p>
           </div>
           <button
@@ -469,6 +469,13 @@ const DailyPlan = () => {
                 </div>
 
                 <div className="p-6">
+                  {/* Disclaimer */}
+                  <div className="mb-4 p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg">
+                    <p className="text-xs text-amber-800 dark:text-amber-200">
+                      Summary based on information you've provided. This is a memory aid, not medical advice. Always confirm details with your care team.
+                    </p>
+                  </div>
+
                   {isEditing ? (
                     <textarea
                       value={editedContent}

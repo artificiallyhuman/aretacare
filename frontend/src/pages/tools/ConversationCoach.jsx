@@ -140,7 +140,7 @@ const ConversationCoach = () => {
           Conversation Coach
         </h1>
         <p className="mt-2 text-sm sm:text-base text-gray-600 dark:text-gray-400">
-          Get guidance on how to discuss situations with your care team
+          Draft questions and talking points to prepare for conversations with your care team
         </p>
       </div>
 

@@ -78,8 +78,8 @@ const PrivacyPolicy = () => {
             <div className="space-y-4">
               <p className="text-gray-700 dark:text-gray-300 leading-relaxed text-base">We use your information to:</p>
               <ul className="list-disc list-inside space-y-2 text-gray-700 dark:text-gray-300 pl-4">
-                <li>Provide AI-powered medical information assistance</li>
-                <li>Generate journal entries and daily plans</li>
+                <li>Help you organize and understand medical information</li>
+                <li>Generate journal entries and daily plan summaries</li>
                 <li>Store and organize your medical documents</li>
                 <li>Maintain your account and session</li>
                 <li>Send you important email notifications about your account</li>

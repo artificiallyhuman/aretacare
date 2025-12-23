@@ -81,7 +81,7 @@ const JournalPanel = ({ sessionId, entries, isOpen, onToggle, onUpdate }) => {
             </svg>
             <p className="mt-2 text-sm text-gray-500">No journal entries yet</p>
             <p className="text-xs text-gray-400 mt-1">
-              Start a conversation and the AI will help you track important insights
+              Start a conversation and the AI will help you track important updates
             </p>
           </div>
         ) : (

@@ -115,14 +115,14 @@ const FAQ_DATA = [
     id: 'delete-data',
     title: 'Can I delete my data?',
     icon: 'M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16',
-    content: "Yes. You can delete documents, audio recordings, journal entries, sessions, or your entire account. When you delete something, it's permanently removed from both our database and AWS storage.",
+    content: "Yes. You can delete documents, audio recordings, journal entries, sessions, or your entire account. Deletion immediately removes data from our active systems. Cloud provider backups may retain copies for up to 30 days before being automatically purged.",
     category: 'DATA MANAGEMENT',
   },
   {
     id: 'data-backup',
     title: 'Is my data backed up?',
     icon: 'M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z',
-    content: 'Your data is stored securely, but you should always keep your own copies of essential documents.',
+    content: 'AretaCare does not maintain user-accessible backups. Cloud provider backups exist for disaster recovery but are not accessible through the application. You should always keep your own copies of essential documents.',
   },
   // USAGE & LIMITATIONS
   {
@@ -277,7 +277,14 @@ const About = () => {
       <div className="text-center mb-8">
         <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-3">How AretaCare Works</h3>
         <p className="text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
-          A platform designed to keep conversations, documents, and insights in one place. Share with others when you need support, or keep it private when you don't.
+          A platform designed to keep conversations, documents, and notes in one place. Share with others when you need support, or keep it private when you don't.
+        </p>
+      </div>
+
+      {/* Organizational Tool Disclaimer */}
+      <div className="mb-6 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+        <p className="text-blue-800 dark:text-blue-200 text-sm">
+          <strong>AretaCare is an organizational tool, not a medical device.</strong> AI features help you organize information, understand medical terminology, and prepare for conversations with your care team. They do not provide medical advice, diagnoses, or treatment recommendations. Always consult your healthcare providers for medical decisions.
         </p>
       </div>
 
@@ -303,7 +310,7 @@ const About = () => {
           </li>
           <li className="flex items-start">
             <span className="text-gray-600 dark:text-gray-400 mr-2 mt-1">•</span>
-            <span>Deletion is <strong>permanent</strong> and removes all associated personal data from our servers</span>
+            <span>Deletion immediately removes data from active systems; cloud provider backups are automatically purged within 30 days</span>
           </li>
           <li className="flex items-start">
             <span className="text-gray-600 dark:text-gray-400 mr-2 mt-1">•</span>
@@ -323,7 +330,7 @@ const About = () => {
             </div>
             <h4 className="text-lg font-semibold text-gray-900 dark:text-white">Conversation</h4>
           </div>
-          <p className="text-gray-600 dark:text-gray-400 mb-3">A simple place to manage your care journey:</p>
+          <p className="text-gray-600 dark:text-gray-400 mb-3">A simple place to organize your care information:</p>
           <ul className="text-gray-600 dark:text-gray-400 space-y-2 leading-relaxed">
             <li className="flex items-start">
               <span className="text-blue-600 dark:text-blue-400 mr-2 mt-1">•</span>
@@ -331,7 +338,7 @@ const About = () => {
             </li>
             <li className="flex items-start">
               <span className="text-blue-600 dark:text-blue-400 mr-2 mt-1">•</span>
-              <span>Get personalized support based on your complete care history</span>
+              <span>AI helps explain medical terms and summarize information you provide</span>
             </li>
             <li className="flex items-start">
               <span className="text-blue-600 dark:text-blue-400 mr-2 mt-1">•</span>
@@ -350,19 +357,19 @@ const About = () => {
             </div>
             <h4 className="text-lg font-semibold text-gray-900 dark:text-white">Daily Plan</h4>
           </div>
-          <p className="text-gray-600 dark:text-gray-400 mb-3">AI-generated daily plans that keep you focused on what matters:</p>
+          <p className="text-gray-600 dark:text-gray-400 mb-3">AI-generated summaries to help you prepare for conversations with your care team:</p>
           <ul className="text-gray-600 dark:text-gray-400 space-y-2 leading-relaxed">
             <li className="flex items-start">
               <span className="text-amber-600 dark:text-amber-400 mr-2 mt-1">•</span>
-              <span>Created each day using your journal, conversations, and documents</span>
+              <span>Summarizes your journal, conversations, and documents</span>
             </li>
             <li className="flex items-start">
               <span className="text-amber-600 dark:text-amber-400 mr-2 mt-1">•</span>
-              <span>Highlights priorities, reminders, and questions for the care team</span>
+              <span>Suggests questions to discuss with your healthcare providers</span>
             </li>
             <li className="flex items-start">
               <span className="text-amber-600 dark:text-amber-400 mr-2 mt-1">•</span>
-              <span>Fully editable so you can make it your own</span>
+              <span>Fully editable starting point that you control</span>
             </li>
           </ul>
         </div>
@@ -404,7 +411,7 @@ const About = () => {
             </div>
             <h4 className="text-lg font-semibold text-gray-900 dark:text-white">Tools</h4>
           </div>
-          <p className="text-gray-600 dark:text-gray-400 mb-3">Advanced features that put you in control of your care journey:</p>
+          <p className="text-gray-600 dark:text-gray-400 mb-3">Features to help you stay organized:</p>
           <ul className="text-gray-600 dark:text-gray-400 space-y-2 leading-relaxed">
             <li className="flex items-start">
               <span className="text-purple-600 dark:text-purple-400 mr-2 mt-1">•</span>
@@ -416,7 +423,7 @@ const About = () => {
             </li>
             <li className="flex items-start">
               <span className="text-purple-600 dark:text-purple-400 mr-2 mt-1">•</span>
-              <span>Coach and Translator help you prepare questions and understand medical terms</span>
+              <span>Translator explains medical terms; Coach helps you draft questions for your care team</span>
             </li>
           </ul>
         </div>
@@ -660,7 +667,7 @@ const About = () => {
                   We take your trust seriously. You're sharing personal, sometimes deeply sensitive information with us so you can manage care more effectively. That trust comes with clear responsibilities.
                 </p>
                 <p>
-                  We can't promise that the internet is safe or that no one will ever attempt to break in. What we can promise is that we will never be the ones you have to worry about. We won't sell your personal data. We won't share it with hospitals or insurers. We won't hold it hostage. If you choose to delete your data, it's deleted. This is your information, and you stay in control of it.
+                  We can't promise that the internet is safe or that no one will ever attempt to break in. What we can promise is that we will never be the ones you have to worry about. We won't sell your personal data. We won't share it with hospitals or insurers. We won't hold it hostage. If you choose to delete your data, it's immediately removed from our active systems (cloud provider backups are automatically purged within 30 days). This is your information, and you stay in control of it.
                 </p>
                 <p>
                   To fund the platform, we may offer aggregate, population-level insights derived from patterns across many users. These insights contain no individual records and cannot be traced back to any specific person.
@@ -835,7 +842,7 @@ const About = () => {
               <div>
                 <h5 className="font-semibold text-gray-900 dark:text-white mb-2">Complete Data Deletion</h5>
                 <p className="leading-relaxed">
-                  When you delete your account, AretaCare removes both your database records and uploaded files. This isn't just marking things as deleted - we actually remove the data from our systems.
+                  When you delete your account, AretaCare immediately removes both your database records and uploaded files from active systems. Cloud provider backups may retain copies for up to 30 days before being automatically purged according to their retention policies.
                 </p>
               </div>
             </div>
