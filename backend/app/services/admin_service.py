@@ -130,6 +130,9 @@ class AdminService:
         avg_pending_invitations_per_user = round(pending_invitation_count / user_count, 1) if user_count > 0 else 0.0
 
         waitlist_count = db.query(WaitlistEntry).count()
+        waitlist_invited_count = db.query(WaitlistEntry).filter(
+            WaitlistEntry.invited_at.isnot(None)
+        ).count()
 
         document_count = db.query(Document).count()
         avg_documents_per_user = round(document_count / user_count, 1) if user_count > 0 else 0.0
@@ -153,6 +156,7 @@ class AdminService:
             "pending_invitation_count": pending_invitation_count,
             "avg_pending_invitations_per_user": avg_pending_invitations_per_user,
             "waitlist_count": waitlist_count,
+            "waitlist_invited_count": waitlist_invited_count,
             "control_signups": settings.CONTROL_SIGNUPS,
             "document_count": document_count,
             "avg_documents_per_user": avg_documents_per_user,
