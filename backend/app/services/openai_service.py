@@ -398,11 +398,17 @@ class OpenAIService:
                     "type": "input_image",
                     "image_url": document_url
                 })
-            else:
-                # Use input_file for PDFs, text files, etc.
+            elif content_type == "application/pdf":
+                # Use input_file for PDFs only (OpenAI doesn't support other file types)
                 content_items.append({
                     "type": "input_file",
                     "file_url": document_url
+                })
+            elif content_type == "text/plain" and extracted_text:
+                # For text files, include the content directly
+                content_items.append({
+                    "type": "input_text",
+                    "text": f"\n--- Document Content ---\n{extracted_text}\n--- End Document ---"
                 })
 
             messages.append({
@@ -585,6 +591,8 @@ class OpenAIService:
         recent_journal_context: str = "",
         document_url: Optional[str] = None,
         document_type: Optional[str] = None,
+        content_type: Optional[str] = None,
+        extracted_text: Optional[str] = None,
         user_timezone: Optional[str] = None,
         current_time: Optional[str] = None,
         usage_patterns: Optional[Dict] = None,
@@ -720,10 +728,17 @@ When information conflicts, trust more recent sources.
                     "type": "input_image",
                     "image_url": document_url
                 })
-            else:  # document (PDF, text, etc.)
+            elif content_type == "application/pdf":
+                # Use input_file for PDFs only (OpenAI doesn't support other file types)
                 content_items.append({
                     "type": "input_file",
                     "file_url": document_url
+                })
+            elif content_type == "text/plain" and extracted_text:
+                # For text files, include the content directly
+                content_items.append({
+                    "type": "input_text",
+                    "text": f"\n--- Document Content ---\n{extracted_text}\n--- End Document ---"
                 })
 
             messages.append({

@@ -117,14 +117,16 @@ async def send_message(
     check_session_access(session, current_user.id, db)
 
     try:
-        # Get extracted text and media URL if document/image message
+        # Get extracted text, media URL, and content type if document/image message
         extracted_text = None
         generated_media_url = None
+        doc_content_type = None
 
         if document_id:
             doc = db.query(Document).filter(Document.id == document_id).first()
             if doc:
                 extracted_text = doc.extracted_text
+                doc_content_type = doc.content_type
                 # Generate presigned URL for documents and images (for native GPT-5.2 file support)
                 generated_media_url = s3_service.generate_presigned_url(doc.s3_key, expiration=1800)  # 30 minutes
 
@@ -167,12 +169,14 @@ async def send_message(
 
         # Get AI response with journal context, usage metadata, and native file/image support
         ai_response_text = await openai_service.chat_with_journal(
-            message=content,  # Don't include extracted text - use native file support
+            message=content,  # Don't include extracted text - use native file support for PDFs
             conversation_history=history_messages,
             older_journal_context=older_journal,
             recent_journal_context=recent_journal,
             document_url=generated_media_url if document_id else None,
             document_type=message_type if document_id else None,
+            content_type=doc_content_type,
+            extracted_text=extracted_text,
             user_timezone=user_timezone,
             current_time=current_time,
             usage_patterns=usage_patterns,

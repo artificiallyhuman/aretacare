@@ -209,17 +209,23 @@ IMPORTANT: Respond with ONLY a valid JSON object in this exact format, with no a
             if document_url:
                 content_items = [{"type": "input_text", "text": prompt}]
 
-                # Determine if it's an image or document
+                # Determine if it's an image, PDF, or text file
                 if content_type and content_type.startswith("image/"):
                     content_items.append({
                         "type": "input_image",
                         "image_url": document_url
                     })
-                else:
-                    # PDF, text file, etc.
+                elif content_type == "application/pdf":
+                    # Use input_file for PDFs only (OpenAI doesn't support other file types)
                     content_items.append({
                         "type": "input_file",
                         "file_url": document_url
+                    })
+                elif content_type == "text/plain" and extracted_text:
+                    # For text files, include the content directly
+                    content_items.append({
+                        "type": "input_text",
+                        "text": f"\n--- Document Content ---\n{extracted_text}\n--- End Document ---"
                     })
 
                 messages.append({
