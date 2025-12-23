@@ -17,6 +17,8 @@ class PlatformMetrics(BaseModel):
     avg_collaborators_per_user: float
     pending_invitation_count: int
     avg_pending_invitations_per_user: float
+    waitlist_count: int
+    control_signups: bool
     document_count: int
     avg_documents_per_user: float
     audio_count: int

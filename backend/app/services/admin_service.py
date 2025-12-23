@@ -13,7 +13,7 @@ import logging
 from app.models import (
     User, Session as SessionModel, SessionCollaborator,
     Document, AudioRecording, Conversation, JournalEntry, DailyPlan,
-    AdminAuditLog, PendingInvitation
+    AdminAuditLog, PendingInvitation, WaitlistEntry
 )
 from app.models.error_log import ErrorLog
 from app.models.security_log import SecurityLog
@@ -129,6 +129,8 @@ class AdminService:
         pending_invitation_count = db.query(PendingInvitation).count()
         avg_pending_invitations_per_user = round(pending_invitation_count / user_count, 1) if user_count > 0 else 0.0
 
+        waitlist_count = db.query(WaitlistEntry).count()
+
         document_count = db.query(Document).count()
         avg_documents_per_user = round(document_count / user_count, 1) if user_count > 0 else 0.0
 
@@ -150,6 +152,8 @@ class AdminService:
             "avg_collaborators_per_user": avg_collaborators_per_user,
             "pending_invitation_count": pending_invitation_count,
             "avg_pending_invitations_per_user": avg_pending_invitations_per_user,
+            "waitlist_count": waitlist_count,
+            "control_signups": settings.CONTROL_SIGNUPS,
             "document_count": document_count,
             "avg_documents_per_user": avg_documents_per_user,
             "audio_count": audio_count,
