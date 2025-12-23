@@ -427,11 +427,24 @@ export const adminAPI = {
   getReports: () => api.get('/admin/reports'),
   getLatestReport: () => api.get('/admin/reports/latest'),
   generateReport: () => api.post('/admin/reports/generate', null, { params: { user_date: getUserLocalDate() } }),
+
+  // Waitlist management
+  getWaitlist: () => api.get('/admin/waitlist'),
+  addToWaitlist: (email) => api.post('/admin/waitlist', { email }),
+  sendWaitlistInvite: (entryId) => api.post(`/admin/waitlist/${entryId}/invite`),
+  updateWaitlistEntry: (entryId, data) => api.patch(`/admin/waitlist/${entryId}`, data),
+  deleteWaitlistEntry: (entryId) => api.delete(`/admin/waitlist/${entryId}`),
 };
 
 // Feedback API
 export const feedbackAPI = {
   submit: (feedbackData) => api.post('/feedback/submit', feedbackData),
+};
+
+// Waitlist API (public, no auth required)
+export const waitlistAPI = {
+  getSignupMode: () => api.get('/waitlist/signup-mode'),
+  join: (email) => api.post('/waitlist/join', { email }),
 };
 
 // Profile API

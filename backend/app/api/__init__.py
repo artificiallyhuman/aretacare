@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from app.api import auth, sessions, documents, journal, conversation, tools, audio_recording, daily_plans, admin, feedback, profile
+from app.api import auth, sessions, documents, journal, conversation, tools, audio_recording, daily_plans, admin, feedback, profile, waitlist
 
 api_router = APIRouter()
 
@@ -32,6 +32,9 @@ api_router.include_router(tools.router)
 
 # Feedback
 api_router.include_router(feedback.router, prefix="/feedback", tags=["feedback"])
+
+# Waitlist (controlled signups)
+api_router.include_router(waitlist.router)
 
 # Admin console
 api_router.include_router(admin.router)

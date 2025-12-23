@@ -33,6 +33,7 @@ const TermsOfService = lazy(() => import('./pages/TermsOfService'));
 const PrivacyPolicy = lazy(() => import('./pages/PrivacyPolicy'));
 const Contact = lazy(() => import('./pages/Contact'));
 const Profile = lazy(() => import('./pages/Profile'));
+const Waitlist = lazy(() => import('./pages/Waitlist'));
 
 // Admin pages
 const AdminDashboard = lazy(() => import('./pages/admin/AdminDashboard'));
@@ -45,6 +46,7 @@ const AdminErrorLogs = lazy(() => import('./pages/admin/AdminErrorLogs'));
 const AdminSecurityLogs = lazy(() => import('./pages/admin/AdminSecurityLogs'));
 const AdminApiLogs = lazy(() => import('./pages/admin/AdminApiLogs'));
 const AdminHealth = lazy(() => import('./pages/admin/AdminHealth'));
+const AdminInvitations = lazy(() => import('./pages/admin/AdminInvitations'));
 
 // Loading fallback component for lazy-loaded routes
 const PageLoadingFallback = () => (
@@ -192,6 +194,14 @@ function AppContent() {
           <Route
             path="/about"
             element={<About />}
+          />
+          <Route
+            path="/waitlist"
+            element={
+              <PublicRoute>
+                <Waitlist />
+              </PublicRoute>
+            }
           />
 
           {/* Protected Routes */}
@@ -367,6 +377,14 @@ function AppContent() {
             element={
               <AdminRoute>
                 <AdminHealth />
+              </AdminRoute>
+            }
+          />
+          <Route
+            path="/admin/invitations"
+            element={
+              <AdminRoute>
+                <AdminInvitations />
               </AdminRoute>
             }
           />

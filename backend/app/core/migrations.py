@@ -1415,3 +1415,56 @@ def run_migrations():
                 conn.rollback()
         else:
             logger.info("admin_reports table already exists")
+
+        # ==========================================
+        # WAITLIST TABLE
+        # ==========================================
+
+        # Create waitlist table if it doesn't exist
+        if 'waitlist' not in inspector.get_table_names():
+            logger.info("Creating waitlist table...")
+            try:
+                conn.execute(text("""
+                    CREATE TABLE waitlist (
+                        id VARCHAR(43) PRIMARY KEY,
+                        email VARCHAR(255) NOT NULL UNIQUE,
+                        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                        invited_at TIMESTAMP NULL,
+                        invitation_token VARCHAR(43) UNIQUE NULL,
+                        invitation_expires TIMESTAMP NULL,
+                        notes TEXT NULL,
+                        added_by_email VARCHAR(255) NULL,
+                        referrers JSONB NULL
+                    )
+                """))
+                conn.commit()
+                logger.info("Successfully created waitlist table")
+
+                # Create indexes for efficient queries
+                conn.execute(text("""
+                    CREATE INDEX IF NOT EXISTS idx_waitlist_email
+                    ON waitlist (email)
+                """))
+                conn.commit()
+                logger.info("Created index idx_waitlist_email")
+
+                conn.execute(text("""
+                    CREATE INDEX IF NOT EXISTS idx_waitlist_invitation_token
+                    ON waitlist (invitation_token)
+                    WHERE invitation_token IS NOT NULL
+                """))
+                conn.commit()
+                logger.info("Created index idx_waitlist_invitation_token")
+
+                conn.execute(text("""
+                    CREATE INDEX IF NOT EXISTS idx_waitlist_created_at
+                    ON waitlist (created_at DESC)
+                """))
+                conn.commit()
+                logger.info("Created index idx_waitlist_created_at")
+
+            except Exception as e:
+                logger.error(f"Failed to create waitlist table: {e}")
+                conn.rollback()
+        else:
+            logger.info("waitlist table already exists")

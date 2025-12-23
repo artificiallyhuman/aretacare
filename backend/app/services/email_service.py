@@ -2223,6 +2223,276 @@ The AretaCare Team
             logger.error(f"Error sending ownership transfer notification to old owner: {str(e)}")
             return False
 
+    @staticmethod
+    def send_waitlist_invitation(to_email: str, invitation_token: str) -> bool:
+        """
+        Send invitation email to waitlist user
+
+        Args:
+            to_email: User's email address
+            invitation_token: Token for registration
+
+        Returns:
+            bool: True if email sent successfully, False otherwise
+        """
+        try:
+            register_url = f"{settings.FRONTEND_URL}/register?email={to_email}&token={invitation_token}"
+
+            message = MIMEMultipart("alternative")
+            message["Subject"] = "You're Invited to Join AretaCare!"
+            message["From"] = f"{settings.SMTP_FROM_NAME} <{settings.SMTP_FROM_EMAIL}>"
+            message["To"] = to_email
+
+            text_content = f"""
+You're Invited to Join AretaCare!
+
+Great news, you're invited to join AretaCare. Click on the link to create your account.
+
+{register_url}
+
+This invitation link will expire in 7 days.
+
+What is AretaCare?
+AretaCare helps you make sense of complicated medical information, stay organized through stressful moments, and have confident conversations with your care team.
+
+If you have any questions, visit our About page at {settings.FRONTEND_URL}/about
+
+Best regards,
+The AretaCare Team
+            """
+
+            html_content = f"""
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f3f4f6;">
+    <table role="presentation" style="width: 100%; border-collapse: collapse;">
+        <tr>
+            <td align="center" style="padding: 40px 0;">
+                <table role="presentation" style="width: 600px; max-width: 100%; background-color: #ffffff; border-radius: 8px; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);">
+                    <!-- Header -->
+                    <tr>
+                        <td style="padding: 40px 40px 20px; text-align: center;">
+                            <h1 style="margin: 0; color: #059669; font-size: 36px;">AretaCare<span style="font-size: 20px; vertical-align: super;">™</span></h1>
+                            <p style="margin: 10px 0 0; color: #6b7280; font-size: 18px; letter-spacing: 0.5px;">Care | Clarity | Confidence</p>
+                        </td>
+                    </tr>
+
+                    <!-- Content -->
+                    <tr>
+                        <td style="padding: 20px 40px;">
+                            <h2 style="margin: 0 0 16px; color: #111827; font-size: 24px;">You're Invited!</h2>
+                            <p style="margin: 0 0 16px; color: #374151; font-size: 16px; line-height: 24px;">
+                                Great news, you're invited to join AretaCare. Click on the link to create your account.
+                            </p>
+
+                            <!-- Button -->
+                            <table role="presentation" style="margin: 32px 0;">
+                                <tr>
+                                    <td style="border-radius: 6px; background-color: #059669;">
+                                        <a href="{register_url}" target="_blank" style="display: inline-block; padding: 14px 32px; color: #ffffff; text-decoration: none; font-size: 16px; font-weight: 600;">
+                                            Create Your Account
+                                        </a>
+                                    </td>
+                                </tr>
+                            </table>
+
+                            <p style="margin: 24px 0; color: #6b7280; font-size: 14px; line-height: 20px;">
+                                Or copy and paste this URL into your browser:<br>
+                                <a href="{register_url}" style="color: #059669; text-decoration: none; word-break: break-all;">{register_url}</a>
+                            </p>
+
+                            <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 24px 0;">
+
+                            <h3 style="margin: 0 0 12px; color: #374151; font-size: 16px;">What is AretaCare?</h3>
+                            <p style="margin: 0 0 16px; color: #6b7280; font-size: 14px; line-height: 22px;">
+                                AretaCare helps you make sense of complicated medical information, stay organized through stressful moments, and have confident conversations with your care team.
+                            </p>
+                        </td>
+                    </tr>
+
+                    <!-- Warning -->
+                    <tr>
+                        <td style="padding: 0 40px 40px;">
+                            <div style="background-color: #fef3c7; border-left: 4px solid #f59e0b; padding: 16px; border-radius: 4px;">
+                                <p style="margin: 0; color: #92400e; font-size: 14px; line-height: 20px;">
+                                    <strong>Important:</strong> This invitation link will expire in 7 days.
+                                </p>
+                            </div>
+                        </td>
+                    </tr>
+
+                    <!-- Footer -->
+                    <tr>
+                        <td style="padding: 20px 40px; background-color: #f9fafb; border-top: 1px solid #e5e7eb; border-radius: 0 0 8px 8px;">
+                            <p style="margin: 0; color: #6b7280; font-size: 12px; line-height: 18px; text-align: center;">
+                                Best regards,<br>
+                                The AretaCare Team
+                            </p>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>
+            """
+
+            part1 = MIMEText(text_content, "plain")
+            part2 = MIMEText(html_content, "html")
+            message.attach(part1)
+            message.attach(part2)
+
+            if not settings.SMTP_PASSWORD:
+                logger.warning("SMTP_PASSWORD not configured. Email not sent. Using development mode.")
+                logger.info(f"Development mode: Waitlist invitation link: {register_url}")
+                return False
+
+            with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT) as server:
+                server.starttls()
+                server.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
+                server.send_message(message)
+
+            logger.info(f"Waitlist invitation email sent successfully to {to_email}")
+            return True
+
+        except Exception as e:
+            logger.error(f"Error sending waitlist invitation email: {str(e)}")
+            return False
+
+    @staticmethod
+    def send_waitlist_user_registered(
+        to_email: str,
+        to_name: str,
+        new_user_name: str,
+        new_user_email: str,
+        session_name: str
+    ) -> bool:
+        """
+        Send notification to a user who tried to add someone as a collaborator,
+        informing them that the person has now registered.
+
+        Args:
+            to_email: Email of the user who tried to add the collaborator
+            to_name: Name of the user who tried to add the collaborator
+            new_user_name: Name of the newly registered user
+            new_user_email: Email of the newly registered user
+            session_name: Name of the session they wanted to share
+
+        Returns:
+            bool: True if email sent successfully, False otherwise
+        """
+        try:
+            collaboration_url = f"{settings.FRONTEND_URL}/collaboration"
+
+            message = MIMEMultipart("alternative")
+            message["Subject"] = f"{new_user_name} Has Joined AretaCare!"
+            message["From"] = f"{settings.SMTP_FROM_NAME} <{settings.SMTP_FROM_EMAIL}>"
+            message["To"] = to_email
+
+            text_content = f"""
+Hello {to_name},
+
+Good news! {new_user_name} ({new_user_email}) has joined AretaCare.
+
+You previously tried to add them as a collaborator on "{session_name}". Now that they have an account, you can add them as a collaborator.
+
+Visit your Collaboration page to add them:
+{collaboration_url}
+
+Best regards,
+The AretaCare Team
+            """
+
+            html_content = f"""
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f3f4f6;">
+    <table role="presentation" style="width: 100%; border-collapse: collapse;">
+        <tr>
+            <td align="center" style="padding: 40px 0;">
+                <table role="presentation" style="width: 600px; max-width: 100%; background-color: #ffffff; border-radius: 8px; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);">
+                    <!-- Header -->
+                    <tr>
+                        <td style="padding: 40px 40px 20px; text-align: center;">
+                            <h1 style="margin: 0; color: #059669; font-size: 36px;">AretaCare<span style="font-size: 20px; vertical-align: super;">™</span></h1>
+                            <p style="margin: 10px 0 0; color: #6b7280; font-size: 18px; letter-spacing: 0.5px;">Care | Clarity | Confidence</p>
+                        </td>
+                    </tr>
+
+                    <!-- Content -->
+                    <tr>
+                        <td style="padding: 20px 40px;">
+                            <h2 style="margin: 0 0 16px; color: #111827; font-size: 24px;">{new_user_name} Has Joined!</h2>
+                            <p style="margin: 0 0 16px; color: #374151; font-size: 16px; line-height: 24px;">
+                                Hello {to_name},
+                            </p>
+                            <p style="margin: 0 0 16px; color: #374151; font-size: 16px; line-height: 24px;">
+                                Good news! <strong>{new_user_name}</strong> ({new_user_email}) has joined AretaCare.
+                            </p>
+                            <p style="margin: 0 0 16px; color: #374151; font-size: 16px; line-height: 24px;">
+                                You previously tried to add them as a collaborator on "<strong>{session_name}</strong>". Now that they have an account, you can add them as a collaborator.
+                            </p>
+
+                            <!-- Button -->
+                            <table role="presentation" style="margin: 32px 0;">
+                                <tr>
+                                    <td style="border-radius: 6px; background-color: #059669;">
+                                        <a href="{collaboration_url}" target="_blank" style="display: inline-block; padding: 14px 32px; color: #ffffff; text-decoration: none; font-size: 16px; font-weight: 600;">
+                                            Add Collaborator
+                                        </a>
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+
+                    <!-- Footer -->
+                    <tr>
+                        <td style="padding: 20px 40px; background-color: #f9fafb; border-top: 1px solid #e5e7eb; border-radius: 0 0 8px 8px;">
+                            <p style="margin: 0; color: #6b7280; font-size: 12px; line-height: 18px; text-align: center;">
+                                Best regards,<br>
+                                The AretaCare Team
+                            </p>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>
+            """
+
+            part1 = MIMEText(text_content, "plain")
+            part2 = MIMEText(html_content, "html")
+            message.attach(part1)
+            message.attach(part2)
+
+            if not settings.SMTP_PASSWORD:
+                logger.warning("SMTP_PASSWORD not configured. Email not sent. Using development mode.")
+                return False
+
+            with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT) as server:
+                server.starttls()
+                server.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
+                server.send_message(message)
+
+            logger.info(f"Waitlist user registered notification sent successfully to {to_email}")
+            return True
+
+        except Exception as e:
+            logger.error(f"Error sending waitlist user registered notification: {str(e)}")
+            return False
+
 
 # Global instance
 email_service = EmailService()

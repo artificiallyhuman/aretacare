@@ -162,6 +162,37 @@ def register(request: Request, response: Response, user_data: UserRegister, db: 
             detail="You must agree to the Terms of Service and Privacy Policy"
         )
 
+    # Check if signups are controlled (waitlist mode)
+    waitlist_entry = None
+    if settings.CONTROL_SIGNUPS:
+        from app.models.waitlist import WaitlistEntry
+
+        # Require invitation token when signups are controlled
+        if not user_data.invitation_token:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Registration is currently by invitation only. Please join the waitlist."
+            )
+
+        # Check if this is a waitlist invitation
+        waitlist_entry = db.query(WaitlistEntry).filter(
+            WaitlistEntry.invitation_token == user_data.invitation_token,
+            WaitlistEntry.email == user_data.email
+        ).first()
+
+        if not waitlist_entry:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Invalid invitation. Please check your invitation link or join the waitlist."
+            )
+
+        # Validate waitlist invitation is not expired
+        if waitlist_entry.invitation_expires and waitlist_entry.invitation_expires < datetime.utcnow():
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invitation has expired. Please contact an administrator for a new invitation."
+            )
+
     # Check if user already exists
     existing_user = db.query(User).filter(User.email == user_data.email).first()
     if existing_user:
@@ -250,6 +281,30 @@ def register(request: Request, response: Response, user_data: UserRegister, db: 
         user_name=new_user.name,
         verification_token=verification_token
     )
+
+    # Clean up waitlist entry and notify referrers if applicable
+    if waitlist_entry:
+        # Send notifications to referrers (users who tried to add this person as collaborator)
+        if waitlist_entry.referrers:
+            for referrer in waitlist_entry.referrers:
+                try:
+                    # Get the referrer's user record
+                    referrer_user = db.query(User).filter(User.id == referrer.get("user_id")).first()
+                    if referrer_user:
+                        email_service.send_waitlist_user_registered(
+                            to_email=referrer_user.email,
+                            to_name=referrer_user.name,
+                            new_user_name=new_user.name,
+                            new_user_email=new_user.email,
+                            session_name=referrer.get("session_name", "a session")
+                        )
+                except Exception as e:
+                    logger.error(f"Failed to send referrer notification: {e}")
+
+        # Delete the waitlist entry
+        db.delete(waitlist_entry)
+        db.commit()
+        logger.info(f"Removed {new_user.email} from waitlist after registration")
 
     logger.info(f"User registered, verification email sent: {new_user.email}")
 

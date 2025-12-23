@@ -15,10 +15,11 @@ from app.models.error_log import ErrorLog
 from app.models.api_log import ApiLog
 from app.models.profile import Profile
 from app.models.refresh_token import RefreshToken
+from app.models.waitlist import WaitlistEntry
 
 __all__ = [
     "User", "Session", "SessionCollaborator", "PendingInvitation", "Document", "DocumentCategory",
     "Conversation", "MessageRole", "AudioRecording", "AudioRecordingCategory",
     "JournalEntry", "EntryType", "DailyPlan", "DailyPlanView", "AdminAuditLog", "AdminReport",
-    "SecurityLog", "ErrorLog", "ApiLog", "Profile", "RefreshToken"
+    "SecurityLog", "ErrorLog", "ApiLog", "Profile", "RefreshToken", "WaitlistEntry"
 ]

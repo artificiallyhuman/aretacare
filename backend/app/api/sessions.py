@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func
 from app.core.database import get_db
-from app.models import Session as SessionModel, User, Document, AudioRecording, JournalEntry, Conversation, SessionCollaborator, PendingInvitation
+from app.models import Session as SessionModel, User, Document, AudioRecording, JournalEntry, Conversation, SessionCollaborator, PendingInvitation, WaitlistEntry
 from app.schemas import (
     SessionCreate, SessionResponse, SessionRename, SessionShareRequest,
     SessionShareResponse, UserExistsResponse, CollaboratorInfo, TransferOwnershipRequest
@@ -825,14 +825,18 @@ async def transfer_ownership(
     )
 
 
-@router.post("/{session_id}/send-invitation", response_model=PendingInvitationResponse)
+@router.post("/{session_id}/send-invitation")
 async def send_invitation(
     session_id: str,
     invitation_data: InvitationSend,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """Send an invitation to a user who doesn't have an AretaCare account yet"""
+    """Send an invitation to a user who doesn't have an AretaCare account yet.
+
+    When CONTROL_SIGNUPS=TRUE, adds the user to the waitlist instead of creating
+    a pending invitation. The session owner will be notified when they register.
+    """
     from app.services.email_service import EmailService
 
     session = db.query(SessionModel).filter(SessionModel.id == session_id).first()
@@ -851,6 +855,49 @@ async def send_invitation(
             detail="This email is already associated with an AretaCare account. Use the normal sharing process."
         )
 
+    # Handle waitlist mode differently
+    if settings.CONTROL_SIGNUPS:
+        # Normalize email for consistent comparison
+        normalized_email = invitation_data.email.lower().strip()
+
+        # Add to waitlist with referrer info instead of creating pending invitation
+        existing_waitlist = db.query(WaitlistEntry).filter(
+            WaitlistEntry.email == normalized_email
+        ).first()
+
+        referrer_info = {
+            "user_id": current_user.id,
+            "user_email": current_user.email,
+            "session_name": session.name
+        }
+
+        if existing_waitlist:
+            # Add referrer info if not already present
+            referrers = existing_waitlist.referrers or []
+            # Check if this referrer already exists
+            if not any(r.get("user_id") == current_user.id and r.get("session_name") == session.name for r in referrers):
+                referrers.append(referrer_info)
+                existing_waitlist.referrers = referrers
+                db.commit()
+            return {
+                "message": f"Added to waitlist. You'll be notified when {invitation_data.email} joins AretaCare.",
+                "added_to_waitlist": True
+            }
+        else:
+            # Create new waitlist entry with referrer info
+            waitlist_entry = WaitlistEntry(
+                email=normalized_email,
+                referrers=[referrer_info],
+                added_by_email=current_user.email
+            )
+            db.add(waitlist_entry)
+            db.commit()
+            return {
+                "message": f"Added to waitlist. You'll be notified when {invitation_data.email} joins AretaCare.",
+                "added_to_waitlist": True
+            }
+
+    # Normal flow - create pending invitation
     # Check if invitation already exists for this email/session combo
     existing_invitation = db.query(PendingInvitation).filter(
         PendingInvitation.email == invitation_data.email,

@@ -50,6 +50,8 @@ def rate_limit_exceeded_handler(request: Request, exc: RateLimitExceeded) -> JSO
         message = "Too many registration attempts. Please try again later."
     elif "/auth/password-reset" in path:
         message = "Too many password reset attempts. Please try again later."
+    elif "/waitlist/join" in path:
+        message = "Too many waitlist submissions. Please try again later."
     else:
         message = "Too many requests. Please try again later."
 
@@ -85,3 +87,6 @@ class RateLimits:
 
     # Feedback submission (spam prevention)
     FEEDBACK_SUBMIT = "3/hour"      # 3 feedback submissions per hour per IP
+
+    # Waitlist submission (spam prevention)
+    WAITLIST_JOIN = "5/hour"        # 5 waitlist submissions per hour per IP

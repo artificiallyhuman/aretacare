@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, Link, useSearchParams } from 'react-router-dom';
-import { authAPI } from '../services/api';
+import { authAPI, waitlistAPI } from '../services/api';
 import { useTheme } from '../contexts/ThemeContext';
 import logo from '../logos/large_logo.png';
 
@@ -15,6 +15,7 @@ function Login() {
   const [unverifiedEmail, setUnverifiedEmail] = useState('');
   const [resendingVerification, setResendingVerification] = useState(false);
   const [resendSuccess, setResendSuccess] = useState(false);
+  const [controlSignups, setControlSignups] = useState(false);
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { isDark, toggleTheme } = useTheme();
@@ -30,6 +31,20 @@ function Login() {
       window.history.replaceState({}, '', '/login');
     }
   }, [searchParams]);
+
+  // Check signup mode
+  useEffect(() => {
+    const checkSignupMode = async () => {
+      try {
+        const response = await waitlistAPI.getSignupMode();
+        setControlSignups(response.data.control_signups);
+      } catch (err) {
+        // Default to false if API fails
+        setControlSignups(false);
+      }
+    };
+    checkSignupMode();
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -264,13 +279,22 @@ function Login() {
             </div>
 
             <div className="mt-4 space-y-2">
-              {/* Create account link */}
-              <Link
-                to="/register"
-                className="block w-full text-center px-4 py-2 text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 hover:underline transition-colors"
-              >
-                Create a free account
-              </Link>
+              {/* Create account / Join waitlist link */}
+              {controlSignups ? (
+                <Link
+                  to="/waitlist"
+                  className="block w-full text-center px-4 py-2 text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 hover:underline transition-colors"
+                >
+                  Join the waitlist
+                </Link>
+              ) : (
+                <Link
+                  to="/register"
+                  className="block w-full text-center px-4 py-2 text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 hover:underline transition-colors"
+                >
+                  Create a free account
+                </Link>
+              )}
 
             </div>
           </div>

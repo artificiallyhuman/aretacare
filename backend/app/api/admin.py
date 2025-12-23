@@ -17,7 +17,7 @@ from app.api.permissions import check_is_admin, require_admin
 from app.models import (
     User, Session as SessionModel, SessionCollaborator,
     Document, AudioRecording, AdminAuditLog, SecurityLog, ErrorLog, ApiLog,
-    RefreshToken
+    RefreshToken, WaitlistEntry
 )
 from app.schemas.admin import (
     PlatformMetrics, MetricsTrendResponse, MetricsTrend,
@@ -36,6 +36,9 @@ from app.schemas.admin import (
 )
 from app.schemas.admin_report import (
     AdminReportResponse, AdminReportListResponse, AdminReportGenerateResponse
+)
+from app.schemas.waitlist import (
+    WaitlistEntryResponse, WaitlistAddRequest, WaitlistUpdateRequest
 )
 from app.services.admin_service import admin_service
 from app.services.admin_report_service import admin_report_service
@@ -1082,3 +1085,172 @@ async def generate_admin_report(
     except Exception as e:
         logger.error(f"Failed to generate admin report: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to generate report: {str(e)}")
+
+
+# ==========================================
+# Waitlist Management
+# ==========================================
+
+@router.get("/waitlist", response_model=list[WaitlistEntryResponse])
+async def get_waitlist(
+    admin_user: User = Depends(get_admin_user),
+    db: DBSession = Depends(get_db)
+):
+    """Get all waitlist entries."""
+    entries = db.query(WaitlistEntry).order_by(WaitlistEntry.created_at.desc()).all()
+
+    return [
+        WaitlistEntryResponse(
+            id=e.id,
+            email=e.email,
+            created_at=e.created_at,
+            invited_at=e.invited_at,
+            has_invitation=e.invitation_token is not None,
+            notes=e.notes,
+            added_by_email=e.added_by_email,
+            referrers=e.referrers
+        ) for e in entries
+    ]
+
+
+@router.post("/waitlist", response_model=WaitlistEntryResponse)
+async def add_to_waitlist(
+    data: WaitlistAddRequest,
+    admin_user: User = Depends(get_admin_user),
+    db: DBSession = Depends(get_db)
+):
+    """Manually add an email to the waitlist."""
+    email = data.email.lower().strip()
+
+    # Check if already registered
+    if db.query(User).filter(User.email == email).first():
+        raise HTTPException(status_code=400, detail="Email already registered as a user")
+
+    # Check if already on waitlist
+    existing = db.query(WaitlistEntry).filter(WaitlistEntry.email == email).first()
+    if existing:
+        raise HTTPException(status_code=400, detail="Email already on waitlist")
+
+    entry = WaitlistEntry(
+        email=email,
+        added_by_email=admin_user.email
+    )
+    db.add(entry)
+    db.commit()
+    db.refresh(entry)
+
+    # Log admin action
+    admin_service.log_action(
+        db=db,
+        admin_user=admin_user,
+        action="waitlist_add",
+        target_type="waitlist",
+        target_id=entry.id,
+        details={"email": email}
+    )
+
+    return WaitlistEntryResponse(
+        id=entry.id,
+        email=entry.email,
+        created_at=entry.created_at,
+        invited_at=entry.invited_at,
+        has_invitation=False,
+        notes=entry.notes,
+        added_by_email=entry.added_by_email,
+        referrers=entry.referrers
+    )
+
+
+@router.post("/waitlist/{entry_id}/invite")
+async def send_waitlist_invitation(
+    entry_id: str,
+    admin_user: User = Depends(get_admin_user),
+    db: DBSession = Depends(get_db)
+):
+    """Send invitation to a waitlist entry."""
+    entry = db.query(WaitlistEntry).filter(WaitlistEntry.id == entry_id).first()
+    if not entry:
+        raise HTTPException(status_code=404, detail="Waitlist entry not found")
+
+    # Check if user already registered
+    existing_user = db.query(User).filter(User.email == entry.email).first()
+    if existing_user:
+        # Remove from waitlist since they already registered
+        db.delete(entry)
+        db.commit()
+        raise HTTPException(
+            status_code=400,
+            detail="This email is already registered as a user."
+        )
+
+    # Generate invitation token
+    entry.invitation_token = secrets.token_urlsafe(32)
+    entry.invitation_expires = datetime.utcnow() + timedelta(days=7)
+    entry.invited_at = datetime.utcnow()
+    db.commit()
+
+    # Send invitation email
+    email_service.send_waitlist_invitation(
+        to_email=entry.email,
+        invitation_token=entry.invitation_token
+    )
+
+    # Log admin action
+    admin_service.log_action(
+        db=db,
+        admin_user=admin_user,
+        action="waitlist_invite",
+        target_type="waitlist",
+        target_id=entry_id,
+        details={"email": entry.email}
+    )
+
+    return {"message": f"Invitation sent to {entry.email}"}
+
+
+@router.patch("/waitlist/{entry_id}")
+async def update_waitlist_entry(
+    entry_id: str,
+    data: WaitlistUpdateRequest,
+    admin_user: User = Depends(get_admin_user),
+    db: DBSession = Depends(get_db)
+):
+    """Update a waitlist entry (e.g., add notes)."""
+    entry = db.query(WaitlistEntry).filter(WaitlistEntry.id == entry_id).first()
+    if not entry:
+        raise HTTPException(status_code=404, detail="Waitlist entry not found")
+
+    if data.notes is not None:
+        entry.notes = data.notes
+
+    db.commit()
+
+    return {"message": "Entry updated"}
+
+
+@router.delete("/waitlist/{entry_id}")
+async def delete_waitlist_entry(
+    entry_id: str,
+    admin_user: User = Depends(get_admin_user),
+    db: DBSession = Depends(get_db)
+):
+    """Remove an entry from the waitlist."""
+    entry = db.query(WaitlistEntry).filter(WaitlistEntry.id == entry_id).first()
+    if not entry:
+        raise HTTPException(status_code=404, detail="Waitlist entry not found")
+
+    email = entry.email
+    db.delete(entry)
+    db.commit()
+
+    # Log admin action
+    admin_service.log_action(
+        db=db,
+        admin_user=admin_user,
+        action="waitlist_delete",
+        target_type="waitlist",
+        target_id=entry_id,
+        details={"email": email}
+    )
+
+    return {"message": "Entry removed from waitlist"}

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, Link, useSearchParams } from 'react-router-dom';
-import { authAPI } from '../services/api';
+import { authAPI, waitlistAPI } from '../services/api';
 import { useTheme } from '../contexts/ThemeContext';
 import logo from '../logos/large_logo.png';
 
@@ -32,6 +32,25 @@ function Register() {
       setEmail(invitationEmail);
     }
   }, [invitationEmail]);
+
+  // Check signup mode and redirect to waitlist if controlled and no invitation
+  useEffect(() => {
+    const checkAccess = async () => {
+      // If we have an invitation token, allow registration
+      if (invitationToken) return;
+
+      try {
+        const response = await waitlistAPI.getSignupMode();
+        if (response.data.control_signups) {
+          // Redirect to waitlist if signups are controlled and no token
+          navigate('/waitlist');
+        }
+      } catch (err) {
+        // If API fails, allow registration (fail open)
+      }
+    };
+    checkAccess();
+  }, [invitationToken, navigate]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();

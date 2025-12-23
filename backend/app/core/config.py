@@ -27,6 +27,7 @@ class Settings(BaseSettings):
 
     # Admin
     ADMIN_EMAILS: str = ""  # Comma-separated list of admin email addresses
+    CONTROL_SIGNUPS: bool = True  # When True, registration requires admin invitation (waitlist mode)
     AUDIT_LOG_RETENTION_DAYS: int = 90  # Auto-delete audit logs older than this
     ERROR_LOG_RETENTION_DAYS: int = 30  # Auto-delete error logs older than this
     API_LOG_RETENTION_DAYS: int = 30  # Auto-delete API logs older than this
