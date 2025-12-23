@@ -16,6 +16,7 @@ function AdminInvitations() {
   const [entryToDelete, setEntryToDelete] = useState(null);
   const [editingNotes, setEditingNotes] = useState(null);
   const [notesText, setNotesText] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
 
   const fetchEntries = async () => {
     try {
@@ -114,6 +115,18 @@ function AdminInvitations() {
   const pendingCount = entries.filter(e => !e.has_invitation).length;
   const invitedCount = entries.filter(e => e.has_invitation).length;
 
+  // Filter entries based on search query
+  const filteredEntries = entries.filter(entry => {
+    if (!searchQuery.trim()) return true;
+    const query = searchQuery.toLowerCase();
+    // Search in email, notes, added_by_email, and referrer emails
+    if (entry.email.toLowerCase().includes(query)) return true;
+    if (entry.notes && entry.notes.toLowerCase().includes(query)) return true;
+    if (entry.added_by_email && entry.added_by_email.toLowerCase().includes(query)) return true;
+    if (entry.referrers && entry.referrers.some(r => r.user_email.toLowerCase().includes(query))) return true;
+    return false;
+  });
+
   return (
     <AdminLayout>
       <div className="space-y-6">
@@ -174,18 +187,39 @@ function AdminInvitations() {
         {/* Waitlist entries */}
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
           <div className="p-4 border-b border-gray-200 dark:border-gray-700">
-            <h2 className="font-semibold text-gray-900 dark:text-white">
-              Waitlist ({entries.length})
-            </h2>
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <h2 className="font-semibold text-gray-900 dark:text-white">
+                Waitlist ({entries.length})
+              </h2>
+              <div className="relative">
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search by email..."
+                  className="w-full sm:w-64 pl-9 pr-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                />
+                <svg
+                  className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 dark:text-gray-500"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+              </div>
+            </div>
           </div>
 
           {loading ? (
             <div className="p-8 text-center text-gray-500 dark:text-gray-400">Loading...</div>
           ) : entries.length === 0 ? (
             <div className="p-8 text-center text-gray-500 dark:text-gray-400">No entries in waitlist</div>
+          ) : filteredEntries.length === 0 ? (
+            <div className="p-8 text-center text-gray-500 dark:text-gray-400">No matching entries for "{searchQuery}"</div>
           ) : (
             <div className="divide-y divide-gray-200 dark:divide-gray-700">
-              {entries.map((entry) => (
+              {filteredEntries.map((entry) => (
                 <div key={entry.id} className="p-4">
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex-1 min-w-0">
