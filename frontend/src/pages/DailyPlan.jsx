@@ -234,7 +234,7 @@ const DailyPlan = () => {
           <div className="flex-1">
             <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">Daily Plan</h1>
             <p className="mt-2 text-sm sm:text-base text-gray-600 dark:text-gray-400">
-              View AI-generated summaries of reminders, notes, and questions to discuss with your care team
+              Reminders from your care team and questions to discuss with them
             </p>
           </div>
           <button

@@ -357,19 +357,19 @@ const About = () => {
             </div>
             <h4 className="text-lg font-semibold text-gray-900 dark:text-white">Daily Plan</h4>
           </div>
-          <p className="text-gray-600 dark:text-gray-400 mb-3">AI-generated summaries to help you prepare for conversations with your care team:</p>
+          <p className="text-gray-600 dark:text-gray-400 mb-3">Reminders from your care team and questions to discuss with them:</p>
           <ul className="text-gray-600 dark:text-gray-400 space-y-2 leading-relaxed">
             <li className="flex items-start">
               <span className="text-amber-600 dark:text-amber-400 mr-2 mt-1">•</span>
-              <span>Summarizes your journal, conversations, and documents</span>
+              <span>Summarizes reminders from discharge instructions and care team guidance</span>
             </li>
             <li className="flex items-start">
               <span className="text-amber-600 dark:text-amber-400 mr-2 mt-1">•</span>
-              <span>Suggests questions to discuss with your healthcare providers</span>
+              <span>Generates questions to discuss with your healthcare providers</span>
             </li>
             <li className="flex items-start">
               <span className="text-amber-600 dark:text-amber-400 mr-2 mt-1">•</span>
-              <span>Fully editable starting point that you control</span>
+              <span>Fully editable so you can make it your own</span>
             </li>
           </ul>
         </div>
