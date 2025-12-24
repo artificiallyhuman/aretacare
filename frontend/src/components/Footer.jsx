@@ -12,7 +12,7 @@ const Footer = () => {
           {/* Copyright and GitHub */}
           <div className="text-center sm:text-left">
             <p className="text-sm text-gray-600 dark:text-gray-400">
-              © 2025 AretaCare, LLC. Open Source Project.
+              © 2025 AretaCare LLC. Open Source Project.
             </p>
             <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">
               <a

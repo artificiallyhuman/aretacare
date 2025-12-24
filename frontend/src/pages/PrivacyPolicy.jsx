@@ -15,7 +15,7 @@ const PrivacyPolicy = () => {
           </Link>
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-6 sm:p-8">
             <h1 className="text-4xl sm:text-5xl font-bold text-gray-900 dark:text-white mb-2">Privacy Policy</h1>
-            <p className="text-sm text-gray-500 dark:text-gray-400">Last Updated: December 19, 2025</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400">Last Updated: December 23, 2025</p>
           </div>
         </div>
 
@@ -24,17 +24,9 @@ const PrivacyPolicy = () => {
           {/* Section 1 */}
           <section>
             <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4 pb-2 border-b-2 border-primary-200 dark:border-primary-800">1. Introduction</h2>
-            <div className="space-y-4">
-              <p className="text-gray-700 dark:text-gray-300 leading-relaxed text-base">
-                AretaCare™ is an open source project designed to help families understand medical information. This Privacy Policy explains how we collect, use, and protect your information.
-              </p>
-              <p className="text-gray-700 dark:text-gray-300 leading-relaxed text-base">
-                AretaCare is operated by AretaCare, LLC, a limited liability company registered in Illinois. The source code is available at{' '}
-                <a href="https://github.com/artificiallyhuman/aretacare" target="_blank" rel="noopener noreferrer" className="text-primary-600 hover:text-primary-700 font-medium underline">
-                  https://github.com/artificiallyhuman/aretacare
-                </a>
-              </p>
-            </div>
+            <p className="text-gray-700 dark:text-gray-300 leading-relaxed text-base">
+              AretaCare™ is an AI assistant that helps patients and caregivers organize and understand medical information. It is a consumer tool and does not provide medical advice, diagnosis, or treatment. This Privacy Policy explains how we collect, use, and protect your information. AretaCare is operated by AretaCare LLC.
+            </p>
           </section>
 
           {/* Section 2 */}
@@ -51,13 +43,13 @@ const PrivacyPolicy = () => {
               </div>
 
               <div>
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">Medical and Health Information</h3>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">User-Provided Content</h3>
                 <p className="text-gray-700 dark:text-gray-300 leading-relaxed text-base mb-3">You may choose to provide:</p>
                 <ul className="list-disc list-inside space-y-2 text-gray-700 dark:text-gray-300 pl-4">
-                  <li>Conversation messages about medical topics</li>
-                  <li>Journal entries about health events</li>
-                  <li>Uploaded medical documents (PDFs, images)</li>
-                  <li>Audio recordings (transcribed via OpenAI)</li>
+                  <li>Chat messages</li>
+                  <li>Documents (PDFs, images, text files)</li>
+                  <li>Audio recordings</li>
+                  <li>Edits to AI-generated content</li>
                 </ul>
               </div>
 
@@ -78,11 +70,10 @@ const PrivacyPolicy = () => {
             <div className="space-y-4">
               <p className="text-gray-700 dark:text-gray-300 leading-relaxed text-base">We use your information to:</p>
               <ul className="list-disc list-inside space-y-2 text-gray-700 dark:text-gray-300 pl-4">
-                <li>Help you organize and understand medical information</li>
-                <li>Generate journal entries and daily digest summaries</li>
-                <li>Store and organize your medical documents</li>
+                <li>Help you organize and understand your information</li>
+                <li>Generate journal entries, daily digests, and health profiles</li>
+                <li>Store your documents and audio recordings</li>
                 <li>Maintain your account and session</li>
-                <li>Send you important email notifications about your account</li>
                 <li>Improve the application and fix bugs</li>
               </ul>
             </div>
@@ -183,12 +174,11 @@ const PrivacyPolicy = () => {
 
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-5 border border-gray-200 dark:border-gray-600">
-                  <h3 className="font-semibold text-gray-900 dark:text-white mb-3">OpenAI (ChatGPT)</h3>
+                  <h3 className="font-semibold text-gray-900 dark:text-white mb-3">OpenAI</h3>
                   <ul className="text-sm text-gray-600 dark:text-gray-300 space-y-1.5">
                     <li>• Processes your messages to provide AI assistance</li>
                     <li>• Transcribes audio recordings</li>
                     <li>• Generates journal entries and daily digests</li>
-                    <li>• Subject to OpenAI's privacy policy and terms of service</li>
                   </ul>
                 </div>
                 <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-5 border border-gray-200 dark:border-gray-600">
@@ -196,10 +186,12 @@ const PrivacyPolicy = () => {
                   <ul className="text-sm text-gray-600 dark:text-gray-300 space-y-1.5">
                     <li>• Stores uploaded documents and images</li>
                     <li>• Stores PDF thumbnails and audio recordings</li>
-                    <li>• Subject to AWS's privacy policy and terms of service</li>
                   </ul>
                 </div>
               </div>
+              <p className="text-gray-700 dark:text-gray-300 leading-relaxed text-base">
+                Your use of these services through AretaCare is subject to their respective privacy policies and terms of service.
+              </p>
             </div>
           </section>
 
@@ -210,9 +202,9 @@ const PrivacyPolicy = () => {
               <div>
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">Where Your Data is Stored</h3>
                 <ul className="list-disc list-inside space-y-2 text-gray-700 dark:text-gray-300 pl-4">
-                  <li><strong>Database:</strong> PostgreSQL database (conversation, journal, user data)</li>
+                  <li><strong>Database:</strong> PostgreSQL database (account, conversations, journal, health profiles, daily digests, document and audio metadata)</li>
                   <li><strong>File Storage:</strong> AWS S3 (documents, images, audio files)</li>
-                  <li><strong>Browser:</strong> Authentication tokens and session IDs in localStorage</li>
+                  <li><strong>Browser:</strong> Authentication tokens and session IDs in localStorage, refresh tokens in cookies</li>
                 </ul>
               </div>
 
@@ -289,10 +281,9 @@ const PrivacyPolicy = () => {
                 <p className="text-gray-700 dark:text-gray-300 leading-relaxed text-base mb-3">
                   When you delete data, it is immediately removed from our active systems. However, copies may persist temporarily in cloud provider backups:
                 </p>
-                <ul className="list-disc list-inside space-y-2 text-gray-700 dark:text-gray-300 pl-4">
-                  <li>Database backups may retain deleted data for up to 30 days</li>
-                  <li>These backup copies are not accessible through the application and are automatically purged according to cloud provider retention policies</li>
-                </ul>
+                <p className="text-gray-700 dark:text-gray-300 leading-relaxed text-base">
+                  These backup copies are not accessible through the application and are automatically purged according to cloud provider retention policies.
+                </p>
               </div>
 
               <div>
@@ -320,10 +311,9 @@ const PrivacyPolicy = () => {
                 <p className="text-gray-700 dark:text-gray-300 leading-relaxed text-base mb-3">You can:</p>
                 <ul className="list-disc list-inside space-y-2 text-gray-700 dark:text-gray-300 pl-4">
                   <li>View all your data within the application</li>
-                  <li>Edit or delete journal entries</li>
-                  <li>Delete uploaded documents and audio recordings</li>
-                  <li>Delete individual sessions at any time</li>
-                  <li>Delete your entire account from the Settings page</li>
+                  <li>Edit your chat messages, journal entries, daily digests, and health profiles</li>
+                  <li>Delete documents, audio recordings, and journal entries</li>
+                  <li>Delete individual sessions or your entire account from Settings</li>
                 </ul>
               </div>
 
@@ -343,7 +333,10 @@ const PrivacyPolicy = () => {
           <section>
             <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4 pb-2 border-b-2 border-primary-200 dark:border-primary-800">10. Children's Privacy</h2>
             <p className="text-gray-700 dark:text-gray-300 leading-relaxed text-base">
-              AretaCare is not intended for users under the age of 18. We do not knowingly collect information from children. If you believe a child has provided us with personal information, please contact us via GitHub.
+              AretaCare is not intended for users under the age of 18. We do not knowingly collect information from children. If you believe a child has provided us with personal information, please contact us at{' '}
+              <a href="mailto:privacy@aretacare.com" className="text-primary-600 hover:text-primary-700 font-medium underline">
+                privacy@aretacare.com
+              </a>.
             </p>
           </section>
 
@@ -456,17 +449,17 @@ const PrivacyPolicy = () => {
               </a>
             </p>
             <p className="text-gray-700 dark:text-gray-300 leading-relaxed text-base">
-              You can also open an issue on our GitHub repository:{' '}
+              You can also open an issue on our{' '}
               <a href="https://github.com/artificiallyhuman/aretacare" target="_blank" rel="noopener noreferrer" className="text-primary-600 hover:text-primary-700 font-medium underline">
-                https://github.com/artificiallyhuman/aretacare
-              </a>
+                GitHub repository
+              </a>.
             </p>
           </section>
 
           {/* Copyright */}
           <section className="bg-gray-50 dark:bg-gray-700 rounded-lg p-6 border border-gray-200 dark:border-gray-600">
             <p className="text-center text-gray-600 dark:text-gray-300 text-sm">
-              Copyright © 2025 AretaCare, LLC. Released under the MIT License with Commons Clause.
+              Copyright © 2025 AretaCare LLC. Released under the MIT License with Commons Clause.
             </p>
           </section>
         </div>

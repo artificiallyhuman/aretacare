@@ -115,7 +115,7 @@ const FAQ_DATA = [
     id: 'delete-data',
     title: 'Can I delete my data?',
     icon: 'M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16',
-    content: "Yes. You can delete documents, audio recordings, journal entries, sessions, or your entire account. Deletion immediately removes data from our active systems. Cloud provider backups may retain copies for up to 30 days before being automatically purged.",
+    content: "Yes. You can delete documents, audio recordings, journal entries, sessions, or your entire account. Deletion immediately removes data from our active systems. Cloud provider backups may temporarily retain copies before being automatically purged according to their retention policies.",
     category: 'DATA MANAGEMENT',
   },
   {
@@ -318,7 +318,7 @@ const About = () => {
           </li>
           <li className="flex items-start">
             <span className="text-gray-600 dark:text-gray-400 mr-2">•</span>
-            <span>Deletion immediately removes data from active systems; cloud provider backups are automatically purged within 30 days</span>
+            <span>Deletion immediately removes data from active systems; cloud provider backups are automatically purged according to their retention policies</span>
           </li>
           <li className="flex items-start">
             <span className="text-gray-600 dark:text-gray-400 mr-2">•</span>
@@ -675,7 +675,7 @@ const About = () => {
                   We take your trust seriously. You're sharing personal, sometimes deeply sensitive information with us so you can manage care more effectively. That trust comes with clear responsibilities.
                 </p>
                 <p>
-                  We can't promise that the internet is safe or that no one will ever attempt to break in. What we can promise is that we will never be the ones you have to worry about. We won't sell your personal data. We won't share it with hospitals or insurers. We won't hold it hostage. If you choose to delete your data, it's immediately removed from our active systems (cloud provider backups are automatically purged within 30 days). This is your information, and you stay in control of it.
+                  We can't promise that the internet is safe or that no one will ever attempt to break in. What we can promise is that we will never be the ones you have to worry about. We won't sell your personal data. We won't share it with hospitals or insurers. We won't hold it hostage. If you choose to delete your data, it's immediately removed from our active systems (cloud provider backups are automatically purged according to their retention policies). This is your information, and you stay in control of it.
                 </p>
                 <p>
                   To fund the platform, we may offer aggregate, population-level insights derived from patterns across many users. These insights contain no individual records and cannot be traced back to any specific person.
@@ -850,7 +850,7 @@ const About = () => {
               <div>
                 <h5 className="font-semibold text-gray-900 dark:text-white mb-2">Complete Data Deletion</h5>
                 <p className="leading-relaxed">
-                  When you delete your account, AretaCare immediately removes both your database records and uploaded files from active systems. Cloud provider backups may retain copies for up to 30 days before being automatically purged according to their retention policies.
+                  When you delete your account, AretaCare immediately removes both your database records and uploaded files from active systems. Cloud provider backups may temporarily retain copies before being automatically purged according to their retention policies.
                 </p>
               </div>
             </div>

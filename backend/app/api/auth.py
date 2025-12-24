@@ -150,16 +150,22 @@ def register(request: Request, response: Response, user_data: UserRegister, db: 
             detail="You must acknowledge the HIPAA limitations"
         )
 
-    if not user_data.acknowledge_email_communications:
+    if not user_data.acknowledge_ai_processing:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="You must acknowledge that you will receive email communications"
+            detail="You must acknowledge how your information is processed by AI systems"
         )
 
     if not user_data.agree_to_terms:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="You must agree to the Terms of Service and Privacy Policy"
+        )
+
+    if not user_data.acknowledge_age_and_use:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="You must confirm you are at least 18 years old"
         )
 
     # Check if signups are controlled (waitlist mode)

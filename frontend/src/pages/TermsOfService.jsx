@@ -15,7 +15,7 @@ const TermsOfService = () => {
           </Link>
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-6 sm:p-8">
             <h1 className="text-4xl sm:text-5xl font-bold text-gray-900 dark:text-white mb-2">Terms of Service</h1>
-            <p className="text-sm text-gray-500 dark:text-gray-400">Last Updated: December 19, 2025</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400">Last Updated: December 23, 2025</p>
           </div>
         </div>
 
@@ -34,13 +34,13 @@ const TermsOfService = () => {
             <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4 pb-2 border-b-2 border-primary-200 dark:border-primary-800">2. Open Source Project</h2>
             <div className="space-y-4">
               <p className="text-gray-700 dark:text-gray-300 leading-relaxed text-base">
-                AretaCare is an open source project released under the MIT License with Commons Clause restrictions. The source code is available at{' '}
+                AretaCare is an open source project released under the MIT License with Commons Clause restrictions. The source code is available on{' '}
                 <a href="https://github.com/artificiallyhuman/aretacare" target="_blank" rel="noopener noreferrer" className="text-primary-600 hover:text-primary-700 font-medium underline">
-                  https://github.com/artificiallyhuman/aretacare
-                </a>
+                  GitHub
+                </a>.
               </p>
               <p className="text-gray-700 dark:text-gray-300 leading-relaxed text-base">
-                AretaCare is operated by AretaCare, LLC, a limited liability company registered in Illinois. For inquiries, bug reports, and contributions, please visit the GitHub repository.
+                AretaCare is operated by AretaCare LLC, a limited liability company registered in Illinois. For inquiries, bug reports, and contributions, please visit the GitHub repository.
               </p>
             </div>
           </section>
@@ -60,20 +60,20 @@ const TermsOfService = () => {
               <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-5">
                 <p className="text-gray-700 dark:text-gray-300 font-medium mb-3">This application:</p>
                 <ul className="space-y-2 text-gray-700 dark:text-gray-300">
-                  <li className="flex items-start">
-                    <span className="text-red-500 mr-2 mt-1">✗</span>
+                  <li className="flex items-center">
+                    <span className="text-red-500 mr-2">✗</span>
                     <span>Does NOT provide medical diagnoses</span>
                   </li>
-                  <li className="flex items-start">
-                    <span className="text-red-500 mr-2 mt-1">✗</span>
+                  <li className="flex items-center">
+                    <span className="text-red-500 mr-2">✗</span>
                     <span>Does NOT recommend or adjust medications</span>
                   </li>
-                  <li className="flex items-start">
-                    <span className="text-red-500 mr-2 mt-1">✗</span>
+                  <li className="flex items-center">
+                    <span className="text-red-500 mr-2">✗</span>
                     <span>Does NOT predict medical outcomes</span>
                   </li>
-                  <li className="flex items-start">
-                    <span className="text-red-500 mr-2 mt-1">✗</span>
+                  <li className="flex items-center">
+                    <span className="text-red-500 mr-2">✗</span>
                     <span>Should NOT be used for medical emergencies</span>
                   </li>
                 </ul>
@@ -218,7 +218,7 @@ const TermsOfService = () => {
                 <li>May be used to improve the platform or offered to third parties</li>
               </ul>
               <p className="text-gray-700 dark:text-gray-300 leading-relaxed text-base">
-                You retain full control over your data and can delete it at any time from Settings. When you delete your data, it is permanently removed from our systems.
+                You retain full control over your data and can delete it at any time from Settings. When you delete your data, it is permanently removed from our systems. Cloud providers may maintain their own backup retention policies; consult their terms of service for details.
               </p>
             </div>
           </section>
@@ -249,19 +249,19 @@ const TermsOfService = () => {
 
           {/* Section 14 */}
           <section>
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4 pb-2 border-b-2 border-primary-200 dark:border-primary-800">14. Contact and Questions</h2>
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4 pb-2 border-b-2 border-primary-200 dark:border-primary-800">14. Contact</h2>
             <p className="text-gray-700 dark:text-gray-300 leading-relaxed text-base">
-              For questions, issues, or contributions, please visit the GitHub repository at{' '}
-              <a href="https://github.com/artificiallyhuman/aretacare" target="_blank" rel="noopener noreferrer" className="text-primary-600 hover:text-primary-700 font-medium underline">
-                https://github.com/artificiallyhuman/aretacare
-              </a>
+              For questions or support, please contact us at{' '}
+              <a href="mailto:support@aretacare.com" className="text-primary-600 hover:text-primary-700 font-medium underline">
+                support@aretacare.com
+              </a>.
             </p>
           </section>
 
           {/* Copyright */}
           <section className="bg-gray-50 dark:bg-gray-700 rounded-lg p-6 border border-gray-200 dark:border-gray-600">
             <p className="text-center text-gray-600 dark:text-gray-300 text-sm">
-              Copyright © 2025 AretaCare, LLC. Released under the MIT License with Commons Clause.
+              Copyright © 2025 AretaCare LLC. Released under the MIT License with Commons Clause.
             </p>
           </section>
         </div>

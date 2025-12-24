@@ -13,8 +13,9 @@ function Register() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [acknowledgeNotMedicalAdvice, setAcknowledgeNotMedicalAdvice] = useState(false);
   const [acknowledgeHIPAA, setAcknowledgeHIPAA] = useState(false);
-  const [acknowledgeEmailCommunications, setAcknowledgeEmailCommunications] = useState(false);
+  const [acknowledgeAIProcessing, setAcknowledgeAIProcessing] = useState(false);
   const [agreeToTerms, setAgreeToTerms] = useState(false);
+  const [acknowledgeAgeAndUse, setAcknowledgeAgeAndUse] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [registrationSuccess, setRegistrationSuccess] = useState(false);
@@ -76,22 +77,27 @@ function Register() {
 
     // Validate acknowledgements
     if (!acknowledgeNotMedicalAdvice) {
-      setError('You must acknowledge that AretaCare is an AI assistant, not a medical professional');
+      setError('You must acknowledge that AretaCare does not provide medical advice');
       return;
     }
 
     if (!acknowledgeHIPAA) {
-      setError('You must acknowledge the HIPAA limitations and data source restrictions');
+      setError('You must acknowledge that AretaCare is a consumer tool, not a HIPAA-covered service');
       return;
     }
 
-    if (!acknowledgeEmailCommunications) {
-      setError('You must acknowledge that you will receive email communications');
+    if (!acknowledgeAIProcessing) {
+      setError('You must acknowledge how your information is processed by AI systems');
       return;
     }
 
     if (!agreeToTerms) {
       setError('You must agree to the Terms of Service and Privacy Policy');
+      return;
+    }
+
+    if (!acknowledgeAgeAndUse) {
+      setError('You must confirm you are at least 18 years old');
       return;
     }
 
@@ -104,8 +110,9 @@ function Register() {
         password,
         acknowledgeNotMedicalAdvice,
         acknowledgeHIPAA,
-        acknowledgeEmailCommunications,
+        acknowledgeAIProcessing,
         agreeToTerms,
+        acknowledgeAgeAndUse,
         invitationToken
       );
 
@@ -137,23 +144,6 @@ function Register() {
           </svg>
         )}
       </button>
-
-      {/* Important Notice - First thing user sees */}
-      <div className="sm:mx-auto sm:w-full sm:max-w-md px-4 sm:px-0 mb-6">
-        <div className="bg-amber-50 dark:bg-amber-900/20 border-l-4 border-amber-500 dark:border-amber-600 p-4 rounded-r-lg">
-          <div className="flex items-start">
-            <svg className="w-5 h-5 text-amber-600 dark:text-amber-500 mt-0.5 mr-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-            </svg>
-            <div className="flex-1">
-              <h3 className="text-xs font-semibold text-amber-800 dark:text-amber-400 mb-1.5">Important</h3>
-              <p className="text-xs text-amber-800 dark:text-amber-300 leading-relaxed">
-                AretaCare is an AI assistant, not a medical professional. Consult your care team for any medical decisions. This service is not HIPAA-covered and is intended for personal use. Do not rely on AretaCare as your primary source of medical information.
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
 
       {/* Invitation Notice - Show if registering via invitation */}
       {isInvitation && (
@@ -337,7 +327,7 @@ function Register() {
                       required
                     />
                     <label htmlFor="acknowledgeNotMedicalAdvice" className="ml-3 text-sm text-gray-700 dark:text-gray-300 cursor-pointer">
-                      I understand that AretaCare provides informational and organizational support only, does not provide medical advice, and is not a substitute for professional medical care. I will consult my care team for any medical decisions.
+                      I understand that AretaCare is not a medical professional and does not provide medical advice, diagnosis, or treatment. I will consult qualified healthcare professionals for medical decisions and emergencies.
                     </label>
                   </div>
 
@@ -352,22 +342,37 @@ function Register() {
                       required
                     />
                     <label htmlFor="acknowledgeHIPAA" className="ml-3 text-sm text-gray-700 dark:text-gray-300 cursor-pointer">
-                      I understand this service is not HIPAA-covered and is intended for personal use. I will not rely on AretaCare as my primary source of medical information.
+                      I understand that AretaCare is a consumer tool, not a HIPAA-covered service, and is not a medical record system. I will not rely on it as my sole repository for critical health information.
                     </label>
                   </div>
 
                   <div className="flex items-start">
                     <input
                       type="checkbox"
-                      id="acknowledgeEmailCommunications"
-                      checked={acknowledgeEmailCommunications}
-                      onChange={(e) => setAcknowledgeEmailCommunications(e.target.checked)}
+                      id="acknowledgeAIProcessing"
+                      checked={acknowledgeAIProcessing}
+                      onChange={(e) => setAcknowledgeAIProcessing(e.target.checked)}
                       disabled={loading}
                       className="mt-1 h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 dark:border-gray-600 rounded cursor-pointer"
                       required
                     />
-                    <label htmlFor="acknowledgeEmailCommunications" className="ml-3 text-sm text-gray-700 dark:text-gray-300 cursor-pointer">
-                      I understand I will receive email communications from AretaCare, including notifications about password changes, account updates, and session sharing activities.
+                    <label htmlFor="acknowledgeAIProcessing" className="ml-3 text-sm text-gray-700 dark:text-gray-300 cursor-pointer">
+                      I understand that my information may be processed by AI systems to help organize and summarize content, and that AretaCare does not train its own AI models on my data.
+                    </label>
+                  </div>
+
+                  <div className="flex items-start">
+                    <input
+                      type="checkbox"
+                      id="acknowledgeAgeAndUse"
+                      checked={acknowledgeAgeAndUse}
+                      onChange={(e) => setAcknowledgeAgeAndUse(e.target.checked)}
+                      disabled={loading}
+                      className="mt-1 h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 dark:border-gray-600 rounded cursor-pointer"
+                      required
+                    />
+                    <label htmlFor="acknowledgeAgeAndUse" className="ml-3 text-sm text-gray-700 dark:text-gray-300 cursor-pointer">
+                      I am at least 18 years old and will use AretaCare only for lawful, personal purposes.
                     </label>
                   </div>
 
@@ -382,7 +387,7 @@ function Register() {
                       required
                     />
                     <label htmlFor="agreeToTerms" className="ml-3 text-sm text-gray-700 dark:text-gray-300 cursor-pointer">
-                      By creating an account, I agree to the{' '}
+                      I agree to the{' '}
                       <Link to="/terms" className="text-primary-600 dark:text-primary-400 hover:underline" target="_blank">
                         Terms of Service
                       </Link>

@@ -125,7 +125,7 @@ function Login() {
             <div className="flex-1">
               <h3 className="text-xs font-semibold text-amber-800 dark:text-amber-400 mb-1.5">Important</h3>
               <p className="text-xs text-amber-800 dark:text-amber-300 leading-relaxed">
-                AretaCare is an AI assistant, not a medical professional. Consult your care team for any medical decisions. This service is not HIPAA-covered and is intended for personal use. Do not rely on AretaCare as your primary source of medical information.
+                AretaCare is an AI assistant and does not provide medical advice, diagnosis, or treatment. Consult qualified healthcare professionals for medical decisions. This is a consumer tool, not a HIPAA-covered service or medical record system.
               </p>
             </div>
           </div>

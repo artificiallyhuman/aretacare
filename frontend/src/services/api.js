@@ -153,15 +153,16 @@ api.interceptors.response.use(
 
 // Auth API
 export const authAPI = {
-  register: (name, email, password, acknowledgeNotMedicalAdvice, acknowledgeHIPAA, acknowledgeEmailCommunications, agreeToTerms, invitationToken = null) =>
+  register: (name, email, password, acknowledgeNotMedicalAdvice, acknowledgeHIPAA, acknowledgeAIProcessing, agreeToTerms, acknowledgeAgeAndUse, invitationToken = null) =>
     api.post('/auth/register', {
       name,
       email,
       password,
       acknowledge_not_medical_advice: acknowledgeNotMedicalAdvice,
       acknowledge_hipaa: acknowledgeHIPAA,
-      acknowledge_email_communications: acknowledgeEmailCommunications,
+      acknowledge_ai_processing: acknowledgeAIProcessing,
       agree_to_terms: agreeToTerms,
+      acknowledge_age_and_use: acknowledgeAgeAndUse,
       invitation_token: invitationToken
     }),
 
