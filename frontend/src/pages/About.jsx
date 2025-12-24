@@ -209,10 +209,7 @@ const About = () => {
           />
         </div>
         <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Welcome to AretaCare<span className="font-normal">™</span></h2>
-        <p className="text-lg text-gray-600 dark:text-gray-400 mb-4">Care | Clarity | Confidence</p>
-        <p className="text-gray-700 dark:text-gray-300 max-w-xl mx-auto">
-          AretaCare helps you make sense of complicated medical information, stay organized through stressful moments, and have confident conversations with your care team.
-        </p>
+        <p className="text-lg text-gray-600 dark:text-gray-400">Care | Clarity | Confidence</p>
       </div>
 
       {/* Tab Navigation */}
@@ -277,7 +274,7 @@ const About = () => {
       <div className="text-center mb-8">
         <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-3">How AretaCare Works</h3>
         <p className="text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
-          A platform designed to keep conversations, documents, and notes in one place. Share with others when you need support, or keep it private when you don't.
+          AretaCare helps you make sense of complicated medical information, stay organized through stressful moments, and have confident conversations with your care team.
         </p>
       </div>
 
@@ -567,9 +564,9 @@ const About = () => {
       {activeTab === 'principles' && (
         <div className="space-y-6">
           <div className="text-center mb-8">
-            <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-3">The Values That Guide Us</h3>
+            <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-3">The Principles That Guide Us</h3>
             <p className="text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
-              These principles shape every decision we make about AretaCare, from what features we build to how we handle your data.
+              AretaCare exists to help patients and families navigate medical uncertainty with clarity and confidence, while honoring their privacy, dignity, and trust.
             </p>
           </div>
 
