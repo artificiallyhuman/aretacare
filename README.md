@@ -1,40 +1,40 @@
 # AretaCare
 
-**An AI care advocate for families navigating medical complexity.**
+**Care | Clarity | Confidence**
 
-AretaCare helps you understand medical information, stay organized during hospital stays, and prepare meaningful questions for your healthcare team. It's the calm, steady partner families need when the medical system feels overwhelming.
+AretaCare is a secure platform for patients and caregivers to organize information, understand complex concepts, and prepare for clearer conversations with care teams. It keeps notes, documents, audio recordings, and updates together in one place.
 
 ---
 
 ## The Problem
 
-When someone you love is hospitalized, information comes at you from everywhere. Doctors explain things during rounds. Nurses relay instructions that sometimes conflict. Specialists each share a piece of the puzzle. Radiology reports arrive full of terms you've never seen.
+When someone you love is facing a health challenge, information comes at you from everywhere. Doctors explain things during rounds. Nurses relay instructions that sometimes conflict. Specialists each share a piece of the puzzle. Reports arrive full of terms you've never seen.
 
-You find yourself taking notes at 2am, texting family members scattered across the country, and wishing you had a nurse practitioner in the family who could make sense of it all.
+You find yourself taking notes at 2am, texting family members scattered across the country, and wishing you had someone who could help make sense of it all.
 
-AretaCare was built from exactly this experience—sitting beside a loved one in a hospital room, trying to keep track of everything while feeling completely overwhelmed.
+AretaCare was built from exactly this experience—sitting beside a loved one, trying to keep track of everything while feeling completely overwhelmed.
 
 ---
 
 ## What It Does
 
-**Conversation** — Talk naturally about what's happening. Upload lab results, record voice notes, or type out questions. AretaCare helps translate medical jargon, organize information, and prepare you for conversations with the care team. Edit your own messages after sending to correct or clarify what you meant (edited messages are marked with an "(edited)" indicator). Copy any message to your clipboard as formatted text (markdown converts to rich HTML) for easy pasting into notes or documents. Contextual timestamps show time only for today's messages and date+time for older messages, helping you track when conversations occurred.
+**Conversation** — A simple place to organize your care information. Type messages, record voice notes, or share documents. AretaCare helps explain terminology, organize information, and prepare you for conversations with the care team. Edit your own messages after sending to correct or clarify what you meant (edited messages are marked with an "(edited)" indicator). Copy any message to your clipboard as formatted text (markdown converts to rich HTML) for easy pasting into notes or documents. Contextual timestamps show time only for today's messages and date+time for older messages, helping you track when conversations occurred.
 
 **Multi-Session Support** — Create up to 5 personal sessions to keep different care situations organized (e.g., separate sessions for different family members or health journeys). Switch between sessions using the header dropdown. Each session maintains its own conversations, documents, journal, and daily digests. Sessions can be renamed (15-character limit) and shared with others.
 
 **Session Collaboration** — Invite family members to collaborate on a session. Up to 10 people can share the same view (including pending invitations), keeping everyone informed and aligned even when you're in different cities. Manage all your collaborations from the dedicated Collaboration page—add or remove collaborators, transfer session ownership, resend or cancel pending invitations, and leave shared sessions. Receive email notifications when collaborators are added or removed, and when ownership is transferred.
 
-**Journal** — Your care journey automatically organized into a searchable timeline. Medical updates, treatment changes, appointments, insights, and milestones—all captured and categorized from your conversations so nothing falls through the cracks. Navigate by date using the sticky sidebar, jump to today with one click, and see future entries visually distinguished with blue shading. Entries are created with intelligent date interpretation (understands "Thursday", "next week", "yesterday").
+**Journal** — Your care journey automatically organized into a searchable timeline. Updates, changes, appointments, insights, and milestones—all captured and categorized from your conversations so nothing falls through the cracks. Navigate by date using the sticky sidebar, jump to today with one click, and see future entries visually distinguished with blue shading. Entries are created with intelligent date interpretation (understands "Thursday", "next week", "yesterday").
 
-**Daily Digest** — AI-generated summaries of today's priorities, important reminders, and questions to ask at your next appointment. Fully editable and regenerated daily based on your current situation. Each collaborator sees their own "new digest" notifications for independent tracking. Copy digests to your clipboard as formatted text for sharing with family or healthcare providers. Digests are generated from comprehensive context including all journal entries, recent conversations, latest documents, and previous digests.
+**Daily Digest** — A simple, easy-to-read summary you can scan in under a minute. Recaps what's changed since your last digest, organizes reminders by source, and suggests questions for your next care team conversation. Fully editable and regenerated daily based on your current situation. Each collaborator sees their own "new digest" notifications for independent tracking. Copy digests to your clipboard as formatted text for sharing with family or care teams.
 
 **Care Profile** — AI-powered long-term memory that builds a comprehensive picture of the care situation. Automatically extracts and organizes: patient information, caregivers, healthcare providers, conditions, medications (with 14 AI-categorized categories like pain management, cardiovascular, diabetes, mental health, etc.), allergies, significant events, and preferences. Visual enhancements include color-coded section icons with gradients, timeline visualization for events, status badges (Active/Inactive for medications, severity-based for conditions/allergies), and a completeness progress indicator. Updates incrementally from conversations and journal entries. You control all data—AI proposes changes through a diff view, and you approve or reject each one. Copy-to-clipboard and PDF export both group medications by category for easy reading.
 
-**Documents** — AI-powered document manager with 12 categories for organizing medical records. Upload PDFs, images (PNG, JPG), and text files up to 20MB. Documents are automatically categorized by AI, text is extracted (PDFs via pypdf, images via OCR), and thumbnails are generated for quick preview. Search by content, navigate by date, and edit AI-generated descriptions (up to 200 characters). Journal entries are automatically created from meaningful uploads.
+**Documents** — AI-powered document manager with 12 categories for organizing your files. Upload PDFs, images (PNG, JPG), and text files up to 20MB. Documents are automatically categorized by AI, text is extracted (PDFs via pypdf, images via OCR), and thumbnails are generated for quick preview. Search by content, navigate by date, and edit AI-generated descriptions (up to 200 characters). Journal entries are automatically created from meaningful uploads.
 
 **Audio Recordings** — AI-powered audio manager with 12 categories for organizing voice notes and appointment recordings. Upload audio files (MP3, M4A, WAV, WebM, OGG) up to 20MB or record directly in the app with live waveform visualization and 15-minute countdown timer. Audio is automatically transcribed (using GPT-4o-transcribe), categorized by AI, and converted to browser-friendly MP3 format. Long files are automatically chunked for processing. Search by content, navigate by date, and edit AI-generated summaries (up to 150 characters).
 
-**Specialized Tools** — Access dedicated tools for specific tasks: Jargon Translator (explains medical terminology with journal context, supports audio input), and Conversation Coach (helps prepare questions for healthcare teams, supports audio input with 15-minute recording limit).
+**Specialized Tools** — Access dedicated tools for specific tasks: Jargon Translator (explains terminology with journal context, supports audio input), and Conversation Coach (helps prepare questions for care teams, supports audio input with 15-minute recording limit).
 
 **Account Security** — Comprehensive email notifications keep you informed of important account changes including password updates, email changes, session collaboration activities, and password reset requests. Password reset via email with time-limited tokens (1-hour expiration). Two-token JWT authentication with short-lived access tokens (1 hour) and long-lived refresh tokens (30 days), automatic token refresh, token limit (max 5 active sessions per user), 30-minute idle timeout with warning, cross-tab logout sync, and "logout everywhere" capability.
 
@@ -48,14 +48,14 @@ AretaCare was built from exactly this experience—sitting beside a loved one in
 
 ## Safety Boundaries
 
-AretaCare is an advocate, not a clinician. It will never:
+AretaCare is an organizational and information-support tool, not a clinician. It will never:
 
 - Diagnose conditions or predict outcomes
 - Recommend or adjust medications
 - Dispute decisions made by your care team
 - Give medical instructions
 
-It will always defer to healthcare professionals and encourage you to confirm medical information with your care team.
+It will always defer to healthcare professionals and encourage you to confirm information with your care team.
 
 ---
 
@@ -122,10 +122,11 @@ See [docs/EMAIL_SETUP.md](docs/EMAIL_SETUP.md) for Gmail app password setup.
 docker compose up --build
 ```
 
-Open http://localhost:3001 and create an account. You'll need to acknowledge four important notices during registration:
-- AretaCare is not medical advice (AI assistance for understanding medical information)
-- AretaCare is not a HIPAA-covered service (not an official medical record system)
-- You'll receive email notifications for account security and collaboration activities
+Open http://localhost:3001 and create an account. You'll need to acknowledge five important notices during registration:
+- AretaCare does not provide medical advice, diagnosis, or treatment
+- AretaCare is a consumer tool, not a HIPAA-covered service or medical record system
+- Your information may be processed by AI systems to help organize and summarize content
+- You are at least 18 years old and will use AretaCare only for lawful, personal purposes
 - Agreement to Terms of Service and Privacy Policy
 
 After registration, check your email for a verification link (expires in 1 hour). Click the link to activate your account, then log in.
@@ -212,13 +213,13 @@ aretacare/
 
 ### AI-Powered Features
 - **Conversation interface** with GPT-5.2, "Thinking..." status, markdown rendering, copy-to-clipboard (converts markdown to formatted HTML)
-- **Journal synthesis** - Automatically creates entries from conversations, documents, and audio using native file support (6 entry types: medical update, treatment change, appointment, insight, milestone, other). Analyzes actual files for faster, more accurate synthesis.
+- **Journal synthesis** - Automatically creates entries from conversations, documents, and audio using native file support (6 entry types: update, treatment change, appointment, insight, milestone, other). Analyzes actual files for faster, more accurate synthesis.
 - **Daily digest generation** - AI-generated daily priorities, reminders, and questions based on comprehensive context
 - **Care Profile** - AI-powered long-term memory organizing patient info, caregivers, providers, conditions, medications (14 AI-categorized categories: pain management, cardiovascular, diabetes, mental health, etc.), allergies, events, and preferences. Visual enhancements include color-coded section icons with gradients, timeline visualization for events, status badges, and completeness progress indicator. Incremental updates with user-controlled diff review. Copy-to-clipboard and PDF export group medications by category. Also serves as long-term context in conversations (up to 25K tokens in 150K total context window)
 - **Document categorization** - 12 categories with AI-generated descriptions (user-editable, max 200 characters)
 - **Audio categorization** - 12 categories with AI-generated summaries (user-editable, max 150 characters)
-- **Jargon Translator** - Explains medical terminology with journal context, supports audio input
-- **Conversation Coach** - Helps prepare questions for healthcare teams, supports audio input
+- **Jargon Translator** - Explains terminology with journal context, supports audio input
+- **Conversation Coach** - Helps prepare questions for care teams, supports audio input
 
 ### Document & Audio Management
 - **Documents**: Upload PDFs, images (PNG, JPG), text files up to 20MB
@@ -303,4 +304,4 @@ See `LICENSE` and `COMMONS-CLAUSE.md` for details.
 
 ---
 
-*Built with care for families navigating the healthcare system.*
+*Built for patients and caregivers who need more clarity and confidence.*
