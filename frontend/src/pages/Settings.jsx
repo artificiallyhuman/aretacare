@@ -949,7 +949,7 @@ export default function Settings() {
                   <li>• {sessionToDelete.stats?.journal_entries || 0} journal entries</li>
                   <li>• {sessionToDelete.stats?.documents || 0} uploaded documents</li>
                   <li>• {sessionToDelete.stats?.audio_recordings || 0} audio recordings</li>
-                  <li>• All daily plans</li>
+                  <li>• All daily digests</li>
                 </ul>
               </div>
 
@@ -1035,13 +1035,13 @@ export default function Settings() {
                   <li>• All journal entries ({sessions.filter(s => s.is_owner).reduce((sum, s) => sum + (sessionStatistics[s.id]?.journal_entries || 0), 0)})</li>
                   <li>• All documents ({sessions.filter(s => s.is_owner).reduce((sum, s) => sum + (sessionStatistics[s.id]?.documents || 0), 0)})</li>
                   <li>• All audio recordings ({sessions.filter(s => s.is_owner).reduce((sum, s) => sum + (sessionStatistics[s.id]?.audio_recordings || 0), 0)})</li>
-                  <li>• All daily plans</li>
+                  <li>• All daily digests</li>
                   <li>• All account settings</li>
                 </ul>
               </div>
 
-              <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded px-4 py-3">
-                <p className="text-sm text-blue-900 dark:text-blue-200 font-medium">
+              <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded px-4 py-3">
+                <p className="text-sm text-amber-900 dark:text-amber-200 font-medium">
                   <strong>Note:</strong> Sessions shared with you by others will remain intact and accessible to the owners. Only your owned sessions will be deleted.
                 </p>
               </div>

@@ -6,7 +6,7 @@ import { formatLocalDateTime } from '../../utils/dateUtils';
 const featureLabels = {
   conversation: 'Conversation',
   chat: 'Chat',
-  daily_plan: 'Daily Plan',
+  daily_plan: 'Daily Digest',
   jargon_translator: 'Jargon Translator',
   conversation_coach: 'Conversation Coach',
   document_categorization: 'Document Categorization',

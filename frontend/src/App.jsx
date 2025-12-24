@@ -238,12 +238,17 @@ function AppContent() {
             }
           />
           <Route
-            path="/daily-plan"
+            path="/daily-digest"
             element={
               <ProtectedRoute>
                 <DailyPlan />
               </ProtectedRoute>
             }
+          />
+          {/* Redirect old URL to new URL for backward compatibility */}
+          <Route
+            path="/daily-plan"
+            element={<Navigate to="/daily-digest" replace />}
           />
           <Route
             path="/audio-recordings"

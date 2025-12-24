@@ -61,7 +61,7 @@ const DailyPlan = () => {
     } catch (err) {
       console.error('Error loading daily plans:', err);
       if (err.response?.status !== 404) {
-        setError('Failed to load daily plans');
+        setError('Failed to load daily digest');
       }
     } finally {
       setLoading(false);
@@ -87,7 +87,7 @@ const DailyPlan = () => {
       const errorMessage = err.response?.data?.detail ||
         (err.response?.status === 400
           ? "Not enough information yet. Please add journal entries or have conversations first."
-          : 'Failed to generate daily plan');
+          : 'Failed to generate daily digest');
       setError(errorMessage);
     } finally {
       setGenerating(false);
@@ -153,7 +153,7 @@ const DailyPlan = () => {
       const errorMessage = err.response?.data?.detail ||
         (err.response?.status === 400
           ? "Not enough information yet. Please add journal entries or have conversations first."
-          : 'Failed to regenerate daily plan');
+          : 'Failed to regenerate daily digest');
       setError(errorMessage);
     } finally {
       setGenerating(false);
@@ -221,7 +221,7 @@ const DailyPlan = () => {
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600 dark:text-gray-400">Loading daily plans...</p>
+          <p className="mt-4 text-gray-600 dark:text-gray-400">Loading daily digest...</p>
         </div>
       </div>
     );
@@ -232,16 +232,16 @@ const DailyPlan = () => {
       <div className="mb-6 sm:mb-8">
         <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4">
           <div className="flex-1">
-            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">Daily Plan</h1>
+            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">Daily Digest</h1>
             <p className="mt-2 text-sm sm:text-base text-gray-600 dark:text-gray-400">
-              Reminders from your care team and questions to discuss with them
+              A recap of what's new, reminders from your care team, and questions to discuss with them
             </p>
           </div>
           <button
           onClick={handleGenerateNew}
           disabled={generating || hasTodaysPlan()}
           className={`btn-primary flex items-center space-x-2 ${hasTodaysPlan() ? 'opacity-50 cursor-not-allowed' : ''}`}
-          title={hasTodaysPlan() ? "Today's plan already exists" : ''}
+          title={hasTodaysPlan() ? "Today's digest already exists" : ''}
         >
           {generating ? (
             <>
@@ -256,17 +256,32 @@ const DailyPlan = () => {
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
               </svg>
-              <span>Today's Plan Ready</span>
+              <span>Today's Digest Ready</span>
             </>
           ) : (
             <>
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
               </svg>
-              <span>Generate Today's Plan</span>
+              <span>Generate Today's Digest</span>
             </>
           )}
         </button>
+        </div>
+
+        {/* Important Banner */}
+        <div className="mt-4 bg-amber-50 dark:bg-amber-900/20 border-l-4 border-amber-500 dark:border-amber-600 p-4 rounded-r-lg">
+          <div className="flex items-start">
+            <svg className="w-5 h-5 text-amber-600 dark:text-amber-500 mt-0.5 mr-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+            <div className="flex-1">
+              <h3 className="text-sm font-semibold text-amber-800 dark:text-amber-400 mb-1">Important</h3>
+              <p className="text-sm text-amber-800 dark:text-amber-300 leading-relaxed">
+                Daily Digest summarizes information you've provided and is not medical advice.
+              </p>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -282,16 +297,16 @@ const DailyPlan = () => {
             <svg className="w-16 h-16 text-primary-600 dark:text-primary-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
             </svg>
-            <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">No Daily Plans Yet</h3>
+            <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">No Daily Digests Yet</h3>
             <p className="text-gray-700 dark:text-gray-300 mb-4">
-              Your first daily plan will auto-generate after 24 hours of activity
+              Your first daily digest will auto-generate after 24 hours of activity
             </p>
             <button
               onClick={handleGenerateNew}
               disabled={generating}
               className="btn-primary"
             >
-              {generating ? 'Generating...' : 'Generate Your First Daily Plan'}
+              {generating ? 'Generating...' : 'Generate Your First Daily Digest'}
             </button>
           </div>
         </div>
@@ -314,7 +329,7 @@ const DailyPlan = () => {
           <div className={`lg:col-span-1 ${showSidebar ? 'block mb-4' : 'hidden lg:block'}`}>
             <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm lg:sticky lg:top-4">
               <div className="p-3 md:p-4 border-b border-gray-200 dark:border-gray-700">
-                <h2 className="text-base md:text-lg font-semibold text-gray-900 dark:text-white">All Plans</h2>
+                <h2 className="text-base md:text-lg font-semibold text-gray-900 dark:text-white">All Digests</h2>
               </div>
               <div className="divide-y divide-gray-200 dark:divide-gray-700 max-h-64 lg:max-h-[calc(100vh-22rem)] overflow-y-auto">
                 {plans.map((plan) => (
@@ -369,16 +384,16 @@ const DailyPlan = () => {
                   <svg className="w-16 h-16 text-blue-600 dark:text-blue-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
-                  <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-3">No Plan for Today</h3>
+                  <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-3">No Digest for Today</h3>
                   <p className="text-gray-600 dark:text-gray-400 mb-6">
-                    No new activity since the last daily plan generated on {formatDateFull(plans[0].date)}
+                    No new activity since the last daily digest generated on {formatDateFull(plans[0].date)}
                   </p>
                   <button
                     onClick={handleGenerateNew}
                     disabled={generating}
                     className="btn-primary"
                   >
-                    {generating ? 'Generating...' : 'Generate Today\'s Plan'}
+                    {generating ? 'Generating...' : 'Generate Today\'s Digest'}
                   </button>
                 </div>
               </div>
@@ -388,7 +403,7 @@ const DailyPlan = () => {
                   <div className="flex justify-between items-start">
                     <div>
                       <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-1">
-                        {isToday(selectedPlan.date) ? "Today's Plan" : 'Daily Plan'}
+                        {isToday(selectedPlan.date) ? "Today's Digest" : 'Daily Digest'}
                       </h2>
                       <p className="text-sm text-gray-600 dark:text-gray-400">{formatDate(selectedPlan.date)}</p>
                     </div>
@@ -418,7 +433,7 @@ const DailyPlan = () => {
                         <button
                           onClick={handleEditClick}
                           className="p-2 sm:px-3 sm:py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md transition flex items-center space-x-1.5"
-                          title="Edit plan"
+                          title="Edit digest"
                         >
                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
@@ -429,7 +444,7 @@ const DailyPlan = () => {
                           onClick={handleDeleteAndRegenerate}
                           disabled={generating}
                           className="p-2 sm:px-3 sm:py-2 text-sm font-medium text-red-700 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-md transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-1.5"
-                          title="Delete and regenerate plan"
+                          title="Delete and regenerate digest"
                         >
                           {generating ? (
                             <>
@@ -469,20 +484,13 @@ const DailyPlan = () => {
                 </div>
 
                 <div className="p-6">
-                  {/* Disclaimer */}
-                  <div className="mb-4 p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg">
-                    <p className="text-xs text-amber-800 dark:text-amber-200">
-                      Summary based on information you've provided. This is a memory aid, not medical advice. Always confirm details with your care team.
-                    </p>
-                  </div>
-
                   {isEditing ? (
                     <textarea
                       value={editedContent}
                       onChange={(e) => setEditedContent(e.target.value)}
                       rows={20}
                       className="textarea font-mono text-sm"
-                      placeholder="Edit your daily plan..."
+                      placeholder="Edit your daily digest..."
                     />
                   ) : (
                     <div className="prose prose-lg dark:prose-invert max-w-none">
@@ -524,7 +532,7 @@ const DailyPlan = () => {
           <div className="bg-white dark:bg-gray-800 rounded-lg max-w-lg w-full max-h-[90vh] overflow-y-auto">
             <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
               <div className="flex items-center justify-between">
-                <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Delete & Regenerate Plan</h2>
+                <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Delete & Regenerate Digest</h2>
                 <button
                   onClick={() => setShowDeleteConfirm(false)}
                   className="text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300"
@@ -545,7 +553,7 @@ const DailyPlan = () => {
                 </div>
                 <div className="flex-1">
                   <h3 className="text-sm font-medium text-gray-900 dark:text-white mb-1">
-                    Delete this plan and generate a new one?
+                    Delete this digest and generate a new one?
                   </h3>
                   <p className="text-sm text-gray-600 dark:text-gray-400">
                     For {formatDate(selectedPlan.date)}
@@ -558,8 +566,8 @@ const DailyPlan = () => {
                   What will happen:
                 </p>
                 <ul className="text-sm text-orange-800 dark:text-orange-300 space-y-1.5">
-                  <li>• The current plan will be deleted</li>
-                  <li>• A new plan will be generated with current journal and conversation data</li>
+                  <li>• The current digest will be deleted</li>
+                  <li>• A new digest will be generated with current journal and conversation data</li>
                   {selectedPlan.user_edited_content && (
                     <li>• <strong>All your edits will be lost</strong></li>
                   )}
@@ -568,7 +576,7 @@ const DailyPlan = () => {
 
               <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded px-4 py-3">
                 <p className="text-sm text-red-900 dark:text-red-200 font-bold">
-                  This action cannot be undone. The current plan will be permanently deleted.
+                  This action cannot be undone. The current digest will be permanently deleted.
                 </p>
               </div>
 

@@ -104,30 +104,13 @@ const TermsOfService = () => {
 
           {/* Section 5 */}
           <section>
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4 pb-2 border-b-2 border-primary-200 dark:border-primary-800">5. Direct-to-Consumer Use and HIPAA</h2>
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4 pb-2 border-b-2 border-primary-200 dark:border-primary-800">5. Direct-to-Consumer Use and HIPAA Status</h2>
             <div className="space-y-4">
-              <div className="bg-amber-50 dark:bg-amber-900/30 border-l-4 border-amber-500 dark:border-amber-600 p-5 rounded-r-lg space-y-3">
-                <div>
-                  <p className="text-amber-900 dark:text-amber-200 font-semibold mb-2">Direct-to-Consumer Tool</p>
-                  <p className="text-amber-900 dark:text-amber-200">
-                    AretaCare is a direct-to-consumer tool designed exclusively for personal use by patients and caregivers. It is not acting on behalf of any healthcare provider or insurer, and does not integrate with provider systems or electronic health records.
-                  </p>
-                </div>
-                <div>
-                  <p className="text-amber-900 dark:text-amber-200 font-semibold mb-2">Not for Clinical Use</p>
-                  <p className="text-amber-900 dark:text-amber-200">
-                    Healthcare providers, clinicians, and medical facilities must not use AretaCare as part of their clinical record, workflow, or patient care systems. This tool is intended only for individual consumer use.
-                  </p>
-                </div>
-                <div>
-                  <p className="text-amber-900 dark:text-amber-200 font-semibold mb-2">Not a HIPAA-Covered Service</p>
-                  <p className="text-amber-900 dark:text-amber-200">
-                    AretaCare is not a HIPAA-covered service. The platform does not receive information directly from healthcare providers and is not intended to serve as a medical record system.
-                  </p>
-                </div>
-              </div>
-              <p className="text-gray-700 dark:text-gray-300 leading-relaxed text-base font-semibold">
-                Do not rely on AretaCare for storing critical health information. Always maintain separate records of important medical information.
+              <p className="text-gray-700 dark:text-gray-300 leading-relaxed text-base">
+                AretaCare is a direct-to-consumer tool designed for personal use by patients and caregivers. It is not a HIPAA-covered service, does not integrate with healthcare provider systems, and is not intended to serve as a medical record system.
+              </p>
+              <p className="text-gray-700 dark:text-gray-300 leading-relaxed text-base">
+                Healthcare providers should not use AretaCare as part of their clinical record or workflow. We recommend keeping your own copies of important medical information.
               </p>
             </div>
           </section>
@@ -175,11 +158,9 @@ const TermsOfService = () => {
                   </li>
                 </ul>
               </div>
-              <div className="bg-blue-50 dark:bg-blue-900/30 border-l-4 border-blue-500 dark:border-blue-600 p-5 rounded-r-lg">
-                <p className="text-blue-900 dark:text-blue-200">
-                  <strong>Important:</strong> Security-related email notifications (password changes, email changes) cannot be disabled as they are essential for protecting your account from unauthorized access.
-                </p>
-              </div>
+              <p className="text-gray-700 dark:text-gray-300 leading-relaxed text-base">
+                Security-related email notifications (password changes, email changes) cannot be disabled as they help protect your account.
+              </p>
               <p className="text-gray-700 dark:text-gray-300 leading-relaxed text-base">
                 Emails do not contain sensitive medical information from your sessions. They contain only basic account information necessary for security notifications.
               </p>
@@ -191,15 +172,11 @@ const TermsOfService = () => {
             <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4 pb-2 border-b-2 border-primary-200 dark:border-primary-800">8. Limitation of Liability</h2>
             <div className="space-y-4">
               <p className="text-gray-700 dark:text-gray-300 leading-relaxed text-base">
-                To the maximum extent permitted by law, the developers, contributors, and maintainers of AretaCare shall not be liable for any indirect, incidental, special, consequential, or punitive damages, or any loss of profits or revenues, whether incurred directly or indirectly, or any loss of data, use, goodwill, or other intangible losses resulting from:
+                To the maximum extent permitted by applicable law, AretaCare and its developers shall not be liable for any indirect, incidental, special, consequential, or punitive damages resulting from your use of the application. This limitation does not affect any rights that cannot be waived under applicable law.
               </p>
-              <ul className="list-disc list-inside space-y-2 text-gray-700 dark:text-gray-300 dark:text-gray-300 pl-4">
-                <li>Your use or inability to use the application</li>
-                <li>Any unauthorized access to or use of your data</li>
-                <li>Any bugs, viruses, or other harmful code</li>
-                <li>Any errors or omissions in any content</li>
-                <li>Medical decisions made based on information from this application</li>
-              </ul>
+              <p className="text-gray-700 dark:text-gray-300 leading-relaxed text-base">
+                Nothing in these terms excludes or limits liability for fraud, gross negligence, or any other liability that cannot be excluded by law.
+              </p>
             </div>
           </section>
 
@@ -246,30 +223,33 @@ const TermsOfService = () => {
             </div>
           </section>
 
-          {/* Remaining sections with simpler formatting */}
+          {/* Section 11 */}
           <section>
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4 pb-2 border-b-2 border-primary-200 dark:border-primary-800">12. Modifications to Terms</h2>
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4 pb-2 border-b-2 border-primary-200 dark:border-primary-800">11. Modifications to Terms</h2>
             <p className="text-gray-700 dark:text-gray-300 leading-relaxed text-base">
               We reserve the right to modify these Terms of Service at any time. Changes will be effective immediately upon posting. Your continued use of AretaCare after changes constitutes acceptance of the modified terms.
             </p>
           </section>
 
+          {/* Section 12 */}
           <section>
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4 pb-2 border-b-2 border-primary-200 dark:border-primary-800">13. Termination</h2>
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4 pb-2 border-b-2 border-primary-200 dark:border-primary-800">12. Termination</h2>
             <p className="text-gray-700 dark:text-gray-300 leading-relaxed text-base">
               We reserve the right to terminate or suspend your access to AretaCare at any time, without notice, for any reason, including violation of these terms.
             </p>
           </section>
 
+          {/* Section 13 */}
           <section>
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4 pb-2 border-b-2 border-primary-200 dark:border-primary-800">14. Governing Law</h2>
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4 pb-2 border-b-2 border-primary-200 dark:border-primary-800">13. Governing Law</h2>
             <p className="text-gray-700 dark:text-gray-300 leading-relaxed text-base">
               These Terms of Service shall be governed by and construed in accordance with the laws of the jurisdiction in which you reside, without regard to its conflict of law provisions.
             </p>
           </section>
 
+          {/* Section 14 */}
           <section>
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4 pb-2 border-b-2 border-primary-200 dark:border-primary-800">15. Contact and Questions</h2>
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4 pb-2 border-b-2 border-primary-200 dark:border-primary-800">14. Contact and Questions</h2>
             <p className="text-gray-700 dark:text-gray-300 leading-relaxed text-base">
               For questions, issues, or contributions, please visit the GitHub repository at{' '}
               <a href="https://github.com/artificiallyhuman/aretacare" target="_blank" rel="noopener noreferrer" className="text-primary-600 hover:text-primary-700 font-medium underline">

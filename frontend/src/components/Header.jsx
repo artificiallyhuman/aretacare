@@ -93,8 +93,8 @@ const Header = ({ onLogout, user }) => {
             <Link to="/" className="px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-200 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-md transition-colors">
               Conversation
             </Link>
-            <Link to="/daily-plan" className="px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-200 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-md transition-colors">
-              Daily Plan
+            <Link to="/daily-digest" className="px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-200 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-md transition-colors">
+              Daily Digest
             </Link>
             <Link to="/collaboration" className="px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-200 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-md transition-colors">
               Collaboration
@@ -489,11 +489,11 @@ const Header = ({ onLogout, user }) => {
                   Conversation
                 </Link>
                 <Link
-                  to="/daily-plan"
+                  to="/daily-digest"
                   className="px-3 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-200 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-primary-50 dark:hover:bg-gray-700 transition-colors"
                   onClick={() => setMobileMenuOpen(false)}
                 >
-                  Daily Plan
+                  Daily Digest
                 </Link>
                 <Link
                   to="/collaboration"

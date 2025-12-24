@@ -455,7 +455,7 @@ class DailyPlanService:
 
         # Add closing instruction
         if is_first_plan:
-            closing = "\n\nBased on all this context, create a comprehensive daily plan for TODAY. IMPORTANT: Check the recent conversations above for any specific user instructions about what should be included in today's daily plan. If the user provided specific guidance, follow it exactly."
+            closing = "\n\nBased on all this context, create a daily digest for TODAY. Use the 2-section structure (skip Recap for the first digest): **Reminders from the Care Team** and **Questions for the Care Team**. IMPORTANT: Check the recent conversations above for any specific user instructions about what should be included in today's daily digest. If the user provided specific guidance, follow it exactly."
         else:
             prev_plan_date = context.get('previous_plan', {}).get('date', 'the previous')
             has_new_data = (
@@ -465,9 +465,9 @@ class DailyPlanService:
             )
 
             if has_new_data:
-                closing = f"\n\nBased on the {prev_plan_date} plan and the NEW information above, create an updated daily plan for TODAY. Maintain continuity from the previous plan while incorporating all new developments. IMPORTANT: Check the new conversations above for any specific user instructions about what should be included in today's daily plan. If the user provided specific guidance, follow it exactly."
+                closing = f"\n\nBased on the {prev_plan_date} digest and the NEW information above, create an updated daily digest for TODAY. Use the 3-section structure: **Updates Since Last Daily Digest** (summarize what's new), **Reminders from the Care Team**, and **Questions for the Care Team**. IMPORTANT: Check the new conversations above for any specific user instructions. If the user provided specific guidance, follow it exactly."
             else:
-                closing = f"\n\nSince there is no new information since the {prev_plan_date} plan, you can maintain the previous plan's content for TODAY or make minor adjustments as needed. The user may have specific instructions in their regeneration request - if so, follow them exactly."
+                closing = f"\n\nSince there is no new information since the {prev_plan_date} digest, create a digest for TODAY. You may skip the Updates section or note there's nothing new. Include **Reminders from the Care Team** and **Questions for the Care Team**. The user may have specific instructions in their regeneration request - if so, follow them exactly."
 
         prompt_parts.append(closing)
 

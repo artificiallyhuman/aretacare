@@ -48,7 +48,7 @@ const DailyPlanPanel = ({ activeSessionId, isOpen, onToggle, onPlanViewed }) => 
       }
     } catch (err) {
       console.error('Error loading daily plan:', err);
-      setError('Failed to load daily plan');
+      setError('Failed to load daily digest');
     } finally {
       setLoading(false);
     }
@@ -68,7 +68,7 @@ const DailyPlanPanel = ({ activeSessionId, isOpen, onToggle, onPlanViewed }) => 
       const errorMessage = err.response?.data?.detail ||
         (err.response?.status === 400
           ? "Not enough information yet. Please add journal entries or have conversations first."
-          : 'Failed to generate daily plan');
+          : 'Failed to generate daily digest');
       setError(errorMessage);
       setLoading(false);
     }
@@ -112,12 +112,12 @@ const DailyPlanPanel = ({ activeSessionId, isOpen, onToggle, onPlanViewed }) => 
           <svg className="w-4 h-4 md:w-5 md:h-5 text-primary-600 dark:text-primary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
           </svg>
-          <h3 className="text-base md:text-lg font-semibold text-gray-900 dark:text-gray-100">Daily Plan</h3>
+          <h3 className="text-base md:text-lg font-semibold text-gray-900 dark:text-gray-100">Daily Digest</h3>
         </div>
         <button
           onClick={onToggle}
           className="p-1 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-400 transition"
-          title="Hide Daily Plan"
+          title="Hide Daily Digest"
         >
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -141,11 +141,11 @@ const DailyPlanPanel = ({ activeSessionId, isOpen, onToggle, onPlanViewed }) => 
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
             </svg>
             <p className="text-xs md:text-sm text-gray-600 dark:text-gray-400 mb-2">
-              {dailyPlan ? `No new activity since the last daily plan generated on ${formatDateFull(dailyPlan.date)}` : "No daily plan yet"}
+              {dailyPlan ? `No new activity since the last daily digest generated on ${formatDateFull(dailyPlan.date)}` : "No daily digest yet"}
             </p>
             {!dailyPlan && (
               <p className="text-xs text-gray-500 dark:text-gray-500 mb-3 md:mb-4">
-                Your first daily plan will auto-generate after 24 hours of activity
+                Your first daily digest will auto-generate after 24 hours of activity
               </p>
             )}
             <button
@@ -164,7 +164,7 @@ const DailyPlanPanel = ({ activeSessionId, isOpen, onToggle, onPlanViewed }) => 
                   {formatDate(dailyPlan.date)}
                 </span>
                 <Link
-                  to="/daily-plan"
+                  to="/daily-digest"
                   className="text-xs text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 font-medium"
                 >
                   View All →
@@ -172,11 +172,19 @@ const DailyPlanPanel = ({ activeSessionId, isOpen, onToggle, onPlanViewed }) => 
               </div>
             </div>
 
-            {/* Disclaimer */}
-            <div className="mb-3 p-2 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded">
-              <p className="text-xs text-amber-800 dark:text-amber-200">
-                Summary based on information you've provided. Not medical advice.
-              </p>
+            {/* Important Banner */}
+            <div className="mb-3 bg-amber-50 dark:bg-amber-900/20 border-l-4 border-amber-500 dark:border-amber-600 p-3 rounded-r-lg">
+              <div className="flex items-start">
+                <svg className="w-4 h-4 text-amber-600 dark:text-amber-500 mt-0.5 mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+                <div className="flex-1">
+                  <h3 className="text-xs font-semibold text-amber-800 dark:text-amber-400 mb-0.5">Important</h3>
+                  <p className="text-xs text-amber-800 dark:text-amber-300 leading-relaxed">
+                    Daily Digest summarizes information you've provided and is not medical advice.
+                  </p>
+                </div>
+              </div>
             </div>
 
             {/* Plan content */}

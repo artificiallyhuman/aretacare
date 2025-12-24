@@ -76,7 +76,7 @@ const FAQ_DATA = [
     content: (
       <div className="space-y-3">
         <p>Yes. Your data is encrypted in transit and at rest. All traffic is protected by enterprise-grade edge security including DDoS protection and web application firewall. Accounts use hashed passwords, secure login tokens, and email verification.</p>
-        <p>Documents, images, and audio files are stored securely in AWS (Amazon Web Services). Text data like conversation history, care journals, and daily plans are stored in AretaCare's own secure database.</p>
+        <p>Documents, images, and audio files are stored securely in AWS (Amazon Web Services). Text data like conversation history, care journals, and daily digests are stored in AretaCare's own secure database.</p>
       </div>
     ),
     category: 'SECURITY & PRIVACY',
@@ -281,11 +281,19 @@ const About = () => {
         </p>
       </div>
 
-      {/* Organizational Tool Disclaimer */}
-      <div className="mb-6 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
-        <p className="text-blue-800 dark:text-blue-200 text-sm">
-          <strong>AretaCare is an organizational tool, not a medical device.</strong> AI features help you organize information, understand medical terminology, and prepare for conversations with your care team. They do not provide medical advice, diagnoses, or treatment recommendations. Always consult your healthcare providers for medical decisions.
-        </p>
+      {/* Important Banner */}
+      <div className="mb-6 bg-amber-50 dark:bg-amber-900/20 border-l-4 border-amber-500 dark:border-amber-600 p-4 rounded-r-lg">
+        <div className="flex items-start">
+          <svg className="w-5 h-5 text-amber-600 dark:text-amber-500 mt-0.5 mr-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+          </svg>
+          <div className="flex-1">
+            <h3 className="text-sm font-semibold text-amber-800 dark:text-amber-400 mb-1">Important</h3>
+            <p className="text-sm text-amber-800 dark:text-amber-300 leading-relaxed">
+              AretaCare is an organizational and information-support tool. Its AI features help you organize information, understand medical language, and prepare for conversations with your care team. AretaCare does not provide medical advice, diagnoses, or treatment recommendations. Always rely on your healthcare providers for medical decisions.
+            </p>
+          </div>
+        </div>
       </div>
 
       {/* Privacy & Security */}
@@ -301,19 +309,19 @@ const About = () => {
         <p className="text-gray-600 dark:text-gray-400 mb-3">Your personal data is stored securely and never sold:</p>
         <ul className="text-gray-600 dark:text-gray-400 space-y-2 leading-relaxed">
           <li className="flex items-start">
-            <span className="text-gray-600 dark:text-gray-400 mr-2 mt-1">•</span>
+            <span className="text-gray-600 dark:text-gray-400 mr-2">•</span>
             <span>Each session keeps conversations, journal, documents, and audio recordings separate</span>
           </li>
           <li className="flex items-start">
-            <span className="text-gray-600 dark:text-gray-400 mr-2 mt-1">•</span>
+            <span className="text-gray-600 dark:text-gray-400 mr-2">•</span>
             <span>Delete individual sessions or your entire account anytime from Settings</span>
           </li>
           <li className="flex items-start">
-            <span className="text-gray-600 dark:text-gray-400 mr-2 mt-1">•</span>
+            <span className="text-gray-600 dark:text-gray-400 mr-2">•</span>
             <span>Deletion immediately removes data from active systems; cloud provider backups are automatically purged within 30 days</span>
           </li>
           <li className="flex items-start">
-            <span className="text-gray-600 dark:text-gray-400 mr-2 mt-1">•</span>
+            <span className="text-gray-600 dark:text-gray-400 mr-2">•</span>
             <span>You control who has access to your sessions through collaboration settings</span>
           </li>
         </ul>
@@ -333,21 +341,21 @@ const About = () => {
           <p className="text-gray-600 dark:text-gray-400 mb-3">A simple place to organize your care information:</p>
           <ul className="text-gray-600 dark:text-gray-400 space-y-2 leading-relaxed">
             <li className="flex items-start">
-              <span className="text-blue-600 dark:text-blue-400 mr-2 mt-1">•</span>
+              <span className="text-blue-600 dark:text-blue-400 mr-2">•</span>
               <span>Interact your way: type messages, record voice notes, and share documents</span>
             </li>
             <li className="flex items-start">
-              <span className="text-blue-600 dark:text-blue-400 mr-2 mt-1">•</span>
+              <span className="text-blue-600 dark:text-blue-400 mr-2">•</span>
               <span>AI helps explain medical terms and summarize information you provide</span>
             </li>
             <li className="flex items-start">
-              <span className="text-blue-600 dark:text-blue-400 mr-2 mt-1">•</span>
+              <span className="text-blue-600 dark:text-blue-400 mr-2">•</span>
               <span>Everything is organized automatically in the background</span>
             </li>
           </ul>
         </div>
 
-        {/* Daily Plan */}
+        {/* Daily Digest */}
         <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6 shadow-sm hover:shadow-md transition">
           <div className="flex items-center mb-4">
             <div className="flex items-center justify-center w-12 h-12 bg-amber-100 dark:bg-amber-900/50 rounded-lg mr-4">
@@ -355,21 +363,21 @@ const About = () => {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
               </svg>
             </div>
-            <h4 className="text-lg font-semibold text-gray-900 dark:text-white">Daily Plan</h4>
+            <h4 className="text-lg font-semibold text-gray-900 dark:text-white">Daily Digest</h4>
           </div>
-          <p className="text-gray-600 dark:text-gray-400 mb-3">Reminders from your care team and questions to discuss with them:</p>
+          <p className="text-gray-600 dark:text-gray-400 mb-3">A simple, easy-to-read summary you can scan in under a minute:</p>
           <ul className="text-gray-600 dark:text-gray-400 space-y-2 leading-relaxed">
             <li className="flex items-start">
-              <span className="text-amber-600 dark:text-amber-400 mr-2 mt-1">•</span>
-              <span>Summarizes reminders from discharge instructions and care team guidance</span>
+              <span className="text-amber-600 dark:text-amber-400 mr-2">•</span>
+              <span>Recaps what's changed since your last digest</span>
             </li>
             <li className="flex items-start">
-              <span className="text-amber-600 dark:text-amber-400 mr-2 mt-1">•</span>
-              <span>Generates questions to discuss with your healthcare providers</span>
+              <span className="text-amber-600 dark:text-amber-400 mr-2">•</span>
+              <span>Organizes reminders by source (discharge instructions, doctor's notes, etc.)</span>
             </li>
             <li className="flex items-start">
-              <span className="text-amber-600 dark:text-amber-400 mr-2 mt-1">•</span>
-              <span>Fully editable so you can make it your own</span>
+              <span className="text-amber-600 dark:text-amber-400 mr-2">•</span>
+              <span>Suggests questions for your next care team conversation</span>
             </li>
           </ul>
         </div>
@@ -387,15 +395,15 @@ const About = () => {
           <p className="text-gray-600 dark:text-gray-400 mb-3">Keep everyone aligned and working together:</p>
           <ul className="text-gray-600 dark:text-gray-400 space-y-2 leading-relaxed">
             <li className="flex items-start">
-              <span className="text-emerald-600 dark:text-emerald-400 mr-2 mt-1">•</span>
+              <span className="text-emerald-600 dark:text-emerald-400 mr-2">•</span>
               <span>Up to 10 people can collaborate on each AretaCare session</span>
             </li>
             <li className="flex items-start">
-              <span className="text-emerald-600 dark:text-emerald-400 mr-2 mt-1">•</span>
+              <span className="text-emerald-600 dark:text-emerald-400 mr-2">•</span>
               <span>A single source of truth for conversations, documents, and care information</span>
             </li>
             <li className="flex items-start">
-              <span className="text-emerald-600 dark:text-emerald-400 mr-2 mt-1">•</span>
+              <span className="text-emerald-600 dark:text-emerald-400 mr-2">•</span>
               <span>Invite family members and caregivers to join your sessions</span>
             </li>
           </ul>
@@ -414,15 +422,15 @@ const About = () => {
           <p className="text-gray-600 dark:text-gray-400 mb-3">Features to help you stay organized:</p>
           <ul className="text-gray-600 dark:text-gray-400 space-y-2 leading-relaxed">
             <li className="flex items-start">
-              <span className="text-purple-600 dark:text-purple-400 mr-2 mt-1">•</span>
+              <span className="text-purple-600 dark:text-purple-400 mr-2">•</span>
               <span>Care Journal and Health Profile keep all your information organized</span>
             </li>
             <li className="flex items-start">
-              <span className="text-purple-600 dark:text-purple-400 mr-2 mt-1">•</span>
+              <span className="text-purple-600 dark:text-purple-400 mr-2">•</span>
               <span>Documents and Audio Recordings store and categorize your files</span>
             </li>
             <li className="flex items-start">
-              <span className="text-purple-600 dark:text-purple-400 mr-2 mt-1">•</span>
+              <span className="text-purple-600 dark:text-purple-400 mr-2">•</span>
               <span>Translator explains medical terms; Coach helps you draft questions for your care team</span>
             </li>
           </ul>
@@ -925,19 +933,19 @@ const About = () => {
             <h4 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">What You Can Do to Stay Safe</h4>
             <div className="text-gray-700 dark:text-gray-300 space-y-2">
               <p className="flex items-start">
-                <span className="text-blue-600 dark:text-blue-400 mr-2 mt-1">•</span>
+                <span className="text-blue-600 dark:text-blue-400 mr-2">•</span>
                 <span>Use a strong, unique password (don't reuse passwords from other sites)</span>
               </p>
               <p className="flex items-start">
-                <span className="text-blue-600 dark:text-blue-400 mr-2 mt-1">•</span>
+                <span className="text-blue-600 dark:text-blue-400 mr-2">•</span>
                 <span>Enable device-level security like PIN, Touch ID, or Face ID</span>
               </p>
               <p className="flex items-start">
-                <span className="text-blue-600 dark:text-blue-400 mr-2 mt-1">•</span>
+                <span className="text-blue-600 dark:text-blue-400 mr-2">•</span>
                 <span>Log out when using shared or public devices</span>
               </p>
               <p className="flex items-start">
-                <span className="text-blue-600 dark:text-blue-400 mr-2 mt-1">•</span>
+                <span className="text-blue-600 dark:text-blue-400 mr-2">•</span>
                 <span>Be cautious with email links, especially password reset emails you didn't request</span>
               </p>
             </div>

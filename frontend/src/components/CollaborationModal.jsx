@@ -426,11 +426,11 @@ export default function CollaborationModal({ session, onClose, onSuccess }) {
                 </p>
               </div>
 
-              <div className="bg-yellow-50 dark:bg-yellow-900/50 border border-yellow-200 dark:border-yellow-800 rounded px-3 py-3">
-                <p className="text-sm text-yellow-800 dark:text-yellow-300 mb-2">
+              <div className="bg-amber-50 dark:bg-amber-900/50 border border-amber-200 dark:border-amber-800 rounded px-3 py-3">
+                <p className="text-sm text-amber-800 dark:text-amber-300 mb-2">
                   <strong>⚠️ Important:</strong> Please read carefully before confirming.
                 </p>
-                <ul className="text-xs text-yellow-700 dark:text-yellow-300 space-y-1 list-disc list-inside">
+                <ul className="text-xs text-amber-700 dark:text-amber-300 space-y-1 list-disc list-inside">
                   <li>All data for "{session.name}" will be viewable and editable by {userToAdd.name}</li>
                   <li>This includes conversations, journal entries, documents, and audio recordings</li>
                   <li>They will be able to add, edit, and delete content in this session</li>
@@ -595,7 +595,7 @@ export default function CollaborationModal({ session, onClose, onSuccess }) {
                   <li>Journal entries</li>
                   <li>Uploaded documents</li>
                   <li>Audio recordings</li>
-                  <li>Daily plans</li>
+                  <li>Daily digests</li>
                 </ul>
               </div>
 
@@ -648,12 +648,12 @@ export default function CollaborationModal({ session, onClose, onSuccess }) {
                   <li>Journal entries</li>
                   <li>Uploaded documents</li>
                   <li>Audio recordings</li>
-                  <li>Daily plans</li>
+                  <li>Daily digests</li>
                 </ul>
               </div>
 
-              <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded px-4 py-3">
-                <p className="text-sm text-blue-900 dark:text-blue-200">
+              <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded px-4 py-3">
+                <p className="text-sm text-amber-900 dark:text-amber-200">
                   To regain access, the session owner must invite you again.
                 </p>
               </div>
@@ -697,20 +697,20 @@ export default function CollaborationModal({ session, onClose, onSuccess }) {
                 </div>
               </div>
 
-              <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded px-4 py-3">
-                <p className="text-sm text-blue-900 dark:text-blue-200 mb-2 font-medium">
+              <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded px-4 py-3">
+                <p className="text-sm text-amber-900 dark:text-amber-200 mb-2 font-medium">
                   Send an invitation?
                 </p>
-                <p className="text-sm text-blue-800 dark:text-blue-300">
+                <p className="text-sm text-amber-800 dark:text-amber-300">
                   We can send an email invitation to {email}. They'll receive a link to create a free AretaCare account, and once they register, they'll automatically have access to this session.
                 </p>
               </div>
 
-              <div className="bg-yellow-50 dark:bg-yellow-900/50 border border-yellow-200 dark:border-yellow-800 rounded px-3 py-3">
-                <p className="text-sm text-yellow-800 dark:text-yellow-300 mb-2">
+              <div className="bg-amber-50 dark:bg-amber-900/50 border border-amber-200 dark:border-amber-800 rounded px-3 py-3">
+                <p className="text-sm text-amber-800 dark:text-amber-300 mb-2">
                   <strong>⚠️ Important:</strong> After they create an account, they will have full access to:
                 </p>
-                <ul className="text-xs text-yellow-700 dark:text-yellow-300 space-y-1 list-disc list-inside">
+                <ul className="text-xs text-amber-700 dark:text-amber-300 space-y-1 list-disc list-inside">
                   <li>All data for "{session.name}"</li>
                   <li>Conversations, journal entries, documents, and audio recordings</li>
                   <li>They will be able to add, edit, and delete content in this session</li>

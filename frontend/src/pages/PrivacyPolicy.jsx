@@ -79,7 +79,7 @@ const PrivacyPolicy = () => {
               <p className="text-gray-700 dark:text-gray-300 leading-relaxed text-base">We use your information to:</p>
               <ul className="list-disc list-inside space-y-2 text-gray-700 dark:text-gray-300 pl-4">
                 <li>Help you organize and understand medical information</li>
-                <li>Generate journal entries and daily plan summaries</li>
+                <li>Generate journal entries and daily digest summaries</li>
                 <li>Store and organize your medical documents</li>
                 <li>Maintain your account and session</li>
                 <li>Send you important email notifications about your account</li>
@@ -117,10 +117,18 @@ const PrivacyPolicy = () => {
 
               <div>
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">Required Communications</h3>
-                <div className="bg-blue-50 dark:bg-blue-900/30 border-l-4 border-blue-500 dark:border-blue-600 p-5 rounded-r-lg">
-                  <p className="text-blue-900 dark:text-blue-200">
-                    <strong>Important:</strong> Email notifications related to account security (password changes, email changes) cannot be disabled as they are essential for protecting your account. By creating an account, you consent to receive these communications.
-                  </p>
+                <div className="bg-amber-50 dark:bg-amber-900/20 border-l-4 border-amber-500 dark:border-amber-600 p-4 rounded-r-lg">
+                  <div className="flex items-start">
+                    <svg className="w-5 h-5 text-amber-600 dark:text-amber-500 mt-0.5 mr-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    </svg>
+                    <div className="flex-1">
+                      <h3 className="text-sm font-semibold text-amber-800 dark:text-amber-400 mb-1">Important</h3>
+                      <p className="text-sm text-amber-800 dark:text-amber-300 leading-relaxed">
+                        Email notifications related to account security (password changes, email changes) cannot be disabled as they are essential for protecting your account. By creating an account, you consent to receive these communications.
+                      </p>
+                    </div>
+                  </div>
                 </div>
               </div>
 
@@ -144,15 +152,23 @@ const PrivacyPolicy = () => {
                 AretaCare allows you to share sessions with other registered users (up to 10 people per session, including yourself). When you share a session:
               </p>
               <ul className="list-disc list-inside space-y-2 text-gray-700 dark:text-gray-300 pl-4">
-                <li>Collaborators have full access to all session data including conversations, journal entries, documents, audio recordings, and daily plans</li>
+                <li>Collaborators have full access to all session data including conversations, journal entries, documents, audio recordings, and daily digests</li>
                 <li>Collaborators can add, edit, and delete content within the shared session</li>
                 <li>Only the session owner can share with additional users or revoke access</li>
                 <li>Collaborators can leave a shared session at any time</li>
               </ul>
-              <div className="bg-blue-50 dark:bg-blue-900/30 border-l-4 border-blue-500 dark:border-blue-600 p-5 rounded-r-lg">
-                <p className="text-blue-900 dark:text-blue-200">
-                  <strong>Important:</strong> Only share sessions with people you trust. Once shared, collaborators can view all existing content in that session.
-                </p>
+              <div className="bg-amber-50 dark:bg-amber-900/20 border-l-4 border-amber-500 dark:border-amber-600 p-4 rounded-r-lg">
+                <div className="flex items-start">
+                  <svg className="w-5 h-5 text-amber-600 dark:text-amber-500 mt-0.5 mr-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                  <div className="flex-1">
+                    <h3 className="text-sm font-semibold text-amber-800 dark:text-amber-400 mb-1">Important</h3>
+                    <p className="text-sm text-amber-800 dark:text-amber-300 leading-relaxed">
+                      Only share sessions with people you trust. Once shared, collaborators can view all existing content in that session.
+                    </p>
+                  </div>
+                </div>
               </div>
             </div>
           </section>
@@ -171,7 +187,7 @@ const PrivacyPolicy = () => {
                   <ul className="text-sm text-gray-600 dark:text-gray-300 space-y-1.5">
                     <li>• Processes your messages to provide AI assistance</li>
                     <li>• Transcribes audio recordings</li>
-                    <li>• Generates journal entries and daily plans</li>
+                    <li>• Generates journal entries and daily digests</li>
                     <li>• Subject to OpenAI's privacy policy and terms of service</li>
                   </ul>
                 </div>
@@ -213,33 +229,15 @@ const PrivacyPolicy = () => {
               </div>
 
               <div>
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">Security Limitations</h3>
-                <div className="bg-amber-50 dark:bg-amber-900/30 border-l-4 border-amber-500 dark:border-amber-600 p-5 rounded-r-lg">
-                  <p className="text-amber-900 dark:text-amber-200 font-semibold mb-3 flex items-start">
-                    <svg className="w-6 h-6 mr-2 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                    </svg>
-                    <span>IMPORTANT: While we implement security measures, we cannot guarantee absolute security. As an open source project:</span>
-                  </p>
-                  <ul className="space-y-2 text-amber-800 dark:text-amber-300 pl-8">
-                    <li className="flex items-start">
-                      <span className="text-amber-600 mr-2 mt-1">•</span>
-                      <span>Data breaches may occur</span>
-                    </li>
-                    <li className="flex items-start">
-                      <span className="text-amber-600 mr-2 mt-1">•</span>
-                      <span>Data may be lost due to technical failures</span>
-                    </li>
-                    <li className="flex items-start">
-                      <span className="text-amber-600 mr-2 mt-1">•</span>
-                      <span>Security vulnerabilities may exist in the code</span>
-                    </li>
-                    <li className="flex items-start">
-                      <span className="text-amber-600 mr-2 mt-1">•</span>
-                      <span>You should not store highly sensitive information without additional safeguards</span>
-                    </li>
-                  </ul>
-                </div>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">Security Practices</h3>
+                <p className="text-gray-700 dark:text-gray-300 leading-relaxed text-base mb-3">
+                  No system can guarantee absolute security. We take reasonable measures to protect your data, but like any online service, AretaCare cannot eliminate all security risks. We recommend:
+                </p>
+                <ul className="list-disc list-inside space-y-2 text-gray-700 dark:text-gray-300 pl-4">
+                  <li>Using a strong, unique password for your account</li>
+                  <li>Keeping your own copies of important documents</li>
+                  <li>Reviewing our open source code if you have security concerns</li>
+                </ul>
               </div>
             </div>
           </section>
@@ -267,7 +265,7 @@ const PrivacyPolicy = () => {
                   <li>All journal entries are permanently deleted from the database</li>
                   <li>All uploaded documents and audio files are permanently deleted from S3 storage</li>
                   <li>Document thumbnails and audio transcriptions are permanently deleted</li>
-                  <li>All daily plans are permanently deleted from the database</li>
+                  <li>All daily digests are permanently deleted from the database</li>
                   <li>Session collaborator access is removed</li>
                   <li>Your user account remains active with any other sessions intact</li>
                 </ul>
@@ -280,7 +278,7 @@ const PrivacyPolicy = () => {
                 </p>
                 <ul className="list-disc list-inside space-y-2 text-gray-700 dark:text-gray-300 pl-4">
                   <li>Your account and profile information (name, email, credentials)</li>
-                  <li>All sessions you own and their complete data (conversations, journal, daily plans)</li>
+                  <li>All sessions you own and their complete data (conversations, journal, daily digests)</li>
                   <li>All documents, audio recordings, thumbnails, and associated files in S3 storage</li>
                   <li>Your access to any sessions shared with you (the shared sessions remain for other collaborators)</li>
                 </ul>
@@ -288,25 +286,13 @@ const PrivacyPolicy = () => {
 
               <div>
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">Cloud Backup Retention</h3>
-                <div className="bg-amber-50 dark:bg-amber-900/30 border-l-4 border-amber-500 dark:border-amber-600 p-5 rounded-r-lg">
-                  <p className="text-amber-900 dark:text-amber-200 font-semibold mb-2">
-                    While we immediately delete your data from our active systems, copies may persist in underlying cloud provider backups for a limited time:
-                  </p>
-                  <ul className="space-y-2 text-amber-800 dark:text-amber-300 pl-4">
-                    <li className="flex items-start">
-                      <span className="text-amber-600 mr-2 mt-1">•</span>
-                      <span>Database backups (PostgreSQL via Render) may retain deleted data for up to 30 days</span>
-                    </li>
-                    <li className="flex items-start">
-                      <span className="text-amber-600 mr-2 mt-1">•</span>
-                      <span>S3 backups (AWS) may retain deleted files according to AWS backup policies</span>
-                    </li>
-                    <li className="flex items-start">
-                      <span className="text-amber-600 mr-2 mt-1">•</span>
-                      <span>These backup copies are not accessible through the application and will be automatically purged according to cloud provider retention policies</span>
-                    </li>
-                  </ul>
-                </div>
+                <p className="text-gray-700 dark:text-gray-300 leading-relaxed text-base mb-3">
+                  When you delete data, it is immediately removed from our active systems. However, copies may persist temporarily in cloud provider backups:
+                </p>
+                <ul className="list-disc list-inside space-y-2 text-gray-700 dark:text-gray-300 pl-4">
+                  <li>Database backups may retain deleted data for up to 30 days</li>
+                  <li>These backup copies are not accessible through the application and are automatically purged according to cloud provider retention policies</li>
+                </ul>
               </div>
 
               <div>
@@ -317,33 +303,10 @@ const PrivacyPolicy = () => {
               </div>
 
               <div>
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">No Automatic User Backups</h3>
-                <div className="bg-blue-50 dark:bg-blue-900/30 border-l-4 border-blue-500 dark:border-blue-600 p-5 rounded-r-lg">
-                  <p className="text-blue-900 dark:text-blue-200 font-semibold mb-3">
-                    We do not maintain automatic backups accessible to users. If you need to preserve your information, you should:
-                  </p>
-                  <ul className="space-y-2 text-blue-800 dark:text-blue-300 pl-4">
-                    <li className="flex items-start">
-                      <span className="text-blue-600 mr-2 mt-1">•</span>
-                      <span>Download your documents regularly</span>
-                    </li>
-                    <li className="flex items-start">
-                      <span className="text-blue-600 mr-2 mt-1">•</span>
-                      <span>Export or copy your journal entries</span>
-                    </li>
-                    <li className="flex items-start">
-                      <span className="text-blue-600 mr-2 mt-1">•</span>
-                      <span>Save your daily plans manually</span>
-                    </li>
-                    <li className="flex items-start">
-                      <span className="text-blue-600 mr-2 mt-1">•</span>
-                      <span>Copy important conversation content</span>
-                    </li>
-                  </ul>
-                  <p className="text-blue-900 dark:text-blue-200 mt-3">
-                    Once deleted, data cannot be recovered from active systems.
-                  </p>
-                </div>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">Keeping Your Own Copies</h3>
+                <p className="text-gray-700 dark:text-gray-300 leading-relaxed text-base mb-3">
+                  We recommend keeping your own copies of important information. You can download documents, copy journal entries and daily digests, and save conversation content at any time. Once deleted, data cannot be recovered.
+                </p>
               </div>
             </div>
           </section>
@@ -370,7 +333,7 @@ const PrivacyPolicy = () => {
                 <ul className="list-disc list-inside space-y-2 text-gray-700 dark:text-gray-300 pl-4">
                   <li>Copying conversation text from the interface</li>
                   <li>Downloading your uploaded documents</li>
-                  <li>Copying journal entries and daily plans</li>
+                  <li>Copying journal entries and daily digests</li>
                 </ul>
               </div>
             </div>
@@ -386,20 +349,14 @@ const PrivacyPolicy = () => {
 
           {/* Section 11 - HIPAA and Data Practices */}
           <section>
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4 pb-2 border-b-2 border-primary-200 dark:border-primary-800">11. HIPAA and Data Practices</h2>
-            <div className="bg-amber-50 dark:bg-amber-900/30 border-l-4 border-amber-500 dark:border-amber-600 p-5 rounded-r-lg space-y-3">
-              <div>
-                <p className="text-amber-900 dark:text-amber-200 font-semibold mb-2">Direct-to-Consumer Tool</p>
-                <p className="text-amber-900 dark:text-amber-200">
-                  AretaCare is a direct-to-consumer tool designed for personal use by patients and caregivers. It is not acting on behalf of any healthcare provider or insurer, and does not integrate with provider systems or electronic health records. Healthcare providers should not use AretaCare as part of their clinical record or workflow.
-                </p>
-              </div>
-              <div>
-                <p className="text-amber-900 dark:text-amber-200 font-semibold mb-2">Not a HIPAA-Covered Service</p>
-                <p className="text-amber-900 dark:text-amber-200">
-                  AretaCare is not a HIPAA-covered service. The platform does not receive information directly from healthcare providers and is not intended to serve as a medical record system. Do not rely on AretaCare as your only place to store critical health information.
-                </p>
-              </div>
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4 pb-2 border-b-2 border-primary-200 dark:border-primary-800">11. HIPAA Status</h2>
+            <div className="space-y-4">
+              <p className="text-gray-700 dark:text-gray-300 leading-relaxed text-base">
+                AretaCare is a direct-to-consumer tool designed for personal use by patients and caregivers. It is not a HIPAA-covered service, does not integrate with healthcare provider systems, and is not intended to serve as a medical record system.
+              </p>
+              <p className="text-gray-700 dark:text-gray-300 leading-relaxed text-base">
+                Healthcare providers should not use AretaCare as part of their clinical record or workflow. We recommend keeping your own copies of important medical information.
+              </p>
             </div>
           </section>
 
@@ -433,11 +390,9 @@ const PrivacyPolicy = () => {
                   <li>Are derived from patterns across large groups of users</li>
                   <li>May be used to improve the platform or offered to third parties</li>
                 </ul>
-                <div className="bg-blue-50 dark:bg-blue-900/30 border-l-4 border-blue-500 dark:border-blue-600 p-5 rounded-r-lg mt-4">
-                  <p className="text-blue-900 dark:text-blue-200">
-                    <strong>Example:</strong> We might identify that "60% of users caring for elderly parents ask about medication side effects" but we would never reveal that "User John Smith asked about metformin side effects on January 5th."
-                  </p>
-                </div>
+                <p className="text-gray-700 dark:text-gray-300 leading-relaxed text-base mt-3">
+                  <strong>Example:</strong> We might identify that "60% of users ask about medication side effects" but we would never reveal that any specific user asked about a specific medication on a specific date.
+                </p>
               </div>
             </div>
           </section>
@@ -457,24 +412,37 @@ const PrivacyPolicy = () => {
 
           {/* Section 15 */}
           <section>
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4 pb-2 border-b-2 border-primary-200 dark:border-primary-800">15. International Users</h2>
-            <p className="text-gray-700 dark:text-gray-300 leading-relaxed text-base">
-              AretaCare may be accessed from anywhere in the world. By using this application, you consent to the transfer of your information to the United States (where our servers may be located) and other countries where our service providers operate.
-            </p>
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4 pb-2 border-b-2 border-primary-200 dark:border-primary-800">15. Geographic Availability</h2>
+            <div className="space-y-4">
+              <p className="text-gray-700 dark:text-gray-300 leading-relaxed text-base">
+                AretaCare is designed for users in the United States. Our servers and data processing are located in the United States. By using this application, you acknowledge that your data will be stored and processed in the United States.
+              </p>
+              <p className="text-gray-700 dark:text-gray-300 leading-relaxed text-base">
+                If you are located outside the United States, please be aware that we may not be able to comply with all data protection requirements in your jurisdiction. We encourage you to review this policy and our Terms of Service before using AretaCare.
+              </p>
+            </div>
           </section>
 
           {/* Section 16 */}
           <section>
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4 pb-2 border-b-2 border-primary-200 dark:border-primary-800">16. California Privacy Rights</h2>
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4 pb-2 border-b-2 border-primary-200 dark:border-primary-800">16. State Privacy Rights</h2>
             <div className="space-y-4">
               <p className="text-gray-700 dark:text-gray-300 leading-relaxed text-base">
-                California residents have specific rights under the California Consumer Privacy Act (CCPA), including the right to:
+                Residents of California, Colorado, Virginia, Connecticut, Utah, and other states with privacy laws have specific rights regarding their personal information, including:
               </p>
               <ul className="list-disc list-inside space-y-2 text-gray-700 dark:text-gray-300 pl-4">
-                <li>Know what personal information is collected</li>
-                <li>Request deletion of personal information</li>
-                <li>Opt-out of sale of personal information (we do not sell your personal data)</li>
+                <li>The right to know what personal information is collected</li>
+                <li>The right to request deletion of personal information</li>
+                <li>The right to opt-out of sale of personal information (we do not sell your personal data)</li>
+                <li>The right to access and receive a copy of your data</li>
               </ul>
+              <p className="text-gray-700 dark:text-gray-300 leading-relaxed text-base">
+                <strong>How to exercise these rights:</strong> You can access, export, or delete your data directly through the application at any time via the Settings page. For additional requests or questions, contact us at{' '}
+                <a href="mailto:privacy@aretacare.com" className="text-primary-600 hover:text-primary-700 font-medium underline">
+                  privacy@aretacare.com
+                </a>
+                . We will respond to verified requests within 45 days.
+              </p>
             </div>
           </section>
 

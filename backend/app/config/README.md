@@ -66,7 +66,7 @@ Each feature has dedicated prompts and functions:
 | Journal Synthesis (Conversation) | `JOURNAL_SYNTHESIS_PROMPT` | Generate journal entries from conversations with date interpretation ("Thursday", "next week") and automatic entry splitting for events on different dates |
 | Journal Synthesis (Documents) | `DOCUMENT_JOURNAL_SYNTHESIS_PROMPT` | Generate comprehensive journal entries from uploaded documents using native file support (analyzes actual PDFs/images via presigned URLs for faster, more accurate synthesis) |
 | Journal Synthesis (Audio) | `AUDIO_JOURNAL_SYNTHESIS_PROMPT` | Generate comprehensive journal entries from audio transcriptions |
-| Daily Plan | `DAILY_PLAN_SYSTEM_PROMPT` | Generate daily care plans |
+| Daily Digest | `DAILY_PLAN_SYSTEM_PROMPT` | Generate daily care digests |
 | Admin Report | `ADMIN_REPORT_SYSTEM_PROMPT` | Analyze security/error/API logs for concerning patterns and generate actionable insights for administrators |
 
 ### Categories
@@ -175,7 +175,7 @@ docker compose restart backend
 Test key features:
 - Send a conversation message
 - Translate medical jargon
-- Generate a daily plan
+- Generate a daily digest
 - Upload a document (test categorization)
 
 ## Troubleshooting

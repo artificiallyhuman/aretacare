@@ -20,13 +20,13 @@ AretaCare was built from exactly this experience—sitting beside a loved one in
 
 **Conversation** — Talk naturally about what's happening. Upload lab results, record voice notes, or type out questions. AretaCare helps translate medical jargon, organize information, and prepare you for conversations with the care team. Edit your own messages after sending to correct or clarify what you meant (edited messages are marked with an "(edited)" indicator). Copy any message to your clipboard as formatted text (markdown converts to rich HTML) for easy pasting into notes or documents. Contextual timestamps show time only for today's messages and date+time for older messages, helping you track when conversations occurred.
 
-**Multi-Session Support** — Create up to 5 personal sessions to keep different care situations organized (e.g., separate sessions for different family members or health journeys). Switch between sessions using the header dropdown. Each session maintains its own conversations, documents, journal, and daily plans. Sessions can be renamed (15-character limit) and shared with others.
+**Multi-Session Support** — Create up to 5 personal sessions to keep different care situations organized (e.g., separate sessions for different family members or health journeys). Switch between sessions using the header dropdown. Each session maintains its own conversations, documents, journal, and daily digests. Sessions can be renamed (15-character limit) and shared with others.
 
 **Session Collaboration** — Invite family members to collaborate on a session. Up to 10 people can share the same view (including pending invitations), keeping everyone informed and aligned even when you're in different cities. Manage all your collaborations from the dedicated Collaboration page—add or remove collaborators, transfer session ownership, resend or cancel pending invitations, and leave shared sessions. Receive email notifications when collaborators are added or removed, and when ownership is transferred.
 
 **Journal** — Your care journey automatically organized into a searchable timeline. Medical updates, treatment changes, appointments, insights, and milestones—all captured and categorized from your conversations so nothing falls through the cracks. Navigate by date using the sticky sidebar, jump to today with one click, and see future entries visually distinguished with blue shading. Entries are created with intelligent date interpretation (understands "Thursday", "next week", "yesterday").
 
-**Daily Plan** — AI-generated summaries of today's priorities, important reminders, and questions to ask at your next appointment. Fully editable and regenerated daily based on your current situation. Each collaborator sees their own "new plan" notifications for independent tracking. Copy plans to your clipboard as formatted text for sharing with family or healthcare providers. Plans are generated from comprehensive context including all journal entries, recent conversations, latest documents, and previous plans.
+**Daily Digest** — AI-generated summaries of today's priorities, important reminders, and questions to ask at your next appointment. Fully editable and regenerated daily based on your current situation. Each collaborator sees their own "new digest" notifications for independent tracking. Copy digests to your clipboard as formatted text for sharing with family or healthcare providers. Digests are generated from comprehensive context including all journal entries, recent conversations, latest documents, and previous digests.
 
 **Care Profile** — AI-powered long-term memory that builds a comprehensive picture of the care situation. Automatically extracts and organizes: patient information, caregivers, healthcare providers, conditions, medications (with 14 AI-categorized categories like pain management, cardiovascular, diabetes, mental health, etc.), allergies, significant events, and preferences. Visual enhancements include color-coded section icons with gradients, timeline visualization for events, status badges (Active/Inactive for medications, severity-based for conditions/allergies), and a completeness progress indicator. Updates incrementally from conversations and journal entries. You control all data—AI proposes changes through a diff view, and you approve or reject each one. Copy-to-clipboard and PDF export both group medications by category for easy reading.
 
@@ -197,7 +197,7 @@ aretacare/
 - Create up to **5 personal sessions** per user
 - Switch sessions via header dropdown with active session indicator
 - **Session naming** with 15-character limit (default: "Session 1/2/3" with smart numbering)
-- Each session maintains separate: conversations, documents, journal entries, daily plans, audio recordings
+- Each session maintains separate: conversations, documents, journal entries, daily digests, audio recordings
 - Delete individual sessions (removes all data including S3 files)
 
 ### Collaboration & Sharing
@@ -205,15 +205,15 @@ aretacare/
 - Dedicated **Collaboration page** (`/collaboration`) for managing all session sharing
 - **Email invitations** for non-registered users (pending for 30 days, resend capability)
 - **Ownership transfer** with validation (target user must have <5 owned sessions)
-- **Full collaborator access** to all session data (documents, conversations, journal, daily plans, audio)
+- **Full collaborator access** to all session data (documents, conversations, journal, daily digests, audio)
 - **Email notifications** for: collaborator added/removed, ownership transferred, invitation received
 - Shared sessions **don't count** toward collaborator's 5-session ownership limit
-- **Per-user view tracking** for daily plans (independent "new plan" notifications for each user)
+- **Per-user view tracking** for daily digests (independent "new digest" notifications for each user)
 
 ### AI-Powered Features
 - **Conversation interface** with GPT-5.2, "Thinking..." status, markdown rendering, copy-to-clipboard (converts markdown to formatted HTML)
 - **Journal synthesis** - Automatically creates entries from conversations, documents, and audio using native file support (6 entry types: medical update, treatment change, appointment, insight, milestone, other). Analyzes actual files for faster, more accurate synthesis.
-- **Daily plan generation** - AI-generated daily priorities, reminders, and questions based on comprehensive context
+- **Daily digest generation** - AI-generated daily priorities, reminders, and questions based on comprehensive context
 - **Care Profile** - AI-powered long-term memory organizing patient info, caregivers, providers, conditions, medications (14 AI-categorized categories: pain management, cardiovascular, diabetes, mental health, etc.), allergies, events, and preferences. Visual enhancements include color-coded section icons with gradients, timeline visualization for events, status badges, and completeness progress indicator. Incremental updates with user-controlled diff review. Copy-to-clipboard and PDF export group medications by category. Also serves as long-term context in conversations (up to 25K tokens in 150K total context window)
 - **Document categorization** - 12 categories with AI-generated descriptions (user-editable, max 200 characters)
 - **Audio categorization** - 12 categories with AI-generated summaries (user-editable, max 150 characters)

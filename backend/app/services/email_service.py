@@ -1685,7 +1685,7 @@ The AretaCare Team
                                     <li style="margin: 4px 0;">Journal entries</li>
                                     <li style="margin: 4px 0;">Uploaded documents</li>
                                     <li style="margin: 4px 0;">Audio recordings</li>
-                                    <li style="margin: 4px 0;">Daily plans</li>
+                                    <li style="margin: 4px 0;">Daily digests</li>
                                 </ul>
                             </div>
                         </td>

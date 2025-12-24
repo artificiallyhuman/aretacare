@@ -87,7 +87,7 @@ function Contact() {
         const pageMap = {
           '/': 'Conversation (Home)',
           '/journal': 'Journal',
-          '/daily-plan': 'Daily Plan',
+          '/daily-digest': 'Daily Digest',
           '/audio-recordings': 'Audio Recordings',
           '/tools/documents': 'Documents',
           '/tools/jargon': 'Jargon Translator',
