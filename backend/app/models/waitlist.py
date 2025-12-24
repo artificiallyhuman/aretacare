@@ -16,6 +16,7 @@ class WaitlistEntry(Base):
     invitation_token = Column(String(43), unique=True, nullable=True, index=True)  # Token for registration
     invitation_expires = Column(DateTime, nullable=True)  # Token expiration
     notes = Column(Text, nullable=True)  # Admin notes about this entry
+    user_message = Column(Text, nullable=True)  # User's message when signing up ("anything you want us to know")
     added_by_email = Column(String(255), nullable=True)  # Who added this entry (admin email or referrer email, null if self-joined)
     # Users who tried to add this person as a collaborator
     # Format: [{"user_id": "...", "user_email": "...", "session_name": "..."}, ...]

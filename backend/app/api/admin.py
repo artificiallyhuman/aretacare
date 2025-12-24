@@ -1107,6 +1107,7 @@ async def get_waitlist(
             invited_at=e.invited_at,
             has_invitation=e.invitation_token is not None,
             notes=e.notes,
+            user_message=e.user_message,
             added_by_email=e.added_by_email,
             referrers=e.referrers
         ) for e in entries

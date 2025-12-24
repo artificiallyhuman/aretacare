@@ -4,6 +4,7 @@ Waitlist API endpoints for controlled signup flow.
 
 from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy.orm import Session as DBSession
+import html
 
 from app.core.database import get_db
 from app.core.config import settings
@@ -15,6 +16,7 @@ from app.schemas.waitlist import (
     WaitlistJoinResponse,
     SignupModeResponse,
 )
+from app.api.feedback import verify_hcaptcha, get_client_ip
 
 router = APIRouter(prefix="/waitlist", tags=["waitlist"])
 
@@ -38,8 +40,24 @@ async def join_waitlist(
     """
     Add email to waitlist (public endpoint, no auth required).
     Only meaningful when CONTROL_SIGNUPS=TRUE.
+    Requires hCaptcha verification.
     """
+    # Verify hCaptcha
+    client_ip = get_client_ip(request)
+    is_valid = await verify_hcaptcha(data.captcha_token, client_ip)
+    if not is_valid:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Captcha verification failed. Please try again."
+        )
+
     email = data.email.lower().strip()
+
+    # Sanitize user message if provided
+    user_message = None
+    if data.message:
+        # HTML escape and normalize whitespace, truncate to 1000 chars
+        user_message = html.escape(data.message.strip())[:1000]
 
     # Check if already a registered user
     existing_user = db.query(User).filter(User.email == email).first()
@@ -68,7 +86,7 @@ async def join_waitlist(
         )
 
     # Add to waitlist
-    entry = WaitlistEntry(email=email)
+    entry = WaitlistEntry(email=email, user_message=user_message)
     db.add(entry)
     db.commit()
 

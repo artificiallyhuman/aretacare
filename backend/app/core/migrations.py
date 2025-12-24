@@ -1468,3 +1468,20 @@ def run_migrations():
                 conn.rollback()
         else:
             logger.info("waitlist table already exists")
+
+        # Add user_message column to waitlist table if it doesn't exist
+        if 'waitlist' in inspector.get_table_names():
+            waitlist_columns = [col['name'] for col in inspector.get_columns('waitlist')]
+            if 'user_message' not in waitlist_columns:
+                logger.info("Adding user_message column to waitlist table...")
+                try:
+                    conn.execute(text(
+                        "ALTER TABLE waitlist ADD COLUMN user_message TEXT NULL"
+                    ))
+                    conn.commit()
+                    logger.info("Successfully added user_message column to waitlist")
+                except Exception as e:
+                    logger.error(f"Failed to add user_message column to waitlist: {e}")
+                    conn.rollback()
+            else:
+                logger.info("user_message column already exists in waitlist")

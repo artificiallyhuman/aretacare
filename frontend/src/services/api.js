@@ -445,7 +445,11 @@ export const feedbackAPI = {
 // Waitlist API (public, no auth required)
 export const waitlistAPI = {
   getSignupMode: () => api.get('/waitlist/signup-mode'),
-  join: (email) => api.post('/waitlist/join', { email }),
+  join: (email, message, captchaToken) => api.post('/waitlist/join', {
+    email,
+    message: message || null,
+    captcha_token: captchaToken
+  }),
 };
 
 // Profile API

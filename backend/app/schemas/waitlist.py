@@ -6,6 +6,8 @@ from typing import Optional, List
 class WaitlistJoinRequest(BaseModel):
     """Schema for joining the waitlist."""
     email: EmailStr
+    message: Optional[str] = None  # "Anything you want us to know"
+    captcha_token: str  # hCaptcha token
 
 
 class WaitlistJoinResponse(BaseModel):
@@ -35,6 +37,7 @@ class WaitlistEntryResponse(BaseModel):
     invited_at: Optional[datetime] = None
     has_invitation: bool
     notes: Optional[str] = None
+    user_message: Optional[str] = None  # User's message when signing up
     added_by_email: Optional[str] = None
     referrers: Optional[List[ReferrerInfo]] = None
 

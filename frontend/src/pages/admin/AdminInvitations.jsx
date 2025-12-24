@@ -254,6 +254,12 @@ function AdminInvitations() {
                         </div>
                       )}
 
+                      {entry.user_message && (
+                        <div className="text-sm text-gray-600 dark:text-gray-300 mt-1">
+                          <span className="font-medium">User message:</span> {entry.user_message}
+                        </div>
+                      )}
+
                       {/* Notes section */}
                       {editingNotes === entry.id ? (
                         <div className="mt-2 flex gap-2">
@@ -281,7 +287,7 @@ function AdminInvitations() {
                         <div className="mt-1">
                           {entry.notes ? (
                             <div className="text-sm text-gray-600 dark:text-gray-300">
-                              <span className="font-medium">Notes:</span> {entry.notes}
+                              <span className="font-medium">Admin notes:</span> {entry.notes}
                               <button
                                 onClick={() => handleEditNotes(entry)}
                                 className="ml-2 text-primary-600 dark:text-primary-400 hover:underline text-xs"

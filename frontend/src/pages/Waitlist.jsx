@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { Link } from 'react-router-dom';
+import HCaptcha from '@hcaptcha/react-hcaptcha';
 import { waitlistAPI } from '../services/api';
 import { useTheme } from '../contexts/ThemeContext';
 import logo from '../logos/large_logo.png';
@@ -8,25 +9,37 @@ import robSignature from '../logos/rob_signature.png';
 
 function Waitlist() {
   const [email, setEmail] = useState('');
+  const [userMessage, setUserMessage] = useState('');
+  const [captchaToken, setCaptchaToken] = useState('');
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [alreadyOnList, setAlreadyOnList] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const { isDark, toggleTheme } = useTheme();
+  const captchaRef = useRef(null);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+
+    if (!captchaToken) {
+      setError('Please complete the captcha verification');
+      return;
+    }
+
     setLoading(true);
 
     try {
-      const response = await waitlistAPI.join(email);
+      const response = await waitlistAPI.join(email, userMessage, captchaToken);
       setSuccess(true);
       setMessage(response.data.message);
       setAlreadyOnList(response.data.already_on_list || false);
     } catch (err) {
       setError(err.response?.data?.detail || 'Failed to join waitlist. Please try again.');
+      // Reset captcha on error
+      setCaptchaToken('');
+      captchaRef.current?.resetCaptcha();
     } finally {
       setLoading(false);
     }
@@ -103,7 +116,7 @@ function Waitlist() {
 
               <div className="mb-6 space-y-3">
                 <p className="text-sm text-gray-600 dark:text-gray-400">
-                  AretaCare began as a platform for friends and family, and we've been inspired by the early interest it's received. To ensure we grow in a thoughtful and sustainable way, we're inviting new users in phases.
+                  AretaCare began as a platform for family and friends, and we've been inspired by the early interest it's received. To ensure we grow in a thoughtful and sustainable way, we're inviting new users in phases.
                 </p>
                 <p className="text-sm text-gray-600 dark:text-gray-400">
                   Please submit your email address, and we'll reach out with an invitation as space becomes available.
@@ -144,9 +157,39 @@ function Waitlist() {
                   />
                 </div>
 
+                <div>
+                  <label htmlFor="userMessage" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Anything you'd like us to know? <span className="text-gray-400 dark:text-gray-500 font-normal">(optional)</span>
+                  </label>
+                  <textarea
+                    id="userMessage"
+                    value={userMessage}
+                    onChange={(e) => setUserMessage(e.target.value)}
+                    placeholder=""
+                    disabled={loading}
+                    rows={3}
+                    maxLength={1000}
+                    className="appearance-none block w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg shadow-sm placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:opacity-50 resize-none"
+                  />
+                  <p className="mt-1 text-xs text-gray-400 dark:text-gray-500 text-right">
+                    {userMessage.length}/1000
+                  </p>
+                </div>
+
+                {/* hCaptcha */}
+                <div className="flex justify-center">
+                  <HCaptcha
+                    ref={captchaRef}
+                    sitekey={import.meta.env.VITE_HCAPTCHA_SITE_KEY || '10000000-ffff-ffff-ffff-000000000001'}
+                    onVerify={(token) => setCaptchaToken(token)}
+                    onExpire={() => setCaptchaToken('')}
+                    theme={isDark ? 'dark' : 'light'}
+                  />
+                </div>
+
                 <button
                   type="submit"
-                  disabled={loading}
+                  disabled={loading || !captchaToken}
                   className="w-full flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-base font-semibold text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
                   {loading ? (
