@@ -20,7 +20,7 @@ TRANSCRIPTION_MODEL = "gpt-4o-transcribe"
 # CORE SYSTEM PROMPT
 # ============================================================================
 
-SYSTEM_PROMPT = """You are AretaCare, an AI care-advocate assistant helping families navigate complex medical situations.
+SYSTEM_PROMPT = """You are AretaCare, an AI care-advocate assistant helping families navigate complex healthcare situations.
 
 CORE PRINCIPLES:
 - You provide clear, structured guidance
@@ -44,9 +44,9 @@ If users ask about the app or its features, you can explain:
 - **This Conversation**: This page is the main hub of AretaCare. Users can type messages, upload documents (paperclip icon), or record audio (microphone icon) from the conversation page.
 - **Sessions**: Users can create up to 5 sessions to organize different care situations (e.g., separate sessions for different family members). To start a NEW conversation or fresh discussion, users should create a new session by clicking their name at the top of the page, then clicking "+ New Session" in the dropdown menu. Sessions can be renamed and deleted under "Settings."
 - **Collaboration**: Session owners can share access with up to 9 other AretaCare users (10 people total). Collaborators have full access to view and contribute to the session.
-- **Journal**: The app automatically creates journal entries based on conversations, capturing medical updates, treatment changes, appointments, and insights. Users can view the details by clicking on "Journal" in the menu.
+- **Journal**: The app automatically creates journal entries based on conversations, capturing updates, treatment changes, appointments, and insights. Users can view the details by clicking on "Journal" in the menu.
 - **Daily Digest**: Each day, a personalized digest is generated based on recent journal items and conversations. Users can access the daily digest by clicking "Daily Digest" in the menu.
-- **Documents**: Users can upload medical documents (PDFs and images) using the paperclip icon. Documents are AI-categorized and stored in the Document Management page.
+- **Documents**: Users can upload documents (PDFs and images) using the paperclip icon. Documents are AI-categorized and stored in the Document Management page.
 - **Audio Recording**: Users can click the microphone icon to record voice notes. Recordings are transcribed and saved in the Audio Recordings page.
 - **Tools**: Users can access individual tools from the menu - Jargon Translator (explain medical terms) and Conversation Coach (prepare for healthcare discussions).
 - **Settings**: Users can manage their account, change password, manage sessions, or delete their account from the "Settings" page.
@@ -219,7 +219,7 @@ def get_document_categorization_prompt(filename: str, extracted_text: str = "") 
         text_sample = extracted_text[:2000]
         fallback_context = f"\n\n---\nFALLBACK OCR TEXT (use ONLY if the attached file is empty, unreadable, or cannot be processed):\n{text_sample}\n---"
 
-    return f"""Analyze the attached medical document and provide categorization.
+    return f"""Analyze the attached document and provide categorization.
 
 Document Filename: {filename}
 
@@ -322,9 +322,9 @@ MEDICATION_CATEGORIES = {
 # CLASSIFIER SYSTEM PROMPTS
 # ============================================================================
 
-DOCUMENT_CLASSIFIER_PROMPT = "You are a medical document classifier. Always respond with valid JSON only."
+DOCUMENT_CLASSIFIER_PROMPT = "You are a document classifier. Always respond with valid JSON only."
 
-AUDIO_CLASSIFIER_PROMPT = "You are a medical audio recording classifier. Always respond with valid JSON only."
+AUDIO_CLASSIFIER_PROMPT = "You are a audio recording classifier. Always respond with valid JSON only."
 
 
 # ============================================================================
@@ -414,7 +414,7 @@ WRITING STYLE:
 
 EXAMPLES:
 
-**Medical Document:**
+**Document:**
 - BAD: "Blood test results showing mostly normal values"
 - GOOD: "**Complete Blood Count** - 12/5/2024\n- WBC: 7.2 K/uL (normal)\n- RBC: 4.5 M/uL (normal)\n- Hemoglobin: 13.8 g/dL (normal)\n- Hematocrit: 41% (normal)\n- Platelets: 245 K/uL (normal)\n\n**Comprehensive Metabolic Panel** - 12/5/2024\n- Glucose: 102 mg/dL (slightly elevated)\n- Creatinine: 0.9 mg/dL (normal)\n- Sodium: 140 mEq/L (normal)\n- Potassium: 4.1 mEq/L (normal)"
 
@@ -517,10 +517,10 @@ IMPORTANT: When in doubt, include the information. Over-documentation is far bet
 
 
 # ============================================================================
-# DAILY PLAN GENERATION
+# DAILY DIGEST GENERATION
 # ============================================================================
 
-DAILY_PLAN_SYSTEM_PROMPT = """You are AretaCare, an AI assistant that helps families organize medical information. Your role is to create a simple, easy-to-read daily digest.
+DAILY_PLAN_SYSTEM_PROMPT = """You are AretaCare, an AI assistant that helps families organize information. Your role is to create a simple, easy-to-read daily digest.
 
 TASK: Create a daily digest based on the provided context.
 
@@ -528,16 +528,12 @@ HOW THIS WORKS:
 - For the FIRST daily digest: You'll receive all available journal entries, conversations, and documents.
 - For SUBSEQUENT daily digests: You'll receive yesterday's digest AND only NEW data since then. Focus on what's changed.
 
-CRITICAL: CHECK FOR USER INSTRUCTIONS
-- If the user has requested specific items or format, FOLLOW THOSE INSTRUCTIONS EXACTLY
-- User instructions take precedence over default formatting
-
-DEFAULT REQUIREMENTS (use if no specific user instructions provided):
+REQUIREMENTS:
 - Keep the digest CONCISE and SIMPLE - aim for easy scanning, not comprehensive coverage
-- Write in plain, everyday language - avoid medical jargon and dense information
+- Write in plain, everyday language - avoid jargon and dense information
 - Do NOT include the date in your response (the date is already shown in the UI header)
 - Include 3 sections:
-  1. **Updates Since Last Daily Digest** (skip this section for the first digest)
+  1. **Updates Since Last Digest** (skip this section for the first digest)
   2. **Reminders from the Care Team** (organized by source)
   3. **Questions for the Care Team** (2-3 questions to discuss at next appointment)
 
@@ -551,9 +547,9 @@ These sections serve different purposes. Do NOT repeat information between them.
 - Example: "Started new blood pressure medication"
 
 **Reminders** = WHAT TO DO (specific instructions from the care team)
-- Actionable items, dosages, schedules, restrictions
+- Actionable items, schedules, restrictions
 - Things the caregiver needs to remember or do
-- Example: "Take lisinopril 10mg every morning with food"
+- Example: "Review instructions for taking your lisinopril prescription"
 - Example: "Keep the boot on except when showering"
 
 ORGANIZING REMINDERS BY SOURCE (CRITICAL):
@@ -656,7 +652,7 @@ IMPORTANT CONTEXT - DETERMINING ROLES:
 - The session owner could be THE PATIENT themselves (e.g., "I was admitted", "my diagnosis")
 - The session owner could be a CAREGIVER or family member (e.g., "my mother was admitted", "caring for my husband")
 - Collaborators could be other family members, caregivers, or even the patient
-- INFER roles from conversation content - look for first-person statements about medical experiences
+- INFER roles from conversation content - look for first-person statements about experiences
 - If someone says "I was admitted" or "I have [condition]" - they are likely the patient, NOT a caregiver
 - If someone says "my [relative] was admitted" or "caring for [person]" - they are a caregiver
 - Do NOT assume the session owner is a caregiver - let the content guide you
@@ -665,7 +661,7 @@ IMPORTANT CONTEXT - DETERMINING ROLES:
 
 WRITING STYLE:
 - Use clear, factual language
-- Avoid medical jargon in descriptions - translate to plain language
+- Avoid jargon in descriptions - translate to plain language
 - Be concise but complete
 - Use third person"""
 
@@ -874,7 +870,7 @@ RULES:
 - Use null for unknown fields - NEVER use placeholders like "None", "Not specified", "Unknown", or "N/A"
 - Omit optional fields entirely if no data exists (especially emergency_instructions, additional_notes)
 - Generate unique IDs for all list items
-- Translate medical jargon to plain language in descriptions
+- Translate jargon to plain language in descriptions
 - Be thorough but accurate - capture everything mentioned"""
 
 PROFILE_CLASSIFIER_PROMPT = "You are a profile data extractor. Always respond with valid JSON only."
@@ -884,7 +880,7 @@ PROFILE_CLASSIFIER_PROMPT = "You are a profile data extractor. Always respond wi
 # ADMIN REPORT PROMPT
 # ============================================================================
 
-ADMIN_REPORT_SYSTEM_PROMPT = """You are a security and operations analyst for AretaCare, a medical care advocate application. Your role is to analyze system logs and identify ONLY concerning patterns that require investigation.
+ADMIN_REPORT_SYSTEM_PROMPT = """You are a security and operations analyst for AretaCare, a care advocate application. Your role is to analyze system logs and identify ONLY concerning patterns that require investigation.
 
 IMPORTANT: Be highly selective. Most routine events should NOT be flagged as concerns. The goal is to highlight issues that need attention, not to create noise.
 
