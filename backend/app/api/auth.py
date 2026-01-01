@@ -80,8 +80,8 @@ TRUSTED_DEVICE_MAX_AGE = 30 * 24 * 60 * 60  # 30 days in seconds
 
 def set_trusted_device_cookie(response: Response, device_token: str):
     """Set HttpOnly cookie for trusted device token."""
-    from datetime import datetime, timedelta
-    expires = datetime.utcnow() + timedelta(seconds=TRUSTED_DEVICE_MAX_AGE)
+    from datetime import datetime, timedelta, timezone
+    expires = datetime.now(timezone.utc) + timedelta(seconds=TRUSTED_DEVICE_MAX_AGE)
     # Use SameSite=None for cross-origin requests (frontend and backend on different domains)
     response.set_cookie(
         key=TRUSTED_DEVICE_COOKIE_NAME,

@@ -11,6 +11,46 @@ const api = axios.create({
   withCredentials: true,  // Enable cookies for HttpOnly refresh token
 });
 
+// ==========================================
+// In-memory token storage (more secure than localStorage)
+// Token is lost on page refresh, but can be restored via refresh token cookie
+// ==========================================
+let accessToken = null;
+
+export const setAccessToken = (token) => {
+  accessToken = token;
+  if (token) {
+    api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+  } else {
+    delete api.defaults.headers.common['Authorization'];
+  }
+};
+
+export const getAccessToken = () => accessToken;
+
+export const clearAccessToken = () => {
+  accessToken = null;
+  delete api.defaults.headers.common['Authorization'];
+};
+
+export const isAuthenticated = () => !!accessToken;
+
+// Initialize auth by attempting to refresh token from HttpOnly cookie
+// Returns true if authenticated, false if not
+export const initAuth = async () => {
+  try {
+    const response = await axios.post(`${API_BASE_URL}/auth/refresh`, {}, {
+      withCredentials: true
+    });
+    const { access_token } = response.data;
+    setAccessToken(access_token);
+    return true;
+  } catch {
+    clearAccessToken();
+    return false;
+  }
+};
+
 // Track if we're currently refreshing to avoid multiple refresh attempts
 let isRefreshing = false;
 let failedQueue = [];
@@ -29,9 +69,8 @@ const processQueue = (error, token = null) => {
 
 // Add auth token to requests if it exists
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('auth_token');
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
+  if (accessToken) {
+    config.headers.Authorization = `Bearer ${accessToken}`;
   }
   return config;
 });
@@ -87,12 +126,8 @@ api.interceptors.response.use(
 
         const { access_token } = response.data;
 
-        // Store new access token (short-lived, 1 hour)
-        // Note: refresh_token is handled exclusively via HttpOnly cookie for security
-        localStorage.setItem('auth_token', access_token);
-
-        // Update the authorization header
-        api.defaults.headers.common['Authorization'] = `Bearer ${access_token}`;
+        // Store new access token in memory (more secure than localStorage)
+        setAccessToken(access_token);
         originalRequest.headers.Authorization = `Bearer ${access_token}`;
 
         // Process queued requests with new token
@@ -106,8 +141,8 @@ api.interceptors.response.use(
         processQueue(refreshError, null);
         isRefreshing = false;
 
-        // Clear local storage
-        localStorage.removeItem('auth_token');
+        // Clear in-memory token and legacy localStorage values
+        clearAccessToken();
         localStorage.removeItem('refresh_token');  // Clean up legacy values
         localStorage.removeItem('user');
         localStorage.removeItem('session_id');
@@ -130,8 +165,8 @@ api.interceptors.response.use(
       const LOGOUT_CODES = ['INACTIVE_USER', 'SESSION_ACCESS_DENIED'];
 
       if (errorCode && LOGOUT_CODES.includes(errorCode)) {
-        // Clear local storage and redirect
-        localStorage.removeItem('auth_token');
+        // Clear in-memory token and legacy localStorage values
+        clearAccessToken();
         localStorage.removeItem('refresh_token');
         localStorage.removeItem('user');
         localStorage.removeItem('session_id');
@@ -203,9 +238,9 @@ export const authAPI = {
     api.post('/auth/password-reset/reset', { token, new_password: newPassword }),
 
   logout: async () => {
-    // Clear local storage FIRST (synchronously) before async server call
+    // Clear in-memory token FIRST (synchronously) before async server call
     // This ensures logout happens immediately even if server call is slow or fails
-    localStorage.removeItem('auth_token');
+    clearAccessToken();
     localStorage.removeItem('refresh_token');  // Clean up legacy values
     localStorage.removeItem('user');
     localStorage.removeItem('session_id');
