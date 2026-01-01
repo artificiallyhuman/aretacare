@@ -84,8 +84,7 @@ def set_trusted_device_cookie(response: Response, device_token: str):
         httponly=True,
         secure=not settings.DEBUG,  # HTTPS only in production
         samesite="lax",  # Protects against CSRF while allowing normal navigation
-        path="/api",  # Broader path to include /api/mfa endpoints
-        domain=settings.COOKIE_DOMAIN or None,  # e.g., ".aretacare.com" for www/non-www
+        path="/api/auth",  # Same path as refresh token
     )
 
 
@@ -93,8 +92,7 @@ def clear_trusted_device_cookie(response: Response):
     """Clear the trusted device cookie."""
     response.delete_cookie(
         key=TRUSTED_DEVICE_COOKIE_NAME,
-        path="/api",
-        domain=settings.COOKIE_DOMAIN or None,
+        path="/api/auth",
     )
 
 
@@ -398,13 +396,15 @@ def login(
     response: Response,
     user_data: UserLogin,
     db: DBSession = Depends(get_db),
-    trusted_device: Optional[str] = Cookie(None, alias=TRUSTED_DEVICE_COOKIE_NAME)
 ):
     """
     Login user and return access token.
 
     If MFA is enabled and device is not trusted, returns MFA challenge instead of tokens.
     """
+    # Get trusted device cookie directly from request
+    trusted_device = request.cookies.get(TRUSTED_DEVICE_COOKIE_NAME)
+
     ip_address = security_service.get_client_ip(request)
     user_agent = security_service.get_user_agent(request)
 
