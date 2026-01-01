@@ -14,6 +14,8 @@ function MFASetup() {
   const [step, setStep] = useState('loading'); // loading, choose, totp, passkey, backup, complete, manage
   const [backupCodes, setBackupCodes] = useState([]);
   const [setupMethod, setSetupMethod] = useState(null); // 'totp' or 'passkey'
+  const [generatingCodes, setGeneratingCodes] = useState(false);
+  const [enablingMFA, setEnablingMFA] = useState(false);
 
   useEffect(() => {
     loadMFAStatus();
@@ -41,22 +43,30 @@ function MFASetup() {
 
   const handleMethodComplete = async () => {
     // After setting up a method, generate backup codes
+    setGeneratingCodes(true);
+    setError('');
     try {
       const response = await mfaAPI.generateBackupCodes();
       setBackupCodes(response.data.codes);
       setStep('backup');
     } catch (err) {
       setError(err.response?.data?.detail || 'Failed to generate backup codes');
+    } finally {
+      setGeneratingCodes(false);
     }
   };
 
   const handleBackupContinue = async () => {
     // Enable MFA with the preferred method
+    setEnablingMFA(true);
+    setError('');
     try {
       await mfaAPI.enableMFA(setupMethod);
       setStep('complete');
     } catch (err) {
       setError(err.response?.data?.detail || 'Failed to enable MFA');
+    } finally {
+      setEnablingMFA(false);
     }
   };
 
@@ -111,7 +121,7 @@ function MFASetup() {
           </div>
         )}
 
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 relative">
           {/* Choose Method */}
           {step === 'choose' && (
             <div className="space-y-6">
@@ -186,18 +196,40 @@ function MFASetup() {
 
           {/* TOTP Setup */}
           {step === 'totp' && (
-            <TOTPSetup
-              onComplete={handleMethodComplete}
-              onCancel={() => setStep('choose')}
-            />
+            <>
+              {generatingCodes && (
+                <div className="absolute inset-0 bg-white/80 dark:bg-gray-800/80 flex flex-col items-center justify-center rounded-xl z-10">
+                  <svg className="animate-spin h-8 w-8 text-primary-600" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                  </svg>
+                  <p className="mt-3 text-sm text-gray-600 dark:text-gray-400">Generating backup codes...</p>
+                </div>
+              )}
+              <TOTPSetup
+                onComplete={handleMethodComplete}
+                onCancel={() => setStep('choose')}
+              />
+            </>
           )}
 
           {/* Passkey Setup */}
           {step === 'passkey' && (
-            <PasskeySetup
-              onComplete={handleMethodComplete}
-              onCancel={() => setStep('choose')}
-            />
+            <>
+              {generatingCodes && (
+                <div className="absolute inset-0 bg-white/80 dark:bg-gray-800/80 flex flex-col items-center justify-center rounded-xl z-10">
+                  <svg className="animate-spin h-8 w-8 text-primary-600" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                  </svg>
+                  <p className="mt-3 text-sm text-gray-600 dark:text-gray-400">Generating backup codes...</p>
+                </div>
+              )}
+              <PasskeySetup
+                onComplete={handleMethodComplete}
+                onCancel={() => setStep('choose')}
+              />
+            </>
           )}
 
           {/* Backup Codes */}
@@ -205,6 +237,7 @@ function MFASetup() {
             <BackupCodesDisplay
               codes={backupCodes}
               onContinue={handleBackupContinue}
+              loading={enablingMFA}
             />
           )}
 
