@@ -84,7 +84,8 @@ def set_trusted_device_cookie(response: Response, device_token: str):
         httponly=True,
         secure=not settings.DEBUG,  # HTTPS only in production
         samesite="lax",  # Protects against CSRF while allowing normal navigation
-        path="/api"  # Broader path to include /api/mfa endpoints
+        path="/api",  # Broader path to include /api/mfa endpoints
+        domain=settings.COOKIE_DOMAIN or None,  # e.g., ".aretacare.com" for www/non-www
     )
 
 
@@ -92,7 +93,8 @@ def clear_trusted_device_cookie(response: Response):
     """Clear the trusted device cookie."""
     response.delete_cookie(
         key=TRUSTED_DEVICE_COOKIE_NAME,
-        path="/api"
+        path="/api",
+        domain=settings.COOKIE_DOMAIN or None,
     )
 
 

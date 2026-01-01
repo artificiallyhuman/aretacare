@@ -53,6 +53,9 @@ class Settings(BaseSettings):
     # hCaptcha (for spam prevention)
     HCAPTCHA_SECRET_KEY: str = ""  # hCaptcha secret key
 
+    # Cookie domain (for trusted device cookies across www/non-www)
+    COOKIE_DOMAIN: str = ""  # e.g., ".aretacare.com" to work for both www and non-www
+
     @property
     def cors_origins_list(self) -> List[str]:
         return [origin.strip() for origin in self.CORS_ORIGINS.split(",")]
