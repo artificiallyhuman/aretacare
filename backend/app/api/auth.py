@@ -52,14 +52,15 @@ def set_refresh_token_cookie(response: Response, refresh_token: str):
     if not refresh_token or not JWT_PATTERN.match(refresh_token):
         raise ValueError("Invalid refresh token format")
 
+    # Use SameSite=None for cross-origin requests (frontend and backend on different domains)
     response.set_cookie(
         key=REFRESH_TOKEN_COOKIE_NAME,
         value=refresh_token,
         max_age=REFRESH_TOKEN_MAX_AGE,
         httponly=True,  # Prevents JavaScript access - protects against XSS
-        secure=not settings.DEBUG,  # HTTPS only in production
-        samesite="lax",  # Protects against CSRF while allowing normal navigation
-        path="/api/auth"  # Only send cookie to auth endpoints
+        secure=True,  # Required for SameSite=None
+        samesite="none",  # Required for cross-origin cookies
+        path="/"  # Root path for cross-origin
     )
 
 
@@ -67,7 +68,9 @@ def clear_refresh_token_cookie(response: Response):
     """Clear the refresh token cookie."""
     response.delete_cookie(
         key=REFRESH_TOKEN_COOKIE_NAME,
-        path="/api/auth"
+        path="/",
+        secure=True,
+        samesite="none",
     )
 
 
@@ -77,14 +80,18 @@ TRUSTED_DEVICE_MAX_AGE = 30 * 24 * 60 * 60  # 30 days in seconds
 
 def set_trusted_device_cookie(response: Response, device_token: str):
     """Set HttpOnly cookie for trusted device token."""
+    from datetime import datetime, timedelta
+    expires = datetime.utcnow() + timedelta(seconds=TRUSTED_DEVICE_MAX_AGE)
+    # Use SameSite=None for cross-origin requests (frontend and backend on different domains)
     response.set_cookie(
         key=TRUSTED_DEVICE_COOKIE_NAME,
         value=device_token,
         max_age=TRUSTED_DEVICE_MAX_AGE,
+        expires=expires,
         httponly=True,
-        secure=not settings.DEBUG,  # HTTPS only in production
-        samesite="lax",  # Protects against CSRF while allowing normal navigation
-        path="/api/auth",  # Same path as refresh token
+        secure=True,  # Required for SameSite=None
+        samesite="none",  # Required for cross-origin cookies
+        path="/",  # Root path for cross-origin
     )
 
 
@@ -92,7 +99,9 @@ def clear_trusted_device_cookie(response: Response):
     """Clear the trusted device cookie."""
     response.delete_cookie(
         key=TRUSTED_DEVICE_COOKIE_NAME,
-        path="/api/auth",
+        path="/",
+        secure=True,
+        samesite="none",
     )
 
 
