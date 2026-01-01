@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, Link, useSearchParams } from 'react-router-dom';
-import { authAPI, waitlistAPI } from '../services/api';
+import { authAPI, waitlistAPI, setAccessToken } from '../services/api';
 import { useTheme } from '../contexts/ThemeContext';
 import MFAChallenge from '../components/mfa/MFAChallenge';
 import logo from '../logos/large_logo.png';
@@ -74,9 +74,9 @@ function Login() {
       // No MFA required - proceed with normal login
       const { access_token } = data;
 
-      // Store access token (short-lived, 1 hour)
+      // Store access token in memory (protects against XSS)
       // Note: refresh_token is handled via HttpOnly cookie for security (set by server)
-      localStorage.setItem('auth_token', access_token);
+      setAccessToken(access_token);
 
       // Reload to home page to reinitialize session
       window.location.href = '/';
@@ -100,7 +100,7 @@ function Login() {
 
   const handleMFASuccess = (data) => {
     const { access_token } = data;
-    localStorage.setItem('auth_token', access_token);
+    setAccessToken(access_token);
     window.location.href = '/';
   };
 

@@ -77,18 +77,14 @@ TRUSTED_DEVICE_MAX_AGE = 30 * 24 * 60 * 60  # 30 days in seconds
 
 def set_trusted_device_cookie(response: Response, device_token: str):
     """Set HttpOnly cookie for trusted device token."""
-    from datetime import datetime, timedelta, timezone
-    expires = datetime.now(timezone.utc) + timedelta(seconds=TRUSTED_DEVICE_MAX_AGE)
-    # Use SameSite=None for cross-origin requests (frontend and backend on different domains)
     response.set_cookie(
         key=TRUSTED_DEVICE_COOKIE_NAME,
         value=device_token,
         max_age=TRUSTED_DEVICE_MAX_AGE,
-        expires=expires,
         httponly=True,
-        secure=True,  # Required for SameSite=None
-        samesite="none",  # Required for cross-origin cookies
-        path="/",  # Root path for cross-origin
+        secure=not settings.DEBUG,  # HTTPS only in production
+        samesite="lax",  # Secure same-site policy (works with same parent domain)
+        path="/api/auth",  # Only send to auth endpoints
     )
 
 
@@ -96,9 +92,7 @@ def clear_trusted_device_cookie(response: Response):
     """Clear the trusted device cookie."""
     response.delete_cookie(
         key=TRUSTED_DEVICE_COOKIE_NAME,
-        path="/",
-        secure=True,
-        samesite="none",
+        path="/api/auth",
     )
 
 

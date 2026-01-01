@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { sessionAPI, authAPI } from '../services/api';
+import { sessionAPI, authAPI, initAuth, clearAccessToken } from '../services/api';
 
 const SessionContext = createContext();
 
@@ -22,9 +22,9 @@ export const SessionProvider = ({ children }) => {
   useEffect(() => {
     const initializeSession = async () => {
       try {
-        // Check if user is authenticated
-        const token = localStorage.getItem('auth_token');
-        if (!token) {
+        // Try to restore auth from HttpOnly refresh token cookie
+        const isLoggedIn = await initAuth();
+        if (!isLoggedIn) {
           setLoading(false);
           return;
         }
@@ -106,22 +106,8 @@ export const SessionProvider = ({ children }) => {
     initializeSession();
   }, []);
 
-  // Listen for logout from other tabs via localStorage changes
-  useEffect(() => {
-    const handleStorageChange = (event) => {
-      // If auth_token was removed by another tab, log out this tab too
-      if (event.key === 'auth_token' && event.newValue === null) {
-        setUser(null);
-        setSessions([]);
-        setActiveSessionId(null);
-        // Redirect to login
-        window.location.replace('/login');
-      }
-    };
-
-    window.addEventListener('storage', handleStorageChange);
-    return () => window.removeEventListener('storage', handleStorageChange);
-  }, []);
+  // Note: Cross-tab logout is handled via periodic session validation
+  // since access tokens are now stored in memory (not localStorage)
 
   // Periodic session validation to detect "logout everywhere" from other devices
   useEffect(() => {
@@ -134,12 +120,10 @@ export const SessionProvider = ({ children }) => {
         const response = await authAPI.checkSessionValid();
         if (response.data.valid === false) {
           // Session has been revoked (e.g., via "logout everywhere" on another device)
-          console.log('Session revoked, logging out:', response.data.reason);
           setUser(null);
           setSessions([]);
           setActiveSessionId(null);
-          localStorage.removeItem('auth_token');
-          localStorage.removeItem('user');
+          clearAccessToken();
           localStorage.removeItem('active_session_id');
           window.location.replace('/login');
         }
