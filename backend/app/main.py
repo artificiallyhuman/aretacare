@@ -68,6 +68,7 @@ app.add_middleware(
         "Accept",
         "Origin",
         "X-Requested-With",
+        "X-MFA-Action-Token",
     ],
 )
 
@@ -208,6 +209,30 @@ async def startup_cleanup():
         db.close()
     except Exception as e:
         logger.error(f"Failed to run admin report cleanup: {e}")
+
+    # Clean up expired MFA challenges and trusted devices
+    try:
+        from app.services.mfa_service import MFAService
+
+        db = SessionLocal()
+
+        # Clean up expired MFA challenges
+        challenges_deleted = MFAService.cleanup_expired_challenges(db)
+        if challenges_deleted > 0:
+            logger.info(f"✓ MFA challenge cleanup: {challenges_deleted} expired challenges removed")
+        else:
+            logger.info("✓ MFA challenge cleanup: No expired challenges to remove")
+
+        # Clean up expired trusted devices
+        devices_deleted = MFAService.cleanup_expired_devices(db)
+        if devices_deleted > 0:
+            logger.info(f"✓ Trusted device cleanup: {devices_deleted} expired devices removed")
+        else:
+            logger.info("✓ Trusted device cleanup: No expired devices to remove")
+
+        db.close()
+    except Exception as e:
+        logger.error(f"Failed to run MFA cleanup: {e}")
 
 
 @app.get("/")

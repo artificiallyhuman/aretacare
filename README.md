@@ -2,92 +2,76 @@
 
 **Care | Clarity | Confidence**
 
-AretaCare is a secure platform for patients and caregivers to organize information, understand complex concepts, and prepare for clearer conversations with care teams. It keeps notes, documents, audio recordings, and updates together in one place.
+A secure platform for patients and caregivers to organize information, understand complex concepts, and prepare for clearer conversations with care teams.
 
 ---
 
 ## The Problem
 
-When someone you love is facing a health challenge, information comes at you from everywhere. Doctors explain things during rounds. Nurses relay instructions that sometimes conflict. Specialists each share a piece of the puzzle. Reports arrive full of terms you've never seen.
+When someone you love is facing a health challenge, information comes at you from everywhere. Doctors explain things during rounds. Nurses relay instructions. Specialists share pieces of the puzzle. Reports arrive full of unfamiliar terms.
 
-You find yourself taking notes at 2am, texting family members scattered across the country, and wishing you had someone who could help make sense of it all.
-
-AretaCare was built from exactly this experience—sitting beside a loved one, trying to keep track of everything while feeling completely overwhelmed.
+AretaCare was built from this experience—sitting beside a loved one, trying to keep track of everything while feeling overwhelmed.
 
 ---
 
 ## What It Does
 
-**Conversation** — A simple place to organize your care information. Type messages, record voice notes, or share documents. AretaCare helps explain terminology, organize information, and prepare you for conversations with the care team. Edit your own messages after sending to correct or clarify what you meant (edited messages are marked with an "(edited)" indicator). Copy any message to your clipboard as formatted text (markdown converts to rich HTML) for easy pasting into notes or documents. Contextual timestamps show time only for today's messages and date+time for older messages, helping you track when conversations occurred.
+**Conversation** — Organize care information through chat. Type messages, record voice notes, share documents. AretaCare explains terminology and helps prepare for care team conversations. Edit messages, copy to clipboard as formatted text.
 
-**Multi-Session Support** — Create up to 5 personal sessions to keep different care situations organized (e.g., separate sessions for different family members or health journeys). Switch between sessions using the header dropdown. Each session maintains its own conversations, documents, journal, and daily digests. Sessions can be renamed (15-character limit) and shared with others.
+**Multi-Session Support** — Up to 5 personal sessions for different care situations. Each maintains separate conversations, documents, journal, and daily digests.
 
-**Session Collaboration** — Invite family members to collaborate on a session. Up to 10 people can share the same view (including pending invitations), keeping everyone informed and aligned even when you're in different cities. Manage all your collaborations from the dedicated Collaboration page—add or remove collaborators, transfer session ownership, resend or cancel pending invitations, and leave shared sessions. Receive email notifications when collaborators are added or removed, and when ownership is transferred.
+**Session Collaboration** — Share sessions with up to 10 people total. Manage collaborators, transfer ownership, handle pending invitations.
 
-**Journal** — Your care journey automatically organized into a searchable timeline. Updates, changes, appointments, insights, and milestones—all captured and categorized from your conversations so nothing falls through the cracks. Navigate by date using the sticky sidebar, jump to today with one click, and see future entries visually distinguished with blue shading. Entries are created with intelligent date interpretation (understands "Thursday", "next week", "yesterday").
+**Journal** — Automatic timeline from conversations. Updates, appointments, insights, milestones—all captured and categorized. Navigate by date, see future entries highlighted.
 
-**Daily Digest** — A simple, easy-to-read summary you can scan in under a minute. Recaps what's changed since your last digest, organizes reminders by source, and suggests questions for your next care team conversation. Fully editable and regenerated daily based on your current situation. Each collaborator sees their own "new digest" notifications for independent tracking. Copy digests to your clipboard as formatted text for sharing with family or care teams.
+**Daily Digest** — Scannable summary of changes, reminders, and suggested questions. Editable and regenerated daily.
 
-**Care Profile** — AI-powered long-term memory that builds a comprehensive picture of the care situation. Automatically extracts and organizes: patient information, caregivers, healthcare providers, conditions, medications (with 14 AI-categorized categories like pain management, cardiovascular, diabetes, mental health, etc.), allergies, significant events, and preferences. Visual enhancements include color-coded section icons with gradients, timeline visualization for events, status badges (Active/Inactive for medications, severity-based for conditions/allergies), and a completeness progress indicator. Updates incrementally from conversations and journal entries. You control all data—AI proposes changes through a diff view, and you approve or reject each one. Copy-to-clipboard and PDF export both group medications by category for easy reading.
+**Care Profile** — AI-powered long-term memory: patient info, caregivers, providers, conditions, medications (14 categories), allergies, events. Visual timeline, status badges, completeness tracking. You control all data through diff review.
 
-**Documents** — AI-powered document manager with 12 categories for organizing your files. Upload PDFs, images (PNG, JPG), and text files up to 20MB. Documents are automatically categorized by AI, text is extracted (PDFs via pypdf, images via OCR), and thumbnails are generated for quick preview. Search by content, navigate by date, and edit AI-generated descriptions (up to 200 characters). Journal entries are automatically created from meaningful uploads.
+**Documents & Audio** — AI-categorized uploads (12 categories each). PDFs, images, text files. Audio with live waveform, transcription, browser-friendly conversion.
 
-**Audio Recordings** — AI-powered audio manager with 12 categories for organizing voice notes and appointment recordings. Upload audio files (MP3, M4A, WAV, WebM, OGG) up to 20MB or record directly in the app with live waveform visualization and 15-minute countdown timer. Audio is automatically transcribed (using GPT-4o-transcribe), categorized by AI, and converted to browser-friendly MP3 format. Long files are automatically chunked for processing. Search by content, navigate by date, and edit AI-generated summaries (up to 150 characters).
+**Specialized Tools** — Jargon Translator (explains terminology), Conversation Coach (prepares questions for care teams). Both support audio input.
 
-**Specialized Tools** — Access dedicated tools for specific tasks: Jargon Translator (explains terminology with journal context, supports audio input), and Conversation Coach (helps prepare questions for care teams, supports audio input with 15-minute recording limit).
+**Security** — Optional MFA (passkeys, authenticator apps, backup codes), trusted devices, JWT authentication with refresh tokens, idle timeout, "logout everywhere" capability.
 
-**Account Security** — Comprehensive email notifications keep you informed of important account changes including password updates, email changes, session collaboration activities, and password reset requests. Password reset via email with time-limited tokens (1-hour expiration). Two-token JWT authentication with short-lived access tokens (1 hour) and long-lived refresh tokens (30 days), automatic token refresh, token limit (max 5 active sessions per user), 30-minute idle timeout with warning, cross-tab logout sync, and "logout everywhere" capability.
-
-**Controlled Signups** — When `CONTROL_SIGNUPS=TRUE` (default), new users must join a waitlist and receive an invitation from an administrator before registering. This allows phased growth while ensuring platform quality. Administrators manage the waitlist from the admin console, sending invitations with 7-day expiration. When users try to invite non-registered users as collaborators, those users are automatically added to the waitlist with referrer tracking—and the inviter is notified when they register.
-
-**Feedback** — Share bug reports, improvement suggestions, feature requests, or general feedback through the built-in contact form. Access via the floating tab on desktop or "Feedback" in the mobile menu. Includes hCaptcha spam prevention, rate limiting (3 submissions/hour), and dual email notifications (team receives detailed report, user receives confirmation). Source page tracking helps diagnose issues.
-
-**Admin Console** — For administrators (configured via ADMIN_EMAILS): Timezone-aware metrics dashboard with interactive charts tracking users, sessions, collaborators, pending invitations, messages, journal entries, documents, audio recordings, errors, and security events. AI-powered daily reports provide automated security analysis by examining system logs for concerning patterns and generating actionable insights. Tools include waitlist and invitations management (add users, send invitations, track referrers), user management with search and activity tracking, inactive account detection, error logs with filtering, security logs, API logs with time range filter (1/7/30 days), system health monitoring, S3 orphan file detection and cleanup, and audit logging. All log tables auto-cleanup on startup (audit: 90 days, error/API: 30 days, security: 90 days). All timestamps display in the admin's local timezone.
+**Controlled Signups** — Waitlist mode (default) requires admin invitation. Administrators manage via console.
 
 ---
 
 ## Safety Boundaries
 
-AretaCare is an organizational and information-support tool, not a clinician. It will never:
+AretaCare is an organizational tool, not a clinician. It **never**:
+- Diagnoses conditions or predicts outcomes
+- Recommends or adjusts medications
+- Disputes care team decisions
+- Gives medical instructions
 
-- Diagnose conditions or predict outcomes
-- Recommend or adjust medications
-- Dispute decisions made by your care team
-- Give medical instructions
-
-It will always defer to healthcare professionals and encourage you to confirm information with your care team.
+It always defers to healthcare professionals.
 
 ---
 
 ## Quick Start
 
 ### Prerequisites
-
 - Docker Desktop
 - OpenAI API key
-- AWS S3 bucket (for document storage)
+- AWS S3 bucket
 
 ### Setup
-
 ```bash
-# Clone and configure
 git clone <repository-url>
 cd aretacare
 cp backend/.env.example backend/.env
 ```
 
-Edit `backend/.env` with your credentials:
-
+Edit `backend/.env`:
 ```env
-# Required
 OPENAI_API_KEY=sk-your-key
 AWS_ACCESS_KEY_ID=your-key
 AWS_SECRET_ACCESS_KEY=your-secret
 AWS_REGION=your-bucket-region
 S3_BUCKET_NAME=your-bucket
 SECRET_KEY=generate-with-python-secrets
-
-# Email (for password reset and notifications)
 SMTP_HOST=smtp.gmail.com
 SMTP_PORT=587
 SMTP_USER=your-email@gmail.com
@@ -95,46 +79,21 @@ SMTP_PASSWORD=your-gmail-app-password
 SMTP_FROM_EMAIL=your-email@gmail.com
 SMTP_FROM_NAME=your-organization
 FRONTEND_URL=http://localhost:3001
-
-# Admin (your email to access admin console)
 ADMIN_EMAILS=your-email@example.com
-
-# Optional
-S3_KEY_PREFIX=dev/                    # For shared S3 buckets
-AUDIT_LOG_RETENTION_DAYS=90          # Auto-delete audit logs (default: 90)
-ERROR_LOG_RETENTION_DAYS=30          # Auto-delete error logs (default: 30)
-API_LOG_RETENTION_DAYS=30            # Auto-delete API logs (default: 30)
-SECURITY_LOG_RETENTION_DAYS=90       # Auto-delete security logs (default: 90)
-RESET_DB=false                        # Set to "true" to reset database on startup
-CONTROL_SIGNUPS=TRUE                  # Set to "FALSE" for open registration (default: TRUE = waitlist mode)
 ```
 
-Generate a secret key:
-```bash
-python -c "import secrets; print(secrets.token_urlsafe(32))"
-```
-
-See [docs/EMAIL_SETUP.md](docs/EMAIL_SETUP.md) for Gmail app password setup.
+Generate secret: `python -c "import secrets; print(secrets.token_urlsafe(32))"`
 
 ### Run
-
 ```bash
 docker compose up --build
 ```
 
-Open http://localhost:3001 and create an account. You'll need to acknowledge five important notices during registration:
-- AretaCare does not provide medical advice, diagnosis, or treatment
-- AretaCare is a consumer tool, not a HIPAA-covered service or medical record system
-- Your information may be processed by AI systems to help organize and summarize content
-- You are at least 18 years old and will use AretaCare only for lawful, personal purposes
-- Agreement to Terms of Service and Privacy Policy
-
-After registration, check your email for a verification link (expires in 1 hour). Click the link to activate your account, then log in.
+Open http://localhost:3001, create account, verify email, log in.
 
 ### Stop
-
 ```bash
-docker compose down      # Stop services
+docker compose down      # Stop
 docker compose down -v   # Stop and reset database
 ```
 
@@ -142,25 +101,19 @@ docker compose down -v   # Stop and reset database
 
 ## Architecture
 
-| Layer | Technology | Details |
-|-------|------------|---------|
-| Frontend | React 18, Vite, Tailwind CSS | Dark mode support, responsive design, code splitting for performance |
-| Backend | FastAPI, SQLAlchemy, PostgreSQL | Auto-migrations, JWT auth with bcrypt, GZip compression |
-| AI | OpenAI GPT-5.2, GPT-4o-transcribe | Responses API for chat and file analysis, native PDF/image support, 150K context window |
-| Storage | AWS S3 | Presigned URLs (24-hour expiration), cascade cleanup, orphan detection |
-| Deployment | Docker Compose, Render | Multi-service orchestration, production blueprint |
+| Layer | Technology |
+|-------|------------|
+| Frontend | React 18, Vite, Tailwind CSS |
+| Backend | FastAPI, SQLAlchemy, PostgreSQL |
+| AI | OpenAI GPT-5.2, GPT-4o-transcribe |
+| Storage | AWS S3 |
+| Deployment | Docker Compose, Render |
 
-**Key Architecture Patterns:**
-- **Controlled signups** - Waitlist mode (default) requires admin invitation before registration
-- **Multi-session support** - Each user owns up to 5 sessions, unlimited collaboration access
-- **Session collaboration** - Up to 10 people per session (owner + 9 collaborators)
-- **Cascade deletes** - User/session deletion removes all data including S3 files
-- **Database migrations** - Auto-run on startup via `run_migrations()`
-- **Centralized AI config** - All models, prompts, safety boundaries, and categories in `backend/app/config/ai_config.py` (including 14 medication categories for profile organization)
-- **150K context window** - Prioritized loading: 30 messages + tiered journal (7 days full, 8-30 days summarized) + health profile (up to 25K tokens)
-- **Email notifications** - SMTP integration for password reset, account changes, and collaboration
-- **Security logging** - Invalid token tracking, IP logging, security event monitoring
-- **Auto-cleanup on startup** - Audit logs (90 days), error logs (30 days), API logs (30 days), security logs (90 days), expired invitations (30 days)
+**Key Patterns:**
+- 150K context window with prioritized loading (messages + tiered journal + health profile)
+- Cascade deletes (user/session deletion removes all data + S3 files)
+- Auto-migrations on startup
+- Centralized AI config in `backend/app/config/ai_config.py`
 
 ---
 
@@ -168,95 +121,23 @@ docker compose down -v   # Stop and reset database
 
 ```
 aretacare/
-├── backend/
-│   └── app/
-│       ├── api/              # FastAPI routes (auth, sessions, documents, audio, conversation, journal, daily plans, profile, tools, admin)
-│       ├── config/           # AI configuration (models, prompts, safety boundaries, categories)
-│       ├── core/             # Auth utilities, migrations, config
-│       ├── models/           # SQLAlchemy models (17 tables: users, sessions, collaborators, profiles, documents, audio, conversations, journal, daily plans, refresh_tokens, waitlist_entries, pending_invitations, audit/error/api/security logs, migration_history)
-│       ├── schemas/          # Pydantic schemas for API validation
-│       ├── services/         # Business logic (OpenAI, S3, document processing, email, admin, journal, daily plan, profile)
-│       └── main.py           # FastAPI app initialization
-├── frontend/
-│   └── src/
-│       ├── pages/            # React pages (Conversation, Journal, DailyPlan, Profile, Collaboration, Settings, Documents, AudioRecordings, Tools, Admin)
-│       ├── components/       # UI components (Header, MessageBubble, MessageInput, AudioWaveform, DailyPlanPanel, NetworkStatusBanner)
-│       ├── contexts/         # State management (SessionContext, ThemeContext, AdminContext, NetworkContext)
-│       ├── services/         # API client (axios with auth interceptor)
-│       └── utils/            # Helper functions (date/timezone utilities)
-├── docs/                     # Documentation (setup guides, API reference, safety guidelines, AWS/email configuration)
-├── docker-compose.yml        # Multi-service orchestration
-├── render.yaml               # Production deployment blueprint
-└── CLAUDE.md                 # Development guidance for Claude Code
+├── backend/app/
+│   ├── api/          # FastAPI routes
+│   ├── config/       # AI configuration
+│   ├── core/         # Auth, migrations, config
+│   ├── models/       # SQLAlchemy models (23 tables)
+│   ├── schemas/      # Pydantic schemas
+│   └── services/     # Business logic
+├── frontend/src/
+│   ├── pages/        # React pages
+│   ├── components/   # UI components
+│   ├── contexts/     # State management
+│   └── services/     # API client
+├── docs/             # Documentation
+├── docker-compose.yml
+├── render.yaml       # Production deployment
+└── CLAUDE.md         # Development guidance
 ```
-
----
-
-## Key Features
-
-### Multi-Session Management
-- Create up to **5 personal sessions** per user
-- Switch sessions via header dropdown with active session indicator
-- **Session naming** with 15-character limit (default: "Session 1/2/3" with smart numbering)
-- Each session maintains separate: conversations, documents, journal entries, daily digests, audio recordings
-- Delete individual sessions (removes all data including S3 files)
-
-### Collaboration & Sharing
-- Share sessions with **up to 10 people total** (1 owner + 9 collaborators, includes pending invitations)
-- Dedicated **Collaboration page** (`/collaboration`) for managing all session sharing
-- **Email invitations** for non-registered users (pending for 30 days, resend capability)
-- **Ownership transfer** with validation (target user must have <5 owned sessions)
-- **Full collaborator access** to all session data (documents, conversations, journal, daily digests, audio)
-- **Email notifications** for: collaborator added/removed, ownership transferred, invitation received
-- Shared sessions **don't count** toward collaborator's 5-session ownership limit
-- **Per-user view tracking** for daily digests (independent "new digest" notifications for each user)
-
-### AI-Powered Features
-- **Conversation interface** with GPT-5.2, "Thinking..." status, markdown rendering, copy-to-clipboard (converts markdown to formatted HTML)
-- **Journal synthesis** - Automatically creates entries from conversations, documents, and audio using native file support (6 entry types: update, treatment change, appointment, insight, milestone, other). Analyzes actual files for faster, more accurate synthesis.
-- **Daily digest generation** - AI-generated daily priorities, reminders, and questions based on comprehensive context
-- **Care Profile** - AI-powered long-term memory organizing patient info, caregivers, providers, conditions, medications (14 AI-categorized categories: pain management, cardiovascular, diabetes, mental health, etc.), allergies, events, and preferences. Visual enhancements include color-coded section icons with gradients, timeline visualization for events, status badges, and completeness progress indicator. Incremental updates with user-controlled diff review. Copy-to-clipboard and PDF export group medications by category. Also serves as long-term context in conversations (up to 25K tokens in 150K total context window)
-- **Document categorization** - 12 categories with AI-generated descriptions (user-editable, max 200 characters)
-- **Audio categorization** - 12 categories with AI-generated summaries (user-editable, max 150 characters)
-- **Jargon Translator** - Explains terminology with journal context, supports audio input
-- **Conversation Coach** - Helps prepare questions for care teams, supports audio input
-
-### Document & Audio Management
-- **Documents**: Upload PDFs, images (PNG, JPG), text files up to 20MB
-  - Text extraction (PDFs via pypdf, images via Tesseract OCR)
-  - Thumbnail generation for PDFs
-  - Native GPT-5.2 file support via presigned URLs
-  - Search by content, navigate by date
-- **Audio**: Upload MP3, M4A, WAV, WebM, OGG up to 20MB or record in-app
-  - Live waveform visualization with 15-minute countdown timer
-  - Auto-transcription using GPT-4o-transcribe
-  - Conversion to browser-friendly MP3 format
-  - Automatic chunking for long files
-  - Search by transcription, navigate by date
-
-### Security & Privacy
-- **Two-token JWT authentication** - Short-lived access tokens (1 hour) + long-lived refresh tokens (30 days)
-- **Automatic token refresh** - Seamless re-authentication via axios interceptor
-- **Logout everywhere** - Revoke all active sessions from Settings
-- **Bcrypt password hashing** with 8-character minimum
-- **Password reset** via email with time-limited tokens (1-hour expiration)
-- **Email notifications** for: password changes, email changes, collaborator activities, password reset requests
-- **Security logging** - Invalid token attempts, IP tracking, user agent logging
-- **Cascade deletes** - User/session deletion removes all data including S3 files (zero orphaned files)
-
-### Admin Console
-Requires email in `ADMIN_EMAILS` environment variable. Features include:
-- **Timezone-aware metrics dashboard** with interactive charts (users, sessions, collaborators, pending invitations, messages, journal entries, documents, audio, errors, security)
-- **Waitlist & Invitations** - manage waitlist entries, send invitations (7-day expiration), view referrers, add notes
-- **User management** with search and activity tracking
-- **Inactive account detection** and email notifications
-- **Error logs** with filtering (30-day auto-cleanup)
-- **Security logs** for monitoring authentication attempts (90-day auto-cleanup)
-- **API logs** with time range filter (1/7/30 days), tracks OpenAI API usage (30-day auto-cleanup)
-- **System health monitoring**
-- **S3 orphan file detection** and cleanup
-- **Audit logging** with automatic retention (90 days default)
-- All log tables auto-cleanup on server startup
 
 ---
 
@@ -264,43 +145,33 @@ Requires email in `ADMIN_EMAILS` environment variable. Features include:
 
 | Document | Description |
 |----------|-------------|
-| [CLAUDE.md](CLAUDE.md) | Development guidance for Claude Code (architecture, features, AI configuration) |
-| [SECURITY.md](SECURITY.md) | Security vulnerability reporting |
-| [docs/SETUP_GUIDE.md](docs/SETUP_GUIDE.md) | Detailed AWS and OpenAI configuration |
-| [docs/API_USAGE.md](docs/API_USAGE.md) | API endpoint reference with examples |
-| [docs/SAFETY_GUIDELINES.md](docs/SAFETY_GUIDELINES.md) | AI safety requirements and boundaries |
-| [docs/AWS_IAM_POLICY.md](docs/AWS_IAM_POLICY.md) | Required S3 permissions for document storage |
-| [docs/EMAIL_SETUP.md](docs/EMAIL_SETUP.md) | Email notification configuration (Gmail SMTP setup) |
-| [docs/FEEDBACK_SYSTEM.md](docs/FEEDBACK_SYSTEM.md) | Feedback system setup (hCaptcha, email, testing) |
-| [backend/app/config/README.md](backend/app/config/README.md) | AI configuration guide (models, prompts, categories) |
+| [CLAUDE.md](CLAUDE.md) | Development guidance |
+| [SECURITY.md](SECURITY.md) | Vulnerability reporting |
+| [docs/SETUP_GUIDE.md](docs/SETUP_GUIDE.md) | AWS and OpenAI setup |
+| [docs/API_USAGE.md](docs/API_USAGE.md) | API reference |
+| [docs/SAFETY_GUIDELINES.md](docs/SAFETY_GUIDELINES.md) | AI safety requirements |
+| [docs/AWS_IAM_POLICY.md](docs/AWS_IAM_POLICY.md) | S3 permissions |
+| [docs/EMAIL_SETUP.md](docs/EMAIL_SETUP.md) | Email configuration |
+| [docs/SECURITY_IMPLEMENTATION.md](docs/SECURITY_IMPLEMENTATION.md) | Security details |
 
 ---
 
 ## Deployment
 
-AretaCare deploys to Render using the included `render.yaml` blueprint:
+Deploy to Render using `render.yaml`:
 
 1. Push to GitHub
-2. Connect repository in Render dashboard
-3. Add environment variables:
-   - **Required**: `OPENAI_API_KEY`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `S3_BUCKET_NAME`, `ADMIN_EMAILS`
-   - **Optional**: `S3_KEY_PREFIX` (for shared S3 buckets), `CONTROL_SIGNUPS` (default: TRUE), `AUDIT_LOG_RETENTION_DAYS`, `ERROR_LOG_RETENTION_DAYS`, `API_LOG_RETENTION_DAYS`, `SECURITY_LOG_RETENTION_DAYS`
-   - **Auto-configured**: `DATABASE_URL`, `SECRET_KEY`, `CORS_ORIGINS`
+2. Connect in Render dashboard
+3. Set environment variables: `OPENAI_API_KEY`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `S3_BUCKET_NAME`, `ADMIN_EMAILS`
 4. Deploy
 
-The blueprint configures:
-- **PostgreSQL database** with auto-migrations on startup
-- **FastAPI backend** (Python 3.11) with system dependencies (tesseract-ocr, poppler-utils, ffmpeg)
-- **React frontend** (static site) served via Vite build
-
-**Database migrations** run automatically on startup via `run_migrations()` in `backend/app/core/migrations.py`.
+Database migrations run automatically on startup.
 
 ---
 
 ## License
 
-MIT, with additional restrictions under the Commons Clause.  
-See `LICENSE` and `COMMONS-CLAUSE.md` for details.
+MIT with Commons Clause restrictions. See `LICENSE` and `COMMONS-CLAUSE.md`.
 
 ---
 

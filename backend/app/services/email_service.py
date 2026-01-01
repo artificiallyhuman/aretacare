@@ -186,7 +186,7 @@ Your AretaCare account password was recently changed.
 
 If you made this change, no further action is needed.
 
-If you did NOT make this change, please contact AretaCare support immediately at support@aretacare.com to secure your account.
+If you did NOT make this change, please contact AretaCare security immediately at security@aretacare.com to secure your account.
 
 Best regards,
 The AretaCare Team
@@ -309,7 +309,7 @@ Your AretaCare account email address was recently changed from {old_email} to {n
 
 If you made this change, no further action is needed.
 
-If you did NOT make this change, please contact AretaCare support immediately at support@aretacare.com to secure your account.
+If you did NOT make this change, please contact AretaCare security immediately at security@aretacare.com to secure your account.
 
 Best regards,
 The AretaCare Team
@@ -2491,6 +2491,506 @@ The AretaCare Team
 
         except Exception as e:
             logger.error(f"Error sending waitlist user registered notification: {str(e)}")
+            return False
+
+
+    @staticmethod
+    def send_mfa_enabled_email(to_email: str, user_name: str, method: str) -> bool:
+        """
+        Send notification email when MFA is enabled
+
+        Args:
+            to_email: Recipient email address
+            user_name: Name of the user
+            method: MFA method enabled (passkey or totp)
+
+        Returns:
+            bool: True if email sent successfully, False otherwise
+        """
+        try:
+            method_name = "Passkey" if method == "passkey" else "Authenticator App"
+
+            message = MIMEMultipart("alternative")
+            message["Subject"] = "Two-Factor Authentication Enabled - AretaCare"
+            message["From"] = f"{settings.SMTP_FROM_NAME} <{settings.SMTP_FROM_EMAIL}>"
+            message["To"] = to_email
+
+            text_content = f"""
+Hello {user_name},
+
+Two-factor authentication has been enabled on your AretaCare account using {method_name}.
+
+Your account is now more secure. You will be required to verify your identity using your second factor when logging in from new devices.
+
+If you did NOT make this change, please contact AretaCare security immediately at security@aretacare.com.
+
+Best regards,
+The AretaCare Team
+            """
+
+            html_content = f"""
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f3f4f6;">
+    <table role="presentation" style="width: 100%; border-collapse: collapse;">
+        <tr>
+            <td align="center" style="padding: 40px 0;">
+                <table role="presentation" style="width: 600px; max-width: 100%; background-color: #ffffff; border-radius: 8px; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);">
+                    <!-- Header -->
+                    <tr>
+                        <td style="padding: 40px 40px 20px; text-align: center;">
+                            <h1 style="margin: 0; color: #059669; font-size: 36px;">AretaCare<span style="font-size: 20px; vertical-align: super;">™</span></h1>
+                            <p style="margin: 10px 0 0; color: #6b7280; font-size: 18px; letter-spacing: 0.5px;">Care | Clarity | Confidence</p>
+                        </td>
+                    </tr>
+
+                    <!-- Content -->
+                    <tr>
+                        <td style="padding: 20px 40px;">
+                            <div style="background-color: #d1fae5; border-radius: 50%; width: 64px; height: 64px; margin: 0 auto 20px; display: flex; align-items: center; justify-content: center;">
+                                <span style="font-size: 32px;">🔐</span>
+                            </div>
+                            <h2 style="margin: 0 0 16px; color: #111827; font-size: 24px; text-align: center;">Two-Factor Authentication Enabled</h2>
+                            <p style="margin: 0 0 16px; color: #374151; font-size: 16px; line-height: 24px;">
+                                Hello {user_name},
+                            </p>
+                            <p style="margin: 0 0 16px; color: #374151; font-size: 16px; line-height: 24px;">
+                                Two-factor authentication has been enabled on your AretaCare account using <strong>{method_name}</strong>.
+                            </p>
+                            <p style="margin: 0 0 16px; color: #374151; font-size: 16px; line-height: 24px;">
+                                Your account is now more secure. You will be required to verify your identity using your second factor when logging in from new devices.
+                            </p>
+                        </td>
+                    </tr>
+
+                    <!-- Warning -->
+                    <tr>
+                        <td style="padding: 0 40px 40px;">
+                            <div style="background-color: #fef3c7; border-left: 4px solid #f59e0b; padding: 16px; border-radius: 4px;">
+                                <p style="margin: 0; color: #92400e; font-size: 14px; line-height: 20px;">
+                                    <strong>Important:</strong> If you did NOT make this change, please contact AretaCare security immediately at <a href="mailto:security@aretacare.com" style="color: #92400e; text-decoration: underline;">security@aretacare.com</a>.
+                                </p>
+                            </div>
+                        </td>
+                    </tr>
+
+                    <!-- Footer -->
+                    <tr>
+                        <td style="padding: 20px 40px; background-color: #f9fafb; border-top: 1px solid #e5e7eb; border-radius: 0 0 8px 8px;">
+                            <p style="margin: 0; color: #6b7280; font-size: 12px; line-height: 18px; text-align: center;">
+                                Best regards,<br>
+                                The AretaCare Team
+                            </p>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>
+            """
+
+            part1 = MIMEText(text_content, "plain")
+            part2 = MIMEText(html_content, "html")
+            message.attach(part1)
+            message.attach(part2)
+
+            if not settings.SMTP_PASSWORD:
+                logger.warning("SMTP_PASSWORD not configured. Email not sent. Using development mode.")
+                return False
+
+            with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT) as server:
+                server.starttls()
+                server.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
+                server.send_message(message)
+
+            logger.info(f"MFA enabled notification sent successfully to {to_email}")
+            return True
+
+        except Exception as e:
+            logger.error(f"Error sending MFA enabled email: {str(e)}")
+            return False
+
+    @staticmethod
+    def send_mfa_disabled_email(to_email: str, user_name: str) -> bool:
+        """
+        Send notification email when MFA is disabled
+
+        Args:
+            to_email: Recipient email address
+            user_name: Name of the user
+
+        Returns:
+            bool: True if email sent successfully, False otherwise
+        """
+        try:
+            message = MIMEMultipart("alternative")
+            message["Subject"] = "⚠️ Two-Factor Authentication Disabled - AretaCare"
+            message["From"] = f"{settings.SMTP_FROM_NAME} <{settings.SMTP_FROM_EMAIL}>"
+            message["To"] = to_email
+
+            text_content = f"""
+Hello {user_name},
+
+Two-factor authentication has been DISABLED on your AretaCare account.
+
+Your account is now less secure. We strongly recommend re-enabling two-factor authentication to protect your account.
+
+If you did NOT make this change, please contact AretaCare security immediately at security@aretacare.com and change your password.
+
+Best regards,
+The AretaCare Team
+            """
+
+            html_content = f"""
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f3f4f6;">
+    <table role="presentation" style="width: 100%; border-collapse: collapse;">
+        <tr>
+            <td align="center" style="padding: 40px 0;">
+                <table role="presentation" style="width: 600px; max-width: 100%; background-color: #ffffff; border-radius: 8px; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);">
+                    <!-- Header -->
+                    <tr>
+                        <td style="padding: 40px 40px 20px; text-align: center;">
+                            <h1 style="margin: 0; color: #059669; font-size: 36px;">AretaCare<span style="font-size: 20px; vertical-align: super;">™</span></h1>
+                            <p style="margin: 10px 0 0; color: #6b7280; font-size: 18px; letter-spacing: 0.5px;">Care | Clarity | Confidence</p>
+                        </td>
+                    </tr>
+
+                    <!-- Alert Banner -->
+                    <tr>
+                        <td style="padding: 0 40px 20px;">
+                            <div style="background-color: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; padding: 16px; text-align: center;">
+                                <span style="font-size: 32px;">⚠️</span>
+                                <p style="margin: 8px 0 0; color: #991b1b; font-size: 16px; font-weight: 600;">Security Alert</p>
+                            </div>
+                        </td>
+                    </tr>
+
+                    <!-- Content -->
+                    <tr>
+                        <td style="padding: 0 40px 20px;">
+                            <h2 style="margin: 0 0 16px; color: #111827; font-size: 24px;">Two-Factor Authentication Disabled</h2>
+                            <p style="margin: 0 0 16px; color: #374151; font-size: 16px; line-height: 24px;">
+                                Hello {user_name},
+                            </p>
+                            <p style="margin: 0 0 16px; color: #374151; font-size: 16px; line-height: 24px;">
+                                Two-factor authentication has been <strong>disabled</strong> on your AretaCare account.
+                            </p>
+                            <p style="margin: 0 0 16px; color: #374151; font-size: 16px; line-height: 24px;">
+                                Your account is now less secure. We strongly recommend re-enabling two-factor authentication to protect your account.
+                            </p>
+                        </td>
+                    </tr>
+
+                    <!-- Warning -->
+                    <tr>
+                        <td style="padding: 0 40px 40px;">
+                            <div style="background-color: #fef2f2; border-left: 4px solid #ef4444; padding: 16px; border-radius: 4px;">
+                                <p style="margin: 0; color: #991b1b; font-size: 14px; line-height: 20px;">
+                                    <strong>Important:</strong> If you did NOT make this change, please contact AretaCare security immediately at <a href="mailto:security@aretacare.com" style="color: #991b1b; text-decoration: underline;">security@aretacare.com</a> and change your password.
+                                </p>
+                            </div>
+                        </td>
+                    </tr>
+
+                    <!-- Footer -->
+                    <tr>
+                        <td style="padding: 20px 40px; background-color: #f9fafb; border-top: 1px solid #e5e7eb; border-radius: 0 0 8px 8px;">
+                            <p style="margin: 0; color: #6b7280; font-size: 12px; line-height: 18px; text-align: center;">
+                                Best regards,<br>
+                                The AretaCare Team
+                            </p>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>
+            """
+
+            part1 = MIMEText(text_content, "plain")
+            part2 = MIMEText(html_content, "html")
+            message.attach(part1)
+            message.attach(part2)
+
+            if not settings.SMTP_PASSWORD:
+                logger.warning("SMTP_PASSWORD not configured. Email not sent. Using development mode.")
+                return False
+
+            with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT) as server:
+                server.starttls()
+                server.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
+                server.send_message(message)
+
+            logger.info(f"MFA disabled notification sent successfully to {to_email}")
+            return True
+
+        except Exception as e:
+            logger.error(f"Error sending MFA disabled email: {str(e)}")
+            return False
+
+    @staticmethod
+    def send_new_passkey_email(to_email: str, user_name: str, device_name: str) -> bool:
+        """
+        Send notification email when a new passkey is registered
+
+        Args:
+            to_email: Recipient email address
+            user_name: Name of the user
+            device_name: Name of the device/passkey
+
+        Returns:
+            bool: True if email sent successfully, False otherwise
+        """
+        try:
+            message = MIMEMultipart("alternative")
+            message["Subject"] = "New Passkey Added - AretaCare"
+            message["From"] = f"{settings.SMTP_FROM_NAME} <{settings.SMTP_FROM_EMAIL}>"
+            message["To"] = to_email
+
+            text_content = f"""
+Hello {user_name},
+
+A new passkey named "{device_name}" has been added to your AretaCare account.
+
+You can now use this passkey as a second factor when logging in.
+
+If you did NOT add this passkey, please remove it from your account settings immediately and contact AretaCare security at security@aretacare.com.
+
+Best regards,
+The AretaCare Team
+            """
+
+            html_content = f"""
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f3f4f6;">
+    <table role="presentation" style="width: 100%; border-collapse: collapse;">
+        <tr>
+            <td align="center" style="padding: 40px 0;">
+                <table role="presentation" style="width: 600px; max-width: 100%; background-color: #ffffff; border-radius: 8px; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);">
+                    <!-- Header -->
+                    <tr>
+                        <td style="padding: 40px 40px 20px; text-align: center;">
+                            <h1 style="margin: 0; color: #059669; font-size: 36px;">AretaCare<span style="font-size: 20px; vertical-align: super;">™</span></h1>
+                            <p style="margin: 10px 0 0; color: #6b7280; font-size: 18px; letter-spacing: 0.5px;">Care | Clarity | Confidence</p>
+                        </td>
+                    </tr>
+
+                    <!-- Content -->
+                    <tr>
+                        <td style="padding: 20px 40px;">
+                            <h2 style="margin: 0 0 16px; color: #111827; font-size: 24px;">New Passkey Added</h2>
+                            <p style="margin: 0 0 16px; color: #374151; font-size: 16px; line-height: 24px;">
+                                Hello {user_name},
+                            </p>
+                            <p style="margin: 0 0 16px; color: #374151; font-size: 16px; line-height: 24px;">
+                                A new passkey has been added to your AretaCare account:
+                            </p>
+                            <div style="background-color: #f3f4f6; border-radius: 8px; padding: 16px; margin-bottom: 16px;">
+                                <p style="margin: 0; color: #374151; font-size: 16px;">
+                                    <strong>Passkey Name:</strong> {device_name}
+                                </p>
+                            </div>
+                            <p style="margin: 0 0 16px; color: #374151; font-size: 16px; line-height: 24px;">
+                                You can now use this passkey as a second factor when logging in.
+                            </p>
+                        </td>
+                    </tr>
+
+                    <!-- Warning -->
+                    <tr>
+                        <td style="padding: 0 40px 40px;">
+                            <div style="background-color: #fef3c7; border-left: 4px solid #f59e0b; padding: 16px; border-radius: 4px;">
+                                <p style="margin: 0; color: #92400e; font-size: 14px; line-height: 20px;">
+                                    <strong>Important:</strong> If you did NOT add this passkey, please remove it from your account settings immediately and contact AretaCare security at <a href="mailto:security@aretacare.com" style="color: #92400e; text-decoration: underline;">security@aretacare.com</a>.
+                                </p>
+                            </div>
+                        </td>
+                    </tr>
+
+                    <!-- Footer -->
+                    <tr>
+                        <td style="padding: 20px 40px; background-color: #f9fafb; border-top: 1px solid #e5e7eb; border-radius: 0 0 8px 8px;">
+                            <p style="margin: 0; color: #6b7280; font-size: 12px; line-height: 18px; text-align: center;">
+                                Best regards,<br>
+                                The AretaCare Team
+                            </p>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>
+            """
+
+            part1 = MIMEText(text_content, "plain")
+            part2 = MIMEText(html_content, "html")
+            message.attach(part1)
+            message.attach(part2)
+
+            if not settings.SMTP_PASSWORD:
+                logger.warning("SMTP_PASSWORD not configured. Email not sent. Using development mode.")
+                return False
+
+            with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT) as server:
+                server.starttls()
+                server.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
+                server.send_message(message)
+
+            logger.info(f"New passkey notification sent successfully to {to_email}")
+            return True
+
+        except Exception as e:
+            logger.error(f"Error sending new passkey email: {str(e)}")
+            return False
+
+    @staticmethod
+    def send_new_trusted_device_email(to_email: str, user_name: str, device_name: str, ip_address: str) -> bool:
+        """
+        Send notification email when a new device is trusted
+
+        Args:
+            to_email: Recipient email address
+            user_name: Name of the user
+            device_name: Browser/device info
+            ip_address: IP address of the device
+
+        Returns:
+            bool: True if email sent successfully, False otherwise
+        """
+        try:
+            message = MIMEMultipart("alternative")
+            message["Subject"] = "New Trusted Device - AretaCare"
+            message["From"] = f"{settings.SMTP_FROM_NAME} <{settings.SMTP_FROM_EMAIL}>"
+            message["To"] = to_email
+
+            text_content = f"""
+Hello {user_name},
+
+A new device has been trusted for your AretaCare account:
+
+Device: {device_name}
+IP Address: {ip_address}
+
+This device will be trusted for 30 days and will not require two-factor authentication during that time.
+
+If you did NOT authorize this device, please log in to your account and revoke this trusted device immediately. You should also change your password.
+
+Best regards,
+The AretaCare Team
+            """
+
+            html_content = f"""
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f3f4f6;">
+    <table role="presentation" style="width: 100%; border-collapse: collapse;">
+        <tr>
+            <td align="center" style="padding: 40px 0;">
+                <table role="presentation" style="width: 600px; max-width: 100%; background-color: #ffffff; border-radius: 8px; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);">
+                    <!-- Header -->
+                    <tr>
+                        <td style="padding: 40px 40px 20px; text-align: center;">
+                            <h1 style="margin: 0; color: #059669; font-size: 36px;">AretaCare<span style="font-size: 20px; vertical-align: super;">™</span></h1>
+                            <p style="margin: 10px 0 0; color: #6b7280; font-size: 18px; letter-spacing: 0.5px;">Care | Clarity | Confidence</p>
+                        </td>
+                    </tr>
+
+                    <!-- Content -->
+                    <tr>
+                        <td style="padding: 20px 40px;">
+                            <h2 style="margin: 0 0 16px; color: #111827; font-size: 24px;">New Trusted Device</h2>
+                            <p style="margin: 0 0 16px; color: #374151; font-size: 16px; line-height: 24px;">
+                                Hello {user_name},
+                            </p>
+                            <p style="margin: 0 0 16px; color: #374151; font-size: 16px; line-height: 24px;">
+                                A new device has been trusted for your AretaCare account:
+                            </p>
+                            <div style="background-color: #f3f4f6; border-radius: 8px; padding: 16px; margin-bottom: 16px;">
+                                <p style="margin: 0 0 8px; color: #374151; font-size: 14px;">
+                                    <strong>Device:</strong> {device_name}
+                                </p>
+                                <p style="margin: 0; color: #374151; font-size: 14px;">
+                                    <strong>IP Address:</strong> {ip_address}
+                                </p>
+                            </div>
+                            <p style="margin: 0 0 16px; color: #374151; font-size: 16px; line-height: 24px;">
+                                This device will be trusted for 30 days and will not require two-factor authentication during that time.
+                            </p>
+                        </td>
+                    </tr>
+
+                    <!-- Warning -->
+                    <tr>
+                        <td style="padding: 0 40px 40px;">
+                            <div style="background-color: #fef3c7; border-left: 4px solid #f59e0b; padding: 16px; border-radius: 4px;">
+                                <p style="margin: 0; color: #92400e; font-size: 14px; line-height: 20px;">
+                                    <strong>Important:</strong> If you did NOT authorize this device, please log in to your account and revoke this trusted device immediately. You should also change your password.
+                                </p>
+                            </div>
+                        </td>
+                    </tr>
+
+                    <!-- Footer -->
+                    <tr>
+                        <td style="padding: 20px 40px; background-color: #f9fafb; border-top: 1px solid #e5e7eb; border-radius: 0 0 8px 8px;">
+                            <p style="margin: 0; color: #6b7280; font-size: 12px; line-height: 18px; text-align: center;">
+                                Best regards,<br>
+                                The AretaCare Team
+                            </p>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>
+            """
+
+            part1 = MIMEText(text_content, "plain")
+            part2 = MIMEText(html_content, "html")
+            message.attach(part1)
+            message.attach(part2)
+
+            if not settings.SMTP_PASSWORD:
+                logger.warning("SMTP_PASSWORD not configured. Email not sent. Using development mode.")
+                return False
+
+            with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT) as server:
+                server.starttls()
+                server.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
+                server.send_message(message)
+
+            logger.info(f"New trusted device notification sent successfully to {to_email}")
+            return True
+
+        except Exception as e:
+            logger.error(f"Error sending new trusted device email: {str(e)}")
             return False
 
 

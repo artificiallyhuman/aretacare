@@ -174,8 +174,8 @@ export const authAPI = {
   updateName: (name, currentPassword) =>
     api.put('/auth/name', { name, current_password: currentPassword }),
 
-  updateEmail: (email, currentPassword) =>
-    api.put('/auth/email', { email, current_password: currentPassword }),
+  updateEmail: (email, currentPassword, config = {}) =>
+    api.put('/auth/email', { email, current_password: currentPassword }, config),
 
   verifyEmailChange: (token) =>
     api.post(`/auth/email/verify?token=${encodeURIComponent(token)}`),
@@ -190,11 +190,11 @@ export const authAPI = {
   resendVerification: (email) =>
     api.post('/auth/resend-verification', { email }),
 
-  updatePassword: (currentPassword, newPassword) =>
-    api.put('/auth/password', { current_password: currentPassword, new_password: newPassword }),
+  updatePassword: (currentPassword, newPassword, config = {}) =>
+    api.put('/auth/password', { current_password: currentPassword, new_password: newPassword }, config),
 
-  deleteAccount: (password) =>
-    api.delete('/auth/account', { data: { password } }),
+  deleteAccount: (password, config = {}) =>
+    api.delete('/auth/account', { data: { password }, ...config }),
 
   requestPasswordReset: (email) =>
     api.post('/auth/password-reset/request', { email }),
@@ -222,8 +222,18 @@ export const authAPI = {
   logoutEverywhere: () =>
     api.post('/auth/logout-everywhere'),
 
+  getDevicesCount: () =>
+    api.get('/auth/devices/count'),
+
   checkSessionValid: () =>
     api.get('/auth/session-valid'),
+
+  // MFA login verification
+  verifyMFALogin: (data) =>
+    api.post('/auth/login/mfa-verify', data),
+
+  getMFAPasskeyOptions: (mfaToken) =>
+    api.post('/auth/login/mfa-passkey-options', { mfa_token: mfaToken }),
 };
 
 // Session API
@@ -450,6 +460,38 @@ export const waitlistAPI = {
     message: message || null,
     captcha_token: captchaToken
   }),
+};
+
+// MFA API
+export const mfaAPI = {
+  // Status
+  getStatus: () => api.get('/mfa/status'),
+
+  // TOTP
+  setupTOTP: () => api.post('/mfa/totp/setup'),
+  verifyTOTPSetup: (code) => api.post('/mfa/totp/verify-setup', { code }),
+  deleteTOTP: () => api.delete('/mfa/totp'),
+
+  // Passkeys
+  getPasskeyRegOptions: () => api.post('/mfa/passkey/register/options'),
+  verifyPasskeyReg: (data) => api.post('/mfa/passkey/register/verify', data),
+  getPasskeyAuthOptions: () => api.post('/mfa/passkey/auth/options'),
+  listPasskeys: () => api.get('/mfa/passkeys'),
+  deletePasskey: (id) => api.delete(`/mfa/passkeys/${id}`),
+
+  // Backup codes
+  generateBackupCodes: () => api.post('/mfa/backup-codes/generate'),
+  getBackupCodesCount: () => api.get('/mfa/backup-codes/count'),
+
+  // Trusted devices
+  listTrustedDevices: () => api.get('/mfa/trusted-devices'),
+  revokeTrustedDevice: (id) => api.delete(`/mfa/trusted-devices/${id}`),
+  revokeAllTrustedDevices: () => api.delete('/mfa/trusted-devices'),
+
+  // Management
+  enableMFA: (preferredMethod) => api.post('/mfa/enable', { preferred_method: preferredMethod }),
+  disableMFA: (password) => api.post('/mfa/disable', { password }),
+  verifyForAction: (data) => api.post('/mfa/verify-for-action', data),
 };
 
 // Profile API
