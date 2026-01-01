@@ -42,7 +42,7 @@ You recently requested to reset your password for your AretaCare account. Click 
 
 This link will expire in 1 hour.
 
-If you did not request a password reset, please ignore this email or contact support if you have concerns.
+If you did not request a password reset, please ignore this email or contact us at support@aretacare.com if you have concerns.
 
 Best regards,
 The AretaCare Team
@@ -105,7 +105,7 @@ The AretaCare Team
                             </div>
 
                             <p style="margin: 24px 0 0; color: #6b7280; font-size: 14px; line-height: 20px;">
-                                If you did not request a password reset, please ignore this email or contact support if you have concerns.
+                                If you did not request a password reset, please ignore this email or <a href="mailto:support@aretacare.com" style="color: #059669; text-decoration: underline;">contact us</a> if you have concerns.
                             </p>
                         </td>
                     </tr>
@@ -234,7 +234,7 @@ The AretaCare Team
                         <td style="padding: 0 40px 40px;">
                             <div style="background-color: #fef3c7; border-left: 4px solid #f59e0b; padding: 16px; border-radius: 4px;">
                                 <p style="margin: 0; color: #92400e; font-size: 14px; line-height: 20px;">
-                                    <strong>Important:</strong> If you did NOT make this change, please contact AretaCare support immediately at <a href="mailto:support@aretacare.com" style="color: #92400e; text-decoration: underline;">support@aretacare.com</a> to secure your account.
+                                    <strong>Important:</strong> If you did NOT make this change, please contact AretaCare security immediately at <a href="mailto:security@aretacare.com" style="color: #92400e; text-decoration: underline;">security@aretacare.com</a> to secure your account.
                                 </p>
                             </div>
                         </td>
@@ -357,7 +357,7 @@ The AretaCare Team
                         <td style="padding: 0 40px 40px;">
                             <div style="background-color: #fef3c7; border-left: 4px solid #f59e0b; padding: 16px; border-radius: 4px;">
                                 <p style="margin: 0; color: #92400e; font-size: 14px; line-height: 20px;">
-                                    <strong>Important:</strong> If you did NOT make this change, please contact AretaCare support immediately at <a href="mailto:support@aretacare.com" style="color: #92400e; text-decoration: underline;">support@aretacare.com</a> to secure your account.
+                                    <strong>Important:</strong> If you did NOT make this change, please contact AretaCare security immediately at <a href="mailto:security@aretacare.com" style="color: #92400e; text-decoration: underline;">security@aretacare.com</a> to secure your account.
                                 </p>
                             </div>
                         </td>
@@ -1160,8 +1160,7 @@ To help manage our resources, we periodically review and may remove accounts tha
 If you'd like to keep your account active, simply log in at:
 {settings.FRONTEND_URL}
 
-If you have any questions or concerns, please visit our GitHub repository:
-https://github.com/artificiallyhuman/aretacare
+If you have any questions or concerns, please contact us at support@aretacare.com
 
 Thank you for using AretaCare.
 
@@ -1205,7 +1204,7 @@ This is an automated message from AretaCare.
                 <a href="{settings.FRONTEND_URL}" class="button">Log In to AretaCare</a>
             </div>
 
-            <p>If you have any questions or concerns, please visit our <a href="https://github.com/artificiallyhuman/aretacare">GitHub repository</a>.</p>
+            <p>If you have any questions or concerns, please <a href="mailto:support@aretacare.com">contact us</a>.</p>
 
             <p>Thank you for using AretaCare.</p>
         </div>
