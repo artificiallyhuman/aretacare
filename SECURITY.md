@@ -58,7 +58,7 @@ When you report a vulnerability to us, we commit to:
 
 Security vulnerabilities in the following areas are in scope:
 
-- **Authentication & Authorization**: Login bypass, session hijacking, privilege escalation
+- **Authentication & Authorization**: Login bypass, session hijacking, privilege escalation, MFA bypass
 - **Data Protection**: SQL injection, NoSQL injection, unauthorized data access
 - **Input Validation**: XSS, CSRF, command injection, path traversal
 - **API Security**: Authentication issues, rate limiting bypass, data exposure
@@ -117,6 +117,16 @@ AretaCare implements comprehensive security measures:
 - **Account Lockout**: 5 failed login attempts triggers 15-minute lockout with progressive warnings
 - **Logout Everywhere**: Users can revoke all active sessions
 
+### Multi-Factor Authentication (MFA)
+- **Passkeys (WebAuthn)**: Phishing-resistant authentication using biometrics or hardware keys; maximum 10 per account
+- **TOTP (Authenticator Apps)**: 6-digit time-based codes with 30-second rotation; secrets encrypted at rest using Fernet; replay protection prevents code reuse
+- **Backup Codes**: 10 one-time-use recovery codes; bcrypt hashed, never stored in plaintext
+- **Trusted Devices**: 30-day trust duration with secure HttpOnly cookies; tokens SHA-256 hashed before storage; maximum 10 per user (oldest auto-removed)
+- **Sensitive Action Protection**: Password changes, email changes, and account deletion always require MFA re-verification
+- **Challenge Expiration**: MFA challenges expire after 5 minutes; action tokens are single-use with 5-minute expiry
+- **Rate Limiting**: MFA verification limited to 5 attempts per minute
+- **Automatic Cleanup**: Expired challenges and trusted devices cleaned on server startup
+
 ### Rate Limiting
 - **Login**: 5 attempts per minute per IP
 - **Registration**: 3 attempts per hour per IP
@@ -145,11 +155,12 @@ AretaCare implements comprehensive security measures:
 - **Presigned URLs**: 24-hour expiration for S3 file access
 
 ### Logging & Monitoring
-- **Security Event Logging**: Failed logins, invalid tokens, unauthorized access attempts, account lockouts
+- **Security Event Logging**: Failed logins, invalid tokens, unauthorized access attempts, account lockouts, MFA events (setup, verification, failures)
 - **AI-Powered Daily Reports**: Automated analysis of security/error/API logs to detect concerning patterns and generate actionable insights for administrators
 - **Audit Logging**: Admin actions tracked with retention policies
 - **Error Logging**: Application errors logged for debugging (30-day retention)
 - **API Logging**: OpenAI API calls tracked (30-day retention)
+- **Email Notifications**: Users notified of security-relevant events (MFA enabled/disabled, new passkey, new trusted device)
 
 ### Data Deletion
 - **Complete Removal**: Database records + S3 files (documents, thumbnails, audio)
@@ -172,4 +183,4 @@ If you have questions about this security policy or responsible disclosure, plea
 
 ---
 
-**Last Updated**: 2025-12-18
+**Last Updated**: 2025-12-31

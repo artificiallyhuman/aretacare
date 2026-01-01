@@ -6,8 +6,10 @@
   "dependencies": {
     "@hcaptcha/react-hcaptcha": "^1.10.1",
     "@heroicons/react": "^2.1.1",
+    "@simplewebauthn/browser": "^13.2.2",
     "axios": "^1.6.2",
     "prop-types": "^15.8.1",
+    "qrcode.react": "^4.2.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-markdown": "^9.0.1",

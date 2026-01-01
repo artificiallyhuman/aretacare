@@ -16,10 +16,16 @@ from app.models.api_log import ApiLog
 from app.models.profile import Profile
 from app.models.refresh_token import RefreshToken
 from app.models.waitlist import WaitlistEntry
+from app.models.user_passkey import UserPasskey
+from app.models.user_totp_secret import UserTOTPSecret
+from app.models.user_backup_code import UserBackupCode
+from app.models.trusted_device import TrustedDevice
+from app.models.mfa_challenge import MFAChallenge
 
 __all__ = [
     "User", "Session", "SessionCollaborator", "PendingInvitation", "Document", "DocumentCategory",
     "Conversation", "MessageRole", "AudioRecording", "AudioRecordingCategory",
     "JournalEntry", "EntryType", "DailyPlan", "DailyPlanView", "AdminAuditLog", "AdminReport",
-    "SecurityLog", "ErrorLog", "ApiLog", "Profile", "RefreshToken", "WaitlistEntry"
+    "SecurityLog", "ErrorLog", "ApiLog", "Profile", "RefreshToken", "WaitlistEntry",
+    "UserPasskey", "UserTOTPSecret", "UserBackupCode", "TrustedDevice", "MFAChallenge"
 ]

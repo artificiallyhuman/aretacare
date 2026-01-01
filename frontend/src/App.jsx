@@ -34,6 +34,7 @@ const PrivacyPolicy = lazy(() => import('./pages/PrivacyPolicy'));
 const Contact = lazy(() => import('./pages/Contact'));
 const Profile = lazy(() => import('./pages/Profile'));
 const Waitlist = lazy(() => import('./pages/Waitlist'));
+const MFASetup = lazy(() => import('./pages/MFASetup'));
 
 // Admin pages
 const AdminDashboard = lazy(() => import('./pages/admin/AdminDashboard'));
@@ -300,6 +301,16 @@ function AppContent() {
             element={
               <ProtectedRoute>
                 <Profile />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* MFA Setup Route (not in menu - accessible at /mfa-setup) */}
+          <Route
+            path="/mfa-setup"
+            element={
+              <ProtectedRoute>
+                <MFASetup />
               </ProtectedRoute>
             }
           />

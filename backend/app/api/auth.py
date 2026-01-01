@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Request, Response, Cookie, Query
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session as DBSession
+from pydantic import BaseModel
 from typing import Optional
 from datetime import datetime, timedelta
 import secrets
@@ -22,11 +23,14 @@ from app.schemas.auth import (
     UserRegister, UserLogin, TokenResponse, UserResponse,
     UpdateName, UpdateEmail, UpdatePassword, DeleteAccount,
     PasswordResetRequest, PasswordReset, RefreshTokenRequest,
-    RegistrationResponse, ResendVerificationRequest
+    RegistrationResponse, ResendVerificationRequest, LoginResponse
 )
+from app.schemas.mfa import MFAVerifyLoginRequest
 from app.services.email_service import email_service
 from app.services.s3_service import s3_service
 from app.services.security_service import security_service
+from app.services.mfa_service import MFAService
+from app.core.mfa_config import TRUSTED_DEVICE_COOKIE_NAME
 
 logger = logging.getLogger(__name__)
 
@@ -65,6 +69,74 @@ def clear_refresh_token_cookie(response: Response):
         key=REFRESH_TOKEN_COOKIE_NAME,
         path="/api/auth"
     )
+
+
+# Trusted device cookie configuration
+TRUSTED_DEVICE_MAX_AGE = 30 * 24 * 60 * 60  # 30 days in seconds
+
+
+def set_trusted_device_cookie(response: Response, device_token: str):
+    """Set HttpOnly cookie for trusted device token."""
+    # In production (DEBUG=False), use Secure and SameSite=None for cross-origin
+    # In development (DEBUG=True), use non-secure cookies that work on localhost HTTP
+    is_production = not settings.DEBUG
+    response.set_cookie(
+        key=TRUSTED_DEVICE_COOKIE_NAME,
+        value=device_token,
+        max_age=TRUSTED_DEVICE_MAX_AGE,
+        httponly=True,
+        secure=is_production,
+        samesite="none" if is_production else "lax",
+        path="/api"  # Broader path to include /api/mfa endpoints
+    )
+
+
+def clear_trusted_device_cookie(response: Response):
+    """Clear the trusted device cookie."""
+    response.delete_cookie(
+        key=TRUSTED_DEVICE_COOKIE_NAME,
+        path="/api"
+    )
+
+
+def verify_mfa_for_sensitive_action(
+    request: Request,
+    current_user: User,
+    db: DBSession
+) -> None:
+    """
+    Verify MFA for sensitive actions when MFA is enabled.
+
+    Always requires re-verification even if session was MFA-authenticated.
+    Checks for X-MFA-Action-Token header.
+
+    Raises HTTPException if MFA is required but token is missing/invalid.
+    """
+    if not current_user.mfa_enabled:
+        # MFA not enabled, no verification needed
+        return
+
+    # Get action token from header
+    action_token = request.headers.get("X-MFA-Action-Token")
+
+    if not action_token:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={
+                "code": "MFA_REQUIRED",
+                "message": "MFA verification required for this action. Please verify your identity."
+            }
+        )
+
+    # Verify the action token
+    if not MFAService.verify_action_token(db, current_user.id, action_token):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={
+                "code": "MFA_INVALID",
+                "message": "Invalid or expired MFA verification. Please verify again."
+            }
+        )
 
 
 def get_current_user(
@@ -320,10 +392,20 @@ def register(request: Request, response: Response, user_data: UserRegister, db: 
     )
 
 
-@router.post("/login", response_model=TokenResponse)
+@router.post("/login", response_model=LoginResponse)
 @limiter.limit(RateLimits.LOGIN)
-def login(request: Request, response: Response, user_data: UserLogin, db: DBSession = Depends(get_db)):
-    """Login user and return access token."""
+def login(
+    request: Request,
+    response: Response,
+    user_data: UserLogin,
+    db: DBSession = Depends(get_db),
+    trusted_device: Optional[str] = Cookie(None, alias=TRUSTED_DEVICE_COOKIE_NAME)
+):
+    """
+    Login user and return access token.
+
+    If MFA is enabled and device is not trusted, returns MFA challenge instead of tokens.
+    """
     ip_address = security_service.get_client_ip(request)
     user_agent = security_service.get_user_agent(request)
 
@@ -409,6 +491,26 @@ def login(request: Request, response: Response, user_data: UserLogin, db: DBSess
             detail={"message": "Email not verified. Please check your email for a verification link.", "code": "EMAIL_NOT_VERIFIED", "email": user.email}
         )
 
+    # Check if MFA is enabled
+    if user.mfa_enabled:
+        # Check if device is trusted
+        device_is_trusted = False
+        if trusted_device:
+            device_is_trusted = MFAService.verify_trusted_device(db, user.id, trusted_device)
+
+        if not device_is_trusted:
+            # MFA required - create challenge and return MFA response
+            mfa_token = MFAService.create_login_challenge(db, user.id)
+            mfa_methods = MFAService.get_available_mfa_methods(db, user.id)
+
+            return LoginResponse(
+                requires_mfa=True,
+                mfa_token=mfa_token,
+                mfa_methods=mfa_methods
+            )
+
+    # No MFA or device is trusted - proceed with normal login
+
     # Create access token
     access_token = create_access_token(data={"sub": user.id})
 
@@ -426,10 +528,153 @@ def login(request: Request, response: Response, user_data: UserLogin, db: DBSess
     # Note: refresh_token is NOT returned in body to prevent XSS attacks from stealing it
     set_refresh_token_cookie(response, refresh_token)
 
-    return TokenResponse(
+    return LoginResponse(
         access_token=access_token,
         user=UserResponse.model_validate(user)
     )
+
+
+@router.post("/login/mfa-verify", response_model=LoginResponse)
+@limiter.limit("5/minute")
+def verify_mfa_login(
+    request: Request,
+    response: Response,
+    data: MFAVerifyLoginRequest,
+    db: DBSession = Depends(get_db)
+):
+    """
+    Complete login with MFA verification.
+
+    After the initial login returns MFA_REQUIRED, the client calls this endpoint
+    with the MFA token and their verification method (passkey, TOTP, or backup code).
+    """
+    ip_address = security_service.get_client_ip(request)
+    user_agent = security_service.get_user_agent(request)
+
+    # Verify the MFA token
+    user_id = MFAService.verify_login_challenge(db, data.mfa_token)
+    if not user_id:
+        security_service.log_event(
+            db=db,
+            event_type="mfa_login_invalid_token",
+            ip_address=ip_address,
+            user_agent=user_agent,
+            details="Invalid or expired MFA token"
+        )
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired MFA token. Please log in again."
+        )
+
+    # Get the user
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="User not found"
+        )
+
+    # Verify MFA based on the method
+    verified = False
+
+    if data.method == "passkey":
+        if data.credential:
+            verified = MFAService.verify_passkey_authentication(db, user_id, data.credential)
+    elif data.method == "totp":
+        if data.code:
+            verified = MFAService.verify_totp(db, user_id, data.code)
+    elif data.method == "backup_code":
+        if data.code:
+            verified = MFAService.verify_backup_code(db, user_id, data.code)
+
+    if not verified:
+        security_service.log_event(
+            db=db,
+            event_type="mfa_login_failed",
+            user_id=user_id,
+            email=user.email,
+            ip_address=ip_address,
+            user_agent=user_agent,
+            details=f"MFA verification failed (method: {data.method})"
+        )
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="MFA verification failed. Please try again."
+        )
+
+    # MFA verified successfully - delete the challenge
+    MFAService.delete_login_challenge(db, data.mfa_token)
+
+    # Handle trusted device
+    if data.trust_device:
+        device_token = MFAService.create_trusted_device(
+            db, user_id, user_agent, ip_address
+        )
+        set_trusted_device_cookie(response, device_token)
+
+        # Send email notification for new trusted device
+        from app.services.email_service import EmailService
+        EmailService.send_new_trusted_device_email(
+            to_email=user.email,
+            user_name=user.name,
+            device_name=user_agent or "Unknown device",
+            ip_address=ip_address or "Unknown IP"
+        )
+
+    # Create access token
+    access_token = create_access_token(data={"sub": user.id})
+
+    # Create refresh token
+    device_info = request.headers.get("user-agent")
+    refresh_token, _ = create_refresh_token_record(
+        db=db,
+        user_id=user.id,
+        device_info=device_info,
+        ip_address=ip_address
+    )
+
+    # Set refresh token as HttpOnly cookie
+    set_refresh_token_cookie(response, refresh_token)
+
+    return LoginResponse(
+        access_token=access_token,
+        user=UserResponse.model_validate(user)
+    )
+
+
+class MFAPasskeyOptionsRequest(BaseModel):
+    mfa_token: str
+
+
+@router.post("/login/mfa-passkey-options")
+@limiter.limit("10/minute")
+def get_mfa_passkey_options(
+    request: Request,
+    data: MFAPasskeyOptionsRequest,
+    db: DBSession = Depends(get_db)
+):
+    """
+    Get WebAuthn authentication options for passkey MFA during login.
+
+    Called after login returns MFA_REQUIRED with passkey as an available method.
+    """
+    # Verify the MFA token
+    user_id = MFAService.verify_login_challenge(db, data.mfa_token)
+    if not user_id:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired MFA token"
+        )
+
+    options, _ = MFAService.generate_passkey_authentication_options(db, user_id)
+
+    if options is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No passkeys registered for this user"
+        )
+
+    return {"options": options}
 
 
 @router.get("/verify-email")
@@ -581,6 +826,7 @@ def update_name(
 
 @router.put("/email")
 def request_email_change(
+    request: Request,
     data: UpdateEmail,
     response: Response,
     current_user: User = Depends(get_current_user),
@@ -591,7 +837,12 @@ def request_email_change(
 
     This initiates email verification - a verification link is sent to the new email address.
     The email is not changed until the user clicks the verification link.
+
+    If MFA is enabled, requires X-MFA-Action-Token header.
     """
+    # Verify MFA for sensitive action (if MFA enabled)
+    verify_mfa_for_sensitive_action(request, current_user, db)
+
     # Verify current password
     if not verify_password(data.current_password, current_user.password_hash):
         raise HTTPException(
@@ -746,12 +997,21 @@ def cancel_email_change(
 
 @router.put("/password")
 def update_password(
+    request: Request,
     data: UpdatePassword,
     response: Response,
     current_user: User = Depends(get_current_user),
     db: DBSession = Depends(get_db)
 ):
-    """Update user password (requires current password verification). Logs user out for security."""
+    """
+    Update user password (requires current password verification).
+    Logs user out for security.
+
+    If MFA is enabled, requires X-MFA-Action-Token header.
+    """
+    # Verify MFA for sensitive action (if MFA enabled)
+    verify_mfa_for_sensitive_action(request, current_user, db)
+
     # Verify current password
     if not verify_password(data.current_password, current_user.password_hash):
         raise HTTPException(
@@ -770,6 +1030,11 @@ def update_password(
     revoke_all_user_tokens(db, current_user.id)
     clear_refresh_token_cookie(response)
 
+    # Also clear trusted device cookie and revoke all trusted devices
+    if current_user.mfa_enabled:
+        MFAService.revoke_all_trusted_devices(db, current_user.id)
+        clear_trusted_device_cookie(response)
+
     return {
         "message": "Password updated successfully. Please log in again.",
         "logout": True
@@ -778,11 +1043,15 @@ def update_password(
 
 @router.delete("/account", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_account(
+    request: Request,
     data: DeleteAccount,
     current_user: User = Depends(get_current_user),
     db: DBSession = Depends(get_db)
 ):
-    """Delete user account permanently (requires password verification)."""
+    """Delete user account permanently (requires password verification and MFA if enabled)."""
+    # Verify MFA for sensitive action (if user has MFA enabled)
+    verify_mfa_for_sensitive_action(request, current_user, db)
+
     # Verify password
     if not verify_password(data.password, current_user.password_hash):
         raise HTTPException(
@@ -1032,6 +1301,28 @@ def logout_everywhere(
         "message": f"Logged out of {count} device(s)",
         "devices_logged_out": count
     }
+
+
+@router.get("/devices/count", status_code=status.HTTP_200_OK)
+def get_active_devices_count(
+    current_user: User = Depends(get_current_user),
+    db: DBSession = Depends(get_db)
+):
+    """
+    Get the count of active devices/sessions for the current user.
+
+    Returns the number of active (non-revoked, non-expired) refresh tokens,
+    which represents the number of devices/browsers where the user is logged in.
+    """
+    from app.models.refresh_token import RefreshToken
+
+    count = db.query(RefreshToken).filter(
+        RefreshToken.user_id == current_user.id,
+        RefreshToken.is_revoked == False,
+        RefreshToken.expires_at > datetime.utcnow()
+    ).count()
+
+    return {"count": count}
 
 
 @router.get("/session-valid", status_code=status.HTTP_200_OK)

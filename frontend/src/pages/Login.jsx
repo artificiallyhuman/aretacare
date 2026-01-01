@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { authAPI, waitlistAPI } from '../services/api';
 import { useTheme } from '../contexts/ThemeContext';
+import MFAChallenge from '../components/mfa/MFAChallenge';
 import logo from '../logos/large_logo.png';
 
 function Login() {
@@ -17,6 +18,9 @@ function Login() {
   const [resendingVerification, setResendingVerification] = useState(false);
   const [resendSuccess, setResendSuccess] = useState(false);
   const [controlSignups, setControlSignups] = useState(false);
+  const [mfaRequired, setMfaRequired] = useState(false);
+  const [mfaToken, setMfaToken] = useState('');
+  const [mfaMethods, setMfaMethods] = useState([]);
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { isDark, toggleTheme } = useTheme();
@@ -56,7 +60,19 @@ function Login() {
 
     try {
       const response = await authAPI.login(email, password);
-      const { access_token } = response.data;
+      const data = response.data;
+
+      // Check if MFA is required
+      if (data.requires_mfa) {
+        setMfaRequired(true);
+        setMfaToken(data.mfa_token);
+        setMfaMethods(data.mfa_methods);
+        setLoading(false);
+        return;
+      }
+
+      // No MFA required - proceed with normal login
+      const { access_token } = data;
 
       // Store access token (short-lived, 1 hour)
       // Note: refresh_token is handled via HttpOnly cookie for security (set by server)
@@ -82,6 +98,19 @@ function Login() {
     }
   };
 
+  const handleMFASuccess = (data) => {
+    const { access_token } = data;
+    localStorage.setItem('auth_token', access_token);
+    window.location.href = '/';
+  };
+
+  const handleMFACancel = () => {
+    setMfaRequired(false);
+    setMfaToken('');
+    setMfaMethods([]);
+    setPassword('');
+  };
+
   const handleResendVerification = async () => {
     setResendingVerification(true);
     setResendSuccess(false);
@@ -99,6 +128,16 @@ function Login() {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex flex-col justify-center py-6 sm:py-12 px-4 sm:px-6 lg:px-8 transition-colors duration-200">
+      {/* MFA Challenge Modal */}
+      {mfaRequired && (
+        <MFAChallenge
+          mfaToken={mfaToken}
+          mfaMethods={mfaMethods}
+          onSuccess={handleMFASuccess}
+          onCancel={handleMFACancel}
+        />
+      )}
+
       {/* Theme Toggle Button */}
       <button
         onClick={toggleTheme}

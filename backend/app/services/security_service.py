@@ -39,7 +39,7 @@ class SecurityService:
             )
             db.add(security_log)
             db.commit()
-            logger.info(f"Security event logged: {event_type} - {email or user_id or 'unknown'}")
+            logger.debug(f"Security event logged: {event_type}")
         except Exception as e:
             logger.error(f"Failed to log security event: {e}")
             db.rollback()

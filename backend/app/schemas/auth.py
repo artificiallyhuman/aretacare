@@ -99,3 +99,27 @@ class RegistrationResponse(BaseModel):
 class ResendVerificationRequest(BaseModel):
     """Schema for requesting verification email resend."""
     email: EmailStr
+
+
+class MFARequiredResponse(BaseModel):
+    """Response when login requires MFA verification."""
+    requires_mfa: bool = True
+    mfa_token: str = Field(..., description="Token to use for MFA verification")
+    mfa_methods: list[str] = Field(..., description="Available MFA methods: passkey, totp, backup_code")
+
+
+class LoginResponse(BaseModel):
+    """
+    Unified login response that can be either:
+    - Full TokenResponse (when MFA not enabled or device trusted)
+    - MFARequiredResponse (when MFA verification needed)
+    """
+    # Token fields (present when login succeeds without MFA)
+    access_token: str | None = None
+    token_type: str = "bearer"
+    user: UserResponse | None = None
+
+    # MFA fields (present when MFA verification is required)
+    requires_mfa: bool = False
+    mfa_token: str | None = None
+    mfa_methods: list[str] | None = None

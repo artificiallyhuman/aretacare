@@ -32,6 +32,11 @@ class User(Base):
     # Track last active session for user
     last_active_session_id = Column(String, nullable=True)
 
+    # MFA fields
+    mfa_enabled = Column(Boolean, default=False, nullable=False)
+    mfa_preferred_method = Column(String(20), nullable=True)  # 'passkey' or 'totp'
+    mfa_enabled_at = Column(DateTime, nullable=True)
+
     # Relationships
     sessions = relationship(
         "Session",
@@ -41,6 +46,27 @@ class User(Base):
     )
     refresh_tokens = relationship(
         "RefreshToken",
+        back_populates="user",
+        cascade="all, delete-orphan"
+    )
+    passkeys = relationship(
+        "UserPasskey",
+        back_populates="user",
+        cascade="all, delete-orphan"
+    )
+    totp_secret = relationship(
+        "UserTOTPSecret",
+        back_populates="user",
+        uselist=False,
+        cascade="all, delete-orphan"
+    )
+    backup_codes = relationship(
+        "UserBackupCode",
+        back_populates="user",
+        cascade="all, delete-orphan"
+    )
+    trusted_devices = relationship(
+        "TrustedDevice",
         back_populates="user",
         cascade="all, delete-orphan"
     )

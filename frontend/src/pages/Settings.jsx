@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { useNavigate } from 'react-router-dom';
-import { authAPI, sessionAPI } from '../services/api';
+import { useNavigate, Link } from 'react-router-dom';
+import { authAPI, sessionAPI, mfaAPI } from '../services/api';
 import { useSessionContext } from '../contexts/SessionContext';
 import { formatLocalDate } from '../utils/dateUtils';
+import SensitiveActionModal from '../components/mfa/SensitiveActionModal';
 
 export default function Settings() {
   const navigate = useNavigate();
@@ -57,6 +58,18 @@ export default function Settings() {
   const [sessionToDelete, setSessionToDelete] = useState(null);
   const [accountDeleteConfirm, setAccountDeleteConfirm] = useState(false);
 
+  // MFA status
+  const [mfaStatus, setMfaStatus] = useState(null);
+  const [mfaLoading, setMfaLoading] = useState(true);
+
+  // MFA verification for sensitive actions
+  const [mfaActionModal, setMfaActionModal] = useState(null); // 'password_change', 'email_change', 'account_delete'
+  const [mfaActionToken, setMfaActionToken] = useState(null);
+  const [pendingAction, setPendingAction] = useState(null);
+
+  // Active devices count
+  const [devicesCount, setDevicesCount] = useState(null);
+
   // Fetch all session statistics on mount
   useEffect(() => {
     const fetchAllStatistics = async () => {
@@ -77,6 +90,34 @@ export default function Settings() {
       fetchAllStatistics();
     }
   }, [sessions]);
+
+  // Fetch MFA status on mount
+  useEffect(() => {
+    const fetchMfaStatus = async () => {
+      try {
+        const response = await mfaAPI.getStatus();
+        setMfaStatus(response.data);
+      } catch (error) {
+        console.error('Failed to fetch MFA status:', error);
+      } finally {
+        setMfaLoading(false);
+      }
+    };
+    fetchMfaStatus();
+  }, []);
+
+  // Fetch active devices count on mount
+  useEffect(() => {
+    const fetchDevicesCount = async () => {
+      try {
+        const response = await authAPI.getDevicesCount();
+        setDevicesCount(response.data.count);
+      } catch (error) {
+        console.error('Failed to fetch devices count:', error);
+      }
+    };
+    fetchDevicesCount();
+  }, []);
 
   const clearMessages = (section) => {
     setErrors((prev) => ({ ...prev, [section]: null }));
@@ -108,19 +149,31 @@ export default function Settings() {
     }
   };
 
-  const handleUpdateEmail = async (e) => {
-    e.preventDefault();
+  const handleUpdateEmail = async (e, actionToken = null) => {
+    e?.preventDefault();
     clearMessages('email');
+
+    // If MFA is enabled and we don't have an action token, show the MFA modal
+    if (mfaStatus?.mfa_enabled && !actionToken) {
+      setPendingAction({ type: 'email' });
+      setMfaActionModal('email_change');
+      return;
+    }
+
     setLoading((prev) => ({ ...prev, email: true }));
 
     try {
-      const response = await authAPI.updateEmail(emailForm.email, emailForm.password);
+      // Create config with action token header if provided
+      const config = actionToken ? { headers: { 'X-MFA-Action-Token': actionToken } } : {};
+
+      const response = await authAPI.updateEmail(emailForm.email, emailForm.password, config);
       // Email change now requires verification - show pending message
       setSuccess((prev) => ({
         ...prev,
         email: response.data.message || 'Verification email sent. Please check your new email to complete the change.'
       }));
       setEmailForm({ email: '', password: '' });
+      setMfaActionToken(null);
 
       // Log out user after showing success message for security
       if (response.data.logout) {
@@ -139,8 +192,8 @@ export default function Settings() {
     }
   };
 
-  const handleUpdatePassword = async (e) => {
-    e.preventDefault();
+  const handleUpdatePassword = async (e, actionToken = null) => {
+    e?.preventDefault();
     clearMessages('password');
 
     if (passwordForm.newPassword !== passwordForm.confirmPassword) {
@@ -153,12 +206,23 @@ export default function Settings() {
       return;
     }
 
+    // If MFA is enabled and we don't have an action token, show the MFA modal
+    if (mfaStatus?.mfa_enabled && !actionToken) {
+      setPendingAction({ type: 'password' });
+      setMfaActionModal('password_change');
+      return;
+    }
+
     setLoading((prev) => ({ ...prev, password: true }));
 
     try {
-      const response = await authAPI.updatePassword(passwordForm.currentPassword, passwordForm.newPassword);
+      // Create config with action token header if provided
+      const config = actionToken ? { headers: { 'X-MFA-Action-Token': actionToken } } : {};
+
+      const response = await authAPI.updatePassword(passwordForm.currentPassword, passwordForm.newPassword, config);
       setSuccess((prev) => ({ ...prev, password: response.data.message || 'Password updated successfully' }));
       setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
+      setMfaActionToken(null);
 
       // Log out user after password change for security
       if (response.data.logout) {
@@ -269,11 +333,21 @@ export default function Settings() {
     setAccountDeleteConfirm(true);
   };
 
-  const confirmDeleteAccount = async () => {
+  const confirmDeleteAccount = async (actionToken = null) => {
+    // If MFA is enabled and we don't have an action token, show the MFA modal
+    if (mfaStatus?.mfa_enabled && !actionToken) {
+      setPendingAction({ type: 'delete' });
+      setMfaActionModal('account_delete');
+      return;
+    }
+
     setLoading((prev) => ({ ...prev, delete: true }));
 
     try {
-      await authAPI.deleteAccount(deleteForm.password);
+      // Create config with action token header if provided
+      const config = actionToken ? { headers: { 'X-MFA-Action-Token': actionToken } } : {};
+
+      await authAPI.deleteAccount(deleteForm.password, config);
       await authAPI.logout();
       window.location.href = '/login';
     } catch (error) {
@@ -284,6 +358,27 @@ export default function Settings() {
       setLoading((prev) => ({ ...prev, delete: false }));
       setAccountDeleteConfirm(false);
     }
+  };
+
+  // Handler for MFA verification success
+  const handleMfaActionSuccess = (actionToken) => {
+    setMfaActionModal(null);
+
+    // Execute the pending action with the token
+    if (pendingAction?.type === 'password') {
+      handleUpdatePassword(null, actionToken);
+    } else if (pendingAction?.type === 'email') {
+      handleUpdateEmail(null, actionToken);
+    } else if (pendingAction?.type === 'delete') {
+      confirmDeleteAccount(actionToken);
+    }
+
+    setPendingAction(null);
+  };
+
+  const handleMfaActionCancel = () => {
+    setMfaActionModal(null);
+    setPendingAction(null);
   };
 
   const toggleSection = (section) => {
@@ -870,7 +965,7 @@ export default function Settings() {
             >
               <div className="text-left">
                 <h2 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white">Control Access</h2>
-                <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Manage active logins and devices</p>
+                <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Configure advanced security features</p>
               </div>
               <svg
                 className={`w-5 h-5 text-gray-400 transition-transform ${
@@ -886,30 +981,91 @@ export default function Settings() {
 
             {expandedSection === 'security' && (
               <div className="px-4 sm:px-6 pb-4 border-t border-gray-100 dark:border-gray-700">
-                <div className="mt-4 space-y-4">
-                  <p className="text-sm text-gray-600 dark:text-gray-400">
-                    This will log you out of all devices and browsers where you're currently signed in.
-                    You'll need to log in again on all devices.
-                  </p>
-
-                  {errors.security && (
-                    <div className="text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/30 px-3 py-2 rounded">
-                      {errors.security}
+                <div className="mt-4 space-y-6">
+                  {/* Two-Factor Authentication Section */}
+                  <div className="border-b border-gray-200 dark:border-gray-700 pb-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-primary-100 dark:bg-primary-900/30 rounded-lg flex items-center justify-center">
+                          <svg className="w-5 h-5 text-primary-600 dark:text-primary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                          </svg>
+                        </div>
+                        <div>
+                          <h3 className="text-sm font-medium text-gray-900 dark:text-white">
+                            Two-Factor Authentication
+                          </h3>
+                          {mfaLoading ? (
+                            <span className="text-xs text-gray-500 dark:text-gray-400">Loading...</span>
+                          ) : mfaStatus?.mfa_enabled ? (
+                            <span className="text-xs text-green-600 dark:text-green-400 flex items-center gap-1">
+                              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                              </svg>
+                              Enabled
+                            </span>
+                          ) : (
+                            <span className="text-xs text-gray-500 dark:text-gray-400">Not enabled</span>
+                          )}
+                        </div>
+                      </div>
+                      <Link
+                        to="/mfa-setup"
+                        className="text-sm text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300"
+                      >
+                        {mfaStatus?.mfa_enabled ? 'Manage' : 'Enable'}
+                      </Link>
                     </div>
-                  )}
-                  {success.security && (
-                    <div className="text-sm text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/30 px-3 py-2 rounded">
-                      {success.security}
-                    </div>
-                  )}
+                    <p className="text-sm text-gray-600 dark:text-gray-400 ml-13">
+                      Add an extra layer of security with passkeys or authenticator app.
+                    </p>
+                  </div>
 
-                  <button
-                    onClick={handleLogoutEverywhere}
-                    disabled={loading.security}
-                    className="btn-primary w-full sm:w-auto"
-                  >
-                    {loading.security ? 'Logging Out...' : 'Logout Everywhere'}
-                  </button>
+                  {/* Sign Out All Devices Section */}
+                  <div>
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-orange-100 dark:bg-orange-900/30 rounded-lg flex items-center justify-center">
+                          <svg className="w-5 h-5 text-orange-600 dark:text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                          </svg>
+                        </div>
+                        <div>
+                          <h3 className="text-sm font-medium text-gray-900 dark:text-white">
+                            Sign Out All Devices
+                          </h3>
+                          <span className="text-xs text-gray-500 dark:text-gray-400">
+                            {devicesCount !== null ? (
+                              <>{devicesCount} active {devicesCount === 1 ? 'session' : 'sessions'}</>
+                            ) : (
+                              'Loading...'
+                            )}
+                          </span>
+                        </div>
+                      </div>
+                      <button
+                        onClick={handleLogoutEverywhere}
+                        disabled={loading.security}
+                        className="text-sm text-orange-600 dark:text-orange-400 hover:text-orange-700 dark:hover:text-orange-300 disabled:opacity-50"
+                      >
+                        {loading.security ? 'Signing Out...' : 'Log Out All'}
+                      </button>
+                    </div>
+                    <p className="text-sm text-gray-600 dark:text-gray-400 ml-13">
+                      Log out of all devices and browsers where you're currently signed in.
+                    </p>
+
+                    {errors.security && (
+                      <div className="text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/30 px-3 py-2 rounded mt-3 ml-13">
+                        {errors.security}
+                      </div>
+                    )}
+                    {success.security && (
+                      <div className="text-sm text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/30 px-3 py-2 rounded mt-3 ml-13">
+                        {success.security}
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             )}
@@ -1204,6 +1360,15 @@ export default function Settings() {
           </div>
         </div>,
         document.body
+      )}
+
+      {/* MFA Sensitive Action Modal */}
+      {mfaActionModal && (
+        <SensitiveActionModal
+          actionType={mfaActionModal}
+          onSuccess={handleMfaActionSuccess}
+          onCancel={handleMfaActionCancel}
+        />
       )}
     </div>
   );

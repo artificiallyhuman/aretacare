@@ -1,10 +1,13 @@
 from fastapi import APIRouter
-from app.api import auth, sessions, documents, journal, conversation, tools, audio_recording, daily_plans, admin, feedback, profile, waitlist
+from app.api import auth, sessions, documents, journal, conversation, tools, audio_recording, daily_plans, admin, feedback, profile, waitlist, mfa
 
 api_router = APIRouter()
 
 # Authentication
 api_router.include_router(auth.router, prefix="/auth", tags=["auth"])
+
+# MFA (Multi-Factor Authentication)
+api_router.include_router(mfa.router)
 
 # Session management
 api_router.include_router(sessions.router)

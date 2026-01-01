@@ -1485,3 +1485,261 @@ def run_migrations():
                     conn.rollback()
             else:
                 logger.info("user_message column already exists in waitlist")
+
+        # ==========================================
+        # MFA (Multi-Factor Authentication) TABLES
+        # ==========================================
+
+        # Add MFA columns to users table
+        if 'users' in inspector.get_table_names():
+            user_columns = [col['name'] for col in inspector.get_columns('users')]
+
+            if 'mfa_enabled' not in user_columns:
+                logger.info("Adding mfa_enabled column to users table...")
+                try:
+                    conn.execute(text(
+                        "ALTER TABLE users ADD COLUMN mfa_enabled BOOLEAN NOT NULL DEFAULT FALSE"
+                    ))
+                    conn.commit()
+                    logger.info("Successfully added mfa_enabled column to users")
+                except Exception as e:
+                    logger.error(f"Failed to add mfa_enabled column: {e}")
+                    conn.rollback()
+            else:
+                logger.info("mfa_enabled column already exists in users")
+
+            if 'mfa_preferred_method' not in user_columns:
+                logger.info("Adding mfa_preferred_method column to users table...")
+                try:
+                    conn.execute(text(
+                        "ALTER TABLE users ADD COLUMN mfa_preferred_method VARCHAR(20) NULL"
+                    ))
+                    conn.commit()
+                    logger.info("Successfully added mfa_preferred_method column to users")
+                except Exception as e:
+                    logger.error(f"Failed to add mfa_preferred_method column: {e}")
+                    conn.rollback()
+            else:
+                logger.info("mfa_preferred_method column already exists in users")
+
+            if 'mfa_enabled_at' not in user_columns:
+                logger.info("Adding mfa_enabled_at column to users table...")
+                try:
+                    conn.execute(text(
+                        "ALTER TABLE users ADD COLUMN mfa_enabled_at TIMESTAMP NULL"
+                    ))
+                    conn.commit()
+                    logger.info("Successfully added mfa_enabled_at column to users")
+                except Exception as e:
+                    logger.error(f"Failed to add mfa_enabled_at column: {e}")
+                    conn.rollback()
+            else:
+                logger.info("mfa_enabled_at column already exists in users")
+
+        # Create user_passkeys table for WebAuthn credentials
+        if 'user_passkeys' not in inspector.get_table_names():
+            logger.info("Creating user_passkeys table...")
+            try:
+                conn.execute(text("""
+                    CREATE TABLE user_passkeys (
+                        id VARCHAR(43) PRIMARY KEY,
+                        user_id VARCHAR(36) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                        credential_id BYTEA NOT NULL UNIQUE,
+                        public_key BYTEA NOT NULL,
+                        counter INTEGER NOT NULL DEFAULT 0,
+                        device_name VARCHAR(100) NOT NULL,
+                        transports VARCHAR(255) NULL,
+                        backed_up BOOLEAN NOT NULL DEFAULT FALSE,
+                        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                        last_used_at TIMESTAMP NULL
+                    )
+                """))
+                conn.commit()
+                logger.info("Successfully created user_passkeys table")
+
+                # Create indexes
+                conn.execute(text("""
+                    CREATE INDEX IF NOT EXISTS idx_user_passkeys_user
+                    ON user_passkeys (user_id)
+                """))
+                conn.commit()
+
+                conn.execute(text("""
+                    CREATE INDEX IF NOT EXISTS idx_user_passkeys_credential
+                    ON user_passkeys (credential_id)
+                """))
+                conn.commit()
+                logger.info("Created indexes for user_passkeys table")
+
+            except Exception as e:
+                logger.error(f"Failed to create user_passkeys table: {e}")
+                conn.rollback()
+        else:
+            logger.info("user_passkeys table already exists")
+
+        # Create user_totp_secrets table for TOTP authentication
+        if 'user_totp_secrets' not in inspector.get_table_names():
+            logger.info("Creating user_totp_secrets table...")
+            try:
+                conn.execute(text("""
+                    CREATE TABLE user_totp_secrets (
+                        id VARCHAR(43) PRIMARY KEY,
+                        user_id VARCHAR(36) NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+                        secret_encrypted VARCHAR(255) NOT NULL,
+                        verified BOOLEAN NOT NULL DEFAULT FALSE,
+                        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                        last_used_at TIMESTAMP NULL
+                    )
+                """))
+                conn.commit()
+                logger.info("Successfully created user_totp_secrets table")
+
+                # Create index
+                conn.execute(text("""
+                    CREATE INDEX IF NOT EXISTS idx_user_totp_secrets_user
+                    ON user_totp_secrets (user_id)
+                """))
+                conn.commit()
+                logger.info("Created index for user_totp_secrets table")
+
+            except Exception as e:
+                logger.error(f"Failed to create user_totp_secrets table: {e}")
+                conn.rollback()
+        else:
+            logger.info("user_totp_secrets table already exists")
+
+        # Create user_backup_codes table for recovery codes
+        if 'user_backup_codes' not in inspector.get_table_names():
+            logger.info("Creating user_backup_codes table...")
+            try:
+                conn.execute(text("""
+                    CREATE TABLE user_backup_codes (
+                        id VARCHAR(43) PRIMARY KEY,
+                        user_id VARCHAR(36) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                        code_hash VARCHAR(255) NOT NULL,
+                        used_at TIMESTAMP NULL,
+                        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+                    )
+                """))
+                conn.commit()
+                logger.info("Successfully created user_backup_codes table")
+
+                # Create indexes
+                conn.execute(text("""
+                    CREATE INDEX IF NOT EXISTS idx_user_backup_codes_user
+                    ON user_backup_codes (user_id)
+                """))
+                conn.commit()
+
+                conn.execute(text("""
+                    CREATE INDEX IF NOT EXISTS idx_user_backup_codes_unused
+                    ON user_backup_codes (user_id) WHERE used_at IS NULL
+                """))
+                conn.commit()
+                logger.info("Created indexes for user_backup_codes table")
+
+            except Exception as e:
+                logger.error(f"Failed to create user_backup_codes table: {e}")
+                conn.rollback()
+        else:
+            logger.info("user_backup_codes table already exists")
+
+        # Create trusted_devices table for MFA device trust
+        if 'trusted_devices' not in inspector.get_table_names():
+            logger.info("Creating trusted_devices table...")
+            try:
+                conn.execute(text("""
+                    CREATE TABLE trusted_devices (
+                        id VARCHAR(43) PRIMARY KEY,
+                        user_id VARCHAR(36) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                        device_token_hash VARCHAR(255) NOT NULL UNIQUE,
+                        device_name VARCHAR(255) NULL,
+                        ip_address VARCHAR(45) NULL,
+                        trusted_until TIMESTAMP NOT NULL,
+                        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                        last_used_at TIMESTAMP NULL
+                    )
+                """))
+                conn.commit()
+                logger.info("Successfully created trusted_devices table")
+
+                # Create indexes
+                conn.execute(text("""
+                    CREATE INDEX IF NOT EXISTS idx_trusted_devices_user
+                    ON trusted_devices (user_id)
+                """))
+                conn.commit()
+
+                conn.execute(text("""
+                    CREATE INDEX IF NOT EXISTS idx_trusted_devices_token
+                    ON trusted_devices (device_token_hash)
+                """))
+                conn.commit()
+
+                conn.execute(text("""
+                    CREATE INDEX IF NOT EXISTS idx_trusted_devices_expires
+                    ON trusted_devices (trusted_until)
+                """))
+                conn.commit()
+                logger.info("Created indexes for trusted_devices table")
+
+            except Exception as e:
+                logger.error(f"Failed to create trusted_devices table: {e}")
+                conn.rollback()
+        else:
+            logger.info("trusted_devices table already exists")
+
+        # Create mfa_challenges table for temporary challenge storage
+        if 'mfa_challenges' not in inspector.get_table_names():
+            logger.info("Creating mfa_challenges table...")
+            try:
+                conn.execute(text("""
+                    CREATE TABLE mfa_challenges (
+                        id VARCHAR(43) PRIMARY KEY,
+                        user_id VARCHAR(36) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                        challenge_type VARCHAR(20) NOT NULL,
+                        challenge_data BYTEA NOT NULL,
+                        expires_at TIMESTAMP NOT NULL,
+                        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+                    )
+                """))
+                conn.commit()
+                logger.info("Successfully created mfa_challenges table")
+
+                # Create indexes
+                conn.execute(text("""
+                    CREATE INDEX IF NOT EXISTS idx_mfa_challenges_user
+                    ON mfa_challenges (user_id)
+                """))
+                conn.commit()
+
+                conn.execute(text("""
+                    CREATE INDEX IF NOT EXISTS idx_mfa_challenges_expires
+                    ON mfa_challenges (expires_at)
+                """))
+                conn.commit()
+                logger.info("Created indexes for mfa_challenges table")
+
+            except Exception as e:
+                logger.error(f"Failed to create mfa_challenges table: {e}")
+                conn.rollback()
+        else:
+            logger.info("mfa_challenges table already exists")
+
+        # Add last_used_counter column to user_totp_secrets for replay protection
+        if 'user_totp_secrets' in inspector.get_table_names():
+            totp_columns = [col['name'] for col in inspector.get_columns('user_totp_secrets')]
+
+            if 'last_used_counter' not in totp_columns:
+                logger.info("Adding last_used_counter column to user_totp_secrets table...")
+                try:
+                    conn.execute(text(
+                        "ALTER TABLE user_totp_secrets ADD COLUMN last_used_counter BIGINT NULL"
+                    ))
+                    conn.commit()
+                    logger.info("Successfully added last_used_counter column to user_totp_secrets")
+                except Exception as e:
+                    logger.error(f"Failed to add last_used_counter column: {e}")
+                    conn.rollback()
+            else:
+                logger.info("last_used_counter column already exists in user_totp_secrets")

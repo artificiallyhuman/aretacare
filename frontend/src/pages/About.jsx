@@ -75,7 +75,7 @@ const FAQ_DATA = [
     icon: 'M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z',
     content: (
       <div className="space-y-3">
-        <p>Yes. Your data is encrypted in transit and at rest. All traffic is protected by enterprise-grade edge security including DDoS protection and web application firewall. Accounts use hashed passwords, secure login tokens, and email verification.</p>
+        <p>Yes. Your data is encrypted in transit and at rest. All traffic is protected by enterprise-grade edge security including DDoS protection and web application firewall. Accounts use hashed passwords, secure login tokens, email verification, and optional multi-factor authentication (passkeys, authenticator apps, or backup codes).</p>
         <p>Documents, images, and audio files are stored securely in AWS (Amazon Web Services). Text data like conversation history, care journals, and daily digests are stored in AretaCare's own secure database.</p>
       </div>
     ),
@@ -763,6 +763,18 @@ const About = () => {
             </div>
             <div className="space-y-4 text-gray-600 dark:text-gray-400">
               <div>
+                <h5 className="font-semibold text-gray-900 dark:text-white mb-2">Multi-Factor Authentication (MFA)</h5>
+                <p className="leading-relaxed mb-2">
+                  Add an extra layer of security beyond your password. Even if someone learns your password, they can't access your account without your second factor. AretaCare supports:
+                </p>
+                <ul className="list-disc pl-6 space-y-1 text-sm">
+                  <li><strong>Passkeys</strong> – Use your device's biometrics (fingerprint, face) or a hardware security key for phishing-resistant sign-in</li>
+                  <li><strong>Authenticator Apps</strong> – Generate time-based codes using apps like Google Authenticator or Authy</li>
+                  <li><strong>Backup Codes</strong> – One-time recovery codes stored safely for emergencies</li>
+                  <li><strong>Trusted Devices</strong> – Skip MFA on devices you use regularly for 30 days</li>
+                </ul>
+              </div>
+              <div>
                 <h5 className="font-semibold text-gray-900 dark:text-white mb-2">Secure Sign-In Sessions</h5>
                 <p className="leading-relaxed">
                   When you sign in, AretaCare uses modern session tokens that expire after about an hour. A separate renewal token is stored securely in your browser in a way that website scripts cannot access, helping protect against common attacks.
@@ -783,7 +795,7 @@ const About = () => {
               <div>
                 <h5 className="font-semibold text-gray-900 dark:text-white mb-2">Extra Protection for Sensitive Changes</h5>
                 <p className="leading-relaxed">
-                  When you change your email or password, we add extra verification steps and automatically sign you out of other sessions to prevent someone else from staying logged in.
+                  When you change your email or password, we add extra verification steps and automatically sign you out of other sessions. If you have MFA enabled, you'll need to verify with your second factor before making these changes.
                 </p>
               </div>
             </div>
@@ -929,6 +941,10 @@ const About = () => {
           <div className="bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-gray-800 dark:to-blue-900/20 rounded-xl border-l-4 border-blue-500 dark:border-blue-400 shadow-md p-6">
             <h4 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">What You Can Do to Stay Safe</h4>
             <div className="text-gray-700 dark:text-gray-300 space-y-2">
+              <p className="flex items-start">
+                <span className="text-blue-600 dark:text-blue-400 mr-2">•</span>
+                <span><strong>Enable multi-factor authentication</strong> – This is the single most effective way to protect your account</span>
+              </p>
               <p className="flex items-start">
                 <span className="text-blue-600 dark:text-blue-400 mr-2">•</span>
                 <span>Use a strong, unique password (don't reuse passwords from other sites)</span>
