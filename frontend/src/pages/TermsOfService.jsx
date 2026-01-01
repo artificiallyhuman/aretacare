@@ -15,7 +15,7 @@ const TermsOfService = () => {
           </Link>
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-6 sm:p-8">
             <h1 className="text-4xl sm:text-5xl font-bold text-gray-900 dark:text-white mb-2">Terms of Service</h1>
-            <p className="text-sm text-gray-500 dark:text-gray-400">Last Updated: December 23, 2025</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400">Last Updated: December 31, 2025</p>
           </div>
         </div>
 
@@ -121,7 +121,8 @@ const TermsOfService = () => {
             <div className="space-y-4">
               <p className="text-gray-700 dark:text-gray-300 leading-relaxed text-base">You are responsible for:</p>
               <ul className="list-disc list-inside space-y-2 text-gray-700 dark:text-gray-300 dark:text-gray-300 pl-4">
-                <li>Maintaining the confidentiality of your account credentials</li>
+                <li>Maintaining the confidentiality of your account credentials, including passwords and MFA backup codes</li>
+                <li>Managing your trusted devices and revoking access from devices you no longer use or control</li>
                 <li>All activities that occur under your account</li>
                 <li>Ensuring the accuracy of information you provide</li>
                 <li>Making your own independent medical decisions with qualified healthcare providers</li>
@@ -156,10 +157,18 @@ const TermsOfService = () => {
                     <span className="text-primary-600 mr-2 mt-1">•</span>
                     <span><strong>Password reset:</strong> Password reset links when requested</span>
                   </li>
+                  <li className="flex items-start">
+                    <span className="text-primary-600 mr-2 mt-1">•</span>
+                    <span><strong>MFA changes:</strong> Notifications when multi-factor authentication is enabled or disabled</span>
+                  </li>
+                  <li className="flex items-start">
+                    <span className="text-primary-600 mr-2 mt-1">•</span>
+                    <span><strong>Backup code usage:</strong> Alerts when a backup code is used to sign in</span>
+                  </li>
                 </ul>
               </div>
               <p className="text-gray-700 dark:text-gray-300 leading-relaxed text-base">
-                Security-related email notifications (password changes, email changes) cannot be disabled as they help protect your account.
+                Security-related email notifications (password changes, email changes, MFA changes) cannot be disabled as they help protect your account.
               </p>
               <p className="text-gray-700 dark:text-gray-300 leading-relaxed text-base">
                 Emails do not contain sensitive medical information from your sessions. They contain only basic account information necessary for security notifications.

@@ -15,7 +15,7 @@ const PrivacyPolicy = () => {
           </Link>
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-6 sm:p-8">
             <h1 className="text-4xl sm:text-5xl font-bold text-gray-900 dark:text-white mb-2">Privacy Policy</h1>
-            <p className="text-sm text-gray-500 dark:text-gray-400">Last Updated: December 23, 2025</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400">Last Updated: December 31, 2025</p>
           </div>
         </div>
 
@@ -39,6 +39,7 @@ const PrivacyPolicy = () => {
                   <li>Name</li>
                   <li>Email address</li>
                   <li>Password (stored as a secure hash)</li>
+                  <li>Multi-factor authentication credentials (if enabled): passkey public keys, TOTP secrets (encrypted), and backup codes (hashed)</li>
                 </ul>
               </div>
 
@@ -96,6 +97,8 @@ const PrivacyPolicy = () => {
                   <li><strong>Added as Collaborator:</strong> Notification when someone adds you as a collaborator to their session</li>
                   <li><strong>Removed as Collaborator:</strong> Notification when you are removed from a shared session</li>
                   <li><strong>Password Reset:</strong> Password reset link when requested</li>
+                  <li><strong>MFA Changes:</strong> Notification when multi-factor authentication methods are enabled or disabled</li>
+                  <li><strong>Backup Code Usage:</strong> Alert when a backup code is used to sign in</li>
                 </ul>
               </div>
 
@@ -116,7 +119,7 @@ const PrivacyPolicy = () => {
                     <div className="flex-1">
                       <h3 className="text-sm font-semibold text-amber-800 dark:text-amber-400 mb-1">Important</h3>
                       <p className="text-sm text-amber-800 dark:text-amber-300 leading-relaxed">
-                        Email notifications related to account security (password changes, email changes) cannot be disabled as they are essential for protecting your account. By creating an account, you consent to receive these communications.
+                        Email notifications related to account security (password changes, email changes, MFA changes) cannot be disabled as they are essential for protecting your account. By creating an account, you consent to receive these communications.
                       </p>
                     </div>
                   </div>
@@ -204,7 +207,7 @@ const PrivacyPolicy = () => {
                 <ul className="list-disc list-inside space-y-2 text-gray-700 dark:text-gray-300 pl-4">
                   <li><strong>Database:</strong> PostgreSQL database (account, conversations, journal, health profiles, daily digests, document and audio metadata)</li>
                   <li><strong>File Storage:</strong> AWS S3 (documents, images, audio files)</li>
-                  <li><strong>Browser:</strong> Authentication tokens and session IDs in localStorage, refresh tokens in cookies</li>
+                  <li><strong>Browser:</strong> Authentication tokens and session IDs in localStorage; refresh tokens and trusted device tokens in secure HttpOnly cookies</li>
                 </ul>
               </div>
 
@@ -213,6 +216,9 @@ const PrivacyPolicy = () => {
                 <ul className="list-disc list-inside space-y-2 text-gray-700 dark:text-gray-300 pl-4">
                   <li>Passwords are hashed using bcrypt</li>
                   <li>Authentication via JWT tokens</li>
+                  <li>Multi-factor authentication options: passkeys (WebAuthn), authenticator apps (TOTP), and backup codes</li>
+                  <li>MFA credentials stored securely: passkey public keys in database, TOTP secrets encrypted, backup codes hashed</li>
+                  <li>Trusted device tokens allow recognized devices to bypass MFA for 30 days</li>
                   <li>HTTPS encryption for data in transit</li>
                   <li>S3 file storage uses AES-256 encryption at rest</li>
                   <li>Database encryption at rest (PostgreSQL)</li>
@@ -227,6 +233,8 @@ const PrivacyPolicy = () => {
                 </p>
                 <ul className="list-disc list-inside space-y-2 text-gray-700 dark:text-gray-300 pl-4">
                   <li>Using a strong, unique password for your account</li>
+                  <li>Enabling multi-factor authentication for additional security</li>
+                  <li>Storing your backup codes in a safe location</li>
                   <li>Keeping your own copies of important documents</li>
                   <li>Reviewing our open source code if you have security concerns</li>
                 </ul>
