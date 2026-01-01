@@ -77,16 +77,13 @@ TRUSTED_DEVICE_MAX_AGE = 30 * 24 * 60 * 60  # 30 days in seconds
 
 def set_trusted_device_cookie(response: Response, device_token: str):
     """Set HttpOnly cookie for trusted device token."""
-    # In production (DEBUG=False), use Secure and SameSite=None for cross-origin
-    # In development (DEBUG=True), use non-secure cookies that work on localhost HTTP
-    is_production = not settings.DEBUG
     response.set_cookie(
         key=TRUSTED_DEVICE_COOKIE_NAME,
         value=device_token,
         max_age=TRUSTED_DEVICE_MAX_AGE,
         httponly=True,
-        secure=is_production,
-        samesite="none" if is_production else "lax",
+        secure=not settings.DEBUG,  # HTTPS only in production
+        samesite="lax",  # Protects against CSRF while allowing normal navigation
         path="/api"  # Broader path to include /api/mfa endpoints
     )
 
