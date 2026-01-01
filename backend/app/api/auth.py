@@ -52,15 +52,14 @@ def set_refresh_token_cookie(response: Response, refresh_token: str):
     if not refresh_token or not JWT_PATTERN.match(refresh_token):
         raise ValueError("Invalid refresh token format")
 
-    # Use SameSite=None for cross-origin requests (frontend and backend on different domains)
     response.set_cookie(
         key=REFRESH_TOKEN_COOKIE_NAME,
         value=refresh_token,
         max_age=REFRESH_TOKEN_MAX_AGE,
         httponly=True,  # Prevents JavaScript access - protects against XSS
-        secure=True,  # Required for SameSite=None
-        samesite="none",  # Required for cross-origin cookies
-        path="/"  # Root path for cross-origin
+        secure=not settings.DEBUG,  # HTTPS only in production
+        samesite="lax",  # Protects against CSRF while allowing normal navigation
+        path="/api/auth"  # Only send cookie to auth endpoints
     )
 
 
@@ -68,9 +67,7 @@ def clear_refresh_token_cookie(response: Response):
     """Clear the refresh token cookie."""
     response.delete_cookie(
         key=REFRESH_TOKEN_COOKIE_NAME,
-        path="/",
-        secure=True,
-        samesite="none",
+        path="/api/auth"
     )
 
 
