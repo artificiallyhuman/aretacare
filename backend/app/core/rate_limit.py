@@ -70,6 +70,7 @@ class RateLimits:
 
     # Authentication endpoints (sensitive - strict limits)
     LOGIN = "5/minute"              # 5 login attempts per minute per IP
+    TOKEN_REFRESH = "20/minute"     # 20 token refreshes per minute per IP (higher due to page loads, tabs)
     REGISTER = "3/hour"             # 3 registrations per hour per IP
     PASSWORD_RESET_REQUEST = "3/hour"  # 3 reset requests per hour per email
     PASSWORD_RESET = "5/hour"       # 5 password resets per hour per IP

@@ -1170,7 +1170,7 @@ def reset_password(request: Request, data: PasswordReset, db: DBSession = Depend
 
 
 @router.post("/refresh", response_model=TokenResponse)
-@limiter.limit(RateLimits.LOGIN)  # Use same rate limit as login
+@limiter.limit(RateLimits.TOKEN_REFRESH)
 def refresh_access_token(
     request: Request,
     response: Response,
