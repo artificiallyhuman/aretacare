@@ -1,10 +1,46 @@
 import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import PropTypes from 'prop-types';
 import { mfaAPI } from '../services/api';
 import TOTPSetup from '../components/mfa/TOTPSetup';
 import PasskeySetup from '../components/mfa/PasskeySetup';
 import BackupCodesDisplay from '../components/mfa/BackupCodesDisplay';
+
+function ConfirmModal({ isOpen, onClose, onConfirm, title, message, confirmText = 'Confirm', danger = false }) {
+  if (!isOpen) return null;
+
+  return createPortal(
+    <div className="fixed inset-0 z-50 overflow-y-auto">
+      <div className="flex items-center justify-center min-h-screen px-4">
+        <div className="fixed inset-0 bg-black/50" onClick={onClose}></div>
+        <div className="relative bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full p-6">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{title}</h3>
+          <p className="mt-2 text-gray-600 dark:text-gray-400">{message}</p>
+          <div className="mt-4 flex gap-3 justify-end">
+            <button
+              onClick={onClose}
+              className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={onConfirm}
+              className={`px-4 py-2 text-sm font-medium text-white rounded-lg transition-colors ${
+                danger
+                  ? 'bg-red-600 hover:bg-red-700'
+                  : 'bg-primary-600 hover:bg-primary-700'
+              }`}
+            >
+              {confirmText}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>,
+    document.body
+  );
+}
 
 function MFASetup() {
   const navigate = useNavigate();
@@ -294,6 +330,8 @@ function MFAManage({ status, onRefresh, onDisable, onSetupMore }) {
   const [trustedDevices, setTrustedDevices] = useState([]);
   const [loadingTrustedDevices, setLoadingTrustedDevices] = useState(false);
   const [expandedCard, setExpandedCard] = useState(null);
+  const [confirmModal, setConfirmModal] = useState(null); // { type, id?, name? }
+  const [actionError, setActionError] = useState('');
 
   useEffect(() => {
     if (status.passkey_count > 0) {
@@ -330,44 +368,50 @@ function MFAManage({ status, onRefresh, onDisable, onSetupMore }) {
     }
   };
 
-  const handleRevokeTrustedDevice = async (id) => {
-    if (!confirm('Are you sure you want to revoke trust for this device? You will need to verify again on your next login from this device.')) return;
+  const handleRevokeTrustedDevice = async () => {
+    const id = confirmModal?.id;
+    setConfirmModal(null);
+    setActionError('');
     try {
       await mfaAPI.revokeTrustedDevice(id);
       await loadTrustedDevices();
     } catch (err) {
-      alert(err.response?.data?.detail || 'Failed to revoke device');
+      setActionError(err.response?.data?.detail || 'Failed to revoke device');
     }
   };
 
   const handleRevokeAllTrustedDevices = async () => {
-    if (!confirm('Are you sure you want to revoke trust for all devices? You will need to verify again on your next login from any device.')) return;
+    setConfirmModal(null);
+    setActionError('');
     try {
       await mfaAPI.revokeAllTrustedDevices();
       await loadTrustedDevices();
     } catch (err) {
-      alert(err.response?.data?.detail || 'Failed to revoke devices');
+      setActionError(err.response?.data?.detail || 'Failed to revoke devices');
     }
   };
 
-  const handleDeletePasskey = async (id) => {
-    if (!confirm('Are you sure you want to remove this passkey?')) return;
+  const handleDeletePasskey = async () => {
+    const id = confirmModal?.id;
+    setConfirmModal(null);
+    setActionError('');
     try {
       await mfaAPI.deletePasskey(id);
       await loadPasskeys();
       onRefresh();
     } catch (err) {
-      alert(err.response?.data?.detail || 'Failed to delete passkey');
+      setActionError(err.response?.data?.detail || 'Failed to delete passkey');
     }
   };
 
   const handleDeleteTOTP = async () => {
-    if (!confirm('Are you sure you want to remove your authenticator app?')) return;
+    setConfirmModal(null);
+    setActionError('');
     try {
       await mfaAPI.deleteTOTP();
       onRefresh();
     } catch (err) {
-      alert(err.response?.data?.detail || 'Failed to delete TOTP');
+      setActionError(err.response?.data?.detail || 'Failed to delete TOTP');
     }
   };
 
@@ -475,7 +519,7 @@ function MFAManage({ status, onRefresh, onDisable, onSetupMore }) {
                     Added {new Date(passkey.created_at).toLocaleDateString()}
                   </div>
                 </div>
-                <button onClick={() => handleDeletePasskey(passkey.id)} className="text-red-600 dark:text-red-400 text-sm">
+                <button onClick={() => setConfirmModal({ type: 'deletePasskey', id: passkey.id, name: passkey.device_name })} className="text-red-600 dark:text-red-400 text-sm">
                   Remove
                 </button>
               </div>
@@ -509,7 +553,7 @@ function MFAManage({ status, onRefresh, onDisable, onSetupMore }) {
           {status.has_totp ? (
             <div className="flex items-center justify-between">
               <span className="text-sm text-gray-600 dark:text-gray-400">TOTP is active</span>
-              <button onClick={handleDeleteTOTP} className="text-red-600 dark:text-red-400 text-sm">
+              <button onClick={() => setConfirmModal({ type: 'deleteTOTP' })} className="text-red-600 dark:text-red-400 text-sm">
                 Remove
               </button>
             </div>
@@ -570,13 +614,13 @@ function MFAManage({ status, onRefresh, onDisable, onSetupMore }) {
                       Until {new Date(device.trusted_until).toLocaleDateString()}
                     </div>
                   </div>
-                  <button onClick={() => handleRevokeTrustedDevice(device.id)} className="text-red-600 dark:text-red-400 text-sm ml-2">
+                  <button onClick={() => setConfirmModal({ type: 'revokeDevice', id: device.id, name: device.device_name })} className="text-red-600 dark:text-red-400 text-sm ml-2">
                     Revoke
                   </button>
                 </div>
               ))}
               {trustedDevices.length > 1 && (
-                <button onClick={handleRevokeAllTrustedDevices} className="text-sm text-red-600 dark:text-red-400 hover:underline">
+                <button onClick={() => setConfirmModal({ type: 'revokeAllDevices' })} className="text-sm text-red-600 dark:text-red-400 hover:underline">
                   Revoke all devices
                 </button>
               )}
@@ -652,6 +696,54 @@ function MFAManage({ status, onRefresh, onDisable, onSetupMore }) {
           </div>
         </div>
       )}
+
+      {/* Action Error Display */}
+      {actionError && (
+        <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+          <p className="text-sm text-red-600 dark:text-red-400">{actionError}</p>
+        </div>
+      )}
+
+      {/* Confirmation Modals */}
+      <ConfirmModal
+        isOpen={confirmModal?.type === 'revokeDevice'}
+        onClose={() => setConfirmModal(null)}
+        onConfirm={handleRevokeTrustedDevice}
+        title="Revoke Trusted Device"
+        message={`Are you sure you want to revoke trust for "${confirmModal?.name || 'this device'}"? You will need to verify again on your next login from this device.`}
+        confirmText="Revoke"
+        danger
+      />
+
+      <ConfirmModal
+        isOpen={confirmModal?.type === 'revokeAllDevices'}
+        onClose={() => setConfirmModal(null)}
+        onConfirm={handleRevokeAllTrustedDevices}
+        title="Revoke All Trusted Devices"
+        message="Are you sure you want to revoke trust for all devices? You will need to verify again on your next login from any device."
+        confirmText="Revoke All"
+        danger
+      />
+
+      <ConfirmModal
+        isOpen={confirmModal?.type === 'deletePasskey'}
+        onClose={() => setConfirmModal(null)}
+        onConfirm={handleDeletePasskey}
+        title="Remove Passkey"
+        message={`Are you sure you want to remove the passkey "${confirmModal?.name || 'this passkey'}"?`}
+        confirmText="Remove"
+        danger
+      />
+
+      <ConfirmModal
+        isOpen={confirmModal?.type === 'deleteTOTP'}
+        onClose={() => setConfirmModal(null)}
+        onConfirm={handleDeleteTOTP}
+        title="Remove Authenticator App"
+        message="Are you sure you want to remove your authenticator app? You will no longer be able to use it for verification."
+        confirmText="Remove"
+        danger
+      />
 
       {/* Backup Codes Modal */}
       {showBackupCodes && backupCodes.length > 0 && (

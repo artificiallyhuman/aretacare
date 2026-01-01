@@ -4,6 +4,41 @@ import AdminLayout from '../../components/admin/AdminLayout';
 import { adminAPI } from '../../services/api';
 import { formatLocalDateTime } from '../../utils/dateUtils';
 
+function ConfirmModal({ isOpen, onClose, onConfirm, title, message, confirmText = 'Confirm', danger = false }) {
+  if (!isOpen) return null;
+
+  return createPortal(
+    <div className="fixed inset-0 z-50 overflow-y-auto">
+      <div className="flex items-center justify-center min-h-screen px-4">
+        <div className="fixed inset-0 bg-black/50" onClick={onClose}></div>
+        <div className="relative bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full p-6">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{title}</h3>
+          <p className="mt-2 text-gray-600 dark:text-gray-400">{message}</p>
+          <div className="mt-4 flex gap-3 justify-end">
+            <button
+              onClick={onClose}
+              className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={onConfirm}
+              className={`px-4 py-2 text-sm font-medium text-white rounded-lg transition-colors ${
+                danger
+                  ? 'bg-red-600 hover:bg-red-700'
+                  : 'bg-primary-600 hover:bg-primary-700'
+              }`}
+            >
+              {confirmText}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>,
+    document.body
+  );
+}
+
 const actionLabels = {
   password_reset: { label: 'Password Reset', className: 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300' },
   user_delete: { label: 'User Deleted', className: 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300' },
@@ -24,6 +59,7 @@ export default function AdminAuditLog() {
   const [actionFilter, setActionFilter] = useState('');
   const [cleaningUp, setCleaningUp] = useState(false);
   const [cleanupMessage, setCleanupMessage] = useState('');
+  const [showConfirmCleanup, setShowConfirmCleanup] = useState(false);
   const limit = 20;
 
   useEffect(() => {
@@ -45,9 +81,7 @@ export default function AdminAuditLog() {
   };
 
   const handleCleanup = async () => {
-    if (!confirm('This will permanently delete audit log entries older than 90 days. Continue?')) {
-      return;
-    }
+    setShowConfirmCleanup(false);
     setCleaningUp(true);
     setCleanupMessage('');
     setError('');
@@ -73,7 +107,7 @@ export default function AdminAuditLog() {
             <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">Track admin actions and changes</p>
           </div>
           <button
-            onClick={handleCleanup}
+            onClick={() => setShowConfirmCleanup(true)}
             disabled={cleaningUp}
             className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors disabled:opacity-50 flex items-center gap-2 self-start"
           >
@@ -270,6 +304,16 @@ export default function AdminAuditLog() {
         </div>,
         document.body
       )}
+
+      <ConfirmModal
+        isOpen={showConfirmCleanup}
+        onClose={() => setShowConfirmCleanup(false)}
+        onConfirm={handleCleanup}
+        title="Cleanup Audit Logs"
+        message="This will permanently delete audit log entries older than 90 days. This action cannot be undone."
+        confirmText="Delete Old Logs"
+        danger
+      />
     </AdminLayout>
   );
 }

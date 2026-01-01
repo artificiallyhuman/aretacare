@@ -4,6 +4,41 @@ import AdminLayout from '../../components/admin/AdminLayout';
 import { adminAPI } from '../../services/api';
 import { formatLocalDateTime } from '../../utils/dateUtils';
 
+function ConfirmModal({ isOpen, onClose, onConfirm, title, message, confirmText = 'Confirm', danger = false }) {
+  if (!isOpen) return null;
+
+  return createPortal(
+    <div className="fixed inset-0 z-50 overflow-y-auto">
+      <div className="flex items-center justify-center min-h-screen px-4">
+        <div className="fixed inset-0 bg-black/50" onClick={onClose}></div>
+        <div className="relative bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full p-6">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{title}</h3>
+          <p className="mt-2 text-gray-600 dark:text-gray-400">{message}</p>
+          <div className="mt-4 flex gap-3 justify-end">
+            <button
+              onClick={onClose}
+              className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={onConfirm}
+              className={`px-4 py-2 text-sm font-medium text-white rounded-lg transition-colors ${
+                danger
+                  ? 'bg-red-600 hover:bg-red-700'
+                  : 'bg-primary-600 hover:bg-primary-700'
+              }`}
+            >
+              {confirmText}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>,
+    document.body
+  );
+}
+
 const levelColors = {
   ERROR: { bg: 'bg-red-100 dark:bg-red-900/30', text: 'text-red-800 dark:text-red-300', border: 'border-red-200 dark:border-red-800' },
   WARNING: { bg: 'bg-yellow-100 dark:bg-yellow-900/30', text: 'text-yellow-800 dark:text-yellow-300', border: 'border-yellow-200 dark:border-yellow-800' },
@@ -22,6 +57,7 @@ export default function AdminErrorLogs() {
   const [cleaningUp, setCleaningUp] = useState(false);
   const [cleanupMessage, setCleanupMessage] = useState('');
   const [cleanupDays, setCleanupDays] = useState(30);
+  const [showConfirmCleanup, setShowConfirmCleanup] = useState(false);
   const limit = 20;
 
   useEffect(() => {
@@ -48,9 +84,7 @@ export default function AdminErrorLogs() {
   };
 
   const handleCleanup = async () => {
-    if (!confirm(`This will permanently delete error logs older than ${cleanupDays} days. Continue?`)) {
-      return;
-    }
+    setShowConfirmCleanup(false);
     setCleaningUp(true);
     setCleanupMessage('');
     setError('');
@@ -89,7 +123,7 @@ export default function AdminErrorLogs() {
               className="w-16 px-2 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
             />
             <button
-              onClick={handleCleanup}
+              onClick={() => setShowConfirmCleanup(true)}
               disabled={cleaningUp}
               className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors disabled:opacity-50 flex items-center gap-2"
             >
@@ -308,6 +342,16 @@ export default function AdminErrorLogs() {
         </div>,
         document.body
       )}
+
+      <ConfirmModal
+        isOpen={showConfirmCleanup}
+        onClose={() => setShowConfirmCleanup(false)}
+        onConfirm={handleCleanup}
+        title="Cleanup Error Logs"
+        message={`This will permanently delete error logs older than ${cleanupDays} days. This action cannot be undone.`}
+        confirmText="Delete Old Logs"
+        danger
+      />
     </AdminLayout>
   );
 }
