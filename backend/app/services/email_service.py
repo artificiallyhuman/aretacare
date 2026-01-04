@@ -1,6 +1,7 @@
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+from email.utils import make_msgid, formatdate
 from app.core.config import settings
 import logging
 
@@ -9,6 +10,27 @@ logger = logging.getLogger(__name__)
 
 class EmailService:
     """Service for sending emails via SMTP"""
+
+    @staticmethod
+    def _add_deliverability_headers(message: MIMEMultipart) -> None:
+        """
+        Add headers that improve email deliverability and reduce spam scoring.
+
+        These headers help email providers verify the message is legitimate:
+        - Message-ID: Unique identifier for the message
+        - Date: RFC 2822 formatted timestamp
+        - Reply-To: Where replies should go
+        - X-Mailer: Identifies the sending application
+        - X-Priority: Normal priority (not spam-like high priority)
+        """
+        # Extract domain from sender email for Message-ID
+        domain = settings.SMTP_FROM_EMAIL.split('@')[1] if '@' in settings.SMTP_FROM_EMAIL else 'aretacare.com'
+
+        message["Message-ID"] = make_msgid(domain=domain)
+        message["Date"] = formatdate(localtime=True)
+        message["Reply-To"] = settings.FEEDBACK_EMAIL
+        message["X-Mailer"] = "AretaCare Notifications"
+        message["X-Priority"] = "3"  # Normal priority
 
     @staticmethod
     def send_password_reset_email(to_email: str, reset_token: str) -> bool:
@@ -31,6 +53,7 @@ class EmailService:
             message["Subject"] = "Password Reset - AretaCare"
             message["From"] = f"{settings.SMTP_FROM_NAME} <{settings.SMTP_FROM_EMAIL}>"
             message["To"] = to_email
+            EmailService._add_deliverability_headers(message)
 
             # Plain text version
             text_content = f"""
@@ -177,6 +200,7 @@ The AretaCare Team
             message["Subject"] = "Password Changed - AretaCare"
             message["From"] = f"{settings.SMTP_FROM_NAME} <{settings.SMTP_FROM_EMAIL}>"
             message["To"] = to_email
+            EmailService._add_deliverability_headers(message)
 
             # Plain text version
             text_content = f"""
@@ -300,6 +324,7 @@ The AretaCare Team
             message["Subject"] = "Email Address Changed - AretaCare"
             message["From"] = f"{settings.SMTP_FROM_NAME} <{settings.SMTP_FROM_EMAIL}>"
             message["To"] = old_email
+            EmailService._add_deliverability_headers(message)
 
             # Plain text version
             text_content = f"""
@@ -426,6 +451,7 @@ The AretaCare Team
             message["Subject"] = "Verify Your New Email Address - AretaCare"
             message["From"] = f"{settings.SMTP_FROM_NAME} <{settings.SMTP_FROM_EMAIL}>"
             message["To"] = to_email
+            EmailService._add_deliverability_headers(message)
 
             # Plain text version
             text_content = f"""
@@ -572,6 +598,7 @@ The AretaCare Team
             message["Subject"] = "Verify Your Email - AretaCare"
             message["From"] = f"{settings.SMTP_FROM_NAME} <{settings.SMTP_FROM_EMAIL}>"
             message["To"] = to_email
+            EmailService._add_deliverability_headers(message)
 
             # Plain text version
             text_content = f"""
@@ -725,6 +752,7 @@ The AretaCare Team
             message["Subject"] = f"Collaborator Added to {session_name} - AretaCare"
             message["From"] = f"{settings.SMTP_FROM_NAME} <{settings.SMTP_FROM_EMAIL}>"
             message["To"] = owner_email
+            EmailService._add_deliverability_headers(message)
 
             # Plain text version
             text_content = f"""
@@ -878,6 +906,7 @@ The AretaCare Team
             message["Subject"] = f"You've Been Added to a Session - AretaCare"
             message["From"] = f"{settings.SMTP_FROM_NAME} <{settings.SMTP_FROM_EMAIL}>"
             message["To"] = collaborator_email
+            EmailService._add_deliverability_headers(message)
 
             # Plain text version
             text_content = f"""
@@ -1037,6 +1066,7 @@ The AretaCare Team
             message["Subject"] = f"Removed from Session - AretaCare"
             message["From"] = f"{settings.SMTP_FROM_NAME} <{settings.SMTP_FROM_EMAIL}>"
             message["To"] = collaborator_email
+            EmailService._add_deliverability_headers(message)
 
             # Plain text version
             text_content = f"""
@@ -1148,6 +1178,7 @@ The AretaCare Team
             message["Subject"] = "AretaCare - Account Inactivity Notice"
             message["From"] = f"{settings.SMTP_FROM_NAME} <{settings.SMTP_FROM_EMAIL}>"
             message["To"] = user_email
+            EmailService._add_deliverability_headers(message)
 
             # Plain text version
             text = f"""
@@ -1268,6 +1299,7 @@ This is an automated message from AretaCare.
             message["Subject"] = f"You're Now the Owner of \"{session_name}\" - AretaCare"
             message["From"] = f"{settings.SMTP_FROM_NAME} <{settings.SMTP_FROM_EMAIL}>"
             message["To"] = new_owner_email
+            EmailService._add_deliverability_headers(message)
 
             # Plain text version
             text_content = f"""
@@ -1425,6 +1457,7 @@ The AretaCare Team
             message["Subject"] = f"{inviter_name} Invited You to Join AretaCare"
             message["From"] = f"{settings.SMTP_FROM_NAME} <{settings.SMTP_FROM_EMAIL}>"
             message["To"] = to_email
+            EmailService._add_deliverability_headers(message)
 
             # Plain text version
             text_content = f"""
@@ -1622,6 +1655,7 @@ The AretaCare Team
             message["Subject"] = f"{new_user_name} Accepted Your AretaCare Invitation"
             message["From"] = f"{settings.SMTP_FROM_NAME} <{settings.SMTP_FROM_EMAIL}>"
             message["To"] = owner_email
+            EmailService._add_deliverability_headers(message)
 
             # Plain text version
             text_content = f"""
@@ -1788,7 +1822,8 @@ The AretaCare Team
             email_message["Subject"] = f"[{feedback_type_display}] Feedback from {user_name}"
             email_message["From"] = f"{settings.SMTP_FROM_NAME} <{settings.SMTP_FROM_EMAIL}>"
             email_message["To"] = settings.FEEDBACK_EMAIL
-            email_message["Reply-To"] = user_email
+            EmailService._add_deliverability_headers(email_message)
+            email_message["Reply-To"] = user_email  # Override to reply to user
 
             # Plain text version
             text_content = f"""
@@ -1947,6 +1982,7 @@ Client IP: {metadata.get('client_ip', 'N/A')}
             email_message["Subject"] = f"Thank you for your feedback - AretaCare"
             email_message["From"] = f"{settings.SMTP_FROM_NAME} <{settings.SMTP_FROM_EMAIL}>"
             email_message["To"] = user_email
+            EmailService._add_deliverability_headers(email_message)
 
             # Plain text version
             text_content = f"""
@@ -2090,6 +2126,7 @@ The AretaCare Team
             message["Subject"] = f"Ownership Transferred for \"{session_name}\" - AretaCare"
             message["From"] = f"{settings.SMTP_FROM_NAME} <{settings.SMTP_FROM_EMAIL}>"
             message["To"] = old_owner_email
+            EmailService._add_deliverability_headers(message)
 
             # Plain text version
             text_content = f"""
@@ -2241,6 +2278,7 @@ The AretaCare Team
             message["Subject"] = "You're Invited to Join AretaCare!"
             message["From"] = f"{settings.SMTP_FROM_NAME} <{settings.SMTP_FROM_EMAIL}>"
             message["To"] = to_email
+            EmailService._add_deliverability_headers(message)
 
             text_content = f"""
 You're Invited to Join AretaCare!
@@ -2392,6 +2430,7 @@ The AretaCare Team
             message["Subject"] = f"{new_user_name} Has Joined AretaCare!"
             message["From"] = f"{settings.SMTP_FROM_NAME} <{settings.SMTP_FROM_EMAIL}>"
             message["To"] = to_email
+            EmailService._add_deliverability_headers(message)
 
             text_content = f"""
 Hello {to_name},
@@ -2513,6 +2552,7 @@ The AretaCare Team
             message["Subject"] = "Two-Factor Authentication Enabled - AretaCare"
             message["From"] = f"{settings.SMTP_FROM_NAME} <{settings.SMTP_FROM_EMAIL}>"
             message["To"] = to_email
+            EmailService._add_deliverability_headers(message)
 
             text_content = f"""
 Hello {user_name},
@@ -2632,6 +2672,7 @@ The AretaCare Team
             message["Subject"] = "⚠️ Two-Factor Authentication Disabled - AretaCare"
             message["From"] = f"{settings.SMTP_FROM_NAME} <{settings.SMTP_FROM_EMAIL}>"
             message["To"] = to_email
+            EmailService._add_deliverability_headers(message)
 
             text_content = f"""
 Hello {user_name},
@@ -2759,6 +2800,7 @@ The AretaCare Team
             message["Subject"] = "New Passkey Added - AretaCare"
             message["From"] = f"{settings.SMTP_FROM_NAME} <{settings.SMTP_FROM_EMAIL}>"
             message["To"] = to_email
+            EmailService._add_deliverability_headers(message)
 
             text_content = f"""
 Hello {user_name},
@@ -2882,6 +2924,7 @@ The AretaCare Team
             message["Subject"] = "New Trusted Device - AretaCare"
             message["From"] = f"{settings.SMTP_FROM_NAME} <{settings.SMTP_FROM_EMAIL}>"
             message["To"] = to_email
+            EmailService._add_deliverability_headers(message)
 
             text_content = f"""
 Hello {user_name},
