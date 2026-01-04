@@ -605,6 +605,18 @@ def run_migrations():
             logger.warning(f"Index idx_session_collaborators_session may already exist: {e}")
             conn.rollback()
 
+        # Add index on journal_entries (session_id, created_at) for daily plan queries
+        try:
+            conn.execute(text("""
+                CREATE INDEX IF NOT EXISTS idx_journal_entries_session_created
+                ON journal_entries (session_id, created_at DESC)
+            """))
+            conn.commit()
+            logger.info("Created index idx_journal_entries_session_created")
+        except Exception as e:
+            logger.warning(f"Index idx_journal_entries_session_created may already exist: {e}")
+            conn.rollback()
+
         # ==========================================
         # ADMIN AUDIT LOG TABLE
         # ==========================================

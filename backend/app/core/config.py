@@ -25,6 +25,32 @@ class Settings(BaseSettings):
     DEBUG: bool = False
     CORS_ORIGINS: str = "http://localhost:3000"
 
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self._validate_secret_key()
+
+    def _validate_secret_key(self):
+        """Validate SECRET_KEY is secure for production use."""
+        insecure_defaults = [
+            "secret", "changeme", "your-secret-key", "your_secret_key",
+            "development", "dev", "test", "password", "123456"
+        ]
+        key_lower = self.SECRET_KEY.lower()
+
+        # Check for known insecure defaults
+        if key_lower in insecure_defaults:
+            raise ValueError(
+                "SECRET_KEY is set to an insecure default value. "
+                "Please set a secure random key (at least 32 characters) in production."
+            )
+
+        # Check minimum length (32 chars = 256 bits for HS256)
+        if len(self.SECRET_KEY) < 32:
+            raise ValueError(
+                f"SECRET_KEY is too short ({len(self.SECRET_KEY)} chars). "
+                "Please use at least 32 characters for secure JWT signing."
+            )
+
     # Admin
     ADMIN_EMAILS: str = ""  # Comma-separated list of admin email addresses
     CONTROL_SIGNUPS: bool = True  # When True, registration requires admin invitation (waitlist mode)

@@ -5,9 +5,109 @@ from typing import List, Dict, Optional, Any
 import logging
 import time
 import asyncio
+from collections import deque
+from threading import Lock
 
 # Exception types that should trigger a retry (transient failures)
 RETRYABLE_EXCEPTIONS = (RateLimitError, APIConnectionError, APITimeoutError, InternalServerError)
+
+# Circuit breaker configuration
+CIRCUIT_BREAKER_FAILURE_THRESHOLD = 5  # Number of failures to trip circuit
+CIRCUIT_BREAKER_WINDOW_SECONDS = 300  # 5 minute window for counting failures
+CIRCUIT_BREAKER_COOLDOWN_SECONDS = 60  # Wait time before allowing requests after trip
+
+
+class CircuitBreakerOpen(Exception):
+    """Raised when circuit breaker is open and requests should fail fast."""
+    pass
+
+
+class CircuitBreaker:
+    """
+    Simple circuit breaker to prevent cascading failures during OpenAI outages.
+
+    When too many failures occur within a time window, the circuit "trips" and
+    subsequent requests fail fast without calling the API. After a cooldown
+    period, the circuit allows requests again.
+    """
+
+    def __init__(
+        self,
+        failure_threshold: int = CIRCUIT_BREAKER_FAILURE_THRESHOLD,
+        window_seconds: int = CIRCUIT_BREAKER_WINDOW_SECONDS,
+        cooldown_seconds: int = CIRCUIT_BREAKER_COOLDOWN_SECONDS
+    ):
+        self.failure_threshold = failure_threshold
+        self.window_seconds = window_seconds
+        self.cooldown_seconds = cooldown_seconds
+        self.failures: deque = deque()  # Timestamps of recent failures
+        self.last_trip_time: Optional[float] = None
+        self._lock = Lock()
+
+    def _cleanup_old_failures(self, now: float):
+        """Remove failures outside the time window."""
+        cutoff = now - self.window_seconds
+        while self.failures and self.failures[0] < cutoff:
+            self.failures.popleft()
+
+    def is_open(self) -> bool:
+        """Check if circuit is open (should fail fast)."""
+        now = time.time()
+        with self._lock:
+            # If we tripped recently, check if cooldown has passed
+            if self.last_trip_time:
+                if now - self.last_trip_time < self.cooldown_seconds:
+                    return True  # Still in cooldown
+                else:
+                    # Cooldown passed, reset and allow requests
+                    self.last_trip_time = None
+                    self.failures.clear()
+                    return False
+
+            self._cleanup_old_failures(now)
+            return False
+
+    def record_failure(self):
+        """Record a failure. May trip the circuit."""
+        now = time.time()
+        with self._lock:
+            self._cleanup_old_failures(now)
+            self.failures.append(now)
+
+            if len(self.failures) >= self.failure_threshold:
+                self.last_trip_time = now
+                logger.warning(
+                    f"Circuit breaker TRIPPED: {len(self.failures)} failures in {self.window_seconds}s. "
+                    f"Failing fast for {self.cooldown_seconds}s."
+                )
+
+    def record_success(self):
+        """Record a success. Helps circuit recover."""
+        with self._lock:
+            # Clear one failure on success to gradually recover
+            if self.failures:
+                self.failures.popleft()
+
+    def get_status(self) -> dict:
+        """Get circuit breaker status for monitoring."""
+        now = time.time()
+        with self._lock:
+            self._cleanup_old_failures(now)
+            is_tripped = self.last_trip_time is not None
+            cooldown_remaining = 0
+            if is_tripped:
+                cooldown_remaining = max(0, self.cooldown_seconds - (now - self.last_trip_time))
+
+            return {
+                "is_open": is_tripped and cooldown_remaining > 0,
+                "failure_count": len(self.failures),
+                "threshold": self.failure_threshold,
+                "cooldown_remaining_seconds": int(cooldown_remaining)
+            }
+
+
+# Global circuit breaker instance for OpenAI
+openai_circuit_breaker = CircuitBreaker()
 
 
 class ImageProcessingError(Exception):
@@ -131,13 +231,30 @@ class OpenAIService:
         feature: str = "unknown",
         user_id: Optional[str] = None,
     ) -> Optional[str]:
-        """Create chat completion with error handling, timeout, and retry logic using Responses API
+        """Create chat completion with error handling, timeout, retry logic, and circuit breaker.
 
         Includes:
+        - Circuit breaker to fail fast during extended outages
         - Configurable timeout per request (default: 60s)
         - Configurable retries with exponential backoff for transient failures
         - Retryable errors: RateLimitError, APIConnectionError, APITimeoutError, InternalServerError
         """
+        # Check circuit breaker first - fail fast if OpenAI is having issues
+        if openai_circuit_breaker.is_open():
+            logger.warning(f"Circuit breaker is OPEN - failing fast for feature: {feature}")
+            # Log the circuit breaker event as a failed API call
+            await log_api_call(
+                feature=feature,
+                input_tokens=0,
+                output_tokens=0,
+                success=False,
+                model=self.model,
+                response_time_ms=0,
+                user_id=user_id,
+                error_message="Circuit breaker open - service temporarily unavailable"
+            )
+            return None  # Return None instead of raising - callers expect Optional[str]
+
         start_time = time.time()
         input_tokens = 0
         output_tokens = 0
@@ -169,6 +286,9 @@ class OpenAIService:
                     user_id=user_id
                 )
 
+                # Record success with circuit breaker
+                openai_circuit_breaker.record_success()
+
                 # Prefer the convenience property if available
                 text = getattr(response, "output_text", None)
                 if text is not None:
@@ -198,7 +318,8 @@ class OpenAIService:
                     await asyncio.sleep(retry_delay)
                     continue  # Try again
                 else:
-                    # Final attempt failed
+                    # Final attempt failed - record with circuit breaker
+                    openai_circuit_breaker.record_failure()
                     logger.error(
                         f"OpenAI API failed after {max_retries} attempts: {type(e).__name__}: {e}"
                     )
@@ -768,7 +889,11 @@ When information conflicts, trust more recent sources.
                 # OpenAI expects a tuple of (filename, file_content, content_type) for in-memory files
                 # Reset file position for retry attempts
                 if hasattr(audio_file, 'seek'):
-                    audio_file.seek(0)
+                    try:
+                        audio_file.seek(0)
+                    except (OSError, IOError) as seek_error:
+                        logger.warning(f"Failed to seek audio file to start: {seek_error}")
+                        # Continue anyway - first attempt won't need seek
 
                 transcription = await self.client.audio.transcriptions.create(
                     model=ai_config.TRANSCRIPTION_MODEL,

@@ -83,6 +83,8 @@ MFA events trigger emails: MFA enabled/disabled, new passkey added, new trusted 
 | Time window for counting | 15 minutes |
 | Lockout duration | 15 minutes |
 
+**Key design decision:** Lockout is based on email address only, not IP address. This prevents attackers from bypassing lockout by changing IPs (distributed attacks). IP is logged for auditing but not used in lockout calculation.
+
 Progressive warnings shown after 4th failed attempt.
 
 ---

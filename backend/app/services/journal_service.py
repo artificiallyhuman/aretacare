@@ -925,10 +925,15 @@ IMPORTANT: Respond with ONLY a valid JSON object in this exact format, with no a
         """
         if max_tokens is None:
             max_tokens = ai_config.MAX_JOURNAL_TOKENS
+
+        # Limit entries to prevent memory issues with very active sessions
+        # 200 entries is ~6 months of daily entries, which should cover most use cases
+        MAX_JOURNAL_ENTRIES = 200
+
         try:
             entries = self.db.query(JournalEntry).filter(
                 JournalEntry.session_id == session_id
-            ).order_by(desc(JournalEntry.entry_date)).all()
+            ).order_by(desc(JournalEntry.entry_date)).limit(MAX_JOURNAL_ENTRIES).all()
 
             if not entries:
                 return "", ""
@@ -998,8 +1003,8 @@ IMPORTANT: Respond with ONLY a valid JSON object in this exact format, with no a
 
                             # Add from oldest to newest
                             for e in reversed(summarized):
-                                summary = e.content[:150] + "..." if len(e.content) > 150 else e.content
-                                entry_text = f"**{e.entry_date}** {e.title}: {summary}\n\n"
+                                summary = e.content[:1500] + "..." if len(e.content) > 1500 else e.content
+                                entry_text = f"**{e.entry_date}** [{e.entry_type.value}] **{e.title}**\n{summary}\n\n"
                                 entry_tokens = self._estimate_tokens(entry_text)
 
                                 if total_tokens + entry_tokens <= max_tokens:

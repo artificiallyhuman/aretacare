@@ -153,35 +153,36 @@ class SecurityService:
         ip_address: Optional[str] = None
     ) -> dict:
         """
-        Check if an account or IP is locked out due to failed login attempts.
+        Check if an account is locked out due to failed login attempts.
+
+        Account lockout is based primarily on email (the account identifier).
+        IP address is logged for auditing but not used for lockout decisions,
+        as attackers could bypass IP-based lockout with distributed attacks,
+        while legitimate users may share IPs (NAT, VPN, corporate networks).
 
         Args:
             db: Database session
             email: Email address to check
-            ip_address: IP address to check
+            ip_address: IP address (logged for auditing, not used for lockout)
 
         Returns:
             dict with 'is_locked', 'failed_attempts', 'lockout_remaining_seconds' keys
         """
         from datetime import datetime, timedelta
-        from sqlalchemy import and_, or_
+        from sqlalchemy import and_
 
         cutoff_time = datetime.utcnow() - timedelta(minutes=self.LOCKOUT_WINDOW_MINUTES)
 
-        # Count failed login attempts for this email or IP in the time window
+        # Count failed login attempts for this email in the time window
+        # Using email only prevents attackers from bypassing lockout by changing IPs
         query = db.query(SecurityLog).filter(
             and_(
                 SecurityLog.created_at >= cutoff_time,
-                SecurityLog.event_type == "failed_login"
+                SecurityLog.event_type == "failed_login",
+                SecurityLog.email == email
             )
         )
 
-        # Check both email and IP
-        filters = [SecurityLog.email == email]
-        if ip_address:
-            filters.append(SecurityLog.ip_address == ip_address)
-
-        query = query.filter(or_(*filters))
         failed_attempts = query.count()
 
         is_locked = failed_attempts >= self.LOCKOUT_THRESHOLD

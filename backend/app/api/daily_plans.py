@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from datetime import datetime, date
@@ -25,8 +25,8 @@ router = APIRouter()
 @router.get("/{session_id}", response_model=DailyPlanListResponse)
 async def get_all_daily_plans(
     session_id: str,
-    limit: int = 50,
-    offset: int = 0,
+    limit: int = Query(50, ge=1, le=100),
+    offset: int = Query(0, ge=0, le=10000),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):

@@ -4,9 +4,30 @@ from app.core.config import settings
 from typing import Optional
 import logging
 import asyncio
+import time
 from urllib.parse import quote
 
 logger = logging.getLogger(__name__)
+
+# S3 retry configuration
+S3_MAX_RETRIES = 3
+S3_RETRY_DELAY = 0.5  # Initial delay in seconds
+S3_MAX_RETRY_DELAY = 4  # Max delay between retries
+
+# Retryable S3 error codes (transient failures)
+RETRYABLE_S3_ERROR_CODES = {
+    'RequestTimeout',
+    'ServiceUnavailable',
+    'SlowDown',
+    'InternalError',
+    'RequestTimeTooSkewed',
+}
+
+
+def _is_retryable_s3_error(error: ClientError) -> bool:
+    """Check if an S3 error is retryable (transient)."""
+    error_code = error.response.get('Error', {}).get('Code', '')
+    return error_code in RETRYABLE_S3_ERROR_CODES
 
 
 class S3Service:
@@ -63,8 +84,7 @@ class S3Service:
     }
 
     def _put_object_sync(self, key: str, file_content: bytes, content_type: str, filename: str = None):
-        """Synchronous S3 put_object (for thread pool)"""
-        client = self._create_thread_client()
+        """Synchronous S3 put_object with retry logic (for thread pool)"""
         params = {
             'Bucket': self.bucket_name,
             'Key': key,
@@ -97,24 +117,72 @@ class S3Service:
         else:
             params['ContentDisposition'] = disposition
 
-        client.put_object(**params)
+        last_exception = None
+        for attempt in range(S3_MAX_RETRIES):
+            try:
+                client = self._create_thread_client()
+                client.put_object(**params)
+                return
+            except ClientError as e:
+                last_exception = e
+                if _is_retryable_s3_error(e) and attempt < S3_MAX_RETRIES - 1:
+                    retry_delay = min(S3_RETRY_DELAY * (2 ** attempt), S3_MAX_RETRY_DELAY)
+                    logger.warning(
+                        f"S3 put_object transient error (attempt {attempt + 1}/{S3_MAX_RETRIES}): "
+                        f"{e.response.get('Error', {}).get('Code')}. Retrying in {retry_delay}s..."
+                    )
+                    time.sleep(retry_delay)
+                    continue
+                raise
+        raise last_exception
 
     def _get_object_sync(self, key: str) -> bytes:
-        """Synchronous S3 get_object (for thread pool)"""
-        client = self._create_thread_client()
-        response = client.get_object(
-            Bucket=self.bucket_name,
-            Key=key
-        )
-        return response['Body'].read()
+        """Synchronous S3 get_object with retry logic (for thread pool)"""
+        last_exception = None
+        for attempt in range(S3_MAX_RETRIES):
+            try:
+                client = self._create_thread_client()
+                response = client.get_object(
+                    Bucket=self.bucket_name,
+                    Key=key
+                )
+                return response['Body'].read()
+            except ClientError as e:
+                last_exception = e
+                if _is_retryable_s3_error(e) and attempt < S3_MAX_RETRIES - 1:
+                    retry_delay = min(S3_RETRY_DELAY * (2 ** attempt), S3_MAX_RETRY_DELAY)
+                    logger.warning(
+                        f"S3 get_object transient error (attempt {attempt + 1}/{S3_MAX_RETRIES}): "
+                        f"{e.response.get('Error', {}).get('Code')}. Retrying in {retry_delay}s..."
+                    )
+                    time.sleep(retry_delay)
+                    continue
+                raise
+        raise last_exception
 
     def _delete_object_sync(self, key: str):
-        """Synchronous S3 delete_object (for thread pool)"""
-        client = self._create_thread_client()
-        client.delete_object(
-            Bucket=self.bucket_name,
-            Key=key
-        )
+        """Synchronous S3 delete_object with retry logic (for thread pool)"""
+        last_exception = None
+        for attempt in range(S3_MAX_RETRIES):
+            try:
+                client = self._create_thread_client()
+                client.delete_object(
+                    Bucket=self.bucket_name,
+                    Key=key
+                )
+                return
+            except ClientError as e:
+                last_exception = e
+                if _is_retryable_s3_error(e) and attempt < S3_MAX_RETRIES - 1:
+                    retry_delay = min(S3_RETRY_DELAY * (2 ** attempt), S3_MAX_RETRY_DELAY)
+                    logger.warning(
+                        f"S3 delete_object transient error (attempt {attempt + 1}/{S3_MAX_RETRIES}): "
+                        f"{e.response.get('Error', {}).get('Code')}. Retrying in {retry_delay}s..."
+                    )
+                    time.sleep(retry_delay)
+                    continue
+                raise
+        raise last_exception
 
     async def upload_file(self, file_content: bytes, key: str, content_type: str, filename: str = None) -> bool:
         """Upload file to S3 bucket with AES-256 encryption (runs in thread pool)
