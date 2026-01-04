@@ -391,20 +391,15 @@ class AdminService:
         Returns:
             datetime of last activity, or None if no activity found
         """
-        from uuid import UUID
-        try:
-            user_uuid = UUID(user_id)
-        except ValueError:
-            return None
-
         # Get all sessions for this user (owned and collaborated)
+        # Note: owner_id and user_id are stored as strings in the database
         owned_session_ids = db.query(SessionModel.id).filter(
-            SessionModel.owner_id == user_uuid
+            SessionModel.owner_id == user_id
         ).all()
         owned_session_ids = [s[0] for s in owned_session_ids]
 
         collab_session_ids = db.query(SessionCollaborator.session_id).filter(
-            SessionCollaborator.user_id == user_uuid
+            SessionCollaborator.user_id == user_id
         ).all()
         collab_session_ids = [s[0] for s in collab_session_ids]
 
