@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Request
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Request, Query
 from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.core.rate_limit import limiter, RateLimits
@@ -430,9 +430,9 @@ async def upload_document(
 async def get_session_documents(
     session_id: str,
     category: Optional[str] = None,
-    search: Optional[str] = None,
-    limit: int = 50,
-    offset: int = 0,
+    search: Optional[str] = Query(None, max_length=100),
+    limit: int = Query(50, ge=1, le=100),
+    offset: int = Query(0, ge=0, le=10000),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):

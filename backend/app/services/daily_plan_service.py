@@ -234,23 +234,23 @@ class DailyPlanService:
             context["is_first_plan"] = False
 
         else:
-            # First plan: get all available data
-            # Get all journal entries
+            # First plan: get recent data with reasonable limits to prevent memory issues
+            # Get recent journal entries (limit 100 most recent)
             journal_entries = db.query(JournalEntry).filter(
                 JournalEntry.session_id == session_id
-            ).order_by(JournalEntry.entry_date.desc()).all()
+            ).order_by(JournalEntry.entry_date.desc()).limit(100).all()
 
-            # Get recent conversations (last 7 days) - no arbitrary limit, token truncation handles it
+            # Get recent conversations (last 7 days, limit 200)
             seven_days_ago = datetime.utcnow() - timedelta(days=7)
             new_conversations = db.query(Conversation).filter(
                 Conversation.session_id == session_id,
                 Conversation.created_at >= seven_days_ago
-            ).order_by(Conversation.created_at.asc()).all()
+            ).order_by(Conversation.created_at.asc()).limit(200).all()
 
-            # Get all documents - no arbitrary limit, token truncation handles it
+            # Get recent documents (limit 50 most recent)
             new_documents = db.query(Document).filter(
                 Document.session_id == session_id
-            ).order_by(Document.uploaded_at.desc()).all()
+            ).order_by(Document.uploaded_at.desc()).limit(50).all()
 
             context["is_first_plan"] = True
 

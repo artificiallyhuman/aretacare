@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, Request
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, Request, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from app.core.database import get_db
@@ -301,8 +301,8 @@ async def send_message(
 @router.get("/{session_id}/history", response_model=ConversationHistory)
 async def get_conversation_history(
     session_id: str,
-    limit: int = 50,
-    offset: int = 0,
+    limit: int = Query(50, ge=1, le=100),
+    offset: int = Query(0, ge=0, le=10000),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):

@@ -1,5 +1,6 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from starlette.middleware.gzip import GZipMiddleware
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
@@ -12,6 +13,7 @@ from app.api import api_router
 from app.services.admin_service import admin_service
 import logging
 import os
+import traceback
 
 # Configure logging
 logging.basicConfig(
@@ -79,160 +81,155 @@ app.add_middleware(SecurityHeadersMiddleware)
 app.include_router(api_router, prefix="/api")
 
 
+# Global exception handler for unhandled errors
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    """
+    Catch-all handler for unhandled exceptions.
+    Logs the full traceback and returns a generic error to avoid leaking internals.
+    """
+    # Log the full error with traceback for debugging
+    logger.error(f"Unhandled exception on {request.method} {request.url.path}: {exc}")
+    logger.error(traceback.format_exc())
+
+    # Try to log to database error_log table
+    try:
+        from app.models.error_log import ErrorLog
+        from app.services.security_service import security_service
+
+        db = SessionLocal()
+        error_log = ErrorLog(
+            error_type=type(exc).__name__,
+            error_message=str(exc)[:1000],
+            stack_trace=traceback.format_exc()[:4000],
+            endpoint=str(request.url.path),
+            method=request.method,
+            ip_address=security_service.get_client_ip(request),
+            user_agent=security_service.get_user_agent(request)
+        )
+        db.add(error_log)
+        db.commit()
+        db.close()
+    except Exception as log_error:
+        logger.error(f"Failed to log error to database: {log_error}")
+
+    # Return generic error - never expose internal details
+    return JSONResponse(
+        status_code=500,
+        content={
+            "detail": "An internal error occurred. Please try again later.",
+            "error_code": "INTERNAL_ERROR"
+        }
+    )
+
+
 # Data Retention: Clean up old logs on startup (after models are initialized)
 @app.on_event("startup")
 async def startup_cleanup():
-    """Run data retention cleanup on startup"""
-    # Clean up old audit logs
+    """Run data retention cleanup on startup using a single database session"""
+    from datetime import datetime, timedelta
+    from sqlalchemy import or_
+    from app.models.error_log import ErrorLog
+    from app.models.api_log import ApiLog
+    from app.models.security_log import SecurityLog
+    from app.models.pending_invitation import PendingInvitation
+    from app.models.refresh_token import RefreshToken
+    from app.services.admin_report_service import admin_report_service
+    from app.services.mfa_service import MFAService
+
+    db = SessionLocal()
+    now = datetime.utcnow()
+
     try:
-        db = SessionLocal()
-        deleted_count = admin_service.cleanup_old_audit_logs(db)
-        if deleted_count > 0:
-            logger.info(f"✓ Audit log cleanup: {deleted_count} old entries removed")
-        else:
-            logger.info(f"✓ Audit log cleanup: No old entries to remove (retention: {settings.AUDIT_LOG_RETENTION_DAYS} days)")
+        # Audit logs
+        try:
+            deleted = admin_service.cleanup_old_audit_logs(db)
+            logger.info(f"✓ Audit log cleanup: {deleted or 'No'} entries removed (retention: {settings.AUDIT_LOG_RETENTION_DAYS} days)")
+        except Exception as e:
+            logger.error(f"Audit log cleanup failed: {e}")
+            db.rollback()
+
+        # Error logs
+        try:
+            cutoff = now - timedelta(days=settings.ERROR_LOG_RETENTION_DAYS)
+            deleted = db.query(ErrorLog).filter(ErrorLog.timestamp < cutoff).delete()
+            db.commit()
+            logger.info(f"✓ Error log cleanup: {deleted or 'No'} entries removed (retention: {settings.ERROR_LOG_RETENTION_DAYS} days)")
+        except Exception as e:
+            logger.error(f"Error log cleanup failed: {e}")
+            db.rollback()
+
+        # API logs
+        try:
+            cutoff = now - timedelta(days=settings.API_LOG_RETENTION_DAYS)
+            deleted = db.query(ApiLog).filter(ApiLog.created_at < cutoff).delete()
+            db.commit()
+            logger.info(f"✓ API log cleanup: {deleted or 'No'} entries removed (retention: {settings.API_LOG_RETENTION_DAYS} days)")
+        except Exception as e:
+            logger.error(f"API log cleanup failed: {e}")
+            db.rollback()
+
+        # Security logs
+        try:
+            cutoff = now - timedelta(days=settings.SECURITY_LOG_RETENTION_DAYS)
+            deleted = db.query(SecurityLog).filter(SecurityLog.created_at < cutoff).delete()
+            db.commit()
+            logger.info(f"✓ Security log cleanup: {deleted or 'No'} entries removed (retention: {settings.SECURITY_LOG_RETENTION_DAYS} days)")
+        except Exception as e:
+            logger.error(f"Security log cleanup failed: {e}")
+            db.rollback()
+
+        # Expired invitations (30 days)
+        try:
+            cutoff = now - timedelta(days=30)
+            deleted = db.query(PendingInvitation).filter(PendingInvitation.created_at < cutoff).delete()
+            db.commit()
+            logger.info(f"✓ Invitation cleanup: {deleted or 'No'} expired invitations removed")
+        except Exception as e:
+            logger.error(f"Invitation cleanup failed: {e}")
+            db.rollback()
+
+        # Refresh tokens (expired or revoked >7 days ago)
+        try:
+            revoked_cutoff = now - timedelta(days=7)
+            deleted = db.query(RefreshToken).filter(
+                or_(
+                    RefreshToken.expires_at < now,
+                    (RefreshToken.is_revoked == True) & (RefreshToken.revoked_at < revoked_cutoff)
+                )
+            ).delete(synchronize_session=False)
+            db.commit()
+            logger.info(f"✓ Refresh token cleanup: {deleted or 'No'} tokens removed")
+        except Exception as e:
+            logger.error(f"Refresh token cleanup failed: {e}")
+            db.rollback()
+
+        # Admin reports
+        try:
+            deleted = admin_report_service.cleanup_old_reports(db)
+            logger.info(f"✓ Admin report cleanup: {deleted or 'No'} reports removed (retention: {settings.ADMIN_REPORT_RETENTION_DAYS} days)")
+        except Exception as e:
+            logger.error(f"Admin report cleanup failed: {e}")
+            db.rollback()
+
+        # MFA challenges
+        try:
+            deleted = MFAService.cleanup_expired_challenges(db)
+            logger.info(f"✓ MFA challenge cleanup: {deleted or 'No'} challenges removed")
+        except Exception as e:
+            logger.error(f"MFA challenge cleanup failed: {e}")
+            db.rollback()
+
+        # Trusted devices
+        try:
+            deleted = MFAService.cleanup_expired_devices(db)
+            logger.info(f"✓ Trusted device cleanup: {deleted or 'No'} devices removed")
+        except Exception as e:
+            logger.error(f"Trusted device cleanup failed: {e}")
+            db.rollback()
+
+    finally:
         db.close()
-    except Exception as e:
-        logger.error(f"Failed to run audit log cleanup: {e}")
-
-    # Clean up old error logs
-    try:
-        from app.models.error_log import ErrorLog
-        from datetime import datetime, timedelta
-
-        db = SessionLocal()
-        cutoff_date = datetime.utcnow() - timedelta(days=settings.ERROR_LOG_RETENTION_DAYS)
-        deleted_count = db.query(ErrorLog).filter(ErrorLog.timestamp < cutoff_date).delete()
-        db.commit()
-
-        if deleted_count > 0:
-            logger.info(f"✓ Error log cleanup: {deleted_count} old entries removed")
-        else:
-            logger.info(f"✓ Error log cleanup: No old entries to remove (retention: {settings.ERROR_LOG_RETENTION_DAYS} days)")
-        db.close()
-    except Exception as e:
-        logger.error(f"Failed to run error log cleanup: {e}")
-
-    # Clean up old API logs
-    try:
-        from app.models.api_log import ApiLog
-        from datetime import datetime, timedelta
-
-        db = SessionLocal()
-        cutoff_date = datetime.utcnow() - timedelta(days=settings.API_LOG_RETENTION_DAYS)
-        deleted_count = db.query(ApiLog).filter(ApiLog.created_at < cutoff_date).delete()
-        db.commit()
-
-        if deleted_count > 0:
-            logger.info(f"✓ API log cleanup: {deleted_count} old entries removed")
-        else:
-            logger.info(f"✓ API log cleanup: No old entries to remove (retention: {settings.API_LOG_RETENTION_DAYS} days)")
-        db.close()
-    except Exception as e:
-        logger.error(f"Failed to run API log cleanup: {e}")
-
-    # Clean up old security logs
-    try:
-        from app.models.security_log import SecurityLog
-        from datetime import datetime, timedelta
-
-        db = SessionLocal()
-        cutoff_date = datetime.utcnow() - timedelta(days=settings.SECURITY_LOG_RETENTION_DAYS)
-        deleted_count = db.query(SecurityLog).filter(SecurityLog.created_at < cutoff_date).delete()
-        db.commit()
-
-        if deleted_count > 0:
-            logger.info(f"✓ Security log cleanup: {deleted_count} old entries removed")
-        else:
-            logger.info(f"✓ Security log cleanup: No old entries to remove (retention: {settings.SECURITY_LOG_RETENTION_DAYS} days)")
-        db.close()
-    except Exception as e:
-        logger.error(f"Failed to run security log cleanup: {e}")
-
-    # Clean up expired invitations (older than 30 days)
-    try:
-        from app.models.pending_invitation import PendingInvitation
-        from datetime import datetime, timedelta
-
-        db = SessionLocal()
-        cutoff_date = datetime.utcnow() - timedelta(days=30)
-        deleted_count = db.query(PendingInvitation).filter(PendingInvitation.created_at < cutoff_date).delete()
-        db.commit()
-
-        if deleted_count > 0:
-            logger.info(f"✓ Invitation cleanup: {deleted_count} expired invitations removed")
-        else:
-            logger.info(f"✓ Invitation cleanup: No expired invitations to remove (retention: 30 days)")
-        db.close()
-    except Exception as e:
-        logger.error(f"Failed to run invitation cleanup: {e}")
-
-    # Clean up old refresh tokens (expired or revoked more than 7 days ago)
-    try:
-        from app.models.refresh_token import RefreshToken
-        from datetime import datetime, timedelta
-        from sqlalchemy import or_
-
-        db = SessionLocal()
-        now = datetime.utcnow()
-        revoked_cutoff = now - timedelta(days=7)  # Keep revoked tokens for 7 days for auditing
-
-        # Delete tokens that are:
-        # 1. Expired (expires_at < now), OR
-        # 2. Revoked more than 7 days ago
-        deleted_count = db.query(RefreshToken).filter(
-            or_(
-                RefreshToken.expires_at < now,
-                (RefreshToken.is_revoked == True) & (RefreshToken.revoked_at < revoked_cutoff)
-            )
-        ).delete(synchronize_session=False)
-        db.commit()
-
-        if deleted_count > 0:
-            logger.info(f"✓ Refresh token cleanup: {deleted_count} expired/revoked tokens removed")
-        else:
-            logger.info(f"✓ Refresh token cleanup: No old tokens to remove")
-        db.close()
-    except Exception as e:
-        logger.error(f"Failed to run refresh token cleanup: {e}")
-
-    # Clean up old admin reports
-    try:
-        from app.services.admin_report_service import admin_report_service
-
-        db = SessionLocal()
-        deleted_count = admin_report_service.cleanup_old_reports(db)
-        if deleted_count > 0:
-            logger.info(f"✓ Admin report cleanup: {deleted_count} old reports removed")
-        else:
-            logger.info(f"✓ Admin report cleanup: No old reports to remove (retention: {settings.ADMIN_REPORT_RETENTION_DAYS} days)")
-        db.close()
-    except Exception as e:
-        logger.error(f"Failed to run admin report cleanup: {e}")
-
-    # Clean up expired MFA challenges and trusted devices
-    try:
-        from app.services.mfa_service import MFAService
-
-        db = SessionLocal()
-
-        # Clean up expired MFA challenges
-        challenges_deleted = MFAService.cleanup_expired_challenges(db)
-        if challenges_deleted > 0:
-            logger.info(f"✓ MFA challenge cleanup: {challenges_deleted} expired challenges removed")
-        else:
-            logger.info("✓ MFA challenge cleanup: No expired challenges to remove")
-
-        # Clean up expired trusted devices
-        devices_deleted = MFAService.cleanup_expired_devices(db)
-        if devices_deleted > 0:
-            logger.info(f"✓ Trusted device cleanup: {devices_deleted} expired devices removed")
-        else:
-            logger.info("✓ Trusted device cleanup: No expired devices to remove")
-
-        db.close()
-    except Exception as e:
-        logger.error(f"Failed to run MFA cleanup: {e}")
 
 
 @app.get("/")

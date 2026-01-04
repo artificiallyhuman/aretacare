@@ -4,12 +4,84 @@ from email.mime.multipart import MIMEMultipart
 from email.utils import make_msgid, formatdate
 from app.core.config import settings
 import logging
+import time
 
 logger = logging.getLogger(__name__)
 
+# Email retry configuration
+EMAIL_MAX_RETRIES = 3
+EMAIL_RETRY_DELAY = 1  # Initial delay in seconds
+EMAIL_MAX_RETRY_DELAY = 8  # Max delay between retries
+EMAIL_SMTP_TIMEOUT = 30  # SMTP connection timeout in seconds
+
+# Retryable SMTP exceptions (transient failures)
+RETRYABLE_SMTP_EXCEPTIONS = (
+    smtplib.SMTPServerDisconnected,
+    smtplib.SMTPConnectError,
+    smtplib.SMTPHeloError,
+    smtplib.SMTPDataError,
+    TimeoutError,
+    ConnectionError,
+    OSError,
+)
+
 
 class EmailService:
-    """Service for sending emails via SMTP"""
+    """Service for sending emails via SMTP with retry support"""
+
+    @staticmethod
+    def _send_with_retry(message: MIMEMultipart) -> bool:
+        """
+        Send email with exponential backoff retry for transient failures.
+
+        Returns:
+            bool: True if email sent successfully, False otherwise
+        """
+        last_exception = None
+
+        for attempt in range(EMAIL_MAX_RETRIES):
+            try:
+                with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT, timeout=EMAIL_SMTP_TIMEOUT) as server:
+                    server.starttls()
+                    server.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
+                    server.send_message(message)
+                return True
+
+            except RETRYABLE_SMTP_EXCEPTIONS as e:
+                last_exception = e
+                retry_delay = min(
+                    EMAIL_RETRY_DELAY * (2 ** attempt),
+                    EMAIL_MAX_RETRY_DELAY
+                )
+
+                if attempt < EMAIL_MAX_RETRIES - 1:
+                    logger.warning(
+                        f"SMTP transient error (attempt {attempt + 1}/{EMAIL_MAX_RETRIES}): {type(e).__name__}. "
+                        f"Retrying in {retry_delay}s..."
+                    )
+                    time.sleep(retry_delay)
+                    continue
+                else:
+                    logger.error(f"SMTP failed after {EMAIL_MAX_RETRIES} attempts: {last_exception}")
+                    return False
+
+            except smtplib.SMTPAuthenticationError as e:
+                logger.error(f"SMTP Authentication failed: {str(e)}")
+                return False
+
+            except smtplib.SMTPRecipientsRefused as e:
+                logger.error(f"SMTP recipients refused: {str(e)}")
+                return False
+
+            except smtplib.SMTPException as e:
+                logger.error(f"SMTP error sending email: {str(e)}")
+                return False
+
+            except Exception as e:
+                logger.error(f"Unexpected error sending email: {str(e)}")
+                return False
+
+        return False
 
     @staticmethod
     def _add_deliverability_headers(message: MIMEMultipart) -> None:
@@ -162,24 +234,14 @@ The AretaCare Team
                 logger.info(f"Development mode: Password reset link: {reset_url}")
                 return False
 
-            # Send email
-            with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT) as server:
-                server.starttls()
-                server.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
-                server.send_message(message)
-
-            logger.info(f"Password reset email sent successfully to {to_email}")
-            return True
-
-        except smtplib.SMTPAuthenticationError as e:
-            logger.error(f"SMTP Authentication failed: {str(e)}")
-            logger.error("Email authentication failed. Please verify SMTP credentials in environment configuration.")
+            # Send email with retry
+            if EmailService._send_with_retry(message):
+                logger.info(f"Password reset email sent successfully to {to_email}")
+                return True
             return False
-        except smtplib.SMTPException as e:
-            logger.error(f"SMTP error sending email: {str(e)}")
-            return False
+
         except Exception as e:
-            logger.error(f"Unexpected error sending email: {str(e)}")
+            logger.error(f"Unexpected error preparing email: {str(e)}")
             return False
 
     @staticmethod
@@ -292,17 +354,14 @@ The AretaCare Team
                 logger.warning("SMTP_PASSWORD not configured. Email not sent. Using development mode.")
                 return False
 
-            # Send email
-            with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT) as server:
-                server.starttls()
-                server.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
-                server.send_message(message)
-
-            logger.info(f"Password changed notification sent successfully to {to_email}")
-            return True
+            # Send email with retry
+            if EmailService._send_with_retry(message):
+                logger.info(f"Password changed notification sent successfully to {to_email}")
+                return True
+            return False
 
         except Exception as e:
-            logger.error(f"Error sending password changed email: {str(e)}")
+            logger.error(f"Error preparing password changed email: {str(e)}")
             return False
 
     @staticmethod
@@ -416,17 +475,14 @@ The AretaCare Team
                 logger.warning("SMTP_PASSWORD not configured. Email not sent. Using development mode.")
                 return False
 
-            # Send email
-            with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT) as server:
-                server.starttls()
-                server.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
-                server.send_message(message)
-
-            logger.info(f"Email changed notification sent successfully to {old_email}")
-            return True
+            # Send email with retry
+            if EmailService._send_with_retry(message):
+                logger.info(f"Email changed notification sent successfully to {old_email}")
+                return True
+            return False
 
         except Exception as e:
-            logger.error(f"Error sending email changed notification: {str(e)}")
+            logger.error(f"Error preparing email changed notification: {str(e)}")
             return False
 
     @staticmethod
@@ -563,17 +619,14 @@ The AretaCare Team
                 logger.info(f"Development mode: Email verification link: {verify_url}")
                 return False
 
-            # Send email
-            with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT) as server:
-                server.starttls()
-                server.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
-                server.send_message(message)
-
-            logger.info(f"Email change verification sent successfully to {to_email}")
-            return True
+            # Send email with retry
+            if EmailService._send_with_retry(message):
+                logger.info(f"Email change verification sent successfully to {to_email}")
+                return True
+            return False
 
         except Exception as e:
-            logger.error(f"Error sending email change verification: {str(e)}")
+            logger.error(f"Error preparing email change verification: {str(e)}")
             return False
 
     @staticmethod
@@ -712,17 +765,14 @@ The AretaCare Team
                 logger.info(f"Development mode: Email verification link: {verify_url}")
                 return False
 
-            # Send email
-            with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT) as server:
-                server.starttls()
-                server.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
-                server.send_message(message)
-
-            logger.info(f"Registration verification email sent successfully to {to_email}")
-            return True
+            # Send email with retry
+            if EmailService._send_with_retry(message):
+                logger.info(f"Registration verification email sent successfully to {to_email}")
+                return True
+            return False
 
         except Exception as e:
-            logger.error(f"Error sending registration verification email: {str(e)}")
+            logger.error(f"Error preparing registration verification email: {str(e)}")
             return False
 
     @staticmethod
@@ -865,17 +915,14 @@ The AretaCare Team
                 logger.warning("SMTP_PASSWORD not configured. Email not sent. Using development mode.")
                 return False
 
-            # Send email
-            with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT) as server:
-                server.starttls()
-                server.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
-                server.send_message(message)
-
-            logger.info(f"Collaborator added notification sent to owner {owner_email}")
-            return True
+            # Send email with retry
+            if EmailService._send_with_retry(message):
+                logger.info(f"Collaborator added notification sent to owner {owner_email}")
+                return True
+            return False
 
         except Exception as e:
-            logger.error(f"Error sending collaborator added to owner email: {str(e)}")
+            logger.error(f"Error preparing collaborator added to owner email: {str(e)}")
             return False
 
     @staticmethod
@@ -1026,17 +1073,14 @@ The AretaCare Team
                 logger.warning("SMTP_PASSWORD not configured. Email not sent. Using development mode.")
                 return False
 
-            # Send email
-            with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT) as server:
-                server.starttls()
-                server.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
-                server.send_message(message)
-
-            logger.info(f"Collaborator invitation sent successfully to {collaborator_email}")
-            return True
+            # Send email with retry
+            if EmailService._send_with_retry(message):
+                logger.info(f"Collaborator invitation sent successfully to {collaborator_email}")
+                return True
+            return False
 
         except Exception as e:
-            logger.error(f"Error sending collaborator invitation email: {str(e)}")
+            logger.error(f"Error preparing collaborator invitation email: {str(e)}")
             return False
 
     @staticmethod
@@ -1158,17 +1202,14 @@ The AretaCare Team
                 logger.warning("SMTP_PASSWORD not configured. Email not sent. Using development mode.")
                 return False
 
-            # Send email
-            with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT) as server:
-                server.starttls()
-                server.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
-                server.send_message(message)
-
-            logger.info(f"Collaborator removal notification sent successfully to {collaborator_email}")
-            return True
+            # Send email with retry
+            if EmailService._send_with_retry(message):
+                logger.info(f"Collaborator removal notification sent successfully to {collaborator_email}")
+                return True
+            return False
 
         except Exception as e:
-            logger.error(f"Error sending collaborator removed email: {str(e)}")
+            logger.error(f"Error preparing collaborator removed email: {str(e)}")
             return False
 
     def send_inactive_account_notification(self, user_email: str, user_name: str, days_inactive: int) -> bool:
@@ -1258,17 +1299,14 @@ This is an automated message from AretaCare.
                 logger.warning("SMTP_PASSWORD not configured. Email not sent. Using development mode.")
                 return False
 
-            # Send email
-            with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT) as server:
-                server.starttls()
-                server.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
-                server.send_message(message)
-
-            logger.info(f"Inactive account notification sent successfully to {user_email}")
-            return True
+            # Send email with retry
+            if EmailService._send_with_retry(message):
+                logger.info(f"Inactive account notification sent successfully to {user_email}")
+                return True
+            return False
 
         except Exception as e:
-            logger.error(f"Error sending inactive account notification: {str(e)}")
+            logger.error(f"Error preparing inactive account notification: {str(e)}")
             return False
 
     @staticmethod
@@ -1419,17 +1457,14 @@ The AretaCare Team
                 logger.warning("SMTP_PASSWORD not configured. Email not sent. Using development mode.")
                 return False
 
-            # Send email
-            with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT) as server:
-                server.starttls()
-                server.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
-                server.send_message(message)
-
-            logger.info(f"Ownership transfer notification sent successfully to new owner {new_owner_email}")
-            return True
+            # Send email with retry
+            if EmailService._send_with_retry(message):
+                logger.info(f"Ownership transfer notification sent successfully to new owner {new_owner_email}")
+                return True
+            return False
 
         except Exception as e:
-            logger.error(f"Error sending ownership transfer notification to new owner: {str(e)}")
+            logger.error(f"Error preparing ownership transfer notification to new owner: {str(e)}")
             return False
 
     @staticmethod
@@ -1605,24 +1640,14 @@ The AretaCare Team
                 logger.info(f"Development mode: Invitation link: {registration_url}")
                 return False
 
-            # Send email
-            with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT) as server:
-                server.starttls()
-                server.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
-                server.send_message(message)
-
-            logger.info(f"Invitation email sent successfully to {to_email}")
-            return True
-
-        except smtplib.SMTPAuthenticationError as e:
-            logger.error(f"SMTP Authentication failed: {str(e)}")
-            logger.error("Email authentication failed. Please verify SMTP credentials in environment configuration.")
+            # Send email with retry
+            if EmailService._send_with_retry(message):
+                logger.info(f"Invitation email sent successfully to {to_email}")
+                return True
             return False
-        except smtplib.SMTPException as e:
-            logger.error(f"SMTP error sending email: {str(e)}")
-            return False
+
         except Exception as e:
-            logger.error(f"Unexpected error sending invitation email: {str(e)}")
+            logger.error(f"Error preparing invitation email: {str(e)}")
             return False
 
     @staticmethod
@@ -1770,17 +1795,14 @@ The AretaCare Team
                 logger.warning("SMTP_PASSWORD not configured. Email not sent. Using development mode.")
                 return False
 
-            # Send email
-            with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT) as server:
-                server.starttls()
-                server.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
-                server.send_message(message)
-
-            logger.info(f"Invitation accepted notification sent successfully to {owner_email}")
-            return True
+            # Send email with retry
+            if EmailService._send_with_retry(message):
+                logger.info(f"Invitation accepted notification sent successfully to {owner_email}")
+                return True
+            return False
 
         except Exception as e:
-            logger.error(f"Error sending invitation accepted email: {str(e)}")
+            logger.error(f"Error preparing invitation accepted email: {str(e)}")
             return False
 
     @staticmethod
@@ -1932,17 +1954,14 @@ Client IP: {metadata.get('client_ip', 'N/A')}
                 logger.warning("SMTP_PASSWORD not configured. Email not sent. Using development mode.")
                 return False
 
-            # Send email
-            with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT) as server:
-                server.starttls()
-                server.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
-                server.send_message(email_message)
-
-            logger.info(f"Feedback email sent to team from {user_email}")
-            return True
+            # Send email with retry
+            if EmailService._send_with_retry(email_message):
+                logger.info(f"Feedback email sent to team from {user_email}")
+                return True
+            return False
 
         except Exception as e:
-            logger.error(f"Error sending feedback to team: {str(e)}")
+            logger.error(f"Error preparing feedback to team: {str(e)}")
             return False
 
     @staticmethod
@@ -2085,17 +2104,14 @@ The AretaCare Team
                 logger.warning("SMTP_PASSWORD not configured. Email not sent. Using development mode.")
                 return False
 
-            # Send email
-            with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT) as server:
-                server.starttls()
-                server.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
-                server.send_message(email_message)
-
-            logger.info(f"Feedback confirmation sent to {user_email}")
-            return True
+            # Send email with retry
+            if EmailService._send_with_retry(email_message):
+                logger.info(f"Feedback confirmation sent to {user_email}")
+                return True
+            return False
 
         except Exception as e:
-            logger.error(f"Error sending feedback confirmation: {str(e)}")
+            logger.error(f"Error preparing feedback confirmation: {str(e)}")
             return False
 
     @staticmethod
@@ -2246,17 +2262,14 @@ The AretaCare Team
                 logger.warning("SMTP_PASSWORD not configured. Email not sent. Using development mode.")
                 return False
 
-            # Send email
-            with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT) as server:
-                server.starttls()
-                server.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
-                server.send_message(message)
-
-            logger.info(f"Ownership transfer notification sent successfully to old owner {old_owner_email}")
-            return True
+            # Send email with retry
+            if EmailService._send_with_retry(message):
+                logger.info(f"Ownership transfer notification sent successfully to old owner {old_owner_email}")
+                return True
+            return False
 
         except Exception as e:
-            logger.error(f"Error sending ownership transfer notification to old owner: {str(e)}")
+            logger.error(f"Error preparing ownership transfer notification to old owner: {str(e)}")
             return False
 
     @staticmethod
@@ -2389,16 +2402,14 @@ The AretaCare Team
                 logger.info(f"Development mode: Waitlist invitation link: {register_url}")
                 return False
 
-            with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT) as server:
-                server.starttls()
-                server.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
-                server.send_message(message)
-
-            logger.info(f"Waitlist invitation email sent successfully to {to_email}")
-            return True
+            # Send email with retry
+            if EmailService._send_with_retry(message):
+                logger.info(f"Waitlist invitation email sent successfully to {to_email}")
+                return True
+            return False
 
         except Exception as e:
-            logger.error(f"Error sending waitlist invitation email: {str(e)}")
+            logger.error(f"Error preparing waitlist invitation email: {str(e)}")
             return False
 
     @staticmethod
@@ -2519,16 +2530,14 @@ The AretaCare Team
                 logger.warning("SMTP_PASSWORD not configured. Email not sent. Using development mode.")
                 return False
 
-            with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT) as server:
-                server.starttls()
-                server.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
-                server.send_message(message)
-
-            logger.info(f"Waitlist user registered notification sent successfully to {to_email}")
-            return True
+            # Send email with retry
+            if EmailService._send_with_retry(message):
+                logger.info(f"Waitlist user registered notification sent successfully to {to_email}")
+                return True
+            return False
 
         except Exception as e:
-            logger.error(f"Error sending waitlist user registered notification: {str(e)}")
+            logger.error(f"Error preparing waitlist user registered notification: {str(e)}")
             return False
 
 
@@ -2643,16 +2652,14 @@ The AretaCare Team
                 logger.warning("SMTP_PASSWORD not configured. Email not sent. Using development mode.")
                 return False
 
-            with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT) as server:
-                server.starttls()
-                server.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
-                server.send_message(message)
-
-            logger.info(f"MFA enabled notification sent successfully to {to_email}")
-            return True
+            # Send email with retry
+            if EmailService._send_with_retry(message):
+                logger.info(f"MFA enabled notification sent successfully to {to_email}")
+                return True
+            return False
 
         except Exception as e:
-            logger.error(f"Error sending MFA enabled email: {str(e)}")
+            logger.error(f"Error preparing MFA enabled email: {str(e)}")
             return False
 
     @staticmethod
@@ -2770,16 +2777,14 @@ The AretaCare Team
                 logger.warning("SMTP_PASSWORD not configured. Email not sent. Using development mode.")
                 return False
 
-            with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT) as server:
-                server.starttls()
-                server.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
-                server.send_message(message)
-
-            logger.info(f"MFA disabled notification sent successfully to {to_email}")
-            return True
+            # Send email with retry
+            if EmailService._send_with_retry(message):
+                logger.info(f"MFA disabled notification sent successfully to {to_email}")
+                return True
+            return False
 
         except Exception as e:
-            logger.error(f"Error sending MFA disabled email: {str(e)}")
+            logger.error(f"Error preparing MFA disabled email: {str(e)}")
             return False
 
     @staticmethod
@@ -2893,16 +2898,14 @@ The AretaCare Team
                 logger.warning("SMTP_PASSWORD not configured. Email not sent. Using development mode.")
                 return False
 
-            with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT) as server:
-                server.starttls()
-                server.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
-                server.send_message(message)
-
-            logger.info(f"New passkey notification sent successfully to {to_email}")
-            return True
+            # Send email with retry
+            if EmailService._send_with_retry(message):
+                logger.info(f"New passkey notification sent successfully to {to_email}")
+                return True
+            return False
 
         except Exception as e:
-            logger.error(f"Error sending new passkey email: {str(e)}")
+            logger.error(f"Error preparing new passkey email: {str(e)}")
             return False
 
     @staticmethod
@@ -3023,16 +3026,14 @@ The AretaCare Team
                 logger.warning("SMTP_PASSWORD not configured. Email not sent. Using development mode.")
                 return False
 
-            with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT) as server:
-                server.starttls()
-                server.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
-                server.send_message(message)
-
-            logger.info(f"New trusted device notification sent successfully to {to_email}")
-            return True
+            # Send email with retry
+            if EmailService._send_with_retry(message):
+                logger.info(f"New trusted device notification sent successfully to {to_email}")
+                return True
+            return False
 
         except Exception as e:
-            logger.error(f"Error sending new trusted device email: {str(e)}")
+            logger.error(f"Error preparing new trusted device email: {str(e)}")
             return False
 
 
