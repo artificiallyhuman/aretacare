@@ -378,6 +378,74 @@ class AdminService:
         result.sort(key=lambda x: x["days_inactive"], reverse=True)
         return result
 
+    def get_user_last_activity(self, db: Session, user_id: str) -> Optional[datetime]:
+        """
+        Get the most recent activity timestamp for a specific user.
+
+        Activity is determined by the most recent of:
+        - Conversation created
+        - Document uploaded
+        - Audio recording created
+        - Session last_activity timestamp
+
+        Returns:
+            datetime of last activity, or None if no activity found
+        """
+        from uuid import UUID
+        try:
+            user_uuid = UUID(user_id)
+        except ValueError:
+            return None
+
+        # Get all sessions for this user (owned and collaborated)
+        owned_session_ids = db.query(SessionModel.id).filter(
+            SessionModel.owner_id == user_uuid
+        ).all()
+        owned_session_ids = [s[0] for s in owned_session_ids]
+
+        collab_session_ids = db.query(SessionCollaborator.session_id).filter(
+            SessionCollaborator.user_id == user_uuid
+        ).all()
+        collab_session_ids = [s[0] for s in collab_session_ids]
+
+        session_ids = list(set(owned_session_ids + collab_session_ids))
+
+        if not session_ids:
+            return None
+
+        activity_dates = []
+
+        # Latest conversation
+        conv_latest = db.query(func.max(Conversation.created_at)).filter(
+            Conversation.session_id.in_(session_ids)
+        ).scalar()
+        if conv_latest:
+            activity_dates.append(conv_latest)
+
+        # Latest document
+        doc_latest = db.query(func.max(Document.uploaded_at)).filter(
+            Document.session_id.in_(session_ids)
+        ).scalar()
+        if doc_latest:
+            activity_dates.append(doc_latest)
+
+        # Latest audio
+        audio_latest = db.query(func.max(AudioRecording.created_at)).filter(
+            AudioRecording.session_id.in_(session_ids)
+        ).scalar()
+        if audio_latest:
+            activity_dates.append(audio_latest)
+
+        # Session last_activity
+        session_latest = db.query(func.max(SessionModel.last_activity)).filter(
+            SessionModel.id.in_(session_ids),
+            SessionModel.last_activity.isnot(None)
+        ).scalar()
+        if session_latest:
+            activity_dates.append(session_latest)
+
+        return max(activity_dates) if activity_dates else None
+
     def get_unusual_accounts(self, db: Session, z_threshold: float = 2.0) -> List[dict]:
         """
         Get accounts with activity patterns several standard deviations from the mean.
