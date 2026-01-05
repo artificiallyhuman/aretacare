@@ -1,7 +1,10 @@
 from fastapi import APIRouter
-from app.api import auth, sessions, documents, journal, conversation, tools, audio_recording, daily_plans, admin, feedback, profile, waitlist, mfa
+from app.api import auth, sessions, documents, journal, conversation, tools, audio_recording, daily_plans, admin, feedback, profile, waitlist, mfa, health
 
 api_router = APIRouter()
+
+# Health check (detailed)
+api_router.include_router(health.router)
 
 # Authentication
 api_router.include_router(auth.router, prefix="/auth", tags=["auth"])
