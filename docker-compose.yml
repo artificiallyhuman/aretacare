@@ -49,3 +49,5 @@ services:
 
 volumes:
   postgres_data:
+    external: true
+    name: aretacare_postgres_data
