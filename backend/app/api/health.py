@@ -50,7 +50,7 @@ async def detailed_health_check():
     try:
         start = time.time()
         # Use head_bucket to verify connectivity without listing objects
-        s3_service.s3_client.head_bucket(Bucket=s3_service.bucket_name)
+        s3_service._get_sync_client().head_bucket(Bucket=s3_service.bucket_name)
         latency = round((time.time() - start) * 1000, 2)
         checks["s3"] = {"status": "healthy", "latency_ms": latency}
     except Exception as e:
