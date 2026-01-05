@@ -176,6 +176,21 @@ Admin console includes AI-powered daily reports analyzing logs for security patt
 
 ## Security Headers
 
+Security headers are applied at two levels:
+
+### Cloudflare Transform Rules (Frontend)
+
+Applied to all frontend static content via Cloudflare Modify Response Header rules:
+
+| Header | Value |
+|--------|-------|
+| X-Frame-Options | `SAMEORIGIN` |
+| Referrer-Policy | `strict-origin-when-cross-origin` |
+| Permissions-Policy | Restricts accelerometer, camera, geolocation, gyroscope, magnetometer, payment, USB; allows microphone for audio recording |
+| Content-Security-Policy | See CSP details below |
+
+### Backend Middleware (API)
+
 Applied via `SecurityHeadersMiddleware` in `backend/app/core/security_headers.py`:
 
 | Header | Value |
@@ -185,8 +200,27 @@ Applied via `SecurityHeadersMiddleware` in `backend/app/core/security_headers.py
 | X-Frame-Options | `SAMEORIGIN` |
 | X-XSS-Protection | `1; mode=block` |
 | Referrer-Policy | `strict-origin-when-cross-origin` |
-| Permissions-Policy | Restricts camera, geolocation; allows microphone for audio |
-| Content-Security-Policy | Strict CSP (no `unsafe-inline`/`unsafe-eval` for scripts) |
+| Permissions-Policy | Same as Cloudflare |
+| Content-Security-Policy | Same as Cloudflare |
+
+### Content Security Policy Details
+
+```
+default-src 'self';
+script-src 'self' 'unsafe-inline' https://js.hcaptcha.com https://newassets.hcaptcha.com;
+style-src 'self' 'unsafe-inline';
+img-src 'self' data: https:;
+font-src 'self' data:;
+connect-src 'self' https://api.aretacare.com https://*.amazonaws.com https://hcaptcha.com https://*.hcaptcha.com;
+media-src 'self' https://*.amazonaws.com;
+object-src 'self' https://*.amazonaws.com;
+frame-src 'self' https://*.amazonaws.com https://newassets.hcaptcha.com https://*.hcaptcha.com;
+frame-ancestors 'self';
+form-action 'self';
+base-uri 'self'
+```
+
+**Note:** `unsafe-inline` is required for `script-src` because Vite injects a bootstrap script. This is a common trade-off for React/Vite applications.
 
 ---
 

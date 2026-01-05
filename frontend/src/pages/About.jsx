@@ -827,7 +827,7 @@ const About = () => {
               <div>
                 <h5 className="font-semibold text-gray-900 dark:text-white mb-2">Network Protection</h5>
                 <p className="leading-relaxed">
-                  We use Cloudflare as a protective layer in front of the site to block malicious traffic, DDoS attacks (traffic floods designed to overwhelm websites), and known bad actors before they ever reach our servers.
+                  We use Cloudflare as a protective layer in front of the site to block malicious traffic, DDoS attacks (traffic floods designed to overwhelm websites), and known bad actors before they ever reach our servers. Cloudflare also sends security instructions to your browser that restrict content to trusted sources, helping protect against malicious scripts and clickjacking attacks.
                 </p>
               </div>
             </div>
