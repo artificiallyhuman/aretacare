@@ -6,6 +6,7 @@ import { formatTime } from '../utils/dateUtils';
 import AudioWaveform from './AudioWaveform';
 
 const MAX_RECORDING_SECONDS = 900; // 15 minutes (corresponds to ~50MB at typical WebM bitrate)
+const SILENCE_THRESHOLD = 5; // Minimum average audio level to consider as non-silent (0-255 scale)
 
 const ROTATING_PROMPTS = [
   "My mom's been in the hospital for a week…",
@@ -44,6 +45,10 @@ const MessageInput = ({ onSendMessage, loading, hasMessages = false }) => {
   const textareaRef = useRef(null);
   const recordingTimerRef = useRef(null);
   const promptRotationTimerRef = useRef(null);
+  const audioContextRef = useRef(null);
+  const analyserRef = useRef(null);
+  const maxAudioLevelRef = useRef(0);
+  const silenceCheckIntervalRef = useRef(null);
 
   // Detect mobile screen size
   useEffect(() => {
@@ -174,6 +179,28 @@ const MessageInput = ({ onSendMessage, loading, hasMessages = false }) => {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       setAudioStream(stream); // Save stream for waveform visualization
 
+      // Set up audio analysis for silence detection
+      const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      const analyser = audioContext.createAnalyser();
+      const source = audioContext.createMediaStreamSource(stream);
+      source.connect(analyser);
+      analyser.fftSize = 256;
+      const bufferLength = analyser.frequencyBinCount;
+      const dataArray = new Uint8Array(bufferLength);
+
+      audioContextRef.current = audioContext;
+      analyserRef.current = analyser;
+      maxAudioLevelRef.current = 0;
+
+      // Monitor audio levels during recording
+      silenceCheckIntervalRef.current = setInterval(() => {
+        analyser.getByteFrequencyData(dataArray);
+        const average = dataArray.reduce((a, b) => a + b, 0) / bufferLength;
+        if (average > maxAudioLevelRef.current) {
+          maxAudioLevelRef.current = average;
+        }
+      }, 100);
+
       // Use supported audio format - prefer Opus codec in WebM container
       let options = { mimeType: 'audio/webm;codecs=opus' };
 
@@ -196,8 +223,26 @@ const MessageInput = ({ onSendMessage, loading, hasMessages = false }) => {
       });
 
       mediaRecorder.addEventListener('stop', async () => {
+        // Clean up silence detection
+        if (silenceCheckIntervalRef.current) {
+          clearInterval(silenceCheckIntervalRef.current);
+          silenceCheckIntervalRef.current = null;
+        }
+        if (audioContextRef.current) {
+          audioContextRef.current.close();
+          audioContextRef.current = null;
+        }
+
         // Longer delay to ensure all data events have been processed, especially on mobile
         await new Promise(resolve => setTimeout(resolve, 500));
+
+        // Check for silence before transcribing
+        if (maxAudioLevelRef.current < SILENCE_THRESHOLD) {
+          alert('No audio detected. Please check your microphone and try again.');
+          stream.getTracks().forEach(track => track.stop());
+          setAudioStream(null);
+          return;
+        }
 
         const audioBlob = new Blob(audioChunksRef.current, { type: mediaRecorder.mimeType });
 
