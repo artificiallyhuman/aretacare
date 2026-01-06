@@ -39,6 +39,7 @@ const MessageInput = ({ onSendMessage, loading, hasMessages = false }) => {
   const [isMobile, setIsMobile] = useState(false);
   const [audioRecordingId, setAudioRecordingId] = useState(null);
   const [showNotification, setShowNotification] = useState(false);
+  const [showSilenceWarning, setShowSilenceWarning] = useState(false);
   const fileInputRef = useRef(null);
   const mediaRecorderRef = useRef(null);
   const audioChunksRef = useRef([]);
@@ -126,6 +127,17 @@ const MessageInput = ({ onSendMessage, loading, hasMessages = false }) => {
       return () => clearTimeout(timer);
     }
   }, [showNotification]);
+
+  // Auto-hide silence warning after 5 seconds
+  useEffect(() => {
+    if (showSilenceWarning) {
+      const timer = setTimeout(() => {
+        setShowSilenceWarning(false);
+      }, 5000);
+
+      return () => clearTimeout(timer);
+    }
+  }, [showSilenceWarning]);
 
   // Auto-resize textarea as content grows
   const handleTextareaChange = (e) => {
@@ -238,7 +250,7 @@ const MessageInput = ({ onSendMessage, loading, hasMessages = false }) => {
 
         // Check for silence before transcribing
         if (maxAudioLevelRef.current < SILENCE_THRESHOLD) {
-          alert('No audio detected. Please check your microphone and try again.');
+          setShowSilenceWarning(true);
           stream.getTracks().forEach(track => track.stop());
           setAudioStream(null);
           return;
@@ -331,6 +343,18 @@ const MessageInput = ({ onSendMessage, loading, hasMessages = false }) => {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
             </svg>
             <span className="text-sm font-medium">You can view and delete this recording in the Audio Recordings tool</span>
+          </div>
+        </div>
+      )}
+
+      {/* Silence warning */}
+      {showSilenceWarning && (
+        <div className="mb-2 md:mb-3 bg-amber-50 dark:bg-amber-900/30 border-2 border-amber-300 dark:border-amber-700 text-amber-900 dark:text-amber-100 px-4 py-3 rounded-lg shadow-lg animate-fade-in">
+          <div className="flex items-center gap-3">
+            <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+            </svg>
+            <span className="text-sm font-medium">No audio detected. Please check your microphone and try again.</span>
           </div>
         </div>
       )}
