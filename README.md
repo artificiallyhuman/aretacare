@@ -16,25 +16,35 @@ AretaCare was built from this experience—sitting beside a loved one, trying to
 
 ## What It Does
 
-**Conversation** — Organize care information through chat. Type messages, record voice notes, share documents. AretaCare explains terminology and helps prepare for care team conversations. Edit messages, copy to clipboard as formatted text.
+### Core Experience
 
-**Multi-Session Support** — Up to 5 personal sessions for different care situations. Each maintains separate conversations, documents, journal, and daily digests.
+**Conversation** — Talk to AretaCare like you would a knowledgeable friend. Ask questions, share updates, upload documents, or record voice notes. It remembers your care situation and helps you make sense of complex medical information.
 
-**Session Collaboration** — Share sessions with up to 10 people total. Manage collaborators, transfer ownership, handle pending invitations.
+**Journal** — Every conversation automatically becomes a searchable timeline. Appointments, test results, care decisions, and milestones are captured and organized by date—no manual logging required.
 
-**Journal** — Automatic timeline from conversations. Updates, appointments, insights, milestones—all captured and categorized. Navigate by date, see future entries highlighted.
+**Daily Digest** — Each day, get a summary of what's happening: recent changes, upcoming reminders, and suggested questions for your care team. Fully editable if you want to add your own notes.
 
-**Daily Digest** — Scannable summary of changes, reminders, and suggested questions. Editable and regenerated daily.
+**Care Profile** — A living summary of everything AretaCare knows about your care situation: patient details, caregivers, providers, conditions, medications, allergies, and key events. You review and approve all changes before they're saved.
 
-**Care Profile** — AI-powered long-term memory: patient info, caregivers, providers, conditions, medications (14 categories), allergies, events. Visual timeline, status badges, completeness tracking. You control all data through diff review.
+### Organization
 
-**Documents & Audio** — AI-categorized uploads (12 categories each). PDFs, images, text files. Audio with live waveform, transcription, browser-friendly conversion.
+**Multiple Sessions** — Managing care for different people, or want to keep situations separate? Create up to 5 sessions, each with its own conversations, documents, journal, and profile.
 
-**Specialized Tools** — Jargon Translator (explains terminology), Conversation Coach (prepares questions for care teams). Both support audio input.
+**Session Sharing** — Invite up to 9 other people to collaborate on a session. Everyone sees the same information and can contribute to conversations.
 
-**Security** — Optional MFA (passkeys, authenticator apps, backup codes), trusted devices, JWT authentication with refresh tokens, idle timeout, "logout everywhere" capability.
+**Documents & Audio** — Upload PDFs, images, and text files. Record audio directly in the app. Everything is automatically categorized and transcribed so you can find it later.
 
-**Controlled Signups** — Waitlist mode (default) requires admin invitation. Administrators manage via console.
+### Tools
+
+**Jargon Translator** — Paste confusing medical language and get clear explanations in plain terms.
+
+**Conversation Coach** — Preparing for an appointment? Get help forming the right questions to ask your care team.
+
+### Security
+
+**Multi-Factor Authentication** — Optional extra protection with passkeys, authenticator apps, or backup codes. Trusted devices skip MFA on recognized browsers.
+
+**Controlled Access** — New signups require an invitation from an administrator, keeping the platform secure and manageable.
 
 ---
 
