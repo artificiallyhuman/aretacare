@@ -115,7 +115,7 @@ AretaCare implements comprehensive security measures:
 - **Password Hashing**: bcrypt with secure work factor
 - **Password Requirements**: Minimum 8 characters, maximum 72 characters (bcrypt limit)
 - **Account Lockout**: 5 failed login attempts triggers 15-minute lockout with progressive warnings
-- **Sign Out Everywhere**: Users can end all sessions on every device
+- **Sign Out Everywhere**: Users can end all active sign-ins
 
 ### Multi-Factor Authentication (MFA)
 - **Passkeys (WebAuthn)**: Phishing-resistant authentication using biometrics or hardware keys; maximum 10 per account

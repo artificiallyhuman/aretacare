@@ -247,7 +247,7 @@ export default function Settings() {
 
     try {
       const response = await authAPI.logoutEverywhere();
-      setSuccess((prev) => ({ ...prev, security: response.data.message || 'Logged out of all devices' }));
+      setSuccess((prev) => ({ ...prev, security: response.data.message || 'Logged out of all sign-ins' }));
 
       // Log out current session after a short delay
       setTimeout(async () => {
@@ -1036,7 +1036,7 @@ export default function Settings() {
                           </h3>
                           <span className="text-xs text-gray-500 dark:text-gray-400">
                             {devicesCount !== null ? (
-                              <>{devicesCount} {devicesCount === 1 ? 'device' : 'devices'} used in last 24h</>
+                              <>{devicesCount} active {devicesCount === 1 ? 'sign-in' : 'sign-ins'} in last 24h</>
                             ) : (
                               'Loading...'
                             )}
@@ -1052,7 +1052,7 @@ export default function Settings() {
                       </button>
                     </div>
                     <p className="text-sm text-gray-600 dark:text-gray-400 ml-13">
-                      End all sessions on every device, including this one. Use this if you've lost a device or suspect unauthorized access. You'll need to sign back in.
+                      End all active sign-ins, including this one. Use this if you've lost a device or suspect unauthorized access. You'll need to sign back in.
                     </p>
 
                     {errors.security && (

@@ -1298,8 +1298,8 @@ def logout_everywhere(
     count = revoke_all_user_tokens(db, current_user.id)
 
     return {
-        "message": f"Logged out of {count} device(s)",
-        "devices_logged_out": count
+        "message": f"Logged out of {count} sign-in(s)",
+        "sign_ins_logged_out": count
     }
 
 
