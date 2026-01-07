@@ -1032,11 +1032,11 @@ export default function Settings() {
                         </div>
                         <div>
                           <h3 className="text-sm font-medium text-gray-900 dark:text-white">
-                            Sign Out All Devices
+                            Sign Out Everywhere
                           </h3>
                           <span className="text-xs text-gray-500 dark:text-gray-400">
                             {devicesCount !== null ? (
-                              <>{devicesCount} active {devicesCount === 1 ? 'session' : 'sessions'}</>
+                              <>{devicesCount} {devicesCount === 1 ? 'device' : 'devices'} used in last 24h</>
                             ) : (
                               'Loading...'
                             )}
@@ -1048,11 +1048,11 @@ export default function Settings() {
                         disabled={loading.security}
                         className="text-sm text-orange-600 dark:text-orange-400 hover:text-orange-700 dark:hover:text-orange-300 disabled:opacity-50"
                       >
-                        {loading.security ? 'Signing Out...' : 'Log Out All'}
+                        {loading.security ? 'Signing Out...' : 'Sign Out'}
                       </button>
                     </div>
                     <p className="text-sm text-gray-600 dark:text-gray-400 ml-13">
-                      Log out of all devices and browsers where you're currently signed in.
+                      End all sessions on every device, including this one. Use this if you've lost a device or suspect unauthorized access. You'll need to sign back in.
                     </p>
 
                     {errors.security && (

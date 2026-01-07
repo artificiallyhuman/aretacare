@@ -39,7 +39,7 @@ security = HTTPBearer()
 
 # Cookie configuration for refresh tokens
 REFRESH_TOKEN_COOKIE_NAME = "refresh_token"
-REFRESH_TOKEN_MAX_AGE = 30 * 24 * 60 * 60  # 30 days in seconds
+# Note: No max_age - cookie is session-only (deleted on browser close) for healthcare security
 
 
 # Valid JWT pattern: base64url characters and dots only
@@ -47,7 +47,7 @@ JWT_PATTERN = re.compile(r'^[A-Za-z0-9_\-\.]+$')
 
 
 def set_refresh_token_cookie(response: Response, refresh_token: str):
-    """Set HttpOnly cookie for refresh token."""
+    """Set HttpOnly session cookie for refresh token (expires on browser close)."""
     # Validate token contains only safe JWT characters to prevent cookie injection
     if not refresh_token or not JWT_PATTERN.match(refresh_token):
         raise ValueError("Invalid refresh token format")
@@ -55,7 +55,8 @@ def set_refresh_token_cookie(response: Response, refresh_token: str):
     response.set_cookie(
         key=REFRESH_TOKEN_COOKIE_NAME,
         value=refresh_token,
-        max_age=REFRESH_TOKEN_MAX_AGE,
+        # No max_age = session cookie (deleted when browser closes)
+        # This is appropriate for healthcare apps handling sensitive data
         httponly=True,  # Prevents JavaScript access - protects against XSS
         secure=not settings.DEBUG,  # HTTPS only in production
         samesite="lax",  # Protects against CSRF while allowing normal navigation
@@ -1308,17 +1309,21 @@ def get_active_devices_count(
     db: DBSession = Depends(get_db)
 ):
     """
-    Get the count of active devices/sessions for the current user.
+    Get the count of recently active devices for the current user.
 
-    Returns the number of active (non-revoked, non-expired) refresh tokens,
-    which represents the number of devices/browsers where the user is logged in.
+    Returns the number of devices/browsers that have been used in the last 24 hours.
+    This provides a more accurate count than showing all non-expired tokens,
+    since session cookies may have been deleted when browsers closed.
     """
     from app.models.refresh_token import RefreshToken
+
+    twenty_four_hours_ago = datetime.utcnow() - timedelta(hours=24)
 
     count = db.query(RefreshToken).filter(
         RefreshToken.user_id == current_user.id,
         RefreshToken.is_revoked == False,
-        RefreshToken.expires_at > datetime.utcnow()
+        RefreshToken.expires_at > datetime.utcnow(),
+        RefreshToken.last_used_at >= twenty_four_hours_ago
     ).count()
 
     return {"count": count}

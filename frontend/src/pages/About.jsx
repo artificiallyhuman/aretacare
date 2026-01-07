@@ -777,7 +777,7 @@ const About = () => {
               <div>
                 <h5 className="font-semibold text-gray-900 dark:text-white mb-2">Secure Sign-In Sessions</h5>
                 <p className="leading-relaxed">
-                  When you sign in, AretaCare uses modern session tokens that expire after about an hour. A separate renewal token is stored securely in your browser in a way that website scripts cannot access, helping protect against common attacks.
+                  When you sign in, AretaCare uses modern session tokens that expire after about an hour. A separate renewal token is stored securely in your browser in a way that website scripts cannot access. For your security, closing your browser automatically logs you out, and sessions expire after 7 days even if your browser stays open.
                 </p>
               </div>
               <div>

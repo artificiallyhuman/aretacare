@@ -6,7 +6,7 @@ Interactive docs: `/docs` (Swagger) or `/redoc` (ReDoc)
 
 ## Authentication
 
-JWT-based auth with access tokens (1 hour) + refresh tokens (30 days, HttpOnly cookie).
+JWT-based auth with access tokens (1 hour) + refresh tokens (7 days max, session cookie that expires on browser close).
 
 ### Register
 ```bash
@@ -49,8 +49,8 @@ POST /api/auth/login/mfa-verify
 |----------|--------|-------------|
 | `/auth/me` | GET | Get current user |
 | `/auth/refresh` | POST | Refresh access token |
-| `/auth/logout` | POST | Clear session |
-| `/auth/logout-everywhere` | POST | Revoke all sessions |
+| `/auth/logout` | POST | End current session |
+| `/auth/logout-everywhere` | POST | End all sessions on every device |
 | `/auth/verify-email?token=` | GET | Verify email |
 | `/auth/resend-verification` | POST | Resend verification (1/min) |
 | `/auth/password/reset-request` | POST | Request password reset |

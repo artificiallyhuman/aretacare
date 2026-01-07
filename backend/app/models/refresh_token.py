@@ -9,7 +9,7 @@ class RefreshToken(Base):
     """
     Refresh token model for managing user sessions across devices.
 
-    Refresh tokens are long-lived tokens (30 days) used to obtain new
+    Refresh tokens are long-lived tokens (7 days max) used to obtain new
     short-lived access tokens (1 hour). This allows:
     - Better security (stolen access tokens expire quickly)
     - Token revocation (logout everywhere, ban user)

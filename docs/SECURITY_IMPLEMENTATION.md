@@ -10,8 +10,8 @@ Technical documentation of AretaCare's security measures.
 
 | Token Type | Lifetime | Storage | Purpose |
 |------------|----------|---------|---------|
-| Access Token | 1 hour | localStorage | API authentication |
-| Refresh Token | 30 days | HttpOnly cookie | Token renewal |
+| Access Token | 1 hour | In-memory | API authentication |
+| Refresh Token | 7 days max, session cookie | HttpOnly cookie | Token renewal (expires on browser close) |
 
 **Key Files:** `backend/app/core/auth.py`, `backend/app/api/auth.py`
 

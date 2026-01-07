@@ -110,12 +110,12 @@ We follow a **coordinated disclosure** model:
 AretaCare implements comprehensive security measures:
 
 ### Authentication & Session Management
-- **Two-Token JWT System**: Short-lived access tokens (1 hour) + long-lived refresh tokens (30 days)
-- **HttpOnly Cookies**: Refresh tokens stored in HttpOnly cookies to prevent XSS access
+- **Two-Token JWT System**: Short-lived access tokens (1 hour) + session-based refresh tokens (7 days max, expires on browser close)
+- **HttpOnly Cookies**: Refresh tokens stored in HttpOnly session cookies to prevent XSS access
 - **Password Hashing**: bcrypt with secure work factor
 - **Password Requirements**: Minimum 8 characters, maximum 72 characters (bcrypt limit)
 - **Account Lockout**: 5 failed login attempts triggers 15-minute lockout with progressive warnings
-- **Logout Everywhere**: Users can revoke all active sessions
+- **Sign Out Everywhere**: Users can end all sessions on every device
 
 ### Multi-Factor Authentication (MFA)
 - **Passkeys (WebAuthn)**: Phishing-resistant authentication using biometrics or hardware keys; maximum 10 per account
@@ -183,4 +183,4 @@ If you have questions about this security policy or responsible disclosure, plea
 
 ---
 
-**Last Updated**: 2025-12-31
+**Last Updated**: 2026-01-06

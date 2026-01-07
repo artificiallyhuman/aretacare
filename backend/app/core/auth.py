@@ -10,7 +10,7 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 # JWT settings
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60  # 1 hour (short-lived)
-REFRESH_TOKEN_EXPIRE_DAYS = 30  # 30 days (long-lived)
+REFRESH_TOKEN_EXPIRE_DAYS = 7  # 7 days (healthcare-appropriate)
 
 
 def _truncate_password(password: str, max_bytes: int = 72) -> str:
@@ -88,12 +88,14 @@ def create_refresh_token_record(db, user_id: str, device_info: str = None, ip_ad
     token = RefreshToken.generate_token()
 
     # Create the database record
+    now = datetime.utcnow()
     refresh_token = RefreshToken(
         user_id=user_id,
         token=token,
-        expires_at=datetime.utcnow() + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS),
+        expires_at=now + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS),
         device_info=device_info,
-        ip_address=ip_address
+        ip_address=ip_address,
+        last_used_at=now  # Set on creation so device appears in "active in last 24h" immediately
     )
 
     db.add(refresh_token)
