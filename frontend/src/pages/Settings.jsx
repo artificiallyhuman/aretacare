@@ -247,7 +247,7 @@ export default function Settings() {
 
     try {
       const response = await authAPI.logoutEverywhere();
-      setSuccess((prev) => ({ ...prev, security: response.data.message || 'Logged out of all sign-ins' }));
+      setSuccess((prev) => ({ ...prev, security: response.data.message || 'Revoked all active tokens' }));
 
       // Log out current session after a short delay
       setTimeout(async () => {
