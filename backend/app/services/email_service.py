@@ -93,17 +93,16 @@ class EmailService:
         These headers help email providers verify the message is legitimate:
         - Message-ID: Unique identifier for the message
         - Date: RFC 2822 formatted timestamp
+        - Reply-To: Set to noreply address (override in specific methods if needed)
         - X-Mailer: Identifies the sending application
         - X-Priority: Normal priority (not spam-like high priority)
-
-        Note: Reply-To is NOT set here. Most emails are noreply.
-        Set Reply-To explicitly in methods where replies make sense.
         """
         # Extract domain from sender email for Message-ID
         domain = settings.SMTP_FROM_EMAIL.split('@')[1] if '@' in settings.SMTP_FROM_EMAIL else 'aretacare.com'
 
         message["Message-ID"] = make_msgid(domain=domain)
         message["Date"] = formatdate(localtime=True)
+        message["Reply-To"] = settings.SMTP_FROM_EMAIL  # Explicit noreply for deliverability
         message["X-Mailer"] = "AretaCare Notifications"
         message["X-Priority"] = "3"  # Normal priority
 
