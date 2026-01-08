@@ -1,7 +1,9 @@
 import smtplib
+from datetime import datetime
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from email.utils import make_msgid, formatdate
+from typing import Optional
 from app.core.config import settings
 import logging
 import time
@@ -91,16 +93,17 @@ class EmailService:
         These headers help email providers verify the message is legitimate:
         - Message-ID: Unique identifier for the message
         - Date: RFC 2822 formatted timestamp
-        - Reply-To: Where replies should go
         - X-Mailer: Identifies the sending application
         - X-Priority: Normal priority (not spam-like high priority)
+
+        Note: Reply-To is NOT set here. Most emails are noreply.
+        Set Reply-To explicitly in methods where replies make sense.
         """
         # Extract domain from sender email for Message-ID
         domain = settings.SMTP_FROM_EMAIL.split('@')[1] if '@' in settings.SMTP_FROM_EMAIL else 'aretacare.com'
 
         message["Message-ID"] = make_msgid(domain=domain)
         message["Date"] = formatdate(localtime=True)
-        message["Reply-To"] = settings.FEEDBACK_EMAIL
         message["X-Mailer"] = "AretaCare Notifications"
         message["X-Priority"] = "3"  # Normal priority
 
@@ -2002,6 +2005,7 @@ Client IP: {metadata.get('client_ip', 'N/A')}
             email_message["From"] = f"{settings.SMTP_FROM_NAME} <{settings.SMTP_FROM_EMAIL}>"
             email_message["To"] = user_email
             EmailService._add_deliverability_headers(email_message)
+            email_message["Reply-To"] = settings.FEEDBACK_EMAIL  # Allow user to continue conversation
 
             # Plain text version
             text_content = f"""
@@ -3034,6 +3038,204 @@ The AretaCare Team
 
         except Exception as e:
             logger.error(f"Error preparing new trusted device email: {str(e)}")
+            return False
+
+    @staticmethod
+    def send_security_alert_email(
+        event_type: str,
+        email: Optional[str] = None,
+        user_id: Optional[str] = None,
+        ip_address: Optional[str] = None,
+        user_agent: Optional[str] = None,
+        endpoint: Optional[str] = None,
+        details: Optional[str] = None,
+        timestamp: Optional[datetime] = None
+    ) -> bool:
+        """
+        Send security alert email to the security team.
+
+        Args:
+            event_type: Type of security event
+            email: User email (if available)
+            user_id: User ID (if available)
+            ip_address: Client IP address
+            user_agent: Client user agent string
+            endpoint: API endpoint accessed
+            details: Additional context
+            timestamp: Event timestamp (defaults to now)
+
+        Returns:
+            bool: True if email sent successfully, False otherwise
+        """
+        try:
+            # Format event type for display
+            event_labels = {
+                "failed_login": "Failed Login Attempt",
+                "account_lockout": "Account Lockout",
+                "invalid_token": "Invalid Token",
+                "unauthorized_access": "Unauthorized Access",
+                "mfa_login_invalid_token": "MFA Login - Invalid Token",
+                "mfa_login_failed": "MFA Login Failed",
+                "mfa_totp_setup_failed": "TOTP Setup Failed",
+                "mfa_passkey_registration_failed": "Passkey Registration Failed",
+                "mfa_disable_failed": "MFA Disable Failed",
+                "mfa_action_verification_failed": "MFA Action Verification Failed",
+                "blocked_file_upload": "Blocked File Upload",
+                "upload_failure": "Upload Failure",
+                "email_changed": "Email Address Changed"
+            }
+            event_label = event_labels.get(event_type, event_type.replace("_", " ").title())
+
+            # Use provided timestamp or current time
+            event_time = timestamp or datetime.utcnow()
+            formatted_time = event_time.strftime("%Y-%m-%d %H:%M:%S UTC")
+
+            # Truncate user agent for display
+            display_user_agent = user_agent[:100] + "..." if user_agent and len(user_agent) > 100 else user_agent
+
+            # Admin console URL
+            admin_url = f"{settings.FRONTEND_URL}/admin/security-logs"
+
+            message = MIMEMultipart("alternative")
+            message["Subject"] = f"[SECURITY ALERT] {event_label} - AretaCare"
+            message["From"] = f"{settings.SMTP_FROM_NAME} <{settings.SMTP_FROM_EMAIL}>"
+            message["To"] = settings.SECURITY_ALERT_EMAIL
+            EmailService._add_deliverability_headers(message)
+
+            text_content = f"""
+SECURITY ALERT - AretaCare
+
+Event: {event_label}
+Time: {formatted_time}
+
+Details:
+- User Email: {email or 'N/A'}
+- User ID: {user_id or 'N/A'}
+- IP Address: {ip_address or 'Unknown'}
+- User Agent: {display_user_agent or 'N/A'}
+- Endpoint: {endpoint or 'N/A'}
+- Additional Details: {details or 'None'}
+
+View security logs: {admin_url}
+
+This is an automated security alert from AretaCare.
+            """
+
+            html_content = f"""
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f3f4f6;">
+    <table role="presentation" style="width: 100%; border-collapse: collapse;">
+        <tr>
+            <td align="center" style="padding: 40px 0;">
+                <table role="presentation" style="width: 600px; max-width: 100%; background-color: #ffffff; border-radius: 8px; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);">
+                    <!-- Header -->
+                    <tr>
+                        <td style="padding: 40px 40px 20px; text-align: center; background-color: #dc2626; border-radius: 8px 8px 0 0;">
+                            <h1 style="margin: 0; color: #ffffff; font-size: 28px;">Security Alert</h1>
+                            <p style="margin: 10px 0 0; color: #fecaca; font-size: 16px;">AretaCare Security Team</p>
+                        </td>
+                    </tr>
+
+                    <!-- Event Badge -->
+                    <tr>
+                        <td style="padding: 20px 40px 0;">
+                            <div style="background-color: #fef2f2; border: 1px solid #fecaca; border-radius: 6px; padding: 12px 16px; text-align: center;">
+                                <span style="color: #dc2626; font-weight: 600; font-size: 18px;">{event_label}</span>
+                            </div>
+                        </td>
+                    </tr>
+
+                    <!-- Event Details -->
+                    <tr>
+                        <td style="padding: 20px 40px;">
+                            <table style="width: 100%; border-collapse: collapse;">
+                                <tr>
+                                    <td style="padding: 8px 0; color: #6b7280; font-size: 14px; border-bottom: 1px solid #e5e7eb; width: 120px;">Timestamp</td>
+                                    <td style="padding: 8px 0; color: #111827; font-size: 14px; border-bottom: 1px solid #e5e7eb;">{formatted_time}</td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 8px 0; color: #6b7280; font-size: 14px; border-bottom: 1px solid #e5e7eb;">User Email</td>
+                                    <td style="padding: 8px 0; color: #111827; font-size: 14px; border-bottom: 1px solid #e5e7eb;">{email or '<span style="color: #9ca3af;">N/A</span>'}</td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 8px 0; color: #6b7280; font-size: 14px; border-bottom: 1px solid #e5e7eb;">User ID</td>
+                                    <td style="padding: 8px 0; color: #111827; font-size: 14px; font-family: monospace; border-bottom: 1px solid #e5e7eb;">{user_id or '<span style="color: #9ca3af;">N/A</span>'}</td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 8px 0; color: #6b7280; font-size: 14px; border-bottom: 1px solid #e5e7eb;">IP Address</td>
+                                    <td style="padding: 8px 0; color: #111827; font-size: 14px; font-family: monospace; border-bottom: 1px solid #e5e7eb;">{ip_address or '<span style="color: #9ca3af;">Unknown</span>'}</td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 8px 0; color: #6b7280; font-size: 14px; border-bottom: 1px solid #e5e7eb;">User Agent</td>
+                                    <td style="padding: 8px 0; color: #111827; font-size: 12px; border-bottom: 1px solid #e5e7eb; word-break: break-all;">{display_user_agent or '<span style="color: #9ca3af;">N/A</span>'}</td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 8px 0; color: #6b7280; font-size: 14px; border-bottom: 1px solid #e5e7eb;">Endpoint</td>
+                                    <td style="padding: 8px 0; color: #111827; font-size: 14px; font-family: monospace; border-bottom: 1px solid #e5e7eb;">{endpoint or '<span style="color: #9ca3af;">N/A</span>'}</td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 8px 0; color: #6b7280; font-size: 14px;">Details</td>
+                                    <td style="padding: 8px 0; color: #111827; font-size: 14px;">{details or '<span style="color: #9ca3af;">None</span>'}</td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+
+                    <!-- Action Button -->
+                    <tr>
+                        <td style="padding: 20px 40px;">
+                            <table role="presentation" style="margin: 0 auto;">
+                                <tr>
+                                    <td style="border-radius: 6px; background-color: #059669;">
+                                        <a href="{admin_url}" target="_blank" style="display: inline-block; padding: 14px 32px; color: #ffffff; text-decoration: none; font-size: 16px; font-weight: 600;">
+                                            View Security Logs
+                                        </a>
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+
+                    <!-- Footer -->
+                    <tr>
+                        <td style="padding: 20px 40px; background-color: #f9fafb; border-top: 1px solid #e5e7eb; border-radius: 0 0 8px 8px;">
+                            <p style="margin: 0; color: #6b7280; font-size: 12px; line-height: 18px; text-align: center;">
+                                This is an automated security alert from AretaCare.<br>
+                                Do not reply to this email.
+                            </p>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>
+            """
+
+            part1 = MIMEText(text_content, "plain")
+            part2 = MIMEText(html_content, "html")
+            message.attach(part1)
+            message.attach(part2)
+
+            if not settings.SMTP_PASSWORD:
+                logger.warning("SMTP_PASSWORD not configured. Security alert not sent. Using development mode.")
+                logger.info(f"Development mode: Security alert - {event_label} for {email or 'unknown user'}")
+                return False
+
+            # Send email with retry
+            if EmailService._send_with_retry(message):
+                logger.info(f"Security alert email sent successfully: {event_label}")
+                return True
+            return False
+
+        except Exception as e:
+            logger.error(f"Error preparing security alert email: {str(e)}")
             return False
 
 

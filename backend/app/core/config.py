@@ -76,6 +76,17 @@ class Settings(BaseSettings):
     FRONTEND_URL: str = "http://localhost:3001"
     FEEDBACK_EMAIL: str = "feedback@aretacare.com"  # Email address to receive feedback submissions
 
+    # Security Alerts
+    SECURITY_ALERT_EMAIL: str = "security@aretacare.com"  # Email address to receive security alerts
+    SECURITY_ALERT_EVENTS: str = "account_lockout,blocked_file_upload,email_changed,unauthorized_access"  # Comma-separated event types
+
+    @property
+    def security_alert_events_list(self) -> List[str]:
+        """Parse security alert events from comma-separated string."""
+        if not self.SECURITY_ALERT_EVENTS:
+            return []
+        return [event.strip().lower() for event in self.SECURITY_ALERT_EVENTS.split(",") if event.strip()]
+
     # hCaptcha (for spam prevention)
     HCAPTCHA_SECRET_KEY: str = ""  # hCaptcha secret key
 

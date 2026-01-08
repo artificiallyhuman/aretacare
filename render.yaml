@@ -49,18 +49,32 @@ services:
         sync: false  # Your frontend URL, e.g., https://yourdomain.com
       - key: ADMIN_EMAILS
         sync: false  # Comma-separated admin emails
+      - key: CONTROL_SIGNUPS
+        sync: false  # Waitlist mode - set to true to require admin invitation
       - key: AUDIT_LOG_RETENTION_DAYS
-        value: 90
+        sync: false  # Default: 90
       - key: ERROR_LOG_RETENTION_DAYS
-        value: 30
-      - key: SESSION_TIMEOUT_MINUTES
-        value: 60
+        sync: false  # Default: 30
+      - key: API_LOG_RETENTION_DAYS
+        sync: false  # Default: 30
+      - key: SECURITY_LOG_RETENTION_DAYS
+        sync: false  # Default: 90
+      - key: ADMIN_REPORT_RETENTION_DAYS
+        sync: false  # Default: 30
       - key: S3_KEY_PREFIX
         value: prod/
       - key: HCAPTCHA_SECRET_KEY
         sync: false  # Optional: Get from https://www.hcaptcha.com/
       - key: FEEDBACK_EMAIL
         sync: false  # Email to receive feedback, e.g., feedback@yourdomain.com
+      - key: SECURITY_ALERT_EMAIL
+        sync: false  # Email for security alerts, e.g., security@yourdomain.com
+      - key: SECURITY_ALERT_EVENTS
+        sync: false  # Default: account_lockout,blocked_file_upload,email_changed,unauthorized_access
+      - key: WEBAUTHN_RP_ID
+        sync: false  # Your domain for passkeys, e.g., yourdomain.com
+      - key: WEBAUTHN_ORIGIN
+        sync: false  # Your frontend origin for passkeys, e.g., https://yourdomain.com
 
   # Frontend
   - type: web

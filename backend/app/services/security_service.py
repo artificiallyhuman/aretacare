@@ -2,11 +2,15 @@
 Security logging service for tracking unauthorized access attempts.
 """
 import logging
+import threading
+from collections import deque
+from datetime import datetime, timedelta
 from typing import Optional
 from sqlalchemy.orm import Session as DBSession
 from fastapi import Request
 
 from app.models.security_log import SecurityLog
+from app.core.config import settings
 
 
 logger = logging.getLogger(__name__)
@@ -14,6 +18,70 @@ logger = logging.getLogger(__name__)
 
 class SecurityService:
     """Service for logging security events."""
+
+    # Security alert rate limiting
+    ALERT_RATE_LIMIT = 10  # Maximum alerts per hour
+    ALERT_WINDOW_SECONDS = 3600  # 1 hour window
+    _alert_timestamps: deque = deque()  # Timestamps of sent alerts
+    _alert_lock = threading.Lock()  # Thread safety for rate limit tracking
+
+    def _can_send_alert(self) -> bool:
+        """
+        Check if we can send another alert (rate limit check).
+        Thread-safe implementation using a sliding window.
+
+        Returns:
+            bool: True if under rate limit, False otherwise
+        """
+        with self._alert_lock:
+            now = datetime.utcnow()
+            cutoff = now - timedelta(seconds=self.ALERT_WINDOW_SECONDS)
+
+            # Remove timestamps older than the window
+            while self._alert_timestamps and self._alert_timestamps[0] < cutoff:
+                self._alert_timestamps.popleft()
+
+            # Check if under limit
+            if len(self._alert_timestamps) >= self.ALERT_RATE_LIMIT:
+                logger.warning(f"Security alert rate limit reached ({self.ALERT_RATE_LIMIT}/hour)")
+                return False
+
+            # Record this alert
+            self._alert_timestamps.append(now)
+            return True
+
+    def _send_alert_async(
+        self,
+        event_type: str,
+        email: Optional[str],
+        user_id: Optional[str],
+        ip_address: Optional[str],
+        user_agent: Optional[str],
+        endpoint: Optional[str],
+        details: Optional[str]
+    ) -> None:
+        """
+        Send security alert email in a background thread.
+        Fire-and-forget - failures are logged but do not raise exceptions.
+        """
+        def send():
+            try:
+                from app.services.email_service import EmailService
+                EmailService.send_security_alert_email(
+                    event_type=event_type,
+                    email=email,
+                    user_id=user_id,
+                    ip_address=ip_address,
+                    user_agent=user_agent,
+                    endpoint=endpoint,
+                    details=details,
+                    timestamp=datetime.utcnow()
+                )
+            except Exception as e:
+                logger.error(f"Failed to send security alert email: {e}")
+
+        thread = threading.Thread(target=send, daemon=True)
+        thread.start()
 
     def log_event(
         self,
@@ -26,7 +94,7 @@ class SecurityService:
         endpoint: Optional[str] = None,
         details: Optional[str] = None
     ):
-        """Log a security event to the database."""
+        """Log a security event to the database and optionally send alert."""
         try:
             security_log = SecurityLog(
                 event_type=event_type,
@@ -40,6 +108,22 @@ class SecurityService:
             db.add(security_log)
             db.commit()
             logger.debug(f"Security event logged: {event_type}")
+
+            # Check if this event type should trigger an alert
+            if event_type.lower() in settings.security_alert_events_list:
+                if self._can_send_alert():
+                    self._send_alert_async(
+                        event_type=event_type,
+                        email=email,
+                        user_id=user_id,
+                        ip_address=ip_address,
+                        user_agent=user_agent,
+                        endpoint=endpoint,
+                        details=details
+                    )
+                else:
+                    logger.warning(f"Security alert suppressed (rate limit): {event_type}")
+
         except Exception as e:
             logger.error(f"Failed to log security event: {e}")
             db.rollback()
