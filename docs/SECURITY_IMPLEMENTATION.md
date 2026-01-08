@@ -95,7 +95,7 @@ Implemented via `slowapi`. See `backend/app/core/rate_limit.py`.
 
 | Endpoint | Limit |
 |----------|-------|
-| Login | 5/minute |
+| Login | 6/minute |
 | Registration | 3/hour |
 | Password Reset | 3/hour |
 | MFA Verification | 5/minute |

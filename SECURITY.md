@@ -128,7 +128,7 @@ AretaCare implements comprehensive security measures:
 - **Automatic Cleanup**: Expired challenges and trusted devices cleaned on server startup
 
 ### Rate Limiting
-- **Login**: 5 attempts per minute per IP
+- **Login**: 6 attempts per minute per IP
 - **Registration**: 3 attempts per hour per IP
 - **Password Reset**: 3 requests per hour
 - **API General**: 100 requests per minute per user
