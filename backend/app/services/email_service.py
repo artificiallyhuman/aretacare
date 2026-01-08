@@ -1847,7 +1847,8 @@ The AretaCare Team
             email_message["From"] = f"{settings.SMTP_FROM_NAME} <{settings.SMTP_FROM_EMAIL}>"
             email_message["To"] = settings.FEEDBACK_EMAIL
             EmailService._add_deliverability_headers(email_message)
-            email_message["Reply-To"] = user_email  # Override to reply to user
+            del email_message["Reply-To"]  # Remove default Reply-To before override
+            email_message["Reply-To"] = user_email  # Set to reply to user
 
             # Plain text version
             text_content = f"""
@@ -2004,6 +2005,7 @@ Client IP: {metadata.get('client_ip', 'N/A')}
             email_message["From"] = f"{settings.SMTP_FROM_NAME} <{settings.SMTP_FROM_EMAIL}>"
             email_message["To"] = user_email
             EmailService._add_deliverability_headers(email_message)
+            del email_message["Reply-To"]  # Remove default Reply-To before override
             email_message["Reply-To"] = settings.FEEDBACK_EMAIL  # Allow user to continue conversation
 
             # Plain text version
