@@ -38,11 +38,11 @@ services:
       - key: SMTP_PORT
         value: 587
       - key: SMTP_USER
-        sync: false  # Your SMTP username, e.g., noreply@yourdomain.com
+        sync: false  # Your SMTP username, e.g., notification@yourdomain.com
       - key: SMTP_PASSWORD
         sync: false
       - key: SMTP_FROM_EMAIL
-        sync: false  # Email address that sends notifications, e.g., noreply@yourdomain.com
+        sync: false  # Email address that sends notifications, e.g., notification@yourdomain.com
       - key: SMTP_FROM_NAME
         sync: false  # Sender name shown in emails, e.g., Your App Name
       - key: FRONTEND_URL

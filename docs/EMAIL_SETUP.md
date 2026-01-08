@@ -19,7 +19,7 @@ AretaCare sends automated emails for:
 ### Prerequisites
 
 1. You must have 2-Step Verification enabled on your Google Account
-2. You need access to a Gmail account you want to use for sending emails (e.g., `noreply@yourdomain.com`)
+2. You need access to a Gmail account you want to use for sending emails (e.g., `notification@yourdomain.com`)
 
 ### Steps to Create Gmail App Password
 

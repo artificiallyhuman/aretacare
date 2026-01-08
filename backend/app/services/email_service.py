@@ -93,7 +93,7 @@ class EmailService:
         These headers help email providers verify the message is legitimate:
         - Message-ID: Unique identifier for the message
         - Date: RFC 2822 formatted timestamp
-        - Reply-To: Set to noreply address (override in specific methods if needed)
+        - Reply-To: Set to sender address (override in specific methods if needed)
         - X-Mailer: Identifies the sending application
         - X-Priority: Normal priority (not spam-like high priority)
         """
@@ -102,7 +102,7 @@ class EmailService:
 
         message["Message-ID"] = make_msgid(domain=domain)
         message["Date"] = formatdate(localtime=True)
-        message["Reply-To"] = settings.SMTP_FROM_EMAIL  # Explicit noreply for deliverability
+        message["Reply-To"] = settings.SMTP_FROM_EMAIL  # Explicit sender for deliverability
         message["X-Mailer"] = "AretaCare Notifications"
         message["X-Priority"] = "3"  # Normal priority
 
