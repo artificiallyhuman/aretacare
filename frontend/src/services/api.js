@@ -431,6 +431,7 @@ export const adminAPI = {
     api.get('/admin/users/search', { params: { email, limit } }),
   getUserDetail: (userId) => api.get(`/admin/users/${userId}`),
   resetUserPassword: (userId) => api.post(`/admin/users/${userId}/reset-password`),
+  resetUserMFA: (userId) => api.post(`/admin/users/${userId}/reset-mfa`),
   deleteUser: (userId) => api.delete(`/admin/users/${userId}`),
 
   // Session administration

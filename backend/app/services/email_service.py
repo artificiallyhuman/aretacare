@@ -2793,6 +2793,126 @@ The AretaCare Team
             return False
 
     @staticmethod
+    def send_mfa_reset_by_admin_email(to_email: str, user_name: str) -> bool:
+        """
+        Send notification email when MFA is reset by an admin.
+
+        Args:
+            to_email: Recipient email address
+            user_name: Name of the user
+
+        Returns:
+            bool: True if email sent successfully, False otherwise
+        """
+        try:
+            message = MIMEMultipart("alternative")
+            message["Subject"] = "🔓 Two-Factor Authentication Reset - AretaCare"
+            message["From"] = f"{settings.SMTP_FROM_NAME} <{settings.SMTP_FROM_EMAIL}>"
+            message["To"] = to_email
+            EmailService._add_deliverability_headers(message)
+
+            text_content = f"""
+Hello {user_name},
+
+Two-factor authentication has been RESET on your AretaCare account by an administrator.
+
+This was done to help you regain access to your account. You can now log in using just your email and password.
+
+We strongly recommend setting up two-factor authentication again after logging in to keep your account secure. You can do this in Settings > Security.
+
+If you did NOT request this change, please contact AretaCare support immediately at support@aretacare.com.
+
+Best regards,
+The AretaCare Team
+            """
+
+            html_content = f"""
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f3f4f6;">
+    <table role="presentation" style="width: 100%; border-collapse: collapse;">
+        <tr>
+            <td align="center" style="padding: 40px 0;">
+                <table role="presentation" style="width: 600px; max-width: 100%; background-color: #ffffff; border-radius: 8px; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);">
+                    <!-- Header -->
+                    <tr>
+                        <td style="padding: 40px 40px 20px; text-align: center;">
+                            <h1 style="margin: 0; color: #059669; font-size: 36px;">AretaCare<span style="font-size: 20px; vertical-align: super;">™</span></h1>
+                            <p style="margin: 10px 0 0; color: #6b7280; font-size: 18px; letter-spacing: 0.5px;">Care | Clarity | Confidence</p>
+                        </td>
+                    </tr>
+
+                    <!-- Content -->
+                    <tr>
+                        <td style="padding: 0 40px 20px;">
+                            <h2 style="margin: 0 0 16px; color: #111827; font-size: 24px;">Two-Factor Authentication Reset</h2>
+                            <p style="margin: 0 0 16px; color: #374151; font-size: 16px; line-height: 24px;">
+                                Hello {user_name},
+                            </p>
+                            <p style="margin: 0 0 16px; color: #374151; font-size: 16px; line-height: 24px;">
+                                Two-factor authentication has been <strong>reset</strong> on your AretaCare account by an administrator.
+                            </p>
+                            <p style="margin: 0 0 16px; color: #374151; font-size: 16px; line-height: 24px;">
+                                This was done to help you regain access to your account. You can now log in using just your email and password.
+                            </p>
+                            <p style="margin: 0 0 16px; color: #374151; font-size: 16px; line-height: 24px;">
+                                We strongly recommend setting up two-factor authentication again after logging in to keep your account secure. You can do this in <strong>Settings &gt; Security</strong>.
+                            </p>
+                        </td>
+                    </tr>
+
+                    <!-- Info -->
+                    <tr>
+                        <td style="padding: 0 40px 40px;">
+                            <div style="background-color: #eff6ff; border-left: 4px solid #3b82f6; padding: 16px; border-radius: 4px;">
+                                <p style="margin: 0; color: #1e40af; font-size: 14px; line-height: 20px;">
+                                    <strong>Note:</strong> If you did NOT request this change, please contact AretaCare support immediately at <a href="mailto:support@aretacare.com" style="color: #1e40af; text-decoration: underline;">support@aretacare.com</a>.
+                                </p>
+                            </div>
+                        </td>
+                    </tr>
+
+                    <!-- Footer -->
+                    <tr>
+                        <td style="padding: 20px 40px; background-color: #f9fafb; border-top: 1px solid #e5e7eb; border-radius: 0 0 8px 8px;">
+                            <p style="margin: 0; color: #6b7280; font-size: 12px; line-height: 18px; text-align: center;">
+                                Best regards,<br>
+                                The AretaCare Team
+                            </p>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>
+            """
+
+            part1 = MIMEText(text_content, "plain")
+            part2 = MIMEText(html_content, "html")
+            message.attach(part1)
+            message.attach(part2)
+
+            if not settings.SMTP_PASSWORD:
+                logger.warning("SMTP_PASSWORD not configured. Email not sent. Using development mode.")
+                return False
+
+            # Send email with retry
+            if EmailService._send_with_retry(message):
+                logger.info(f"MFA reset by admin notification sent successfully to {to_email}")
+                return True
+            return False
+
+        except Exception as e:
+            logger.error(f"Error preparing MFA reset by admin email: {str(e)}")
+            return False
+
+    @staticmethod
     def send_new_passkey_email(to_email: str, user_name: str, device_name: str) -> bool:
         """
         Send notification email when a new passkey is registered

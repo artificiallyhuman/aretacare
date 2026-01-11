@@ -101,6 +101,7 @@ class AdminUserDetail(BaseModel):
     email: str
     name: str
     is_active: bool
+    mfa_enabled: bool
     created_at: datetime
     last_active_session_id: Optional[str] = None
     sessions: List[AdminUserSession]

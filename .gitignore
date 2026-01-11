@@ -35,9 +35,10 @@ env/
 # Internal documentation (contains architecture details)
 CLAUDE.md
 
-# IDEs
+# IDEs and tools
 .vscode/
 .idea/
+.claude/
 *.swp
 *.swo
 *~

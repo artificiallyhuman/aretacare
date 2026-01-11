@@ -615,6 +615,7 @@ class AdminService:
             "email": user.email,
             "name": user.name,
             "is_active": user.is_active,
+            "mfa_enabled": user.mfa_enabled,
             "created_at": user.created_at,
             "last_active_session_id": user.last_active_session_id,
             "sessions": session_details,

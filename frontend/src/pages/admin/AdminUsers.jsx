@@ -100,6 +100,19 @@ function UserDetail({ user, onClose, onAction }) {
     }
   };
 
+  const handleResetMFA = async () => {
+    setLoading(true);
+    try {
+      await adminAPI.resetUserMFA(user.id);
+      onAction('MFA has been reset');
+    } catch (err) {
+      onAction(err.response?.data?.detail || 'Failed to reset MFA', true);
+    } finally {
+      setLoading(false);
+      setConfirmModal(null);
+    }
+  };
+
   const handleDeleteUser = async () => {
     setLoading(true);
     try {
@@ -133,7 +146,7 @@ function UserDetail({ user, onClose, onAction }) {
             </div>
 
             {/* User Info */}
-            <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-2 text-sm">
+            <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 text-sm">
               <div className="flex items-center gap-2">
                 <span className="text-gray-500 dark:text-gray-400">Status:</span>
                 <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
@@ -142,6 +155,16 @@ function UserDetail({ user, onClose, onAction }) {
                     : 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300'
                 }`}>
                   {user.is_active ? 'Active' : 'Inactive'}
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-gray-500 dark:text-gray-400">MFA:</span>
+                <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
+                  user.mfa_enabled
+                    ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300'
+                    : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400'
+                }`}>
+                  {user.mfa_enabled ? 'Enabled' : 'Disabled'}
                 </span>
               </div>
               <div className="text-gray-500 dark:text-gray-400">
@@ -310,6 +333,15 @@ function UserDetail({ user, onClose, onAction }) {
                 >
                   Reset Password
                 </button>
+                {user.mfa_enabled && (
+                  <button
+                    onClick={() => setConfirmModal('resetMfa')}
+                    disabled={loading}
+                    className="px-4 py-2 text-sm font-medium text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-900/30 hover:bg-amber-100 dark:hover:bg-amber-900/50 rounded-lg transition-colors disabled:opacity-50"
+                  >
+                    Reset MFA
+                  </button>
+                )}
                 <button
                   onClick={() => setConfirmModal('delete')}
                   disabled={loading}
@@ -330,6 +362,16 @@ function UserDetail({ user, onClose, onAction }) {
         title="Reset Password"
         message={`Send a password reset email to ${user.email}?`}
         confirmText="Send Reset Email"
+      />
+
+      <ConfirmModal
+        isOpen={confirmModal === 'resetMfa'}
+        onClose={() => setConfirmModal(null)}
+        onConfirm={handleResetMFA}
+        title="Reset MFA"
+        message={`Reset two-factor authentication for ${user.name}? This will disable MFA and remove all passkeys, authenticator apps, and backup codes. The user will be notified by email and can log in with just their password.`}
+        confirmText="Reset MFA"
+        danger
       />
 
       <ConfirmModal

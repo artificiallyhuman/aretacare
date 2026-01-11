@@ -45,6 +45,7 @@ from app.services.admin_report_service import admin_report_service
 from app.models.admin_report import AdminReport
 from app.services.s3_service import s3_service
 from app.services.email_service import email_service
+from app.services.mfa_service import MFAService
 
 logger = logging.getLogger(__name__)
 
@@ -333,6 +334,55 @@ async def admin_reset_password(
         message=f"Password reset email sent to {user.email}",
         email_sent=email_sent
     )
+
+
+@router.post("/users/{user_id}/reset-mfa")
+async def admin_reset_mfa(
+    user_id: str,
+    admin_user: User = Depends(get_admin_user),
+    db: DBSession = Depends(get_db)
+):
+    """
+    Reset MFA for a user (admin action).
+
+    This will:
+    - Disable MFA for the user
+    - Remove all passkeys, TOTP secrets, backup codes, and trusted devices
+    - Send an email notification to the user
+
+    Use this when a user is locked out of their account due to MFA issues.
+    """
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    # Check if MFA is even enabled
+    if not user.mfa_enabled:
+        raise HTTPException(status_code=400, detail="MFA is not enabled for this user")
+
+    # Disable MFA using the service
+    MFAService.disable_mfa(db, user)
+
+    # Send notification email to user
+    email_sent = email_service.send_mfa_reset_by_admin_email(
+        to_email=user.email,
+        user_name=user.name
+    )
+
+    # Log the action
+    admin_service.log_action(
+        db=db,
+        admin_user=admin_user,
+        action="mfa_reset",
+        target_type="user",
+        target_id=str(user.id),
+        details={"user_email": user.email, "email_sent": email_sent}
+    )
+
+    return {
+        "message": f"MFA has been reset for {user.email}",
+        "email_sent": email_sent
+    }
 
 
 @router.delete("/users/{user_id}")
