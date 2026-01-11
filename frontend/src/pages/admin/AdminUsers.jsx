@@ -39,7 +39,7 @@ function ConfirmModal({ isOpen, onClose, onConfirm, title, message, confirmText 
   );
 }
 
-function UserDetail({ user, onClose, onAction }) {
+function UserDetail({ user, onClose, onAction, onRefresh }) {
   const [loading, setLoading] = useState(false);
   const [confirmModal, setConfirmModal] = useState(null);
   const [tokens, setTokens] = useState(null);
@@ -105,6 +105,8 @@ function UserDetail({ user, onClose, onAction }) {
     try {
       await adminAPI.resetUserMFA(user.id);
       onAction('MFA has been reset');
+      // Refresh user details to show updated MFA status
+      if (onRefresh) onRefresh();
     } catch (err) {
       onAction(err.response?.data?.detail || 'Failed to reset MFA', true);
     } finally {
@@ -542,6 +544,7 @@ export default function AdminUsers() {
           user={selectedUser}
           onClose={() => setSelectedUser(null)}
           onAction={handleAction}
+          onRefresh={() => handleSelectUser(selectedUser.id)}
         />
       )}
     </AdminLayout>
