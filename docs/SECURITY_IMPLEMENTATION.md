@@ -71,7 +71,11 @@ Password change, email change, and account deletion require MFA re-verification 
 
 ### Email Notifications
 
-MFA events trigger emails: MFA enabled/disabled, new passkey added, new trusted device.
+MFA events trigger emails: MFA enabled/disabled, new passkey added, new trusted device, MFA reset by admin.
+
+### Account Recovery
+
+If a user loses access to all MFA methods, an admin can reset their MFA from the admin console (Users → search → Reset MFA). This removes all MFA methods and notifies the user via email.
 
 ---
 
@@ -141,6 +145,16 @@ Unauthorized access attempts are logged.
 ### Admin Access
 
 Email must be in `ADMIN_EMAILS` env var. Frontend always verifies with server (no client-side caching).
+
+**User Management Capabilities:**
+- Search users by email
+- View user details (sessions, MFA status, active tokens)
+- Reset user password (sends reset email)
+- Reset user MFA (disables MFA, removes all methods, notifies user via email)
+- Revoke user sessions (logout from all devices)
+- Delete user account
+
+All admin actions are logged to the audit log.
 
 ---
 
