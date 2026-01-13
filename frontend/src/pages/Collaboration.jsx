@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { sessionAPI, waitlistAPI } from '../services/api';
+import { sessionAPI } from '../services/api';
 import { useSessionContext } from '../contexts/SessionContext';
 import { formatLocalDate } from '../utils/dateUtils';
 
@@ -22,24 +22,9 @@ export default function Collaboration() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
-  const [controlSignups, setControlSignups] = useState(false);
 
   const ownedSessions = sessions.filter(s => s.is_owner);
   const sharedSessions = sessions.filter(s => !s.is_owner);
-
-  // Check signup mode on load
-  useEffect(() => {
-    const checkSignupMode = async () => {
-      try {
-        const response = await waitlistAPI.getSignupMode();
-        setControlSignups(response.data.control_signups);
-      } catch (err) {
-        // Default to false if API fails
-        setControlSignups(false);
-      }
-    };
-    checkSignupMode();
-  }, []);
 
   // Fetch pending invitations for all owned sessions
   useEffect(() => {
@@ -234,14 +219,9 @@ export default function Collaboration() {
     try {
       const response = await sessionAPI.sendInvitation(selectedSession.id, email);
       // Use message from backend if provided, otherwise fallback
-      const message = response.data?.message || (controlSignups
-        ? 'Added to waitlist. You\'ll be notified when they join.'
-        : 'Invitation sent successfully.');
+      const message = response.data?.message || 'Invitation sent successfully.';
       setSuccess(message);
-      // Only fetch pending invitations if not in waitlist mode (they won't be there)
-      if (!controlSignups) {
-        fetchPendingInvitations(selectedSession.id);
-      }
+      fetchPendingInvitations(selectedSession.id);
       setTimeout(() => {
         setStep('view');
         setEmail('');
@@ -541,67 +521,45 @@ export default function Collaboration() {
               </p>
             </div>
 
-            {controlSignups ? (
-              <>
-                <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded px-4 py-3">
-                  <p className="text-sm text-amber-900 dark:text-amber-200 mb-2 font-medium">
-                    Add to Waitlist?
-                  </p>
-                  <p className="text-sm text-amber-800 dark:text-amber-300">
-                    AretaCare is currently invite-only. We'll add {email} to the waitlist and notify you when they join so you can add them as a collaborator.
-                  </p>
-                </div>
+            <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded px-4 py-3">
+              <p className="text-sm text-amber-900 dark:text-amber-200 mb-2 font-medium">
+                Send an invitation?
+              </p>
+              <p className="text-sm text-amber-800 dark:text-amber-300">
+                We can send an email invitation to {email}. They'll receive a link to create a free AretaCare account, and once they register, they'll automatically have access to this session.
+              </p>
+            </div>
 
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => {
-                      setStep('enterEmail');
-                      setError(null);
-                    }}
-                    className="flex-1 px-4 py-2 bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-300 rounded hover:bg-gray-300 dark:hover:bg-gray-500 text-sm"
-                  >
-                    Back
-                  </button>
-                  <button
-                    onClick={handleSendInvitation}
-                    disabled={loading}
-                    className="flex-1 px-4 py-2 bg-primary-600 dark:bg-primary-700 text-white rounded hover:bg-primary-700 dark:hover:bg-primary-600 disabled:opacity-50 text-sm font-medium"
-                  >
-                    {loading ? 'Adding...' : 'Add to Waitlist'}
-                  </button>
-                </div>
-              </>
-            ) : (
-              <>
-                <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded px-4 py-3">
-                  <p className="text-sm text-amber-900 dark:text-amber-200 mb-2 font-medium">
-                    Send an invitation?
-                  </p>
-                  <p className="text-sm text-amber-800 dark:text-amber-300">
-                    We can send an email invitation to {email}. They'll receive a link to create a free AretaCare account, and once they register, they'll automatically have access to this session.
-                  </p>
-                </div>
+            <div className="bg-amber-50 dark:bg-amber-900/50 border border-amber-200 dark:border-amber-800 rounded px-3 py-3">
+              <p className="text-sm text-amber-800 dark:text-amber-300 mb-2">
+                <strong>⚠️ Important:</strong> Please read carefully before confirming.
+              </p>
+              <ul className="text-xs text-amber-700 dark:text-amber-300 space-y-1 list-disc list-inside">
+                <li>All data for "{session.name}" will be viewable and editable by {email}</li>
+                <li>This includes conversations, journal entries, documents, and audio recordings</li>
+                <li>They will be able to add, edit, and delete content in this session</li>
+                <li>You can revoke their access at any time</li>
+              </ul>
+            </div>
 
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => {
-                      setStep('enterEmail');
-                      setError(null);
-                    }}
-                    className="flex-1 px-4 py-2 bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-300 rounded hover:bg-gray-300 dark:hover:bg-gray-500 text-sm"
-                  >
-                    Back
-                  </button>
-                  <button
-                    onClick={handleSendInvitation}
-                    disabled={loading}
-                    className="flex-1 px-4 py-2 bg-primary-600 dark:bg-primary-700 text-white rounded hover:bg-primary-700 dark:hover:bg-primary-600 disabled:opacity-50 text-sm font-medium"
-                  >
-                    {loading ? 'Sending...' : 'Send Invitation'}
-                  </button>
-                </div>
-              </>
-            )}
+            <div className="flex gap-2">
+              <button
+                onClick={() => {
+                  setStep('enterEmail');
+                  setError(null);
+                }}
+                className="flex-1 px-4 py-2 bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-300 rounded hover:bg-gray-300 dark:hover:bg-gray-500 text-sm"
+              >
+                Back
+              </button>
+              <button
+                onClick={handleSendInvitation}
+                disabled={loading}
+                className="flex-1 px-4 py-2 bg-primary-600 dark:bg-primary-700 text-white rounded hover:bg-primary-700 dark:hover:bg-primary-600 disabled:opacity-50 text-sm font-medium"
+              >
+                {loading ? 'Sending...' : 'Send Invitation'}
+              </button>
+            </div>
           </div>
         )}
 

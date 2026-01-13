@@ -137,12 +137,12 @@ DELETE /api/sessions/{id}           # Delete (owner only, removes all data + S3)
 ### Sharing
 ```bash
 POST   /api/sessions/{id}/check-user                   # Check if user can be added
-POST   /api/sessions/{id}/share                        # Add collaborator
+POST   /api/sessions/{id}/share                        # Add existing user as collaborator
 DELETE /api/sessions/{id}/collaborators/{user_id}      # Remove collaborator
 POST   /api/sessions/{id}/leave                        # Leave shared session
-POST   /api/sessions/{id}/invite                       # Invite non-user (sends email)
-GET    /api/sessions/{id}/invitations                  # List pending invitations
-DELETE /api/sessions/{id}/invitations/{invitation_id}  # Cancel invitation
+POST   /api/sessions/{id}/send-invitation              # Invite non-user (sends registration email, bypasses waitlist)
+GET    /api/sessions/{id}/pending-invitations          # List pending invitations
+DELETE /api/sessions/{id}/pending-invitations/{id}     # Cancel invitation
 POST   /api/sessions/{id}/transfer                     # Transfer ownership
 ```
 
@@ -279,6 +279,8 @@ POST /api/tools/conversation-coach
 ---
 
 ## Waitlist (when CONTROL_SIGNUPS=TRUE)
+
+Random visitors must join the waitlist and wait for admin approval. However, users invited as collaborators via `/api/sessions/{id}/send-invitation` can register directly using the invitation link.
 
 ```bash
 GET  /api/waitlist/signup-mode  # Check if waitlist mode active

@@ -240,8 +240,10 @@ def register(request: Request, response: Response, user_data: UserRegister, db: 
 
     # Check if signups are controlled (waitlist mode)
     waitlist_entry = None
+    collaboration_invitation = None  # Track if registering via collaboration invitation
     if settings.CONTROL_SIGNUPS:
         from app.models.waitlist import WaitlistEntry
+        from app.models.pending_invitation import PendingInvitation
 
         # Require invitation token when signups are controlled
         if not user_data.invitation_token:
@@ -256,14 +258,29 @@ def register(request: Request, response: Response, user_data: UserRegister, db: 
             WaitlistEntry.email == user_data.email
         ).first()
 
+        # If not a waitlist invitation, check for collaboration invitation
         if not waitlist_entry:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Invalid invitation. Please check your invitation link or join the waitlist."
-            )
+            collaboration_invitation = db.query(PendingInvitation).filter(
+                PendingInvitation.token == user_data.invitation_token,
+                PendingInvitation.email == user_data.email
+            ).first()
 
-        # Validate waitlist invitation is not expired
-        if waitlist_entry.invitation_expires and waitlist_entry.invitation_expires < datetime.utcnow():
+            if not collaboration_invitation:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Invalid invitation. Please check your invitation link or join the waitlist."
+                )
+
+            # Validate collaboration invitation is not expired (30 days)
+            days_old = (datetime.utcnow() - collaboration_invitation.created_at).days
+            if days_old >= 30:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Invitation has expired. Please ask the session owner to send a new invitation."
+                )
+
+        # Validate waitlist invitation expiration if applicable
+        if waitlist_entry and waitlist_entry.invitation_expires and waitlist_entry.invitation_expires < datetime.utcnow():
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Invitation has expired. Please contact an administrator for a new invitation."
@@ -381,6 +398,35 @@ def register(request: Request, response: Response, user_data: UserRegister, db: 
         db.delete(waitlist_entry)
         db.commit()
         logger.info(f"Removed {new_user.email} from waitlist after registration")
+
+    elif collaboration_invitation:
+        # User registered via collaboration invitation - check if they also had a waitlist entry
+        from app.models.waitlist import WaitlistEntry
+        existing_waitlist = db.query(WaitlistEntry).filter(
+            WaitlistEntry.email == new_user.email
+        ).first()
+
+        if existing_waitlist:
+            # Notify any referrers that the user has joined
+            if existing_waitlist.referrers:
+                for referrer in existing_waitlist.referrers:
+                    try:
+                        referrer_user = db.query(User).filter(User.id == referrer.get("user_id")).first()
+                        if referrer_user:
+                            email_service.send_waitlist_user_registered(
+                                to_email=referrer_user.email,
+                                to_name=referrer_user.name,
+                                new_user_name=new_user.name,
+                                new_user_email=new_user.email,
+                                session_name=referrer.get("session_name", "a session")
+                            )
+                    except Exception as e:
+                        logger.error(f"Failed to send referrer notification: {e}")
+
+            # Delete the waitlist entry
+            db.delete(existing_waitlist)
+            db.commit()
+            logger.info(f"Removed {new_user.email} from waitlist after collaboration registration")
 
     logger.info(f"User registered, verification email sent: {new_user.email}")
 

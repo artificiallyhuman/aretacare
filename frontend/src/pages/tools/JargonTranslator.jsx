@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { toolsAPI } from '../../services/api';
 import { useSessionContext } from '../../contexts/SessionContext';
+import { markdownToHtml } from '../../utils/markdownUtils';
 
 const JargonTranslator = () => {
   const { activeSessionId: sessionId } = useSessionContext();
@@ -10,6 +11,7 @@ const JargonTranslator = () => {
   const [translation, setTranslation] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [copied, setCopied] = useState(false);
 
   const handleTranslate = async () => {
     if (!medicalTerm.trim()) {
@@ -27,6 +29,49 @@ const JargonTranslator = () => {
       setError(err.response?.data?.detail || 'Failed to translate term. Please try again.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleCopy = async () => {
+    if (!translation) return;
+
+    try {
+      // Combine explanation and context note if present
+      let content = translation.explanation;
+      if (translation.context_note) {
+        content += `\n\n**Note:** ${translation.context_note}`;
+      }
+
+      // Convert markdown to HTML for rich text paste
+      const html = markdownToHtml(content);
+
+      // Create clipboard item with both HTML and plain text
+      const blob = new Blob([html], { type: 'text/html' });
+      const textBlob = new Blob([content], { type: 'text/plain' });
+
+      await navigator.clipboard.write([
+        new ClipboardItem({
+          'text/html': blob,
+          'text/plain': textBlob
+        })
+      ]);
+
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy:', err);
+      // Fallback to plain text if clipboard API fails
+      try {
+        let content = translation.explanation;
+        if (translation.context_note) {
+          content += `\n\nNote: ${translation.context_note}`;
+        }
+        await navigator.clipboard.writeText(content);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      } catch (fallbackErr) {
+        console.error('Fallback copy also failed:', fallbackErr);
+      }
     }
   };
 
@@ -106,9 +151,32 @@ const JargonTranslator = () => {
 
       {translation && (
         <div className="card">
-          <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white mb-4">
-            Translation: {translation.term}
-          </h2>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">
+              Translation: {translation.term}
+            </h2>
+            <button
+              onClick={handleCopy}
+              className="p-2 sm:px-3 sm:py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md transition flex items-center space-x-1.5"
+              title="Copy to clipboard"
+            >
+              {copied ? (
+                <>
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                  <span className="hidden sm:inline">Copied!</span>
+                </>
+              ) : (
+                <>
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                  </svg>
+                  <span className="hidden sm:inline">Copy</span>
+                </>
+              )}
+            </button>
+          </div>
 
           <div className="prose prose-sm max-w-none prose-gray dark:prose-invert prose-headings:text-gray-900 dark:prose-headings:text-white prose-p:text-gray-800 dark:prose-p:text-gray-200 mb-4">
             <ReactMarkdown
@@ -117,8 +185,8 @@ const JargonTranslator = () => {
                 h1: ({node, ...props}) => <h1 className="text-xl font-bold mb-3 mt-4 text-gray-900 dark:text-white" {...props} />,
                 h2: ({node, ...props}) => <h2 className="text-lg font-semibold mb-2 mt-3 text-gray-900 dark:text-white" {...props} />,
                 h3: ({node, ...props}) => <h3 className="text-base font-semibold mb-2 mt-3 text-gray-900 dark:text-white" {...props} />,
-                ul: ({node, ...props}) => <ul className="mb-3 space-y-1 pl-5 text-gray-800 dark:text-gray-200" {...props} />,
-                ol: ({node, ...props}) => <ol className="mb-3 space-y-1 pl-5 text-gray-800 dark:text-gray-200" {...props} />,
+                ul: ({node, ...props}) => <ul className="list-disc mb-3 space-y-1 pl-5 text-gray-800 dark:text-gray-200" {...props} />,
+                ol: ({node, ...props}) => <ol className="list-decimal mb-3 space-y-1 pl-5 text-gray-800 dark:text-gray-200" {...props} />,
                 li: ({node, ...props}) => <li className="leading-relaxed" {...props} />,
                 code: ({node, inline, ...props}) =>
                   inline

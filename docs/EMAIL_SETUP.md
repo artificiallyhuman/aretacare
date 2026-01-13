@@ -8,7 +8,9 @@ AretaCare sends automated emails for:
 - **Password changes** - Security notification when password is updated
 - **Email changes** - Notification to old address when email is changed
 - **Collaborator added** - Notification to session owner when collaborator is added
-- **Collaborator invitation** - Notification when added as a collaborator
+- **Collaborator invitation (existing user)** - Notification when added as a collaborator
+- **Collaborator invitation (new user)** - Registration link for non-members invited to collaborate (bypasses waitlist)
+- **Invitation accepted** - Notification to session owner when invitee registers and verifies email
 - **Collaborator removed** - Notification when removed from a session
 - **Password reset** - Password reset link when requested
 
