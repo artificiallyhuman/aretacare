@@ -228,7 +228,7 @@ font-src 'self' data:;
 connect-src 'self' https://api.aretacare.com https://*.amazonaws.com https://hcaptcha.com https://*.hcaptcha.com;
 media-src 'self' https://*.amazonaws.com;
 object-src 'self' https://*.amazonaws.com;
-frame-src 'self' https://*.amazonaws.com https://newassets.hcaptcha.com https://*.hcaptcha.com;
+frame-src 'self' https://www.youtube.com https://*.amazonaws.com https://newassets.hcaptcha.com https://*.hcaptcha.com;
 frame-ancestors 'self';
 form-action 'self';
 base-uri 'self'
