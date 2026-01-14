@@ -380,7 +380,7 @@ const Profile = () => {
   // Handle edit mode for a specific section
   const handleEditSection = (section) => {
     setEditingSection(section);
-    setEditedData(JSON.parse(JSON.stringify(profile.profile_data)));
+    setEditedData(JSON.parse(JSON.stringify(profile?.profile_data || {})));
   };
 
   const handleCancelEdit = () => {
@@ -778,11 +778,6 @@ const Profile = () => {
   const SectionHeader = ({ title, section, count }) => {
     const config = SECTION_CONFIG[section];
     const isEditingThis = editingSection === section;
-    const hasData = profile?.profile_data?.[section] && (
-      Array.isArray(profile.profile_data[section])
-        ? profile.profile_data[section].length > 0
-        : Object.keys(profile.profile_data[section]).length > 0
-    );
 
     return (
       <div className="flex items-center justify-between p-3 sm:p-4 bg-gradient-to-r rounded-t-lg">
@@ -813,7 +808,7 @@ const Profile = () => {
         </button>
 
         {/* Edit/Save/Cancel buttons */}
-        {expandedSections[section] && hasData && (
+        {expandedSections[section] && (
           <div className="flex items-center gap-1 sm:gap-2 ml-2">
             {isEditingThis ? (
               <>
