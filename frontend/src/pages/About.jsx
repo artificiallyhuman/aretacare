@@ -825,7 +825,7 @@ const About = () => {
             </div>
             <div className="space-y-4 text-gray-600 dark:text-gray-400">
               <div>
-                <h5 className="font-semibold text-gray-900 dark:text-white mb-2">Account Lockouts Stop Password Guessing</h5>
+                <h5 className="font-semibold text-gray-900 dark:text-white mb-2">Account Lockouts</h5>
                 <p className="leading-relaxed">
                   After multiple failed login attempts, your account is temporarily locked for 15 minutes. You'll see a warning before this happens, giving you the option to reset your password if needed.
                 </p>
