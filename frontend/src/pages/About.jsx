@@ -440,6 +440,18 @@ const About = () => {
       {/* The Story Tab */}
       {activeTab === 'story' && (
       <div className="space-y-8">
+        {/* Video Overview */}
+        <div className="relative w-full overflow-hidden rounded-xl shadow-lg" style={{ paddingBottom: '56.25%' }}>
+          <iframe
+            className="absolute top-0 left-0 w-full h-full"
+            src="https://www.youtube.com/embed/xrbGcdPZgSA"
+            title="AretaCare Overview"
+            frameBorder="0"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+            allowFullScreen
+          />
+        </div>
+
         {/* Jason's Story Card */}
         <div className="bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-gray-800 dark:to-blue-900/20 rounded-xl border-l-4 border-blue-500 dark:border-blue-400 shadow-lg overflow-hidden">
           {/* Card Header with Signature */}
