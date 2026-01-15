@@ -15,7 +15,7 @@ const PrivacyPolicy = () => {
           </Link>
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-6 sm:p-8">
             <h1 className="text-4xl sm:text-5xl font-bold text-gray-900 dark:text-white mb-2">Privacy Policy</h1>
-            <p className="text-sm text-gray-500 dark:text-gray-400">Last Updated: December 31, 2025</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400">Last Updated: January 15, 2026</p>
           </div>
         </div>
 
@@ -151,6 +151,22 @@ const PrivacyPolicy = () => {
                 <li>Only the session owner can share with additional users or revoke access</li>
                 <li>Collaborators can leave a shared session at any time</li>
               </ul>
+
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">Consent Requirement</h3>
+                <p className="text-gray-700 dark:text-gray-300 leading-relaxed text-base mb-3">
+                  Before adding a collaborator, session owners must confirm they have the right to share the session's information. This consent acknowledgment states:
+                </p>
+                <div className="bg-blue-50 dark:bg-blue-900/30 border-l-4 border-blue-500 dark:border-blue-600 p-4 rounded-r-lg mb-3">
+                  <p className="text-sm text-blue-800 dark:text-blue-300 italic leading-relaxed">
+                    "I confirm I have the right to share the information in this session with the collaborator I'm adding. If I'm the patient, this is my consent. If I'm a caregiver, I have the patient's permission to share it."
+                  </p>
+                </div>
+                <p className="text-gray-700 dark:text-gray-300 leading-relaxed text-base">
+                  This ensures that patient information is only shared with proper authorization, whether the session owner is the patient themselves or a caregiver acting on their behalf.
+                </p>
+              </div>
+
               <div className="bg-amber-50 dark:bg-amber-900/20 border-l-4 border-amber-500 dark:border-amber-600 p-4 rounded-r-lg">
                 <div className="flex items-start">
                   <svg className="w-5 h-5 text-amber-600 dark:text-amber-500 mt-0.5 mr-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -159,7 +175,7 @@ const PrivacyPolicy = () => {
                   <div className="flex-1">
                     <h3 className="text-sm font-semibold text-amber-800 dark:text-amber-400 mb-1">Important</h3>
                     <p className="text-sm text-amber-800 dark:text-amber-300 leading-relaxed">
-                      Only share sessions with people you trust. Once shared, collaborators can view all existing content in that session.
+                      Only share sessions with people you trust. Once shared, collaborators can view all existing content in that session. Session owners are responsible for obtaining proper consent before sharing patient information.
                     </p>
                   </div>
                 </div>

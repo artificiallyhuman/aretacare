@@ -15,7 +15,7 @@ const TermsOfService = () => {
           </Link>
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-6 sm:p-8">
             <h1 className="text-4xl sm:text-5xl font-bold text-gray-900 dark:text-white mb-2">Terms of Service</h1>
-            <p className="text-sm text-gray-500 dark:text-gray-400">Last Updated: December 31, 2025</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400">Last Updated: January 15, 2026</p>
           </div>
         </div>
 
@@ -127,13 +127,42 @@ const TermsOfService = () => {
                 <li>Ensuring the accuracy of information you provide</li>
                 <li>Making your own independent medical decisions with qualified healthcare providers</li>
                 <li>Backing up any important information stored in the application</li>
+                <li>Obtaining proper consent before sharing session data with collaborators (see Section 7)</li>
               </ul>
             </div>
           </section>
 
-          {/* Section 7 - Email Communications */}
+          {/* Section 7 - Session Sharing Consent */}
           <section>
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4 pb-2 border-b-2 border-primary-200 dark:border-primary-800">7. Email Communications</h2>
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4 pb-2 border-b-2 border-primary-200 dark:border-primary-800">7. Session Sharing and Consent</h2>
+            <div className="space-y-4">
+              <p className="text-gray-700 dark:text-gray-300 leading-relaxed text-base">
+                AretaCare allows you to share sessions with other users. When adding a collaborator, you must confirm that you have the right to share the information in that session.
+              </p>
+              <div className="bg-blue-50 dark:bg-blue-900/30 border-l-4 border-blue-500 dark:border-blue-600 p-5 rounded-r-lg">
+                <p className="text-blue-900 dark:text-blue-200 font-semibold mb-3">Consent Requirement</p>
+                <p className="text-blue-800 dark:text-blue-300 text-sm leading-relaxed">
+                  Before sharing a session, you must acknowledge: "I confirm I have the right to share the information in this session with the collaborator I'm adding. If I'm the patient, this is my consent. If I'm a caregiver, I have the patient's permission to share it."
+                </p>
+              </div>
+              <p className="text-gray-700 dark:text-gray-300 leading-relaxed text-base">
+                By sharing a session, you represent and warrant that:
+              </p>
+              <ul className="list-disc list-inside space-y-2 text-gray-700 dark:text-gray-300 pl-4">
+                <li>If you are the patient whose information is in the session, you consent to sharing it with the specified collaborator</li>
+                <li>If you are a caregiver or family member, you have obtained explicit permission from the patient to share their information</li>
+                <li>You understand that collaborators will have full access to all data in the shared session, including conversations, journal entries, documents, and audio recordings</li>
+                <li>You accept responsibility for ensuring the collaborator is an appropriate recipient of this information</li>
+              </ul>
+              <p className="text-gray-700 dark:text-gray-300 leading-relaxed text-base font-semibold">
+                AretaCare is not responsible for unauthorized sharing of patient information. Session owners are solely responsible for obtaining proper consent before adding collaborators.
+              </p>
+            </div>
+          </section>
+
+          {/* Section 8 - Email Communications */}
+          <section>
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4 pb-2 border-b-2 border-primary-200 dark:border-primary-800">8. Email Communications</h2>
             <div className="space-y-4">
               <p className="text-gray-700 dark:text-gray-300 leading-relaxed text-base">
                 By creating an account, you consent to receive automated email notifications from AretaCare. These emails are essential for account security and session management.
@@ -176,9 +205,9 @@ const TermsOfService = () => {
             </div>
           </section>
 
-          {/* Section 8 */}
+          {/* Section 9 */}
           <section>
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4 pb-2 border-b-2 border-primary-200 dark:border-primary-800">8. Limitation of Liability</h2>
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4 pb-2 border-b-2 border-primary-200 dark:border-primary-800">9. Limitation of Liability</h2>
             <div className="space-y-4">
               <p className="text-gray-700 dark:text-gray-300 leading-relaxed text-base">
                 To the maximum extent permitted by applicable law, AretaCare and its developers shall not be liable for any indirect, incidental, special, consequential, or punitive damages resulting from your use of the application. This limitation does not affect any rights that cannot be waived under applicable law.
@@ -189,9 +218,9 @@ const TermsOfService = () => {
             </div>
           </section>
 
-          {/* Section 9 */}
+          {/* Section 10 */}
           <section>
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4 pb-2 border-b-2 border-primary-200 dark:border-primary-800">9. Third-Party Services</h2>
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4 pb-2 border-b-2 border-primary-200 dark:border-primary-800">10. Third-Party Services</h2>
             <div className="space-y-4">
               <p className="text-gray-700 dark:text-gray-300 leading-relaxed text-base">AretaCare uses third-party services including:</p>
               <div className="grid gap-4 sm:grid-cols-2">
@@ -210,9 +239,9 @@ const TermsOfService = () => {
             </div>
           </section>
 
-          {/* Section 10 - Data Use */}
+          {/* Section 11 - Data Use */}
           <section>
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4 pb-2 border-b-2 border-primary-200 dark:border-primary-800">10. Data Use and Privacy</h2>
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4 pb-2 border-b-2 border-primary-200 dark:border-primary-800">11. Data Use and Privacy</h2>
             <div className="space-y-4">
               <p className="text-gray-700 dark:text-gray-300 leading-relaxed text-base">
                 AretaCare never sells your personal data or shares it with hospitals, insurers, advertisers, or data brokers.
@@ -232,33 +261,33 @@ const TermsOfService = () => {
             </div>
           </section>
 
-          {/* Section 11 */}
+          {/* Section 12 */}
           <section>
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4 pb-2 border-b-2 border-primary-200 dark:border-primary-800">11. Modifications to Terms</h2>
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4 pb-2 border-b-2 border-primary-200 dark:border-primary-800">12. Modifications to Terms</h2>
             <p className="text-gray-700 dark:text-gray-300 leading-relaxed text-base">
               We reserve the right to modify these Terms of Service at any time. Changes will be effective immediately upon posting. Your continued use of AretaCare after changes constitutes acceptance of the modified terms.
             </p>
           </section>
 
-          {/* Section 12 */}
+          {/* Section 13 */}
           <section>
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4 pb-2 border-b-2 border-primary-200 dark:border-primary-800">12. Termination</h2>
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4 pb-2 border-b-2 border-primary-200 dark:border-primary-800">13. Termination</h2>
             <p className="text-gray-700 dark:text-gray-300 leading-relaxed text-base">
               We reserve the right to terminate or suspend your access to AretaCare at any time, without notice, for any reason, including violation of these terms.
             </p>
           </section>
 
-          {/* Section 13 */}
+          {/* Section 14 */}
           <section>
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4 pb-2 border-b-2 border-primary-200 dark:border-primary-800">13. Governing Law</h2>
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4 pb-2 border-b-2 border-primary-200 dark:border-primary-800">14. Governing Law</h2>
             <p className="text-gray-700 dark:text-gray-300 leading-relaxed text-base">
               These Terms of Service shall be governed by and construed in accordance with the laws of the jurisdiction in which you reside, without regard to its conflict of law provisions.
             </p>
           </section>
 
-          {/* Section 14 */}
+          {/* Section 15 */}
           <section>
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4 pb-2 border-b-2 border-primary-200 dark:border-primary-800">14. Contact</h2>
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4 pb-2 border-b-2 border-primary-200 dark:border-primary-800">15. Contact</h2>
             <p className="text-gray-700 dark:text-gray-300 leading-relaxed text-base">
               For questions or support, please contact us at{' '}
               <a href="mailto:support@aretacare.com" className="text-primary-600 hover:text-primary-700 font-medium underline">

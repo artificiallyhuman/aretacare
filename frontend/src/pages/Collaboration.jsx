@@ -19,6 +19,7 @@ export default function Collaboration() {
   const [userToRemove, setUserToRemove] = useState(null);
   const [invitationToCancel, setInvitationToCancel] = useState(null);
   const [pendingInvitations, setPendingInvitations] = useState({});
+  const [consentGiven, setConsentGiven] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
@@ -65,12 +66,14 @@ export default function Collaboration() {
       setStep('view');
       setError(null);
       setSuccess(null);
+      setConsentGiven(false);
     } else {
       setExpandedSessionId(sessionId);
       setSelectedSession(sessions.find(s => s.id === sessionId));
       setStep('view');
       setError(null);
       setSuccess(null);
+      setConsentGiven(false);
     }
   };
 
@@ -117,6 +120,7 @@ export default function Collaboration() {
         setStep('view');
         setEmail('');
         setUserToAdd(null);
+        setConsentGiven(false);
         setSuccess(null);
       }, 1500);
     } catch (err) {
@@ -225,6 +229,7 @@ export default function Collaboration() {
       setTimeout(() => {
         setStep('view');
         setEmail('');
+        setConsentGiven(false);
         setSuccess(null);
       }, 2000);
     } catch (err) {
@@ -488,11 +493,24 @@ export default function Collaboration() {
               </ul>
             </div>
 
+            <label className="flex items-start gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={consentGiven}
+                onChange={(e) => setConsentGiven(e.target.checked)}
+                className="mt-0.5 h-4 w-4 rounded border-gray-300 dark:border-gray-600 text-primary-600 focus:ring-primary-500"
+              />
+              <span className="text-sm text-gray-700 dark:text-gray-300">
+                I confirm I have the right to share the information in this session with the collaborator I'm adding. If I'm the patient, this is my consent. If I'm a caregiver, I have the patient's permission to share it.
+              </span>
+            </label>
+
             <div className="flex gap-2">
               <button
                 onClick={() => {
                   setStep('enterEmail');
                   setUserToAdd(null);
+                  setConsentGiven(false);
                   setError(null);
                 }}
                 className="flex-1 px-4 py-2 bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-300 rounded hover:bg-gray-300 dark:hover:bg-gray-500 text-sm"
@@ -501,7 +519,7 @@ export default function Collaboration() {
               </button>
               <button
                 onClick={handleShareSession}
-                disabled={loading}
+                disabled={loading || !consentGiven}
                 className="flex-1 px-4 py-2 bg-primary-600 dark:bg-primary-700 text-white rounded hover:bg-primary-700 dark:hover:bg-primary-600 disabled:opacity-50 text-sm font-medium"
               >
                 {loading ? 'Sharing...' : 'Confirm & Share'}
@@ -542,10 +560,23 @@ export default function Collaboration() {
               </ul>
             </div>
 
+            <label className="flex items-start gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={consentGiven}
+                onChange={(e) => setConsentGiven(e.target.checked)}
+                className="mt-0.5 h-4 w-4 rounded border-gray-300 dark:border-gray-600 text-primary-600 focus:ring-primary-500"
+              />
+              <span className="text-sm text-gray-700 dark:text-gray-300">
+                I confirm I have the right to share the information in this session with the collaborator I'm adding. If I'm the patient, this is my consent. If I'm a caregiver, I have the patient's permission to share it.
+              </span>
+            </label>
+
             <div className="flex gap-2">
               <button
                 onClick={() => {
                   setStep('enterEmail');
+                  setConsentGiven(false);
                   setError(null);
                 }}
                 className="flex-1 px-4 py-2 bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-300 rounded hover:bg-gray-300 dark:hover:bg-gray-500 text-sm"
@@ -554,7 +585,7 @@ export default function Collaboration() {
               </button>
               <button
                 onClick={handleSendInvitation}
-                disabled={loading}
+                disabled={loading || !consentGiven}
                 className="flex-1 px-4 py-2 bg-primary-600 dark:bg-primary-700 text-white rounded hover:bg-primary-700 dark:hover:bg-primary-600 disabled:opacity-50 text-sm font-medium"
               >
                 {loading ? 'Sending...' : 'Send Invitation'}
