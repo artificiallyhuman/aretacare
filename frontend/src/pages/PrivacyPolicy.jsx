@@ -223,7 +223,7 @@ const PrivacyPolicy = () => {
                 <ul className="list-disc list-inside space-y-2 text-gray-700 dark:text-gray-300 pl-4">
                   <li><strong>Database:</strong> PostgreSQL database (account, conversations, journal, health profiles, daily digests, document and audio metadata)</li>
                   <li><strong>File Storage:</strong> AWS S3 (documents, images, audio files)</li>
-                  <li><strong>Browser:</strong> Authentication tokens and session IDs in localStorage; refresh tokens and trusted device tokens in secure HttpOnly cookies</li>
+                  <li><strong>Browser:</strong> Access tokens in memory (not persisted); refresh tokens and trusted device tokens in secure HttpOnly cookies; only non-sensitive preferences (theme, active session ID) in localStorage</li>
                 </ul>
               </div>
 
