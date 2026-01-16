@@ -312,7 +312,12 @@ export const documentAPI = {
     return api.get(`/documents/session/${sessionId}`, { params });
   },
   get: (documentId) => api.get(`/documents/${documentId}`),
-  update: (documentId, ai_description) => api.patch(`/documents/${documentId}`, { ai_description }),
+  update: (documentId, ai_description, category = null) => {
+    const data = {};
+    if (ai_description !== undefined) data.ai_description = ai_description;
+    if (category !== null) data.category = category;
+    return api.patch(`/documents/${documentId}`, data);
+  },
   delete: (documentId) => api.delete(`/documents/${documentId}`),
   getDownloadUrl: (documentId) => api.get(`/documents/${documentId}/download-url`),
   getThumbnailUrl: (documentId) => api.get(`/documents/${documentId}/thumbnail-url`),
@@ -362,8 +367,12 @@ export const audioRecordingsAPI = {
   },
   getRecording: (sessionId, recordingId) =>
     api.get(`/audio-recordings/${sessionId}/${recordingId}`),
-  updateRecording: (sessionId, recordingId, ai_summary) =>
-    api.patch(`/audio-recordings/${sessionId}/${recordingId}`, { ai_summary }),
+  updateRecording: (sessionId, recordingId, ai_summary, category = null) => {
+    const data = {};
+    if (ai_summary !== undefined) data.ai_summary = ai_summary;
+    if (category !== null) data.category = category;
+    return api.patch(`/audio-recordings/${sessionId}/${recordingId}`, data);
+  },
   deleteRecording: (sessionId, recordingId) =>
     api.delete(`/audio-recordings/${sessionId}/${recordingId}`),
   getAudioUrl: (sessionId, recordingId) =>

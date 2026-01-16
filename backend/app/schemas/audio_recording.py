@@ -27,6 +27,7 @@ class AudioRecordingResponse(BaseModel):
 
 class AudioRecordingUpdate(BaseModel):
     ai_summary: Optional[str] = None
+    category: Optional[str] = None
 
 
 class AudioRecordingListResponse(BaseModel):

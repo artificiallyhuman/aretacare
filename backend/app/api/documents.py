@@ -505,7 +505,7 @@ async def update_document(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """Update a document's AI description"""
+    """Update a document's AI description and/or category"""
     document = db.query(DocumentModel).filter(DocumentModel.id == document_id).first()
 
     if not document:
@@ -520,6 +520,13 @@ async def update_document(
     # Update AI description
     if update_data.ai_description is not None:
         document.ai_description = update_data.ai_description
+
+    # Update category
+    if update_data.category is not None:
+        try:
+            document.category = DocumentCategory(update_data.category)
+        except ValueError:
+            raise HTTPException(status_code=400, detail=f"Invalid category: {update_data.category}")
 
     db.commit()
     db.refresh(document)

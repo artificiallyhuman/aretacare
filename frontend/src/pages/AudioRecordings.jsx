@@ -49,6 +49,7 @@ const AudioRecordings = () => {
   const [expandedTranscripts, setExpandedTranscripts] = useState({});
   const [editingSummary, setEditingSummary] = useState({});
   const [editedSummaries, setEditedSummaries] = useState({});
+  const [editedCategories, setEditedCategories] = useState({});
   const [selectedDate, setSelectedDate] = useState(null);
   const dateRefs = useRef({});
   const [showSidebar, setShowSidebar] = useState(false);
@@ -149,24 +150,26 @@ const AudioRecordings = () => {
     }));
   };
 
-  const handleEditSummary = (recordingId, currentSummary) => {
+  const handleEditSummary = (recordingId, currentSummary, currentCategory) => {
     setEditingSummary(prev => ({ ...prev, [recordingId]: true }));
     setEditedSummaries(prev => ({ ...prev, [recordingId]: currentSummary || '' }));
+    setEditedCategories(prev => ({ ...prev, [recordingId]: currentCategory || 'other' }));
   };
 
   const handleCancelEditSummary = (recordingId) => {
     setEditingSummary(prev => ({ ...prev, [recordingId]: false }));
     setEditedSummaries(prev => ({ ...prev, [recordingId]: '' }));
+    setEditedCategories(prev => ({ ...prev, [recordingId]: '' }));
   };
 
   const handleSaveSummary = async (recordingId) => {
     try {
-      await audioRecordingsAPI.updateRecording(sessionId, recordingId, editedSummaries[recordingId]);
+      await audioRecordingsAPI.updateRecording(sessionId, recordingId, editedSummaries[recordingId], editedCategories[recordingId]);
       setEditingSummary(prev => ({ ...prev, [recordingId]: false }));
       loadRecordings(); // Reload to get updated data
     } catch (err) {
-      console.error('Error updating summary:', err);
-      setError('Failed to update summary');
+      console.error('Error updating recording:', err);
+      setError('Failed to update recording');
     }
   };
 
@@ -577,15 +580,26 @@ const AudioRecordings = () => {
                                 {formatDuration(recording.duration)}
                               </span>
                             </div>
-                            <button
-                              onClick={() => handleDeleteRecording(recording)}
-                              className="p-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 rounded transition flex-shrink-0 min-w-[44px] min-h-[44px] flex items-center justify-center"
-                              title="Delete recording"
-                            >
-                              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                              </svg>
-                            </button>
+                            <div className="flex items-center gap-1 flex-shrink-0">
+                              <button
+                                onClick={() => handleEditSummary(recording.id, recording.ai_summary, recording.category)}
+                                className="p-2 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition min-w-[44px] min-h-[44px] flex items-center justify-center"
+                                title="Edit recording"
+                              >
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                                </svg>
+                              </button>
+                              <button
+                                onClick={() => handleDeleteRecording(recording)}
+                                className="p-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 rounded transition min-w-[44px] min-h-[44px] flex items-center justify-center"
+                                title="Delete recording"
+                              >
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                </svg>
+                              </button>
+                            </div>
                           </div>
 
                           {/* AI Summary */}
@@ -593,13 +607,30 @@ const AudioRecordings = () => {
                             <div className="mb-3">
                               {editingSummary[recording.id] ? (
                                 <div className="space-y-2">
-                                  <textarea
-                                    value={editedSummaries[recording.id] || ''}
-                                    onChange={(e) => setEditedSummaries(prev => ({ ...prev, [recording.id]: e.target.value }))}
-                                    className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-md focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                                    rows="2"
-                                    placeholder="Enter summary..."
-                                  />
+                                  <div>
+                                    <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Category</label>
+                                    <select
+                                      value={editedCategories[recording.id] || 'other'}
+                                      onChange={(e) => setEditedCategories(prev => ({ ...prev, [recording.id]: e.target.value }))}
+                                      className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-md focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                                    >
+                                      {CATEGORIES.filter(cat => cat.value !== 'all').map((cat) => (
+                                        <option key={cat.value} value={cat.value}>
+                                          {cat.label}
+                                        </option>
+                                      ))}
+                                    </select>
+                                  </div>
+                                  <div>
+                                    <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Summary</label>
+                                    <textarea
+                                      value={editedSummaries[recording.id] || ''}
+                                      onChange={(e) => setEditedSummaries(prev => ({ ...prev, [recording.id]: e.target.value }))}
+                                      className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-md focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                                      rows="2"
+                                      placeholder="Enter summary..."
+                                    />
+                                  </div>
                                   <div className="flex gap-2">
                                     <button
                                       onClick={() => handleSaveSummary(recording.id)}
@@ -616,18 +647,7 @@ const AudioRecordings = () => {
                                   </div>
                                 </div>
                               ) : (
-                                <div className="flex items-start gap-2 group">
-                                  <p className="text-sm text-gray-900 dark:text-white font-semibold flex-1">{recording.ai_summary}</p>
-                                  <button
-                                    onClick={() => handleEditSummary(recording.id, recording.ai_summary)}
-                                    className="opacity-0 group-hover:opacity-100 p-1 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition-opacity"
-                                    title="Edit summary"
-                                  >
-                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                                    </svg>
-                                  </button>
-                                </div>
+                                <p className="text-sm text-gray-900 dark:text-white font-semibold">{recording.ai_summary}</p>
                               )}
                             </div>
                           )}

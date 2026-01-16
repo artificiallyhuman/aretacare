@@ -48,6 +48,7 @@ class DocumentResponse(BaseModel):
 
 class DocumentUpdate(BaseModel):
     ai_description: Optional[str] = None
+    category: Optional[str] = None
 
 
 class DocumentListResponse(BaseModel):

@@ -52,6 +52,7 @@ const Documents = () => {
   const [expandedDescriptions, setExpandedDescriptions] = useState({});
   const [editingDescription, setEditingDescription] = useState({});
   const [editedDescriptions, setEditedDescriptions] = useState({});
+  const [editedCategories, setEditedCategories] = useState({});
   const [selectedDate, setSelectedDate] = useState(null);
   const dateRefs = useRef({});
   const [showSidebar, setShowSidebar] = useState(false);
@@ -205,24 +206,26 @@ const Documents = () => {
     }));
   };
 
-  const handleEditDescription = (documentId, currentDescription) => {
+  const handleEditDescription = (documentId, currentDescription, currentCategory) => {
     setEditingDescription(prev => ({ ...prev, [documentId]: true }));
     setEditedDescriptions(prev => ({ ...prev, [documentId]: currentDescription || '' }));
+    setEditedCategories(prev => ({ ...prev, [documentId]: currentCategory || 'other' }));
   };
 
   const handleCancelEditDescription = (documentId) => {
     setEditingDescription(prev => ({ ...prev, [documentId]: false }));
     setEditedDescriptions(prev => ({ ...prev, [documentId]: '' }));
+    setEditedCategories(prev => ({ ...prev, [documentId]: '' }));
   };
 
   const handleSaveDescription = async (documentId) => {
     try {
-      await documentAPI.update(documentId, editedDescriptions[documentId]);
+      await documentAPI.update(documentId, editedDescriptions[documentId], editedCategories[documentId]);
       setEditingDescription(prev => ({ ...prev, [documentId]: false }));
       loadDocuments(); // Reload to get updated data
     } catch (err) {
-      console.error('Error updating description:', err);
-      setError('Failed to update description');
+      console.error('Error updating document:', err);
+      setError('Failed to update document');
     }
   };
 
@@ -731,11 +734,20 @@ const Documents = () => {
 
                       return (
                         <div key={doc.id} className="card hover:shadow-lg transition-shadow">
-                          {/* Category Badge */}
-                          <div className="mb-2">
+                          {/* Category Badge and Edit Button */}
+                          <div className="mb-2 flex items-center justify-between">
                             <span className={`inline-block px-2 py-1 text-xs font-medium rounded ${badgeClasses[categoryColor]}`}>
                               {categoryLabel}
                             </span>
+                            <button
+                              onClick={() => handleEditDescription(doc.id, doc.ai_description, doc.category)}
+                              className="p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors"
+                              title="Edit document"
+                            >
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                              </svg>
+                            </button>
                           </div>
 
                           {/* File Preview/Icon */}
@@ -772,13 +784,30 @@ const Documents = () => {
                               <div className="mt-2">
                                 {editingDescription[doc.id] ? (
                                   <div className="space-y-2">
-                                    <textarea
-                                      value={editedDescriptions[doc.id] || ''}
-                                      onChange={(e) => setEditedDescriptions(prev => ({ ...prev, [doc.id]: e.target.value }))}
-                                      className="w-full px-2 py-1.5 text-xs border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                                      rows="3"
-                                      placeholder="Enter description..."
-                                    />
+                                    <div>
+                                      <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Category</label>
+                                      <select
+                                        value={editedCategories[doc.id] || 'other'}
+                                        onChange={(e) => setEditedCategories(prev => ({ ...prev, [doc.id]: e.target.value }))}
+                                        className="w-full px-2 py-1.5 text-xs border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                                      >
+                                        {CATEGORIES.filter(cat => cat.value !== 'all').map((cat) => (
+                                          <option key={cat.value} value={cat.value}>
+                                            {cat.label}
+                                          </option>
+                                        ))}
+                                      </select>
+                                    </div>
+                                    <div>
+                                      <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Description</label>
+                                      <textarea
+                                        value={editedDescriptions[doc.id] || ''}
+                                        onChange={(e) => setEditedDescriptions(prev => ({ ...prev, [doc.id]: e.target.value }))}
+                                        className="w-full px-2 py-1.5 text-xs border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                                        rows="3"
+                                        placeholder="Enter description..."
+                                      />
+                                    </div>
                                     <div className="flex gap-1.5">
                                       <button
                                         onClick={() => handleSaveDescription(doc.id)}
@@ -795,21 +824,10 @@ const Documents = () => {
                                     </div>
                                   </div>
                                 ) : (
-                                  <div className="group">
-                                    <div className="flex items-start gap-1">
-                                      <p className={`text-xs text-gray-600 dark:text-gray-400 font-medium flex-1 ${!expandedDescriptions[doc.id] ? 'line-clamp-2' : ''}`}>
-                                        {doc.ai_description}
-                                      </p>
-                                      <button
-                                        onClick={() => handleEditDescription(doc.id, doc.ai_description)}
-                                        className="opacity-0 group-hover:opacity-100 p-0.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-opacity flex-shrink-0"
-                                        title="Edit description"
-                                      >
-                                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                                        </svg>
-                                      </button>
-                                    </div>
+                                  <div>
+                                    <p className={`text-xs text-gray-600 dark:text-gray-400 font-medium ${!expandedDescriptions[doc.id] ? 'line-clamp-2' : ''}`}>
+                                      {doc.ai_description}
+                                    </p>
                                     {doc.ai_description && doc.ai_description.length > 60 && (
                                       <button
                                         onClick={() => toggleDescription(doc.id)}

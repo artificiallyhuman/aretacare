@@ -99,7 +99,9 @@ async def update_audio_recording(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """Update an audio recording's AI summary"""
+    """Update an audio recording's AI summary and/or category"""
+    from app.models import AudioRecordingCategory
+
     # Verify session belongs to current user
     session = db.query(SessionModel).filter(SessionModel.id == session_id).first()
     if not session:
@@ -118,6 +120,13 @@ async def update_audio_recording(
     # Update AI summary
     if update_data.ai_summary is not None:
         recording.ai_summary = update_data.ai_summary
+
+    # Update category
+    if update_data.category is not None:
+        try:
+            recording.category = AudioRecordingCategory(update_data.category)
+        except ValueError:
+            raise HTTPException(status_code=400, detail=f"Invalid category: {update_data.category}")
 
     db.commit()
     db.refresh(recording)
