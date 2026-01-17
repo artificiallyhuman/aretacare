@@ -250,7 +250,7 @@ const AudioRecordings = () => {
       return;
     }
 
-    // Validate file size (100MB)
+    // Validate file size (100MB - audio is transcribed, not sent as URL to OpenAI)
     const maxSize = 100 * 1024 * 1024;
     if (file.size > maxSize) {
       setError('File size exceeds 100MB limit. Please choose a smaller file.');

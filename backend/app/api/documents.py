@@ -60,8 +60,8 @@ BLOCKED_MIME_TYPES = [
     'text/javascript', 'application/x-sh',
 ]
 
-MAX_FILE_SIZE = 100 * 1024 * 1024  # 100MB for document manager
-MAX_CONVERSATION_FILE_SIZE = 100 * 1024 * 1024  # 100MB for conversation uploads
+MAX_FILE_SIZE = 30 * 1024 * 1024  # 30MB (OpenAI file URL limit is 32MB)
+MAX_CONVERSATION_FILE_SIZE = 30 * 1024 * 1024  # 30MB for conversation uploads
 
 # Image formats supported by OpenAI GPT-5.2
 OPENAI_SUPPORTED_IMAGE_FORMATS = ['JPEG', 'PNG', 'GIF', 'WEBP']
@@ -241,16 +241,10 @@ async def upload_document(
                 endpoint="/api/documents/upload",
                 details=f"File size exceeds limit: {len(file_content)} bytes, filename: {file.filename}"
             )
-            if is_conversation_upload:
-                raise HTTPException(
-                    status_code=400,
-                    detail=f"File size exceeds {int(MAX_CONVERSATION_FILE_SIZE / 1024 / 1024)}MB limit for conversation. For larger files (up to 50MB), use the Documents page."
-                )
-            else:
-                raise HTTPException(
-                    status_code=400,
-                    detail=f"File size exceeds maximum allowed size of {int(MAX_FILE_SIZE / 1024 / 1024)}MB"
-                )
+            raise HTTPException(
+                status_code=400,
+                detail=f"File size exceeds maximum allowed size of {int(MAX_FILE_SIZE / 1024 / 1024)}MB"
+            )
 
         # Validate image content if this is an image file
         if file.content_type.startswith('image/'):

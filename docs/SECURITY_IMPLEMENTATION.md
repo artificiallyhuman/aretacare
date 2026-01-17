@@ -124,7 +124,7 @@ Implemented via `slowapi`. See `backend/app/core/rate_limit.py`.
 |---------|----------------|
 | Content-Disposition | `attachment` header forces download, prevents browser execution |
 | File validation | MIME type + extension checking |
-| Size limit | 100MB |
+| Size limit | 30MB documents, 100MB audio (OpenAI file URL limit is 32MB; audio is transcribed first) |
 | Image validation | PIL verification |
 | S3 encryption | AES-256 server-side |
 

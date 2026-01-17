@@ -256,7 +256,7 @@ const Documents = () => {
 
     const allowedTypes = ['application/pdf', 'image/png', 'image/jpeg', 'image/jpg', 'text/plain'];
     const allowedExtensions = ['.pdf', '.png', '.jpg', '.jpeg', '.txt'];
-    const maxSize = 100 * 1024 * 1024; // 100MB per file
+    const maxSize = 30 * 1024 * 1024; // 30MB per file
 
     // Validate all files first
     const invalidFiles = [];
@@ -279,7 +279,7 @@ const Documents = () => {
     }
 
     if (oversizedFiles.length > 0) {
-      setError(`File(s) exceed 100MB limit: ${oversizedFiles.join(', ')}. Each file must be 100MB or less.`);
+      setError(`File(s) exceed 30MB limit: ${oversizedFiles.join(', ')}. Each file must be 30MB or less.`);
       if (fileInputRef.current) fileInputRef.current.value = '';
       return;
     }
@@ -446,7 +446,7 @@ const Documents = () => {
               <label
                 htmlFor="document-file-upload"
                 className={`btn-primary inline-flex items-center gap-2 cursor-pointer ${uploading ? 'opacity-50 cursor-not-allowed' : ''}`}
-                title="Upload documents (PDF, PNG, JPG, TXT) - Max 100MB each"
+                title="Upload documents (PDF, PNG, JPG, TXT) - Max 30MB each"
               >
                 {uploading ? (
                   <>
@@ -467,7 +467,7 @@ const Documents = () => {
                 )}
               </label>
               <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 hidden sm:block">
-                100MB per document
+                30MB per document
               </p>
             </div>
           </div>

@@ -146,7 +146,7 @@ AretaCare implements comprehensive security measures:
 ### File Upload Security
 - **Content-Disposition Headers**: Forces download instead of browser execution
 - **File Type Validation**: MIME type and extension checking
-- **File Size Limits**: 100MB maximum
+- **File Size Limits**: 30MB documents, 100MB audio (OpenAI file URL limit is 32MB; audio is transcribed first)
 - **Image Validation**: PIL verification for image uploads
 
 ### Access Control
