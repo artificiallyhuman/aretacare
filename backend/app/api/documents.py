@@ -115,6 +115,18 @@ def validate_image_content(file_content: bytes, content_type: str) -> tuple[bool
             return False, "Unable to process this image. Please ensure it's a valid JPEG, PNG, GIF, or WEBP file."
 
 
+def validate_pdf_content(file_content: bytes) -> tuple[bool, str]:
+    """Validate that file content is actually a PDF by checking magic bytes."""
+    # PDF files start with %PDF-
+    if len(file_content) < 5:
+        return False, "File too small to be a valid PDF"
+
+    if not file_content[:5] == b'%PDF-':
+        return False, "File does not appear to be a valid PDF (invalid header)"
+
+    return True, ""
+
+
 @router.post("/upload", response_model=DocumentUploadResponse)
 @limiter.limit(RateLimits.FILE_UPLOAD)
 async def upload_document(
@@ -264,6 +276,25 @@ async def upload_document(
                 raise HTTPException(
                     status_code=400,
                     detail=error_message
+                )
+
+        # Validate PDF content if this is a PDF file
+        if file.content_type == "application/pdf":
+            is_valid, error_message = validate_pdf_content(file_content)
+            if not is_valid:
+                security_service.log_event(
+                    db=db,
+                    event_type="upload_failure",
+                    email=current_user.email,
+                    user_id=current_user.id,
+                    ip_address=security_service.get_client_ip(request),
+                    user_agent=security_service.get_user_agent(request),
+                    endpoint="/api/documents/upload",
+                    details=f"Invalid PDF content: {error_message}, filename: {file.filename}"
+                )
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Invalid PDF file: {error_message}"
                 )
 
         # Generate unique S3 key (with optional environment prefix for shared buckets)
