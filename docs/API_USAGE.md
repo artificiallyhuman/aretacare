@@ -157,7 +157,7 @@ Content-Type: multipart/form-data
 ```
 Parameters: `file`, `session_id`, `user_date` (YYYY-MM-DD), `skip_journal_synthesis` (optional)
 
-Supported: PDF, PNG, JPG, TXT (50MB max, 20MB in conversation). Auto-categorizes into 12 categories.
+Supported: PDF, PNG, JPG, TXT (100MB max). Auto-categorizes into 12 categories.
 
 ### Manage
 ```bash
@@ -180,7 +180,7 @@ Content-Type: multipart/form-data
 ```
 Parameters: `audio`, `session_id`
 
-Supported: MP3, M4A, WAV, WebM, OGG (50MB max). Auto-transcribes, categorizes, converts to MP3.
+Supported: MP3, M4A, WAV, WebM, OGG (100MB max). Auto-transcribes, categorizes, converts to MP3.
 
 ### Manage
 ```bash

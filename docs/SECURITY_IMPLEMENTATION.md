@@ -124,7 +124,7 @@ Implemented via `slowapi`. See `backend/app/core/rate_limit.py`.
 |---------|----------------|
 | Content-Disposition | `attachment` header forces download, prevents browser execution |
 | File validation | MIME type + extension checking |
-| Size limit | 50MB (20MB for conversation uploads) |
+| Size limit | 100MB |
 | Image validation | PIL verification |
 | S3 encryption | AES-256 server-side |
 
