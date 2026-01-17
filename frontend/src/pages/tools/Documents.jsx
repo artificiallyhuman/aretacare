@@ -466,8 +466,21 @@ const Documents = () => {
                   </>
                 )}
               </label>
-              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 hidden sm:block">
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 hidden sm:flex sm:items-center sm:justify-end sm:gap-1">
                 30MB per document
+                <span className="relative group inline-flex">
+                  <svg
+                    className="w-4 h-4 text-gray-400 dark:text-gray-500 cursor-help"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <span className="absolute top-full right-0 mt-1 px-2 py-1 text-xs text-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-600 rounded shadow-sm whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
+                    Limited by AI model file size limits
+                  </span>
+                </span>
               </p>
             </div>
           </div>
