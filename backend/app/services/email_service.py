@@ -162,7 +162,7 @@ The AretaCare Team
                     <tr>
                         <td style="padding: 40px 40px 20px; text-align: center;">
                             <h1 style="margin: 0; color: #059669; font-size: 36px;">AretaCare<span style="font-size: 20px; vertical-align: super;">™</span></h1>
-                            <p style="margin: 10px 0 0; color: #6b7280; font-size: 18px; letter-spacing: 0.5px;">Care | Clarity | Confidence</p>
+                            <p style="margin: 10px 0 0; color: #6b7280; font-size: 18px; letter-spacing: 0.5px;">Calm | Clarity | Confidence</p>
                         </td>
                     </tr>
 
@@ -297,7 +297,7 @@ The AretaCare Team
                     <tr>
                         <td style="padding: 40px 40px 20px; text-align: center;">
                             <h1 style="margin: 0; color: #059669; font-size: 36px;">AretaCare<span style="font-size: 20px; vertical-align: super;">™</span></h1>
-                            <p style="margin: 10px 0 0; color: #6b7280; font-size: 18px; letter-spacing: 0.5px;">Care | Clarity | Confidence</p>
+                            <p style="margin: 10px 0 0; color: #6b7280; font-size: 18px; letter-spacing: 0.5px;">Calm | Clarity | Confidence</p>
                         </td>
                     </tr>
 
@@ -418,7 +418,7 @@ The AretaCare Team
                     <tr>
                         <td style="padding: 40px 40px 20px; text-align: center;">
                             <h1 style="margin: 0; color: #059669; font-size: 36px;">AretaCare<span style="font-size: 20px; vertical-align: super;">™</span></h1>
-                            <p style="margin: 10px 0 0; color: #6b7280; font-size: 18px; letter-spacing: 0.5px;">Care | Clarity | Confidence</p>
+                            <p style="margin: 10px 0 0; color: #6b7280; font-size: 18px; letter-spacing: 0.5px;">Calm | Clarity | Confidence</p>
                         </td>
                     </tr>
 
@@ -544,7 +544,7 @@ The AretaCare Team
                     <tr>
                         <td style="padding: 40px 40px 20px; text-align: center;">
                             <h1 style="margin: 0; color: #059669; font-size: 36px;">AretaCare<span style="font-size: 20px; vertical-align: super;">™</span></h1>
-                            <p style="margin: 10px 0 0; color: #6b7280; font-size: 18px; letter-spacing: 0.5px;">Care | Clarity | Confidence</p>
+                            <p style="margin: 10px 0 0; color: #6b7280; font-size: 18px; letter-spacing: 0.5px;">Calm | Clarity | Confidence</p>
                         </td>
                     </tr>
 
@@ -690,7 +690,7 @@ The AretaCare Team
                     <tr>
                         <td style="padding: 40px 40px 20px; text-align: center;">
                             <h1 style="margin: 0; color: #059669; font-size: 36px;">AretaCare<span style="font-size: 20px; vertical-align: super;">™</span></h1>
-                            <p style="margin: 10px 0 0; color: #6b7280; font-size: 18px; letter-spacing: 0.5px;">Care | Clarity | Confidence</p>
+                            <p style="margin: 10px 0 0; color: #6b7280; font-size: 18px; letter-spacing: 0.5px;">Calm | Clarity | Confidence</p>
                         </td>
                     </tr>
 
@@ -843,7 +843,7 @@ The AretaCare Team
                     <tr>
                         <td style="padding: 40px 40px 20px; text-align: center;">
                             <h1 style="margin: 0; color: #059669; font-size: 36px;">AretaCare<span style="font-size: 20px; vertical-align: super;">™</span></h1>
-                            <p style="margin: 10px 0 0; color: #6b7280; font-size: 18px; letter-spacing: 0.5px;">Care | Clarity | Confidence</p>
+                            <p style="margin: 10px 0 0; color: #6b7280; font-size: 18px; letter-spacing: 0.5px;">Calm | Clarity | Confidence</p>
                         </td>
                     </tr>
 
@@ -993,7 +993,7 @@ The AretaCare Team
                     <tr>
                         <td style="padding: 40px 40px 20px; text-align: center;">
                             <h1 style="margin: 0; color: #059669; font-size: 36px;">AretaCare<span style="font-size: 20px; vertical-align: super;">™</span></h1>
-                            <p style="margin: 10px 0 0; color: #6b7280; font-size: 18px; letter-spacing: 0.5px;">Care | Clarity | Confidence</p>
+                            <p style="margin: 10px 0 0; color: #6b7280; font-size: 18px; letter-spacing: 0.5px;">Calm | Clarity | Confidence</p>
                         </td>
                     </tr>
 
@@ -1145,7 +1145,7 @@ The AretaCare Team
                     <tr>
                         <td style="padding: 40px 40px 20px; text-align: center;">
                             <h1 style="margin: 0; color: #059669; font-size: 36px;">AretaCare<span style="font-size: 20px; vertical-align: super;">™</span></h1>
-                            <p style="margin: 10px 0 0; color: #6b7280; font-size: 18px; letter-spacing: 0.5px;">Care | Clarity | Confidence</p>
+                            <p style="margin: 10px 0 0; color: #6b7280; font-size: 18px; letter-spacing: 0.5px;">Calm | Clarity | Confidence</p>
                         </td>
                     </tr>
 
@@ -1377,7 +1377,7 @@ The AretaCare Team
                     <tr>
                         <td style="padding: 40px 40px 20px; text-align: center;">
                             <h1 style="margin: 0; color: #059669; font-size: 36px;">AretaCare<span style="font-size: 20px; vertical-align: super;">™</span></h1>
-                            <p style="margin: 10px 0 0; color: #6b7280; font-size: 18px; letter-spacing: 0.5px;">Care | Clarity | Confidence</p>
+                            <p style="margin: 10px 0 0; color: #6b7280; font-size: 18px; letter-spacing: 0.5px;">Calm | Clarity | Confidence</p>
                         </td>
                     </tr>
 
@@ -1535,7 +1535,7 @@ The AretaCare Team
                     <tr>
                         <td style="padding: 40px 40px 20px; text-align: center;">
                             <h1 style="margin: 0; color: #059669; font-size: 36px;">AretaCare<span style="font-size: 20px; vertical-align: super;">™</span></h1>
-                            <p style="margin: 10px 0 0; color: #6b7280; font-size: 18px; letter-spacing: 0.5px;">Care | Clarity | Confidence</p>
+                            <p style="margin: 10px 0 0; color: #6b7280; font-size: 18px; letter-spacing: 0.5px;">Calm | Clarity | Confidence</p>
                         </td>
                     </tr>
 
@@ -1715,7 +1715,7 @@ The AretaCare Team
                     <tr>
                         <td style="padding: 40px 40px 20px; text-align: center;">
                             <h1 style="margin: 0; color: #059669; font-size: 36px;">AretaCare<span style="font-size: 20px; vertical-align: super;">™</span></h1>
-                            <p style="margin: 10px 0 0; color: #6b7280; font-size: 18px; letter-spacing: 0.5px;">Care | Clarity | Confidence</p>
+                            <p style="margin: 10px 0 0; color: #6b7280; font-size: 18px; letter-spacing: 0.5px;">Calm | Clarity | Confidence</p>
                         </td>
                     </tr>
 
@@ -2045,7 +2045,7 @@ The AretaCare Team
                     <tr>
                         <td style="padding: 40px 40px 20px; text-align: center;">
                             <h1 style="margin: 0; color: #059669; font-size: 36px;">AretaCare<span style="font-size: 20px; vertical-align: super;">™</span></h1>
-                            <p style="margin: 10px 0 0; color: #6b7280; font-size: 18px; letter-spacing: 0.5px;">Care | Clarity | Confidence</p>
+                            <p style="margin: 10px 0 0; color: #6b7280; font-size: 18px; letter-spacing: 0.5px;">Calm | Clarity | Confidence</p>
                         </td>
                     </tr>
 
@@ -2185,7 +2185,7 @@ The AretaCare Team
                     <tr>
                         <td style="padding: 40px 40px 20px; text-align: center;">
                             <h1 style="margin: 0; color: #059669; font-size: 36px;">AretaCare<span style="font-size: 20px; vertical-align: super;">™</span></h1>
-                            <p style="margin: 10px 0 0; color: #6b7280; font-size: 18px; letter-spacing: 0.5px;">Care | Clarity | Confidence</p>
+                            <p style="margin: 10px 0 0; color: #6b7280; font-size: 18px; letter-spacing: 0.5px;">Calm | Clarity | Confidence</p>
                         </td>
                     </tr>
 
@@ -2332,7 +2332,7 @@ The AretaCare Team
                     <tr>
                         <td style="padding: 40px 40px 20px; text-align: center;">
                             <h1 style="margin: 0; color: #059669; font-size: 36px;">AretaCare<span style="font-size: 20px; vertical-align: super;">™</span></h1>
-                            <p style="margin: 10px 0 0; color: #6b7280; font-size: 18px; letter-spacing: 0.5px;">Care | Clarity | Confidence</p>
+                            <p style="margin: 10px 0 0; color: #6b7280; font-size: 18px; letter-spacing: 0.5px;">Calm | Clarity | Confidence</p>
                         </td>
                     </tr>
 
@@ -2478,7 +2478,7 @@ The AretaCare Team
                     <tr>
                         <td style="padding: 40px 40px 20px; text-align: center;">
                             <h1 style="margin: 0; color: #059669; font-size: 36px;">AretaCare<span style="font-size: 20px; vertical-align: super;">™</span></h1>
-                            <p style="margin: 10px 0 0; color: #6b7280; font-size: 18px; letter-spacing: 0.5px;">Care | Clarity | Confidence</p>
+                            <p style="margin: 10px 0 0; color: #6b7280; font-size: 18px; letter-spacing: 0.5px;">Calm | Clarity | Confidence</p>
                         </td>
                     </tr>
 
@@ -2597,7 +2597,7 @@ The AretaCare Team
                     <tr>
                         <td style="padding: 40px 40px 20px; text-align: center;">
                             <h1 style="margin: 0; color: #059669; font-size: 36px;">AretaCare<span style="font-size: 20px; vertical-align: super;">™</span></h1>
-                            <p style="margin: 10px 0 0; color: #6b7280; font-size: 18px; letter-spacing: 0.5px;">Care | Clarity | Confidence</p>
+                            <p style="margin: 10px 0 0; color: #6b7280; font-size: 18px; letter-spacing: 0.5px;">Calm | Clarity | Confidence</p>
                         </td>
                     </tr>
 
@@ -2715,7 +2715,7 @@ The AretaCare Team
                     <tr>
                         <td style="padding: 40px 40px 20px; text-align: center;">
                             <h1 style="margin: 0; color: #059669; font-size: 36px;">AretaCare<span style="font-size: 20px; vertical-align: super;">™</span></h1>
-                            <p style="margin: 10px 0 0; color: #6b7280; font-size: 18px; letter-spacing: 0.5px;">Care | Clarity | Confidence</p>
+                            <p style="margin: 10px 0 0; color: #6b7280; font-size: 18px; letter-spacing: 0.5px;">Calm | Clarity | Confidence</p>
                         </td>
                     </tr>
 
@@ -2842,7 +2842,7 @@ The AretaCare Team
                     <tr>
                         <td style="padding: 40px 40px 20px; text-align: center;">
                             <h1 style="margin: 0; color: #059669; font-size: 36px;">AretaCare<span style="font-size: 20px; vertical-align: super;">™</span></h1>
-                            <p style="margin: 10px 0 0; color: #6b7280; font-size: 18px; letter-spacing: 0.5px;">Care | Clarity | Confidence</p>
+                            <p style="margin: 10px 0 0; color: #6b7280; font-size: 18px; letter-spacing: 0.5px;">Calm | Clarity | Confidence</p>
                         </td>
                     </tr>
 
@@ -2961,7 +2961,7 @@ The AretaCare Team
                     <tr>
                         <td style="padding: 40px 40px 20px; text-align: center;">
                             <h1 style="margin: 0; color: #059669; font-size: 36px;">AretaCare<span style="font-size: 20px; vertical-align: super;">™</span></h1>
-                            <p style="margin: 10px 0 0; color: #6b7280; font-size: 18px; letter-spacing: 0.5px;">Care | Clarity | Confidence</p>
+                            <p style="margin: 10px 0 0; color: #6b7280; font-size: 18px; letter-spacing: 0.5px;">Calm | Clarity | Confidence</p>
                         </td>
                     </tr>
 
@@ -3086,7 +3086,7 @@ The AretaCare Team
                     <tr>
                         <td style="padding: 40px 40px 20px; text-align: center;">
                             <h1 style="margin: 0; color: #059669; font-size: 36px;">AretaCare<span style="font-size: 20px; vertical-align: super;">™</span></h1>
-                            <p style="margin: 10px 0 0; color: #6b7280; font-size: 18px; letter-spacing: 0.5px;">Care | Clarity | Confidence</p>
+                            <p style="margin: 10px 0 0; color: #6b7280; font-size: 18px; letter-spacing: 0.5px;">Calm | Clarity | Confidence</p>
                         </td>
                     </tr>
 

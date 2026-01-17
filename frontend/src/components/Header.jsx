@@ -84,7 +84,7 @@ const Header = ({ onLogout, user }) => {
             />
             <div>
               <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">AretaCare<span className="font-normal">™</span></h1>
-              <p className="text-xs text-gray-500 dark:text-gray-400 hidden sm:block">Care | Clarity | Confidence</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400 hidden sm:block">Calm | Clarity | Confidence</p>
             </div>
           </Link>
 

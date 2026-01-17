@@ -1,7 +1,7 @@
 {
   "name": "aretacare-frontend",
   "version": "1.0.0",
-  "description": "AretaCare - Care. Clarity. Confidence.",
+  "description": "AretaCare - Calm. Clarity. Confidence.",
   "private": true,
   "dependencies": {
     "@hcaptcha/react-hcaptcha": "^1.10.1",

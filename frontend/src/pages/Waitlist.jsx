@@ -73,7 +73,7 @@ function Waitlist() {
               <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
                 AretaCare<span className="font-normal text-xl align-super">™</span>
               </h1>
-              <p className="text-sm text-gray-500 dark:text-gray-400 tracking-wide">Care | Clarity | Confidence</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400 tracking-wide">Calm | Clarity | Confidence</p>
             </div>
           </div>
         </div>

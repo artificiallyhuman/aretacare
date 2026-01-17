@@ -1,6 +1,6 @@
 # AretaCare
 
-**Care | Clarity | Confidence**
+**Calm | Clarity | Confidence**
 
 A secure platform for patients and caregivers to organize information, understand complex concepts, and prepare for clearer conversations with care teams.
 
@@ -185,4 +185,4 @@ MIT with Commons Clause restrictions. See `LICENSE` and `COMMONS-CLAUSE.md`.
 
 ---
 
-*Built for patients and caregivers who need more clarity and confidence.*
+*Built for patients and caregivers who need more calm, clarity, and confidence.*

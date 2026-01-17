@@ -46,7 +46,7 @@ else:
 
 app = FastAPI(
     title="AretaCare API",
-    description="Care. Clarity. Confidence. - Helping families navigate medical information",
+    description="Calm. Clarity. Confidence. - Helping families navigate medical information",
     version="1.0.0",
 )
 
@@ -237,7 +237,7 @@ async def root():
     """Root endpoint"""
     return {
         "message": "Welcome to AretaCare API",
-        "description": "Care. Clarity. Confidence.",
+        "description": "Calm. Clarity. Confidence.",
         "version": "1.0.0",
         "docs": "/docs"
     }

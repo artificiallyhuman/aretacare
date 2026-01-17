@@ -209,7 +209,7 @@ const About = () => {
           />
         </div>
         <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Welcome to AretaCare<span className="font-normal">™</span></h2>
-        <p className="text-lg text-gray-600 dark:text-gray-400">Care | Clarity | Confidence</p>
+        <p className="text-lg text-gray-600 dark:text-gray-400">Calm | Clarity | Confidence</p>
       </div>
 
       {/* Tab Navigation */}
@@ -515,7 +515,7 @@ const About = () => {
               </p>
 
               <p>
-                AretaCare grew from sitting beside my mother and seeing how easily information can scatter. It grew from watching families work tirelessly to stay informed and united. We hope that AretaCare gives families the care, clarity, and confidence I wish we had during those long nights and complicated days.
+                AretaCare grew from sitting beside my mother and seeing how easily information can scatter. It grew from watching families work tirelessly to stay informed and united. We hope that AretaCare gives families the calm, clarity, and confidence I wish we had during those long nights and complicated days.
               </p>
             </div>
           </div>
@@ -564,7 +564,7 @@ const About = () => {
               </p>
 
               <p>
-                For me, AretaCare is a way to turn my optimism about AI into action. I hope it gives you and your loved ones a bit more clarity, a bit more confidence, and the sense that you don't have to carry the burden alone.
+                For me, AretaCare is a way to turn my optimism about AI into action. I hope it gives you and your loved ones a bit more calm, a bit more clarity, a bit more confidence, and the sense that you don't have to carry the burden alone.
               </p>
             </div>
           </div>
@@ -578,7 +578,7 @@ const About = () => {
           <div className="text-center mb-8">
             <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-3">The Principles That Guide Us</h3>
             <p className="text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
-              AretaCare exists to help patients and families navigate medical uncertainty with clarity and confidence, while honoring their privacy, dignity, and trust.
+              AretaCare exists to help patients and families navigate medical uncertainty with calm, clarity, and confidence, while honoring their privacy, dignity, and trust.
             </p>
           </div>
 
@@ -603,7 +603,7 @@ const About = () => {
                   That choice informs every part of the platform. We designed AretaCare so families can work together in one place, with conversations, data, and documents organized and accessible. We intentionally don't give medical advice or steer care decisions. Instead, we help you make sense of the professional care you're receiving and support you in advocating for yourself and the people you love.
                 </p>
                 <p className="font-semibold text-gray-900 dark:text-white bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg border-l-2 border-blue-500 dark:border-blue-400">
-                  AretaCare exists to provide patients and caregivers with clarity and confidence.
+                  AretaCare exists to provide patients and caregivers with calm, clarity, and confidence.
                 </p>
               </div>
             </div>
