@@ -411,7 +411,7 @@ async def update_message(
     )
 
 
-MAX_AUDIO_FILE_SIZE = 50 * 1024 * 1024  # 50MB for audio transcription
+MAX_AUDIO_FILE_SIZE = 100 * 1024 * 1024  # 100MB for audio transcription
 
 # Blocked audio file types for security
 BLOCKED_AUDIO_EXTENSIONS = [

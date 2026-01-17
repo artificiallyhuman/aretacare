@@ -60,8 +60,8 @@ BLOCKED_MIME_TYPES = [
     'text/javascript', 'application/x-sh',
 ]
 
-MAX_FILE_SIZE = 50 * 1024 * 1024  # 50MB for document manager
-MAX_CONVERSATION_FILE_SIZE = 20 * 1024 * 1024  # 20MB for conversation uploads
+MAX_FILE_SIZE = 100 * 1024 * 1024  # 100MB for document manager
+MAX_CONVERSATION_FILE_SIZE = 100 * 1024 * 1024  # 100MB for conversation uploads
 
 # Image formats supported by OpenAI GPT-5.2
 OPENAI_SUPPORTED_IMAGE_FORMATS = ['JPEG', 'PNG', 'GIF', 'WEBP']
