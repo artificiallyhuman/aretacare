@@ -695,11 +695,11 @@ async def _generate_profile_pdf(profile: Profile, session: UserSession, timezone
             severity_order = {"severe": 0, "moderate": 1, "mild": 2}
             sorted_allergies = sorted(
                 allergies,
-                key=lambda a: severity_order.get(a.get("severity", "").lower(), 3)
+                key=lambda a: severity_order.get((a.get("severity") or "").lower(), 3)
             )
             for a in sorted_allergies:
                 title = f"<b>{a.get('substance', 'Unknown')}</b>"
-                severity = a.get("severity", "").lower()
+                severity = (a.get("severity") or "").lower()
                 if severity:
                     if severity == "severe":
                         title += f' <font color="#dc2626"><b>[SEVERE]</b></font>'
