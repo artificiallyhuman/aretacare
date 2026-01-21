@@ -26,6 +26,7 @@ ALLOWED_CONTENT_TYPES = [
     "image/jpeg",
     "image/png",
     "image/jpg",
+    "image/mpo",  # Multi-Picture Object (stereoscopic images from iPhone, etc.) - converted to JPEG
     "text/plain",
 ]
 
@@ -67,15 +68,20 @@ MAX_CONVERSATION_FILE_SIZE = 30 * 1024 * 1024  # 30MB for conversation uploads
 OPENAI_SUPPORTED_IMAGE_FORMATS = ['JPEG', 'PNG', 'GIF', 'WEBP']
 
 
-def validate_image_content(file_content: bytes, content_type: str) -> tuple[bool, str]:
+def process_and_validate_image(file_content: bytes, content_type: str) -> tuple[bytes, str, bool, str]:
     """
-    Validate that file content is actually a valid image that OpenAI can process.
+    Validate and process image content, converting MPO to JPEG if needed.
+
+    MPO (Multi-Picture Object) files contain multiple JPEG images (typically for
+    stereoscopic/3D photos). These are common from iPhones and appear as .jpeg to
+    users but get rejected due to the MPO container format. We extract the primary
+    image and convert to standard JPEG.
 
     Returns:
-        tuple: (is_valid, error_message)
+        tuple: (processed_content, processed_content_type, is_valid, error_message)
     """
     if not content_type.startswith('image/'):
-        return True, ""  # Not an image, skip validation
+        return file_content, content_type, True, ""  # Not an image, skip processing
 
     try:
         # Try to open the image with PIL
@@ -87,20 +93,34 @@ def validate_image_content(file_content: bytes, content_type: str) -> tuple[bool
         # Re-open after verify (verify() can only be called once)
         img = Image.open(BytesIO(file_content))
 
+        # Handle MPO format - convert to JPEG by extracting the primary image
+        if img.format == 'MPO':
+            logger.info(f"Converting MPO image to JPEG (original frames: {getattr(img, 'n_frames', 1)})")
+            # MPO opens to the primary image by default, just save as JPEG
+            output = BytesIO()
+            # Convert to RGB if necessary (handles RGBA, P mode, etc.)
+            if img.mode in ('RGBA', 'P', 'LA'):
+                img = img.convert('RGB')
+            img.save(output, format='JPEG', quality=95)
+            file_content = output.getvalue()
+            content_type = 'image/jpeg'
+            # Re-open the converted image for further validation
+            img = Image.open(BytesIO(file_content))
+
         # Check if format is supported by OpenAI
         if img.format not in OPENAI_SUPPORTED_IMAGE_FORMATS:
-            return False, f"Image format '{img.format}' is not supported by the AI. Supported formats: JPEG, PNG, GIF, WEBP."
+            return file_content, content_type, False, f"Image format '{img.format}' is not supported by the AI. Supported formats: JPEG, PNG, GIF, WEBP."
 
         # Check image dimensions (OpenAI has limits, but they're generous)
         width, height = img.size
         if width < 10 or height < 10:
-            return False, "Image is too small. Minimum dimensions are 10x10 pixels."
+            return file_content, content_type, False, "Image is too small. Minimum dimensions are 10x10 pixels."
 
         # Very large images may cause issues - warn but don't block
         if width > 8192 or height > 8192:
             logger.warning(f"Large image uploaded: {width}x{height} pixels")
 
-        return True, ""
+        return file_content, content_type, True, ""
 
     except Exception as e:
         error_msg = str(e)
@@ -108,11 +128,11 @@ def validate_image_content(file_content: bytes, content_type: str) -> tuple[bool
 
         # Provide user-friendly error messages
         if "cannot identify image file" in error_msg.lower():
-            return False, "The file appears to be corrupted or is not a valid image. Please try uploading a different file."
+            return file_content, content_type, False, "The file appears to be corrupted or is not a valid image. Please try uploading a different file."
         elif "truncated" in error_msg.lower():
-            return False, "The image file appears to be incomplete or corrupted. Please try uploading again."
+            return file_content, content_type, False, "The image file appears to be incomplete or corrupted. Please try uploading again."
         else:
-            return False, "Unable to process this image. Please ensure it's a valid JPEG, PNG, GIF, or WEBP file."
+            return file_content, content_type, False, "Unable to process this image. Please ensure it's a valid JPEG, PNG, GIF, or WEBP file."
 
 
 def validate_pdf_content(file_content: bytes) -> tuple[bool, str]:
@@ -258,9 +278,11 @@ async def upload_document(
                 detail=f"File size exceeds maximum allowed size of {int(MAX_FILE_SIZE / 1024 / 1024)}MB"
             )
 
-        # Validate image content if this is an image file
+        # Validate and process image content if this is an image file
+        # This also handles MPO to JPEG conversion for stereoscopic images
+        actual_content_type = file.content_type
         if file.content_type.startswith('image/'):
-            is_valid, error_message = validate_image_content(file_content, file.content_type)
+            file_content, actual_content_type, is_valid, error_message = process_and_validate_image(file_content, file.content_type)
             if not is_valid:
                 # Log upload failure for monitoring
                 security_service.log_event(
@@ -298,17 +320,23 @@ async def upload_document(
                 )
 
         # Generate unique S3 key (with optional environment prefix for shared buckets)
-        file_extension = file.filename.split('.')[-1] if '.' in file.filename else 'bin'
+        # Use correct extension based on actual content type (e.g., .jpg for converted MPO files)
+        if actual_content_type == 'image/jpeg':
+            file_extension = 'jpg'
+        elif actual_content_type == 'image/png':
+            file_extension = 'png'
+        else:
+            file_extension = file.filename.split('.')[-1] if '.' in file.filename else 'bin'
         s3_key = s3_service.get_prefixed_key(f"documents/{session_id}/{uuid.uuid4()}.{file_extension}")
 
         # Upload to S3 (with Content-Disposition header for security)
-        upload_success = await s3_service.upload_file(file_content, s3_key, file.content_type, file.filename)
+        upload_success = await s3_service.upload_file(file_content, s3_key, actual_content_type, file.filename)
 
         if not upload_success:
             raise HTTPException(status_code=500, detail="Failed to upload file to storage")
 
         # Extract text from document (runs in thread pool)
-        extracted_text = await document_processor.extract_text(file_content, file.content_type)
+        extracted_text = await document_processor.extract_text(file_content, actual_content_type)
 
         # Generate and upload thumbnail for PDFs (runs in thread pool)
         thumbnail_s3_key = None
@@ -335,7 +363,7 @@ async def upload_document(
 
             categorization = await openai_service.categorize_document(
                 filename=file.filename,
-                content_type=file.content_type,
+                content_type=actual_content_type,
                 document_url=document_url,
                 extracted_text=extracted_text or "",
                 user_id=current_user.id
@@ -356,7 +384,7 @@ async def upload_document(
             filename=file.filename,
             s3_key=s3_key,
             thumbnail_s3_key=thumbnail_s3_key,
-            content_type=file.content_type,
+            content_type=actual_content_type,  # Store the actual content type (e.g., image/jpeg for converted MPO)
             extracted_text=extracted_text,
             category=doc_category,
             ai_description=ai_description
@@ -390,7 +418,7 @@ async def upload_document(
                     ai_description=ai_description or "",
                     session_id=session_id,
                     document_url=document_url,  # Use presigned URL for native file support
-                    content_type=file.content_type,
+                    content_type=actual_content_type,
                     extracted_text=extracted_text or "",  # Fallback only if URL unavailable
                     entry_date=entry_date,
                     document_id=document.id,
@@ -413,10 +441,10 @@ async def upload_document(
         media_url = None
         thumbnail_url = None
 
-        if file.content_type.startswith('image/'):
+        if actual_content_type.startswith('image/'):
             # For images, generate media_url from the document's s3_key
             media_url = s3_service.generate_presigned_url(s3_key)
-        elif file.content_type == 'application/pdf' and thumbnail_s3_key:
+        elif actual_content_type == 'application/pdf' and thumbnail_s3_key:
             # For PDFs, generate thumbnail_url (6 hours for thumbnails)
             thumbnail_url = s3_service.generate_presigned_url(thumbnail_s3_key, expiration=21600)
 
