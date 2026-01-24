@@ -15,7 +15,7 @@ const PrivacyPolicy = () => {
           </Link>
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-6 sm:p-8">
             <h1 className="text-4xl sm:text-5xl font-bold text-gray-900 dark:text-white mb-2">Privacy Policy</h1>
-            <p className="text-sm text-gray-500 dark:text-gray-400">Last Updated: January 15, 2026</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400">Last Updated: January 24, 2026</p>
           </div>
         </div>
 
@@ -55,6 +55,86 @@ const PrivacyPolicy = () => {
               </div>
 
               <div>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">Health Information Categories</h3>
+                <p className="text-gray-700 dark:text-gray-300 leading-relaxed text-base mb-4">
+                  AretaCare may collect and process the following categories of health-related information that you choose to provide:
+                </p>
+
+                <div className="space-y-4">
+                  <div>
+                    <h4 className="text-base font-semibold text-gray-800 dark:text-gray-200 mb-2">Document Categories</h4>
+                    <ul className="list-disc list-inside space-y-1 text-gray-700 dark:text-gray-300 pl-4 text-sm">
+                      <li><strong>Lab Results:</strong> Blood tests (CBC, metabolic panel, A1C, cholesterol), COVID/flu/strep tests, urinalysis, cultures, biopsies, pathology reports, genetic/DNA tests, allergy panels, hormone levels, tumor markers</li>
+                      <li><strong>Imaging Reports:</strong> X-rays, CT scans, MRIs, ultrasounds, mammograms, PET scans, bone density scans (DEXA), echocardiograms</li>
+                      <li><strong>Clinic Notes:</strong> Office visit summaries, progress notes, consultation notes, telehealth notes, specialist evaluations, history and physical</li>
+                      <li><strong>Medication Records:</strong> Prescription records, medication lists, pharmacy printouts, medication reconciliation, prior authorizations</li>
+                      <li><strong>Discharge Summaries:</strong> Hospital discharge summaries, after-visit summaries, hospital stay reports, post-operative instructions</li>
+                      <li><strong>Treatment Plans:</strong> Care plans, therapy schedules, chemotherapy protocols, radiation therapy plans, rehabilitation plans</li>
+                      <li><strong>Test Results:</strong> EKG/ECG, stress tests, pulmonary function tests, sleep studies, hearing tests, vision tests, nerve conduction studies, EEG, cardiac monitoring, colonoscopy/endoscopy reports</li>
+                      <li><strong>Referrals:</strong> Referral letters, specialist referrals, second opinion requests, transfer summaries</li>
+                      <li><strong>Insurance and Billing:</strong> Insurance forms, billing statements, EOBs, itemized bills, prior authorizations, claims</li>
+                      <li><strong>Consent Forms:</strong> Informed consent, procedure consent, HIPAA forms, advance directives, DNR orders, power of attorney</li>
+                      <li><strong>Care Instructions:</strong> Home care instructions, wound care guides, physical therapy exercises, dietary guidelines</li>
+                      <li><strong>Other Documents:</strong> Any other health-related documents you choose to upload</li>
+                    </ul>
+                  </div>
+
+                  <div>
+                    <h4 className="text-base font-semibold text-gray-800 dark:text-gray-200 mb-2">Audio Recording Categories</h4>
+                    <ul className="list-disc list-inside space-y-1 text-gray-700 dark:text-gray-300 pl-4 text-sm">
+                      <li>Symptom updates</li>
+                      <li>Appointment recaps</li>
+                      <li>Medication notes</li>
+                      <li>Questions for providers</li>
+                      <li>Daily reflections</li>
+                      <li>Progress updates</li>
+                      <li>Side effects</li>
+                      <li>Care instructions</li>
+                      <li>Emergency notes</li>
+                      <li>Family updates</li>
+                      <li>Treatment observations</li>
+                      <li>Other recordings</li>
+                    </ul>
+                  </div>
+
+                  <div>
+                    <h4 className="text-base font-semibold text-gray-800 dark:text-gray-200 mb-2">Medication Categories</h4>
+                    <ul className="list-disc list-inside space-y-1 text-gray-700 dark:text-gray-300 pl-4 text-sm">
+                      <li>Pain management</li>
+                      <li>Cardiovascular</li>
+                      <li>Diabetes</li>
+                      <li>Mental health</li>
+                      <li>Antibiotics</li>
+                      <li>Respiratory</li>
+                      <li>Gastrointestinal</li>
+                      <li>Neurological</li>
+                      <li>Endocrine</li>
+                      <li>Oncology</li>
+                      <li>Immunosuppressant</li>
+                      <li>Vitamins/supplements</li>
+                      <li>Multiple categories</li>
+                      <li>Other medications</li>
+                    </ul>
+                  </div>
+
+                  <div>
+                    <h4 className="text-base font-semibold text-gray-800 dark:text-gray-200 mb-2">Health Profile Data</h4>
+                    <p className="text-gray-700 dark:text-gray-300 text-sm mb-2">The AI-generated Health Profile may include:</p>
+                    <ul className="list-disc list-inside space-y-1 text-gray-700 dark:text-gray-300 pl-4 text-sm">
+                      <li>Patient information (name, date of birth, contact information)</li>
+                      <li>Caregiver details (names, relationships, roles)</li>
+                      <li>Provider information (names, specialties, organizations)</li>
+                      <li>Medical conditions (diagnoses, status, dates)</li>
+                      <li>Medication details (names, doses, frequencies, prescribers, side effects)</li>
+                      <li>Allergies (substances, reactions, severity)</li>
+                      <li>Medical events (hospitalizations, surgeries, ER visits, major diagnoses)</li>
+                      <li>Care preferences and guidelines</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+
+              <div>
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">Technical Information</h3>
                 <ul className="list-disc list-inside space-y-2 text-gray-700 dark:text-gray-300 pl-4">
                   <li>Session data and authentication tokens</li>
@@ -91,11 +171,14 @@ const PrivacyPolicy = () => {
                 </p>
                 <p className="text-gray-700 dark:text-gray-300 leading-relaxed text-base mb-3">You will receive emails when:</p>
                 <ul className="list-disc list-inside space-y-2 text-gray-700 dark:text-gray-300 pl-4">
+                  <li><strong>Email Verification:</strong> Verification link to confirm your email address during registration</li>
                   <li><strong>Password Changes:</strong> Notification when your password is changed (either through account settings or password reset)</li>
                   <li><strong>Email Changes:</strong> Notification sent to your old email address when your account email is updated</li>
                   <li><strong>Collaborator Added (Owner):</strong> Notification when you add someone as a collaborator to one of your sessions</li>
                   <li><strong>Added as Collaborator:</strong> Notification when someone adds you as a collaborator to their session</li>
+                  <li><strong>Collaboration Invitation:</strong> Invitation email when someone invites you to collaborate (if you don't yet have an account)</li>
                   <li><strong>Removed as Collaborator:</strong> Notification when you are removed from a shared session</li>
+                  <li><strong>Waitlist Invitation:</strong> Invitation to create an account when approved from the waitlist</li>
                   <li><strong>Password Reset:</strong> Password reset link when requested</li>
                   <li><strong>MFA Changes:</strong> Notification when multi-factor authentication methods are enabled or disabled</li>
                   <li><strong>Backup Code Usage:</strong> Alert when a backup code is used to sign in</li>
@@ -105,7 +188,7 @@ const PrivacyPolicy = () => {
               <div>
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">Email Service Provider</h3>
                 <p className="text-gray-700 dark:text-gray-300 leading-relaxed text-base mb-3">
-                  Emails are sent via SMTP using Gmail. Your email address is shared with Gmail for the purpose of delivering these notifications. Email delivery is subject to Gmail's terms of service and privacy policy.
+                  Emails are sent via a third-party email service provider (currently Gmail). Your email address is shared with this provider for the purpose of delivering notifications. Email delivery is subject to the provider's terms of service and privacy policy.
                 </p>
               </div>
 
@@ -191,7 +274,7 @@ const PrivacyPolicy = () => {
                 AretaCare uses the following third-party services that may access your data:
               </p>
 
-              <div className="grid gap-4 sm:grid-cols-2">
+              <div className="grid gap-4 sm:grid-cols-3">
                 <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-5 border border-gray-200 dark:border-gray-600">
                   <h3 className="font-semibold text-gray-900 dark:text-white mb-3">OpenAI</h3>
                   <ul className="text-sm text-gray-600 dark:text-gray-300 space-y-1.5">
@@ -205,6 +288,13 @@ const PrivacyPolicy = () => {
                   <ul className="text-sm text-gray-600 dark:text-gray-300 space-y-1.5">
                     <li>• Stores uploaded documents and images</li>
                     <li>• Stores PDF thumbnails and audio recordings</li>
+                  </ul>
+                </div>
+                <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-5 border border-gray-200 dark:border-gray-600">
+                  <h3 className="font-semibold text-gray-900 dark:text-white mb-3">Email Provider</h3>
+                  <ul className="text-sm text-gray-600 dark:text-gray-300 space-y-1.5">
+                    <li>• Delivers email notifications</li>
+                    <li>• Currently Gmail (see Section 4)</li>
                   </ul>
                 </div>
               </div>
@@ -318,6 +408,49 @@ const PrivacyPolicy = () => {
               </div>
 
               <div>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">Data Retention Periods</h3>
+                <p className="text-gray-700 dark:text-gray-300 leading-relaxed text-base mb-3">
+                  The following table summarizes how long different types of data are retained:
+                </p>
+                <div className="overflow-x-auto">
+                  <table className="min-w-full text-sm text-gray-700 dark:text-gray-300">
+                    <thead>
+                      <tr className="border-b border-gray-200 dark:border-gray-600">
+                        <th className="text-left py-2 pr-4 font-semibold text-gray-900 dark:text-white">Data Type</th>
+                        <th className="text-left py-2 font-semibold text-gray-900 dark:text-white">Retention Period</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
+                      <tr>
+                        <td className="py-2 pr-4">User Content (conversations, journal, documents, audio, profiles)</td>
+                        <td className="py-2">Until user deletes it or account is deleted</td>
+                      </tr>
+                      <tr>
+                        <td className="py-2 pr-4">Audit Logs</td>
+                        <td className="py-2">90 days</td>
+                      </tr>
+                      <tr>
+                        <td className="py-2 pr-4">Security Logs</td>
+                        <td className="py-2">90 days</td>
+                      </tr>
+                      <tr>
+                        <td className="py-2 pr-4">Error Logs</td>
+                        <td className="py-2">30 days</td>
+                      </tr>
+                      <tr>
+                        <td className="py-2 pr-4">API Logs</td>
+                        <td className="py-2">30 days</td>
+                      </tr>
+                      <tr>
+                        <td className="py-2 pr-4">Inactive Accounts</td>
+                        <td className="py-2">May be deleted after 90 days (with notification)</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <div>
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">Keeping Your Own Copies</h3>
                 <p className="text-gray-700 dark:text-gray-300 leading-relaxed text-base mb-3">
                   We recommend keeping your own copies of important information. You can download documents, copy journal entries and daily digests, and save conversation content at any time. Once deleted, data cannot be recovered.
@@ -348,6 +481,7 @@ const PrivacyPolicy = () => {
                   <li>Copying conversation text from the interface</li>
                   <li>Downloading your uploaded documents</li>
                   <li>Copying journal entries and daily digests</li>
+                  <li>Exporting your Health Profile as a PDF</li>
                 </ul>
               </div>
             </div>
@@ -452,14 +586,30 @@ const PrivacyPolicy = () => {
                 <li>The right to request deletion of personal information</li>
                 <li>The right to opt-out of sale of personal information (we do not sell your personal data)</li>
                 <li>The right to access and receive a copy of your data</li>
+                <li>The right to limit use and disclosure of sensitive personal information</li>
+                <li>The right to request correction of inaccurate personal information</li>
               </ul>
+
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">California CPRA Rights</h3>
+                <p className="text-gray-700 dark:text-gray-300 leading-relaxed text-base">
+                  California residents have additional rights under the California Privacy Rights Act (CPRA), including the right to limit the use and disclosure of sensitive personal information. Health information is considered sensitive personal information under CPRA.
+                </p>
+              </div>
+
               <p className="text-gray-700 dark:text-gray-300 leading-relaxed text-base">
                 <strong>How to exercise these rights:</strong> You can access, export, or delete your data directly through the application at any time via the Settings page. For additional requests or questions, contact us at{' '}
                 <a href="mailto:privacy@aretacare.com" className="text-primary-600 hover:text-primary-700 font-medium underline">
                   privacy@aretacare.com
                 </a>
-                . We will respond to verified requests within 45 days.
+                .
               </p>
+
+              <div className="bg-blue-50 dark:bg-blue-900/30 border-l-4 border-blue-500 dark:border-blue-600 p-4 rounded-r-lg">
+                <p className="text-blue-800 dark:text-blue-300 text-sm leading-relaxed">
+                  <strong>Response Times:</strong> For requests involving sensitive personal information (including health data), we will respond within 15 business days. For other requests, we will respond within 45 days. Complex requests may require an additional extension, in which case we will notify you.
+                </p>
+              </div>
             </div>
           </section>
 
@@ -483,7 +633,7 @@ const PrivacyPolicy = () => {
           {/* Copyright */}
           <section className="bg-gray-50 dark:bg-gray-700 rounded-lg p-6 border border-gray-200 dark:border-gray-600">
             <p className="text-center text-gray-600 dark:text-gray-300 text-sm">
-              Copyright © 2025 AretaCare LLC. Released under the MIT License with Commons Clause.
+              Copyright © 2025-2026 AretaCare LLC. Released under the MIT License with Commons Clause.
             </p>
           </section>
         </div>
