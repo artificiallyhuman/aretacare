@@ -172,6 +172,27 @@ All admin actions are logged to the audit log.
 
 User/session deletion removes all database records (cascading) + S3 files (documents, thumbnails, audio).
 
+### Consent Recording
+
+All user consents are recorded in `consent_records` table for compliance verification (GDPR, CCPA/CPRA).
+
+| Field | Purpose |
+|-------|---------|
+| `consent_type` | Type of consent (registration, sharing) |
+| `consent_version` | Version number for tracking text changes |
+| `consent_text` | Exact text user agreed to |
+| `ip_address` | Client IP at time of consent |
+| `user_agent` | Browser/device info |
+| `created_at` | Timestamp |
+| `session_id` | For sharing consents: which session |
+| `shared_with_email` | For sharing consents: who received access |
+
+**Consent Types:**
+- Registration: `MEDICAL_ADVICE`, `HIPAA`, `DATA_PROCESSING`, `TERMS_PRIVACY`, `AGE_USE`
+- Sharing: `SHARING_AUTHORIZATION` (recorded when owner shares session or sends invitation)
+
+**Key Files:** `backend/app/models/consent_record.py` (includes `CONSENT_VERSIONS` dict)
+
 ---
 
 ## Security Logging

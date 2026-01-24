@@ -135,7 +135,7 @@ aretacare/
 │   ├── api/          # FastAPI routes
 │   ├── config/       # AI configuration
 │   ├── core/         # Auth, migrations, config
-│   ├── models/       # SQLAlchemy models (23 tables)
+│   ├── models/       # SQLAlchemy models (24 tables)
 │   ├── schemas/      # Pydantic schemas
 │   └── services/     # Business logic
 ├── frontend/src/
