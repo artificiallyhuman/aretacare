@@ -145,8 +145,7 @@ aretacare/
 │   └── services/     # API client
 ├── docs/             # Documentation
 ├── docker-compose.yml
-├── render.yaml       # Production deployment
-└── CLAUDE.md         # Development guidance
+└── render.yaml       # Production deployment
 ```
 
 ---
@@ -155,7 +154,6 @@ aretacare/
 
 | Document | Description |
 |----------|-------------|
-| [CLAUDE.md](CLAUDE.md) | Development guidance |
 | [SECURITY.md](SECURITY.md) | Vulnerability reporting |
 | [docs/SETUP_GUIDE.md](docs/SETUP_GUIDE.md) | AWS and OpenAI setup |
 | [docs/API_USAGE.md](docs/API_USAGE.md) | API reference |
