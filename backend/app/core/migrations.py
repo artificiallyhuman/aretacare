@@ -1755,3 +1755,95 @@ def run_migrations():
                     conn.rollback()
             else:
                 logger.info("last_used_counter column already exists in user_totp_secrets")
+
+        # =================================================================
+        # Add source tracking columns for collaborative sessions
+        # These columns track who created/edited items for attribution display
+        # =================================================================
+        migration_name = "add_source_tracking_columns"
+        if not has_migration_run(conn, migration_name):
+            logger.info("Adding source tracking columns for collaborative sessions...")
+            try:
+                # Add columns to conversations table
+                conversations_columns = [col['name'] for col in inspector.get_columns('conversations')]
+
+                if 'created_by_user_id' not in conversations_columns:
+                    conn.execute(text("""
+                        ALTER TABLE conversations
+                        ADD COLUMN created_by_user_id VARCHAR(36) REFERENCES users(id) ON DELETE SET NULL
+                    """))
+                    conn.commit()
+                    logger.info("Added created_by_user_id column to conversations")
+
+                if 'last_edited_by_user_id' not in conversations_columns:
+                    conn.execute(text("""
+                        ALTER TABLE conversations
+                        ADD COLUMN last_edited_by_user_id VARCHAR(36) REFERENCES users(id) ON DELETE SET NULL
+                    """))
+                    conn.commit()
+                    logger.info("Added last_edited_by_user_id column to conversations")
+
+                # Add columns to documents table
+                documents_columns = [col['name'] for col in inspector.get_columns('documents')]
+
+                if 'uploaded_by_user_id' not in documents_columns:
+                    conn.execute(text("""
+                        ALTER TABLE documents
+                        ADD COLUMN uploaded_by_user_id VARCHAR(36) REFERENCES users(id) ON DELETE SET NULL
+                    """))
+                    conn.commit()
+                    logger.info("Added uploaded_by_user_id column to documents")
+
+                if 'last_edited_by_user_id' not in documents_columns:
+                    conn.execute(text("""
+                        ALTER TABLE documents
+                        ADD COLUMN last_edited_by_user_id VARCHAR(36) REFERENCES users(id) ON DELETE SET NULL
+                    """))
+                    conn.commit()
+                    logger.info("Added last_edited_by_user_id column to documents")
+
+                # Add columns to audio_recordings table
+                audio_columns = [col['name'] for col in inspector.get_columns('audio_recordings')]
+
+                if 'created_by_user_id' not in audio_columns:
+                    conn.execute(text("""
+                        ALTER TABLE audio_recordings
+                        ADD COLUMN created_by_user_id VARCHAR(36) REFERENCES users(id) ON DELETE SET NULL
+                    """))
+                    conn.commit()
+                    logger.info("Added created_by_user_id column to audio_recordings")
+
+                if 'last_edited_by_user_id' not in audio_columns:
+                    conn.execute(text("""
+                        ALTER TABLE audio_recordings
+                        ADD COLUMN last_edited_by_user_id VARCHAR(36) REFERENCES users(id) ON DELETE SET NULL
+                    """))
+                    conn.commit()
+                    logger.info("Added last_edited_by_user_id column to audio_recordings")
+
+                # Create indexes for efficient joins
+                conn.execute(text("""
+                    CREATE INDEX IF NOT EXISTS idx_conversations_created_by
+                    ON conversations (created_by_user_id) WHERE created_by_user_id IS NOT NULL
+                """))
+                conn.commit()
+
+                conn.execute(text("""
+                    CREATE INDEX IF NOT EXISTS idx_documents_uploaded_by
+                    ON documents (uploaded_by_user_id) WHERE uploaded_by_user_id IS NOT NULL
+                """))
+                conn.commit()
+
+                conn.execute(text("""
+                    CREATE INDEX IF NOT EXISTS idx_audio_recordings_created_by
+                    ON audio_recordings (created_by_user_id) WHERE created_by_user_id IS NOT NULL
+                """))
+                conn.commit()
+                logger.info("Created indexes for source tracking columns")
+
+                mark_migration_complete(conn, migration_name)
+                logger.info("Successfully added source tracking columns for collaborative sessions")
+
+            except Exception as e:
+                logger.error(f"Failed to add source tracking columns: {e}")
+                conn.rollback()

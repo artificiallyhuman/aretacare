@@ -34,5 +34,11 @@ class AudioRecording(Base):
     ai_summary = Column(Text, nullable=True)  # AI-generated brief summary
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
+    # Source tracking for collaborative sessions
+    created_by_user_id = Column(String, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    last_edited_by_user_id = Column(String, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+
     # Relationships
     session = relationship("Session", back_populates="audio_recordings")
+    created_by = relationship("User", foreign_keys=[created_by_user_id])
+    last_edited_by = relationship("User", foreign_keys=[last_edited_by_user_id])

@@ -6,6 +6,7 @@ from app.schemas.audio_recording import AudioRecordingResponse, AudioRecordingLi
 from app.services.s3_service import s3_service
 from app.api.auth import get_current_user
 from app.api.permissions import check_session_access
+from app.api.source_tags import session_has_collaborators, build_source_tag_info, get_user_map
 from typing import List
 import logging
 
@@ -58,8 +59,56 @@ async def get_audio_recordings(
     # Get recordings ordered by date with pagination
     recordings = query.order_by(AudioRecording.created_at.desc()).offset(offset).limit(limit).all()
 
+    # Check if session has collaborators (for source tag attribution)
+    has_collaborators = session_has_collaborators(session_id, db)
+
+    # Build response with source tags if session has collaborators
+    rec_responses = []
+    if has_collaborators:
+        # Batch load user info for source tags
+        user_ids = []
+        for rec in recordings:
+            if rec.created_by_user_id:
+                user_ids.append(rec.created_by_user_id)
+            if rec.last_edited_by_user_id:
+                user_ids.append(rec.last_edited_by_user_id)
+        user_map = get_user_map(user_ids, db)
+
+        for rec in recordings:
+            rec_dict = {
+                "id": rec.id,
+                "session_id": rec.session_id,
+                "filename": rec.filename,
+                "s3_key": rec.s3_key,
+                "duration": rec.duration,
+                "transcribed_text": rec.transcribed_text,
+                "category": rec.category.value if rec.category else None,
+                "ai_summary": rec.ai_summary,
+                "created_at": rec.created_at,
+                "created_by": build_source_tag_info(user_map.get(rec.created_by_user_id)) if rec.created_by_user_id else None,
+                "last_edited_by": build_source_tag_info(user_map.get(rec.last_edited_by_user_id)) if rec.last_edited_by_user_id else None
+            }
+            rec_responses.append(rec_dict)
+    else:
+        # No collaborators, just convert recordings to response format
+        for rec in recordings:
+            rec_dict = {
+                "id": rec.id,
+                "session_id": rec.session_id,
+                "filename": rec.filename,
+                "s3_key": rec.s3_key,
+                "duration": rec.duration,
+                "transcribed_text": rec.transcribed_text,
+                "category": rec.category.value if rec.category else None,
+                "ai_summary": rec.ai_summary,
+                "created_at": rec.created_at,
+                "created_by": None,
+                "last_edited_by": None
+            }
+            rec_responses.append(rec_dict)
+
     return {
-        "recordings": recordings,
+        "recordings": rec_responses,
         "has_more": (offset + len(recordings)) < total,
         "total": total
     }
@@ -128,8 +177,31 @@ async def update_audio_recording(
         except ValueError:
             raise HTTPException(status_code=400, detail=f"Invalid category: {update_data.category}")
 
+    # Track editor for collaborative sessions
+    recording.last_edited_by_user_id = current_user.id
+
     db.commit()
     db.refresh(recording)
+
+    # Build source tags for response if session has collaborators
+    has_collaborators = session_has_collaborators(session_id, db)
+    if has_collaborators:
+        user_ids = [uid for uid in [recording.created_by_user_id, recording.last_edited_by_user_id] if uid]
+        user_map = get_user_map(user_ids, db)
+
+        return {
+            "id": recording.id,
+            "session_id": recording.session_id,
+            "filename": recording.filename,
+            "s3_key": recording.s3_key,
+            "duration": recording.duration,
+            "transcribed_text": recording.transcribed_text,
+            "category": recording.category.value if recording.category else None,
+            "ai_summary": recording.ai_summary,
+            "created_at": recording.created_at,
+            "created_by": build_source_tag_info(user_map.get(recording.created_by_user_id)) if recording.created_by_user_id else None,
+            "last_edited_by": build_source_tag_info(user_map.get(recording.last_edited_by_user_id)) if recording.last_edited_by_user_id else None
+        }
 
     return recording
 

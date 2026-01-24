@@ -11,7 +11,10 @@ import TypingIndicator from '../components/TypingIndicator';
 const MESSAGE_PAGE_SIZE = 25;
 
 const Conversation = () => {
-  const { activeSessionId, loading: sessionLoading } = useSessionContext();
+  const { activeSessionId, activeSession, user, loading: sessionLoading } = useSessionContext();
+
+  // Check if session has collaborators for source tag display
+  const hasCollaborators = activeSession?.collaborators?.length > 0;
   const [messages, setMessages] = useState([]);
   const [dailyPlanPanelOpen, setDailyPlanPanelOpen] = useState(false);
   const [hasNewDailyPlan, setHasNewDailyPlan] = useState(false);
@@ -847,6 +850,8 @@ const Conversation = () => {
                         message={message}
                         onThumbnailLoad={handleThumbnailLoad}
                         onMessageUpdate={handleMessageUpdate}
+                        hasCollaborators={hasCollaborators}
+                        currentUserId={user?.id}
                       />
                     </div>
                   );

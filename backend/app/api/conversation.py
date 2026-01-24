@@ -13,6 +13,7 @@ from app.services.s3_service import s3_service
 from app.services.security_service import SecurityService
 from app.api.auth import get_current_user
 from app.api.permissions import check_session_access
+from app.api.source_tags import session_has_collaborators, build_source_tag_info, get_user_map
 from typing import Optional
 from datetime import datetime, date as date_type, timedelta
 import uuid
@@ -139,7 +140,8 @@ async def send_message(
             document_id=document_id,
             audio_recording_id=audio_recording_id,
             media_url=generated_media_url or media_url,
-            extracted_text=extracted_text
+            extracted_text=extracted_text,
+            created_by_user_id=current_user.id  # Track creator for collaborative sessions
         )
         db.add(user_message)
         db.commit()
@@ -336,6 +338,20 @@ async def get_conversation_history(
         docs = db.query(Document).filter(Document.id.in_(doc_ids)).all()
         docs_by_id = {doc.id: doc for doc in docs}
 
+    # Check if session has collaborators (for source tag attribution)
+    has_collaborators = session_has_collaborators(session_id, db)
+
+    # Batch load user info for source tags if session has collaborators
+    user_map = {}
+    if has_collaborators:
+        user_ids = []
+        for msg in messages:
+            if msg.created_by_user_id:
+                user_ids.append(msg.created_by_user_id)
+            if msg.last_edited_by_user_id:
+                user_ids.append(msg.last_edited_by_user_id)
+        user_map = get_user_map(user_ids, db)
+
     # Convert to response format (including rich media fields)
     message_responses = []
     for msg in messages:
@@ -364,7 +380,10 @@ async def get_conversation_history(
             "document_id": msg.document_id,
             "media_url": media_url,
             "thumbnail_url": thumbnail_url,
-            "extracted_text": msg.extracted_text
+            "extracted_text": msg.extracted_text,
+            # Source tags only when session has collaborators
+            "created_by": build_source_tag_info(user_map.get(msg.created_by_user_id)) if has_collaborators and msg.created_by_user_id else None,
+            "last_edited_by": build_source_tag_info(user_map.get(msg.last_edited_by_user_id)) if has_collaborators and msg.last_edited_by_user_id else None
         }
         message_responses.append(MessageResponse(**msg_dict))
 
@@ -400,14 +419,20 @@ async def update_message(
     # Update message content
     message.content = update_data.content
     message.updated_at = datetime.utcnow()
+    message.last_edited_by_user_id = current_user.id  # Track editor for collaborative sessions
 
     db.commit()
     db.refresh(message)
 
+    # Build source tag for editor if session has collaborators
+    has_collaborators = session_has_collaborators(message.session_id, db)
+    last_edited_by = build_source_tag_info(current_user) if has_collaborators else None
+
     return UpdateMessageResponse(
         id=message.id,
         content=message.content,
-        updated_at=message.updated_at
+        updated_at=message.updated_at,
+        last_edited_by=last_edited_by
     )
 
 
@@ -685,7 +710,8 @@ async def transcribe_audio(
             duration=duration_seconds,
             transcribed_text=transcribed_text,
             category=recording_category,
-            ai_summary=ai_summary
+            ai_summary=ai_summary,
+            created_by_user_id=current_user.id  # Track creator for collaborative sessions
         )
         db.add(audio_recording)
         db.commit()

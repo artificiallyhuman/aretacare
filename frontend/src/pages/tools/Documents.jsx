@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { useSessionContext } from '../../contexts/SessionContext';
 import { documentAPI } from '../../services/api';
 import { isToday, formatDateShort, formatLocalDate } from '../../utils/dateUtils';
+import SourceTag from '../../components/SourceTag';
 
 // Document categories with labels and colors
 const CATEGORIES = [
@@ -36,7 +37,10 @@ const getCategoryLabel = (category) => {
 };
 
 const Documents = () => {
-  const { activeSessionId: sessionId, loading: sessionLoading } = useSessionContext();
+  const { activeSessionId: sessionId, activeSession, user, loading: sessionLoading } = useSessionContext();
+
+  // Check if session has collaborators for source tag display
+  const hasCollaborators = activeSession?.collaborators?.length > 0;
   const [documents, setDocuments] = useState([]);
   const [loading, setLoading] = useState(false);
   const [searching, setSearching] = useState(false);
@@ -854,15 +858,25 @@ const Documents = () => {
                               </div>
                             )}
 
-                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-                              {(() => {
-                                const timestamp = doc.uploaded_at.endsWith('Z') ? doc.uploaded_at : doc.uploaded_at + 'Z';
-                                return new Date(timestamp).toLocaleTimeString('en-US', {
-                                  hour: '2-digit',
-                                  minute: '2-digit'
-                                });
-                              })()}
-                            </p>
+                            <div className="flex items-center gap-1.5 mt-2">
+                              <p className="text-xs text-gray-500 dark:text-gray-400">
+                                {(() => {
+                                  const timestamp = doc.uploaded_at.endsWith('Z') ? doc.uploaded_at : doc.uploaded_at + 'Z';
+                                  return new Date(timestamp).toLocaleTimeString('en-US', {
+                                    hour: '2-digit',
+                                    minute: '2-digit'
+                                  });
+                                })()}
+                              </p>
+                              {/* Source tag for collaborative sessions - show editor if edited, otherwise uploader */}
+                              {hasCollaborators && (
+                                <SourceTag
+                                  sourceTag={doc.last_edited_by || doc.uploaded_by}
+                                  currentUserId={user?.id}
+                                  variant="small"
+                                />
+                              )}
+                            </div>
 
                             {/* Actions */}
                             <div className="mt-4 flex gap-1.5">

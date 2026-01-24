@@ -2,6 +2,8 @@ from pydantic import BaseModel, field_serializer
 from datetime import datetime
 from typing import Optional
 
+from app.schemas.source_tag import SourceTagInfo
+
 
 class AudioRecordingResponse(BaseModel):
     id: int
@@ -13,6 +15,9 @@ class AudioRecordingResponse(BaseModel):
     category: Optional[str] = None
     ai_summary: Optional[str] = None
     created_at: datetime
+    # Source tracking for collaborative sessions
+    created_by: Optional[SourceTagInfo] = None
+    last_edited_by: Optional[SourceTagInfo] = None
 
     @field_serializer('category')
     def serialize_category(self, category, _info):

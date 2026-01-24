@@ -3,11 +3,12 @@ import PropTypes from 'prop-types';
 import ReactMarkdown from 'react-markdown';
 import DocumentMessage from './DocumentMessage';
 import ImageMessage from './ImageMessage';
+import SourceTag from './SourceTag';
 import api from '../services/api';
 import { markdownToHtml } from '../utils/markdownUtils';
 
 // Memoized to prevent re-renders when parent updates but message hasn't changed
-const MessageBubble = memo(({ message, onThumbnailLoad, onMessageUpdate }) => {
+const MessageBubble = memo(({ message, onThumbnailLoad, onMessageUpdate, hasCollaborators, currentUserId }) => {
   const [copied, setCopied] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editedContent, setEditedContent] = useState(message.content);
@@ -349,7 +350,7 @@ const MessageBubble = memo(({ message, onThumbnailLoad, onMessageUpdate }) => {
           )
         )}
 
-        {/* Timestamp and Action Buttons */}
+        {/* Timestamp, Source Tag, and Action Buttons */}
         {!isEditing && (
           <div className="flex items-center justify-between mt-2 gap-2">
             <div className={`text-xs flex items-center gap-1.5 ${isUser ? 'text-primary-100' : 'text-gray-500 dark:text-gray-400'}`}>
@@ -358,6 +359,14 @@ const MessageBubble = memo(({ message, onThumbnailLoad, onMessageUpdate }) => {
                 <span className={`italic ${isUser ? 'text-primary-200' : 'text-gray-400 dark:text-gray-500'}`}>
                   (edited)
                 </span>
+              )}
+              {/* Source tag for collaborative sessions - show editor if edited, otherwise creator */}
+              {hasCollaborators && (
+                <SourceTag
+                  sourceTag={message.last_edited_by || message.created_by}
+                  currentUserId={currentUserId}
+                  variant={isUser ? 'user' : 'default'}
+                />
               )}
             </div>
             <div className="flex gap-1">
@@ -426,14 +435,28 @@ MessageBubble.propTypes = {
     document_id: PropTypes.number,
     created_at: PropTypes.string,
     updated_at: PropTypes.string,
+    created_by: PropTypes.shape({
+      user_id: PropTypes.string,
+      name: PropTypes.string,
+      initials: PropTypes.string,
+    }),
+    last_edited_by: PropTypes.shape({
+      user_id: PropTypes.string,
+      name: PropTypes.string,
+      initials: PropTypes.string,
+    }),
   }).isRequired,
   onThumbnailLoad: PropTypes.func,
   onMessageUpdate: PropTypes.func,
+  hasCollaborators: PropTypes.bool,
+  currentUserId: PropTypes.string,
 };
 
 MessageBubble.defaultProps = {
   onThumbnailLoad: undefined,
   onMessageUpdate: undefined,
+  hasCollaborators: false,
+  currentUserId: null,
 };
 
 export default MessageBubble;

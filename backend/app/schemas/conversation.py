@@ -3,6 +3,8 @@ from datetime import datetime
 from app.models.conversation import MessageRole, MessageType
 from typing import Optional
 
+from app.schemas.source_tag import SourceTagInfo
+
 
 class MessageRequest(BaseModel):
     content: str
@@ -28,6 +30,9 @@ class MessageResponse(BaseModel):
     media_url: Optional[str] = None
     thumbnail_url: Optional[str] = None
     extracted_text: Optional[str] = None
+    # Source tracking for collaborative sessions
+    created_by: Optional[SourceTagInfo] = None
+    last_edited_by: Optional[SourceTagInfo] = None
 
     class Config:
         from_attributes = True
@@ -68,6 +73,8 @@ class UpdateMessageResponse(BaseModel):
     id: int
     content: str
     updated_at: datetime
+    # Source tracking for collaborative sessions
+    last_edited_by: Optional[SourceTagInfo] = None
 
     class Config:
         from_attributes = True

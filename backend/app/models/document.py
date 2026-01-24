@@ -37,5 +37,11 @@ class Document(Base):
     category = Column(SQLEnum(DocumentCategory), nullable=True, default=DocumentCategory.OTHER)
     ai_description = Column(Text, nullable=True)  # Brief AI-generated summary
 
+    # Source tracking for collaborative sessions
+    uploaded_by_user_id = Column(String, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    last_edited_by_user_id = Column(String, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+
     # Relationships
     session = relationship("Session", back_populates="documents")
+    uploaded_by = relationship("User", foreign_keys=[uploaded_by_user_id])
+    last_edited_by = relationship("User", foreign_keys=[last_edited_by_user_id])

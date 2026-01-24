@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { useSessionContext } from '../contexts/SessionContext';
 import { audioRecordingsAPI, conversationAPI } from '../services/api';
 import { isToday, formatDateShort, formatLocalDate } from '../utils/dateUtils';
+import SourceTag from '../components/SourceTag';
 
 // Audio recording categories with labels and colors
 const CATEGORIES = [
@@ -36,7 +37,10 @@ const getCategoryLabel = (category) => {
 };
 
 const AudioRecordings = () => {
-  const { activeSessionId: sessionId, loading: sessionLoading } = useSessionContext();
+  const { activeSessionId: sessionId, activeSession, user, loading: sessionLoading } = useSessionContext();
+
+  // Check if session has collaborators for source tag display
+  const hasCollaborators = activeSession?.collaborators?.length > 0;
   const [recordings, setRecordings] = useState([]);
   const [loading, setLoading] = useState(false);
   const [searching, setSearching] = useState(false);
@@ -579,6 +583,14 @@ const AudioRecordings = () => {
                               <span className="text-xs md:text-sm font-medium text-primary-600 dark:text-primary-400">
                                 {formatDuration(recording.duration)}
                               </span>
+                              {/* Source tag for collaborative sessions - show editor if edited, otherwise creator */}
+                              {hasCollaborators && (
+                                <SourceTag
+                                  sourceTag={recording.last_edited_by || recording.created_by}
+                                  currentUserId={user?.id}
+                                  variant="small"
+                                />
+                              )}
                             </div>
                             <div className="flex items-center gap-1 flex-shrink-0">
                               <button

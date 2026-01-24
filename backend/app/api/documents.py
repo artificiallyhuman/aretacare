@@ -10,6 +10,7 @@ from app.services.journal_service import JournalService
 from app.services.security_service import SecurityService
 from app.api.auth import get_current_user
 from app.api.permissions import check_session_access
+from app.api.source_tags import session_has_collaborators, build_source_tag_info, get_user_map
 from typing import List, Optional
 from PIL import Image
 from io import BytesIO
@@ -387,7 +388,8 @@ async def upload_document(
             content_type=actual_content_type,  # Store the actual content type (e.g., image/jpeg for converted MPO)
             extracted_text=extracted_text,
             category=doc_category,
-            ai_description=ai_description
+            ai_description=ai_description,
+            uploaded_by_user_id=current_user.id  # Track uploader for collaborative sessions
         )
 
         db.add(document)
@@ -523,8 +525,54 @@ async def get_session_documents(
     # Apply pagination
     documents = query.order_by(DocumentModel.uploaded_at.desc()).offset(offset).limit(limit).all()
 
+    # Check if session has collaborators (for source tag attribution)
+    has_collaborators = session_has_collaborators(session_id, db)
+
+    # Build response with source tags if session has collaborators
+    doc_responses = []
+    if has_collaborators:
+        # Batch load user info for source tags
+        user_ids = []
+        for doc in documents:
+            if doc.uploaded_by_user_id:
+                user_ids.append(doc.uploaded_by_user_id)
+            if doc.last_edited_by_user_id:
+                user_ids.append(doc.last_edited_by_user_id)
+        user_map = get_user_map(user_ids, db)
+
+        for doc in documents:
+            doc_dict = {
+                "id": doc.id,
+                "session_id": doc.session_id,
+                "filename": doc.filename,
+                "content_type": doc.content_type,
+                "extracted_text": doc.extracted_text,
+                "uploaded_at": doc.uploaded_at,
+                "category": doc.category.value if doc.category else None,
+                "ai_description": doc.ai_description,
+                "uploaded_by": build_source_tag_info(user_map.get(doc.uploaded_by_user_id)) if doc.uploaded_by_user_id else None,
+                "last_edited_by": build_source_tag_info(user_map.get(doc.last_edited_by_user_id)) if doc.last_edited_by_user_id else None
+            }
+            doc_responses.append(doc_dict)
+    else:
+        # No collaborators, just convert documents to response format
+        for doc in documents:
+            doc_dict = {
+                "id": doc.id,
+                "session_id": doc.session_id,
+                "filename": doc.filename,
+                "content_type": doc.content_type,
+                "extracted_text": doc.extracted_text,
+                "uploaded_at": doc.uploaded_at,
+                "category": doc.category.value if doc.category else None,
+                "ai_description": doc.ai_description,
+                "uploaded_by": None,
+                "last_edited_by": None
+            }
+            doc_responses.append(doc_dict)
+
     return DocumentListResponse(
-        documents=documents,
+        documents=doc_responses,
         has_more=(offset + len(documents)) < total,
         total=total
     )
@@ -581,8 +629,30 @@ async def update_document(
         except ValueError:
             raise HTTPException(status_code=400, detail=f"Invalid category: {update_data.category}")
 
+    # Track editor for collaborative sessions
+    document.last_edited_by_user_id = current_user.id
+
     db.commit()
     db.refresh(document)
+
+    # Build source tags for response if session has collaborators
+    has_collaborators = session_has_collaborators(document.session_id, db)
+    if has_collaborators:
+        user_ids = [uid for uid in [document.uploaded_by_user_id, document.last_edited_by_user_id] if uid]
+        user_map = get_user_map(user_ids, db)
+
+        return {
+            "id": document.id,
+            "session_id": document.session_id,
+            "filename": document.filename,
+            "content_type": document.content_type,
+            "extracted_text": document.extracted_text,
+            "uploaded_at": document.uploaded_at,
+            "category": document.category.value if document.category else None,
+            "ai_description": document.ai_description,
+            "uploaded_by": build_source_tag_info(user_map.get(document.uploaded_by_user_id)) if document.uploaded_by_user_id else None,
+            "last_edited_by": build_source_tag_info(user_map.get(document.last_edited_by_user_id)) if document.last_edited_by_user_id else None
+        }
 
     return document
 
