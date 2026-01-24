@@ -19,6 +19,7 @@ from app.models.user import User
 from app.models.session import Session
 from app.models.document import Document
 from app.models.audio_recording import AudioRecording
+from app.models.consent_record import ConsentRecord, ConsentType, CONSENT_VERSIONS
 from app.schemas.auth import (
     UserRegister, UserLogin, TokenResponse, UserResponse,
     UpdateName, UpdateEmail, UpdatePassword, DeleteAccount,
@@ -223,7 +224,7 @@ def register(request: Request, response: Response, user_data: UserRegister, db: 
     if not user_data.acknowledge_ai_processing:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="You must acknowledge how your information is processed by AI systems"
+            detail="You must consent to data collection and processing to use AretaCare"
         )
 
     if not user_data.agree_to_terms:
@@ -312,6 +313,39 @@ def register(request: Request, response: Response, user_data: UserRegister, db: 
     db.add(new_user)
     db.commit()
     db.refresh(new_user)
+
+    # Record consent for compliance verification
+    # Get client IP (check Cloudflare header first, then X-Forwarded-For, then direct)
+    client_ip = (
+        request.headers.get("CF-Connecting-IP") or
+        request.headers.get("X-Forwarded-For", "").split(",")[0].strip() or
+        request.client.host if request.client else None
+    )
+    user_agent = request.headers.get("User-Agent", "")[:500]  # Truncate to fit DB column
+
+    # Create a consent record for each type
+    consent_mappings = [
+        (ConsentType.MEDICAL_ADVICE, user_data.acknowledge_not_medical_advice),
+        (ConsentType.HIPAA, user_data.acknowledge_hipaa),
+        (ConsentType.DATA_PROCESSING, user_data.acknowledge_ai_processing),
+        (ConsentType.TERMS_PRIVACY, user_data.agree_to_terms),
+        (ConsentType.AGE_USE, user_data.acknowledge_age_and_use),
+    ]
+
+    for consent_type, consented in consent_mappings:
+        if consented:
+            consent_info = CONSENT_VERSIONS[consent_type]
+            consent_record = ConsentRecord(
+                user_id=new_user.id,
+                consent_type=consent_type,
+                consent_version=consent_info["version"],
+                consent_text=consent_info["text"],
+                ip_address=client_ip,
+                user_agent=user_agent
+            )
+            db.add(consent_record)
+
+    db.commit()
 
     # Check for pending invitations and auto-add to sessions
     # (User will be collaborator but can't access until verified)

@@ -281,14 +281,20 @@ export const sessionAPI = {
 
   // Collaboration endpoints
   checkUser: (sessionId, email) => api.post(`/sessions/${sessionId}/check-user`, { email }),
-  share: (sessionId, email) => api.post(`/sessions/${sessionId}/share`, { email }),
+  share: (sessionId, email, confirmSharingConsent) => api.post(`/sessions/${sessionId}/share`, {
+    email,
+    confirm_sharing_consent: confirmSharingConsent
+  }),
   revokeAccess: (sessionId, userId) => api.delete(`/sessions/${sessionId}/collaborators/${userId}`),
   leave: (sessionId) => api.post(`/sessions/${sessionId}/leave`),
   transferOwnership: (sessionId, newOwnerUserId) =>
     api.post(`/sessions/${sessionId}/transfer-ownership`, { new_owner_user_id: newOwnerUserId }),
 
   // Invitation endpoints (for non-users)
-  sendInvitation: (sessionId, email) => api.post(`/sessions/${sessionId}/send-invitation`, { email }),
+  sendInvitation: (sessionId, email, confirmSharingConsent) => api.post(`/sessions/${sessionId}/send-invitation`, {
+    email,
+    confirm_sharing_consent: confirmSharingConsent
+  }),
   getPendingInvitations: (sessionId) => api.get(`/sessions/${sessionId}/pending-invitations`),
   cancelInvitation: (sessionId, invitationId) => api.delete(`/sessions/${sessionId}/pending-invitations/${invitationId}`),
 };

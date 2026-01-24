@@ -63,8 +63,14 @@ class SessionRename(BaseModel):
         return v
 
 
+class UserCheckRequest(BaseModel):
+    """Request to check if a user exists (before sharing)"""
+    email: EmailStr = Field(..., description="Email to check")
+
+
 class SessionShareRequest(BaseModel):
     email: EmailStr = Field(..., description="Email of the user to share the session with")
+    confirm_sharing_consent: bool = Field(..., description="User confirms they have the right to share this session")
 
 
 class SessionShareResponse(BaseModel):

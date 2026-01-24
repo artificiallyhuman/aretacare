@@ -1446,7 +1446,8 @@ def run_migrations():
                         invitation_expires TIMESTAMP NULL,
                         notes TEXT NULL,
                         added_by_email VARCHAR(255) NULL,
-                        referrers JSONB NULL
+                        referrers JSONB NULL,
+                        user_message TEXT NULL
                     )
                 """))
                 conn.commit()
@@ -1870,4 +1871,109 @@ def run_migrations():
 
             except Exception as e:
                 logger.error(f"Failed to add journal last_edited_by column: {e}")
+                conn.rollback()
+
+        # =================================================================
+        # CONSENT RECORDS TABLE
+        # =================================================================
+
+        # Create consent_records table if it doesn't exist
+        if 'consent_records' not in inspector.get_table_names():
+            logger.info("Creating consent_records table...")
+            try:
+                conn.execute(text("""
+                    CREATE TABLE consent_records (
+                        id SERIAL PRIMARY KEY,
+                        user_id VARCHAR(36) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                        consent_type VARCHAR(50) NOT NULL,
+                        consent_version VARCHAR(20) NOT NULL,
+                        consent_text TEXT NOT NULL,
+                        ip_address VARCHAR(45),
+                        user_agent VARCHAR(500),
+                        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL,
+                        session_id VARCHAR(36) REFERENCES sessions(id) ON DELETE SET NULL,
+                        shared_with_email VARCHAR(255)
+                    )
+                """))
+                conn.commit()
+                logger.info("Successfully created consent_records table")
+
+                # Create indexes
+                conn.execute(text("""
+                    CREATE INDEX idx_consent_records_user_id ON consent_records (user_id);
+                    CREATE INDEX idx_consent_records_consent_type ON consent_records (consent_type);
+                    CREATE INDEX idx_consent_records_created_at ON consent_records (created_at);
+                    CREATE INDEX idx_consent_records_session_id ON consent_records (session_id) WHERE session_id IS NOT NULL;
+                """))
+                conn.commit()
+                logger.info("Created indexes for consent_records table")
+
+            except Exception as e:
+                logger.error(f"Failed to create consent_records table: {e}")
+                conn.rollback()
+        else:
+            logger.info("consent_records table already exists")
+
+            # Add session_id and shared_with_email columns if they don't exist (for existing deployments)
+            consent_columns = [col['name'] for col in inspector.get_columns('consent_records')]
+
+            if 'session_id' not in consent_columns:
+                logger.info("Adding session_id column to consent_records table...")
+                try:
+                    conn.execute(text("""
+                        ALTER TABLE consent_records
+                        ADD COLUMN session_id VARCHAR(36) REFERENCES sessions(id) ON DELETE SET NULL
+                    """))
+                    conn.commit()
+                    conn.execute(text("""
+                        CREATE INDEX IF NOT EXISTS idx_consent_records_session_id
+                        ON consent_records (session_id) WHERE session_id IS NOT NULL
+                    """))
+                    conn.commit()
+                    logger.info("Successfully added session_id column")
+                except Exception as e:
+                    logger.error(f"Failed to add session_id column: {e}")
+                    conn.rollback()
+
+            if 'shared_with_email' not in consent_columns:
+                logger.info("Adding shared_with_email column to consent_records table...")
+                try:
+                    conn.execute(text("""
+                        ALTER TABLE consent_records
+                        ADD COLUMN shared_with_email VARCHAR(255)
+                    """))
+                    conn.commit()
+                    logger.info("Successfully added shared_with_email column")
+                except Exception as e:
+                    logger.error(f"Failed to add shared_with_email column: {e}")
+                    conn.rollback()
+
+            # Migrate consent_type from PostgreSQL native enum to VARCHAR if needed
+            # (Only affects deployments where SQLAlchemy created table with native enum)
+            try:
+                result = conn.execute(text("""
+                    SELECT data_type, udt_name FROM information_schema.columns
+                    WHERE table_name = 'consent_records' AND column_name = 'consent_type'
+                """))
+                row = result.fetchone()
+
+                if row and row[0] == 'USER-DEFINED' and row[1] == 'consenttype':
+                    logger.info("Converting consent_type from native enum to VARCHAR...")
+                    conn.execute(text("ALTER TABLE consent_records ADD COLUMN consent_type_new VARCHAR(50)"))
+                    conn.commit()
+                    conn.execute(text("UPDATE consent_records SET consent_type_new = consent_type::text"))
+                    conn.commit()
+                    conn.execute(text("ALTER TABLE consent_records DROP COLUMN consent_type"))
+                    conn.commit()
+                    conn.execute(text("ALTER TABLE consent_records RENAME COLUMN consent_type_new TO consent_type"))
+                    conn.commit()
+                    conn.execute(text("ALTER TABLE consent_records ALTER COLUMN consent_type SET NOT NULL"))
+                    conn.commit()
+                    conn.execute(text("CREATE INDEX IF NOT EXISTS idx_consent_records_consent_type ON consent_records (consent_type)"))
+                    conn.commit()
+                    conn.execute(text("DROP TYPE IF EXISTS consenttype"))
+                    conn.commit()
+                    logger.info("Successfully converted consent_type to VARCHAR")
+            except Exception as e:
+                logger.error(f"Failed to migrate consent_type to VARCHAR: {e}")
                 conn.rollback()

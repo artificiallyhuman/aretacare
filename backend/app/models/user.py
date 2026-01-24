@@ -70,3 +70,8 @@ class User(Base):
         back_populates="user",
         cascade="all, delete-orphan"
     )
+    consent_records = relationship(
+        "ConsentRecord",
+        back_populates="user",
+        cascade="all, delete-orphan"
+    )

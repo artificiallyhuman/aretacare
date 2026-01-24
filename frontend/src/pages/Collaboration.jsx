@@ -113,7 +113,7 @@ export default function Collaboration() {
     setLoading(true);
 
     try {
-      await sessionAPI.share(selectedSession.id, email);
+      await sessionAPI.share(selectedSession.id, email, consentGiven);
       setSuccess('Session shared successfully.');
       await refreshSessions();
       setTimeout(() => {
@@ -221,7 +221,7 @@ export default function Collaboration() {
     setLoading(true);
 
     try {
-      const response = await sessionAPI.sendInvitation(selectedSession.id, email);
+      const response = await sessionAPI.sendInvitation(selectedSession.id, email, consentGiven);
       // Use message from backend if provided, otherwise fallback
       const message = response.data?.message || 'Invitation sent successfully.';
       setSuccess(message);
@@ -249,7 +249,8 @@ export default function Collaboration() {
     setLoading(true);
 
     try {
-      await sessionAPI.sendInvitation(selectedSession.id, invitationEmail);
+      // Pass true for consent since they already consented when original invitation was sent
+      await sessionAPI.sendInvitation(selectedSession.id, invitationEmail, true);
       setSuccess('Invitation resent successfully.');
       fetchPendingInvitations(selectedSession.id);
       setTimeout(() => {

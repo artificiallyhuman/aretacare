@@ -1,10 +1,11 @@
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, Field
 from datetime import datetime
 
 
 class InvitationSend(BaseModel):
     """Request to send an invitation to a user who doesn't have an account"""
     email: EmailStr
+    confirm_sharing_consent: bool = Field(..., description="User confirms they have the right to share this session")
 
 
 class PendingInvitationResponse(BaseModel):

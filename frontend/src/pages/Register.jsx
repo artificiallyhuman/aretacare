@@ -89,7 +89,7 @@ function Register() {
     }
 
     if (!acknowledgeAIProcessing) {
-      setError('You must acknowledge how your information is processed by AI systems');
+      setError('You must consent to data collection and processing to use AretaCare');
       return;
     }
 
@@ -397,7 +397,11 @@ function Register() {
                       required
                     />
                     <label htmlFor="acknowledgeAIProcessing" className="ml-3 text-sm text-gray-700 dark:text-gray-300 cursor-pointer">
-                      I understand that my information may be processed by AI systems to help organize and summarize content, and that AretaCare does not train its own AI models on my data.
+                      I consent to the collection, storage, and processing of my information as described in the{' '}
+                      <Link to="/privacy" className="text-primary-600 dark:text-primary-400 hover:underline" target="_blank">
+                        Privacy Policy
+                      </Link>
+                      , including processing by AI systems to help organize, summarize, and interpret content.
                     </label>
                   </div>
 

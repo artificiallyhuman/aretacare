@@ -1,11 +1,13 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func
 from app.core.database import get_db
 from app.models import Session as SessionModel, User, Document, AudioRecording, JournalEntry, Conversation, SessionCollaborator, PendingInvitation
+from app.models.consent_record import ConsentRecord, ConsentType, CONSENT_VERSIONS
 from app.schemas import (
     SessionCreate, SessionResponse, SessionRename, SessionShareRequest,
-    SessionShareResponse, UserExistsResponse, CollaboratorInfo, TransferOwnershipRequest
+    SessionShareResponse, UserExistsResponse, CollaboratorInfo, TransferOwnershipRequest,
+    UserCheckRequest
 )
 from app.schemas.invitation import InvitationSend, PendingInvitationResponse
 from datetime import datetime, timedelta
@@ -474,7 +476,7 @@ async def cleanup_session(
 @router.post("/{session_id}/check-user", response_model=UserExistsResponse)
 async def check_user_exists(
     session_id: str,
-    email_data: SessionShareRequest,
+    email_data: UserCheckRequest,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
@@ -527,12 +529,20 @@ async def check_user_exists(
 
 @router.post("/{session_id}/share", response_model=SessionShareResponse)
 async def share_session(
+    request: Request,
     session_id: str,
     share_data: SessionShareRequest,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """Share a session with another user"""
+    # Validate consent
+    if not share_data.confirm_sharing_consent:
+        raise HTTPException(
+            status_code=400,
+            detail="You must confirm you have the right to share this session"
+        )
+
     session = db.query(SessionModel).filter(SessionModel.id == session_id).first()
 
     if not session:
@@ -590,6 +600,28 @@ async def share_session(
     db.add(new_collab)
     db.commit()
     db.refresh(new_collab)
+
+    # Record sharing consent
+    client_ip = (
+        request.headers.get("CF-Connecting-IP") or
+        request.headers.get("X-Forwarded-For", "").split(",")[0].strip() or
+        request.client.host if request.client else None
+    )
+    user_agent = request.headers.get("User-Agent", "")[:500]
+    consent_info = CONSENT_VERSIONS[ConsentType.SHARING_AUTHORIZATION]
+
+    consent_record = ConsentRecord(
+        user_id=current_user.id,
+        consent_type=ConsentType.SHARING_AUTHORIZATION,
+        consent_version=consent_info["version"],
+        consent_text=consent_info["text"],
+        ip_address=client_ip,
+        user_agent=user_agent,
+        session_id=session_id,
+        shared_with_email=share_data.email
+    )
+    db.add(consent_record)
+    db.commit()
 
     # Get owner information
     owner = db.query(User).filter(User.id == session.owner_id).first()
@@ -827,6 +859,7 @@ async def transfer_ownership(
 
 @router.post("/{session_id}/send-invitation")
 async def send_invitation(
+    request: Request,
     session_id: str,
     invitation_data: InvitationSend,
     current_user: User = Depends(get_current_user),
@@ -837,6 +870,13 @@ async def send_invitation(
     Creates a pending invitation with a registration link. The invitee can register
     directly using this link, bypassing the waitlist even when CONTROL_SIGNUPS=TRUE.
     """
+    # Validate consent
+    if not invitation_data.confirm_sharing_consent:
+        raise HTTPException(
+            status_code=400,
+            detail="You must confirm you have the right to share this session"
+        )
+
     from app.services.email_service import EmailService
 
     session = db.query(SessionModel).filter(SessionModel.id == session_id).first()
@@ -899,6 +939,28 @@ async def send_invitation(
         db.add(invitation)
         db.commit()
         db.refresh(invitation)
+
+    # Record sharing consent
+    client_ip = (
+        request.headers.get("CF-Connecting-IP") or
+        request.headers.get("X-Forwarded-For", "").split(",")[0].strip() or
+        request.client.host if request.client else None
+    )
+    user_agent = request.headers.get("User-Agent", "")[:500]
+    consent_info = CONSENT_VERSIONS[ConsentType.SHARING_AUTHORIZATION]
+
+    consent_record = ConsentRecord(
+        user_id=current_user.id,
+        consent_type=ConsentType.SHARING_AUTHORIZATION,
+        consent_version=consent_info["version"],
+        consent_text=consent_info["text"],
+        ip_address=client_ip,
+        user_agent=user_agent,
+        session_id=session_id,
+        shared_with_email=invitation_data.email
+    )
+    db.add(consent_record)
+    db.commit()
 
     # Send invitation email
     email_service = EmailService()
