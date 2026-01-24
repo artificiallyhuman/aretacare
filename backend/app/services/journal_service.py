@@ -3,6 +3,8 @@ from app.core.config import settings
 from app.config import ai_config
 from app.models.journal import JournalEntry, EntryType
 from app.models.profile import Profile
+from app.models.document import Document
+from app.models.audio_recording import AudioRecording
 from app.schemas.journal import (
     JournalEntryCreate,
     JournalEntryUpdate,
@@ -300,6 +302,13 @@ IMPORTANT: Respond with ONLY a valid JSON object in this exact format, with no a
 
             # Auto-save ALL suggested entries
             for suggestion in suggestions:
+                # Check if document still exists before creating entry (may have been deleted/cancelled)
+                if document_id:
+                    doc_exists = self.db.query(Document).filter(Document.id == document_id).first()
+                    if not doc_exists:
+                        logger.info(f"Document {document_id} was deleted during processing, skipping journal entry creation")
+                        break
+
                 # Truncate title to 100 characters if needed (database limit)
                 title = suggestion.title[:100] if len(suggestion.title) > 100 else suggestion.title
 
@@ -506,6 +515,13 @@ IMPORTANT: Respond with ONLY a valid JSON object in this exact format, with no a
 
             # Auto-save ALL suggested entries
             for suggestion in suggestions:
+                # Check if audio recording still exists before creating entry (may have been deleted/cancelled)
+                if audio_id:
+                    audio_exists = self.db.query(AudioRecording).filter(AudioRecording.id == audio_id).first()
+                    if not audio_exists:
+                        logger.info(f"Audio recording {audio_id} was deleted during processing, skipping journal entry creation")
+                        break
+
                 # Truncate title to 100 characters if needed (database limit)
                 title = suggestion.title[:100] if len(suggestion.title) > 100 else suggestion.title
 
@@ -711,6 +727,13 @@ IMPORTANT: Respond with ONLY a valid JSON object in this exact format, with no a
 
             # Auto-save ALL suggested entries with AI-determined dates
             for suggestion in suggestions:
+                # Check if audio recording still exists before creating entry (may have been deleted/cancelled)
+                if audio_recording_id:
+                    audio_exists = self.db.query(AudioRecording).filter(AudioRecording.id == audio_recording_id).first()
+                    if not audio_exists:
+                        logger.info(f"Audio recording {audio_recording_id} was deleted during processing, skipping journal entry creation")
+                        break
+
                 # Truncate title to 100 characters if needed (database limit)
                 title = suggestion.title[:100] if len(suggestion.title) > 100 else suggestion.title
 

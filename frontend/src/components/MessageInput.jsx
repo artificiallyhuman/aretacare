@@ -50,6 +50,7 @@ const MessageInput = ({ onSendMessage, loading, hasMessages = false }) => {
   const analyserRef = useRef(null);
   const maxAudioLevelRef = useRef(0);
   const silenceCheckIntervalRef = useRef(null);
+  const recordingCancelledRef = useRef(false);
 
   // Detect mobile screen size
   useEffect(() => {
@@ -188,6 +189,9 @@ const MessageInput = ({ onSendMessage, loading, hasMessages = false }) => {
 
   const startRecording = async () => {
     try {
+      // Reset cancellation flag
+      recordingCancelledRef.current = false;
+
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       setAudioStream(stream); // Save stream for waveform visualization
 
@@ -235,6 +239,11 @@ const MessageInput = ({ onSendMessage, loading, hasMessages = false }) => {
       });
 
       mediaRecorder.addEventListener('stop', async () => {
+        // If recording was cancelled, cancelRecording() already handled cleanup
+        if (recordingCancelledRef.current) {
+          return;
+        }
+
         // Clean up silence detection
         if (silenceCheckIntervalRef.current) {
           clearInterval(silenceCheckIntervalRef.current);
@@ -284,6 +293,36 @@ const MessageInput = ({ onSendMessage, loading, hasMessages = false }) => {
         await new Promise(resolve => setTimeout(resolve, 300));
       }
       mediaRecorderRef.current.stop();
+      setIsRecording(false);
+    }
+  };
+
+  const cancelRecording = () => {
+    if (mediaRecorderRef.current && isRecording) {
+      // Set cancellation flag BEFORE stopping - the stop handler will check this
+      recordingCancelledRef.current = true;
+
+      // Clean up silence detection
+      if (silenceCheckIntervalRef.current) {
+        clearInterval(silenceCheckIntervalRef.current);
+        silenceCheckIntervalRef.current = null;
+      }
+      if (audioContextRef.current) {
+        audioContextRef.current.close();
+        audioContextRef.current = null;
+      }
+
+      // Stop the media recorder - the stop handler will see the cancelled flag and skip transcription
+      mediaRecorderRef.current.stop();
+
+      // Stop all tracks to release the microphone
+      if (audioStream) {
+        audioStream.getTracks().forEach(track => track.stop());
+        setAudioStream(null);
+      }
+
+      // Clear recording data
+      audioChunksRef.current = [];
       setIsRecording(false);
     }
   };
@@ -422,21 +461,37 @@ const MessageInput = ({ onSendMessage, loading, hasMessages = false }) => {
             </button>
           )}
 
-          {/* End recording button */}
+          {/* Recording control buttons */}
           {isRecording && (
-            <button
-              type="button"
-              onClick={stopRecording}
-              aria-label="End voice recording"
-              aria-pressed={isRecording}
-              className="p-1.5 md:p-2 px-2.5 md:px-3 rounded-lg transition bg-red-600 hover:bg-red-700 text-white font-medium text-xs flex items-center gap-1 animate-pulse flex-shrink-0"
-              title="End recording and send"
-            >
-              <svg className="w-5 h-5 md:w-6 md:h-6" fill="currentColor" viewBox="0 0 24 24">
-                <rect x="6" y="6" width="12" height="12" rx="1" />
-              </svg>
-              <span>End</span>
-            </button>
+            <>
+              {/* Cancel recording button */}
+              <button
+                type="button"
+                onClick={cancelRecording}
+                aria-label="Cancel voice recording"
+                className="p-1.5 md:p-2 px-2.5 md:px-3 rounded-lg transition bg-gray-500 hover:bg-gray-600 text-white font-medium text-xs flex items-center gap-1 flex-shrink-0"
+                title="Cancel recording"
+              >
+                <svg className="w-5 h-5 md:w-6 md:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+                <span className="hidden sm:inline">Cancel</span>
+              </button>
+              {/* End recording button */}
+              <button
+                type="button"
+                onClick={stopRecording}
+                aria-label="End voice recording"
+                aria-pressed={isRecording}
+                className="p-1.5 md:p-2 px-2.5 md:px-3 rounded-lg transition bg-red-600 hover:bg-red-700 text-white font-medium text-xs flex items-center gap-1 animate-pulse flex-shrink-0"
+                title="End recording and send"
+              >
+                <svg className="w-5 h-5 md:w-6 md:h-6" fill="currentColor" viewBox="0 0 24 24">
+                  <rect x="6" y="6" width="12" height="12" rx="1" />
+                </svg>
+                <span>End</span>
+              </button>
+            </>
           )}
 
           {/* Text input / Recording / Transcribing area */}

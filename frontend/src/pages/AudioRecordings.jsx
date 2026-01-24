@@ -63,6 +63,8 @@ const AudioRecordings = () => {
   const [uploadProgress, setUploadProgress] = useState('');
   const fileInputRef = useRef(null);
   const [recordingToDelete, setRecordingToDelete] = useState(null);
+  const abortControllerRef = useRef(null);
+  const uploadCancelledRef = useRef(false);
 
   // Restore focus to search input if it was focused before re-render
   useEffect(() => {
@@ -248,6 +250,13 @@ const AudioRecordings = () => {
     }
   };
 
+  const cancelUpload = () => {
+    uploadCancelledRef.current = true;
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+  };
+
   const handleFileUpload = async (event) => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -276,12 +285,40 @@ const AudioRecordings = () => {
     setUploading(true);
     setError(null);
     setUploadProgress('Uploading audio file...');
+    uploadCancelledRef.current = false;
+
+    // Create AbortController for this upload
+    abortControllerRef.current = new AbortController();
 
     try {
       // Use the same transcribe endpoint that handles recording transcription
       setUploadProgress('Processing audio (this may take a while for long files)...');
       // Pass false for skipJournalSynthesis so journal entries ARE created for direct uploads
-      await conversationAPI.transcribeAudio(file, sessionId, false);
+      const response = await conversationAPI.transcribeAudio(file, sessionId, false, {
+        signal: abortControllerRef.current.signal
+      });
+
+      // Check if cancelled while upload was in progress
+      // The upload completed on the backend, so we need to clean up
+      if (uploadCancelledRef.current) {
+        // Delete the recording that was just created
+        if (response?.data?.recording_id) {
+          setUploadProgress('Cleaning up...');
+          try {
+            await audioRecordingsAPI.deleteRecording(sessionId, response.data.recording_id);
+          } catch (deleteErr) {
+            console.error('Failed to delete cancelled recording:', deleteErr);
+          }
+        }
+        setUploadProgress('Upload cancelled.');
+        if (fileInputRef.current) {
+          fileInputRef.current.value = '';
+        }
+        setTimeout(() => {
+          setUploadProgress('');
+        }, 3000);
+        return;
+      }
 
       setUploadProgress('Audio processed successfully. Journal entries may have been created.');
 
@@ -298,13 +335,71 @@ const AudioRecordings = () => {
         setUploadProgress('');
       }, 3000);
     } catch (err) {
-      console.error('Error uploading audio:', err);
-      const errorMessage = err.response?.data?.detail || 'Failed to upload audio file. Please try again.';
-      setError(errorMessage);
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
+      // Check if this was a cancellation (axios uses CanceledError with code ERR_CANCELED)
+      const isCancelled = err.name === 'CanceledError' ||
+                         err.name === 'AbortError' ||
+                         err.code === 'ERR_CANCELED' ||
+                         uploadCancelledRef.current;
+      if (isCancelled) {
+        // The backend may have finished processing before the abort took effect
+        // Poll for the recording and delete it when found
+        setUploadProgress('Cleaning up...');
+        try {
+          const uploadedBaseName = file.name.replace(/\.[^/.]+$/, ''); // Remove extension
+
+          // Estimate max processing time based on file size
+          // Audio transcription takes roughly 0.5-1x real-time
+          // Audio files are typically ~1MB per minute, so ~30s processing per MB
+          // Base: 15s for upload/conversion + ~30s per MB for transcription, max 300s
+          const fileSizeMB = file.size / (1024 * 1024);
+          const maxWaitMs = Math.min(15000 + fileSizeMB * 30000, 300000);
+          const pollIntervalMs = 3000; // Poll every 3 seconds
+          const startTime = Date.now();
+
+          // Poll until we find the recording or timeout
+          while (Date.now() - startTime < maxWaitMs) {
+            // Check if user started a new upload (cancel flag would be cleared)
+            if (!uploadCancelledRef.current) break;
+
+            await new Promise(resolve => setTimeout(resolve, pollIntervalMs));
+
+            // Fetch recent recordings and find one matching this file
+            // Note: Backend converts audio to MP3, so compare base filename without extension
+            const listResponse = await audioRecordingsAPI.getRecordings(sessionId);
+            const recs = listResponse.data.recordings || listResponse.data;
+            const recentRec = recs.find(r => {
+              const recBaseName = r.filename.replace(/\.[^/.]+$/, ''); // Remove extension
+              return recBaseName === uploadedBaseName &&
+                new Date(r.created_at + 'Z') > new Date(Date.now() - 300000); // Created in last 5 minutes
+            });
+
+            if (recentRec) {
+              await audioRecordingsAPI.deleteRecording(sessionId, recentRec.id);
+              break; // Successfully deleted
+            }
+          }
+        } catch (cleanupErr) {
+          console.error('Failed to clean up cancelled upload:', cleanupErr);
+        }
+
+        setUploadProgress('Upload cancelled.');
+        setError(null);
+        if (fileInputRef.current) {
+          fileInputRef.current.value = '';
+        }
+        setTimeout(() => {
+          setUploadProgress('');
+        }, 3000);
+      } else {
+        console.error('Error uploading audio:', err);
+        const errorMessage = err.response?.data?.detail || 'Failed to upload audio file. Please try again.';
+        setError(errorMessage);
+        if (fileInputRef.current) {
+          fileInputRef.current.value = '';
+        }
       }
     } finally {
+      abortControllerRef.current = null;
       setUploading(false);
     }
   };
@@ -401,12 +496,25 @@ const AudioRecordings = () => {
 
         {/* Upload progress message */}
         {uploadProgress && (
-          <div className="mb-4 bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300 px-4 py-3 rounded flex items-center gap-2">
-            <svg className="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-            </svg>
-            {uploadProgress}
+          <div className="mb-4 bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300 px-4 py-3 rounded flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <svg className="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              {uploadProgress}
+            </div>
+            {uploading && (
+              <button
+                onClick={cancelUpload}
+                className="p-1 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600 rounded transition-colors"
+                title="Cancel upload"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            )}
           </div>
         )}
 

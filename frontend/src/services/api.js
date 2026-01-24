@@ -295,7 +295,7 @@ export const sessionAPI = {
 
 // Document API
 export const documentAPI = {
-  upload: (formData, sessionId, skipJournalSynthesis = false, userDate = null) => {
+  upload: (formData, sessionId, skipJournalSynthesis = false, userDate = null, config = {}) => {
     const params = sessionId ? `?session_id=${sessionId}` : '';
     const skipParam = skipJournalSynthesis ? `&skip_journal_synthesis=true` : `&skip_journal_synthesis=false`;
     const dateParam = userDate ? `&user_date=${userDate}` : '';
@@ -303,6 +303,7 @@ export const documentAPI = {
       headers: {
         'Content-Type': 'multipart/form-data',
       },
+      ...config,
     });
   },
   getSessionDocuments: (sessionId, category = null, search = null) => {
@@ -329,7 +330,7 @@ export const conversationAPI = {
     api.post('/conversation/message', data),
   getHistory: (sessionId, limit = 50, offset = 0) =>
     api.get(`/conversation/${sessionId}/history`, { params: { limit, offset } }),
-  transcribeAudio: (audioFile, sessionId, skipJournalSynthesis = false) => {
+  transcribeAudio: (audioFile, sessionId, skipJournalSynthesis = false, config = {}) => {
     const formData = new FormData();
     formData.append('audio', audioFile);
     formData.append('session_id', sessionId);
@@ -339,6 +340,7 @@ export const conversationAPI = {
         'Content-Type': 'multipart/form-data',
       },
       timeout: 600000, // 10 minutes timeout for long audio files
+      ...config,
     });
   },
 };

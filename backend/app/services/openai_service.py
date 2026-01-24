@@ -830,7 +830,16 @@ When information conflicts, trust more recent sources.
             if last_message.get("role") == "assistant":
                 messages.append({
                     "role": "system",
-                    "content": f"---\n⚡ IMMEDIATE CONTEXT - Your last message to the user:\n{last_message.get('content', '')}\n\nThe user is now responding to THIS message. If they say 'yes', 'sure', 'okay', 'go ahead', etc., they are agreeing to what you suggested above.\n---"
+                    "content": f"""---
+⚡ IMMEDIATE CONTEXT - Your last message to the user:
+{last_message.get('content', '')}
+
+The user is now responding to THIS message above. Interpret their response accordingly:
+- "yes", "sure", "okay", "go ahead" → They AGREE with what you suggested
+- "no", "skip", "never mind", "let's continue", "not now" → They DECLINE - drop that topic immediately and move forward
+- References like "that", "it", "the mistake", "what you said" → They mean something in YOUR MESSAGE ABOVE, not earlier context
+- Questions about "what you just said" → Refer to YOUR MESSAGE ABOVE
+---"""
                 })
 
         # Explicitly mark the current message as the one to respond to

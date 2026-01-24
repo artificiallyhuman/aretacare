@@ -67,6 +67,11 @@ export const NetworkProvider = ({ children }) => {
 
   // Handle API errors (called from axios interceptor)
   const handleApiError = useCallback((error) => {
+    // Ignore cancelled/aborted requests - these are intentional user actions
+    if (error.name === 'CanceledError' || error.code === 'ERR_CANCELED') {
+      return;
+    }
+
     if (!error.response) {
       // Network error - no response received
       showErrorMessage(

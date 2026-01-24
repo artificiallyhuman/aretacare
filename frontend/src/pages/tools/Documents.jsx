@@ -66,6 +66,8 @@ const Documents = () => {
   const [uploadProgress, setUploadProgress] = useState([]);
   const fileInputRef = useRef(null);
   const [documentToDelete, setDocumentToDelete] = useState(null);
+  const abortControllerRef = useRef(null);
+  const uploadCancelledRef = useRef(false);
 
   // Restore focus to search input if it was focused before re-render
   useEffect(() => {
@@ -263,6 +265,13 @@ const Documents = () => {
     setPreviewUrl(null);
   };
 
+  const cancelUpload = () => {
+    uploadCancelledRef.current = true;
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+  };
+
   const handleFileUpload = async (event) => {
     const files = Array.from(event.target.files || []);
     if (files.length === 0) return;
@@ -299,6 +308,7 @@ const Documents = () => {
 
     setUploading(true);
     setError(null);
+    uploadCancelledRef.current = false;
 
     // Initialize progress for each file
     const initialProgress = files.map((file, index) => ({
@@ -315,7 +325,19 @@ const Documents = () => {
 
     // Upload files sequentially to avoid overwhelming the backend
     for (let i = 0; i < files.length; i++) {
+      // Check if upload was cancelled
+      if (uploadCancelledRef.current) {
+        // Mark remaining files as cancelled
+        setUploadProgress(prev => prev.map((p, idx) =>
+          idx >= i && p.status === 'pending' ? { ...p, status: 'cancelled', message: 'Cancelled' } : p
+        ));
+        break;
+      }
+
       const file = files[i];
+
+      // Create new AbortController for this upload
+      abortControllerRef.current = new AbortController();
 
       try {
         // Update status to uploading
@@ -335,7 +357,33 @@ const Documents = () => {
         const today = new Date();
         const userDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
 
-        await documentAPI.upload(formData, sessionId, false, userDate);
+        const response = await documentAPI.upload(formData, sessionId, false, userDate, {
+          signal: abortControllerRef.current.signal
+        });
+
+        // Check if cancelled while upload was in progress
+        // The upload completed on the backend, so we need to clean up
+        if (uploadCancelledRef.current) {
+          // Delete the document that was just created
+          if (response?.data?.id) {
+            setUploadProgress(prev => prev.map((p, idx) =>
+              idx === i ? { ...p, status: 'cancelled', message: 'Cleaning up...' } : p
+            ));
+            try {
+              await documentAPI.delete(response.data.id);
+            } catch (deleteErr) {
+              console.error('Failed to delete cancelled document:', deleteErr);
+            }
+          }
+          setUploadProgress(prev => prev.map((p, idx) =>
+            idx === i ? { ...p, status: 'cancelled', message: 'Cancelled' } : p
+          ));
+          // Mark remaining files as cancelled
+          setUploadProgress(prev => prev.map((p, idx) =>
+            idx > i && p.status === 'pending' ? { ...p, status: 'cancelled', message: 'Cancelled' } : p
+          ));
+          break;
+        }
 
         // Update status to success
         setUploadProgress(prev => prev.map((p, idx) =>
@@ -344,6 +392,59 @@ const Documents = () => {
 
         successCount++;
       } catch (err) {
+        // Check if this was a cancellation (axios uses CanceledError with code ERR_CANCELED)
+        const isCancelled = err.name === 'CanceledError' ||
+                           err.name === 'AbortError' ||
+                           err.code === 'ERR_CANCELED' ||
+                           uploadCancelledRef.current;
+        if (isCancelled) {
+          // The backend may have finished processing before the abort took effect
+          // Poll for the document and delete it when found
+          setUploadProgress(prev => prev.map((p, idx) =>
+            idx === i ? { ...p, status: 'cancelled', message: 'Cleaning up...' } : p
+          ));
+          try {
+            // Estimate max processing time based on file size
+            // Base: 10s for small files + ~2s per MB for OCR/extraction, max 120s
+            const fileSizeMB = file.size / (1024 * 1024);
+            const maxWaitMs = Math.min(10000 + fileSizeMB * 2000, 120000);
+            const pollIntervalMs = 2000; // Poll every 2 seconds
+            const startTime = Date.now();
+
+            // Poll until we find the document or timeout
+            while (Date.now() - startTime < maxWaitMs) {
+              // Check if user started a new upload (cancel flag would be cleared)
+              if (!uploadCancelledRef.current) break;
+
+              await new Promise(resolve => setTimeout(resolve, pollIntervalMs));
+
+              // Fetch recent documents and find one matching this file
+              const listResponse = await documentAPI.getSessionDocuments(sessionId);
+              const docs = listResponse.data.documents || listResponse.data;
+              const recentDoc = docs.find(d =>
+                d.filename === file.name &&
+                new Date(d.uploaded_at + 'Z') > new Date(Date.now() - 300000) // Uploaded in last 5 minutes
+              );
+
+              if (recentDoc) {
+                await documentAPI.delete(recentDoc.id);
+                break; // Successfully deleted
+              }
+            }
+          } catch (cleanupErr) {
+            console.error('Failed to clean up cancelled upload:', cleanupErr);
+          }
+
+          setUploadProgress(prev => prev.map((p, idx) =>
+            idx === i ? { ...p, status: 'cancelled', message: 'Cancelled' } : p
+          ));
+          // Mark remaining files as cancelled
+          setUploadProgress(prev => prev.map((p, idx) =>
+            idx > i && p.status === 'pending' ? { ...p, status: 'cancelled', message: 'Cancelled' } : p
+          ));
+          break;
+        }
+
         console.error(`Error uploading ${file.name}:`, err);
         const errorMessage = err.response?.data?.detail || 'Upload failed';
 
@@ -356,8 +457,16 @@ const Documents = () => {
       }
     }
 
-    // Reload documents to show the new ones
-    await loadDocuments();
+    // Clear the abort controller
+    abortControllerRef.current = null;
+
+    // Reload documents to show the new ones (only if not cancelled)
+    if (!uploadCancelledRef.current) {
+      await loadDocuments();
+    } else if (successCount > 0) {
+      // If some files uploaded before cancel, still reload
+      await loadDocuments();
+    }
 
     // Clear the file input
     if (fileInputRef.current) {
@@ -365,7 +474,19 @@ const Documents = () => {
     }
 
     // Show summary message
-    if (successCount > 0 && failCount === 0) {
+    if (uploadCancelledRef.current) {
+      if (successCount > 0) {
+        setUploadProgress(prev => [
+          ...prev.filter(p => p.id !== 'summary'),
+          { id: 'summary', status: 'warning', message: `Upload cancelled. ${successCount} document${successCount > 1 ? 's' : ''} uploaded before cancellation.` }
+        ]);
+      } else {
+        setUploadProgress(prev => [
+          ...prev.filter(p => p.id !== 'summary'),
+          { id: 'summary', status: 'info', message: 'Upload cancelled.' }
+        ]);
+      }
+    } else if (successCount > 0 && failCount === 0) {
       setUploadProgress(prev => [
         ...prev,
         { id: 'summary', status: 'info', message: `Successfully uploaded ${successCount} document${successCount > 1 ? 's' : ''}. Journal entries have been created.` }
@@ -516,13 +637,26 @@ const Documents = () => {
           {/* Upload progress */}
           {uploadProgress.length > 0 && (
             <div className="mb-4 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4 space-y-3 overflow-hidden">
-              <div className="flex items-center gap-2 mb-2">
-                <svg className="w-5 h-5 text-blue-600 dark:text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                </svg>
-                <h3 className="text-sm font-semibold text-gray-900 dark:text-white">
-                  Upload Progress
-                </h3>
+              <div className="flex items-center justify-between gap-2 mb-2">
+                <div className="flex items-center gap-2">
+                  <svg className="w-5 h-5 text-blue-600 dark:text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                  </svg>
+                  <h3 className="text-sm font-semibold text-gray-900 dark:text-white">
+                    Upload Progress
+                  </h3>
+                </div>
+                {uploading && (
+                  <button
+                    onClick={cancelUpload}
+                    className="p-1 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600 rounded transition-colors"
+                    title="Cancel upload"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                )}
               </div>
               {uploadProgress.map((item) => {
                 if (item.id === 'summary') {
@@ -557,6 +691,11 @@ const Documents = () => {
                     <svg className="w-4 h-4 text-red-600 dark:text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                     </svg>
+                  ),
+                  cancelled: (
+                    <svg className="w-4 h-4 text-gray-500 dark:text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+                    </svg>
                   )
                 };
 
@@ -564,7 +703,8 @@ const Documents = () => {
                   pending: 'text-gray-600 dark:text-gray-400',
                   uploading: 'text-blue-700 dark:text-blue-300',
                   success: 'text-green-700 dark:text-green-300',
-                  error: 'text-red-700 dark:text-red-300'
+                  error: 'text-red-700 dark:text-red-300',
+                  cancelled: 'text-gray-500 dark:text-gray-400'
                 };
 
                 return (
