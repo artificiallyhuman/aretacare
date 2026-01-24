@@ -32,5 +32,9 @@ class JournalEntry(Base):
     source_audio_id = Column(Integer, ForeignKey("audio_recordings.id", ondelete="CASCADE"), nullable=True)  # Links to uploaded audio
     entry_metadata = Column(JSONB, nullable=True)  # Flexible additional data
 
+    # Source tracking for collaborative sessions
+    last_edited_by_user_id = Column(String, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+
     # Relationships
     session = relationship("Session", back_populates="journal_entries")
+    last_edited_by = relationship("User", foreign_keys=[last_edited_by_user_id])

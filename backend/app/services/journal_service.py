@@ -1135,6 +1135,7 @@ IMPORTANT: Respond with ONLY a valid JSON object in this exact format, with no a
                 entry.entry_date = updates.entry_date
 
             entry.updated_at = datetime.utcnow()
+            entry.last_edited_by_user_id = user_id  # Track editor for collaborative sessions
 
             self.db.commit()
             self.db.refresh(entry)

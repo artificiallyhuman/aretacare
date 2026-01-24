@@ -1847,3 +1847,27 @@ def run_migrations():
             except Exception as e:
                 logger.error(f"Failed to add source tracking columns: {e}")
                 conn.rollback()
+
+        # =================================================================
+        # Add last_edited_by_user_id column to journal_entries
+        # =================================================================
+        migration_name = "add_journal_last_edited_by"
+        if not has_migration_run(conn, migration_name):
+            logger.info("Adding last_edited_by_user_id column to journal_entries...")
+            try:
+                journal_columns = [col['name'] for col in inspector.get_columns('journal_entries')]
+
+                if 'last_edited_by_user_id' not in journal_columns:
+                    conn.execute(text("""
+                        ALTER TABLE journal_entries
+                        ADD COLUMN last_edited_by_user_id VARCHAR(36) REFERENCES users(id) ON DELETE SET NULL
+                    """))
+                    conn.commit()
+                    logger.info("Added last_edited_by_user_id column to journal_entries")
+
+                mark_migration_complete(conn, migration_name)
+                logger.info("Successfully added journal entry source tracking column")
+
+            except Exception as e:
+                logger.error(f"Failed to add journal last_edited_by column: {e}")
+                conn.rollback()

@@ -11,6 +11,7 @@ from app.schemas.journal import (
 from app.services.journal_service import JournalService
 from app.api.auth import get_current_user
 from app.api.permissions import check_session_access
+from app.api.source_tags import session_has_collaborators, build_source_tag_info, get_user_map
 from datetime import date
 from typing import Optional
 
@@ -44,6 +45,48 @@ async def get_journal_entries(
         end_date=end
     )
 
+    # Check if session has collaborators (for source tag attribution)
+    has_collaborators = session_has_collaborators(session_id, db)
+
+    if has_collaborators:
+        # Collect all user IDs for batch loading
+        user_ids = []
+        for date_entries in entries_by_date.values():
+            for entry in date_entries:
+                # created_by is 'ai' or user_id
+                if entry.created_by and entry.created_by != 'ai':
+                    user_ids.append(entry.created_by)
+                if entry.last_edited_by_user_id:
+                    user_ids.append(entry.last_edited_by_user_id)
+
+        user_map = get_user_map(user_ids, db)
+
+        # Build enriched response with source tags
+        enriched_entries_by_date = {}
+        for date_str, entries in entries_by_date.items():
+            enriched_entries = []
+            for entry in entries:
+                entry_dict = {
+                    "id": entry.id,
+                    "session_id": entry.session_id,
+                    "entry_date": entry.entry_date,
+                    "entry_type": entry.entry_type,
+                    "title": entry.title,
+                    "content": entry.content,
+                    "created_by": entry.created_by,
+                    "created_at": entry.created_at,
+                    "updated_at": entry.updated_at,
+                    "source_message_ids": entry.source_message_ids,
+                    "entry_metadata": entry.entry_metadata,
+                    # Source tags
+                    "created_by_info": build_source_tag_info(user_map.get(entry.created_by)) if entry.created_by and entry.created_by != 'ai' else None,
+                    "last_edited_by": build_source_tag_info(user_map.get(entry.last_edited_by_user_id)) if entry.last_edited_by_user_id else None
+                }
+                enriched_entries.append(entry_dict)
+            enriched_entries_by_date[date_str] = enriched_entries
+
+        return {"entries_by_date": enriched_entries_by_date}
+
     return {"entries_by_date": entries_by_date}
 
 
@@ -74,6 +117,41 @@ async def get_entries_for_date(
         target_date=parsed_date
     )
 
+    # Check if session has collaborators (for source tag attribution)
+    has_collaborators = session_has_collaborators(session_id, db)
+
+    if has_collaborators and entries:
+        # Collect user IDs for batch loading
+        user_ids = []
+        for entry in entries:
+            if entry.created_by and entry.created_by != 'ai':
+                user_ids.append(entry.created_by)
+            if entry.last_edited_by_user_id:
+                user_ids.append(entry.last_edited_by_user_id)
+
+        user_map = get_user_map(user_ids, db)
+
+        # Build enriched response
+        enriched_entries = []
+        for entry in entries:
+            entry_dict = {
+                "id": entry.id,
+                "session_id": entry.session_id,
+                "entry_date": entry.entry_date,
+                "entry_type": entry.entry_type,
+                "title": entry.title,
+                "content": entry.content,
+                "created_by": entry.created_by,
+                "created_at": entry.created_at,
+                "updated_at": entry.updated_at,
+                "source_message_ids": entry.source_message_ids,
+                "entry_metadata": entry.entry_metadata,
+                "created_by_info": build_source_tag_info(user_map.get(entry.created_by)) if entry.created_by and entry.created_by != 'ai' else None,
+                "last_edited_by": build_source_tag_info(user_map.get(entry.last_edited_by_user_id)) if entry.last_edited_by_user_id else None
+            }
+            enriched_entries.append(entry_dict)
+        return enriched_entries
+
     return entries
 
 
@@ -99,6 +177,25 @@ async def create_journal_entry(
         created_by=current_user.id
     )
 
+    # Return with source tag if session has collaborators
+    has_collaborators = session_has_collaborators(session_id, db)
+    if has_collaborators:
+        return {
+            "id": entry.id,
+            "session_id": entry.session_id,
+            "entry_date": entry.entry_date,
+            "entry_type": entry.entry_type,
+            "title": entry.title,
+            "content": entry.content,
+            "created_by": entry.created_by,
+            "created_at": entry.created_at,
+            "updated_at": entry.updated_at,
+            "source_message_ids": entry.source_message_ids,
+            "entry_metadata": entry.entry_metadata,
+            "created_by_info": build_source_tag_info(current_user),
+            "last_edited_by": None
+        }
+
     return entry
 
 
@@ -119,6 +216,31 @@ async def update_journal_entry(
 
     if not entry:
         raise HTTPException(status_code=404, detail="Journal entry not found or access denied")
+
+    # Return with source tags if session has collaborators
+    has_collaborators = session_has_collaborators(entry.session_id, db)
+    if has_collaborators:
+        # Get creator info if not AI
+        creator_info = None
+        if entry.created_by and entry.created_by != 'ai':
+            user_map = get_user_map([entry.created_by], db)
+            creator_info = build_source_tag_info(user_map.get(entry.created_by))
+
+        return {
+            "id": entry.id,
+            "session_id": entry.session_id,
+            "entry_date": entry.entry_date,
+            "entry_type": entry.entry_type,
+            "title": entry.title,
+            "content": entry.content,
+            "created_by": entry.created_by,
+            "created_at": entry.created_at,
+            "updated_at": entry.updated_at,
+            "source_message_ids": entry.source_message_ids,
+            "entry_metadata": entry.entry_metadata,
+            "created_by_info": creator_info,
+            "last_edited_by": build_source_tag_info(current_user)
+        }
 
     return entry
 

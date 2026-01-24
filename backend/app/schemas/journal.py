@@ -3,6 +3,8 @@ from datetime import datetime, date
 from app.models.journal import EntryType
 from typing import Optional, List, Dict
 
+from app.schemas.source_tag import SourceTagInfo
+
 
 class JournalEntryCreate(BaseModel):
     title: str = Field(..., max_length=100)
@@ -30,6 +32,9 @@ class JournalEntryResponse(BaseModel):
     updated_at: datetime
     source_message_ids: Optional[List[int]] = None
     entry_metadata: Optional[Dict] = None
+    # Source tracking for collaborative sessions
+    created_by_info: Optional[SourceTagInfo] = None  # Populated for non-AI entries
+    last_edited_by: Optional[SourceTagInfo] = None
 
     class Config:
         from_attributes = True

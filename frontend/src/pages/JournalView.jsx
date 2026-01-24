@@ -4,6 +4,7 @@ import { journalAPI } from '../services/api';
 import JournalEntry from '../components/Journal/JournalEntry';
 import EntryEditor from '../components/Journal/EntryEditor';
 import { isToday, isFuture, formatDateShort } from '../utils/dateUtils';
+import SourceTag from '../components/SourceTag';
 
 const ENTRY_TYPE_COLORS = {
   MEDICAL_UPDATE: 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300',
@@ -15,7 +16,10 @@ const ENTRY_TYPE_COLORS = {
 };
 
 const JournalView = () => {
-  const { activeSessionId: sessionId, loading: sessionLoading } = useSessionContext();
+  const { activeSessionId: sessionId, activeSession, user, loading: sessionLoading } = useSessionContext();
+
+  // Check if session has collaborators for source tag display
+  const hasCollaborators = activeSession?.collaborators?.length > 0;
   const [entries, setEntries] = useState({});
   const [filteredEntries, setFilteredEntries] = useState({});
   const [filterType, setFilterType] = useState('ALL');
@@ -149,6 +153,15 @@ const JournalView = () => {
   const sortedDates = Object.keys(filteredEntries).sort(
     (a, b) => new Date(b) - new Date(a)
   );
+
+  // Group dates by year for year separators
+  const datesByYear = sortedDates.reduce((acc, date) => {
+    const year = date.split('-')[0];
+    if (!acc[year]) acc[year] = [];
+    acc[year].push(date);
+    return acc;
+  }, {});
+  const sortedYears = Object.keys(datesByYear).sort((a, b) => b - a);
 
   const totalEntries = Object.values(entries).reduce(
     (sum, dateEntries) => sum + dateEntries.length,
@@ -331,31 +344,43 @@ const JournalView = () => {
                   })()}
                 </div>
                 <div className="divide-y divide-gray-200 dark:divide-gray-700 max-h-64 lg:max-h-[calc(100vh-22rem)] overflow-y-auto">
-                  {sortedDates.map((date) => (
-                    <button
-                      key={date}
-                      onClick={() => handleDateClick(date)}
-                      className={`w-full text-left p-3 md:p-4 transition hover:bg-gray-50 dark:hover:bg-gray-700 ${
-                        selectedDate === date ? 'bg-primary-50 dark:bg-primary-900/30 border-l-4 border-primary-600 dark:border-primary-400' : ''
-                      }`}
-                    >
-                      <div className="flex items-center justify-between mb-1">
-                        <span className={`text-xs md:text-sm font-medium ${
-                          isToday(date) ? 'text-primary-700 dark:text-primary-400' : 'text-gray-700 dark:text-gray-300'
-                        }`}>
-                          {isToday(date) ? 'Today' : formatDateShort(date)}
-                        </span>
-                        <span className="text-xs text-gray-500 dark:text-gray-400">
-                          {filteredEntries[date].length}
-                        </span>
-                      </div>
-                      <div className="text-xs text-gray-500 dark:text-gray-400">
-                        {(() => {
-                          const [year, month, day] = date.split('-').map(Number);
-                          return new Date(year, month - 1, day).toLocaleDateString('en-US', { weekday: 'long' });
-                        })()}
-                      </div>
-                    </button>
+                  {sortedYears.map((year) => (
+                    <div key={year}>
+                      {/* Year separator - only show if multiple years exist */}
+                      {sortedYears.length > 1 && (
+                        <div className="sticky top-0 bg-gray-100 dark:bg-gray-700 px-3 py-2 border-b border-gray-200 dark:border-gray-600">
+                          <span className="text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">
+                            {year}
+                          </span>
+                        </div>
+                      )}
+                      {datesByYear[year].map((date) => (
+                        <button
+                          key={date}
+                          onClick={() => handleDateClick(date)}
+                          className={`w-full text-left p-3 md:p-4 transition hover:bg-gray-50 dark:hover:bg-gray-700 ${
+                            selectedDate === date ? 'bg-primary-50 dark:bg-primary-900/30 border-l-4 border-primary-600 dark:border-primary-400' : ''
+                          }`}
+                        >
+                          <div className="flex items-center justify-between mb-1">
+                            <span className={`text-xs md:text-sm font-medium ${
+                              isToday(date) ? 'text-primary-700 dark:text-primary-400' : 'text-gray-700 dark:text-gray-300'
+                            }`}>
+                              {isToday(date) ? 'Today' : formatDateShort(date)}
+                            </span>
+                            <span className="text-xs text-gray-500 dark:text-gray-400">
+                              {filteredEntries[date].length}
+                            </span>
+                          </div>
+                          <div className="text-xs text-gray-500 dark:text-gray-400">
+                            {(() => {
+                              const [yr, month, day] = date.split('-').map(Number);
+                              return new Date(yr, month - 1, day).toLocaleDateString('en-US', { weekday: 'long' });
+                            })()}
+                          </div>
+                        </button>
+                      ))}
+                    </div>
                   ))}
                 </div>
               </div>
@@ -405,6 +430,8 @@ const JournalView = () => {
                           colors={ENTRY_TYPE_COLORS}
                           onEdit={() => handleEditEntry(entry)}
                           onDelete={loadJournalEntries}
+                          hasCollaborators={hasCollaborators}
+                          currentUserId={user?.id}
                         />
                       ))}
                     </div>

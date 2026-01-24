@@ -168,6 +168,15 @@ const Documents = () => {
     return new Date(b) - new Date(a); // Most recent first
   });
 
+  // Group dates by year for year separators
+  const datesByYear = dates.reduce((acc, date) => {
+    const year = new Date(date).getFullYear().toString();
+    if (!acc[year]) acc[year] = [];
+    acc[year].push(date);
+    return acc;
+  }, {});
+  const sortedYears = Object.keys(datesByYear).sort((a, b) => b - a);
+
   const handleDateClick = (date) => {
     setSelectedDate(date);
     const element = dateRefs.current[date];
@@ -680,31 +689,43 @@ const Documents = () => {
                     <h2 className="text-base md:text-lg font-semibold text-gray-900 dark:text-white">Dates</h2>
                   </div>
                   <div className="divide-y divide-gray-200 dark:divide-gray-700 max-h-64 lg:max-h-[calc(100vh-22rem)] overflow-y-auto">
-                    {dates.map((date) => (
-                      <button
-                        key={date}
-                        onClick={() => {
-                          handleDateClick(date);
-                          setShowSidebar(false); // Close sidebar on mobile after selection
-                        }}
-                        className={`w-full text-left p-3 md:p-4 transition hover:bg-gray-50 dark:hover:bg-gray-700 ${
-                          selectedDate === date ? 'bg-primary-50 dark:bg-primary-900/30 border-l-4 border-primary-600' : ''
-                        }`}
-                      >
-                        <div className="flex items-center justify-between mb-1">
-                          <span className={`text-xs md:text-sm font-medium ${
-                            isToday(date) ? 'text-primary-700 dark:text-primary-400' : 'text-gray-700 dark:text-gray-300'
-                          }`}>
-                            {isToday(date) ? 'Today' : formatDateShort(date)}
-                          </span>
-                          <span className="text-xs text-gray-500 dark:text-gray-400">
-                            {groupedDocuments[date].length}
-                          </span>
-                        </div>
-                        <div className="text-xs text-gray-500 dark:text-gray-400">
-                          {new Date(date).toLocaleDateString('en-US', { weekday: 'long' })}
-                        </div>
-                      </button>
+                    {sortedYears.map((year) => (
+                      <div key={year}>
+                        {/* Year separator - only show if multiple years exist */}
+                        {sortedYears.length > 1 && (
+                          <div className="sticky top-0 bg-gray-100 dark:bg-gray-700 px-3 py-2 border-b border-gray-200 dark:border-gray-600">
+                            <span className="text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">
+                              {year}
+                            </span>
+                          </div>
+                        )}
+                        {datesByYear[year].map((date) => (
+                          <button
+                            key={date}
+                            onClick={() => {
+                              handleDateClick(date);
+                              setShowSidebar(false); // Close sidebar on mobile after selection
+                            }}
+                            className={`w-full text-left p-3 md:p-4 transition hover:bg-gray-50 dark:hover:bg-gray-700 ${
+                              selectedDate === date ? 'bg-primary-50 dark:bg-primary-900/30 border-l-4 border-primary-600' : ''
+                            }`}
+                          >
+                            <div className="flex items-center justify-between mb-1">
+                              <span className={`text-xs md:text-sm font-medium ${
+                                isToday(date) ? 'text-primary-700 dark:text-primary-400' : 'text-gray-700 dark:text-gray-300'
+                              }`}>
+                                {isToday(date) ? 'Today' : formatDateShort(date)}
+                              </span>
+                              <span className="text-xs text-gray-500 dark:text-gray-400">
+                                {groupedDocuments[date].length}
+                              </span>
+                            </div>
+                            <div className="text-xs text-gray-500 dark:text-gray-400">
+                              {new Date(date).toLocaleDateString('en-US', { weekday: 'long' })}
+                            </div>
+                          </button>
+                        ))}
+                      </div>
                     ))}
                   </div>
                 </div>

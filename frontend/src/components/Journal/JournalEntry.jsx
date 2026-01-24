@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { journalAPI } from '../../services/api';
+import SourceTag from '../SourceTag';
 
-const JournalEntry = ({ entry, colors, onEdit, onDelete }) => {
+const JournalEntry = ({ entry, colors, onEdit, onDelete, hasCollaborators, currentUserId }) => {
   const [expanded, setExpanded] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [isClamped, setIsClamped] = useState(false);
@@ -52,6 +53,16 @@ const JournalEntry = ({ entry, colors, onEdit, onDelete }) => {
               <span className="text-xs px-2 py-0.5 rounded bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300">
                 AI
               </span>
+            )}
+            {/* Source tag for collaborative sessions */}
+            {/* For AI entries: show editor tag if edited by a user */}
+            {/* For manual entries: show editor tag if edited, otherwise creator tag */}
+            {hasCollaborators && (isAI ? entry.last_edited_by : (entry.last_edited_by || entry.created_by_info)) && (
+              <SourceTag
+                sourceTag={entry.last_edited_by || entry.created_by_info}
+                currentUserId={currentUserId}
+                variant="small"
+              />
             )}
           </div>
           <h4 className="text-sm font-medium text-gray-900 dark:text-gray-100">{entry.title}</h4>
