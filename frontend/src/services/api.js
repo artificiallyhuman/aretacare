@@ -297,6 +297,14 @@ export const sessionAPI = {
   }),
   getPendingInvitations: (sessionId) => api.get(`/sessions/${sessionId}/pending-invitations`),
   cancelInvitation: (sessionId, invitationId) => api.delete(`/sessions/${sessionId}/pending-invitations/${invitationId}`),
+
+  // Session color endpoints
+  setColor: (sessionId, colorKey, swapWithSessionId = null) =>
+    api.put(`/sessions/${sessionId}/color`, {
+      color_key: colorKey,
+      swap_with_session_id: swapWithSessionId
+    }),
+  autoAssignColors: () => api.post('/sessions/auto-assign-colors'),
 };
 
 // Document API

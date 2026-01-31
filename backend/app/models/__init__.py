@@ -22,6 +22,7 @@ from app.models.user_backup_code import UserBackupCode
 from app.models.trusted_device import TrustedDevice
 from app.models.mfa_challenge import MFAChallenge
 from app.models.consent_record import ConsentRecord, ConsentType, CONSENT_VERSIONS
+from app.models.user_session_color import UserSessionColor
 
 __all__ = [
     "User", "Session", "SessionCollaborator", "PendingInvitation", "Document", "DocumentCategory",
@@ -29,5 +30,5 @@ __all__ = [
     "JournalEntry", "EntryType", "DailyPlan", "DailyPlanView", "AdminAuditLog", "AdminReport",
     "SecurityLog", "ErrorLog", "ApiLog", "Profile", "RefreshToken", "WaitlistEntry",
     "UserPasskey", "UserTOTPSecret", "UserBackupCode", "TrustedDevice", "MFAChallenge",
-    "ConsentRecord", "ConsentType", "CONSENT_VERSIONS"
+    "ConsentRecord", "ConsentType", "CONSENT_VERSIONS", "UserSessionColor"
 ]

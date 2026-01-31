@@ -5,10 +5,11 @@ import { authAPI, sessionAPI, mfaAPI } from '../services/api';
 import { useSessionContext } from '../contexts/SessionContext';
 import { formatLocalDate } from '../utils/dateUtils';
 import SensitiveActionModal from '../components/mfa/SensitiveActionModal';
+import { SESSION_COLORS } from '../constants/sessionColors';
 
 export default function Settings() {
   const navigate = useNavigate();
-  const { user, setUser, sessions, activeSessionId, deleteSession, renameSession, refreshSessions } = useSessionContext();
+  const { user, setUser, sessions, activeSessionId, deleteSession, renameSession, refreshSessions, setSessionColor } = useSessionContext();
 
   // Session statistics - map of sessionId to statistics
   const [sessionStatistics, setSessionStatistics] = useState({});
@@ -69,6 +70,10 @@ export default function Settings() {
 
   // Active devices count
   const [devicesCount, setDevicesCount] = useState(null);
+
+  // Session color swap confirmation
+  const [colorSwapConfirm, setColorSwapConfirm] = useState(null); // { sessionId, colorKey, conflictingSessionId, conflictingSessionName }
+  const [colorLoading, setColorLoading] = useState({});
 
   // Fetch all session statistics on mount
   useEffect(() => {
@@ -261,6 +266,47 @@ export default function Settings() {
       }));
     } finally {
       setLoading((prev) => ({ ...prev, security: false }));
+    }
+  };
+
+  const handleColorSelect = async (sessionId, colorKey) => {
+    setColorLoading(prev => ({ ...prev, [sessionId]: true }));
+    try {
+      await setSessionColor(sessionId, colorKey);
+    } catch (err) {
+      if (err.response?.status === 409) {
+        const detail = err.response.data.detail;
+        setColorSwapConfirm({
+          sessionId,
+          colorKey,
+          conflictingSessionId: detail.conflicting_session_id,
+          conflictingSessionName: detail.conflicting_session_name,
+        });
+      } else {
+        setErrors(prev => ({
+          ...prev,
+          [`color-${sessionId}`]: err.response?.data?.detail || 'Failed to update color',
+        }));
+      }
+    } finally {
+      setColorLoading(prev => ({ ...prev, [sessionId]: false }));
+    }
+  };
+
+  const confirmColorSwap = async () => {
+    if (!colorSwapConfirm) return;
+    const { sessionId, colorKey, conflictingSessionId } = colorSwapConfirm;
+    setColorLoading(prev => ({ ...prev, [sessionId]: true }));
+    try {
+      await setSessionColor(sessionId, colorKey, conflictingSessionId);
+      setColorSwapConfirm(null);
+    } catch (err) {
+      setErrors(prev => ({
+        ...prev,
+        [`color-${sessionId}`]: err.response?.data?.detail || 'Failed to swap colors',
+      }));
+    } finally {
+      setColorLoading(prev => ({ ...prev, [sessionId]: false }));
     }
   };
 
@@ -754,7 +800,7 @@ export default function Settings() {
               <div className="text-left">
                 <h2 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white">Manage Sessions</h2>
                 <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
-                  View, rename, and delete your sessions
+                  Rename, customize, and delete sessions
                 </p>
               </div>
               <svg
@@ -782,172 +828,231 @@ export default function Settings() {
                   {sessions.filter(s => s.is_owner).length > 0 && (
                     <div className="space-y-3">
                       <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
-                        Your Sessions ({sessions.filter(s => s.is_owner).length} of 3)
+                        Your Sessions ({sessions.filter(s => s.is_owner).length} of 5)
                       </h3>
                       {sessions.filter(s => s.is_owner).map((session) => (
                         <div key={session.id} className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
-                          <div className="bg-gray-50 dark:bg-gray-700 px-4 py-3 flex items-center justify-between">
-                            <div className="flex-1">
-                              {editingSessionId === session.id ? (
-                                <div className="space-y-1">
-                                  <div className="flex items-center space-x-2">
-                                    <div className="flex-1">
-                                      <input
-                                        type="text"
-                                        value={editingSessionName}
-                                        onChange={(e) => setEditingSessionName(e.target.value)}
-                                        className="input text-sm w-full"
-                                        maxLength={15}
-                                        placeholder="Session name"
-                                      />
-                                      <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                                        {editingSessionName.length}/15 characters
-                                      </div>
-                                    </div>
-                                    <button
-                                      onClick={() => handleRenameSession(session.id)}
-                                      disabled={loading[`rename-${session.id}`]}
-                                      className="px-3 py-1.5 bg-primary-600 text-white rounded hover:bg-primary-700 text-sm disabled:opacity-50"
-                                    >
-                                      Save
-                                    </button>
-                                    <button
-                                      onClick={() => {
-                                        setEditingSessionId(null);
-                                        setEditingSessionName('');
-                                        clearMessages(`rename-${session.id}`);
-                                      }}
-                                      className="px-3 py-1.5 bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-200 rounded hover:bg-gray-300 dark:hover:bg-gray-500 text-sm"
-                                    >
-                                      Cancel
-                                    </button>
-                                  </div>
-                                </div>
-                              ) : (
-                                <div className="flex items-center justify-between">
-                                  <div>
-                                    <h3 className="font-semibold text-gray-900 dark:text-white flex items-center space-x-2 flex-wrap">
-                                      <span>{session.name}</span>
-                                      {session.id === activeSessionId && (
-                                        <span className="text-xs bg-primary-100 dark:bg-primary-900/50 text-primary-700 dark:text-primary-300 px-2 py-0.5 rounded">
-                                          Active
-                                        </span>
-                                      )}
-                                    </h3>
-                                    <p className="text-xs text-gray-500 dark:text-gray-400">
-                                      Created {formatLocalDate(session.created_at)}
-                                    </p>
-                                  </div>
-                                  <div className="flex items-center space-x-2">
-                                    {session.is_owner && (
-                                      <button
-                                        onClick={() => {
-                                          setEditingSessionId(session.id);
-                                          setEditingSessionName(session.name);
-                                        }}
-                                        className="text-sm text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300"
-                                      >
-                                        Rename
-                                      </button>
-                                    )}
-                                    <button
-                                      onClick={() => toggleSessionDetails(session.id)}
-                                      className="text-sm text-gray-600 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"
-                                    >
-                                      {expandedSessionId === session.id ? 'Hide' : 'View'}
-                                    </button>
-                                  </div>
-                                </div>
-                              )}
-
-                              {errors[`rename-${session.id}`] && (
-                                <div className="text-sm text-red-600 mt-2">
-                                  {errors[`rename-${session.id}`]}
-                                </div>
-                              )}
-                              {success[`rename-${session.id}`] && (
-                                <div className="text-sm text-green-600 mt-2">
-                                  {success[`rename-${session.id}`]}
-                                </div>
-                              )}
+                          {/* Session header */}
+                          <div
+                            onClick={() => toggleSessionDetails(session.id)}
+                            className="bg-gray-50 dark:bg-gray-700 px-4 py-3 flex items-center justify-between cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-650 transition-colors"
+                          >
+                            <div>
+                              <h3 className="font-semibold text-gray-900 dark:text-white flex items-center space-x-2 flex-wrap">
+                                <span>{session.name}</span>
+                                {session.id === activeSessionId && (
+                                  <span className="text-xs bg-primary-100 dark:bg-primary-900/50 text-primary-700 dark:text-primary-300 px-2 py-0.5 rounded">
+                                    Active
+                                  </span>
+                                )}
+                              </h3>
+                              <p className="text-xs text-gray-500 dark:text-gray-400">
+                                Created {formatLocalDate(session.created_at)}
+                              </p>
                             </div>
+                            <svg
+                              className={`w-4 h-4 text-gray-400 transition-transform ${
+                                expandedSessionId === session.id ? 'rotate-180' : ''
+                              }`}
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                            </svg>
                           </div>
 
                           {expandedSessionId === session.id && (
                             <div className="px-4 py-3 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700">
                               {loadingStats[session.id] ? (
-                                <div className="text-xs text-gray-600 dark:text-gray-400">Loading statistics...</div>
+                                <div className="text-xs text-gray-600 dark:text-gray-400">Loading...</div>
                               ) : sessionStatistics[session.id] ? (
-                                <>
-                                  <div className="space-y-1.5 mb-3">
-                                    <div className="flex items-center justify-between text-sm">
-                                      <span className="text-gray-700 dark:text-gray-300">Conversations</span>
-                                      <span className="font-semibold text-gray-900 dark:text-white">
-                                        {sessionStatistics[session.id].conversations}
-                                      </span>
-                                    </div>
-                                    <div className="flex items-center justify-between text-sm">
-                                      <span className="text-gray-700 dark:text-gray-300">Journal Entries</span>
-                                      <span className="font-semibold text-gray-900 dark:text-white">
-                                        {sessionStatistics[session.id].journal_entries}
-                                      </span>
-                                    </div>
-                                    <div className="flex items-center justify-between text-sm">
-                                      <span className="text-gray-700 dark:text-gray-300">Documents</span>
-                                      <span className="font-semibold text-gray-900 dark:text-white">
-                                        {sessionStatistics[session.id].documents}
-                                      </span>
-                                    </div>
-                                    <div className="flex items-center justify-between text-sm">
-                                      <span className="text-gray-700 dark:text-gray-300">Audio Recordings</span>
-                                      <span className="font-semibold text-gray-900 dark:text-white">
-                                        {sessionStatistics[session.id].audio_recordings}
-                                      </span>
-                                    </div>
-                                    <div className="flex items-center justify-between text-sm">
-                                      <span className="text-gray-700 dark:text-gray-300">Collaborators</span>
-                                      <span className="font-semibold text-gray-900 dark:text-white">
-                                        {session.collaborators?.length || 0}
-                                      </span>
-                                    </div>
-                                  </div>
-
-                                  {/* Warning Box */}
-                                  <div className="bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded px-3 py-3 mb-3">
-                                    <div className="flex items-start gap-2">
-                                      <div className="flex-shrink-0">
-                                        <svg className="w-5 h-5 text-orange-600 dark:text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                                        </svg>
-                                      </div>
-                                      <div className="flex-1">
-                                        <p className="text-xs text-orange-900 dark:text-orange-200 font-medium mb-1">
-                                          Warning: Permanent Data Deletion
-                                        </p>
-                                        <p className="text-xs text-orange-800 dark:text-orange-300">
-                                          Deleting this session will permanently delete all data shown above. <strong>This action cannot be undone.</strong>
-                                        </p>
-                                      </div>
-                                    </div>
-                                  </div>
-
-                                  {errors[`session-${session.id}`] && (
-                                    <div className="text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/30 px-3 py-2 rounded mb-3">
-                                      {errors[`session-${session.id}`]}
+                                <div className="divide-y divide-gray-200 dark:divide-gray-700">
+                                  {/* Rename */}
+                                  {session.is_owner && (
+                                    <div className="pb-4">
+                                      <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider block mb-1.5">Session Name</label>
+                                      {editingSessionId === session.id ? (
+                                        <div className="space-y-1">
+                                          <div className="flex items-start space-x-2">
+                                            <div className="flex-1">
+                                              <input
+                                                type="text"
+                                                value={editingSessionName}
+                                                onChange={(e) => setEditingSessionName(e.target.value)}
+                                                className="input text-sm w-full"
+                                                maxLength={15}
+                                                placeholder="Session name"
+                                              />
+                                              <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                                {editingSessionName.length}/15 characters
+                                              </div>
+                                            </div>
+                                            <button
+                                              onClick={() => handleRenameSession(session.id)}
+                                              disabled={loading[`rename-${session.id}`]}
+                                              className="px-3 py-1.5 bg-primary-600 text-white rounded hover:bg-primary-700 text-sm disabled:opacity-50"
+                                            >
+                                              Save
+                                            </button>
+                                            <button
+                                              onClick={() => {
+                                                setEditingSessionId(null);
+                                                setEditingSessionName('');
+                                                clearMessages(`rename-${session.id}`);
+                                              }}
+                                              className="px-3 py-1.5 bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-200 rounded hover:bg-gray-300 dark:hover:bg-gray-500 text-sm"
+                                            >
+                                              Cancel
+                                            </button>
+                                          </div>
+                                          {errors[`rename-${session.id}`] && (
+                                            <div className="text-xs text-red-600 dark:text-red-400">
+                                              {errors[`rename-${session.id}`]}
+                                            </div>
+                                          )}
+                                        </div>
+                                      ) : (
+                                        <div className="flex items-center justify-between">
+                                          <span className="text-sm text-gray-900 dark:text-white">{session.name}</span>
+                                          <button
+                                            onClick={() => {
+                                              setEditingSessionId(session.id);
+                                              setEditingSessionName(session.name);
+                                            }}
+                                            className="text-xs text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300"
+                                          >
+                                            Edit
+                                          </button>
+                                        </div>
+                                      )}
+                                      {success[`rename-${session.id}`] && (
+                                        <div className="text-xs text-green-600 dark:text-green-400 mt-1">
+                                          {success[`rename-${session.id}`]}
+                                        </div>
+                                      )}
                                     </div>
                                   )}
 
-                                  <button
-                                    onClick={() => handleDeleteSession(session.id)}
-                                    disabled={loading[`session-${session.id}`]}
-                                    className="w-full px-4 py-2 bg-orange-600 text-white rounded hover:bg-orange-700 disabled:bg-gray-300 dark:disabled:bg-gray-600 disabled:cursor-not-allowed text-sm transition-colors"
-                                  >
-                                    {loading[`session-${session.id}`] ? 'Deleting...' : 'Delete This Session'}
-                                  </button>
-                                </>
+                                  {/* Session Color Picker (only when 2+ sessions) */}
+                                  {sessions.length >= 2 && (
+                                    <div className="py-4">
+                                      <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider block mb-2">Session Color</label>
+                                      <div className="flex flex-wrap gap-2">
+                                        {SESSION_COLORS.map(color => (
+                                          <button
+                                            key={color.key}
+                                            onClick={() => handleColorSelect(session.id, color.key)}
+                                            disabled={colorLoading[session.id]}
+                                            className={`w-7 h-7 rounded-full border-2 transition-all ${color.swatchLight} ${color.swatchDark} ${
+                                              session.color_key === color.key
+                                                ? 'border-primary-600 dark:border-primary-400 ring-2 ring-primary-300 dark:ring-primary-600 scale-110'
+                                                : 'border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500'
+                                            } disabled:opacity-50 disabled:cursor-not-allowed`}
+                                            title={color.label}
+                                          />
+                                        ))}
+                                      </div>
+                                      {errors[`color-${session.id}`] && (
+                                        <div className="text-xs text-red-600 dark:text-red-400 mt-1">
+                                          {errors[`color-${session.id}`]}
+                                        </div>
+                                      )}
+                                    </div>
+                                  )}
+
+                                  {/* Statistics */}
+                                  <div className="py-4">
+                                    <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider block mb-1.5">Session Data</label>
+                                    <div className="space-y-1 text-sm">
+                                      <div className="flex items-center justify-between">
+                                        <span className="text-gray-600 dark:text-gray-400">Conversations</span>
+                                        <span className="text-gray-900 dark:text-white">{sessionStatistics[session.id].conversations}</span>
+                                      </div>
+                                      <div className="flex items-center justify-between">
+                                        <span className="text-gray-600 dark:text-gray-400">Journal Entries</span>
+                                        <span className="text-gray-900 dark:text-white">{sessionStatistics[session.id].journal_entries}</span>
+                                      </div>
+                                      <div className="flex items-center justify-between">
+                                        <span className="text-gray-600 dark:text-gray-400">Documents</span>
+                                        <span className="text-gray-900 dark:text-white">{sessionStatistics[session.id].documents}</span>
+                                      </div>
+                                      <div className="flex items-center justify-between">
+                                        <span className="text-gray-600 dark:text-gray-400">Audio Recordings</span>
+                                        <span className="text-gray-900 dark:text-white">{sessionStatistics[session.id].audio_recordings}</span>
+                                      </div>
+                                      <div className="flex items-center justify-between">
+                                        <span className="text-gray-600 dark:text-gray-400">Collaborators</span>
+                                        <span className="text-gray-900 dark:text-white">{session.collaborators?.length || 0}</span>
+                                      </div>
+                                    </div>
+                                  </div>
+
+                                  {/* Delete - separated with spacing and subdued styling */}
+                                  <div className="pt-4">
+                                    {errors[`session-${session.id}`] && (
+                                      <div className="text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/30 px-3 py-2 rounded mb-2">
+                                        {errors[`session-${session.id}`]}
+                                      </div>
+                                    )}
+                                    <button
+                                      onClick={() => handleDeleteSession(session.id)}
+                                      disabled={loading[`session-${session.id}`]}
+                                      className="text-xs text-red-500 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 transition-colors disabled:opacity-50"
+                                    >
+                                      {loading[`session-${session.id}`] ? 'Deleting...' : 'Delete this session...'}
+                                    </button>
+                                  </div>
+                                </div>
                               ) : null}
                             </div>
                           )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Shared Sessions - Color picker only */}
+                  {sessions.filter(s => !s.is_owner).length > 0 && sessions.length >= 2 && (
+                    <div className="space-y-3">
+                      <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
+                        Shared with You ({sessions.filter(s => !s.is_owner).length})
+                      </h3>
+                      {sessions.filter(s => !s.is_owner).map((session) => (
+                        <div key={session.id} className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
+                          <div className="px-4 py-3 bg-gray-50 dark:bg-gray-700">
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <span className="text-sm font-medium text-gray-900 dark:text-white">{session.name}</span>
+                                <span className="text-xs text-gray-500 dark:text-gray-400 ml-2">
+                                  owned by {session.owner_name}
+                                </span>
+                              </div>
+                            </div>
+                            <div className="mt-2">
+                              <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider block mb-2">Session Color</label>
+                              <div className="flex flex-wrap gap-2">
+                                {SESSION_COLORS.map(color => (
+                                  <button
+                                    key={color.key}
+                                    onClick={() => handleColorSelect(session.id, color.key)}
+                                    disabled={colorLoading[session.id]}
+                                    className={`w-7 h-7 rounded-full border-2 transition-all ${color.swatchLight} ${color.swatchDark} ${
+                                      session.color_key === color.key
+                                        ? 'border-primary-600 dark:border-primary-400 ring-2 ring-primary-300 dark:ring-primary-600 scale-110'
+                                        : 'border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500'
+                                    } disabled:opacity-50 disabled:cursor-not-allowed`}
+                                    title={color.label}
+                                  />
+                                ))}
+                              </div>
+                              {errors[`color-${session.id}`] && (
+                                <div className="text-xs text-red-600 dark:text-red-400 mt-1">
+                                  {errors[`color-${session.id}`]}
+                                </div>
+                              )}
+                            </div>
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -1261,6 +1366,38 @@ export default function Settings() {
                   className="flex-1 px-4 py-2 bg-orange-600 dark:bg-orange-700 text-white rounded hover:bg-orange-700 dark:hover:bg-orange-600 disabled:opacity-50 font-medium"
                 >
                   {loading[`session-${sessionToDelete.session.id}`] ? 'Deleting...' : 'Delete Session'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* Color Swap Confirmation Modal */}
+      {colorSwapConfirm && createPortal(
+        <div className="fixed inset-0 bg-black bg-opacity-50 dark:bg-opacity-70 flex items-center justify-center p-4 z-50">
+          <div className="bg-white dark:bg-gray-800 rounded-lg max-w-md w-full">
+            <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Swap Session Colors?</h2>
+            </div>
+            <div className="px-6 py-4 space-y-3">
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                This color is already assigned to <strong className="text-gray-900 dark:text-white">{colorSwapConfirm.conflictingSessionName}</strong>. Would you like to swap the colors between the two sessions?
+              </p>
+              <div className="flex space-x-2 pt-2">
+                <button
+                  onClick={() => setColorSwapConfirm(null)}
+                  className="flex-1 px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded hover:bg-gray-300 dark:hover:bg-gray-600 text-sm"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={confirmColorSwap}
+                  disabled={colorLoading[colorSwapConfirm.sessionId]}
+                  className="flex-1 px-4 py-2 bg-primary-600 dark:bg-primary-700 text-white rounded hover:bg-primary-700 dark:hover:bg-primary-600 disabled:opacity-50 text-sm font-medium"
+                >
+                  {colorLoading[colorSwapConfirm.sessionId] ? 'Swapping...' : 'Swap Colors'}
                 </button>
               </div>
             </div>

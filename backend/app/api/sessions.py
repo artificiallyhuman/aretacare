@@ -2,12 +2,12 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func
 from app.core.database import get_db
-from app.models import Session as SessionModel, User, Document, AudioRecording, JournalEntry, Conversation, SessionCollaborator, PendingInvitation
+from app.models import Session as SessionModel, User, Document, AudioRecording, JournalEntry, Conversation, SessionCollaborator, PendingInvitation, UserSessionColor
 from app.models.consent_record import ConsentRecord, ConsentType, CONSENT_VERSIONS
 from app.schemas import (
     SessionCreate, SessionResponse, SessionRename, SessionShareRequest,
     SessionShareResponse, UserExistsResponse, CollaboratorInfo, TransferOwnershipRequest,
-    UserCheckRequest
+    UserCheckRequest, SessionColorUpdate
 )
 from app.schemas.invitation import InvitationSend, PendingInvitationResponse
 from datetime import datetime, timedelta
@@ -17,6 +17,13 @@ from app.api.permissions import check_session_access
 from app.services.s3_service import s3_service
 import logging
 import uuid
+
+# Allowed color keys for session backgrounds
+ALLOWED_COLOR_KEYS = [
+    "slate", "red", "orange", "yellow", "lime", "green",
+    "teal", "sky", "blue", "indigo", "purple",
+    "fuchsia", "pink", "rose", "zinc"
+]
 
 logger = logging.getLogger(__name__)
 
@@ -145,6 +152,13 @@ async def list_sessions(
     owners = db.query(User).filter(User.id.in_(owner_ids)).all() if owner_ids else []
     owners_by_id = {o.id: o for o in owners}
 
+    # Batch load color preferences for the current user
+    color_records = db.query(UserSessionColor).filter(
+        UserSessionColor.user_id == current_user.id,
+        UserSessionColor.session_id.in_(session_ids)
+    ).all() if session_ids else []
+    colors_by_session = {c.session_id: c.color_key for c in color_records}
+
     # Build response with collaborator information
     response = []
     for session in sorted(all_sessions.values(), key=lambda x: x.created_at, reverse=True):
@@ -175,7 +189,8 @@ async def list_sessions(
             owner_name=owner_name,
             owner_email=owner_email,
             is_owner=(session.owner_id == current_user.id),
-            collaborators=collaborator_infos
+            collaborators=collaborator_infos,
+            color_key=colors_by_session.get(session.id)
         )
         response.append(session_response)
 
@@ -291,6 +306,12 @@ async def get_session(
 
     collaborator_infos = build_collaborator_infos(collaborators, db)
 
+    # Get color preference
+    color_record = db.query(UserSessionColor).filter(
+        UserSessionColor.user_id == current_user.id,
+        UserSessionColor.session_id == session.id
+    ).first()
+
     return SessionResponse(
         id=session.id,
         name=session.name,
@@ -299,7 +320,8 @@ async def get_session(
         is_active=session.is_active,
         owner_id=session.owner_id,
         is_owner=is_owner,
-        collaborators=collaborator_infos
+        collaborators=collaborator_infos,
+        color_key=color_record.color_key if color_record else None
     )
 
 
@@ -343,6 +365,12 @@ async def rename_session(
 
     collaborator_infos = build_collaborator_infos(collaborators, db)
 
+    # Get color preference
+    color_record = db.query(UserSessionColor).filter(
+        UserSessionColor.user_id == current_user.id,
+        UserSessionColor.session_id == session.id
+    ).first()
+
     return SessionResponse(
         id=session.id,
         name=session.name,
@@ -351,7 +379,8 @@ async def rename_session(
         is_active=session.is_active,
         owner_id=session.owner_id,
         is_owner=True,
-        collaborators=collaborator_infos
+        collaborators=collaborator_infos,
+        color_key=color_record.color_key if color_record else None
     )
 
 
@@ -1076,3 +1105,192 @@ async def cancel_invitation(
     db.commit()
 
     return {"message": "Invitation cancelled successfully"}
+
+
+@router.put("/{session_id}/color")
+async def set_session_color(
+    session_id: str,
+    color_data: SessionColorUpdate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Set the background color for a session (per-user preference)"""
+    session = db.query(SessionModel).filter(SessionModel.id == session_id).first()
+
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    # Verify user has access (owner or collaborator)
+    check_session_access(session, current_user.id, db)
+
+    # Validate color key
+    if color_data.color_key not in ALLOWED_COLOR_KEYS:
+        raise HTTPException(status_code=400, detail=f"Invalid color key. Allowed: {', '.join(ALLOWED_COLOR_KEYS)}")
+
+    # Check if this color is already used by another session for this user
+    existing_color = db.query(UserSessionColor).filter(
+        UserSessionColor.user_id == current_user.id,
+        UserSessionColor.color_key == color_data.color_key,
+        UserSessionColor.session_id != session_id
+    ).first()
+
+    if existing_color and not color_data.swap_with_session_id:
+        # Color conflict - return info so frontend can offer swap
+        conflicting_session = db.query(SessionModel).filter(
+            SessionModel.id == existing_color.session_id
+        ).first()
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "code": "COLOR_CONFLICT",
+                "conflicting_session_id": existing_color.session_id,
+                "conflicting_session_name": conflicting_session.name if conflicting_session else "Unknown"
+            }
+        )
+
+    if color_data.swap_with_session_id:
+        # Swap colors between two sessions
+        swap_session = db.query(SessionModel).filter(
+            SessionModel.id == color_data.swap_with_session_id
+        ).first()
+        if not swap_session:
+            raise HTTPException(status_code=404, detail="Swap session not found")
+
+        # Get current color of the target session
+        target_color_record = db.query(UserSessionColor).filter(
+            UserSessionColor.user_id == current_user.id,
+            UserSessionColor.session_id == session_id
+        ).first()
+        old_color_key = target_color_record.color_key if target_color_record else None
+
+        # Get the swap session's color record
+        swap_color_record = db.query(UserSessionColor).filter(
+            UserSessionColor.user_id == current_user.id,
+            UserSessionColor.session_id == color_data.swap_with_session_id
+        ).first()
+
+        # Update or create color for the target session
+        if target_color_record:
+            target_color_record.color_key = color_data.color_key
+            target_color_record.updated_at = datetime.utcnow()
+        else:
+            target_color_record = UserSessionColor(
+                id=str(uuid.uuid4()),
+                user_id=current_user.id,
+                session_id=session_id,
+                color_key=color_data.color_key
+            )
+            db.add(target_color_record)
+
+        # Update the swap session with the old color (or remove if no old color)
+        if swap_color_record:
+            if old_color_key:
+                swap_color_record.color_key = old_color_key
+                swap_color_record.updated_at = datetime.utcnow()
+            else:
+                # Assign a random unused color to the swap session
+                used_colors = {c.color_key for c in db.query(UserSessionColor).filter(
+                    UserSessionColor.user_id == current_user.id
+                ).all()}
+                used_colors.add(color_data.color_key)
+                available = [c for c in ALLOWED_COLOR_KEYS if c not in used_colors]
+                if available:
+                    swap_color_record.color_key = available[0]
+                    swap_color_record.updated_at = datetime.utcnow()
+
+        db.commit()
+    else:
+        # Simple assignment (no conflict)
+        color_record = db.query(UserSessionColor).filter(
+            UserSessionColor.user_id == current_user.id,
+            UserSessionColor.session_id == session_id
+        ).first()
+
+        if color_record:
+            color_record.color_key = color_data.color_key
+            color_record.updated_at = datetime.utcnow()
+        else:
+            color_record = UserSessionColor(
+                id=str(uuid.uuid4()),
+                user_id=current_user.id,
+                session_id=session_id,
+                color_key=color_data.color_key
+            )
+            db.add(color_record)
+
+        db.commit()
+
+    return {"message": "Session color updated successfully"}
+
+
+@router.post("/auto-assign-colors")
+async def auto_assign_colors(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Auto-assign colors to sessions that don't have one (when user has 2+ sessions)"""
+    # Get all sessions for this user (owned + collaborative)
+    owned_sessions = db.query(SessionModel).filter(
+        SessionModel.user_id == current_user.id
+    ).all()
+
+    collaborator_records = db.query(SessionCollaborator).filter(
+        SessionCollaborator.user_id == current_user.id
+    ).all()
+    shared_session_ids = [c.session_id for c in collaborator_records]
+    shared_sessions = db.query(SessionModel).filter(
+        SessionModel.id.in_(shared_session_ids)
+    ).all() if shared_session_ids else []
+
+    all_sessions = {s.id: s for s in owned_sessions}
+    for s in shared_sessions:
+        if s.id not in all_sessions:
+            all_sessions[s.id] = s
+
+    # Only assign colors if user has 2+ sessions
+    if len(all_sessions) < 2:
+        return {"colors": {}, "message": "Colors not needed for single session"}
+
+    # Get existing color assignments
+    existing_colors = db.query(UserSessionColor).filter(
+        UserSessionColor.user_id == current_user.id
+    ).all()
+    colored_session_ids = {c.session_id for c in existing_colors}
+    used_color_keys = {c.color_key for c in existing_colors}
+
+    # Find sessions that need colors
+    sessions_needing_colors = [
+        sid for sid in all_sessions.keys()
+        if sid not in colored_session_ids
+    ]
+
+    if not sessions_needing_colors:
+        # All sessions already have colors
+        colors = {c.session_id: c.color_key for c in existing_colors}
+        return {"colors": colors, "message": "All sessions already have colors"}
+
+    # Assign unused colors in palette order
+    available_colors = [c for c in ALLOWED_COLOR_KEYS if c not in used_color_keys]
+
+    new_assignments = {}
+    for session_id in sessions_needing_colors:
+        if not available_colors:
+            break  # No more colors available (shouldn't happen with 20 colors and max ~14 sessions)
+        color_key = available_colors.pop(0)
+        new_color = UserSessionColor(
+            id=str(uuid.uuid4()),
+            user_id=current_user.id,
+            session_id=session_id,
+            color_key=color_key
+        )
+        db.add(new_color)
+        new_assignments[session_id] = color_key
+
+    db.commit()
+
+    # Return all color assignments
+    all_colors = {c.session_id: c.color_key for c in existing_colors}
+    all_colors.update(new_assignments)
+
+    return {"colors": all_colors, "message": f"Assigned colors to {len(new_assignments)} session(s)"}
+

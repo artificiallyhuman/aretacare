@@ -10,6 +10,7 @@ import Footer from './components/Footer';
 import NetworkStatusBanner from './components/NetworkStatusBanner';
 import FeedbackTab from './components/FeedbackTab';
 import IdleTimeout from './components/IdleTimeout';
+import CollaborationAwarenessPopup from './components/CollaborationAwarenessPopup';
 
 // Eagerly load critical pages (login flow and main conversation)
 import Login from './pages/Login';
@@ -147,6 +148,7 @@ function AppContent() {
       <NetworkStatusBanner />
       {user && <Header onLogout={handleLogout} user={user} />}
       {user && <FeedbackTab />}
+      {user && <CollaborationAwarenessPopup />}
       <IdleTimeout />
       <main className="flex-1 overflow-auto">
       <Suspense fallback={<PageLoadingFallback />}>

@@ -1977,3 +1977,39 @@ def run_migrations():
             except Exception as e:
                 logger.error(f"Failed to migrate consent_type to VARCHAR: {e}")
                 conn.rollback()
+
+        # ==========================================
+        # USER SESSION COLORS TABLE
+        # ==========================================
+
+        # Create user_session_colors table if it doesn't exist
+        if 'user_session_colors' not in inspector.get_table_names():
+            logger.info("Creating user_session_colors table...")
+            try:
+                conn.execute(text("""
+                    CREATE TABLE user_session_colors (
+                        id VARCHAR(36) PRIMARY KEY,
+                        user_id VARCHAR(36) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                        session_id VARCHAR(36) NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+                        color_key VARCHAR(30) NOT NULL,
+                        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                        updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                        CONSTRAINT uq_user_session_color UNIQUE (user_id, session_id)
+                    )
+                """))
+                conn.commit()
+                logger.info("Successfully created user_session_colors table")
+
+                # Create index for efficient lookups by user
+                conn.execute(text("""
+                    CREATE INDEX IF NOT EXISTS idx_user_session_colors_user_id
+                    ON user_session_colors (user_id)
+                """))
+                conn.commit()
+                logger.info("Created index idx_user_session_colors_user_id")
+
+            except Exception as e:
+                logger.error(f"Failed to create user_session_colors table: {e}")
+                conn.rollback()
+        else:
+            logger.info("user_session_colors table already exists")

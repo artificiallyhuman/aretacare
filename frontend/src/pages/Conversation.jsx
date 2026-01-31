@@ -7,14 +7,18 @@ import MessageBubble from '../components/MessageBubble';
 import MessageInput from '../components/MessageInput';
 import DailyPlanPanel from '../components/DailyPlan/DailyPlanPanel';
 import TypingIndicator from '../components/TypingIndicator';
+import { getColorClasses } from '../constants/sessionColors';
 
 const MESSAGE_PAGE_SIZE = 25;
 
 const Conversation = () => {
-  const { activeSessionId, activeSession, user, loading: sessionLoading } = useSessionContext();
+  const { activeSessionId, activeSession, sessions, user, loading: sessionLoading } = useSessionContext();
 
   // Check if session has collaborators for source tag display
   const hasCollaborators = activeSession?.collaborators?.length > 0;
+
+  // Session background color (only when user has 2+ sessions)
+  const sessionColorClass = sessions.length > 1 ? getColorClasses(activeSession?.color_key) : '';
   const [messages, setMessages] = useState([]);
   const [dailyPlanPanelOpen, setDailyPlanPanelOpen] = useState(false);
   const [hasNewDailyPlan, setHasNewDailyPlan] = useState(false);
@@ -632,7 +636,7 @@ const Conversation = () => {
         )}
 
         {/* Conversation area */}
-        <div className="flex-1 flex flex-col relative">
+        <div className={`flex-1 flex flex-col relative ${sessionColorClass}`}>
           {/* New Daily Plan Banner */}
           {showBanner && hasNewDailyPlan && (
             <div className="bg-primary-600 text-white px-4 py-3 flex items-center justify-between">
