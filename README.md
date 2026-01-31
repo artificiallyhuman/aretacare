@@ -28,9 +28,9 @@ AretaCare was built from this experience—sitting beside a loved one, trying to
 
 ### Organization
 
-**Multiple Sessions** — Managing care for different people, or want to keep situations separate? Create up to 5 sessions, each with its own conversations, documents, journal, and profile.
+**Multiple Sessions** — Managing care for different people, or want to keep situations separate? Create up to 5 sessions, each with its own conversations, documents, journal, and profile. When you have multiple sessions, each gets a distinct background color so you always know which one you're in.
 
-**Session Sharing** — Invite up to 9 other people to collaborate on a session. Everyone sees the same information and can contribute to conversations.
+**Session Sharing** — Invite up to 9 other people to collaborate on a session. Everyone sees the same information and can contribute to conversations. At login, a reminder popup alerts you when your current session has collaborators.
 
 **Documents & Audio** — Upload PDFs, images, and text files. Record audio directly in the app. Everything is automatically categorized and transcribed so you can find it later.
 
@@ -114,7 +114,7 @@ docker compose down -v   # Stop and reset database
 | Layer | Technology |
 |-------|------------|
 | Frontend | React 18, Vite, Tailwind CSS |
-| Backend | FastAPI, SQLAlchemy, PostgreSQL |
+| Backend | FastAPI, SQLAlchemy, PostgreSQL (26 tables) |
 | AI | OpenAI GPT-5.2, GPT-4o-transcribe |
 | Storage | AWS S3 |
 | Deployment | Docker Compose, Render |
@@ -135,7 +135,7 @@ aretacare/
 │   ├── api/          # FastAPI routes
 │   ├── config/       # AI configuration
 │   ├── core/         # Auth, migrations, config
-│   ├── models/       # SQLAlchemy models (24 tables)
+│   ├── models/       # SQLAlchemy models (26 tables)
 │   ├── schemas/      # Pydantic schemas
 │   └── services/     # Business logic
 ├── frontend/src/
