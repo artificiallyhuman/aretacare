@@ -78,6 +78,9 @@ function Login() {
       // Note: refresh_token is handled via HttpOnly cookie for security (set by server)
       setAccessToken(access_token);
 
+      // Signal that user just logged in (for collaboration awareness popup)
+      sessionStorage.setItem('just_logged_in', 'true');
+
       // Reload to home page to reinitialize session
       window.location.href = '/';
     } catch (err) {
@@ -101,6 +104,7 @@ function Login() {
   const handleMFASuccess = (data) => {
     const { access_token } = data;
     setAccessToken(access_token);
+    sessionStorage.setItem('just_logged_in', 'true');
     window.location.href = '/';
   };
 

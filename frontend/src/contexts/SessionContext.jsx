@@ -81,7 +81,31 @@ export const SessionProvider = ({ children }) => {
         if (sessionToActivate) {
           setActiveSessionId(sessionToActivate);
           localStorage.setItem('active_session_id', sessionToActivate);
-        } else if (userSessions.length === 0) {
+        }
+
+        // Auto-assign colors if user has 2+ sessions and any lack a color_key
+        if (userSessions.length >= 2) {
+          const needsColors = userSessions.some(s => !s.color_key);
+          if (needsColors) {
+            try {
+              const colorResponse = await sessionAPI.autoAssignColors();
+              const colorMap = colorResponse.data.colors;
+              if (colorMap && Object.keys(colorMap).length > 0) {
+                // Update sessions with assigned colors
+                const updatedSessions = userSessions.map(s => ({
+                  ...s,
+                  color_key: colorMap[s.id] || s.color_key
+                }));
+                setSessions(updatedSessions);
+              }
+            } catch (err) {
+              console.error('Failed to auto-assign session colors:', err);
+              // Non-critical, don't block loading
+            }
+          }
+        }
+
+        if (!sessionToActivate && userSessions.length === 0) {
           // No sessions exist - auto-create one for the user
           // This handles users who registered before auto-session creation was added
           try {
@@ -151,11 +175,28 @@ export const SessionProvider = ({ children }) => {
       const newSession = response.data;
 
       // Add to sessions list
-      setSessions(prev => [newSession, ...prev]);
+      const updatedSessions = [newSession, ...sessions];
+      setSessions(updatedSessions);
 
       // Switch to the new session
       setActiveSessionId(newSession.id);
       localStorage.setItem('active_session_id', newSession.id);
+
+      // Auto-assign colors if user now has 2+ sessions
+      if (updatedSessions.length >= 2) {
+        try {
+          const colorResponse = await sessionAPI.autoAssignColors();
+          const colorMap = colorResponse.data.colors;
+          if (colorMap && Object.keys(colorMap).length > 0) {
+            setSessions(prev => prev.map(s => ({
+              ...s,
+              color_key: colorMap[s.id] || s.color_key
+            })));
+          }
+        } catch (err) {
+          console.error('Failed to auto-assign session colors:', err);
+        }
+      }
 
       return newSession;
     } catch (err) {
@@ -249,6 +290,13 @@ export const SessionProvider = ({ children }) => {
     }
   };
 
+  const setSessionColor = async (sessionId, colorKey, swapWithSessionId = null) => {
+    const response = await sessionAPI.setColor(sessionId, colorKey, swapWithSessionId);
+    // Refresh sessions to get updated color data
+    await refreshSessions();
+    return response;
+  };
+
   const logout = async () => {
     await authAPI.logout();
     setUser(null);
@@ -270,6 +318,7 @@ export const SessionProvider = ({ children }) => {
     renameSession,
     deleteSession,
     refreshSessions,
+    setSessionColor,
     logout,
   };
 

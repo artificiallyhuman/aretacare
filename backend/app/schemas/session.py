@@ -44,6 +44,7 @@ class SessionResponse(BaseModel):
     owner_email: str = ""  # Email of the session owner
     is_owner: bool = False  # Will be set dynamically
     collaborators: List[CollaboratorInfo] = []
+    color_key: Optional[str] = None  # User's color preference for this session
 
     class Config:
         from_attributes = True
@@ -88,3 +89,8 @@ class UserExistsResponse(BaseModel):
 
 class TransferOwnershipRequest(BaseModel):
     new_owner_user_id: str = Field(..., description="User ID of the collaborator to transfer ownership to")
+
+
+class SessionColorUpdate(BaseModel):
+    color_key: str = Field(..., max_length=30, description="Color key from the palette")
+    swap_with_session_id: Optional[str] = Field(None, description="Session ID to swap colors with if conflict")
