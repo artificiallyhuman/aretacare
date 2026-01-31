@@ -20,9 +20,9 @@ import uuid
 
 # Allowed color keys for session backgrounds
 ALLOWED_COLOR_KEYS = [
-    "slate", "red", "orange", "yellow", "lime", "green",
-    "teal", "sky", "blue", "indigo", "purple",
-    "fuchsia", "pink", "rose", "zinc"
+    "slate", "sky", "teal", "green", "lime", "blue",
+    "indigo", "purple", "zinc", "rose", "pink",
+    "fuchsia", "yellow", "orange", "red"
 ]
 
 logger = logging.getLogger(__name__)
