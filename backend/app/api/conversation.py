@@ -268,8 +268,10 @@ async def send_message(
                         "confidence": entry.confidence
                     }
                     for entry in synthesis_result.suggested_entries
-                ]
-            } if synthesis_result.should_create else None
+                ],
+                "warning": synthesis_result.warning
+            } if synthesis_result.should_create else None,
+            "processing_warning": synthesis_result.warning if synthesis_result and synthesis_result.warning else None
         }
 
     except ImageProcessingError as e:

@@ -58,3 +58,4 @@ class JournalSynthesisResult(BaseModel):
     should_create: bool
     reasoning: str
     suggested_entries: List[JournalSuggestion]
+    warning: Optional[str] = None  # User-facing warning about processing limits

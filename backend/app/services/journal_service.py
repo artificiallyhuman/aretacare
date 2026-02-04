@@ -109,6 +109,9 @@ class JournalService:
         self.client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
         self.model = ai_config.CHAT_MODEL
 
+    # Maximum characters for text-based synthesis (~100K tokens)
+    MAX_SYNTHESIS_CHARS = 400000
+
     async def synthesize_from_document(
         self,
         filename: str,
@@ -123,6 +126,12 @@ class JournalService:
     ) -> JournalSynthesisResult:
         """Synthesize comprehensive journal entry from uploaded medical document using native file support"""
         try:
+            # Detect if document text is too long for complete analysis
+            text_truncated = False
+            if extracted_text and len(extracted_text) > self.MAX_SYNTHESIS_CHARS:
+                text_truncated = True
+                logger.info(f"Document text ({len(extracted_text)} chars) exceeds max synthesis limit ({self.MAX_SYNTHESIS_CHARS} chars)")
+
             recent_entries = self._get_recent_entries(session_id, days=7)
             recent_context = self._format_recent_journal_brief(recent_entries)
 
@@ -238,9 +247,16 @@ IMPORTANT: Respond with ONLY a valid JSON object in this exact format, with no a
                 # Fallback to text-only if no URL (uses extracted text from prompt)
                 messages.append({"role": "user", "content": prompt})
 
-            # Use Responses API with logging
+            # Track if we're using file URL (for fallback logic)
+            use_file_url = document_url and content_type in (
+                "application/pdf", "image/jpeg", "image/png", "image/gif", "image/webp"
+            )
+
+            # Use Responses API with logging and file fallback
             start_time = time.time()
             response = None
+            used_fallback = False
+
             try:
                 response = await self.client.responses.create(
                     model=self.model,
@@ -248,8 +264,46 @@ IMPORTANT: Respond with ONLY a valid JSON object in this exact format, with no a
                 )
                 await _log_journal_api_call("journal_document_synthesis", response, start_time, True, user_id)
             except Exception as api_error:
-                await _log_journal_api_call("journal_document_synthesis", None, start_time, False, user_id, str(api_error)[:500])
-                raise
+                # Check if this is a file processing error that warrants fallback
+                from app.services.openai_service import is_file_processing_error
+
+                if use_file_url and extracted_text and content_type == "application/pdf" and is_file_processing_error(api_error):
+                    logger.warning(f"OpenAI file processing failed for journal synthesis: {api_error}. Falling back to extracted text.")
+                    used_fallback = True
+
+                    # Rebuild messages with extracted text instead of file URL
+                    fallback_prompt = prompt + f"\n\n--- Document Content (OCR/Extracted) ---\n{extracted_text}\n--- End Document ---"
+                    fallback_messages = [
+                        {"role": "system", "content": ai_config.DOCUMENT_JOURNAL_SYNTHESIS_PROMPT},
+                        {"role": "user", "content": fallback_prompt}
+                    ]
+
+                    try:
+                        response = await self.client.responses.create(
+                            model=self.model,
+                            input=fallback_messages
+                        )
+                        await _log_journal_api_call("journal_document_synthesis_text_fallback", response, start_time, True, user_id)
+                    except Exception as fallback_error:
+                        await _log_journal_api_call("journal_document_synthesis_text_fallback", None, start_time, False, user_id, str(fallback_error)[:500])
+                        raise
+                else:
+                    await _log_journal_api_call("journal_document_synthesis", None, start_time, False, user_id, str(api_error)[:500])
+                    raise
+
+            # If response is None but we have extracted text for a PDF, try fallback
+            if response is None and use_file_url and extracted_text and content_type == "application/pdf" and not used_fallback:
+                logger.warning("OpenAI returned no response with file URL for journal synthesis. Falling back to extracted text.")
+                fallback_prompt = prompt + f"\n\n--- Document Content (OCR/Extracted) ---\n{extracted_text}\n--- End Document ---"
+                fallback_messages = [
+                    {"role": "system", "content": ai_config.DOCUMENT_JOURNAL_SYNTHESIS_PROMPT},
+                    {"role": "user", "content": fallback_prompt}
+                ]
+                response = await self.client.responses.create(
+                    model=self.model,
+                    input=fallback_messages
+                )
+                await _log_journal_api_call("journal_document_synthesis_text_fallback", response, start_time, True, user_id)
 
             # Extract text from Responses API
             text = getattr(response, "output_text", None)
@@ -294,10 +348,16 @@ IMPORTANT: Respond with ONLY a valid JSON object in this exact format, with no a
                     entry_date=suggested_date
                 ))
 
+            # Build warning message if document was truncated
+            synthesis_warning = None
+            if text_truncated:
+                synthesis_warning = "Document was too long for complete analysis. Only the first portion was processed for journal synthesis."
+
             synthesis_result = JournalSynthesisResult(
                 should_create=result_json["should_create"],
                 reasoning=result_json["reasoning"],
-                suggested_entries=suggestions
+                suggested_entries=suggestions,
+                warning=synthesis_warning
             )
 
             # Auto-save ALL suggested entries

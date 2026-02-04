@@ -15,6 +15,8 @@ class DocumentUploadResponse(BaseModel):
     ai_description: Optional[str] = None
     media_url: Optional[str] = None  # For images
     thumbnail_url: Optional[str] = None  # For PDFs
+    processing_warning: Optional[str] = None  # Warning about extraction issues
+    extraction_method: Optional[str] = None  # 'native', 'ocr', 'partial_ocr', 'failed'
 
     @field_serializer('category')
     def serialize_category(self, category, _info):

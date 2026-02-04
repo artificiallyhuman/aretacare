@@ -136,16 +136,66 @@ def process_and_validate_image(file_content: bytes, content_type: str) -> tuple[
             return file_content, content_type, False, "Unable to process this image. Please ensure it's a valid JPEG, PNG, GIF, or WEBP file."
 
 
-def validate_pdf_content(file_content: bytes) -> tuple[bool, str]:
-    """Validate that file content is actually a PDF by checking magic bytes."""
-    # PDF files start with %PDF-
+def validate_pdf_content(file_content: bytes) -> tuple[bool, str, str]:
+    """
+    Validate that file content is a valid, readable PDF.
+
+    Returns:
+        tuple: (is_valid, error_message, warning_message)
+        - is_valid: True if PDF can be processed
+        - error_message: Non-empty if PDF should be rejected
+        - warning_message: Non-empty if PDF will work but may have issues
+    """
+    # Basic header check
     if len(file_content) < 5:
-        return False, "File too small to be a valid PDF"
+        return False, "File too small to be a valid PDF", ""
 
     if not file_content[:5] == b'%PDF-':
-        return False, "File does not appear to be a valid PDF (invalid header)"
+        return False, "File does not appear to be a valid PDF (invalid header)", ""
 
-    return True, ""
+    # Try to actually parse the PDF
+    try:
+        from pypdf import PdfReader
+        from io import BytesIO
+
+        pdf_file = BytesIO(file_content)
+        pdf_reader = PdfReader(pdf_file)
+
+        page_count = len(pdf_reader.pages)
+        if page_count == 0:
+            return False, "PDF has no pages", ""
+
+        # Check if we can extract text from at least one page
+        has_extractable_text = False
+        pages_checked = min(page_count, 3)  # Check first 3 pages
+
+        for i in range(pages_checked):
+            try:
+                text = pdf_reader.pages[i].extract_text()
+                if text and text.strip():
+                    has_extractable_text = True
+                    break
+            except Exception:
+                pass  # Page extraction failed, try next
+
+        # If no extractable text, it may be a scanned PDF
+        # This is OK - OCR will handle it - but warn the user
+        if not has_extractable_text:
+            return True, "", "This PDF appears to be scanned/image-based. Text extraction will use OCR, which may take longer."
+
+        return True, "", ""
+
+    except Exception as e:
+        error_msg = str(e).lower()
+
+        if "password" in error_msg or "encrypted" in error_msg:
+            return False, "This PDF is password-protected. Please provide an unencrypted version.", ""
+        elif "corrupted" in error_msg or "invalid" in error_msg:
+            return False, "This PDF appears to be corrupted and cannot be read.", ""
+        else:
+            # Log the error for debugging
+            logger.warning(f"PDF validation failed: {e}")
+            return False, "Unable to process this PDF. Please ensure it is not corrupted.", ""
 
 
 @router.post("/upload", response_model=DocumentUploadResponse)
@@ -302,8 +352,9 @@ async def upload_document(
                 )
 
         # Validate PDF content if this is a PDF file
+        pdf_warning = None
         if file.content_type == "application/pdf":
-            is_valid, error_message = validate_pdf_content(file_content)
+            is_valid, error_message, pdf_warning = validate_pdf_content(file_content)
             if not is_valid:
                 security_service.log_event(
                     db=db,
@@ -337,7 +388,12 @@ async def upload_document(
             raise HTTPException(status_code=500, detail="Failed to upload file to storage")
 
         # Extract text from document (runs in thread pool)
-        extracted_text = await document_processor.extract_text(file_content, actual_content_type)
+        # For PDFs, use the method that returns extraction method info
+        extraction_method = None
+        if actual_content_type == "application/pdf":
+            extracted_text, extraction_method = await document_processor.extract_text_from_pdf_with_method(file_content)
+        else:
+            extracted_text = await document_processor.extract_text(file_content, actual_content_type)
 
         # Generate and upload thumbnail for PDFs (runs in thread pool)
         thumbnail_s3_key = None
@@ -399,6 +455,7 @@ async def upload_document(
         # Create journal entry from document content (only for management page uploads)
         # Conversation uploads skip this and synthesize when the document is used in conversation
         skip_synthesis = skip_journal_synthesis.lower() == "true"
+        synthesis_warning = None  # Will be set if synthesis has warnings
 
         if not skip_synthesis:
             try:
@@ -432,9 +489,13 @@ async def upload_document(
                 else:
                     logger.info("No journal entries created from document upload (not journal-worthy)")
 
+                # Capture synthesis warning for user
+                synthesis_warning = synthesis_result.warning if synthesis_result else None
+
             except Exception as e:
                 # Log but don't fail the upload if journal synthesis fails
                 logger.warning(f"Failed to create journal entry from document upload: {e}")
+                synthesis_warning = None
         else:
             logger.info("Skipping journal synthesis for conversation document upload (will synthesize in conversation)")
 
@@ -450,11 +511,36 @@ async def upload_document(
             # For PDFs, generate thumbnail_url (6 hours for thumbnails)
             thumbnail_url = s3_service.generate_presigned_url(thumbnail_s3_key, expiration=21600)
 
-        # Add URLs to document for response
-        document.media_url = media_url
-        document.thumbnail_url = thumbnail_url
+        # Build processing warning from various sources
+        warnings = []
+        if pdf_warning:
+            warnings.append(pdf_warning)
+        if actual_content_type == "application/pdf":
+            if extraction_method == "ocr":
+                warnings.append("Text was extracted using OCR. Please verify accuracy.")
+            elif extraction_method == "partial_ocr":
+                warnings.append("Only the first 100 pages were processed due to document length.")
+            elif extraction_method == "failed" and not extracted_text:
+                warnings.append("Text extraction failed. The AI will analyze the document visually.")
+        if synthesis_warning:
+            warnings.append(synthesis_warning)
 
-        return document
+        processing_warning = " ".join(warnings) if warnings else None
+
+        # Build response with all fields
+        return DocumentUploadResponse(
+            id=document.id,
+            filename=document.filename,
+            content_type=document.content_type,
+            uploaded_at=document.uploaded_at,
+            extracted_text=document.extracted_text,
+            category=document.category.value if document.category else None,
+            ai_description=document.ai_description,
+            media_url=media_url,
+            thumbnail_url=thumbnail_url,
+            processing_warning=processing_warning,
+            extraction_method=extraction_method
+        )
 
     except HTTPException:
         # Re-raise HTTP exceptions (validation errors, etc.)

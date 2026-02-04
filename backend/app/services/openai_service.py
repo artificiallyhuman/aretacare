@@ -114,6 +114,47 @@ class ImageProcessingError(Exception):
     """Raised when OpenAI cannot process an image file"""
     pass
 
+
+class FileProcessingError(Exception):
+    """Raised when OpenAI cannot process a file (PDF, etc.) via URL.
+
+    This triggers fallback to extracted_text when available.
+    """
+    pass
+
+
+# Patterns that indicate OpenAI failed to process a file via URL
+FILE_PROCESSING_ERROR_PATTERNS = [
+    # URL access issues
+    "could not access",
+    "unable to fetch",
+    "failed to download",
+    "url not accessible",
+    "connection refused",
+    "timeout",
+    # File format issues
+    "could not process",
+    "unable to read",
+    "invalid file",
+    "corrupted file",
+    "unsupported file format",
+    "malformed pdf",
+    # API-specific indicators
+    "file_url",
+    "input_file",
+    "file processing",
+    # Size/resource issues
+    "file too large",
+    "resource limit",
+]
+
+
+def is_file_processing_error(error: Exception) -> bool:
+    """Determine if an error is a file processing failure that warrants text fallback."""
+    error_str = str(error).lower()
+    return any(pattern in error_str for pattern in FILE_PROCESSING_ERROR_PATTERNS)
+
+
 logger = logging.getLogger(__name__)
 
 
@@ -500,7 +541,8 @@ class OpenAIService:
         """Categorize a document and generate a brief description using AI.
 
         Uses GPT-5.2's native file support to analyze the actual document content.
-        Falls back to extracted text if document URL is not available.
+        Falls back to extracted text if document URL is not available or if
+        OpenAI fails to process the file.
         """
 
         prompt = ai_config.get_document_categorization_prompt(filename, extracted_text)
@@ -509,8 +551,13 @@ class OpenAIService:
             {"role": "system", "content": ai_config.DOCUMENT_CLASSIFIER_PROMPT},
         ]
 
+        # Track if we're using file URL (for fallback logic)
+        use_file_url = document_url and content_type in (
+            "application/pdf", "image/jpeg", "image/png", "image/gif", "image/webp"
+        )
+
         # Use native file/image support for better categorization
-        if document_url:
+        if use_file_url:
             content_items = [{"type": "input_text", "text": prompt}]
 
             if content_type.startswith("image/"):
@@ -525,22 +572,60 @@ class OpenAIService:
                     "type": "input_file",
                     "file_url": document_url
                 })
-            elif content_type == "text/plain" and extracted_text:
-                # For text files, include the content directly
-                content_items.append({
-                    "type": "input_text",
-                    "text": f"\n--- Document Content ---\n{extracted_text}\n--- End Document ---"
-                })
 
             messages.append({
                 "role": "user",
                 "content": content_items
             })
+        elif extracted_text:
+            # Use extracted text directly (text files or fallback)
+            messages.append({
+                "role": "user",
+                "content": prompt + f"\n\n--- Document Content ---\n{extracted_text}\n--- End Document ---"
+            })
         else:
-            # Fallback to text-only if no URL (shouldn't happen normally)
+            # No URL and no text - just use prompt
             messages.append({"role": "user", "content": prompt})
 
-        response = await self._create_chat_completion(messages, feature="document_categorization", user_id=user_id)
+        # Try with file URL first, fall back to extracted text if file processing fails
+        response = None
+        try:
+            response = await self._create_chat_completion(messages, feature="document_categorization", user_id=user_id)
+        except BadRequestError as e:
+            if use_file_url and extracted_text and is_file_processing_error(e):
+                logger.warning(f"OpenAI file processing failed for categorization: {e}. Falling back to extracted text.")
+                # Rebuild messages with extracted text instead of file URL
+                fallback_messages = [
+                    {"role": "system", "content": ai_config.DOCUMENT_CLASSIFIER_PROMPT},
+                    {
+                        "role": "user",
+                        "content": prompt + f"\n\n--- Document Content (OCR/Extracted) ---\n{extracted_text}\n--- End Document ---"
+                    }
+                ]
+                response = await self._create_chat_completion(
+                    fallback_messages,
+                    feature="document_categorization_text_fallback",
+                    user_id=user_id
+                )
+            else:
+                # Re-raise if not a file error or no fallback available
+                raise
+
+        # If response is None but we have extracted text, try fallback
+        if response is None and use_file_url and extracted_text:
+            logger.warning("OpenAI returned no response with file URL. Falling back to extracted text.")
+            fallback_messages = [
+                {"role": "system", "content": ai_config.DOCUMENT_CLASSIFIER_PROMPT},
+                {
+                    "role": "user",
+                    "content": prompt + f"\n\n--- Document Content (OCR/Extracted) ---\n{extracted_text}\n--- End Document ---"
+                }
+            ]
+            response = await self._create_chat_completion(
+                fallback_messages,
+                feature="document_categorization_text_fallback",
+                user_id=user_id
+            )
 
         if response:
             try:
@@ -849,7 +934,12 @@ The user is now responding to THIS message above. Interpret their response accor
         })
 
         # Add current message with file/image support
-        if document_url and document_type:
+        # Track if we're using file URL (for fallback logic)
+        use_file_url = document_url and document_type and content_type in (
+            "application/pdf", "image/jpeg", "image/png", "image/gif", "image/webp"
+        )
+
+        if use_file_url:
             # Multi-modal message with file or image
             content_items = [{"type": "input_text", "text": message}]
 
@@ -864,22 +954,57 @@ The user is now responding to THIS message above. Interpret their response accor
                     "type": "input_file",
                     "file_url": document_url
                 })
-            elif content_type == "text/plain" and extracted_text:
-                # For text files, include the content directly
-                content_items.append({
-                    "type": "input_text",
-                    "text": f"\n--- Document Content ---\n{extracted_text}\n--- End Document ---"
-                })
 
             messages.append({
                 "role": "user",
                 "content": content_items
             })
+        elif extracted_text and content_type == "text/plain":
+            # For text files, include the content directly
+            messages.append({
+                "role": "user",
+                "content": message + f"\n\n--- Document Content ---\n{extracted_text}\n--- End Document ---"
+            })
         else:
             # Text-only message
             messages.append({"role": "user", "content": message})
 
-        response = await self._create_chat_completion(messages, feature="conversation", user_id=user_id)
+        # Try with file URL first, fall back to extracted text if file processing fails
+        response = None
+        try:
+            response = await self._create_chat_completion(messages, feature="conversation", user_id=user_id)
+        except BadRequestError as e:
+            if use_file_url and extracted_text and content_type == "application/pdf" and is_file_processing_error(e):
+                logger.warning(f"OpenAI file processing failed for conversation: {e}. Falling back to extracted text.")
+                # Rebuild messages without the file URL, using extracted text instead
+                # Remove the last message (the one with file URL) and add text version
+                messages_without_file = messages[:-1]
+                messages_without_file.append({
+                    "role": "user",
+                    "content": message + f"\n\n--- Document Content (OCR/Extracted) ---\n{extracted_text}\n--- End Document ---"
+                })
+                response = await self._create_chat_completion(
+                    messages_without_file,
+                    feature="conversation_text_fallback",
+                    user_id=user_id
+                )
+            else:
+                # Re-raise if not a file error or no fallback available
+                raise
+
+        # If response is None but we have extracted text for a PDF, try fallback
+        if response is None and use_file_url and extracted_text and content_type == "application/pdf":
+            logger.warning("OpenAI returned no response with file URL. Falling back to extracted text.")
+            messages_without_file = messages[:-1]
+            messages_without_file.append({
+                "role": "user",
+                "content": message + f"\n\n--- Document Content (OCR/Extracted) ---\n{extracted_text}\n--- End Document ---"
+            })
+            response = await self._create_chat_completion(
+                messages_without_file,
+                feature="conversation_text_fallback",
+                user_id=user_id
+            )
 
         return response if response else ai_config.FALLBACK_CHAT
 

@@ -3,7 +3,7 @@ from io import BytesIO
 from PIL import Image
 import pytesseract
 from pdf2image import convert_from_bytes
-from typing import Optional
+from typing import Optional, Tuple
 import logging
 import asyncio
 
@@ -13,29 +13,111 @@ logger = logging.getLogger(__name__)
 class DocumentProcessor:
     """Process various document types and extract text"""
 
+    # OCR configuration
+    MAX_OCR_PAGES = 100  # Limit OCR to first 100 pages for memory/time constraints
+    OCR_DPI = 200  # Balance between quality and memory usage
+
     @staticmethod
-    def _extract_text_from_pdf_sync(file_content: bytes) -> Optional[str]:
-        """Synchronous PDF text extraction (CPU-intensive)"""
+    def _extract_text_from_pdf_with_ocr_sync(file_content: bytes) -> Tuple[Optional[str], str]:
+        """
+        Extract text from PDF with OCR fallback for scanned documents.
+
+        Returns:
+            tuple: (extracted_text, extraction_method)
+            extraction_method is one of: 'native', 'ocr', 'partial_ocr', 'failed'
+        """
         try:
             pdf_file = BytesIO(file_content)
             pdf_reader = PdfReader(pdf_file)
 
             text_content = []
-            for page in pdf_reader.pages:
-                text = page.extract_text()
-                if text:
-                    text_content.append(text)
+            pages_with_text = 0
+            total_pages = len(pdf_reader.pages)
 
-            return "\n\n".join(text_content) if text_content else None
+            if total_pages == 0:
+                return None, "failed"
+
+            # First pass: try native text extraction
+            for page in pdf_reader.pages:
+                try:
+                    text = page.extract_text()
+                    if text and text.strip():
+                        text_content.append(text)
+                        pages_with_text += 1
+                except Exception as page_error:
+                    logger.warning(f"Failed to extract text from page: {page_error}")
+
+            # If we got text from most pages (>=50%), return native extraction
+            if pages_with_text > 0 and pages_with_text >= total_pages * 0.5:
+                return "\n\n".join(text_content), "native"
+
+            # Otherwise, try OCR fallback
+            logger.info(f"PDF native extraction yielded {pages_with_text}/{total_pages} pages with text. Attempting OCR...")
+
+            try:
+                # Limit pages for OCR to prevent memory issues
+                pages_to_ocr = min(total_pages, DocumentProcessor.MAX_OCR_PAGES)
+
+                images = convert_from_bytes(
+                    file_content,
+                    first_page=1,
+                    last_page=pages_to_ocr,
+                    dpi=DocumentProcessor.OCR_DPI
+                )
+
+                ocr_text_content = []
+                for i, image in enumerate(images):
+                    try:
+                        text = pytesseract.image_to_string(image)
+                        if text and text.strip():
+                            ocr_text_content.append(f"--- Page {i + 1} ---\n{text.strip()}")
+                    except Exception as ocr_page_error:
+                        logger.warning(f"OCR failed for page {i + 1}: {ocr_page_error}")
+                    finally:
+                        # Free memory immediately
+                        image.close()
+
+                if ocr_text_content:
+                    extraction_method = "ocr" if pages_to_ocr >= total_pages else "partial_ocr"
+                    if pages_to_ocr < total_pages:
+                        ocr_text_content.append(f"\n\n[OCR limited to first {pages_to_ocr} of {total_pages} pages]")
+                    return "\n\n".join(ocr_text_content), extraction_method
+
+                # If OCR also failed but we had some native text, return that
+                if text_content:
+                    return "\n\n".join(text_content), "native"
+
+                return None, "failed"
+
+            except Exception as ocr_error:
+                logger.error(f"OCR fallback failed: {ocr_error}")
+                # Return any native text we got, even if partial
+                if text_content:
+                    return "\n\n".join(text_content), "native"
+                return None, "failed"
+
         except Exception as e:
             logger.error(f"Failed to extract text from PDF: {e}")
-            return None
+            return None, "failed"
+
+    @staticmethod
+    def _extract_text_from_pdf_sync(file_content: bytes) -> Optional[str]:
+        """Synchronous PDF text extraction (CPU-intensive) - backward compatible"""
+        text, _ = DocumentProcessor._extract_text_from_pdf_with_ocr_sync(file_content)
+        return text
 
     @staticmethod
     async def extract_text_from_pdf(file_content: bytes) -> Optional[str]:
-        """Extract text from PDF file (runs in thread pool)"""
+        """Extract text from PDF file (runs in thread pool) - backward compatible"""
         return await asyncio.to_thread(
             DocumentProcessor._extract_text_from_pdf_sync, file_content
+        )
+
+    @staticmethod
+    async def extract_text_from_pdf_with_method(file_content: bytes) -> Tuple[Optional[str], str]:
+        """Extract text from PDF with extraction method indicator (runs in thread pool)"""
+        return await asyncio.to_thread(
+            DocumentProcessor._extract_text_from_pdf_with_ocr_sync, file_content
         )
 
     @staticmethod
