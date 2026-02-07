@@ -908,7 +908,7 @@ MAX_SUMMARY_CONTEXT = 50
 
 # Maximum tokens for journal context (approximate: 1 token ≈ 4 characters)
 MAX_JOURNAL_TOKENS = 50000
-MAX_RELEVANT_JOURNAL_TOKENS = 10000
+MAX_RELEVANT_JOURNAL_TOKENS = 20000
 
 # Journal context marker (used to detect empty journal)
 EMPTY_JOURNAL_MARKER = "# Care Journal\n\nNo journal entries yet."

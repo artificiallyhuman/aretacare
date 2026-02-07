@@ -21,8 +21,6 @@ from app.models.journal import JournalEntry
 
 logger = logging.getLogger(__name__)
 
-# Minimum cosine similarity to include in results (0-1, higher = more similar)
-MIN_SIMILARITY_THRESHOLD = 0.3
 DEFAULT_TOP_K = 10
 
 
@@ -178,12 +176,11 @@ class EmbeddingService:
             similar_entries = []
             for row in rows:
                 entry_id, similarity = row
-                if similarity >= MIN_SIMILARITY_THRESHOLD:
-                    entry = self.db.query(JournalEntry).filter(
-                        JournalEntry.id == entry_id
-                    ).first()
-                    if entry:
-                        similar_entries.append((entry, float(similarity)))
+                entry = self.db.query(JournalEntry).filter(
+                    JournalEntry.id == entry_id
+                ).first()
+                if entry:
+                    similar_entries.append((entry, float(similarity)))
 
             return similar_entries
 
