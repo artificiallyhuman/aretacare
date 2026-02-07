@@ -19,6 +19,7 @@ const CATEGORIES = [
   { value: 'emergency_note', label: 'Emergency Note', color: 'red' },
   { value: 'family_update', label: 'Family Update', color: 'cyan' },
   { value: 'treatment_observation', label: 'Treatment Observation', color: 'lime' },
+  { value: 'provider_conversation', label: 'Provider Conversation', color: 'amber' },
   { value: 'other', label: 'Other', color: 'gray' },
 ];
 
@@ -690,6 +691,7 @@ const AudioRecordings = () => {
                         yellow: 'bg-yellow-100 dark:bg-yellow-900/50 text-yellow-800 dark:text-yellow-300',
                         teal: 'bg-teal-100 dark:bg-teal-900/50 text-teal-800 dark:text-teal-300',
                         lime: 'bg-lime-100 dark:bg-lime-900/50 text-lime-800 dark:text-lime-300',
+                        amber: 'bg-amber-100 dark:bg-amber-900/50 text-amber-800 dark:text-amber-300',
                       };
 
                       return (

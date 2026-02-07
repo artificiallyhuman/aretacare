@@ -18,6 +18,7 @@ class AudioRecordingCategory(str, enum.Enum):
     EMERGENCY_NOTE = "emergency_note"
     FAMILY_UPDATE = "family_update"
     TREATMENT_OBSERVATION = "treatment_observation"
+    PROVIDER_CONVERSATION = "provider_conversation"
     OTHER = "other"
 
 

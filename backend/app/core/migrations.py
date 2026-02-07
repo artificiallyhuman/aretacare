@@ -493,6 +493,42 @@ def run_migrations():
             logger.error(f"Failed to create/fix documentcategory enum: {e}")
             conn.rollback()
 
+        # Add new category values to existing enums
+        try:
+            for value in ['identification', 'correspondence']:
+                result = conn.execute(text("""
+                    SELECT EXISTS (
+                        SELECT 1 FROM pg_enum
+                        WHERE enumlabel = :val
+                        AND enumtypid = (SELECT oid FROM pg_type WHERE typname = 'documentcategory')
+                    )
+                """), {"val": value})
+                if not result.scalar():
+                    logger.info(f"Adding '{value}' to documentcategory enum...")
+                    conn.execute(text(f"ALTER TYPE documentcategory ADD VALUE '{value}'"))
+                    conn.commit()
+                    logger.info(f"Successfully added '{value}' to documentcategory enum")
+        except Exception as e:
+            logger.error(f"Failed to add new documentcategory values: {e}")
+            conn.rollback()
+
+        try:
+            result = conn.execute(text("""
+                SELECT EXISTS (
+                    SELECT 1 FROM pg_enum
+                    WHERE enumlabel = 'provider_conversation'
+                    AND enumtypid = (SELECT oid FROM pg_type WHERE typname = 'audiorecordingcategory')
+                )
+            """))
+            if not result.scalar():
+                logger.info("Adding 'provider_conversation' to audiorecordingcategory enum...")
+                conn.execute(text("ALTER TYPE audiorecordingcategory ADD VALUE 'provider_conversation'"))
+                conn.commit()
+                logger.info("Successfully added 'provider_conversation' to audiorecordingcategory enum")
+        except Exception as e:
+            logger.error(f"Failed to add new audiorecordingcategory values: {e}")
+            conn.rollback()
+
         # ==========================================
         # PERFORMANCE INDEXES
         # ==========================================

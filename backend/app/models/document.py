@@ -18,6 +18,8 @@ class DocumentCategory(str, enum.Enum):
     INSURANCE_BILLING = "insurance_billing"
     CONSENT_FORM = "consent_form"
     CARE_INSTRUCTIONS = "care_instructions"
+    IDENTIFICATION = "identification"
+    CORRESPONDENCE = "correspondence"
     OTHER = "other"
 
 

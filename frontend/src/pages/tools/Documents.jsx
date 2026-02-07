@@ -19,6 +19,8 @@ const CATEGORIES = [
   { value: 'insurance_billing', label: 'Insurance/Billing', color: 'yellow' },
   { value: 'consent_form', label: 'Consent Forms', color: 'teal' },
   { value: 'care_instructions', label: 'Care Instructions', color: 'lime' },
+  { value: 'identification', label: 'Identification', color: 'amber' },
+  { value: 'correspondence', label: 'Correspondence', color: 'violet' },
   { value: 'other', label: 'Other', color: 'gray' },
 ];
 
@@ -925,6 +927,8 @@ const Documents = () => {
                         yellow: 'bg-yellow-100 dark:bg-yellow-900/50 text-yellow-800 dark:text-yellow-300',
                         teal: 'bg-teal-100 dark:bg-teal-900/50 text-teal-800 dark:text-teal-300',
                         lime: 'bg-lime-100 dark:bg-lime-900/50 text-lime-800 dark:text-lime-300',
+                        amber: 'bg-amber-100 dark:bg-amber-900/50 text-amber-800 dark:text-amber-300',
+                        violet: 'bg-violet-100 dark:bg-violet-900/50 text-violet-800 dark:text-violet-300',
                       };
 
                       return (

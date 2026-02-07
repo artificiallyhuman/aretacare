@@ -218,8 +218,10 @@ DOCUMENT_CATEGORIES = {
     "test_results": "Results from functional/diagnostic tests (not lab samples): EKG/ECG, stress tests, pulmonary function tests (PFT), sleep studies, hearing tests (audiograms), vision tests, nerve conduction studies, EEG, cardiac monitoring (Holter), colonoscopy/endoscopy reports",
     "referral": "Provider-to-provider documents: referral letters, specialist referrals, second opinion requests, transfer summaries",
     "insurance_billing": "Financial and insurance documents: insurance forms, billing statements, EOBs (Explanation of Benefits), itemized bills, prior authorization forms, claims, medical receipts",
-    "consent_form": "Authorization documents: informed consent forms, procedure consent, HIPAA forms, release of information, advance directives, DNR orders, power of attorney",
+    "consent_form": "Authorization documents: informed consent forms, procedure consent, HIPAA forms, release of information, DNR orders",
     "care_instructions": "Educational/instruction documents for patients: home care instructions, wound care guides, physical therapy exercises, dietary guidelines, post-procedure instructions, patient education handouts",
+    "identification": "Identity documents, insurance cards, medical ID, power of attorney, advance directives, health care proxy, guardianship papers",
+    "correspondence": "Letters from providers, patient portal messages, appeal letters, prior authorization correspondence, follow-up letters",
     "other": "Documents that don't fit the above categories"
 }
 
@@ -280,6 +282,7 @@ AUDIO_CATEGORIES = {
     "emergency_note": "Urgent concerns or emergency-related notes",
     "family_update": "Updates or notes for family members",
     "treatment_observation": "Observations about ongoing treatment",
+    "provider_conversation": "Recording of an actual conversation with a doctor, nurse, specialist, or other healthcare provider",
     "other": "Anything that doesn't fit the above categories"
 }
 
