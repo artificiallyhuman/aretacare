@@ -77,6 +77,8 @@ export default function AdminHealth() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [lastChecked, setLastChecked] = useState(null);
+  const [backfillLoading, setBackfillLoading] = useState(false);
+  const [backfillStatus, setBackfillStatus] = useState(null);
 
   useEffect(() => {
     fetchHealth();
@@ -93,6 +95,29 @@ export default function AdminHealth() {
       setError(err.response?.data?.detail || 'Failed to check system health');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleBackfill = async () => {
+    setBackfillLoading(true);
+    setBackfillStatus(null);
+    try {
+      const response = await adminAPI.backfillEmbeddings(200);
+      const stats = response.data.stats;
+      const remaining = stats.remaining ?? 0;
+      setBackfillStatus({
+        type: stats.failed > 0 && stats.embedded === 0 ? 'error' : 'success',
+        message: response.data.message,
+        remaining
+      });
+    } catch (err) {
+      setBackfillStatus({
+        type: 'error',
+        message: err.response?.data?.detail || 'Failed to backfill embeddings',
+        remaining: null
+      });
+    } finally {
+      setBackfillLoading(false);
     }
   };
 
@@ -229,6 +254,58 @@ export default function AdminHealth() {
                   ))}
                 </tbody>
               </table>
+              </div>
+            </div>
+
+            {/* Maintenance */}
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
+              <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700">
+                <h3 className="font-semibold text-gray-900 dark:text-white">Maintenance</h3>
+              </div>
+              <div className="p-4 space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                  <div>
+                    <p className="font-medium text-gray-900 dark:text-white">Backfill Journal Embeddings</p>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">
+                      Generate semantic embeddings for journal entries that don't have them yet. Click repeatedly until remaining reaches 0.
+                    </p>
+                  </div>
+                  <button
+                    onClick={handleBackfill}
+                    disabled={backfillLoading}
+                    className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center gap-2 self-start whitespace-nowrap"
+                  >
+                    {backfillLoading ? (
+                      <>
+                        <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        Processing...
+                      </>
+                    ) : (
+                      'Run Backfill'
+                    )}
+                  </button>
+                </div>
+                {backfillStatus && (
+                  <div className={`px-4 py-3 rounded-lg text-sm ${
+                    backfillStatus.type === 'error'
+                      ? 'bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-300'
+                      : backfillStatus.remaining > 0
+                      ? 'bg-yellow-50 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300'
+                      : 'bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-300'
+                  }`}>
+                    <p>{backfillStatus.message}</p>
+                    {backfillStatus.remaining !== null && (
+                      <p className="mt-1 font-semibold">
+                        {backfillStatus.remaining > 0
+                          ? `${backfillStatus.remaining} entries remaining — click Run Backfill again`
+                          : 'All entries embedded'}
+                      </p>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
           </>

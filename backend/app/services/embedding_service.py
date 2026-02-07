@@ -54,14 +54,19 @@ class EmbeddingService:
         """Prepare text for embedding from a journal entry.
 
         Combines type, date, title, and content for richer semantic representation.
+        Truncates to ~7500 tokens (~30000 chars) to stay within the 8192 token limit.
         """
+        MAX_CHARS = 30000
         parts = [
             f"[{entry.entry_type.value}]",
             f"Date: {entry.entry_date.isoformat()}",
             entry.title,
             entry.content
         ]
-        return "\n".join(parts)
+        text = "\n".join(parts)
+        if len(text) > MAX_CHARS:
+            text = text[:MAX_CHARS]
+        return text
 
     async def embed_journal_entry(self, entry: JournalEntry) -> Optional[JournalEntryEmbedding]:
         """Generate and store embedding for a journal entry.

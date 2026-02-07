@@ -485,6 +485,10 @@ export const adminAPI = {
   // System health
   getSystemHealth: () => api.get('/admin/health'),
 
+  // Embedding backfill
+  backfillEmbeddings: (batchSize = 200) =>
+    api.post('/admin/embeddings/backfill', null, { params: { batch_size: batchSize } }),
+
   // API logs (GPT-5.2 request monitoring)
   getApiLogs: (params = {}) => api.get('/admin/api-logs', { params }),
 
