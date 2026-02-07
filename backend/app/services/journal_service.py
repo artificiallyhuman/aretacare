@@ -1125,6 +1125,84 @@ IMPORTANT: Respond with ONLY a valid JSON object in this exact format, with no a
             return "# Care Journal\n\nNo journal entries yet."
         return (older + "\n" + recent).strip()
 
+    async def format_journal_context_with_semantic(
+        self,
+        session_id: str,
+        user_message: str,
+        max_tokens: int = None
+    ) -> tuple[str, str, str]:
+        """Format journal context with semantic retrieval for older entries.
+
+        Returns (older_context, recent_context, relevant_context):
+        - older_context: Background context (Health Profile + 8-30 day entries)
+        - recent_context: Last 7 days full entries
+        - relevant_context: Semantically similar older entries matched to user's message
+        """
+        if max_tokens is None:
+            max_tokens = ai_config.MAX_JOURNAL_TOKENS
+
+        # Date-based context keeps its full original budget (50K)
+        # Relevant context gets a separate budget (10K) added on top
+        older_context, recent_context = await self.format_journal_context_split(
+            session_id, max_tokens=max_tokens
+        )
+
+        # Semantic retrieval for relevant older entries
+        relevant_context = ""
+        try:
+            from app.services.embedding_service import EmbeddingService
+            embedding_service = EmbeddingService(self.db)
+
+            # Collect recent entry IDs for deduplication
+            recent_entry_ids = self._get_recent_entry_ids(session_id, days=7)
+
+            similar_entries = await embedding_service.find_similar_entries(
+                session_id=session_id,
+                query_text=user_message,
+                exclude_entry_ids=recent_entry_ids if recent_entry_ids else None,
+                top_k=10,
+                min_days_old=8
+            )
+
+            if similar_entries:
+                relevant_budget = ai_config.MAX_RELEVANT_JOURNAL_TOKENS
+                header = "# Relevant Past Journal Entries\n\n"
+                header += "_These older entries are semantically related to the current question._\n\n"
+                parts = [header]
+                tokens_used = self._estimate_tokens(header)
+
+                for entry, similarity in similar_entries:
+                    days_old = (date.today() - entry.entry_date).days
+                    entry_text = (
+                        f"**{entry.entry_date}** [{entry.entry_type.value}] "
+                        f"**{entry.title}** _({days_old}d ago)_\n"
+                        f"{entry.content}\n\n"
+                    )
+                    entry_tokens = self._estimate_tokens(entry_text)
+
+                    if tokens_used + entry_tokens <= relevant_budget:
+                        parts.append(entry_text)
+                        tokens_used += entry_tokens
+                    else:
+                        break
+
+                if len(parts) > 1:
+                    relevant_context = "".join(parts)
+
+        except Exception as e:
+            logger.warning(f"Semantic retrieval failed for session {session_id}: {e}")
+
+        return older_context, recent_context, relevant_context
+
+    def _get_recent_entry_ids(self, session_id: str, days: int = 7) -> List[int]:
+        """Get IDs of entries from the last N days for deduplication."""
+        cutoff = date.today() - timedelta(days=days)
+        entries = self.db.query(JournalEntry.id).filter(
+            JournalEntry.session_id == session_id,
+            JournalEntry.entry_date >= cutoff
+        ).all()
+        return [e.id for e in entries]
+
     async def create_entry(
         self,
         session_id: str,
@@ -1153,6 +1231,14 @@ IMPORTANT: Respond with ONLY a valid JSON object in this exact format, with no a
             self.db.add(entry)
             self.db.commit()
             self.db.refresh(entry)
+
+            # Generate embedding for semantic retrieval (non-fatal)
+            try:
+                from app.services.embedding_service import EmbeddingService
+                embedding_service = EmbeddingService(self.db)
+                await embedding_service.embed_journal_entry(entry)
+            except Exception as embed_err:
+                logger.warning(f"Failed to generate embedding for entry {entry.id}: {embed_err}")
 
             return entry
 
@@ -1222,6 +1308,15 @@ IMPORTANT: Respond with ONLY a valid JSON object in this exact format, with no a
 
             self.db.commit()
             self.db.refresh(entry)
+
+            # Re-embed if content changed (non-fatal)
+            if updates.title is not None or updates.content is not None:
+                try:
+                    from app.services.embedding_service import EmbeddingService
+                    embedding_service = EmbeddingService(self.db)
+                    await embedding_service.embed_journal_entry(entry)
+                except Exception as embed_err:
+                    logger.warning(f"Failed to re-embed entry {entry.id}: {embed_err}")
 
             return entry
 

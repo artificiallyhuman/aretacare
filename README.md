@@ -20,7 +20,7 @@ AretaCare was built from this experience—sitting beside a loved one, trying to
 
 **Conversation** — Talk to AretaCare like you would a knowledgeable friend. Ask questions, share updates, upload documents, or record voice notes. It remembers your care situation and helps you make sense of complex medical information.
 
-**Journal** — Every conversation automatically becomes a searchable timeline. Appointments, test results, care decisions, and milestones are captured and organized by date—no manual logging required.
+**Journal** — Every conversation automatically becomes a searchable timeline. Appointments, test results, care decisions, and milestones are captured and organized by date—no manual logging required. When you ask about past events, semantic search finds the most relevant entries from your full history.
 
 **Daily Digest** — Each day, get a summary of what's happening: recent changes, upcoming reminders, and suggested questions for your care team. Fully editable if you want to add your own notes.
 
@@ -114,13 +114,13 @@ docker compose down -v   # Stop and reset database
 | Layer | Technology |
 |-------|------------|
 | Frontend | React 18, Vite, Tailwind CSS |
-| Backend | FastAPI, SQLAlchemy, PostgreSQL (26 tables) |
-| AI | OpenAI GPT-5.2, GPT-4o-transcribe |
+| Backend | FastAPI, SQLAlchemy, PostgreSQL + pgvector (27 tables) |
+| AI | OpenAI GPT-5.2, GPT-4o-transcribe, text-embedding-3-small |
 | Storage | AWS S3 |
 | Deployment | Docker Compose, Render |
 
 **Key Patterns:**
-- 150K context window with prioritized loading (messages + tiered journal + health profile)
+- 160K context window with prioritized loading (messages + tiered journal + semantic journal retrieval + health profile)
 - Cascade deletes (user/session deletion removes all data + S3 files)
 - Auto-migrations on startup
 - Centralized AI config in `backend/app/config/ai_config.py`
@@ -135,7 +135,7 @@ aretacare/
 │   ├── api/          # FastAPI routes
 │   ├── config/       # AI configuration
 │   ├── core/         # Auth, migrations, config
-│   ├── models/       # SQLAlchemy models (26 tables)
+│   ├── models/       # SQLAlchemy models (27 tables)
 │   ├── schemas/      # Pydantic schemas
 │   └── services/     # Business logic
 ├── frontend/src/

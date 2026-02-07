@@ -23,6 +23,7 @@ from app.models.trusted_device import TrustedDevice
 from app.models.mfa_challenge import MFAChallenge
 from app.models.consent_record import ConsentRecord, ConsentType, CONSENT_VERSIONS
 from app.models.user_session_color import UserSessionColor
+from app.models.journal_entry_embedding import JournalEntryEmbedding
 
 __all__ = [
     "User", "Session", "SessionCollaborator", "PendingInvitation", "Document", "DocumentCategory",
@@ -30,5 +31,6 @@ __all__ = [
     "JournalEntry", "EntryType", "DailyPlan", "DailyPlanView", "AdminAuditLog", "AdminReport",
     "SecurityLog", "ErrorLog", "ApiLog", "Profile", "RefreshToken", "WaitlistEntry",
     "UserPasskey", "UserTOTPSecret", "UserBackupCode", "TrustedDevice", "MFAChallenge",
-    "ConsentRecord", "ConsentType", "CONSENT_VERSIONS", "UserSessionColor"
+    "ConsentRecord", "ConsentType", "CONSENT_VERSIONS", "UserSessionColor",
+    "JournalEntryEmbedding"
 ]

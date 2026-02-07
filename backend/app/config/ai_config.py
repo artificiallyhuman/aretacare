@@ -15,6 +15,10 @@ CHAT_MODEL = "gpt-5.2"
 # Audio transcription model
 TRANSCRIPTION_MODEL = "gpt-4o-transcribe"
 
+# Embedding model for semantic journal retrieval
+EMBEDDING_MODEL = "text-embedding-3-small"
+EMBEDDING_DIMENSIONS = 1536
+
 
 # ============================================================================
 # CORE SYSTEM PROMPT
@@ -904,6 +908,7 @@ MAX_SUMMARY_CONTEXT = 50
 
 # Maximum tokens for journal context (approximate: 1 token ≈ 4 characters)
 MAX_JOURNAL_TOKENS = 50000
+MAX_RELEVANT_JOURNAL_TOKENS = 10000
 
 # Journal context marker (used to detect empty journal)
 EMPTY_JOURNAL_MARKER = "# Care Journal\n\nNo journal entries yet."

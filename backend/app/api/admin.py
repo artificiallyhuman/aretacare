@@ -1305,3 +1305,42 @@ async def delete_waitlist_entry(
     )
 
     return {"message": "Entry removed from waitlist"}
+
+
+# ==========================================
+# EMBEDDING BACKFILL
+# ==========================================
+
+@router.post("/embeddings/backfill")
+async def backfill_embeddings(
+    batch_size: int = Query(50, ge=1, le=200),
+    session_id: Optional[str] = Query(None),
+    current_user: User = Depends(get_current_user),
+    db: DBSession = Depends(get_db)
+):
+    """Backfill embeddings for existing journal entries.
+
+    - If session_id provided: backfill that session only
+    - If no session_id: backfill all sessions in batches
+    Call repeatedly until remaining reaches 0.
+    """
+    require_admin(current_user)
+
+    from app.services.embedding_service import EmbeddingService
+    embedding_service = EmbeddingService(db)
+
+    if session_id:
+        stats = await embedding_service.backfill_session(session_id)
+    else:
+        stats = await embedding_service.backfill_all(batch_size=batch_size)
+
+    return {
+        "status": "completed",
+        "stats": stats,
+        "message": (
+            f"Backfill complete. Embedded: {stats.get('embedded', 0)}, "
+            f"Skipped: {stats.get('skipped', 0)}, "
+            f"Failed: {stats.get('failed', 0)}"
+            + (f", Remaining: {stats['remaining']}" if 'remaining' in stats else "")
+        )
+    }

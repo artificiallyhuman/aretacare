@@ -30,6 +30,15 @@ logger = logging.getLogger(__name__)
 # Database initialization
 reset_db = os.getenv("RESET_DB", "false").lower() == "true"
 
+# Enable pgvector extension before create_all (required for Vector column type)
+from sqlalchemy import text
+with engine.connect() as _conn:
+    try:
+        _conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
+        _conn.commit()
+    except Exception:
+        _conn.rollback()
+
 if reset_db:
     logger.warning("⚠️  RESET_DB is enabled - Dropping all tables and recreating schema")
     logger.warning("⚠️  This will delete ALL data in the database!")

@@ -219,11 +219,12 @@ async def log_api_call(
     except Exception as e:
         logger.error(f"Failed to log API call: {e}")
 
-# Token budgets (total: 150,000)
+# Token budgets (total: 160,000)
 # - System prompts: ~1,500 tokens (fixed)
 # - Conversation history: up to 20,000 tokens
 # - Current message + media: up to 50,000 tokens (20MB file limit)
-# - Journal context: up to 50,000 tokens
+# - Journal context: up to 50,000 tokens (recent + older + health profile)
+# - Relevant journal context: up to 10,000 tokens (semantic retrieval)
 # - Health profile: up to 25,000 tokens
 # - Buffer: ~3,500 tokens
 MAX_CONVERSATION_TOKENS = 20000
@@ -795,6 +796,7 @@ class OpenAIService:
         conversation_history: List[Dict[str, str]],
         older_journal_context: str = "",
         recent_journal_context: str = "",
+        relevant_journal_context: str = "",
         document_url: Optional[str] = None,
         document_type: Optional[str] = None,
         content_type: Optional[str] = None,
@@ -811,10 +813,11 @@ class OpenAIService:
         Optimized context structure:
         1. System prompts (rules and instructions)
         2. Background context: Health Profile + Older Journal (8-30 days)
-        3. Recent conversation (last 15 messages)
-        4. Recent journal (last 7 days) - highest priority
-        5. Immediate context reminder (system - rules for interpreting next message)
-        6. Current user message
+        3. Relevant past journal entries (semantic retrieval)
+        4. Recent conversation (last 15 messages)
+        5. Recent journal (last 7 days) - highest priority
+        6. Immediate context reminder (system - rules for interpreting next message)
+        7. Current user message
 
         The older_journal_context parameter now includes:
         - Health Profile: Long-term structured patient/caregiver/provider/medication info
@@ -874,14 +877,26 @@ You have been provided with multiple sources of information:
    - Summarized updates from the past few weeks
    - Provides context for ongoing situations
 
-3. **Recent Journal (last 7 days)** - Will be provided next with ⚡ marker:
+3. **Relevant Past Journal Entries** - Older entries semantically related to the current question:
+   - Retrieved based on relevance to what the user is asking about
+   - May contain important historical context from weeks or months ago
+
+4. **Recent Journal (last 7 days)** - Will be provided next with ⚡ marker:
    - Most current and actionable information
    - PRIORITIZE this over older context when answering
 
 Use the Health Profile for baseline facts (medications, conditions, providers).
 Use the Journal for understanding recent developments and timeline.
+Use Relevant Past Entries for historical context when the user asks about past events.
 When information conflicts, trust more recent sources.
 ---"""
+            })
+
+        # Add semantically relevant older journal entries (if any)
+        if relevant_journal_context and relevant_journal_context.strip():
+            messages.append({
+                "role": "assistant",
+                "content": relevant_journal_context
             })
 
         # Add recent conversation history with token-based truncation

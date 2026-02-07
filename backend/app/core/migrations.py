@@ -2013,3 +2013,64 @@ def run_migrations():
                 conn.rollback()
         else:
             logger.info("user_session_colors table already exists")
+
+        # ==========================================
+        # JOURNAL ENTRY EMBEDDINGS (pgvector)
+        # ==========================================
+
+        # Enable pgvector extension (idempotent)
+        try:
+            conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
+            conn.commit()
+            logger.info("pgvector extension enabled")
+        except Exception as e:
+            logger.error(f"Failed to enable pgvector extension: {e}")
+            conn.rollback()
+
+        # Create journal_entry_embeddings table
+        if 'journal_entry_embeddings' not in inspector.get_table_names():
+            logger.info("Creating journal_entry_embeddings table...")
+            try:
+                conn.execute(text("""
+                    CREATE TABLE journal_entry_embeddings (
+                        id SERIAL PRIMARY KEY,
+                        journal_entry_id INTEGER NOT NULL UNIQUE,
+                        session_id VARCHAR NOT NULL,
+                        embedding vector(1536) NOT NULL,
+                        embedding_model VARCHAR(50) NOT NULL DEFAULT 'text-embedding-3-small',
+                        content_hash VARCHAR(64) NOT NULL,
+                        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                        updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                        CONSTRAINT fk_embedding_journal_entry
+                            FOREIGN KEY (journal_entry_id)
+                            REFERENCES journal_entries(id) ON DELETE CASCADE,
+                        CONSTRAINT fk_embedding_session
+                            FOREIGN KEY (session_id)
+                            REFERENCES sessions(id) ON DELETE CASCADE
+                    )
+                """))
+                conn.commit()
+                logger.info("Successfully created journal_entry_embeddings table")
+
+                # Index for session-scoped queries
+                conn.execute(text("""
+                    CREATE INDEX idx_journal_embeddings_session
+                    ON journal_entry_embeddings (session_id)
+                """))
+                conn.commit()
+
+                # HNSW index for fast approximate nearest neighbor search
+                conn.execute(text("""
+                    CREATE INDEX idx_journal_embeddings_hnsw
+                    ON journal_entry_embeddings
+                    USING hnsw (embedding vector_cosine_ops)
+                    WITH (m = 16, ef_construction = 64)
+                """))
+                conn.commit()
+                logger.info("Created indexes for journal_entry_embeddings")
+
+            except Exception as e:
+                logger.error(f"Failed to create journal_entry_embeddings table: {e}")
+                conn.rollback()
+        else:
+            logger.info("journal_entry_embeddings table already exists")

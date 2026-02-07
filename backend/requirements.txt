@@ -25,3 +25,4 @@ slowapi==0.1.9
 reportlab==4.0.7
 pyotp==2.9.0
 webauthn==2.2.0
+pgvector==0.3.6

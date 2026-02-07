@@ -1,6 +1,6 @@
 services:
   db:
-    image: postgres:15-alpine
+    image: pgvector/pgvector:pg15
     container_name: aretacare-db
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-aretacare}

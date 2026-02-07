@@ -110,6 +110,18 @@ docker compose down -v
 docker compose up --build
 ```
 
+## Post-Deployment: Embedding Backfill
+
+After deploying the semantic journal retrieval feature, backfill embeddings for existing journal entries:
+
+```bash
+# Call the admin endpoint repeatedly until remaining reaches 0
+curl -X POST "http://localhost:8000/api/admin/embeddings/backfill?batch_size=100" \
+  -H "Authorization: Bearer <admin-token>"
+```
+
+New journal entries are automatically embedded on creation. The backfill is only needed once for pre-existing data.
+
 ## Testing Checklist
 
 1. Register account (check email verification)
@@ -120,3 +132,4 @@ docker compose up --build
 6. Share session with collaborator
 7. Enable MFA (Settings → Control Access)
 8. Check admin console (if admin email configured)
+9. Verify semantic retrieval (ask about a past journal topic, check AI references it)

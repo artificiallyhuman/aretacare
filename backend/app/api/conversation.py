@@ -157,9 +157,11 @@ async def send_message(
             for msg in history[:-1]  # Exclude the message we just added
         ]
 
-        # Get journal context (split into older and recent)
+        # Get journal context (older, recent, and semantically relevant)
         journal_service = JournalService(db)
-        older_journal, recent_journal = await journal_service.format_journal_context_split(session_id)
+        older_journal, recent_journal, relevant_journal = await journal_service.format_journal_context_with_semantic(
+            session_id, user_message=content
+        )
 
         # Build complete message with extracted text for journal synthesis
         complete_message = content
@@ -175,6 +177,7 @@ async def send_message(
             conversation_history=history_messages,
             older_journal_context=older_journal,
             recent_journal_context=recent_journal,
+            relevant_journal_context=relevant_journal,
             document_url=generated_media_url if document_id else None,
             document_type=message_type if document_id else None,
             content_type=doc_content_type,

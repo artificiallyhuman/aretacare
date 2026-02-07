@@ -307,6 +307,28 @@ Rate limited: 3/hour per IP.
 
 ---
 
+## Admin: Embedding Backfill
+
+Backfills semantic embeddings for existing journal entries. Required after initial deployment to enable semantic retrieval for pre-existing data. Admin-only.
+
+```bash
+POST /api/admin/embeddings/backfill
+```
+Parameters: `batch_size` (1-200, default 50), `session_id` (optional, scope to one session)
+
+Call repeatedly until `remaining` reaches 0.
+
+Response:
+```json
+{
+  "status": "completed",
+  "stats": {"total": 50, "embedded": 48, "skipped": 0, "failed": 2, "remaining": 150},
+  "message": "Backfill complete. Embedded: 48, Skipped: 0, Failed: 2, Remaining: 150"
+}
+```
+
+---
+
 ## Health Check
 
 ```bash
