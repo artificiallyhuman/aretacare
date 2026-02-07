@@ -359,6 +359,8 @@ export const conversationAPI = {
       ...config,
     });
   },
+  resetToMessage: (messageId) =>
+    api.post(`/conversation/${messageId}/reset`),
 };
 
 // Journal API (new)

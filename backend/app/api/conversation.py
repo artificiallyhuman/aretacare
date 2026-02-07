@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, Request, Query
 from sqlalchemy.orm import Session
-from sqlalchemy import func
+from sqlalchemy import func, cast, Integer
+from sqlalchemy.dialects.postgresql import ARRAY as PG_ARRAY
 from app.core.database import get_db
 from app.core.rate_limit import limiter, RateLimits
 from app.models import User, Session as SessionModel, Conversation, Document, AudioRecording
@@ -439,6 +440,153 @@ async def update_message(
         updated_at=message.updated_at,
         last_edited_by=last_edited_by
     )
+
+
+@router.post("/{message_id}/reset", response_model=dict)
+async def reset_to_message(
+    message_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Reset conversation to a specific message, deleting everything after it.
+
+    Deletes all messages after the specified message, along with any documents,
+    audio recordings, and journal entries associated with deleted messages.
+    """
+    # Get the anchor message
+    message = db.query(Conversation).filter(Conversation.id == message_id).first()
+    if not message:
+        raise HTTPException(status_code=404, detail="Message not found")
+
+    # Verify user has access to session
+    session = db.query(SessionModel).filter(SessionModel.id == message.session_id).first()
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+    check_session_access(session, current_user.id, db)
+
+    session_id = message.session_id
+
+    try:
+        # Find all messages after the anchor message
+        messages_to_delete = db.query(Conversation).filter(
+            Conversation.session_id == session_id,
+            Conversation.id > message_id
+        ).all()
+
+        if not messages_to_delete:
+            return {
+                "deleted_messages": 0,
+                "deleted_documents": 0,
+                "deleted_audio": 0,
+                "deleted_journal_entries": 0
+            }
+
+        deleted_message_ids = [m.id for m in messages_to_delete]
+
+        # Collect linked document and audio IDs
+        document_ids = list(set(
+            m.document_id for m in messages_to_delete if m.document_id is not None
+        ))
+        audio_ids = list(set(
+            m.audio_recording_id for m in messages_to_delete if m.audio_recording_id is not None
+        ))
+
+        # Delete journal entries synthesized from deleted messages
+        journal_count = 0
+
+        # Journal entries linked via source_message_ids (array overlap)
+        if deleted_message_ids:
+            journal_from_messages = db.query(JournalEntry).filter(
+                JournalEntry.session_id == session_id,
+                cast(JournalEntry.source_message_ids, PG_ARRAY(Integer)).overlap(deleted_message_ids)
+            ).all()
+            journal_count += len(journal_from_messages)
+            for entry in journal_from_messages:
+                db.delete(entry)
+
+        # Journal entries linked via source_document_id (cascade would handle this,
+        # but we count them and delete explicitly for accurate reporting)
+        if document_ids:
+            journal_from_docs = db.query(JournalEntry).filter(
+                JournalEntry.source_document_id.in_(document_ids)
+            ).all()
+            journal_count += len(journal_from_docs)
+            for entry in journal_from_docs:
+                db.delete(entry)
+
+        # Journal entries linked via source_audio_id
+        if audio_ids:
+            journal_from_audio = db.query(JournalEntry).filter(
+                JournalEntry.source_audio_id.in_(audio_ids)
+            ).all()
+            journal_count += len(journal_from_audio)
+            for entry in journal_from_audio:
+                db.delete(entry)
+
+        # Delete S3 files for documents (non-fatal)
+        if document_ids:
+            documents = db.query(Document).filter(Document.id.in_(document_ids)).all()
+            for doc in documents:
+                try:
+                    await s3_service.delete_file(doc.s3_key)
+                    if doc.thumbnail_s3_key:
+                        await s3_service.delete_file(doc.thumbnail_s3_key)
+                except Exception as e:
+                    logger.warning(f"Failed to delete S3 file for document {doc.id}: {e}")
+
+            # Delete documents from DB
+            db.query(Document).filter(Document.id.in_(document_ids)).delete(synchronize_session=False)
+
+        # Delete S3 files for audio recordings (non-fatal)
+        if audio_ids:
+            recordings = db.query(AudioRecording).filter(AudioRecording.id.in_(audio_ids)).all()
+            for rec in recordings:
+                try:
+                    await s3_service.delete_file(rec.s3_key)
+                except Exception as e:
+                    logger.warning(f"Failed to delete S3 file for audio {rec.id}: {e}")
+
+            # Delete audio recordings from DB
+            db.query(AudioRecording).filter(AudioRecording.id.in_(audio_ids)).delete(synchronize_session=False)
+
+        # Delete the conversation messages
+        db.query(Conversation).filter(
+            Conversation.id.in_(deleted_message_ids)
+        ).delete(synchronize_session=False)
+
+        db.commit()
+
+        logger.info(
+            f"Conversation reset for session {session_id}: "
+            f"{len(deleted_message_ids)} messages, {len(document_ids)} docs, "
+            f"{len(audio_ids)} audio, {journal_count} journal entries deleted"
+        )
+
+        return {
+            "deleted_messages": len(deleted_message_ids),
+            "deleted_documents": len(document_ids),
+            "deleted_audio": len(audio_ids),
+            "deleted_journal_entries": journal_count
+        }
+
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Error resetting conversation: {e}", exc_info=True)
+
+        try:
+            from app.services.error_logger import log_database_error
+            log_database_error(
+                db=db,
+                source="api.conversation.reset_to_message",
+                error=e,
+                user_id=current_user.id,
+                session_id=session_id,
+                details={"message_id": message_id}
+            )
+        except Exception:
+            pass
+
+        raise HTTPException(status_code=500, detail="Error resetting conversation. Please try again.")
 
 
 MAX_AUDIO_FILE_SIZE = 100 * 1024 * 1024  # 100MB for audio transcription

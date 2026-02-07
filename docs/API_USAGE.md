@@ -227,6 +227,22 @@ GET   /api/conversation/{session_id}/history  # Get all messages
 PATCH /api/conversation/{message_id}          # Edit message: {"content": "..."}
 ```
 
+### Reset to Message
+```bash
+POST /api/conversation/{message_id}/reset
+```
+Deletes all messages after the specified message, along with any documents, audio recordings, and journal entries linked to the deleted messages. S3 files are also removed.
+
+Returns:
+```json
+{
+  "deleted_messages": 5,
+  "deleted_documents": 1,
+  "deleted_audio": 0,
+  "deleted_journal_entries": 2
+}
+```
+
 ---
 
 ## Journal

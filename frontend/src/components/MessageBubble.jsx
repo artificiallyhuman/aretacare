@@ -8,7 +8,7 @@ import api from '../services/api';
 import { markdownToHtml } from '../utils/markdownUtils';
 
 // Memoized to prevent re-renders when parent updates but message hasn't changed
-const MessageBubble = memo(({ message, onThumbnailLoad, onMessageUpdate, hasCollaborators, currentUserId }) => {
+const MessageBubble = memo(({ message, onThumbnailLoad, onMessageUpdate, onResetToMessage, hasCollaborators, currentUserId }) => {
   const [copied, setCopied] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editedContent, setEditedContent] = useState(message.content);
@@ -387,6 +387,23 @@ const MessageBubble = memo(({ message, onThumbnailLoad, onMessageUpdate, hasColl
                   <span className="hidden sm:inline">Edit</span>
                 </button>
               )}
+              {/* Reset button */}
+              {onResetToMessage && !isTempMessage && (
+                <button
+                  onClick={() => onResetToMessage(message.id)}
+                  className={`text-xs px-2 py-1 rounded transition-colors flex items-center gap-1 ${
+                    isUser
+                      ? 'hover:bg-primary-700 text-primary-100'
+                      : 'hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400'
+                  }`}
+                  title="Reset conversation to this point"
+                >
+                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 15 3 9m0 0 6-6M3 9h12a6 6 0 0 1 0 12h-3" />
+                  </svg>
+                  <span className="hidden sm:inline">Reset</span>
+                </button>
+              )}
               {/* Copy button */}
               <button
                 onClick={handleCopy}
@@ -448,6 +465,7 @@ MessageBubble.propTypes = {
   }).isRequired,
   onThumbnailLoad: PropTypes.func,
   onMessageUpdate: PropTypes.func,
+  onResetToMessage: PropTypes.func,
   hasCollaborators: PropTypes.bool,
   currentUserId: PropTypes.string,
 };
@@ -455,6 +473,7 @@ MessageBubble.propTypes = {
 MessageBubble.defaultProps = {
   onThumbnailLoad: undefined,
   onMessageUpdate: undefined,
+  onResetToMessage: undefined,
   hasCollaborators: false,
   currentUserId: null,
 };
