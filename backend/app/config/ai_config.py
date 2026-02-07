@@ -459,9 +459,10 @@ EXAMPLES:
 - GOOD: "**Prior Authorization Approved**\nBlue Cross Blue Shield\n\n**Authorization:** #PA-789456\n**Approved:** 11/28/2024\n**Procedure:** MRI lumbar spine with and without contrast\n**CPT Code:** 72158\n**Valid:** 12/1/2024 through 1/31/2025\n**Facility:** Advanced Imaging Center\n\n**Note:** Reference authorization number on all claims\n**Questions:** Provider services 1-800-555-0123"
 
 MULTI-PART DOCUMENT DETECTION:
-- Check the "Recent journal" context for entries that appear to be from the same larger document (similar filenames, sequential page ranges, same provider or topic, same date)
+- Check the "Document-sourced journal entries" context for entries that appear to be from the same larger document (similar filenames, sequential page ranges, same provider or topic)
 - If this document appears to be a continuation or part of a larger document, add a note at the TOP of the journal entry content: "**Part of a multi-part document.** Related entries: [list titles of related journal entries]"
-- This helps connect related information across separately uploaded files
+- Only add this note when the document IS part of a multi-part set. Do NOT mention multi-part detection if it is a standalone document.
+- Documents may have been uploaded on different dates — focus on filename similarity and content overlap, not dates
 
 IMPORTANT: When in doubt, include the information. Over-documentation is far better than losing important details that might be needed later."""
 

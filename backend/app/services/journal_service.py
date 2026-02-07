@@ -135,6 +135,10 @@ class JournalService:
             recent_entries = self._get_recent_entries(session_id, days=7)
             recent_context = self._format_recent_journal_brief(recent_entries)
 
+            # Get document-sourced entries with wider window for multi-part detection
+            doc_entries = self._get_document_sourced_entries(session_id, days=30)
+            doc_context = self._format_document_entries_brief(doc_entries)
+
             # Get today's date for context
             today = entry_date if entry_date else date.today()
             today_str = today.isoformat()
@@ -154,6 +158,9 @@ class JournalService:
 Recent journal (last 7 days):
 {recent_context}
 
+Document-sourced journal entries (last 30 days):
+{doc_context}
+
 DOCUMENT UPLOADED:
 {document_info}
 
@@ -168,9 +175,10 @@ EXTRACTION GUIDANCE:
 - Be COMPREHENSIVE not concise - over-documentation is better than losing details
 
 MULTI-PART DOCUMENT DETECTION:
-- Review the recent journal entries above. If any appear to be from the same larger document as this one (similar filenames, overlapping content, same provider, sequential page numbers), note this at the TOP of your journal entry content
+- Review the "Document-sourced journal entries" list above. If any appear to be from the same larger document as this one (similar filenames, overlapping content, same provider, sequential page numbers), note this at the TOP of your journal entry content
 - Format: "**Part of a multi-part document.** Related entries: [titles]"
-- This helps connect related information that was uploaded across multiple files
+- Only add this note when the document IS part of a multi-part set. Do NOT mention multi-part detection if it is a standalone document.
+- Documents may have been uploaded on different dates — focus on filename similarity and content overlap, not dates
 
 FORMATTING FOR READABILITY:
 - Use **bold** for section headers (e.g., **Lab Results:**, **Medications:**, **Contact Info:**)
@@ -1427,6 +1435,39 @@ IMPORTANT: Respond with ONLY a valid JSON object in this exact format, with no a
                 JournalEntry.entry_date >= cutoff_date
             )
         ).order_by(desc(JournalEntry.entry_date)).all()
+
+    def _get_document_sourced_entries(self, session_id: str, days: int = 30) -> List[dict]:
+        """Get journal entries created from document uploads within the last N days, with filenames.
+        Uses created_at (upload date) not entry_date (document date) since old documents
+        can be uploaded at any time and multi-part uploads need to find each other."""
+        cutoff_date = datetime.now() - timedelta(days=days)
+        results = self.db.query(JournalEntry, Document.filename).join(
+            Document, JournalEntry.source_document_id == Document.id
+        ).filter(
+            and_(
+                JournalEntry.session_id == session_id,
+                JournalEntry.source_document_id.isnot(None),
+                JournalEntry.created_at >= cutoff_date
+            )
+        ).order_by(desc(JournalEntry.created_at)).all()
+
+        return [
+            {"entry": entry, "filename": filename}
+            for entry, filename in results
+        ]
+
+    def _format_document_entries_brief(self, doc_entries: List[dict]) -> str:
+        """Format document-sourced journal entries with filenames for multi-part detection"""
+        if not doc_entries:
+            return "No recent document-sourced journal entries."
+
+        lines = []
+        for item in doc_entries:
+            entry = item["entry"]
+            filename = item["filename"]
+            lines.append(f"- {entry.entry_date}: \"{entry.title}\" (from file: {filename})")
+
+        return "\n".join(lines)
 
     def _format_recent_journal_brief(self, entries: List[JournalEntry]) -> str:
         """Format recent journal entries briefly for synthesis context"""
