@@ -1513,7 +1513,8 @@ const Profile = () => {
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             {medsInCategory.map((m, index) => {
                               // Determine if medication is active (default to active if not specified)
-                              const isActive = m.status !== 'discontinued' && m.status !== 'paused';
+                              const normalizedStatus = (m.status || 'active').toLowerCase();
+                              const isActive = normalizedStatus !== 'discontinued' && normalizedStatus !== 'paused';
 
                               return (
                                 <div
@@ -1531,13 +1532,13 @@ const Profile = () => {
                                           {m.name || 'Unknown'}
                                         </h4>
                                         <span className={`px-2 py-0.5 text-xs font-semibold rounded-full ${
-                                          m.status === 'active' || !m.status
+                                          normalizedStatus === 'active'
                                             ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300'
-                                            : m.status === 'paused'
+                                            : normalizedStatus === 'paused'
                                             ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300'
                                             : 'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400'
                                         }`}>
-                                          {m.status === 'paused' ? 'Paused' : m.status === 'discontinued' ? 'Discontinued' : 'Active'}
+                                          {normalizedStatus === 'paused' ? 'Paused' : normalizedStatus === 'discontinued' ? 'Discontinued' : 'Active'}
                                         </span>
                                       </div>
                                       <div className="flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-300">
