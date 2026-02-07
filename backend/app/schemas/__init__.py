@@ -10,7 +10,7 @@ from app.schemas.session import (
     TransferOwnershipRequest,
     SessionColorUpdate,
 )
-from app.schemas.document import DocumentUploadResponse, DocumentResponse, DocumentUpdate, DocumentListResponse
+from app.schemas.document import DocumentUploadResponse, DocumentResponse, DocumentUpdate, DocumentListResponse, DuplicateCheckRequest, DuplicateCheckResponse
 from app.schemas.conversation import (
     MessageRequest,
     MessageResponse,
@@ -36,6 +36,8 @@ __all__ = [
     "DocumentResponse",
     "DocumentUpdate",
     "DocumentListResponse",
+    "DuplicateCheckRequest",
+    "DuplicateCheckResponse",
     "MessageRequest",
     "MessageResponse",
     "ConversationHistory",

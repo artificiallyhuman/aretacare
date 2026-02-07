@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.core.rate_limit import limiter, RateLimits
 from app.models import Document as DocumentModel, DocumentCategory, Session as SessionModel, User
-from app.schemas import DocumentUploadResponse, DocumentResponse, DocumentUpdate, DocumentListResponse
+from app.schemas import DocumentUploadResponse, DocumentResponse, DocumentUpdate, DocumentListResponse, DuplicateCheckRequest, DuplicateCheckResponse
 from app.services import s3_service, document_processor
 from app.services.openai_service import openai_service
 from app.services.journal_service import JournalService
@@ -565,6 +565,36 @@ async def upload_document(
             pass  # Don't let error logging crash the app
 
         raise HTTPException(status_code=500, detail="Error uploading document. Please try again.")
+
+
+@router.post("/check-duplicate", response_model=DuplicateCheckResponse)
+async def check_duplicate(
+    body: DuplicateCheckRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Check if documents with the same filenames already exist in a session."""
+    session = db.query(SessionModel).filter(SessionModel.id == body.session_id).first()
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+    check_session_access(session, current_user.id, db)
+
+    matches = db.query(DocumentModel).filter(
+        DocumentModel.session_id == body.session_id,
+        DocumentModel.filename.in_(body.filenames)
+    ).order_by(DocumentModel.uploaded_at.desc()).all()
+
+    return DuplicateCheckResponse(
+        duplicates=[
+            {
+                "id": doc.id,
+                "filename": doc.filename,
+                "uploaded_at": doc.uploaded_at,
+                "category": doc.category
+            }
+            for doc in matches
+        ]
+    )
 
 
 @router.get("/session/{session_id}", response_model=DocumentListResponse)

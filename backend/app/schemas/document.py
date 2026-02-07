@@ -63,3 +63,28 @@ class DocumentListResponse(BaseModel):
     documents: list[DocumentResponse]
     has_more: bool
     total: int
+
+
+class DuplicateCheckRequest(BaseModel):
+    session_id: str
+    filenames: list[str]
+
+
+class DuplicateMatch(BaseModel):
+    id: int
+    filename: str
+    uploaded_at: datetime
+    category: Optional[str] = None
+
+    @field_serializer('category')
+    def serialize_category(self, category, _info):
+        if category is None:
+            return None
+        return category.value if hasattr(category, 'value') else str(category)
+
+    class Config:
+        from_attributes = True
+
+
+class DuplicateCheckResponse(BaseModel):
+    duplicates: list[DuplicateMatch]

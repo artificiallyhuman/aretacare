@@ -1114,10 +1114,7 @@ const Profile = () => {
             <svg className="w-16 h-16 text-primary-600 dark:text-primary-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
             </svg>
-            <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">No Profile Data Yet</h3>
-            <p className="text-gray-700 dark:text-gray-300 mb-2">
-              Your Health Profile is a structured summary of your care situation — patient details, conditions, medications, providers, and more.
-            </p>
+            <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">No Health Profile Yet</h3>
             <p className="text-gray-700 dark:text-gray-300 mb-4">
               To get started, have a few conversations or add some journal entries first. Then click the button below to generate your profile from that activity. You can update it anytime new information is available.
             </p>

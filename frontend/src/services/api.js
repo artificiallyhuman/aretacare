@@ -320,6 +320,8 @@ export const documentAPI = {
       ...config,
     });
   },
+  checkDuplicate: (sessionId, filenames) =>
+    api.post('/documents/check-duplicate', { session_id: sessionId, filenames }),
   getSessionDocuments: (sessionId, category = null, search = null) => {
     const params = {};
     if (category) params.category = category;

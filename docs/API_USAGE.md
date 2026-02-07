@@ -159,6 +159,18 @@ Parameters: `file`, `session_id`, `user_date` (YYYY-MM-DD), `skip_journal_synthe
 
 Supported: PDF, PNG, JPG, TXT (30MB max). Auto-categorizes into 12 categories.
 
+### Check for Duplicates
+```bash
+POST /api/documents/check-duplicate
+```
+```json
+{"session_id": "uuid", "filenames": ["lab_results.pdf", "scan.png"]}
+```
+Returns matching documents within the session:
+```json
+{"duplicates": [{"id": 42, "filename": "lab_results.pdf", "uploaded_at": "...", "category": "lab_results"}]}
+```
+
 ### Manage
 ```bash
 GET    /api/documents/session/{session_id}           # List documents
