@@ -897,7 +897,7 @@ const Profile = () => {
           <div className="flex-1">
             <h3 className="text-sm font-semibold text-amber-800 dark:text-amber-400 mb-1.5">Important</h3>
             <p className="text-sm text-amber-800 dark:text-amber-300 leading-relaxed">
-              This summary is generated from your conversations and journal entries. It may be incomplete or contain errors. Please review and edit it before sharing with healthcare providers or others.
+              This summary is generated from your conversations and journal entries. It does not update automatically — click "Update Profile" when new activity is available to incorporate recent information. It may be incomplete or contain errors, so please review and edit it before sharing with healthcare providers or others.
             </p>
           </div>
         </div>
@@ -1115,8 +1115,11 @@ const Profile = () => {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
             </svg>
             <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">No Profile Data Yet</h3>
+            <p className="text-gray-700 dark:text-gray-300 mb-2">
+              Your Health Profile is a structured summary of your care situation — patient details, conditions, medications, providers, and more.
+            </p>
             <p className="text-gray-700 dark:text-gray-300 mb-4">
-              Your profile will be automatically populated as you have conversations and add journal entries.
+              To get started, have a few conversations or add some journal entries first. Then click the button below to generate your profile from that activity. You can update it anytime new information is available.
             </p>
             <button
               onClick={handleRefresh}
@@ -1129,10 +1132,10 @@ const Profile = () => {
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                   </svg>
-                  <span>Checking for data...</span>
+                  <span>Generating profile...</span>
                 </>
               ) : (
-                'Check for Data'
+                'Generate Profile'
               )}
             </button>
           </div>
