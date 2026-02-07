@@ -167,6 +167,11 @@ EXTRACTION GUIDANCE:
 - Include ALL instructions, plans, next steps, and follow-up information
 - Be COMPREHENSIVE not concise - over-documentation is better than losing details
 
+MULTI-PART DOCUMENT DETECTION:
+- Review the recent journal entries above. If any appear to be from the same larger document as this one (similar filenames, overlapping content, same provider, sequential page numbers), note this at the TOP of your journal entry content
+- Format: "**Part of a multi-part document.** Related entries: [titles]"
+- This helps connect related information that was uploaded across multiple files
+
 FORMATTING FOR READABILITY:
 - Use **bold** for section headers (e.g., **Lab Results:**, **Medications:**, **Contact Info:**)
 - Use bullet points (-) for lists of items

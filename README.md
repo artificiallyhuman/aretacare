@@ -32,7 +32,7 @@ AretaCare was built from this experience—sitting beside a loved one, trying to
 
 **Session Sharing** — Invite up to 9 other people to collaborate on a session. Everyone sees the same information and can contribute to conversations. At login, a reminder popup alerts you when your current session has collaborators.
 
-**Documents & Audio** — Upload PDFs, images, and text files (up to 30MB). Record audio directly in the app. Everything is automatically categorized and transcribed so you can find it later. Scanned PDFs are processed with OCR to extract text. Duplicate filenames are detected before upload with an option to proceed or cancel.
+**Documents & Audio** — Upload PDFs, images, and text files (up to 30MB). Record audio directly in the app. Everything is automatically categorized and transcribed so you can find it later. Scanned PDFs are processed with OCR to extract text. Duplicate filenames are detected before upload with an option to proceed or cancel. Multi-part documents (e.g., a long report split across several PDFs) are automatically detected and cross-referenced in the journal.
 
 ### Tools
 
