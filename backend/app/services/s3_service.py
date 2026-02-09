@@ -258,11 +258,19 @@ class S3Service:
 
             return False
 
-    def generate_presigned_url(self, key: str, expiration: int = 1800) -> Optional[str]:
+    # Presigned URL expiration constants (seconds)
+    PRESIGNED_URL_DOCUMENT = 900       # 15 min for document downloads (healthcare data)
+    PRESIGNED_URL_THUMBNAIL = 21600    # 6 hours for thumbnail previews (low sensitivity)
+    PRESIGNED_URL_AUDIO = 14400        # 4 hours for audio playback
+
+    def generate_presigned_url(self, key: str, expiration: int = 900) -> Optional[str]:
         """Generate presigned URL for file download (CPU-bound, fast enough to be sync)
 
-        Default expiration is 30 minutes (1800 seconds) for security.
-        Audio files use longer expiration (4 hours) for playback needs.
+        Default expiration is 15 minutes (900 seconds) for healthcare data security.
+        Use class constants for specific content types:
+        - PRESIGNED_URL_DOCUMENT (900s) for documents
+        - PRESIGNED_URL_THUMBNAIL (21600s) for thumbnails
+        - PRESIGNED_URL_AUDIO (14400s) for audio playback
         """
         try:
             url = self._get_sync_client().generate_presigned_url(

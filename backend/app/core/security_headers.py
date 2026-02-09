@@ -32,7 +32,7 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         # Only enable in production to avoid locking out local development
         if not settings.DEBUG:
             response.headers["Strict-Transport-Security"] = (
-                "max-age=31536000; includeSubDomains"
+                "max-age=31536000; includeSubDomains; preload"
             )
 
         # Prevent MIME type sniffing
