@@ -115,6 +115,8 @@ AretaCare implements comprehensive security measures:
 - **Password Hashing**: bcrypt with secure work factor
 - **Password Requirements**: Minimum 8 characters, maximum 72 characters (bcrypt limit)
 - **Account Lockout**: 5 failed login attempts triggers 15-minute lockout with progressive warnings
+- **MFA Lockout**: 5 failed MFA attempts triggers 15-minute lockout with security alert
+- **Account Enumeration Prevention**: Registration returns identical responses for existing and new emails
 - **Sign Out Everywhere**: Users can end all active sign-ins
 
 ### Multi-Factor Authentication (MFA)
@@ -124,7 +126,7 @@ AretaCare implements comprehensive security measures:
 - **Trusted Devices**: 30-day trust duration with secure HttpOnly cookies; tokens SHA-256 hashed before storage; maximum 10 per user (oldest auto-removed)
 - **Sensitive Action Protection**: Password changes, email changes, and account deletion always require MFA re-verification
 - **Challenge Expiration**: MFA challenges expire after 5 minutes; action tokens are single-use with 5-minute expiry
-- **Rate Limiting**: MFA verification limited to 5 attempts per minute
+- **Rate Limiting**: MFA verification limited to 3 attempts per minute
 - **Automatic Cleanup**: Expired challenges and trusted devices cleaned on server startup
 
 ### Rate Limiting
@@ -133,9 +135,10 @@ AretaCare implements comprehensive security measures:
 - **Password Reset**: 3 requests per hour
 - **API General**: 100 requests per minute per user
 - **File Uploads**: 10 per minute (documents), 5 per minute (audio)
+- **Admin Actions**: 5/hour destructive, 10/hour sensitive, 20/hour email
 
 ### Data Protection
-- **Encryption in Transit**: TLS/SSL for all connections, HSTS header enforces HTTPS (1-year max-age)
+- **Encryption in Transit**: TLS/SSL for all connections, HSTS header enforces HTTPS (1-year max-age, preload)
 - **Encryption at Rest**: S3 server-side encryption (AES-256)
 - **SQL Injection Prevention**: SQLAlchemy ORM with parameterized queries
 - **XSS Prevention**: ReactMarkdown for safe content rendering
@@ -152,7 +155,7 @@ AretaCare implements comprehensive security measures:
 ### Access Control
 - **Session-Based Authorization**: Owner and collaborator access validation
 - **Admin Role Verification**: Email-based admin list
-- **Presigned URLs**: 24-hour expiration for S3 file access
+- **Presigned URLs**: 15-minute default expiration for S3 file access
 
 ### Logging & Monitoring
 - **Security Event Logging**: Failed logins, invalid tokens, unauthorized access attempts, account lockouts, MFA events (setup, verification, failures)
@@ -183,4 +186,4 @@ If you have questions about this security policy or responsible disclosure, plea
 
 ---
 
-**Last Updated**: 2026-01-06
+**Last Updated**: 2026-02-09

@@ -91,6 +91,22 @@ If a user loses access to all MFA methods, an admin can reset their MFA from the
 
 Progressive warnings shown after 4th failed attempt.
 
+### MFA Lockout
+
+Separate from login lockout, MFA verification has its own lockout mechanism:
+
+| Setting | Value |
+|---------|-------|
+| Failed MFA attempts before lockout | 5 |
+| Time window for counting | 15 minutes |
+| Lockout duration | 15 minutes |
+
+Excessive MFA failures trigger a security alert email. This prevents brute-force attacks against MFA codes while allowing legitimate retries.
+
+### Account Enumeration Prevention
+
+Registration returns identical responses regardless of whether an email already exists. This prevents attackers from discovering which emails have accounts.
+
 ---
 
 ## Rate Limiting
@@ -102,10 +118,13 @@ Implemented via `slowapi`. See `backend/app/core/rate_limit.py`.
 | Login | 6/minute |
 | Registration | 3/hour |
 | Password Reset | 3/hour |
-| MFA Verification | 5/minute |
+| MFA Verification | 3/minute |
 | File Upload | 10/minute (docs), 5/minute (audio) |
 | AI Chat | 30/minute |
 | Feedback | 3/hour |
+| Admin Destructive | 5/hour (delete user, delete session, S3 cleanup) |
+| Admin Sensitive | 10/hour (reset password, reset MFA, transfer) |
+| Admin Email | 20/hour (invitations, notifications) |
 | General API | 100/minute |
 
 ---
@@ -230,7 +249,7 @@ Applied via `SecurityHeadersMiddleware` in `backend/app/core/security_headers.py
 
 | Header | Value |
 |--------|-------|
-| Strict-Transport-Security | `max-age=31536000; includeSubDomains` (production only) |
+| Strict-Transport-Security | `max-age=31536000; includeSubDomains; preload` (production only) |
 | X-Content-Type-Options | `nosniff` |
 | X-Frame-Options | `SAMEORIGIN` |
 | X-XSS-Protection | `1; mode=block` |
@@ -274,6 +293,23 @@ allow_origins=settings.cors_origins_list  # Explicit origins, not "*"
 allow_credentials=True  # Required for cookies
 allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
 ```
+
+---
+
+## Startup Validation
+
+`validate_startup()` in `backend/app/main.py` runs before the app accepts requests:
+
+| Check | Action |
+|-------|--------|
+| `OPENAI_API_KEY` starts with `sk-` | Error (blocks startup) |
+| `AWS_ACCESS_KEY_ID` length >= 16 | Error (blocks startup) |
+| `AWS_SECRET_ACCESS_KEY` length >= 20 | Error (blocks startup) |
+| `S3_BUCKET_NAME` non-empty, no spaces | Error (blocks startup) |
+| Database connectivity (`SELECT 1`) | Error (blocks startup) |
+| `SMTP_HOST` set but `SMTP_PASSWORD` empty | Warning (startup continues) |
+
+This prevents the app from starting with obviously broken credentials that would only fail at first use.
 
 ---
 
