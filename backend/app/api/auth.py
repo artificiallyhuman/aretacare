@@ -290,9 +290,20 @@ def register(request: Request, response: Response, user_data: UserRegister, db: 
     # Check if user already exists
     existing_user = db.query(User).filter(User.email == user_data.email).first()
     if existing_user:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Email already registered"
+        # Return identical response to prevent account enumeration
+        # Log for admin visibility but don't reveal to the caller
+        security_service.log_event(
+            db=db,
+            event_type="registration_duplicate_email",
+            email=user_data.email,
+            ip_address=security_service.get_client_ip(request),
+            user_agent=security_service.get_user_agent(request),
+            endpoint="/api/auth/register",
+            details="Registration attempted with existing email"
+        )
+        return RegistrationResponse(
+            message="Registration successful! Please check your email to verify your account.",
+            email=user_data.email
         )
 
     # Generate email verification token
@@ -615,7 +626,7 @@ def login(
 
 
 @router.post("/login/mfa-verify", response_model=LoginResponse)
-@limiter.limit("5/minute")
+@limiter.limit(RateLimits.MFA_VERIFY)
 def verify_mfa_login(
     request: Request,
     response: Response,
@@ -654,6 +665,14 @@ def verify_mfa_login(
             detail="User not found"
         )
 
+    # Check MFA lockout before attempting verification
+    mfa_lockout = security_service.check_mfa_lockout(db, user_id)
+    if mfa_lockout["is_locked"]:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="MFA temporarily locked due to too many failed attempts. Please try again later."
+        )
+
     # Verify MFA based on the method
     verified = False
 
@@ -677,6 +696,20 @@ def verify_mfa_login(
             user_agent=user_agent,
             details=f"MFA verification failed (method: {data.method})"
         )
+
+        # Check if failures have reached the alert threshold
+        mfa_status = security_service.check_mfa_lockout(db, user_id)
+        if mfa_status["failed_attempts"] == security_service.MFA_ALERT_THRESHOLD:
+            security_service.log_event(
+                db=db,
+                event_type="mfa_excessive_failures",
+                user_id=user_id,
+                email=user.email,
+                ip_address=ip_address,
+                user_agent=user_agent,
+                details=f"MFA verification failed {mfa_status['failed_attempts']} times in the last hour"
+            )
+
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="MFA verification failed. Please try again."

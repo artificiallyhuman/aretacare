@@ -230,6 +230,43 @@ class SecurityService:
     LOCKOUT_WINDOW_MINUTES = 15  # Time window to count failed attempts
     LOCKOUT_DURATION_MINUTES = 15  # How long the account is locked
 
+    # MFA lockout configuration
+    MFA_LOCKOUT_THRESHOLD = 10  # Number of failed MFA attempts before lockout
+    MFA_LOCKOUT_WINDOW_MINUTES = 60  # Time window for MFA failures (1 hour)
+    MFA_ALERT_THRESHOLD = 5  # Send email alert after this many failures
+
+    def check_mfa_lockout(
+        self,
+        db: DBSession,
+        user_id: str
+    ) -> dict:
+        """
+        Check if MFA verification is locked out due to too many failed attempts.
+
+        Args:
+            db: Database session
+            user_id: User ID to check
+
+        Returns:
+            dict with 'is_locked' and 'failed_attempts' keys
+        """
+        from sqlalchemy import and_
+
+        cutoff_time = datetime.utcnow() - timedelta(minutes=self.MFA_LOCKOUT_WINDOW_MINUTES)
+
+        failed_attempts = db.query(SecurityLog).filter(
+            and_(
+                SecurityLog.created_at >= cutoff_time,
+                SecurityLog.event_type == "mfa_login_failed",
+                SecurityLog.user_id == user_id
+            )
+        ).count()
+
+        return {
+            "is_locked": failed_attempts >= self.MFA_LOCKOUT_THRESHOLD,
+            "failed_attempts": failed_attempts
+        }
+
     def check_account_lockout(
         self,
         db: DBSession,

@@ -48,8 +48,12 @@ def rate_limit_exceeded_handler(request: Request, exc: RateLimitExceeded) -> JSO
         message = "Too many login attempts. Please wait a minute before trying again."
     elif "/auth/register" in path:
         message = "Too many registration attempts. Please try again later."
+    elif "/auth/login/mfa" in path:
+        message = "Too many MFA verification attempts. Please wait before trying again."
     elif "/auth/password-reset" in path:
         message = "Too many password reset attempts. Please try again later."
+    elif "/admin/" in path:
+        message = "Too many admin requests. Please slow down."
     elif "/waitlist/join" in path:
         message = "Too many waitlist submissions. Please try again later."
     else:
@@ -70,6 +74,7 @@ class RateLimits:
 
     # Authentication endpoints (sensitive - strict limits)
     LOGIN = "6/minute"              # 6 login attempts per minute per IP (allows 5th to trigger lockout)
+    MFA_VERIFY = "3/minute"         # 3 MFA verification attempts per minute per IP (brute-force protection)
     TOKEN_REFRESH = "20/minute"     # 20 token refreshes per minute per IP (higher due to page loads, tabs)
     REGISTER = "3/hour"             # 3 registrations per hour per IP
     PASSWORD_RESET_REQUEST = "3/hour"  # 3 reset requests per hour per email
@@ -85,6 +90,11 @@ class RateLimits:
     # AI/LLM endpoints (expensive)
     AI_CHAT = "30/minute"           # 30 chat requests per minute per user
     AI_SYNTHESIS = "20/minute"      # 20 synthesis requests per minute per user
+
+    # Admin endpoints (protection against compromised tokens)
+    ADMIN_DESTRUCTIVE = "5/hour"    # 5 destructive actions per hour per IP (delete user, delete session, S3 cleanup)
+    ADMIN_SENSITIVE = "10/hour"     # 10 sensitive actions per hour per IP (reset password, reset MFA, transfer)
+    ADMIN_EMAIL = "20/hour"         # 20 email-sending actions per hour per IP (invitations, notifications)
 
     # Feedback submission (spam prevention)
     FEEDBACK_SUBMIT = "3/hour"      # 3 feedback submissions per hour per IP

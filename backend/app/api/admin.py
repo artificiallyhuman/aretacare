@@ -3,7 +3,7 @@ Admin API endpoints for platform management.
 
 All endpoints require admin authentication via the ADMIN_EMAILS environment variable.
 """
-from fastapi import APIRouter, Depends, HTTPException, Query, BackgroundTasks
+from fastapi import APIRouter, Depends, HTTPException, Query, BackgroundTasks, Request
 from sqlalchemy.orm import Session as DBSession
 from datetime import datetime, date, timedelta
 from typing import Optional
@@ -12,6 +12,7 @@ import logging
 
 from app.core.database import get_db
 from app.core.config import settings
+from app.core.rate_limit import limiter, RateLimits
 from app.api.auth import get_current_user
 from app.api.permissions import check_is_admin, require_admin
 from app.models import (
@@ -185,8 +186,10 @@ async def get_unusual_accounts(
 
 
 @router.post("/accounts/inactive/email", response_model=EmailInactiveUsersResponse)
+@limiter.limit(RateLimits.ADMIN_EMAIL)
 async def email_inactive_accounts(
-    request: EmailInactiveUsersRequest,
+    request: Request,
+    email_request: EmailInactiveUsersRequest,
     admin_user: User = Depends(get_admin_user),
     db: DBSession = Depends(get_db)
 ):
@@ -195,7 +198,7 @@ async def email_inactive_accounts(
     emails_failed = 0
     details = []
 
-    for user_id in request.user_ids:
+    for user_id in email_request.user_ids:
         # Get user
         user = db.query(User).filter(User.id == user_id).first()
         if not user:
@@ -296,7 +299,9 @@ async def get_user_detail(
 
 
 @router.post("/users/{user_id}/reset-password", response_model=PasswordResetByAdmin)
+@limiter.limit(RateLimits.ADMIN_SENSITIVE)
 async def admin_reset_password(
+    request: Request,
     user_id: str,
     admin_user: User = Depends(get_admin_user),
     db: DBSession = Depends(get_db)
@@ -337,7 +342,9 @@ async def admin_reset_password(
 
 
 @router.post("/users/{user_id}/reset-mfa")
+@limiter.limit(RateLimits.ADMIN_SENSITIVE)
 async def admin_reset_mfa(
+    request: Request,
     user_id: str,
     admin_user: User = Depends(get_admin_user),
     db: DBSession = Depends(get_db)
@@ -386,7 +393,9 @@ async def admin_reset_mfa(
 
 
 @router.delete("/users/{user_id}")
+@limiter.limit(RateLimits.ADMIN_DESTRUCTIVE)
 async def admin_delete_user(
+    request: Request,
     user_id: str,
     admin_user: User = Depends(get_admin_user),
     db: DBSession = Depends(get_db)
@@ -530,7 +539,9 @@ async def get_user_tokens(
 
 
 @router.post("/users/{user_id}/tokens/revoke-all")
+@limiter.limit(RateLimits.ADMIN_SENSITIVE)
 async def revoke_all_user_tokens_admin(
+    request: Request,
     user_id: str,
     admin_user: User = Depends(get_admin_user),
     db: DBSession = Depends(get_db)
@@ -621,7 +632,9 @@ async def revoke_single_token(
 # ==========================================
 
 @router.post("/sessions/{session_id}/transfer", response_model=SessionTransferResponse)
+@limiter.limit(RateLimits.ADMIN_SENSITIVE)
 async def transfer_session_ownership(
+    request: Request,
     session_id: str,
     transfer_data: SessionTransfer,
     admin_user: User = Depends(get_admin_user),
@@ -682,7 +695,9 @@ async def transfer_session_ownership(
 
 
 @router.delete("/sessions/{session_id}")
+@limiter.limit(RateLimits.ADMIN_DESTRUCTIVE)
 async def admin_delete_session(
+    request: Request,
     session_id: str,
     admin_user: User = Depends(get_admin_user),
     db: DBSession = Depends(get_db)
@@ -768,7 +783,9 @@ async def get_orphaned_s3_files(
 
 
 @router.delete("/s3/orphans", response_model=S3DeleteResponse)
+@limiter.limit(RateLimits.ADMIN_DESTRUCTIVE)
 async def delete_orphaned_s3_files(
+    request: Request,
     delete_request: S3DeleteRequest,
     admin_user: User = Depends(get_admin_user),
     db: DBSession = Depends(get_db)
@@ -1213,7 +1230,9 @@ async def add_to_waitlist(
 
 
 @router.post("/waitlist/{entry_id}/invite")
+@limiter.limit(RateLimits.ADMIN_EMAIL)
 async def send_waitlist_invitation(
+    request: Request,
     entry_id: str,
     admin_user: User = Depends(get_admin_user),
     db: DBSession = Depends(get_db)
