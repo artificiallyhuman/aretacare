@@ -15,8 +15,8 @@ class PendingInvitation(Base):
 
     id = Column(String, primary_key=True, default=lambda: secrets.token_urlsafe(32))
     email = Column(String, nullable=False, index=True)  # Email of person being invited
-    session_id = Column(String, ForeignKey("sessions.id", ondelete="CASCADE"), nullable=False)
-    invited_by_user_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    session_id = Column(String, ForeignKey("sessions.id", ondelete="CASCADE"), nullable=False, index=True)
+    invited_by_user_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     token = Column(String, unique=True, nullable=False, default=lambda: secrets.token_urlsafe(32))
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 

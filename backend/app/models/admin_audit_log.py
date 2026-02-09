@@ -15,7 +15,7 @@ class AdminAuditLog(Base):
     __tablename__ = "admin_audit_logs"
 
     id = Column(Integer, primary_key=True, index=True)
-    admin_user_id = Column(String, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    admin_user_id = Column(String, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     admin_email = Column(String, nullable=False)  # Preserved even if admin is deleted
     action = Column(String, nullable=False)  # e.g., "password_reset", "user_delete", "session_transfer"
     target_type = Column(String, nullable=True)  # e.g., "user", "session", "s3_file"

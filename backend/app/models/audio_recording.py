@@ -26,7 +26,7 @@ class AudioRecording(Base):
     __tablename__ = "audio_recordings"
 
     id = Column(Integer, primary_key=True, index=True)
-    session_id = Column(String, ForeignKey("sessions.id", ondelete="CASCADE"), nullable=False)
+    session_id = Column(String, ForeignKey("sessions.id", ondelete="CASCADE"), nullable=False, index=True)
     filename = Column(String, nullable=False)
     s3_key = Column(String, nullable=False)
     duration = Column(Float, nullable=True)  # Duration in seconds
@@ -36,7 +36,7 @@ class AudioRecording(Base):
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
     # Source tracking for collaborative sessions
-    created_by_user_id = Column(String, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    created_by_user_id = Column(String, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     last_edited_by_user_id = Column(String, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
 
     # Relationships

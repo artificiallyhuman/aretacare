@@ -9,8 +9,8 @@ class DailyPlanView(Base):
     __tablename__ = "daily_plan_views"
 
     id = Column(Integer, primary_key=True, index=True)
-    daily_plan_id = Column(Integer, ForeignKey("daily_plans.id", ondelete="CASCADE"), nullable=False)
-    user_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    daily_plan_id = Column(Integer, ForeignKey("daily_plans.id", ondelete="CASCADE"), nullable=False, index=True)
+    user_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     viewed_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
     # Relationships

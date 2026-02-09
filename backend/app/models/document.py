@@ -27,7 +27,7 @@ class Document(Base):
     __tablename__ = "documents"
 
     id = Column(Integer, primary_key=True, index=True)
-    session_id = Column(String, ForeignKey("sessions.id", ondelete="CASCADE"), nullable=False)
+    session_id = Column(String, ForeignKey("sessions.id", ondelete="CASCADE"), nullable=False, index=True)
     filename = Column(String, nullable=False)
     s3_key = Column(String, nullable=False)
     thumbnail_s3_key = Column(String, nullable=True)  # For PDF thumbnails
@@ -40,7 +40,7 @@ class Document(Base):
     ai_description = Column(Text, nullable=True)  # Brief AI-generated summary
 
     # Source tracking for collaborative sessions
-    uploaded_by_user_id = Column(String, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    uploaded_by_user_id = Column(String, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     last_edited_by_user_id = Column(String, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
 
     # Relationships

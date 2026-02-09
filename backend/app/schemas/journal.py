@@ -1,7 +1,7 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 from datetime import datetime, date
 from app.models.journal import EntryType
-from typing import Optional, List, Dict
+from typing import Any, Optional, List, Dict
 
 from app.schemas.source_tag import SourceTagInfo
 
@@ -58,7 +58,12 @@ class JournalSuggestion(BaseModel):
 
 
 class JournalSynthesisResult(BaseModel):
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
     should_create: bool
     reasoning: str
     suggested_entries: List[JournalSuggestion]
     warning: Optional[str] = None  # User-facing warning about processing limits
+    # Internal: SQLAlchemy JournalEntry objects created during synthesis.
+    # Used by callers to run deferred embeddings after commit.
+    created_entries: List[Any] = Field(default_factory=list, exclude=True)

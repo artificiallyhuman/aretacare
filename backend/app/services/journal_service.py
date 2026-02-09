@@ -122,7 +122,8 @@ class JournalService:
         extracted_text: Optional[str] = None,
         entry_date: Optional[date] = None,
         document_id: Optional[int] = None,
-        user_id: Optional[str] = None
+        user_id: Optional[str] = None,
+        auto_commit: bool = True
     ) -> JournalSynthesisResult:
         """Synthesize comprehensive journal entry from uploaded medical document using native file support"""
         try:
@@ -374,6 +375,7 @@ IMPORTANT: Respond with ONLY a valid JSON object in this exact format, with no a
             )
 
             # Auto-save ALL suggested entries
+            created_entries = []
             for suggestion in suggestions:
                 # Check if document still exists before creating entry (may have been deleted/cancelled)
                 if document_id:
@@ -385,7 +387,7 @@ IMPORTANT: Respond with ONLY a valid JSON object in this exact format, with no a
                 # Truncate title to 100 characters if needed (database limit)
                 title = suggestion.title[:100] if len(suggestion.title) > 100 else suggestion.title
 
-                await self.create_entry(
+                entry = await self.create_entry(
                     session_id=session_id,
                     entry_data=JournalEntryCreate(
                         title=title,
@@ -395,9 +397,12 @@ IMPORTANT: Respond with ONLY a valid JSON object in this exact format, with no a
                     ),
                     created_by="ai",
                     source_message_ids=None,
-                    source_document_id=document_id
+                    source_document_id=document_id,
+                    auto_commit=auto_commit
                 )
+                created_entries.append(entry)
 
+            synthesis_result.created_entries = created_entries
             return synthesis_result
 
         except json.JSONDecodeError as e:
@@ -410,6 +415,8 @@ IMPORTANT: Respond with ONLY a valid JSON object in this exact format, with no a
             )
         except Exception as e:
             logger.error(f"Document journal synthesis error: {e}", exc_info=True)
+            if not auto_commit:
+                raise  # Let caller handle rollback when we don't own the transaction
             return JournalSynthesisResult(
                 should_create=False,
                 reasoning="Error during synthesis",
@@ -637,7 +644,8 @@ IMPORTANT: Respond with ONLY a valid JSON object in this exact format, with no a
         conversation_id: Optional[int] = None,
         entry_date: Optional[date] = None,
         audio_recording_id: Optional[int] = None,
-        user_id: Optional[str] = None
+        user_id: Optional[str] = None,
+        auto_commit: bool = True
     ) -> JournalSynthesisResult:
         """Assess if conversation contains journal-worthy information"""
         try:
@@ -799,6 +807,7 @@ IMPORTANT: Respond with ONLY a valid JSON object in this exact format, with no a
             )
 
             # Auto-save ALL suggested entries with AI-determined dates
+            created_entries = []
             for suggestion in suggestions:
                 # Check if audio recording still exists before creating entry (may have been deleted/cancelled)
                 if audio_recording_id:
@@ -810,7 +819,7 @@ IMPORTANT: Respond with ONLY a valid JSON object in this exact format, with no a
                 # Truncate title to 100 characters if needed (database limit)
                 title = suggestion.title[:100] if len(suggestion.title) > 100 else suggestion.title
 
-                await self.create_entry(
+                entry = await self.create_entry(
                     session_id=session_id,
                     entry_data=JournalEntryCreate(
                         title=title,
@@ -820,9 +829,12 @@ IMPORTANT: Respond with ONLY a valid JSON object in this exact format, with no a
                     ),
                     created_by="ai",
                     source_message_ids=[conversation_id] if conversation_id else None,
-                    source_audio_id=audio_recording_id
+                    source_audio_id=audio_recording_id,
+                    auto_commit=auto_commit
                 )
+                created_entries.append(entry)
 
+            synthesis_result.created_entries = created_entries
             return synthesis_result
 
         except json.JSONDecodeError as e:
@@ -835,6 +847,8 @@ IMPORTANT: Respond with ONLY a valid JSON object in this exact format, with no a
             )
         except Exception as e:
             logger.error(f"Journal synthesis error: {e}", exc_info=True)
+            if not auto_commit:
+                raise  # Let caller handle rollback when we don't own the transaction
             return JournalSynthesisResult(
                 should_create=False,
                 reasoning="Error during synthesis",
@@ -1223,9 +1237,17 @@ IMPORTANT: Respond with ONLY a valid JSON object in this exact format, with no a
         created_by: str,
         source_message_ids: Optional[List[int]] = None,
         source_document_id: Optional[int] = None,
-        source_audio_id: Optional[int] = None
+        source_audio_id: Optional[int] = None,
+        auto_commit: bool = True
     ) -> JournalEntry:
-        """Create a new journal entry"""
+        """Create a new journal entry.
+
+        Args:
+            auto_commit: If True (default), commits immediately and generates
+                embedding. If False, flushes only (for use within a larger
+                transaction) and skips embedding — caller is responsible for
+                committing and running embeddings afterward.
+        """
         try:
             entry_date = entry_data.entry_date or date.today()
 
@@ -1242,40 +1264,45 @@ IMPORTANT: Respond with ONLY a valid JSON object in this exact format, with no a
             )
 
             self.db.add(entry)
-            self.db.commit()
-            self.db.refresh(entry)
+            if auto_commit:
+                self.db.commit()
+                self.db.refresh(entry)
 
-            # Generate embedding for semantic retrieval (non-fatal)
-            try:
-                from app.services.embedding_service import EmbeddingService
-                embedding_service = EmbeddingService(self.db)
-                await embedding_service.embed_journal_entry(entry)
-            except Exception as embed_err:
-                logger.warning(f"Failed to generate embedding for entry {entry.id}: {embed_err}")
+                # Generate embedding for semantic retrieval (non-fatal)
+                try:
+                    from app.services.embedding_service import EmbeddingService
+                    embedding_service = EmbeddingService(self.db)
+                    await embedding_service.embed_journal_entry(entry)
+                except Exception as embed_err:
+                    logger.warning(f"Failed to generate embedding for entry {entry.id}: {embed_err}")
+            else:
+                self.db.flush()
 
             return entry
 
         except Exception as e:
-            self.db.rollback()
             logger.error(f"Error creating journal entry: {e}")
 
-            # Log to database for admin visibility
-            try:
-                from app.services.error_logger import log_database_error
-                log_database_error(
-                    db=self.db,
-                    source="services.journal.create_entry",
-                    error=e,
-                    session_id=session_id,
-                    details={
-                        "entry_type": entry_data.entry_type.value if entry_data.entry_type else None,
-                        "entry_date": entry_date.isoformat() if entry_date else None,
-                        "title": entry_data.title[:100] if entry_data.title else None
-                    }
-                )
-            except Exception:
-                pass  # Don't let error logging itself crash the app
+            if auto_commit:
+                # Only rollback + error-log when we own the transaction
+                self.db.rollback()
+                try:
+                    from app.services.error_logger import log_database_error
+                    log_database_error(
+                        db=self.db,
+                        source="services.journal.create_entry",
+                        error=e,
+                        session_id=session_id,
+                        details={
+                            "entry_type": entry_data.entry_type.value if entry_data.entry_type else None,
+                            "entry_date": entry_date.isoformat() if entry_date else None,
+                            "title": entry_data.title[:100] if entry_data.title else None
+                        }
+                    )
+                except Exception:
+                    pass  # Don't let error logging itself crash the app
 
+            # Re-raise so the caller can handle rollback when auto_commit=False
             raise
 
     async def update_entry(

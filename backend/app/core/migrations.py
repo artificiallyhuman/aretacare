@@ -2110,3 +2110,32 @@ def run_migrations():
                 conn.rollback()
         else:
             logger.info("journal_entry_embeddings table already exists")
+
+        # ==========================================
+        # FK INDEXES FOR QUERY PERFORMANCE
+        # ==========================================
+        # Many FK columns lacked indexes, causing full table scans.
+        # Composite indexes (e.g. idx_conversations_session_created) already
+        # cover leftmost-column lookups, and source-tracking migrations already
+        # created partial indexes. This migration adds the remaining ones.
+        migration_name = "add_fk_indexes"
+        if not has_migration_run(conn, migration_name):
+            logger.info("Adding missing FK indexes...")
+            fk_indexes = [
+                ("ix_sessions_user_id", "sessions", "user_id"),
+                ("ix_sessions_owner_id", "sessions", "owner_id"),
+                ("ix_admin_audit_logs_admin_user", "admin_audit_logs", "admin_user_id"),
+                ("ix_pending_invitations_invited_by", "pending_invitations", "invited_by_user_id"),
+            ]
+            for idx_name, table, column in fk_indexes:
+                if table in inspector.get_table_names():
+                    try:
+                        conn.execute(text(
+                            f"CREATE INDEX IF NOT EXISTS {idx_name} ON {table} ({column})"
+                        ))
+                        conn.commit()
+                        logger.info(f"Created index {idx_name}")
+                    except Exception as e:
+                        logger.warning(f"Failed to create index {idx_name}: {e}")
+                        conn.rollback()
+            mark_migration_complete(conn, migration_name)

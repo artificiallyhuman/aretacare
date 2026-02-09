@@ -53,6 +53,55 @@ else:
     # Run migrations for schema changes
     run_migrations()
 
+def validate_startup():
+    """Validate critical configuration at startup for fast failure."""
+    errors = []
+    warnings = []
+
+    # OpenAI API key format check
+    if not settings.OPENAI_API_KEY.startswith("sk-"):
+        errors.append("OPENAI_API_KEY doesn't look valid (should start with 'sk-')")
+
+    # AWS credentials basic length check
+    if len(settings.AWS_ACCESS_KEY_ID) < 16:
+        errors.append("AWS_ACCESS_KEY_ID appears too short (expected 16+ characters)")
+    if len(settings.AWS_SECRET_ACCESS_KEY) < 20:
+        errors.append("AWS_SECRET_ACCESS_KEY appears too short (expected 20+ characters)")
+
+    # S3 bucket name format
+    if not settings.S3_BUCKET_NAME or ' ' in settings.S3_BUCKET_NAME:
+        errors.append("S3_BUCKET_NAME is empty or contains spaces")
+
+    # SMTP partially configured warning
+    if settings.SMTP_HOST and not settings.SMTP_PASSWORD:
+        warnings.append(
+            "SMTP_PASSWORD is empty — email notifications will fail. "
+            "Set SMTP_PASSWORD or clear SMTP_HOST to suppress this warning."
+        )
+
+    # Database connectivity
+    try:
+        with engine.connect() as conn:
+            conn.execute(text("SELECT 1"))
+    except Exception as e:
+        errors.append(f"Database connection failed: {e}")
+
+    for w in warnings:
+        logger.warning(f"CONFIG WARNING: {w}")
+
+    if errors:
+        for e in errors:
+            logger.error(f"CONFIG ERROR: {e}")
+        raise SystemExit(
+            f"Startup aborted: {len(errors)} configuration error(s). "
+            "Check logs above for details."
+        )
+
+    logger.info("✓ Configuration validated")
+
+
+validate_startup()
+
 app = FastAPI(
     title="AretaCare API",
     description="Calm. Clarity. Confidence. - Helping families navigate medical information",

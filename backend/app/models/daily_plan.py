@@ -11,7 +11,7 @@ class DailyPlan(Base):
     )
 
     id = Column(Integer, primary_key=True, index=True)
-    session_id = Column(String, ForeignKey("sessions.id", ondelete="CASCADE"), nullable=False)
+    session_id = Column(String, ForeignKey("sessions.id", ondelete="CASCADE"), nullable=False, index=True)
     date = Column(Date, nullable=False, index=True)  # The date this plan is for
     content = Column(Text, nullable=False)  # AI-generated plan content
     user_edited_content = Column(Text, nullable=True)  # User's edited version (if any)

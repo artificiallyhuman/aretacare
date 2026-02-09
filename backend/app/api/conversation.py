@@ -189,6 +189,10 @@ async def send_message(
             user_id=current_user.id
         )
 
+        # --- Begin atomic zone: assistant message + journal entries + synthesis flag ---
+        # All DB writes after the AI call are flushed (not committed) until the end,
+        # so they either all persist or all roll back on failure.
+
         # Create assistant message
         assistant_message = Conversation(
             session_id=session_id,
@@ -197,8 +201,7 @@ async def send_message(
             message_type=MessageType.TEXT
         )
         db.add(assistant_message)
-        db.commit()
-        db.refresh(assistant_message)
+        db.flush()  # Get ID without committing
 
         # Parse user's local date if provided, otherwise use server date
         user_date = None
@@ -209,7 +212,7 @@ async def send_message(
                 logger.warning(f"Invalid entry_date format: {entry_date}, using server date")
 
         # Use comprehensive document synthesis if a document was uploaded
-        # Otherwise use conversational synthesis
+        # Otherwise use conversational synthesis (auto_commit=False defers commit)
         if document_id:
             # Get document details for comprehensive synthesis
             doc = db.query(Document).filter(Document.id == document_id).first()
@@ -222,7 +225,8 @@ async def send_message(
                 extracted_text=extracted_text or "",  # Fallback only if URL unavailable
                 entry_date=user_date,
                 document_id=document_id,
-                user_id=current_user.id
+                user_id=current_user.id,
+                auto_commit=False
             )
         else:
             # Regular conversational synthesis
@@ -233,7 +237,8 @@ async def send_message(
                 conversation_id=user_message.id,
                 entry_date=user_date,
                 audio_recording_id=user_message.audio_recording_id,
-                user_id=current_user.id
+                user_id=current_user.id,
+                auto_commit=False
             )
 
         # Mark messages as synthesized if entries were created
@@ -249,10 +254,22 @@ async def send_message(
                 """),
                 {"user_id": user_message.id, "assistant_id": assistant_message.id}
             )
-            db.commit()
-            # Refresh the objects to get the updated field
-            db.refresh(user_message)
-            db.refresh(assistant_message)
+
+        # Commit everything atomically: assistant message + journal entries + synthesis flag
+        db.commit()
+        db.refresh(user_message)
+        db.refresh(assistant_message)
+        # --- End atomic zone ---
+
+        # Deferred embeddings for journal entries created during synthesis.
+        # Runs after commit so entries are persisted regardless of embedding success.
+        for created_entry in synthesis_result.created_entries:
+            try:
+                from app.services.embedding_service import EmbeddingService
+                embedding_service = EmbeddingService(db)
+                await embedding_service.embed_journal_entry(created_entry)
+            except Exception as embed_err:
+                logger.warning(f"Deferred embedding failed for entry {created_entry.id}: {embed_err}")
 
         return {
             "message": {
