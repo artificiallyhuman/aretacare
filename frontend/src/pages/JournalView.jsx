@@ -27,6 +27,9 @@ const JournalView = () => {
   const [showEditor, setShowEditor] = useState(false);
   const [editingEntry, setEditingEntry] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(false);
+  const [oldestDate, setOldestDate] = useState(null);
   const [selectedDate, setSelectedDate] = useState(null);
   const dateRefs = useRef({});
   const [showSidebar, setShowSidebar] = useState(false);
@@ -55,10 +58,35 @@ const JournalView = () => {
     try {
       const response = await journalAPI.getEntries(sessionId);
       setEntries(response.data.entries_by_date);
+      setHasMore(response.data.has_more || false);
+      setOldestDate(response.data.oldest_date || null);
     } catch (err) {
       console.error('Error loading journal entries:', err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadOlderEntries = async () => {
+    if (!oldestDate || loadingMore) return;
+    setLoadingMore(true);
+    try {
+      // Fetch the next page: entries before the oldest date we have
+      const dayBefore = new Date(oldestDate + 'T00:00:00');
+      dayBefore.setDate(dayBefore.getDate() - 1);
+      const endDate = dayBefore.toISOString().split('T')[0];
+
+      const response = await journalAPI.getEntries(sessionId, { endDate });
+      const olderEntries = response.data.entries_by_date;
+
+      // Merge older entries with existing entries
+      setEntries(prev => ({ ...prev, ...olderEntries }));
+      setHasMore(response.data.has_more || false);
+      setOldestDate(response.data.oldest_date || null);
+    } catch (err) {
+      console.error('Error loading older journal entries:', err);
+    } finally {
+      setLoadingMore(false);
     }
   };
 
@@ -438,6 +466,26 @@ const JournalView = () => {
                   </div>
                 );
               })}
+
+              {/* Load older entries button */}
+              {hasMore && !searchQuery && filterType === 'ALL' && (
+                <div className="text-center py-4">
+                  <button
+                    onClick={loadOlderEntries}
+                    disabled={loadingMore}
+                    className="px-6 py-3 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors disabled:opacity-50"
+                  >
+                    {loadingMore ? (
+                      <span className="flex items-center justify-center space-x-2">
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-600 dark:border-gray-400"></div>
+                        <span>Loading...</span>
+                      </span>
+                    ) : (
+                      'Load older entries'
+                    )}
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         )}

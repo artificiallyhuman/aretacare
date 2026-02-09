@@ -44,6 +44,9 @@ class JournalEntryResponse(BaseModel):
 
 class JournalEntriesGrouped(BaseModel):
     entries_by_date: Dict[str, List[JournalEntryResponse]]
+    total_dates: Optional[int] = None
+    has_more: Optional[bool] = None
+    oldest_date: Optional[str] = None
 
 
 class JournalSuggestion(BaseModel):

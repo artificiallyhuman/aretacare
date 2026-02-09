@@ -365,8 +365,8 @@ export const conversationAPI = {
 
 // Journal API (new)
 export const journalAPI = {
-  getEntries: (sessionId, startDate = null, endDate = null) =>
-    api.get(`/journal/${sessionId}`, { params: { start_date: startDate, end_date: endDate } }),
+  getEntries: (sessionId, { startDate = null, endDate = null, maxDates = null } = {}) =>
+    api.get(`/journal/${sessionId}`, { params: { start_date: startDate, end_date: endDate, max_dates: maxDates } }),
   getEntriesForDate: (sessionId, date) =>
     api.get(`/journal/${sessionId}/date/${date}`),
   createEntry: (sessionId, entryData) =>

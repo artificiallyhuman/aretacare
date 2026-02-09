@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.models import User, Session as SessionModel
@@ -23,10 +23,16 @@ async def get_journal_entries(
     session_id: str,
     start_date: Optional[str] = None,
     end_date: Optional[str] = None,
+    max_dates: int = Query(90, ge=1, le=365),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """Get all journal entries for a session, grouped by date"""
+    """Get journal entries for a session, grouped by date with pagination.
+
+    Returns the most recent `max_dates` date groups (default 90).
+    Use `end_date` set to the day before `oldest_date` from a previous
+    response to load older pages.
+    """
     # Verify session belongs to current user
     session = db.query(SessionModel).filter(SessionModel.id == session_id).first()
     if not session:
@@ -37,13 +43,21 @@ async def get_journal_entries(
     start = date.fromisoformat(start_date) if start_date else None
     end = date.fromisoformat(end_date) if end_date else None
 
-    # Get entries
+    # Get entries with pagination
     journal_service = JournalService(db)
-    entries_by_date = await journal_service.get_entries_by_date(
+    result = await journal_service.get_entries_by_date(
         session_id=session_id,
         start_date=start,
-        end_date=end
+        end_date=end,
+        max_dates=max_dates
     )
+
+    entries_by_date = result["entries_by_date"]
+    pagination = {
+        "total_dates": result["total_dates"],
+        "has_more": result["has_more"],
+        "oldest_date": result["oldest_date"],
+    }
 
     # Check if session has collaborators (for source tag attribution)
     has_collaborators = session_has_collaborators(session_id, db)
@@ -85,9 +99,9 @@ async def get_journal_entries(
                 enriched_entries.append(entry_dict)
             enriched_entries_by_date[date_str] = enriched_entries
 
-        return {"entries_by_date": enriched_entries_by_date}
+        return {"entries_by_date": enriched_entries_by_date, **pagination}
 
-    return {"entries_by_date": entries_by_date}
+    return {"entries_by_date": entries_by_date, **pagination}
 
 
 @router.get("/{session_id}/date/{target_date}")

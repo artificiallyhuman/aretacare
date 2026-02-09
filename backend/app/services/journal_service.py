@@ -12,7 +12,7 @@ from app.schemas.journal import (
     JournalSuggestion
 )
 from sqlalchemy.orm import Session
-from sqlalchemy import and_, desc
+from sqlalchemy import and_, desc, func, distinct
 from typing import List, Dict, Optional
 from datetime import datetime, date, timedelta
 from collections import defaultdict
@@ -1378,31 +1378,70 @@ IMPORTANT: Respond with ONLY a valid JSON object in this exact format, with no a
         self,
         session_id: str,
         start_date: Optional[date] = None,
-        end_date: Optional[date] = None
-    ) -> Dict[str, List[JournalEntry]]:
-        """Get entries grouped by date"""
+        end_date: Optional[date] = None,
+        max_dates: int = 90
+    ) -> Dict:
+        """Get entries grouped by date with pagination by number of distinct dates.
+
+        Returns dict with entries_by_date, total_dates, has_more, and oldest_date.
+        Default returns the 90 most recent dates (roughly 3 months).
+        """
         try:
-            query = self.db.query(JournalEntry).filter(JournalEntry.session_id == session_id)
-
+            filters = [JournalEntry.session_id == session_id]
             if start_date:
-                query = query.filter(JournalEntry.entry_date >= start_date)
+                filters.append(JournalEntry.entry_date >= start_date)
             if end_date:
-                query = query.filter(JournalEntry.entry_date <= end_date)
+                filters.append(JournalEntry.entry_date <= end_date)
 
-            # Sort by date descending, then by created_at descending (most recent first within each date)
-            entries = query.order_by(desc(JournalEntry.entry_date), desc(JournalEntry.created_at)).all()
+            # Count total distinct dates for pagination metadata
+            total_dates = self.db.query(
+                func.count(distinct(JournalEntry.entry_date))
+            ).filter(*filters).scalar() or 0
+
+            # Get the N most recent distinct dates
+            date_rows = (
+                self.db.query(distinct(JournalEntry.entry_date))
+                .filter(*filters)
+                .order_by(desc(JournalEntry.entry_date))
+                .limit(max_dates)
+                .all()
+            )
+            target_dates = [row[0] for row in date_rows]
+
+            if not target_dates:
+                return {
+                    "entries_by_date": {},
+                    "total_dates": 0,
+                    "has_more": False,
+                    "oldest_date": None,
+                }
+
+            # Fetch all entries for those dates
+            entries = (
+                self.db.query(JournalEntry)
+                .filter(
+                    JournalEntry.session_id == session_id,
+                    JournalEntry.entry_date.in_(target_dates)
+                )
+                .order_by(desc(JournalEntry.entry_date), desc(JournalEntry.created_at))
+                .all()
+            )
 
             # Group by date
             grouped = defaultdict(list)
             for entry in entries:
-                date_str = entry.entry_date.isoformat()
-                grouped[date_str].append(entry)
+                grouped[entry.entry_date.isoformat()].append(entry)
 
-            return dict(grouped)
+            return {
+                "entries_by_date": dict(grouped),
+                "total_dates": total_dates,
+                "has_more": total_dates > max_dates,
+                "oldest_date": target_dates[-1].isoformat() if target_dates else None,
+            }
 
         except Exception as e:
             logger.error(f"Error getting journal entries: {e}")
-            return {}
+            return {"entries_by_date": {}, "total_dates": 0, "has_more": False, "oldest_date": None}
 
     async def get_entries_for_date(
         self,
