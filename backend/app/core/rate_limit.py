@@ -11,6 +11,7 @@ from slowapi.errors import RateLimitExceeded
 from fastapi import Request
 from fastapi.responses import JSONResponse
 import logging
+import time
 
 logger = logging.getLogger(__name__)
 
@@ -34,6 +35,33 @@ def get_client_ip(request: Request) -> str:
 
 # Initialize rate limiter with client IP as key
 limiter = Limiter(key_func=get_client_ip)
+
+
+def cleanup_rate_limit_storage():
+    """Evict expired entries from the in-memory rate limit storage.
+
+    slowapi's default MemoryStorage keeps expired counters in its internal dict
+    indefinitely (they're only checked on access). Over time with many unique IPs,
+    this dict grows without bound. This function removes entries whose TTL has
+    passed, and should be called periodically (e.g. every hour).
+    """
+    try:
+        storage = limiter._storage
+        # limits.storage.MemoryStorage stores data in .storage (dict) and
+        # .expirations (dict of key -> expiry_timestamp)
+        if hasattr(storage, "expirations") and hasattr(storage, "storage"):
+            now = time.time()
+            expired_keys = [
+                k for k, expiry in list(storage.expirations.items())
+                if expiry <= now
+            ]
+            for k in expired_keys:
+                storage.storage.pop(k, None)
+                storage.expirations.pop(k, None)
+            if expired_keys:
+                logger.info(f"Rate limit cleanup: evicted {len(expired_keys)} expired entries")
+    except Exception as e:
+        logger.warning(f"Rate limit cleanup failed (non-fatal): {e}")
 
 
 def rate_limit_exceeded_handler(request: Request, exc: RateLimitExceeded) -> JSONResponse:

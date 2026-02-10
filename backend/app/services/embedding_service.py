@@ -23,6 +23,21 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_TOP_K = 10
 
+# Shared AsyncOpenAI client — avoids leaking httpx connection pools when
+# EmbeddingService is instantiated per-request (which happens on every
+# conversation message, journal create/update, and admin backfill).
+_shared_async_client: Optional[AsyncOpenAI] = None
+
+
+def _get_shared_client() -> AsyncOpenAI:
+    global _shared_async_client
+    if _shared_async_client is None:
+        _shared_async_client = AsyncOpenAI(
+            api_key=settings.OPENAI_API_KEY,
+            timeout=settings.OPENAI_TIMEOUT_SECONDS
+        )
+    return _shared_async_client
+
 
 def compute_content_hash(title: str, content: str) -> str:
     """Compute SHA-256 hash of journal entry content for change detection."""
@@ -35,10 +50,7 @@ class EmbeddingService:
 
     def __init__(self, db: Session):
         self.db = db
-        self.client = AsyncOpenAI(
-            api_key=settings.OPENAI_API_KEY,
-            timeout=settings.OPENAI_TIMEOUT_SECONDS
-        )
+        self.client = _get_shared_client()
 
     async def generate_embedding(self, text: str) -> List[float]:
         """Generate embedding vector for text using OpenAI."""

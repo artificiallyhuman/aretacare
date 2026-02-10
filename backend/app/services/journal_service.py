@@ -1443,7 +1443,9 @@ IMPORTANT: Respond with ONLY a valid JSON object in this exact format, with no a
                     "oldest_date": None,
                 }
 
-            # Fetch all entries for those dates
+            # Fetch entries for those dates with a safety cap to bound memory usage.
+            # 90 dates × ~20 entries/date = ~1800 typical; cap at 2000 for pathological cases.
+            MAX_ENTRIES = 2000
             entries = (
                 self.db.query(JournalEntry)
                 .filter(
@@ -1451,6 +1453,7 @@ IMPORTANT: Respond with ONLY a valid JSON object in this exact format, with no a
                     JournalEntry.entry_date.in_(target_dates)
                 )
                 .order_by(desc(JournalEntry.entry_date), desc(JournalEntry.created_at))
+                .limit(MAX_ENTRIES)
                 .all()
             )
 
@@ -1475,14 +1478,14 @@ IMPORTANT: Respond with ONLY a valid JSON object in this exact format, with no a
         session_id: str,
         target_date: date
     ) -> List[JournalEntry]:
-        """Get all entries for a specific date"""
+        """Get entries for a specific date (capped at 200 for memory safety)."""
         try:
             entries = self.db.query(JournalEntry).filter(
                 and_(
                     JournalEntry.session_id == session_id,
                     JournalEntry.entry_date == target_date
                 )
-            ).order_by(desc(JournalEntry.created_at)).all()
+            ).order_by(desc(JournalEntry.created_at)).limit(200).all()
 
             return entries
 
@@ -1493,14 +1496,14 @@ IMPORTANT: Respond with ONLY a valid JSON object in this exact format, with no a
     # Helper methods
 
     def _get_recent_entries(self, session_id: str, days: int = 7) -> List[JournalEntry]:
-        """Get journal entries from last N days"""
+        """Get journal entries from last N days (capped at 200 for memory safety)."""
         cutoff_date = date.today() - timedelta(days=days)
         return self.db.query(JournalEntry).filter(
             and_(
                 JournalEntry.session_id == session_id,
                 JournalEntry.entry_date >= cutoff_date
             )
-        ).order_by(desc(JournalEntry.entry_date)).all()
+        ).order_by(desc(JournalEntry.entry_date)).limit(200).all()
 
     def _get_document_sourced_entries(self, session_id: str, days: int = 30) -> List[dict]:
         """Get journal entries created from document uploads within the last N days, with filenames.

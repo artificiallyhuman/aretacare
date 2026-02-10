@@ -7,10 +7,11 @@ from slowapi.errors import RateLimitExceeded
 from app.core.config import settings
 from app.core.database import engine, Base, SessionLocal
 from app.core.migrations import run_migrations
-from app.core.rate_limit import limiter, rate_limit_exceeded_handler
+from app.core.rate_limit import limiter, rate_limit_exceeded_handler, cleanup_rate_limit_storage
 from app.core.security_headers import SecurityHeadersMiddleware
 from app.api import api_router
 from app.services.admin_service import admin_service
+import asyncio
 import logging
 import os
 import traceback
@@ -288,6 +289,26 @@ async def startup_cleanup():
 
     finally:
         db.close()
+
+
+# Periodic background task to evict expired rate-limit entries from memory
+_rate_limit_cleanup_task = None
+
+async def _periodic_rate_limit_cleanup():
+    """Run rate limit storage cleanup every hour."""
+    while True:
+        await asyncio.sleep(3600)  # 1 hour
+        cleanup_rate_limit_storage()
+
+@app.on_event("startup")
+async def start_periodic_tasks():
+    global _rate_limit_cleanup_task
+    _rate_limit_cleanup_task = asyncio.create_task(_periodic_rate_limit_cleanup())
+
+@app.on_event("shutdown")
+async def stop_periodic_tasks():
+    if _rate_limit_cleanup_task:
+        _rate_limit_cleanup_task.cancel()
 
 
 @app.get("/")
