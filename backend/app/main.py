@@ -311,9 +311,9 @@ async def stop_periodic_tasks():
         _rate_limit_cleanup_task.cancel()
 
 
-@app.get("/")
+@app.api_route("/", methods=["GET", "HEAD"])
 async def root():
-    """Root endpoint"""
+    """Root endpoint (supports HEAD for health probes)"""
     return {
         "message": "Welcome to AretaCare API",
         "description": "Calm. Clarity. Confidence.",
@@ -322,9 +322,9 @@ async def root():
     }
 
 
-@app.get("/health")
+@app.api_route("/health", methods=["GET", "HEAD"])
 async def health_check():
-    """Health check endpoint"""
+    """Health check endpoint (supports HEAD for health probes)"""
     return {
         "status": "healthy",
         "service": "AretaCare API"

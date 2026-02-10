@@ -508,8 +508,10 @@ async def reset_to_message(
             m.audio_recording_id for m in messages_to_delete if m.audio_recording_id is not None
         ))
 
-        # Delete journal entries synthesized from deleted messages
-        journal_count = 0
+        # Delete journal entries synthesized from deleted messages.
+        # An entry can match multiple criteria (e.g. source_message_ids AND
+        # source_document_id), so track deleted IDs to avoid double-delete.
+        deleted_journal_ids: set = set()
 
         # Journal entries linked via source_message_ids (array overlap)
         if deleted_message_ids:
@@ -517,28 +519,31 @@ async def reset_to_message(
                 JournalEntry.session_id == session_id,
                 cast(JournalEntry.source_message_ids, PG_ARRAY(Integer)).overlap(deleted_message_ids)
             ).all()
-            journal_count += len(journal_from_messages)
             for entry in journal_from_messages:
+                deleted_journal_ids.add(entry.id)
                 db.delete(entry)
 
-        # Journal entries linked via source_document_id (cascade would handle this,
-        # but we count them and delete explicitly for accurate reporting)
+        # Journal entries linked via source_document_id
         if document_ids:
             journal_from_docs = db.query(JournalEntry).filter(
-                JournalEntry.source_document_id.in_(document_ids)
+                JournalEntry.source_document_id.in_(document_ids),
+                ~JournalEntry.id.in_(deleted_journal_ids) if deleted_journal_ids else True
             ).all()
-            journal_count += len(journal_from_docs)
             for entry in journal_from_docs:
+                deleted_journal_ids.add(entry.id)
                 db.delete(entry)
 
         # Journal entries linked via source_audio_id
         if audio_ids:
             journal_from_audio = db.query(JournalEntry).filter(
-                JournalEntry.source_audio_id.in_(audio_ids)
+                JournalEntry.source_audio_id.in_(audio_ids),
+                ~JournalEntry.id.in_(deleted_journal_ids) if deleted_journal_ids else True
             ).all()
-            journal_count += len(journal_from_audio)
             for entry in journal_from_audio:
+                deleted_journal_ids.add(entry.id)
                 db.delete(entry)
+
+        journal_count = len(deleted_journal_ids)
 
         # Delete S3 files for documents (non-fatal)
         if document_ids:
