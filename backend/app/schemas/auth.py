@@ -38,12 +38,14 @@ class UserResponse(BaseModel):
 class TokenResponse(BaseModel):
     """Schema for token response.
 
-    Note: refresh_token is no longer returned in the response body for security.
-    It is only sent via HttpOnly cookie to prevent XSS attacks from stealing it.
+    Note: refresh_token is only returned in the response body for iOS clients
+    (identified by X-Client-Type: ios header) which store it in Keychain.
+    Web clients receive it only via HttpOnly cookie to prevent XSS attacks.
     """
     access_token: str
     token_type: str = "bearer"
     user: UserResponse
+    refresh_token: str | None = None
 
 
 class RefreshTokenRequest(BaseModel):
@@ -123,3 +125,7 @@ class LoginResponse(BaseModel):
     requires_mfa: bool = False
     mfa_token: str | None = None
     mfa_methods: list[str] | None = None
+
+    # iOS-only fields (included when X-Client-Type: ios header is present)
+    refresh_token: str | None = None
+    trusted_device_token: str | None = None

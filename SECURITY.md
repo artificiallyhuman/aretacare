@@ -118,6 +118,7 @@ AretaCare implements comprehensive security measures:
 - **MFA Lockout**: 5 failed MFA attempts triggers 15-minute lockout with security alert
 - **Account Enumeration Prevention**: Registration returns identical responses for existing and new emails
 - **Sign Out Everywhere**: Users can end all active sign-ins
+- **Biometric Re-Auth (iOS)**: Opt-in Face ID/Touch ID lock when app returns from background after 5 minutes; falls back to device passcode if biometric is unavailable
 
 ### Multi-Factor Authentication (MFA)
 - **Passkeys (WebAuthn)**: Phishing-resistant authentication using biometrics or hardware keys; maximum 10 per account
@@ -139,12 +140,14 @@ AretaCare implements comprehensive security measures:
 
 ### Data Protection
 - **Encryption in Transit**: TLS/SSL for all connections, HSTS header enforces HTTPS (1-year max-age, preload)
+- **SSL Certificate Pinning (iOS)**: Public key pinning using SHA-256 hashes prevents MITM attacks; pins validated against server certificate chain on every request
 - **Encryption at Rest**: S3 server-side encryption (AES-256)
 - **SQL Injection Prevention**: SQLAlchemy ORM with parameterized queries
-- **XSS Prevention**: ReactMarkdown for safe content rendering
+- **XSS Prevention**: ReactMarkdown (web) and MarkdownUI (iOS) for safe content rendering
 - **Input Validation**: Pydantic schemas for all API requests
 - **Session Name Validation**: Character restrictions (alphanumeric, spaces, hyphens, underscores, apostrophes only)
 - **Security Headers**: X-Content-Type-Options, X-Frame-Options, X-XSS-Protection, Referrer-Policy, Permissions-Policy, CSP
+- **Build Safety (iOS)**: Release builds crash immediately if `API_BASE_URL` is not configured, preventing accidental localhost connections in production
 
 ### File Upload Security
 - **Content-Disposition Headers**: Forces download instead of browser execution
@@ -186,4 +189,4 @@ If you have questions about this security policy or responsible disclosure, plea
 
 ---
 
-**Last Updated**: 2026-02-09
+**Last Updated**: 2026-02-10

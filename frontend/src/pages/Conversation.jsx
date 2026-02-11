@@ -21,6 +21,7 @@ const Conversation = () => {
   // Session background color (only when user has 2+ sessions)
   const sessionColorClass = sessions.length > 1 ? getColorClasses(activeSession?.color_key) : '';
   const [messages, setMessages] = useState([]);
+  const [historyLoaded, setHistoryLoaded] = useState(false);
   const [dailyPlanPanelOpen, setDailyPlanPanelOpen] = useState(false);
   const [hasNewDailyPlan, setHasNewDailyPlan] = useState(false);
   const [showHowItWorks, setShowHowItWorks] = useState(false);
@@ -209,6 +210,7 @@ const Conversation = () => {
       // Mark that we need to scroll after messages load for THIS session
       sessionSwitchScrollPending.current = activeSessionId;
       sessionSwitchScrollWindow.current = true;
+      setHistoryLoaded(false);
       loadConversationHistory();
       checkDailyPlan();
 
@@ -321,10 +323,12 @@ const Conversation = () => {
       if (resetPagination) {
         setCurrentOffset(MESSAGE_PAGE_SIZE);
       }
+      setHistoryLoaded(true);
       // Scroll to bottom is handled by the sessionSwitchScrollPending useEffect
       // which properly waits for images to load after React re-renders
     } catch (err) {
       console.error('Error loading conversation history:', err);
+      setHistoryLoaded(true);
     }
   };
 
@@ -743,9 +747,9 @@ const Conversation = () => {
             onScroll={handleScroll}
             role="region"
             aria-label="Conversation messages"
-            className={`flex-1 p-2 md:p-4 space-y-2 overscroll-contain ${messages.length === 0 ? 'overflow-hidden' : 'overflow-y-auto'}`}
+            className={`flex-1 p-2 md:p-4 space-y-2 overscroll-contain ${messages.length === 0 && historyLoaded ? 'overflow-hidden' : 'overflow-y-auto'}`}
           >
-            {messages.length === 0 ? (
+            {messages.length === 0 && historyLoaded ? (
               <div className="flex flex-col items-center justify-center h-full">
                 <div className="max-w-2xl mx-auto px-4 md:px-6">
                   {/* Important Banner */}
@@ -953,7 +957,7 @@ const Conversation = () => {
           <MessageInput
             onSendMessage={handleSendMessageWithDuplicateCheck}
             loading={loading || isUploading}
-            hasMessages={messages.length > 0}
+            hasMessages={messages.length > 0 || !historyLoaded}
           />
         </div>
       </div>

@@ -20,6 +20,7 @@ async def get_audio_recordings(
     session_id: str,
     category: str = None,
     search: str = Query(None, max_length=100),
+    date: str = None,
     limit: int = Query(50, ge=1, le=100),
     offset: int = Query(0, ge=0, le=10000),
     current_user: User = Depends(get_current_user),
@@ -52,6 +53,17 @@ async def get_audio_recordings(
             (AudioRecording.ai_summary.ilike(search_term)) |
             (AudioRecording.transcribed_text.ilike(search_term))
         )
+
+    # Filter by date if provided
+    if date:
+        from datetime import date as date_type
+        from sqlalchemy import cast
+        from sqlalchemy import Date as SQLDate
+        try:
+            parsed_date = date_type.fromisoformat(date)
+            query = query.filter(cast(AudioRecording.created_at, SQLDate) == parsed_date)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid date format (use YYYY-MM-DD)")
 
     # Get total count before pagination
     total = query.count()
@@ -111,6 +123,41 @@ async def get_audio_recordings(
         "recordings": rec_responses,
         "has_more": (offset + len(recordings)) < total,
         "total": total
+    }
+
+
+@router.get("/{session_id}/dates")
+async def get_audio_recording_dates(
+    session_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Get all distinct dates that have audio recordings, with counts."""
+    from sqlalchemy import func, desc, cast
+    from sqlalchemy import Date as SQLDate
+
+    session = db.query(SessionModel).filter(SessionModel.id == session_id).first()
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+    check_session_access(session, current_user.id, db)
+
+    date_col = cast(AudioRecording.created_at, SQLDate)
+    rows = (
+        db.query(
+            date_col.label("recording_date"),
+            func.count(AudioRecording.id).label("entry_count")
+        )
+        .filter(AudioRecording.session_id == session_id)
+        .group_by(date_col)
+        .order_by(desc(date_col))
+        .all()
+    )
+
+    return {
+        "dates": [
+            {"date": row.recording_date.isoformat(), "entry_count": row.entry_count}
+            for row in rows
+        ]
     }
 
 

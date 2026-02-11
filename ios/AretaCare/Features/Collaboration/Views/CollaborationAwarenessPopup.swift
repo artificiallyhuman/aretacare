@@ -1,0 +1,89 @@
+import SwiftUI
+
+struct CollaborationAwarenessPopup: View {
+    let session: SessionResponse
+    let onDismiss: () -> Void
+
+    var body: some View {
+        VStack(spacing: 20) {
+            Image(systemName: "person.2.circle.fill")
+                .font(.system(size: 48))
+                .foregroundStyle(Color.accentColor)
+
+            Text("Shared Session")
+                .font(.title3.weight(.bold))
+
+            Text("Your current session \"\(session.name)\" is shared with other people. Information you add will be visible to all collaborators.")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+
+            if !session.collaborators.isEmpty {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Collaborators:")
+                        .font(.subheadline.weight(.medium))
+
+                    ForEach(session.collaborators) { collaborator in
+                        HStack(spacing: 8) {
+                            Image(systemName: "person.circle")
+                                .foregroundStyle(.secondary)
+                            Text(collaborator.name)
+                                .font(.subheadline)
+                        }
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding()
+                .background(Color(.systemGray6))
+                .clipShape(RoundedRectangle(cornerRadius: 10))
+            }
+
+            Button {
+                onDismiss()
+            } label: {
+                Text("Got It")
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.borderedProminent)
+        }
+        .padding(24)
+    }
+}
+
+// MARK: - View Modifier for showing at login
+
+struct CollaborationAwarenessModifier: ViewModifier {
+    let session: SessionResponse?
+    @Binding var hasShownPopup: Bool
+
+    @State private var showPopup = false
+
+    func body(content: Content) -> some View {
+        content
+            .onChange(of: session?.id, initial: true) { _, _ in
+                checkAndShow()
+            }
+            .sheet(isPresented: $showPopup) {
+                if let session {
+                    CollaborationAwarenessPopup(session: session) {
+                        showPopup = false
+                        hasShownPopup = true
+                    }
+                    .presentationDetents([.medium])
+                }
+            }
+    }
+
+    private func checkAndShow() {
+        guard !hasShownPopup,
+              let session,
+              !session.collaborators.isEmpty else { return }
+        showPopup = true
+    }
+}
+
+extension View {
+    func collaborationAwareness(session: SessionResponse?, hasShownPopup: Binding<Bool>) -> some View {
+        modifier(CollaborationAwarenessModifier(session: session, hasShownPopup: hasShownPopup))
+    }
+}

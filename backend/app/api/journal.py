@@ -169,6 +169,43 @@ async def get_entries_for_date(
     return entries
 
 
+@router.get("/{session_id}/dates")
+async def get_journal_dates(
+    session_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Get all distinct dates that have journal entries, with entry counts.
+
+    Returns a lightweight list for the calendar/date picker view.
+    """
+    from app.models.journal import JournalEntry
+    from sqlalchemy import func, desc
+
+    session = db.query(SessionModel).filter(SessionModel.id == session_id).first()
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+    check_session_access(session, current_user.id, db)
+
+    rows = (
+        db.query(
+            JournalEntry.entry_date,
+            func.count(JournalEntry.id).label("entry_count")
+        )
+        .filter(JournalEntry.session_id == session_id)
+        .group_by(JournalEntry.entry_date)
+        .order_by(desc(JournalEntry.entry_date))
+        .all()
+    )
+
+    return {
+        "dates": [
+            {"date": row.entry_date.isoformat(), "entry_count": row.entry_count}
+            for row in rows
+        ]
+    }
+
+
 @router.post("/{session_id}", response_model=JournalEntryResponse)
 async def create_journal_entry(
     session_id: str,

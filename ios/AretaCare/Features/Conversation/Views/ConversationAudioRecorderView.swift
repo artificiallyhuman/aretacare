@@ -1,0 +1,79 @@
+import SwiftUI
+
+struct ConversationAudioRecorderView: View {
+    let recorder: AudioRecorderManager
+    var onCancel: () -> Void
+    var onStop: (Data) -> Void
+
+    @State private var sendTrigger = 0
+
+    var body: some View {
+        VStack(spacing: 0) {
+            Divider()
+
+            HStack(spacing: 16) {
+                // Cancel button
+                Button {
+                    recorder.stop()
+                    onCancel()
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.title2)
+                        .foregroundStyle(.secondary)
+                }
+
+                // Waveform
+                HStack(spacing: 4) {
+                    ForEach(0..<5, id: \.self) { index in
+                        WaveformBar(isAnimating: recorder.isRecording, delay: Double(index) * 0.08)
+                    }
+                }
+                .frame(height: 32)
+
+                // Timer
+                Text(recorder.formattedDuration)
+                    .font(.system(.body, design: .monospaced))
+                    .foregroundStyle(recorder.isRecording ? Color.red : .secondary)
+                    .frame(minWidth: 50)
+
+                Spacer()
+
+                if recorder.isRecording || recorder.isPaused {
+                    // Pause / Resume
+                    Button {
+                        if recorder.isPaused {
+                            recorder.resume()
+                        } else {
+                            recorder.pause()
+                        }
+                    } label: {
+                        Image(systemName: recorder.isPaused ? "play.circle.fill" : "pause.circle.fill")
+                            .font(.title2)
+                            .foregroundStyle(Color.accentColor)
+                    }
+                }
+
+                // Stop and send
+                Button {
+                    stopAndSend()
+                } label: {
+                    Image(systemName: "arrow.up.circle.fill")
+                        .font(.title)
+                        .foregroundStyle(Color.accentColor)
+                }
+                .sensoryFeedback(.success, trigger: sendTrigger)
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 10)
+            .background(Color(.systemBackground))
+        }
+    }
+
+    private func stopAndSend() {
+        Task {
+            guard let audioData = await recorder.stopAsync() else { return }
+            sendTrigger += 1
+            onStop(audioData)
+        }
+    }
+}

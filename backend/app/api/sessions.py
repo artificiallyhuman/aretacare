@@ -676,6 +676,17 @@ async def share_session(
             owner_name=owner.name
         )
 
+    # Push notification to the new collaborator (non-blocking)
+    try:
+        from app.services.push_notification_service import PushNotificationService
+        PushNotificationService.notify_session_shared(
+            session_name=session.name,
+            owner_name=owner.name if owner else "Someone",
+            target_user_id=target_user.id,
+        )
+    except Exception as push_err:
+        logger.warning(f"Push notification failed (non-fatal): {push_err}")
+
     # Get owned session count for the new collaborator
     owned_count = db.query(func.count(SessionModel.id)).filter(
         SessionModel.user_id == target_user.id

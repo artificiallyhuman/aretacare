@@ -1,0 +1,10 @@
+// Debug configuration for AretaCare
+// Local development settings
+
+#include? "Secrets.xcconfig"
+
+API_BASE_URL = http:/$()/localhost:8000/api
+FRONTEND_URL = http:/$()/localhost:3001
+SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG
+GCC_OPTIMIZATION_LEVEL = 0
+ENABLE_TESTABILITY = YES

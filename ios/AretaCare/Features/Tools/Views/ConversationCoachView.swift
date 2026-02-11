@@ -1,0 +1,241 @@
+import SwiftUI
+
+struct ConversationCoachView: View {
+    let sessionId: String
+
+    @State private var viewModel = ToolsViewModel()
+    @State private var situation = ""
+    @State private var copyTrigger = 0
+
+    // Audio recording state
+    @State private var isRecordingAudio = false
+    @State private var audioRecorder = AudioRecorderManager()
+    @State private var isTranscribing = false
+    @State private var showingMicPermissionAlert = false
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 20) {
+                // Medical disclaimer
+                HStack(spacing: 8) {
+                    Image(systemName: "info.circle")
+                        .foregroundStyle(.orange)
+                        .font(.caption)
+                    Text("This tool is for preparation purposes only and is not medical advice.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                .padding(10)
+                .background(
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(Color.orange.opacity(0.08))
+                )
+
+                // Input
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("Describe the healthcare conversation you want to prepare for and get personalized coaching tips.")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack {
+                            Text("Situation")
+                                .font(.subheadline.weight(.medium))
+                            Spacer()
+                            if isTranscribing {
+                                HStack(spacing: 4) {
+                                    ProgressView()
+                                        .controlSize(.small)
+                                    Text("Transcribing...")
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
+                        }
+
+                        TextEditor(text: $situation)
+                            .frame(minHeight: 100)
+                            .padding(8)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 8)
+                                    .stroke(Color(.separator), lineWidth: 0.5)
+                            )
+                            .overlay(alignment: .topLeading) {
+                                if situation.isEmpty {
+                                    Text("e.g., I have an upcoming appointment with my oncologist to discuss treatment options...")
+                                        .font(.body)
+                                        .foregroundStyle(.tertiary)
+                                        .padding(.horizontal, 12)
+                                        .padding(.vertical, 16)
+                                        .allowsHitTesting(false)
+                                }
+                            }
+                            .disabled(isTranscribing)
+                    }
+
+                    // Audio recording for voice input
+                    if isRecordingAudio {
+                        HStack(spacing: 12) {
+                            Circle()
+                                .fill(Color.red)
+                                .frame(width: 10, height: 10)
+
+                            HStack(spacing: 4) {
+                                ForEach(0..<5, id: \.self) { index in
+                                    WaveformBar(isAnimating: audioRecorder.isRecording, delay: Double(index) * 0.08)
+                                }
+                            }
+                            .frame(height: 24)
+
+                            Text(audioRecorder.formattedDuration)
+                                .font(.system(.caption, design: .monospaced))
+                                .foregroundStyle(.secondary)
+
+                            if audioRecorder.elapsedTime > AppConstants.maxRecordingDuration - 60 {
+                                Text("< 1 min left")
+                                    .font(.caption2)
+                                    .foregroundStyle(.orange)
+                            }
+
+                            Spacer()
+
+                            Button {
+                                stopRecordingAndTranscribe()
+                            } label: {
+                                Image(systemName: "stop.circle.fill")
+                                    .font(.title2)
+                                    .foregroundStyle(Color.red)
+                            }
+
+                            Button {
+                                audioRecorder.stop()
+                                isRecordingAudio = false
+                            } label: {
+                                Image(systemName: "xmark.circle.fill")
+                                    .font(.title2)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                        .padding(10)
+                        .background(Color(.tertiarySystemBackground))
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                    }
+
+                    HStack(spacing: 12) {
+                        if !isRecordingAudio {
+                            Button {
+                                startRecording()
+                            } label: {
+                                Label("Record", systemImage: "mic.fill")
+                            }
+                            .buttonStyle(.bordered)
+                            .disabled(viewModel.isCoaching || isTranscribing)
+                        }
+
+                        Button {
+                            Task {
+                                await viewModel.getCoaching(situation: situation, sessionId: sessionId)
+                            }
+                        } label: {
+                            if viewModel.isCoaching {
+                                ProgressView()
+                                    .frame(maxWidth: .infinity)
+                            } else {
+                                Text("Get Coaching")
+                                    .frame(maxWidth: .infinity)
+                            }
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .disabled(situation.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || viewModel.isCoaching || isRecordingAudio || isTranscribing)
+                    }
+                }
+                .disabled(viewModel.isCoaching)
+                .padding()
+                .background(Color(.secondarySystemGroupedBackground))
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+
+                // Result
+                if let result = viewModel.coachingResult {
+                    VStack(alignment: .leading, spacing: 12) {
+                        HStack {
+                            Image(systemName: "bubble.left.and.text.bubble.right")
+                                .foregroundStyle(Color.accentColor)
+                            Text("Coaching Advice")
+                                .font(.headline)
+                            Spacer()
+                            Button {
+                                UIPasteboard.general.string = result
+                                copyTrigger += 1
+                            } label: {
+                                Image(systemName: "doc.on.doc")
+                                    .font(.subheadline)
+                                    .foregroundStyle(Color.accentColor)
+                            }
+                        }
+
+                        Divider()
+
+                        MarkdownTextView(content: result)
+                    }
+                    .padding()
+                    .background(Color(.secondarySystemGroupedBackground))
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                }
+
+                // Error
+                if let error = viewModel.errorMessage {
+                    ErrorBannerView(message: error) { viewModel.dismissError() }
+                }
+            }
+            .padding()
+        }
+        .sensoryFeedback(.success, trigger: copyTrigger)
+        .alert("Microphone Access Required", isPresented: $showingMicPermissionAlert) {
+            Button("Open Settings") {
+                if let url = URL(string: UIApplication.openSettingsURLString) {
+                    UIApplication.shared.open(url)
+                }
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Please allow microphone access in Settings to record audio.")
+        }
+        .navigationTitle("Conversation Coach")
+    }
+
+    // MARK: - Audio Recording
+
+    private func startRecording() {
+        Task {
+            let granted = await audioRecorder.requestPermission()
+            if granted {
+                isRecordingAudio = true
+                audioRecorder.start(maxDuration: AppConstants.maxRecordingDuration) {
+                    stopRecordingAndTranscribe()
+                }
+            } else {
+                showingMicPermissionAlert = true
+            }
+        }
+    }
+
+    private func stopRecordingAndTranscribe() {
+        guard let audioData = audioRecorder.stop() else {
+            isRecordingAudio = false
+            return
+        }
+        isRecordingAudio = false
+        isTranscribing = true
+
+        Task {
+            if let transcription = await viewModel.transcribeAudio(data: audioData, sessionId: sessionId) {
+                if situation.isEmpty {
+                    situation = transcription
+                } else {
+                    situation += " " + transcription
+                }
+            }
+            isTranscribing = false
+        }
+    }
+}

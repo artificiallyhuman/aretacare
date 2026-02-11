@@ -2139,3 +2139,34 @@ def run_migrations():
                         logger.warning(f"Failed to create index {idx_name}: {e}")
                         conn.rollback()
             mark_migration_complete(conn, migration_name)
+
+        # ==========================================
+        # DEVICE TOKENS TABLE (Push Notifications)
+        # ==========================================
+        migration_name = "create_device_tokens_table"
+        if not has_migration_run(conn, migration_name):
+            logger.info("Running migration: create_device_tokens_table")
+            try:
+                conn.execute(text("""
+                    CREATE TABLE IF NOT EXISTS device_tokens (
+                        id VARCHAR PRIMARY KEY,
+                        user_id VARCHAR NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                        token VARCHAR NOT NULL,
+                        platform VARCHAR(10) NOT NULL DEFAULT 'ios',
+                        app_version VARCHAR(20),
+                        created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+                        last_used_at TIMESTAMP NOT NULL DEFAULT NOW()
+                    )
+                """))
+                conn.execute(text(
+                    "CREATE INDEX IF NOT EXISTS idx_device_tokens_user_id ON device_tokens(user_id)"
+                ))
+                conn.execute(text(
+                    "CREATE UNIQUE INDEX IF NOT EXISTS idx_device_tokens_token ON device_tokens(token)"
+                ))
+                conn.commit()
+                mark_migration_complete(conn, migration_name)
+                logger.info("Created device_tokens table")
+            except Exception as e:
+                logger.error(f"Failed to create device_tokens table: {e}")
+                conn.rollback()

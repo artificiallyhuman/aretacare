@@ -24,6 +24,7 @@ from app.models.mfa_challenge import MFAChallenge
 from app.models.consent_record import ConsentRecord, ConsentType, CONSENT_VERSIONS
 from app.models.user_session_color import UserSessionColor
 from app.models.journal_entry_embedding import JournalEntryEmbedding
+from app.models.device_token import DeviceToken
 
 __all__ = [
     "User", "Session", "SessionCollaborator", "PendingInvitation", "Document", "DocumentCategory",
@@ -32,5 +33,5 @@ __all__ = [
     "SecurityLog", "ErrorLog", "ApiLog", "Profile", "RefreshToken", "WaitlistEntry",
     "UserPasskey", "UserTOTPSecret", "UserBackupCode", "TrustedDevice", "MFAChallenge",
     "ConsentRecord", "ConsentType", "CONSENT_VERSIONS", "UserSessionColor",
-    "JournalEntryEmbedding"
+    "JournalEntryEmbedding", "DeviceToken"
 ]

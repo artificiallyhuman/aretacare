@@ -185,7 +185,7 @@ All admin actions are logged to the audit log.
 | At Rest (S3) | AES-256 server-side encryption |
 | Passwords | bcrypt hashing |
 | SQL Injection | SQLAlchemy ORM with parameterized queries |
-| XSS Prevention | ReactMarkdown for safe rendering |
+| XSS Prevention | ReactMarkdown (web), MarkdownUI (iOS) for safe rendering |
 
 ### Complete Data Deletion
 
@@ -280,9 +280,22 @@ base-uri 'self'
 
 ## Frontend Security
 
+### Web (React)
 - **Token storage**: Access token in localStorage (short-lived), refresh token in HttpOnly cookie only
 - **XSS prevention**: ReactMarkdown for content rendering, no `dangerouslySetInnerHTML`
 - **Credentials**: `withCredentials: true` on axios for cookie transmission
+
+### iOS (SwiftUI)
+- **Token storage**: Access token and refresh token stored in iOS Keychain via KeychainAccess (hardware-backed encryption); keychain errors logged in DEBUG builds for diagnostics
+- **XSS prevention**: MarkdownUI for safe markdown rendering (no raw HTML injection)
+- **SSL certificate pinning**: `CertificatePinningDelegate` validates server certificate public key hashes (SHA-256) against pinned values on every request; bypasses pinning for localhost/127.0.0.1 in DEBUG builds only
+- **API base URL enforcement**: Release builds crash at startup (`fatalError`) if `API_BASE_URL` is not configured, preventing accidental connections to localhost in production; DEBUG builds fall back to localhost
+- **APNs entitlements**: Per-configuration entitlements — `aps-environment: development` for Debug builds, `aps-environment: production` for Release builds (configured in `project.yml`)
+- **Push token lifecycle**: Push notification token is unregistered on the server (awaited) before auth tokens are cleared during logout, preventing orphaned device registrations
+- **Network security**: `NSAppTransportSecurity` restricts to HTTPS in production; local networking allowed for development only
+- **Thread safety**: `AudioRecorderManager` uses `@MainActor` with `nonisolated` delegate callback dispatching to MainActor, preventing data races on `stopContinuation`
+- **Biometric re-auth**: Opt-in Face ID/Touch ID lock (Settings > Security) requires biometric authentication when app returns from background after 5 minutes (`AppConstants.biometricReauthSeconds`). Uses `.deviceOwnerAuthentication` policy (biometric with device passcode fallback). Preference stored in UserDefaults (cleared on logout). Idle timeout pauses while lock screen is active. Opaque lock screen fully hides health data.
+- **Privacy permissions**: Camera, microphone, photo library, and Face ID usage descriptions declared in Info.plist
 
 ---
 

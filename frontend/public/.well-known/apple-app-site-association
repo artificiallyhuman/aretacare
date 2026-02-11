@@ -1,0 +1,20 @@
+{
+  "applinks": {
+    "details": [
+      {
+        "appIDs": ["TEAMID.com.aretacare.ios"],
+        "paths": [
+          "/verify-email*",
+          "/verify-email-change*",
+          "/password-reset*",
+          "/register*",
+          "/collaboration",
+          "/settings"
+        ]
+      }
+    ]
+  },
+  "webcredentials": {
+    "apps": ["TEAMID.com.aretacare.ios"]
+  }
+}

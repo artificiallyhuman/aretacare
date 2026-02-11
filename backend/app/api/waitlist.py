@@ -40,16 +40,19 @@ async def join_waitlist(
     """
     Add email to waitlist (public endpoint, no auth required).
     Only meaningful when CONTROL_SIGNUPS=TRUE.
-    Requires hCaptcha verification.
+    Requires hCaptcha verification (skipped for iOS native clients which
+    are protected by the existing 5/hour rate limit).
     """
-    # Verify hCaptcha
-    client_ip = get_client_ip(request)
-    is_valid = await verify_hcaptcha(data.captcha_token, client_ip)
-    if not is_valid:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Captcha verification failed. Please try again."
-        )
+    # Skip hCaptcha for iOS native clients (rate limit provides anti-spam protection)
+    is_ios = request.headers.get("X-Client-Type") == "ios"
+    if not is_ios:
+        client_ip = get_client_ip(request)
+        is_valid = await verify_hcaptcha(data.captcha_token, client_ip)
+        if not is_valid:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Captcha verification failed. Please try again."
+            )
 
     email = data.email.lower().strip()
 

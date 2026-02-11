@@ -165,6 +165,24 @@ async def generate_daily_plan(
     ).first()
     plan.viewed = user_view is not None
 
+    # Push notification to session participants (non-blocking)
+    try:
+        from app.models import SessionCollaborator
+        collaborator_ids = [c.user_id for c in db.query(SessionCollaborator.user_id).filter(
+            SessionCollaborator.session_id == session_id
+        ).all()]
+        all_participant_ids = collaborator_ids + [session.owner_id]
+        from app.services.push_notification_service import PushNotificationService
+        PushNotificationService.notify_daily_digest(
+            session_id=session_id,
+            session_name=session.name,
+            user_ids=all_participant_ids,
+            exclude_user_id=current_user.id,
+        )
+    except Exception as push_err:
+        import logging
+        logging.getLogger(__name__).warning(f"Push notification failed (non-fatal): {push_err}")
+
     return plan
 
 
