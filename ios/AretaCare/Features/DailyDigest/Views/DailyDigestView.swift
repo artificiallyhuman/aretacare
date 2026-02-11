@@ -20,12 +20,12 @@ struct DailyDigestView: View {
     @State private var deleteHapticTrigger = 0
 
     var body: some View {
-        VStack(spacing: 0) {
-            if selectedDigest != nil || viewModel.allDigests.count > 1 {
-                dateNavigatorBar
-            }
+        ScrollView {
+            VStack(spacing: 0) {
+                if selectedDigest != nil || viewModel.allDigests.count > 1 {
+                    dateNavigatorBar
+                }
 
-            ScrollView {
                 VStack(spacing: 20) {
                     if viewModel.isLoading && viewModel.allDigests.isEmpty {
                         loadingState
@@ -41,6 +41,7 @@ struct DailyDigestView: View {
             }
         }
         .navigationTitle("Daily Digest")
+        .navigationBarTitleDisplayMode(.large)
         .toolbar {
             ToolbarItem(placement: .topBarLeading) {
                 if !viewModel.allDigests.isEmpty {
@@ -297,35 +298,28 @@ struct DailyDigestView: View {
 
                 Spacer()
 
-                // Action buttons inline
-                Button {
-                    UIPasteboard.general.string = digest.displayContent
-                    copyHapticTrigger += 1
-                } label: {
-                    Image(systemName: "doc.on.doc")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                }
-                .accessibilityLabel("Copy digest")
-
-                Button {
-                    editingContent = digest.displayContent
-                    showingEditor = true
-                } label: {
-                    Image(systemName: "pencil")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                }
-                .accessibilityLabel("Edit digest")
-
                 Menu {
-                    if viewModel.shouldGenerate {
-                        Button {
-                            showRegenerateConfirmation = true
-                        } label: {
-                            Label("Regenerate", systemImage: "arrow.clockwise")
-                        }
+                    Button {
+                        UIPasteboard.general.string = digest.displayContent
+                        copyHapticTrigger += 1
+                    } label: {
+                        Label("Copy", systemImage: "doc.on.doc")
                     }
+
+                    Button {
+                        editingContent = digest.displayContent
+                        showingEditor = true
+                    } label: {
+                        Label("Edit", systemImage: "pencil")
+                    }
+
+                    Button {
+                        showRegenerateConfirmation = true
+                    } label: {
+                        Label("Regenerate", systemImage: "arrow.clockwise")
+                    }
+
+                    Divider()
 
                     Button(role: .destructive) {
                         showDeleteConfirmation = true
