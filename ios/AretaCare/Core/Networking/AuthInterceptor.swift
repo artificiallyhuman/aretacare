@@ -10,6 +10,16 @@ actor AuthInterceptor {
     // Auth endpoints that should not trigger token refresh on 401
     private let noRefreshPaths = ["/auth/refresh", "/auth/login", "/auth/register", "/auth/logout"]
 
+    /// Dedicated URLSession with certificate pinning for token refresh requests.
+    /// Uses the same CertificatePinningDelegate as the main APIClient to ensure
+    /// refresh requests are not vulnerable to MITM attacks.
+    private let pinnedSession: URLSession = {
+        let delegate = CertificatePinningDelegate()
+        let config = URLSessionConfiguration.ephemeral
+        config.timeoutIntervalForRequest = 10
+        return URLSession(configuration: config, delegate: delegate, delegateQueue: nil)
+    }()
+
     // MARK: - Token Management
 
     func setAccessToken(_ token: String?) {
@@ -87,7 +97,7 @@ actor AuthInterceptor {
         let body = ["refresh_token": refreshToken]
         request.httpBody = try JSONEncoder().encode(body)
 
-        let (data, response) = try await URLSession.shared.data(for: request)
+        let (data, response) = try await pinnedSession.data(for: request)
 
         guard let httpResponse = response as? HTTPURLResponse else {
             return nil

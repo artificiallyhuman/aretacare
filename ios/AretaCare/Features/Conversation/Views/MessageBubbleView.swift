@@ -13,6 +13,7 @@ struct MessageBubbleView: View {
     @State private var showTimestamp = false
     @State private var audioPlayer: AVPlayer?
     @State private var isPlayingAudio = false
+    @State private var playbackObserver: NSObjectProtocol?
 
     private var isUser: Bool { message.role == .user }
 
@@ -213,6 +214,10 @@ struct MessageBubbleView: View {
         .onDisappear {
             audioPlayer?.pause()
             isPlayingAudio = false
+            if let obs = playbackObserver {
+                NotificationCenter.default.removeObserver(obs)
+                playbackObserver = nil
+            }
         }
     }
 
@@ -223,8 +228,12 @@ struct MessageBubbleView: View {
         } else {
             if audioPlayer == nil, let urlString = message.mediaUrl, let url = URL(string: urlString) {
                 audioPlayer = AVPlayer(url: url)
+                // Remove any existing observer before adding a new one
+                if let obs = playbackObserver {
+                    NotificationCenter.default.removeObserver(obs)
+                }
                 // Observe when playback ends
-                NotificationCenter.default.addObserver(
+                playbackObserver = NotificationCenter.default.addObserver(
                     forName: .AVPlayerItemDidPlayToEndTime,
                     object: audioPlayer?.currentItem,
                     queue: .main

@@ -2,6 +2,7 @@ import SwiftUI
 
 struct MainTabView: View {
     @State private var sessionVM = SessionViewModel()
+    @State private var digestBadgeVM = DailyDigestViewModel()
     @State private var hasShownCollabPopup = false
     @AppStorage("activeTab") private var activeTab = 0
     private let networkMonitor = NetworkMonitor.shared
@@ -37,6 +38,7 @@ struct MainTabView: View {
                     .tabItem {
                         Label("Digest", systemImage: "doc.text.magnifyingglass")
                     }
+                    .badge(digestBadgeVM.hasUnviewedDigest ? 1 : 0)
 
                     NavigationStack {
                         ToolsMenuView(sessionVM: sessionVM)
@@ -78,6 +80,25 @@ struct MainTabView: View {
         }
         .task {
             await sessionVM.fetchSessions()
+        }
+        .task(id: currentSessionId) {
+            guard !currentSessionId.isEmpty else { return }
+            await digestBadgeVM.fetchAll(sessionId: currentSessionId)
+            // If already on Digest tab, mark as viewed immediately
+            if activeTab == 1, digestBadgeVM.hasUnviewedDigest,
+               let latest = digestBadgeVM.sortedDigests.first {
+                await digestBadgeVM.markViewed(planId: latest.id)
+            }
+        }
+        .onChange(of: activeTab) { oldTab, newTab in
+            if newTab == 1, digestBadgeVM.hasUnviewedDigest,
+               let latest = digestBadgeVM.sortedDigests.first {
+                Task { await digestBadgeVM.markViewed(planId: latest.id) }
+            }
+            // Refresh badge when leaving Digest tab (picks up viewed changes from DailyDigestView)
+            if oldTab == 1, !currentSessionId.isEmpty {
+                Task { await digestBadgeVM.fetchAll(sessionId: currentSessionId) }
+            }
         }
         .onChange(of: notificationRouter.pendingSessionId) { _, sessionId in
             guard let sessionId else { return }

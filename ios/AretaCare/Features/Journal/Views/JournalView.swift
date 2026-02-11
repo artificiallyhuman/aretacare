@@ -50,6 +50,7 @@ struct JournalView: View {
                     } label: {
                         Image(systemName: "calendar")
                     }
+                    .accessibilityLabel("Open calendar")
                 }
             }
         }
@@ -62,9 +63,11 @@ struct JournalView: View {
             await viewModel.fetchDates(sessionId: sessionId)
         }
         .sheet(isPresented: $showingDatePicker) {
-            JournalCalendarSheetView(
+            DateCalendarSheetView(
                 sortedDates: viewModel.sortedDates,
                 selectedDate: viewModel.selectedDateString,
+                title: "Journal Dates",
+                countLabel: { count in "\(count) \(count == 1 ? "entry" : "entries")" },
                 onSelect: { dateInfo in
                     showingDatePicker = false
                     Task { await viewModel.jumpToDate(sessionId: sessionId, date: dateInfo.date) }
@@ -121,22 +124,15 @@ struct JournalView: View {
             HStack(spacing: 8) {
                 ForEach(EntryType.allCases, id: \.self) { entryType in
                     let isSelected = viewModel.selectedEntryTypes.contains(entryType)
-                    Button {
+                    FilterChipView(
+                        title: entryType.displayName,
+                        isSelected: isSelected,
+                        icon: entryType.systemImage,
+                        selectedColor: entryType.themeColor
+                    ) {
                         viewModel.toggleFilter(entryType)
-                    } label: {
-                        HStack(spacing: 4) {
-                            Image(systemName: entryType.systemImage)
-                                .font(.caption2)
-                            Text(entryType.displayName)
-                                .font(.caption)
-                        }
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 6)
-                        .background(
-                            Capsule().fill(isSelected ? entryType.themeColor : Color(.systemGray5))
-                        )
-                        .foregroundStyle(isSelected ? .white : .primary)
                     }
+                    .accessibilityAddTraits(isSelected ? .isSelected : [])
                 }
 
                 if !viewModel.selectedEntryTypes.isEmpty {
@@ -238,6 +234,7 @@ struct JournalView: View {
                         .frame(width: 44, height: 44)
                         .contentShape(Rectangle())
                 }
+                .accessibilityLabel("Previous date")
                 .disabled(viewModel.selectedDateString.flatMap { viewModel.previousDate(before: $0) } == nil)
 
                 Spacer()
@@ -269,6 +266,7 @@ struct JournalView: View {
                         .frame(width: 44, height: 44)
                         .contentShape(Rectangle())
                 }
+                .accessibilityLabel("Next date")
                 .disabled(viewModel.selectedDateString.flatMap { viewModel.nextDate(after: $0) } == nil)
             }
             .padding(.horizontal, 4)
@@ -386,101 +384,6 @@ private struct JournalEntryRow: View {
         .padding(.horizontal)
         .padding(.vertical, 4)
         .contentShape(Rectangle())
-    }
-}
-
-// MARK: - Calendar Sheet View
-
-private struct JournalCalendarSheetView: View {
-    let sortedDates: [JournalDateInfo]
-    let selectedDate: String?
-    let onSelect: (JournalDateInfo) -> Void
-    let onDismiss: () -> Void
-
-    var body: some View {
-        NavigationStack {
-            List {
-                ForEach(groupedByMonth, id: \.month) { group in
-                    Section(group.month) {
-                        ForEach(group.dates) { dateInfo in
-                            Button {
-                                onSelect(dateInfo)
-                            } label: {
-                                dateRow(dateInfo)
-                            }
-                            .listRowBackground(
-                                dateInfo.date == selectedDate
-                                    ? Color.accentColor.opacity(0.1)
-                                    : Color.clear
-                            )
-                        }
-                    }
-                }
-            }
-            .navigationTitle("Journal Dates")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Done") { onDismiss() }
-                }
-            }
-        }
-        .presentationDetents([.medium, .large])
-    }
-
-    private func dateRow(_ dateInfo: JournalDateInfo) -> some View {
-        HStack {
-            if let date = Date.fromAPIDateString(dateInfo.date) {
-                VStack(alignment: .leading, spacing: 2) {
-                    if date.isToday {
-                        Text("Today")
-                            .font(.subheadline.weight(.semibold))
-                            .foregroundStyle(Color.accentColor)
-                    } else {
-                        Text(date.weekdayDateString)
-                            .font(.subheadline.weight(.medium))
-                            .foregroundStyle(.primary)
-                    }
-                }
-            }
-
-            Spacer()
-
-            Text("\(dateInfo.entryCount) \(dateInfo.entryCount == 1 ? "entry" : "entries")")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-
-            if dateInfo.date == selectedDate {
-                Image(systemName: "checkmark")
-                    .font(.caption.weight(.bold))
-                    .foregroundStyle(Color.accentColor)
-            }
-        }
-    }
-
-    private struct MonthGroup {
-        let month: String
-        let dates: [JournalDateInfo]
-    }
-
-    private var groupedByMonth: [MonthGroup] {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "MMMM yyyy"
-
-        var groups: [String: [JournalDateInfo]] = [:]
-        var order: [String] = []
-
-        for dateInfo in sortedDates {
-            if let date = Date.fromAPIDateString(dateInfo.date) {
-                let key = formatter.string(from: date)
-                if groups[key] == nil {
-                    order.append(key)
-                }
-                groups[key, default: []].append(dateInfo)
-            }
-        }
-
-        return order.map { MonthGroup(month: $0, dates: groups[$0] ?? []) }
     }
 }
 

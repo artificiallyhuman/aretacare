@@ -75,8 +75,4 @@ enum AppConstants {
     /// Access token lifetime (for preemptive refresh if needed).
     static let accessTokenLifetimeSeconds: TimeInterval = 60 * 60 // 1 hour
 
-    // MARK: - UI
-
-    /// Debounce interval for search input (seconds).
-    static let searchDebounceSeconds: TimeInterval = 0.3
 }

@@ -17,6 +17,7 @@ struct DocumentsListView: View {
     @State private var showingDatePicker = false
     @State private var uploadHapticTrigger = 0
     @State private var deleteHapticTrigger = 0
+    @State private var showFileSizeAlert = false
 
     private let currentUserId = AuthManager.shared.currentUser?.id ?? ""
 
@@ -103,8 +104,13 @@ struct DocumentsListView: View {
         }
         .overlay {
             if viewModel.isUploading {
-                UploadOverlay()
+                UploadingOverlay()
             }
+        }
+        .alert("File Too Large", isPresented: $showFileSizeAlert) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text("File too large. Maximum file size is 30 MB.")
         }
         .onChange(of: selectedPhotoItems) { _, items in
             handlePhotoSelection(items)
@@ -129,12 +135,12 @@ struct DocumentsListView: View {
     private var categoryFilter: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 8) {
-                FilterChip(title: "All", isSelected: viewModel.selectedCategory == nil) {
+                FilterChipView(title: "All", isSelected: viewModel.selectedCategory == nil) {
                     viewModel.selectedCategory = nil
                 }
 
                 ForEach(DocumentCategory.allCases) { category in
-                    FilterChip(title: category.displayName, isSelected: viewModel.selectedCategory == category) {
+                    FilterChipView(title: category.displayName, isSelected: viewModel.selectedCategory == category) {
                         viewModel.selectedCategory = category
                     }
                 }
@@ -206,8 +212,12 @@ struct DocumentsListView: View {
             defer { url.stopAccessingSecurityScopedResource() }
 
             guard let data = try? Data(contentsOf: url) else { return }
+            if data.count > AppConstants.maxFileSizeBytes {
+                showFileSizeAlert = true
+                return
+            }
             let filename = url.lastPathComponent
-            let contentType = mimeType(for: url.pathExtension)
+            let contentType = url.pathExtension.mimeTypeForExtension
             prepareUpload(data: data, filename: filename, contentType: contentType)
 
         case .failure:
@@ -221,8 +231,23 @@ struct DocumentsListView: View {
 
         Task {
             if let data = try? await item.loadTransferable(type: Data.self) {
-                let filename = "photo_\(Date().apiDateString).jpg"
-                prepareUpload(data: data, filename: filename, contentType: "image/jpeg")
+                if data.count > AppConstants.maxFileSizeBytes {
+                    showFileSizeAlert = true
+                    return
+                }
+                let ext: String
+                let contentType: String
+                if let type = item.supportedContentTypes.first,
+                   let detectedExt = type.preferredFilenameExtension,
+                   let detectedMime = type.preferredMIMEType {
+                    ext = detectedExt
+                    contentType = detectedMime
+                } else {
+                    ext = "jpg"
+                    contentType = "image/jpeg"
+                }
+                let filename = "photo_\(Date().apiDateString).\(ext)"
+                prepareUpload(data: data, filename: filename, contentType: contentType)
             }
         }
     }
@@ -263,15 +288,6 @@ struct DocumentsListView: View {
         }
     }
 
-    private func mimeType(for ext: String) -> String {
-        switch ext.lowercased() {
-        case "pdf": return "application/pdf"
-        case "jpg", "jpeg": return "image/jpeg"
-        case "png": return "image/png"
-        case "txt": return "text/plain"
-        default: return "application/octet-stream"
-        }
-    }
 }
 
 // MARK: - Supporting Views
@@ -280,24 +296,6 @@ private struct PendingUpload {
     let data: Data
     let filename: String
     let contentType: String
-}
-
-private struct FilterChip: View {
-    let title: String
-    let isSelected: Bool
-    let action: () -> Void
-
-    var body: some View {
-        Button(action: action) {
-            Text(title)
-                .font(.subheadline)
-                .padding(.horizontal, 12)
-                .padding(.vertical, 6)
-                .background(isSelected ? Color.accentColor : Color(.systemGray5))
-                .foregroundStyle(isSelected ? .white : .primary)
-                .clipShape(Capsule())
-        }
-    }
 }
 
 private struct DocumentRowView: View {
@@ -391,18 +389,3 @@ private struct DocumentRowView: View {
     }
 }
 
-private struct UploadOverlay: View {
-    var body: some View {
-        ZStack {
-            Color.black.opacity(0.3).ignoresSafeArea()
-            VStack(spacing: 12) {
-                ProgressView()
-                    .controlSize(.large)
-                Text("Uploading...")
-                    .font(.subheadline.weight(.medium))
-            }
-            .padding(24)
-            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16))
-        }
-    }
-}

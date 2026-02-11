@@ -44,12 +44,24 @@ struct AretaCareApp: App {
         let queryItems = components.queryItems ?? []
 
         if path.contains("verify-email"), let token = queryItems.first(where: { $0.name == "token" })?.value {
+            guard isValidDeepLinkToken(token) else { return }
             deepLinkRoute = .verifyEmail(token: token)
         } else if path.contains("password-reset"), let token = queryItems.first(where: { $0.name == "token" })?.value {
+            guard isValidDeepLinkToken(token) else { return }
             deepLinkRoute = .resetPassword(token: token)
         } else if path.contains("register"), let token = queryItems.first(where: { $0.name == "invitation" })?.value {
+            guard isValidDeepLinkToken(token) else { return }
             deepLinkRoute = .register(invitationToken: token)
         }
+    }
+
+    /// Validates that a deep link token is well-formed before passing it to views.
+    /// Rejects empty, excessively long, or tokens with unexpected characters to
+    /// prevent injection attacks via crafted universal links.
+    private func isValidDeepLinkToken(_ token: String) -> Bool {
+        guard !token.isEmpty, token.count <= 500 else { return false }
+        let allowedCharacters = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "-_"))
+        return token.unicodeScalars.allSatisfy { allowedCharacters.contains($0) }
     }
 
     @ViewBuilder

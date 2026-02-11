@@ -6,23 +6,46 @@ import CryptoKit
 final class CertificatePinningDelegate: NSObject, URLSessionDelegate, Sendable {
     // SHA-256 hashes of the SubjectPublicKeyInfo for aretacare.com certificates.
     //
-    // To generate the hash for your certificate:
-    //   openssl s_client -connect aretacare.com:443 -servername aretacare.com 2>/dev/null \
-    //     | openssl x509 -pubkey -noout \
-    //     | openssl pkey -pubin -outform der \
-    //     | openssl dgst -sha256 -binary \
-    //     | base64
+    // IMPORTANT: Replace placeholder hashes before App Store submission.
     //
-    // Include at least 2 hashes: one for the current certificate and one for a backup/CA
-    // to avoid bricking the app when certificates rotate.
+    // Steps to generate the hash for your certificate:
+    //   1. Connect to the production server and extract the public key:
+    //        openssl s_client -connect aretacare.com:443 -servername aretacare.com 2>/dev/null \
+    //          | openssl x509 -pubkey -noout \
+    //          | openssl pkey -pubin -outform der \
+    //          | openssl dgst -sha256 -binary \
+    //          | base64
+    //   2. Copy the base64 output (e.g., "x3pGTSOuJeEVw7jjB/...=") and replace the primary hash below.
+    //   3. Repeat for the intermediate/CA certificate to get the backup hash:
+    //        openssl s_client -connect aretacare.com:443 -servername aretacare.com -showcerts 2>/dev/null \
+    //          | awk '/-----BEGIN CERTIFICATE-----/{n++} n==2' \
+    //          | openssl x509 -pubkey -noout \
+    //          | openssl pkey -pubin -outform der \
+    //          | openssl dgst -sha256 -binary \
+    //          | base64
+    //   4. Include at least 2 hashes (leaf + backup/CA) to avoid bricking the app on certificate rotation.
     //
-    // TODO: Replace these placeholder hashes with actual production certificate hashes before App Store submission.
+    private static let placeholderHashes: Set<String> = [
+        "BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB=",
+        "CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC="
+    ]
+
     private let pinnedKeyHashes: Set<String> = [
         // Primary leaf certificate public key hash
         "BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB=",
         // Backup / intermediate CA public key hash
         "CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC="
     ]
+
+    override init() {
+        super.init()
+        #if !DEBUG
+        if !pinnedKeyHashes.isDisjoint(with: Self.placeholderHashes) {
+            print("[SSL] WARNING: Certificate pinning is using placeholder hashes. Replace with real hashes before App Store submission.")
+            assertionFailure("Certificate pinning placeholder hashes detected in Release build. See CertificatePinningDelegate.swift for instructions.")
+        }
+        #endif
+    }
 
     func urlSession(
         _ session: URLSession,

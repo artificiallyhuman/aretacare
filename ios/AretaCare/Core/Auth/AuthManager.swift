@@ -196,6 +196,12 @@ final class AuthManager {
             stopIdleTimer()
             BiometricManager.shared.clearLock()
             UserDefaults.standard.removeObject(forKey: "biometricLockEnabled")
+            UserDefaults.standard.removeObject(forKey: "lastSessionId")
+            UserDefaults.standard.removeObject(forKey: "activeTab")
+
+            // Clear cached data
+            ConversationViewModel.clearCache()
+            NotificationCenter.default.post(name: .userDidLogout, object: nil)
         }
     }
 
@@ -217,18 +223,19 @@ final class AuthManager {
         stopIdleTimer()
         idleTimer = Timer.scheduledTimer(withTimeInterval: 15, repeats: true) { [weak self] _ in
             guard let self else { return }
+            DispatchQueue.main.async {
+                // Pause idle timeout while biometric lock is active
+                guard !BiometricManager.shared.isLocked else {
+                    self.lastActivityDate = Date()
+                    return
+                }
 
-            // Pause idle timeout while biometric lock is active
-            guard !BiometricManager.shared.isLocked else {
-                self.lastActivityDate = Date()
-                return
-            }
-
-            let elapsed = Date().timeIntervalSince(self.lastActivityDate)
-            if elapsed >= Self.idleTimeoutInterval {
-                Task { await self.logout() }
-            } else if elapsed >= Self.idleWarningInterval {
-                self.showIdleWarning = true
+                let elapsed = Date().timeIntervalSince(self.lastActivityDate)
+                if elapsed >= Self.idleTimeoutInterval {
+                    Task { await self.logout() }
+                } else if elapsed >= Self.idleWarningInterval {
+                    self.showIdleWarning = true
+                }
             }
         }
     }
@@ -253,4 +260,9 @@ struct RegistrationConsents {
     let aiProcessing: Bool
     let terms: Bool
     let ageAndUse: Bool
+}
+
+extension Notification.Name {
+    /// Posted when the user logs out. Caches should observe this to clear sensitive data.
+    static let userDidLogout = Notification.Name("userDidLogout")
 }

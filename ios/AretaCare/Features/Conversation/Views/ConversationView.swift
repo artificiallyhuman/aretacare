@@ -39,6 +39,7 @@ struct ConversationView: View {
     @State private var showingFilePicker = false
     @State private var selectedPhotoItems: [PhotosPickerItem] = []
     @State private var pendingAttachment: PendingAttachment?
+    @State private var showFileSizeAlert = false
 
     private var currentUserId: String {
         AuthManager.shared.currentUser?.id ?? ""
@@ -183,6 +184,11 @@ struct ConversationView: View {
             Button("Cancel", role: .cancel) {}
         } message: {
             Text("Please allow microphone access in Settings to record voice messages.")
+        }
+        .alert("File Too Large", isPresented: $showFileSizeAlert) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text("File too large. Maximum file size is 30 MB.")
         }
         .task {
             await sessionVM.fetchSessions()
@@ -458,6 +464,10 @@ struct ConversationView: View {
 
     private func handleCameraImage(_ image: UIImage) {
         guard let data = image.jpegData(compressionQuality: 0.85) else { return }
+        if data.count > AppConstants.maxFileSizeBytes {
+            showFileSizeAlert = true
+            return
+        }
         let filename = "photo_\(Date().apiDateString).jpg"
         pendingAttachment = PendingAttachment(data: data, filename: filename, contentType: "image/jpeg")
     }
@@ -468,8 +478,23 @@ struct ConversationView: View {
 
         Task {
             if let data = try? await item.loadTransferable(type: Data.self) {
-                let filename = "photo_\(Date().apiDateString).jpg"
-                pendingAttachment = PendingAttachment(data: data, filename: filename, contentType: "image/jpeg")
+                if data.count > AppConstants.maxFileSizeBytes {
+                    showFileSizeAlert = true
+                    return
+                }
+                let ext: String
+                let contentType: String
+                if let type = item.supportedContentTypes.first,
+                   let detectedExt = type.preferredFilenameExtension,
+                   let detectedMime = type.preferredMIMEType {
+                    ext = detectedExt
+                    contentType = detectedMime
+                } else {
+                    ext = "jpg"
+                    contentType = "image/jpeg"
+                }
+                let filename = "photo_\(Date().apiDateString).\(ext)"
+                pendingAttachment = PendingAttachment(data: data, filename: filename, contentType: contentType)
             }
         }
     }
@@ -482,8 +507,12 @@ struct ConversationView: View {
             defer { url.stopAccessingSecurityScopedResource() }
 
             guard let data = try? Data(contentsOf: url) else { return }
+            if data.count > AppConstants.maxFileSizeBytes {
+                showFileSizeAlert = true
+                return
+            }
             let filename = url.lastPathComponent
-            let contentType = mimeType(for: url.pathExtension)
+            let contentType = url.pathExtension.mimeTypeForExtension
             pendingAttachment = PendingAttachment(data: data, filename: filename, contentType: contentType)
 
         case .failure:
@@ -491,90 +520,6 @@ struct ConversationView: View {
         }
     }
 
-    private func mimeType(for ext: String) -> String {
-        switch ext.lowercased() {
-        case "pdf": return "application/pdf"
-        case "jpg", "jpeg": return "image/jpeg"
-        case "png": return "image/png"
-        case "txt": return "text/plain"
-        default: return "application/octet-stream"
-        }
-    }
-}
-
-// MARK: - Typing Bubble
-
-private struct TypingBubbleView: View {
-    @State private var animating = false
-
-    var body: some View {
-        HStack {
-            HStack(spacing: 5) {
-                ForEach(0..<3, id: \.self) { index in
-                    Circle()
-                        .fill(Color(.systemGray))
-                        .frame(width: 8, height: 8)
-                        .scaleEffect(animating ? 1.0 : 0.5)
-                        .opacity(animating ? 1.0 : 0.4)
-                        .animation(
-                            .easeInOut(duration: 0.6)
-                            .repeatForever(autoreverses: true)
-                            .delay(Double(index) * 0.2),
-                            value: animating
-                        )
-                }
-            }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 12)
-            .background(Color(.systemGray6))
-            .clipShape(RoundedRectangle(cornerRadius: 18))
-
-            Spacer()
-        }
-        .onAppear { animating = true }
-    }
-}
-
-// MARK: - Camera Picker
-
-private struct CameraPickerView: UIViewControllerRepresentable {
-    let onCapture: (UIImage) -> Void
-
-    @Environment(\.dismiss) private var dismiss
-
-    func makeCoordinator() -> Coordinator {
-        Coordinator(onCapture: onCapture, dismiss: dismiss)
-    }
-
-    func makeUIViewController(context: Context) -> UIImagePickerController {
-        let picker = UIImagePickerController()
-        picker.sourceType = .camera
-        picker.delegate = context.coordinator
-        return picker
-    }
-
-    func updateUIViewController(_ uiViewController: UIImagePickerController, context: Context) {}
-
-    class Coordinator: NSObject, UIImagePickerControllerDelegate, UINavigationControllerDelegate {
-        let onCapture: (UIImage) -> Void
-        let dismiss: DismissAction
-
-        init(onCapture: @escaping (UIImage) -> Void, dismiss: DismissAction) {
-            self.onCapture = onCapture
-            self.dismiss = dismiss
-        }
-
-        func imagePickerController(_ picker: UIImagePickerController, didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey: Any]) {
-            if let image = info[.originalImage] as? UIImage {
-                onCapture(image)
-            }
-            dismiss()
-        }
-
-        func imagePickerControllerDidCancel(_ picker: UIImagePickerController) {
-            dismiss()
-        }
-    }
 }
 
 #Preview {

@@ -77,7 +77,7 @@ struct AudioRecordingsView: View {
         }
         .overlay {
             if viewModel.isUploading {
-                UploadingOverlay()
+                UploadingOverlay(message: "Uploading & Transcribing...")
             }
         }
         .sensoryFeedback(.impact(flexibility: .rigid), trigger: deleteHapticTrigger)
@@ -429,40 +429,3 @@ private struct AudioRecordingDetailView: View {
     }
 }
 
-// MARK: - Filter Chip
-
-private struct FilterChipView: View {
-    let title: String
-    let isSelected: Bool
-    let action: () -> Void
-
-    var body: some View {
-        Button(action: action) {
-            Text(title)
-                .font(.subheadline)
-                .padding(.horizontal, 12)
-                .padding(.vertical, 6)
-                .background(isSelected ? Color.accentColor : Color(.systemGray5))
-                .foregroundStyle(isSelected ? .white : .primary)
-                .clipShape(Capsule())
-        }
-    }
-}
-
-// MARK: - Upload Overlay
-
-private struct UploadingOverlay: View {
-    var body: some View {
-        ZStack {
-            Color.black.opacity(0.3).ignoresSafeArea()
-            VStack(spacing: 12) {
-                ProgressView()
-                    .controlSize(.large)
-                Text("Uploading & Transcribing...")
-                    .font(.subheadline.weight(.medium))
-            }
-            .padding(24)
-            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16))
-        }
-    }
-}

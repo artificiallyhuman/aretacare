@@ -142,11 +142,12 @@ final class DailyDigestViewModel {
                 APIEndpoints.DailyPlans.markViewed(String(planId)),
                 body: request
             )
+            // Update local state so hasUnviewedDigest recalculates immediately
+            if let index = allDigests.firstIndex(where: { $0.id == planId }) {
+                allDigests[index].viewed = true
+            }
             if latestDigest?.id == planId {
-                // Refresh to get updated state
-                if let sessionId = latestDigest?.sessionId {
-                    await fetchLatest(sessionId: sessionId)
-                }
+                latestDigest?.viewed = true
             }
         } catch {
             // Non-fatal
@@ -178,6 +179,12 @@ final class DailyDigestViewModel {
                 errorMessage = error.localizedDescription
             }
         }
+    }
+
+    /// Whether the latest digest has not been viewed yet.
+    var hasUnviewedDigest: Bool {
+        guard let latest = sortedDigests.first else { return false }
+        return !latest.viewed
     }
 
     func dismissError() {

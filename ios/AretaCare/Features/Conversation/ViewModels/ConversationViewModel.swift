@@ -20,6 +20,26 @@ final class ConversationViewModel {
     private static let maxRetries = 3
     private static let historyCache = ResponseCache<ConversationHistory>(ttl: 120) // 2 min
 
+    // Cached formatters (ARCH-3: avoid creating new instances per call)
+    private static let apiDateFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "yyyy-MM-dd"
+        f.locale = Locale(identifier: "en_US_POSIX")
+        return f
+    }()
+
+    private static let timeFormatter24h: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "HH:mm"
+        f.locale = Locale(identifier: "en_US_POSIX")
+        return f
+    }()
+
+    /// Clears the static history cache. Called on logout.
+    static func clearCache() {
+        historyCache.invalidateAll()
+    }
+
     // MARK: - Fetch History
 
     func fetchHistory(sessionId: String, loadMore: Bool = false, forceRefresh: Bool = false) async {
@@ -97,15 +117,8 @@ final class ConversationViewModel {
         )
         messages.append(tempUserMessage)
 
-        let dateFormatter = DateFormatter()
-        dateFormatter.dateFormat = "yyyy-MM-dd"
-        dateFormatter.locale = Locale(identifier: "en_US_POSIX")
-        let entryDate = dateFormatter.string(from: now)
-
-        let timeFormatter = DateFormatter()
-        timeFormatter.dateFormat = "HH:mm"
-        timeFormatter.locale = Locale(identifier: "en_US_POSIX")
-        let currentTime = timeFormatter.string(from: now)
+        let entryDate = Self.apiDateFormatter.string(from: now)
+        let currentTime = Self.timeFormatter24h.string(from: now)
 
         let request = SendMessageRequest(
             content: trimmed,
@@ -247,15 +260,8 @@ final class ConversationViewModel {
         )
         messages.append(tempUserMessage)
 
-        let dateFormatter = DateFormatter()
-        dateFormatter.dateFormat = "yyyy-MM-dd"
-        dateFormatter.locale = Locale(identifier: "en_US_POSIX")
-        let entryDate = dateFormatter.string(from: now)
-
-        let timeFormatter = DateFormatter()
-        timeFormatter.dateFormat = "HH:mm"
-        timeFormatter.locale = Locale(identifier: "en_US_POSIX")
-        let currentTime = timeFormatter.string(from: now)
+        let entryDate = Self.apiDateFormatter.string(from: now)
+        let currentTime = Self.timeFormatter24h.string(from: now)
 
         let request = SendMessageRequest(
             content: displayContent,

@@ -49,6 +49,7 @@ struct DailyDigestView: View {
                     } label: {
                         Image(systemName: "calendar")
                     }
+                    .accessibilityLabel("Open calendar")
                 }
             }
         }
@@ -221,6 +222,7 @@ struct DailyDigestView: View {
                         .frame(width: 44, height: 44)
                         .contentShape(Rectangle())
                 }
+                .accessibilityLabel("Previous date")
                 .disabled(selectedDigest.flatMap { viewModel.previousDigest(before: $0) } == nil)
 
                 Spacer()
@@ -252,6 +254,7 @@ struct DailyDigestView: View {
                         .frame(width: 44, height: 44)
                         .contentShape(Rectangle())
                 }
+                .accessibilityLabel("Next date")
                 .disabled(selectedDigest.flatMap { viewModel.nextDigest(after: $0) } == nil)
             }
             .padding(.horizontal, 4)
@@ -270,6 +273,7 @@ struct DailyDigestView: View {
                     .padding(.horizontal, 12)
                     .padding(.vertical, 6)
                 }
+                .accessibilityLabel("Go to latest digest")
                 .padding(.bottom, 6)
             }
 
@@ -302,6 +306,7 @@ struct DailyDigestView: View {
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                 }
+                .accessibilityLabel("Copy digest")
 
                 Button {
                     editingContent = digest.displayContent
@@ -311,6 +316,7 @@ struct DailyDigestView: View {
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                 }
+                .accessibilityLabel("Edit digest")
 
                 Menu {
                     if viewModel.shouldGenerate {
@@ -333,6 +339,7 @@ struct DailyDigestView: View {
                         .frame(width: 28, height: 28)
                         .contentShape(Rectangle())
                 }
+                .accessibilityLabel("More actions")
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 10)
@@ -374,12 +381,20 @@ struct DailyDigestView: View {
 
     // MARK: - Calendar Sheet
 
+    private var digestDateInfos: [JournalDateInfo] {
+        viewModel.sortedDigests.map { JournalDateInfo(date: $0.date, entryCount: 1) }
+    }
+
     private var calendarSheet: some View {
-        CalendarSheetView(
-            sortedDigests: viewModel.sortedDigests,
-            selectedId: selectedDigest?.id,
-            onSelect: { digest in
-                selectedDigest = digest
+        DateCalendarSheetView(
+            sortedDates: digestDateInfos,
+            selectedDate: selectedDigest?.date,
+            title: "Past Digests",
+            countLabel: { _ in "" },
+            onSelect: { dateInfo in
+                if let digest = viewModel.digest(for: dateInfo.date) {
+                    selectedDigest = digest
+                }
                 showingCalendar = false
             },
             onDismiss: {
@@ -451,111 +466,6 @@ struct DailyDigestView: View {
         await viewModel.checkShouldGenerate(sessionId: sessionId)
         await viewModel.generate(sessionId: sessionId)
         selectedDigest = viewModel.latestDigest
-    }
-}
-
-// MARK: - Calendar Sheet View
-
-private struct CalendarSheetView: View {
-    let sortedDigests: [DailyPlanResponse]
-    let selectedId: Int?
-    let onSelect: (DailyPlanResponse) -> Void
-    let onDismiss: () -> Void
-
-    var body: some View {
-        NavigationStack {
-            List {
-                ForEach(groupedByMonth, id: \.month) { group in
-                    Section(group.month) {
-                        ForEach(group.digests) { digest in
-                            Button {
-                                onSelect(digest)
-                            } label: {
-                                digestDateRow(digest)
-                            }
-                            .listRowBackground(
-                                digest.id == selectedId
-                                    ? Color.accentColor.opacity(0.1)
-                                    : Color.clear
-                            )
-                        }
-                    }
-                }
-            }
-            .navigationTitle("Past Digests")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Done") {
-                        onDismiss()
-                    }
-                }
-            }
-        }
-        .presentationDetents([.medium, .large])
-    }
-
-    private func digestDateRow(_ digest: DailyPlanResponse) -> some View {
-        HStack {
-            if let date = Date.fromAPIDateString(digest.date) {
-                VStack(alignment: .leading, spacing: 2) {
-                    HStack(spacing: 6) {
-                        if date.isToday {
-                            Text("Today")
-                                .font(.subheadline.weight(.semibold))
-                                .foregroundStyle(Color.accentColor)
-                        } else {
-                            Text(date.weekdayDateString)
-                                .font(.subheadline.weight(.medium))
-                                .foregroundStyle(.primary)
-                        }
-                    }
-                    Text(digest.createdAt.relativeString)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-            }
-
-            Spacer()
-
-            if digest.userEditedContent != nil {
-                Text("Edited")
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-                    .italic()
-            }
-
-            if digest.id == selectedId {
-                Image(systemName: "checkmark")
-                    .font(.caption.weight(.bold))
-                    .foregroundStyle(Color.accentColor)
-            }
-        }
-    }
-
-    private struct MonthGroup {
-        let month: String
-        let digests: [DailyPlanResponse]
-    }
-
-    private var groupedByMonth: [MonthGroup] {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "MMMM yyyy"
-
-        var groups: [String: [DailyPlanResponse]] = [:]
-        var order: [String] = []
-
-        for digest in sortedDigests {
-            if let date = Date.fromAPIDateString(digest.date) {
-                let key = formatter.string(from: date)
-                if groups[key] == nil {
-                    order.append(key)
-                }
-                groups[key, default: []].append(digest)
-            }
-        }
-
-        return order.map { MonthGroup(month: $0, digests: groups[$0] ?? []) }
     }
 }
 

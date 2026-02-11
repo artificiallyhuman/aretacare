@@ -12,8 +12,13 @@ final class KeychainManager: Sendable {
     }
 
     private init() {
+        // .afterFirstUnlockThisDeviceOnly: Keychain items are accessible after the first
+        // unlock and remain available while the device is unlocked or in background. This
+        // allows background token refresh to work. The "ThisDeviceOnly" suffix prevents
+        // Keychain items from being restored to other devices via iCloud/iTunes backup,
+        // ensuring tokens cannot leak through device migration.
         self.keychain = Keychain(service: "com.aretacare.ios")
-            .accessibility(.afterFirstUnlock)
+            .accessibility(.afterFirstUnlockThisDeviceOnly)
     }
 
     // MARK: - Refresh Token

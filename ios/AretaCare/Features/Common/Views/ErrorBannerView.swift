@@ -2,6 +2,7 @@ import SwiftUI
 
 struct ErrorBannerView: View {
     let message: String
+    var autoDismissAfter: TimeInterval? = 8
     var onDismiss: (() -> Void)?
 
     var body: some View {
@@ -32,6 +33,12 @@ struct ErrorBannerView: View {
         .background(Color.red.opacity(0.9))
         .clipShape(RoundedRectangle(cornerRadius: 10))
         .padding(.horizontal)
+        .transition(.move(edge: .top).combined(with: .opacity))
+        .task(id: message) {
+            guard let seconds = autoDismissAfter else { return }
+            try? await Task.sleep(for: .seconds(seconds))
+            onDismiss?()
+        }
     }
 }
 

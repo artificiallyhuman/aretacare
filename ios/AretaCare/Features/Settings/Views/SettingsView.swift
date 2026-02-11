@@ -8,9 +8,9 @@ struct SettingsView: View {
     @State private var showChangeEmail = false
     @State private var showChangePassword = false
     @State private var showLogoutEverywhereConfirmation = false
-    @State private var showDeleteAccountAlert = false
-    @State private var deleteAccountPassword = ""
-    @State private var showDeleteAccountPasswordPrompt = false
+    @State private var showDeleteAccountSheet = false
+    @State private var deleteConfirmationText = ""
+    @State private var deletePassword = ""
     @State private var isDeletingAccount = false
 
     // Session management (detail view handles rename/color/delete)
@@ -46,30 +46,8 @@ struct SettingsView: View {
         } message: {
             Text("This will log you out of all devices and sessions, including this one.")
         }
-        .alert("Delete Account", isPresented: $showDeleteAccountAlert) {
-            Button("Continue", role: .destructive) {
-                showDeleteAccountPasswordPrompt = true
-            }
-            Button("Cancel", role: .cancel) {}
-        } message: {
-            Text("This will permanently delete your account and all associated data. This action cannot be undone.")
-        }
-        .alert("Confirm Password", isPresented: $showDeleteAccountPasswordPrompt) {
-            SecureField("Password", text: $deleteAccountPassword)
-            Button("Delete My Account", role: .destructive) {
-                Task {
-                    isDeletingAccount = true
-                    _ = await viewModel.deleteAccount(password: deleteAccountPassword)
-                    isDeletingAccount = false
-                    deleteAccountPassword = ""
-                }
-            }
-            .disabled(deleteAccountPassword.isEmpty)
-            Button("Cancel", role: .cancel) {
-                deleteAccountPassword = ""
-            }
-        } message: {
-            Text("Enter your password to confirm account deletion.")
+        .sheet(isPresented: $showDeleteAccountSheet) {
+            deleteAccountSheet
         }
         .overlay(alignment: .top) {
             if let error = viewModel.errorMessage {
@@ -263,7 +241,7 @@ struct SettingsView: View {
     private var dangerZoneSection: some View {
         Section {
             Button(role: .destructive) {
-                showDeleteAccountAlert = true
+                showDeleteAccountSheet = true
             } label: {
                 HStack {
                     Label("Delete Account", systemImage: "trash")
@@ -294,6 +272,93 @@ struct SettingsView: View {
                 Label("Send Feedback", systemImage: "envelope")
             }
         }
+    }
+
+    // MARK: - Delete Account Sheet
+
+    private var deleteAccountSheet: some View {
+        NavigationStack {
+            VStack(spacing: 24) {
+                // Warning header
+                VStack(spacing: 12) {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .font(.system(size: 40))
+                        .foregroundStyle(.red)
+
+                    Text("Delete Account")
+                        .font(.title2.weight(.bold))
+
+                    Text("This action is permanent and cannot be undone. All your health data will be deleted.")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                }
+                .padding(.top, 8)
+
+                VStack(alignment: .leading, spacing: 16) {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("Type \"delete my account\" to confirm")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                        TextField("delete my account", text: $deleteConfirmationText)
+                            .textFieldStyle(.roundedBorder)
+                            .autocorrectionDisabled()
+                            .textInputAutocapitalization(.never)
+                    }
+
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("Enter your password")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                        SecureField("Password", text: $deletePassword)
+                            .textFieldStyle(.roundedBorder)
+                    }
+                }
+
+                Button(role: .destructive) {
+                    Task {
+                        isDeletingAccount = true
+                        _ = await viewModel.deleteAccount(password: deletePassword)
+                        isDeletingAccount = false
+                        deleteConfirmationText = ""
+                        deletePassword = ""
+                        showDeleteAccountSheet = false
+                    }
+                } label: {
+                    if isDeletingAccount {
+                        ProgressView()
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 12)
+                    } else {
+                        Text("Delete My Account")
+                            .font(.headline)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 12)
+                    }
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(.red)
+                .disabled(
+                    deleteConfirmationText.lowercased() != "delete my account"
+                    || deletePassword.isEmpty
+                    || isDeletingAccount
+                )
+
+                Spacer()
+            }
+            .padding()
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") {
+                        deleteConfirmationText = ""
+                        deletePassword = ""
+                        showDeleteAccountSheet = false
+                    }
+                }
+            }
+        }
+        .presentationDetents([.medium])
     }
 
     // MARK: - Helpers

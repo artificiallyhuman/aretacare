@@ -50,7 +50,10 @@ struct CachedAsyncImage<Content: View, Placeholder: View, Failure: View>: View {
             return
         }
 
-        // Download
+        // Download using URLSession.shared intentionally. Image URLs are S3 presigned URLs
+        // pointing to AWS CloudFront/S3 infrastructure, which uses its own certificate chain
+        // that does not match the app's pinned certificates for aretacare.com. Using the
+        // pinned session here would cause all image downloads to fail.
         do {
             let (data, response) = try await URLSession.shared.data(from: url)
             guard let httpResponse = response as? HTTPURLResponse,

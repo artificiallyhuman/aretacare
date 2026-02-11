@@ -8,7 +8,7 @@ struct DailyPlanResponse: Codable, Identifiable, Sendable {
     let date: String // "YYYY-MM-DD"
     let content: String
     let userEditedContent: String?
-    let viewed: Bool
+    var viewed: Bool
     let createdAt: Date
     let updatedAt: Date
 

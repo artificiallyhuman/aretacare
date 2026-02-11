@@ -60,6 +60,7 @@ struct MessageInputView: View {
                         .font(.title3)
                         .foregroundStyle(.secondary)
                 }
+                .accessibilityLabel("Attach file")
                 .disabled(isSending || isUploading)
 
                 // Text field
@@ -85,6 +86,7 @@ struct MessageInputView: View {
                             .font(.title3)
                             .foregroundStyle(Color.accentColor)
                     }
+                    .accessibilityLabel("Record audio")
                     .disabled(isSending || isUploading)
                 } else {
                     // Send button
@@ -95,6 +97,7 @@ struct MessageInputView: View {
                             .font(.title2)
                             .foregroundStyle(canSend ? Color.accentColor : Color.secondary)
                     }
+                    .accessibilityLabel("Send message")
                     .disabled(!canSend)
                     .sensoryFeedback(.success, trigger: sendTrigger)
                 }
