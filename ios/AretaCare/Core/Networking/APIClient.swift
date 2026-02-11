@@ -95,6 +95,30 @@ final class APIClient: Sendable {
         try await executeVoid(request)
     }
 
+    // MARK: - Raw Data Download
+
+    func downloadData(_ path: String, queryItems: [URLQueryItem]? = nil) async throws -> Data {
+        let request = try buildRequest(path: path, method: "GET", queryItems: queryItems)
+        let (data, response) = try await performAuthorizedRequest(request)
+
+        do {
+            try checkHTTPResponse(response, data: data, originalRequest: request)
+        } catch APIError.unauthorized {
+            guard await attemptTokenRefresh(for: request) else {
+                await AuthManager.shared.forceLogout()
+                throw APIError.unauthorized
+            }
+            let (retryData, retryResponse) = try await performAuthorizedRequest(request)
+            try checkHTTPResponse(retryResponse, data: retryData, originalRequest: request)
+            return retryData
+        } catch let error as APIError where error.requiresLogout {
+            await AuthManager.shared.forceLogout()
+            throw error
+        }
+
+        return data
+    }
+
     // MARK: - Multipart Upload
 
     func upload<T: Decodable>(_ path: String, multipart: MultipartFormData, queryItems: [URLQueryItem]? = nil) async throws -> T {

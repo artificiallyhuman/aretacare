@@ -115,7 +115,7 @@ enum APIEndpoints {
         static func reviewPendingChanges(_ sessionId: String) -> String { "/profile/\(sessionId)/pending-changes/review" }
         static func regenerate(_ sessionId: String) -> String { "/profile/\(sessionId)/regenerate" }
         static func delete(_ sessionId: String) -> String { "/profile/\(sessionId)" }
-        static func export(_ sessionId: String, format: String) -> String { "/profile/\(sessionId)/export?format=\(format)" }
+        static func export(_ sessionId: String) -> String { "/profile/\(sessionId)/export" }
     }
 
     // MARK: - MFA

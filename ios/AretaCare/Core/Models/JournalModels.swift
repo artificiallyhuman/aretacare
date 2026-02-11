@@ -90,6 +90,8 @@ enum AnyCodableValue: Codable, Sendable {
     case int(Int)
     case double(Double)
     case bool(Bool)
+    case array([AnyCodableValue])
+    case dictionary([String: AnyCodableValue])
     case null
 
     init(from decoder: Decoder) throws {
@@ -102,6 +104,10 @@ enum AnyCodableValue: Codable, Sendable {
             self = .double(value)
         } else if let value = try? container.decode(String.self) {
             self = .string(value)
+        } else if let value = try? container.decode([AnyCodableValue].self) {
+            self = .array(value)
+        } else if let value = try? container.decode([String: AnyCodableValue].self) {
+            self = .dictionary(value)
         } else {
             self = .null
         }
@@ -114,7 +120,21 @@ enum AnyCodableValue: Codable, Sendable {
         case .int(let value): try container.encode(value)
         case .double(let value): try container.encode(value)
         case .bool(let value): try container.encode(value)
+        case .array(let value): try container.encode(value)
+        case .dictionary(let value): try container.encode(value)
         case .null: try container.encodeNil()
+        }
+    }
+
+    static func from(_ value: Any) -> AnyCodableValue {
+        switch value {
+        case let s as String: return .string(s)
+        case let i as Int: return .int(i)
+        case let d as Double: return .double(d)
+        case let b as Bool: return .bool(b)
+        case let arr as [Any]: return .array(arr.map { from($0) })
+        case let dict as [String: Any]: return .dictionary(dict.mapValues { from($0) })
+        default: return .null
         }
     }
 }

@@ -6,7 +6,10 @@ struct ProfileView: View {
     @State private var viewModel = ProfileViewModel()
     @State private var showingRegenConfirm = false
     @State private var showingPendingChanges = false
-    @State private var showingExportPicker = false
+    @State private var showingShareSheet = false
+    @State private var exportURL: URL?
+    @State private var isExporting = false
+    @State private var editingSection: EditSection?
 
     var body: some View {
         Group {
@@ -15,12 +18,7 @@ struct ProfileView: View {
             } else if viewModel.isProfileEmpty {
                 emptyProfileState
             } else {
-                VStack(spacing: 0) {
-                    if viewModel.needsUpdate && !viewModel.isUpdating {
-                        newActivityBanner
-                    }
-                    profileContent
-                }
+                profileContent
             }
         }
         .navigationTitle("Health Profile")
@@ -56,9 +54,15 @@ struct ProfileView: View {
                         }
 
                         Button {
-                            showingExportPicker = true
+                            copyProfileToClipboard()
                         } label: {
-                            Label("Export", systemImage: "square.and.arrow.up")
+                            Label("Copy", systemImage: "doc.on.doc")
+                        }
+
+                        Button {
+                            exportProfile(format: "pdf")
+                        } label: {
+                            Label("Export PDF", systemImage: "arrow.down.doc")
                         }
                     } label: {
                         Image(systemName: "ellipsis.circle")
@@ -86,18 +90,23 @@ struct ProfileView: View {
             }
         }
         .overlay {
-            if viewModel.isRegenerating || viewModel.isUpdating {
+            if viewModel.isRegenerating || viewModel.isUpdating || isExporting {
                 ZStack {
                     Color.black.opacity(0.3).ignoresSafeArea()
                     VStack(spacing: 12) {
                         ProgressView()
                             .controlSize(.large)
-                        Text(viewModel.isRegenerating ? "Regenerating profile..." : "Updating profile...")
-                            .font(.subheadline.weight(.medium))
-                        if viewModel.isUpdating {
-                            Text("Analyzing \(activitySummaryText)")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
+                        if isExporting {
+                            Text("Preparing export...")
+                                .font(.subheadline.weight(.medium))
+                        } else {
+                            Text(viewModel.isRegenerating ? "Regenerating profile..." : "Updating profile...")
+                                .font(.subheadline.weight(.medium))
+                            if viewModel.isUpdating {
+                                Text("Analyzing \(activitySummaryText)")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
                         }
                     }
                     .padding(24)
@@ -112,17 +121,24 @@ struct ProfileView: View {
         } message: {
             Text("This will regenerate your entire health profile from your conversations. Any manual edits will be preserved as pending changes.")
         }
-        .confirmationDialog("Export Format", isPresented: $showingExportPicker) {
-            Button("PDF") {
-                exportProfile(format: "pdf")
-            }
-            Button("JSON") {
-                exportProfile(format: "json")
+        .sheet(isPresented: $showingShareSheet) {
+            if let exportURL {
+                ShareSheet(activityItems: [exportURL])
             }
         }
         .sheet(isPresented: $showingPendingChanges) {
             NavigationStack {
                 PendingChangesView(sessionId: sessionId, viewModel: viewModel)
+            }
+        }
+        .sheet(item: $editingSection) { section in
+            NavigationStack {
+                ProfileSectionEditView(
+                    sessionId: sessionId,
+                    section: section,
+                    profileData: viewModel.profileData ?? ProfileData(),
+                    viewModel: viewModel
+                )
             }
         }
         .task {
@@ -137,205 +153,394 @@ struct ProfileView: View {
     // MARK: - Profile Content
 
     private var profileContent: some View {
-        List {
-            if let data = viewModel.profileData {
-                // Patient
-                if let patient = data.patient {
-                    ProfileSection(title: "Patient Information", systemImage: "person") {
-                        OptionalRow("Full Name", value: patient.fullName)
-                        OptionalRow("Preferred Name", value: patient.preferredName)
-                        OptionalRow("Date of Birth", value: patient.dateOfBirth)
-                        OptionalRow("Age", value: patient.age)
-                        OptionalRow("Contact", value: patient.contactInfo)
-                        OptionalRow("Location", value: patient.location)
-                    }
+        ScrollView {
+            VStack(spacing: 0) {
+                if viewModel.needsUpdate && !viewModel.isUpdating {
+                    newActivityBanner
                 }
 
-                // Caregivers
-                if let caregivers = data.caregivers, !caregivers.isEmpty {
-                    ProfileSection(title: "Caregivers", systemImage: "person.2") {
-                        ForEach(caregivers) { caregiver in
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text(caregiver.name ?? "Unknown")
-                                    .font(.subheadline.weight(.medium))
-                                if let rel = caregiver.relationship {
-                                    Text(rel)
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
-                                }
-                                if let role = caregiver.role {
-                                    Text(role)
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
-                                }
-                            }
-                            .padding(.vertical, 2)
+                VStack(spacing: 16) {
+                    progressBar
+
+                if let data = viewModel.profileData {
+                    // Patient
+                    if let patient = data.patient {
+                        ProfileCardSection(
+                            title: "Patient Information",
+                            systemImage: "person.fill",
+                            color: .purple,
+                            count: nil,
+                            onEdit: { editingSection = .init("patient") }
+                        ) {
+                            ProfileField("Full Name", value: patient.fullName)
+                            ProfileField("Preferred Name", value: patient.preferredName)
+                            ProfileField("Date of Birth", value: patient.dateOfBirth)
+                            ProfileField("Age", value: patient.age)
+                            ProfileField("Contact", value: patient.contactInfo)
+                            ProfileField("Location", value: patient.location)
                         }
                     }
-                }
 
-                // Providers
-                if let providers = data.providers, !providers.isEmpty {
-                    ProfileSection(title: "Healthcare Providers", systemImage: "stethoscope") {
-                        ForEach(providers) { provider in
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text(provider.name ?? "Unknown")
-                                    .font(.subheadline.weight(.medium))
-                                if let specialty = provider.specialty {
-                                    Text(specialty)
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
-                                }
-                                if let org = provider.organization {
-                                    Text(org)
-                                        .font(.caption)
-                                        .foregroundStyle(.tertiary)
-                                }
-                            }
-                            .padding(.vertical, 2)
-                        }
-                    }
-                }
-
-                // Conditions
-                if let conditions = data.conditions, !conditions.isEmpty {
-                    ProfileSection(title: "Conditions", systemImage: "heart.text.square") {
-                        ForEach(conditions) { condition in
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text(condition.clinicalTerm ?? condition.description ?? "Unknown")
-                                    .font(.subheadline.weight(.medium))
-                                HStack(spacing: 8) {
-                                    if let status = condition.status {
-                                        Text(status.capitalized)
-                                            .font(.caption2)
-                                            .padding(.horizontal, 6)
-                                            .padding(.vertical, 2)
-                                            .background(statusColor(status).opacity(0.15))
-                                            .foregroundStyle(statusColor(status))
-                                            .clipShape(Capsule())
+                    // Caregivers
+                    if let caregivers = data.caregivers, !caregivers.isEmpty {
+                        ProfileCardSection(
+                            title: "Caregivers",
+                            systemImage: "person.2.fill",
+                            color: .green,
+                            count: caregivers.count,
+                            onEdit: { editingSection = .init("caregivers") }
+                        ) {
+                            ForEach(caregivers) { caregiver in
+                                AccentCard(color: .green) {
+                                    Text(caregiver.name ?? "Unknown")
+                                        .font(.subheadline.weight(.semibold))
+                                    if let rel = caregiver.relationship {
+                                        Text(rel)
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
                                     }
-                                    if let date = condition.diagnosisDate {
-                                        Text(date)
+                                    if let role = caregiver.role {
+                                        Text(role)
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                    }
+                                    if let contact = caregiver.contactInfo {
+                                        Text(contact)
                                             .font(.caption)
                                             .foregroundStyle(.tertiary)
                                     }
                                 }
-                                if let details = condition.details {
-                                    Text(details)
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
-                                }
                             }
-                            .padding(.vertical, 2)
                         }
                     }
-                }
 
-                // Medications
-                if let medications = data.medications, !medications.isEmpty {
-                    ProfileSection(title: "Medications", systemImage: "pills") {
-                        ForEach(medications) { med in
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text(med.name ?? "Unknown")
-                                    .font(.subheadline.weight(.medium))
-                                if let dose = med.dose {
-                                    Text(dose + (med.frequency.map { " - \($0)" } ?? ""))
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
-                                }
-                                if let notes = med.notes {
-                                    Text(notes)
-                                        .font(.caption)
-                                        .foregroundStyle(.tertiary)
+                    // Providers
+                    if let providers = data.providers, !providers.isEmpty {
+                        ProfileCardSection(
+                            title: "Healthcare Providers",
+                            systemImage: "stethoscope",
+                            color: .teal,
+                            count: providers.count,
+                            onEdit: { editingSection = .init("providers") }
+                        ) {
+                            ForEach(providers) { provider in
+                                AccentCard(color: .teal) {
+                                    Text(provider.name ?? "Unknown")
+                                        .font(.subheadline.weight(.semibold))
+                                    if let specialty = provider.specialty {
+                                        Text(specialty)
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                    }
+                                    if let org = provider.organization {
+                                        Text(org)
+                                            .font(.caption)
+                                            .foregroundStyle(.tertiary)
+                                    }
                                 }
                             }
-                            .padding(.vertical, 2)
                         }
                     }
-                }
 
-                // Allergies
-                if let allergies = data.allergies, !allergies.isEmpty {
-                    ProfileSection(title: "Allergies", systemImage: "exclamationmark.triangle") {
-                        ForEach(allergies) { allergy in
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text(allergy.substance ?? "Unknown")
-                                    .font(.subheadline.weight(.medium))
-                                HStack(spacing: 8) {
+                    // Conditions
+                    if let conditions = data.conditions, !conditions.isEmpty {
+                        ProfileCardSection(
+                            title: "Conditions",
+                            systemImage: "heart.text.square.fill",
+                            color: .orange,
+                            count: conditions.count,
+                            onEdit: { editingSection = .init("conditions") }
+                        ) {
+                            ForEach(conditions) { condition in
+                                AccentCard(color: statusColor(condition.status ?? "")) {
+                                    HStack {
+                                        Text(condition.clinicalTerm ?? condition.description ?? "Unknown")
+                                            .font(.subheadline.weight(.semibold))
+                                        Spacer()
+                                        if let status = condition.status {
+                                            StatusBadge(text: status.capitalized, color: statusColor(status))
+                                        }
+                                    }
+                                    if let date = condition.diagnosisDate {
+                                        Text("Diagnosed: \(date)")
+                                            .font(.caption)
+                                            .foregroundStyle(.tertiary)
+                                    }
+                                    if let details = condition.details {
+                                        Text(details)
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // Medications
+                    if let medications = data.medications, !medications.isEmpty {
+                        ProfileCardSection(
+                            title: "Medications",
+                            systemImage: "pills.fill",
+                            color: .pink,
+                            count: medications.count,
+                            onEdit: { editingSection = .init("medications") }
+                        ) {
+                            ForEach(medications) { med in
+                                AccentCard(color: .pink) {
+                                    Text(med.name ?? "Unknown")
+                                        .font(.subheadline.weight(.semibold))
+                                    if let dose = med.dose {
+                                        HStack(spacing: 4) {
+                                            Image(systemName: "cross.case")
+                                                .font(.caption2)
+                                                .foregroundStyle(.pink)
+                                            Text(dose + (med.frequency.map { " \u{2022} \($0)" } ?? ""))
+                                                .font(.caption)
+                                                .foregroundStyle(.secondary)
+                                        }
+                                    }
+                                    if let prescriber = med.prescriber {
+                                        Text("Prescribed by \(prescriber)")
+                                            .font(.caption)
+                                            .foregroundStyle(.tertiary)
+                                    }
+                                    if let notes = med.notes {
+                                        Text(notes)
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // Allergies
+                    if let allergies = data.allergies, !allergies.isEmpty {
+                        ProfileCardSection(
+                            title: "Allergies",
+                            systemImage: "exclamationmark.triangle.fill",
+                            color: .red,
+                            count: allergies.count,
+                            onEdit: { editingSection = .init("allergies") }
+                        ) {
+                            ForEach(allergies) { allergy in
+                                AccentCard(color: severityColor(allergy.severity ?? "")) {
+                                    HStack {
+                                        Text(allergy.substance ?? "Unknown")
+                                            .font(.subheadline.weight(.semibold))
+                                        Spacer()
+                                        if let severity = allergy.severity {
+                                            StatusBadge(text: severity.capitalized, color: severityColor(severity))
+                                        }
+                                    }
                                     if let reaction = allergy.reaction {
                                         Text(reaction)
                                             .font(.caption)
                                             .foregroundStyle(.secondary)
                                     }
-                                    if let severity = allergy.severity {
-                                        Text(severity.capitalized)
-                                            .font(.caption2)
-                                            .padding(.horizontal, 6)
-                                            .padding(.vertical, 2)
-                                            .background(severityColor(severity).opacity(0.15))
-                                            .foregroundStyle(severityColor(severity))
-                                            .clipShape(Capsule())
+                                }
+                            }
+                        }
+                    }
+
+                    // Events
+                    if let events = data.events, !events.isEmpty {
+                        ProfileCardSection(
+                            title: "Key Events",
+                            systemImage: "calendar",
+                            color: .blue,
+                            count: events.count,
+                            onEdit: { editingSection = .init("events") }
+                        ) {
+                            ForEach(events) { event in
+                                AccentCard(color: .blue) {
+                                    HStack {
+                                        Text(event.description ?? event.eventType ?? "Event")
+                                            .font(.subheadline.weight(.semibold))
+                                        Spacer()
+                                        if let date = event.date {
+                                            Text(date)
+                                                .font(.caption)
+                                                .foregroundStyle(.tertiary)
+                                        }
+                                    }
+                                    if let details = event.details {
+                                        Text(details)
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
                                     }
                                 }
                             }
-                            .padding(.vertical, 2)
                         }
                     }
-                }
 
-                // Events
-                if let events = data.events, !events.isEmpty {
-                    ProfileSection(title: "Key Events", systemImage: "calendar") {
-                        ForEach(events) { event in
-                            VStack(alignment: .leading, spacing: 4) {
-                                HStack {
-                                    Text(event.description ?? event.eventType ?? "Event")
-                                        .font(.subheadline.weight(.medium))
-                                    Spacer()
-                                    if let date = event.date {
-                                        Text(date)
+                    // Preferences
+                    if let prefs = data.preferences {
+                        ProfileCardSection(
+                            title: "Preferences",
+                            systemImage: "gearshape.fill",
+                            color: .indigo,
+                            count: nil
+                        ) {
+                            if let emergency = prefs.emergencyInstructions, !emergency.isEmpty {
+                                HStack(alignment: .top, spacing: 10) {
+                                    Image(systemName: "exclamationmark.circle.fill")
+                                        .foregroundStyle(.red)
+                                        .font(.subheadline)
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text("Emergency Instructions")
+                                            .font(.caption.weight(.semibold))
+                                            .foregroundStyle(.red)
+                                        Text(emergency)
                                             .font(.caption)
-                                            .foregroundStyle(.tertiary)
                                     }
                                 }
-                                if let details = event.details {
-                                    Text(details)
+                                .padding(10)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .background(Color.red.opacity(0.08))
+                                .clipShape(RoundedRectangle(cornerRadius: 8))
+                            }
+
+                            if let commPrefs = prefs.communicationPreferences, !commPrefs.isEmpty {
+                                PreferencesSubSection(title: "Communication") {
+                                    ForEach(commPrefs) { pref in
+                                        if let value = pref.preference, !value.isEmpty {
+                                            AccentCard(color: .indigo) {
+                                                if let cat = pref.category {
+                                                    Text(cat)
+                                                        .font(.caption2.weight(.semibold))
+                                                        .foregroundStyle(.indigo)
+                                                }
+                                                Text(value)
+                                                    .font(.caption)
+                                                    .foregroundStyle(.secondary)
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
+                            if let guidelines = prefs.caregivingGuidelines, !guidelines.isEmpty {
+                                PreferencesSubSection(title: "Caregiving Guidelines") {
+                                    ForEach(guidelines) { guideline in
+                                        if let value = guideline.guideline, !value.isEmpty {
+                                            AccentCard(color: importanceColor(guideline.importance ?? "")) {
+                                                HStack {
+                                                    Text(value)
+                                                        .font(.caption)
+                                                    Spacer()
+                                                    if let importance = guideline.importance {
+                                                        StatusBadge(
+                                                            text: importance.capitalized,
+                                                            color: importanceColor(importance)
+                                                        )
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
+                            if let contexts = prefs.importantContext, !contexts.isEmpty {
+                                PreferencesSubSection(title: "Important Context") {
+                                    ForEach(contexts) { ctx in
+                                        if let value = ctx.context, !value.isEmpty {
+                                            AccentCard(color: .indigo) {
+                                                if let cat = ctx.category {
+                                                    Text(cat)
+                                                        .font(.caption2.weight(.semibold))
+                                                        .foregroundStyle(.indigo)
+                                                }
+                                                Text(value)
+                                                    .font(.caption)
+                                                    .foregroundStyle(.secondary)
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
+                            if let notes = prefs.additionalNotes, !notes.isEmpty {
+                                PreferencesSubSection(title: "Additional Notes") {
+                                    Text(notes)
                                         .font(.caption)
                                         .foregroundStyle(.secondary)
                                 }
                             }
-                            .padding(.vertical, 2)
                         }
                     }
                 }
 
-                // Preferences
-                if let prefs = data.preferences {
-                    ProfileSection(title: "Preferences", systemImage: "gearshape") {
-                        if let commPrefs = prefs.communicationPreferences, !commPrefs.isEmpty {
-                            ForEach(commPrefs) { pref in
-                                OptionalRow(pref.category ?? "Preference", value: pref.preference)
-                            }
-                        }
-                        if let emergency = prefs.emergencyInstructions {
-                            OptionalRow("Emergency Instructions", value: emergency)
-                        }
-                        if let notes = prefs.additionalNotes {
-                            OptionalRow("Additional Notes", value: notes)
-                        }
-                    }
-                }
-            }
-
-            if let lastUpdate = viewModel.profile?.updatedAt {
-                Section {
+                // Last updated
+                if let lastUpdate = viewModel.profile?.updatedAt {
                     Text("Last updated: \(lastUpdate.dateTimeString)")
                         .font(.caption)
                         .foregroundStyle(.tertiary)
+                        .padding(.top, 4)
+                        .padding(.bottom, 24)
                 }
+                }
+                .padding(.horizontal)
+                .padding(.top, 8)
             }
         }
-        .listStyle(.insetGrouped)
+    }
+
+    // MARK: - Progress Bar
+
+    private var progressBar: some View {
+        let percentage = completionPercentage
+        return VStack(spacing: 8) {
+            HStack {
+                Text("Profile Completeness")
+                    .font(.caption.weight(.medium))
+                    .foregroundStyle(.secondary)
+                Spacer()
+                Text("\(Int(percentage))%")
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(percentage >= 100 ? .green : Color.accentColor)
+            }
+            GeometryReader { geo in
+                ZStack(alignment: .leading) {
+                    RoundedRectangle(cornerRadius: 4)
+                        .fill(Color(.systemGray5))
+                    RoundedRectangle(cornerRadius: 4)
+                        .fill(
+                            LinearGradient(
+                                colors: [.purple, .blue],
+                                startPoint: .leading,
+                                endPoint: .trailing
+                            )
+                        )
+                        .frame(width: geo.size.width * percentage / 100)
+                }
+            }
+            .frame(height: 6)
+        }
+        .padding(12)
+        .background(Color(.secondarySystemGroupedBackground))
+        .clipShape(RoundedRectangle(cornerRadius: 10))
+    }
+
+    private var completionPercentage: Double {
+        guard let data = viewModel.profileData else { return 0 }
+        var completed = 0
+        let total = 8
+        if data.patient != nil { completed += 1 }
+        if let c = data.caregivers, !c.isEmpty { completed += 1 }
+        if let p = data.providers, !p.isEmpty { completed += 1 }
+        if let c = data.conditions, !c.isEmpty { completed += 1 }
+        if let m = data.medications, !m.isEmpty { completed += 1 }
+        if let a = data.allergies, !a.isEmpty { completed += 1 }
+        if let e = data.events, !e.isEmpty { completed += 1 }
+        if let p = data.preferences,
+           p.emergencyInstructions != nil || !(p.communicationPreferences ?? []).isEmpty
+            || !(p.caregivingGuidelines ?? []).isEmpty || !(p.importantContext ?? []).isEmpty
+            || p.additionalNotes != nil {
+            completed += 1
+        }
+        return Double(completed) / Double(total) * 100
     }
 
     // MARK: - Empty Profile State
@@ -438,13 +643,111 @@ struct ProfileView: View {
         return parts.isEmpty ? "New activity detected" : parts.joined(separator: ", ")
     }
 
-    // MARK: - Helpers
+    // MARK: - Copy & Export
+
+    private func copyProfileToClipboard() {
+        guard let data = viewModel.profileData else { return }
+        var lines: [String] = ["Health Profile", ""]
+
+        if let p = data.patient {
+            lines.append("Patient Information")
+            if let v = p.fullName { lines.append("  Name: \(v)") }
+            if let v = p.preferredName { lines.append("  Preferred Name: \(v)") }
+            if let v = p.dateOfBirth { lines.append("  Date of Birth: \(v)") }
+            if let v = p.age { lines.append("  Age: \(v)") }
+            if let v = p.contactInfo { lines.append("  Contact: \(v)") }
+            if let v = p.location { lines.append("  Location: \(v)") }
+            lines.append("")
+        }
+        if let items = data.caregivers, !items.isEmpty {
+            lines.append("Caregivers")
+            for item in items {
+                lines.append("  \(item.name ?? "Unknown")")
+                if let v = item.relationship { lines.append("    Relationship: \(v)") }
+                if let v = item.role { lines.append("    Role: \(v)") }
+            }
+            lines.append("")
+        }
+        if let items = data.providers, !items.isEmpty {
+            lines.append("Healthcare Providers")
+            for item in items {
+                lines.append("  \(item.name ?? "Unknown")")
+                if let v = item.specialty { lines.append("    Specialty: \(v)") }
+                if let v = item.organization { lines.append("    Organization: \(v)") }
+            }
+            lines.append("")
+        }
+        if let items = data.conditions, !items.isEmpty {
+            lines.append("Conditions")
+            for item in items {
+                lines.append("  \(item.clinicalTerm ?? item.description ?? "Unknown") (\(item.status ?? "unknown"))")
+                if let v = item.diagnosisDate { lines.append("    Diagnosed: \(v)") }
+                if let v = item.details { lines.append("    \(v)") }
+            }
+            lines.append("")
+        }
+        if let items = data.medications, !items.isEmpty {
+            lines.append("Medications")
+            for item in items {
+                var desc = item.name ?? "Unknown"
+                if let dose = item.dose { desc += " - \(dose)" }
+                if let freq = item.frequency { desc += " (\(freq))" }
+                lines.append("  \(desc)")
+                if let v = item.prescriber { lines.append("    Prescriber: \(v)") }
+                if let v = item.notes { lines.append("    \(v)") }
+            }
+            lines.append("")
+        }
+        if let items = data.allergies, !items.isEmpty {
+            lines.append("Allergies")
+            for item in items {
+                var desc = item.substance ?? "Unknown"
+                if let sev = item.severity { desc += " [\(sev)]" }
+                lines.append("  \(desc)")
+                if let v = item.reaction { lines.append("    Reaction: \(v)") }
+            }
+            lines.append("")
+        }
+        if let items = data.events, !items.isEmpty {
+            lines.append("Key Events")
+            for item in items {
+                var desc = item.description ?? item.eventType ?? "Event"
+                if let date = item.date { desc += " (\(date))" }
+                lines.append("  \(desc)")
+                if let v = item.details { lines.append("    \(v)") }
+            }
+            lines.append("")
+        }
+        if let prefs = data.preferences {
+            lines.append("Preferences")
+            if let v = prefs.emergencyInstructions { lines.append("  Emergency: \(v)") }
+            if let items = prefs.communicationPreferences {
+                for item in items {
+                    if let v = item.preference { lines.append("  \(item.category ?? "Pref"): \(v)") }
+                }
+            }
+            if let v = prefs.additionalNotes { lines.append("  Notes: \(v)") }
+        }
+
+        UIPasteboard.general.string = lines.joined(separator: "\n")
+    }
 
     private func exportProfile(format: String) {
-        if let url = viewModel.exportProfileURL(sessionId: sessionId, format: format) {
-            UIApplication.shared.open(url)
+        isExporting = true
+        Task {
+            do {
+                let fileURL = try await viewModel.exportProfile(sessionId: sessionId, format: format)
+                exportURL = fileURL
+                isExporting = false
+                showingShareSheet = true
+            } catch {
+                isExporting = false
+                viewModel.setError("Export failed: \(error.localizedDescription)")
+            }
         }
     }
+
+    // MARK: - Color Helpers
 
     private func statusColor(_ status: String) -> Color {
         switch status.lowercased() {
@@ -463,27 +766,78 @@ struct ProfileView: View {
         default: return .gray
         }
     }
-}
 
-// MARK: - Profile Section
-
-private struct ProfileSection<Content: View>: View {
-    let title: String
-    let systemImage: String
-    @ViewBuilder let content: Content
-
-    var body: some View {
-        Section {
-            content
-        } header: {
-            Label(title, systemImage: systemImage)
+    private func importanceColor(_ importance: String) -> Color {
+        switch importance.lowercased() {
+        case "critical": return .red
+        case "important": return .orange
+        case "preferred": return .gray
+        default: return .indigo
         }
     }
 }
 
-// MARK: - Optional Row
+// MARK: - Profile Card Section
 
-private struct OptionalRow: View {
+private struct ProfileCardSection<Content: View>: View {
+    let title: String
+    let systemImage: String
+    let color: Color
+    let count: Int?
+    var onEdit: (() -> Void)?
+    @ViewBuilder let content: Content
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            // Section header
+            HStack(spacing: 10) {
+                Image(systemName: systemImage)
+                    .font(.subheadline)
+                    .foregroundStyle(.white)
+                    .frame(width: 30, height: 30)
+                    .background(color.gradient)
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+
+                Text(title)
+                    .font(.headline)
+
+                if let count {
+                    Text("\(count)")
+                        .font(.caption2.weight(.bold))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(color.opacity(0.7))
+                        .clipShape(Capsule())
+                }
+
+                Spacer()
+
+                if let onEdit {
+                    Button {
+                        onEdit()
+                    } label: {
+                        Image(systemName: "pencil")
+                            .font(.subheadline)
+                            .foregroundStyle(color)
+                            .frame(width: 30, height: 30)
+                            .background(color.opacity(0.1))
+                            .clipShape(RoundedRectangle(cornerRadius: 6))
+                    }
+                }
+            }
+
+            content
+        }
+        .padding(14)
+        .background(Color(.secondarySystemGroupedBackground))
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+    }
+}
+
+// MARK: - Profile Field (key-value row)
+
+private struct ProfileField: View {
     let label: String
     let value: String?
 
@@ -494,7 +848,453 @@ private struct OptionalRow: View {
 
     var body: some View {
         if let value, !value.isEmpty {
-            LabeledContent(label, value: value)
+            HStack(alignment: .top) {
+                Text(label)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .frame(width: 100, alignment: .leading)
+                Text(value)
+                    .font(.subheadline)
+            }
+        }
+    }
+}
+
+// MARK: - Accent Card (left-bordered item)
+
+private struct AccentCard<Content: View>: View {
+    let color: Color
+    @ViewBuilder let content: Content
+
+    var body: some View {
+        HStack(spacing: 0) {
+            RoundedRectangle(cornerRadius: 2)
+                .fill(color)
+                .frame(width: 4)
+
+            VStack(alignment: .leading, spacing: 4) {
+                content
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 8)
+        }
+        .background(color.opacity(0.05))
+        .clipShape(RoundedRectangle(cornerRadius: 8))
+    }
+}
+
+// MARK: - Status Badge
+
+private struct StatusBadge: View {
+    let text: String
+    let color: Color
+
+    var body: some View {
+        Text(text)
+            .font(.caption2.weight(.semibold))
+            .padding(.horizontal, 7)
+            .padding(.vertical, 2)
+            .background(color.opacity(0.15))
+            .foregroundStyle(color)
+            .clipShape(Capsule())
+    }
+}
+
+// MARK: - Preferences Sub-Section
+
+private struct PreferencesSubSection<Content: View>: View {
+    let title: String
+    @ViewBuilder let content: Content
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(title)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.secondary)
+                .padding(.top, 4)
+            content
+        }
+    }
+}
+
+// MARK: - Edit Section Identifier
+
+private struct EditSection: Identifiable {
+    let id: String
+    init(_ name: String) { self.id = name }
+}
+
+// MARK: - Section Edit View
+
+private struct ProfileSectionEditView: View {
+    let sessionId: String
+    let section: EditSection
+    let profileData: ProfileData
+    let viewModel: ProfileViewModel
+
+    @Environment(\.dismiss) private var dismiss
+
+    // Patient fields
+    @State private var fullName = ""
+    @State private var preferredName = ""
+    @State private var dateOfBirth = ""
+    @State private var age = ""
+    @State private var contactInfo = ""
+    @State private var location = ""
+
+    // List sections
+    @State private var caregivers: [CaregiverInfo] = []
+    @State private var providers: [ProviderInfo] = []
+    @State private var conditions: [ConditionInfo] = []
+    @State private var medications: [MedicationInfo] = []
+    @State private var allergies: [AllergyInfo] = []
+    @State private var events: [EventInfo] = []
+
+    var body: some View {
+        Form {
+            switch section.id {
+            case "patient": patientForm
+            case "caregivers": caregiversForm
+            case "providers": providersForm
+            case "conditions": conditionsForm
+            case "medications": medicationsForm
+            case "allergies": allergiesForm
+            case "events": eventsForm
+            default: Text("Unknown section")
+            }
+        }
+        .navigationTitle("Edit \(sectionTitle)")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .cancellationAction) {
+                Button("Cancel") { dismiss() }
+            }
+            ToolbarItem(placement: .confirmationAction) {
+                Button("Save") { save() }
+            }
+        }
+        .onAppear { loadData() }
+    }
+
+    private var sectionTitle: String {
+        switch section.id {
+        case "patient": return "Patient"
+        case "caregivers": return "Caregivers"
+        case "providers": return "Providers"
+        case "conditions": return "Conditions"
+        case "medications": return "Medications"
+        case "allergies": return "Allergies"
+        case "events": return "Events"
+        default: return section.id.capitalized
+        }
+    }
+
+    private func loadData() {
+        if let p = profileData.patient {
+            fullName = p.fullName ?? ""
+            preferredName = p.preferredName ?? ""
+            dateOfBirth = p.dateOfBirth ?? ""
+            age = p.age ?? ""
+            contactInfo = p.contactInfo ?? ""
+            location = p.location ?? ""
+        }
+        caregivers = profileData.caregivers ?? []
+        providers = profileData.providers ?? []
+        conditions = profileData.conditions ?? []
+        medications = profileData.medications ?? []
+        allergies = profileData.allergies ?? []
+        events = profileData.events ?? []
+    }
+
+    // MARK: - Patient Form
+
+    @ViewBuilder
+    private var patientForm: some View {
+        Section("Basic Information") {
+            EditRow("Full Name", text: $fullName)
+            EditRow("Preferred Name", text: $preferredName)
+            EditRow("Date of Birth", text: $dateOfBirth)
+            EditRow("Age", text: $age)
+        }
+        Section("Contact") {
+            EditRow("Contact Info", text: $contactInfo)
+            EditRow("Location", text: $location)
+        }
+    }
+
+    // MARK: - Caregivers Form
+
+    @ViewBuilder
+    private var caregiversForm: some View {
+        Group {
+            ForEach($caregivers) { $caregiver in
+                Section {
+                    EditRow("Name", text: Binding(get: { caregiver.name ?? "" }, set: { caregiver.name = $0.isEmpty ? nil : $0 }))
+                    EditRow("Relationship", text: Binding(get: { caregiver.relationship ?? "" }, set: { caregiver.relationship = $0.isEmpty ? nil : $0 }))
+                    EditRow("Role", text: Binding(get: { caregiver.role ?? "" }, set: { caregiver.role = $0.isEmpty ? nil : $0 }))
+                    EditRow("Contact", text: Binding(get: { caregiver.contactInfo ?? "" }, set: { caregiver.contactInfo = $0.isEmpty ? nil : $0 }))
+                } header: {
+                    HStack {
+                        Text(caregiver.name ?? "Caregiver")
+                        Spacer()
+                        Button("Remove", role: .destructive) {
+                            caregivers.removeAll { $0.id == caregiver.id }
+                        }
+                        .font(.caption)
+                    }
+                }
+            }
+            Section {
+                AddItemButton("Add Caregiver") {
+                    caregivers.append(CaregiverInfo(id: UUID().uuidString))
+                }
+            }
+        }
+    }
+
+    // MARK: - Providers Form
+
+    @ViewBuilder
+    private var providersForm: some View {
+        ForEach($providers) { $provider in
+            Section {
+                EditRow("Name", text: Binding(get: { provider.name ?? "" }, set: { provider.name = $0.isEmpty ? nil : $0 }))
+                EditRow("Specialty", text: Binding(get: { provider.specialty ?? "" }, set: { provider.specialty = $0.isEmpty ? nil : $0 }))
+                EditRow("Organization", text: Binding(get: { provider.organization ?? "" }, set: { provider.organization = $0.isEmpty ? nil : $0 }))
+            } header: {
+                HStack {
+                    Text(provider.name ?? "Provider")
+                    Spacer()
+                    Button("Remove", role: .destructive) {
+                        providers.removeAll { $0.id == provider.id }
+                    }
+                    .font(.caption)
+                }
+            }
+        }
+        Section {
+            AddItemButton("Add Provider") {
+                providers.append(ProviderInfo(id: UUID().uuidString))
+            }
+        }
+    }
+
+    // MARK: - Conditions Form
+
+    @ViewBuilder
+    private var conditionsForm: some View {
+        ForEach($conditions) { $condition in
+            Section {
+                EditRow("Clinical Term", text: Binding(get: { condition.clinicalTerm ?? "" }, set: { condition.clinicalTerm = $0.isEmpty ? nil : $0 }))
+                EditRow("Description", text: Binding(get: { condition.description ?? "" }, set: { condition.description = $0.isEmpty ? nil : $0 }))
+                Picker("Status", selection: Binding(get: { condition.status ?? "active" }, set: { condition.status = $0 })) {
+                    Text("Active").tag("active")
+                    Text("Monitoring").tag("monitoring")
+                    Text("Resolved").tag("resolved")
+                }
+                EditRow("Diagnosis Date", text: Binding(get: { condition.diagnosisDate ?? "" }, set: { condition.diagnosisDate = $0.isEmpty ? nil : $0 }))
+                EditRow("Details", text: Binding(get: { condition.details ?? "" }, set: { condition.details = $0.isEmpty ? nil : $0 }))
+            } header: {
+                HStack {
+                    Text(condition.clinicalTerm ?? condition.description ?? "Condition")
+                    Spacer()
+                    Button("Remove", role: .destructive) {
+                        conditions.removeAll { $0.id == condition.id }
+                    }
+                    .font(.caption)
+                }
+            }
+        }
+        Section {
+            AddItemButton("Add Condition") {
+                conditions.append(ConditionInfo(id: UUID().uuidString, status: "active"))
+            }
+        }
+    }
+
+    // MARK: - Medications Form
+
+    @ViewBuilder
+    private var medicationsForm: some View {
+        ForEach($medications) { $med in
+            Section {
+                EditRow("Name", text: Binding(get: { med.name ?? "" }, set: { med.name = $0.isEmpty ? nil : $0 }))
+                EditRow("Dose", text: Binding(get: { med.dose ?? "" }, set: { med.dose = $0.isEmpty ? nil : $0 }))
+                EditRow("Frequency", text: Binding(get: { med.frequency ?? "" }, set: { med.frequency = $0.isEmpty ? nil : $0 }))
+                EditRow("Prescriber", text: Binding(get: { med.prescriber ?? "" }, set: { med.prescriber = $0.isEmpty ? nil : $0 }))
+                EditRow("Notes", text: Binding(get: { med.notes ?? "" }, set: { med.notes = $0.isEmpty ? nil : $0 }))
+            } header: {
+                HStack {
+                    Text(med.name ?? "Medication")
+                    Spacer()
+                    Button("Remove", role: .destructive) {
+                        medications.removeAll { $0.id == med.id }
+                    }
+                    .font(.caption)
+                }
+            }
+        }
+        Section {
+            AddItemButton("Add Medication") {
+                medications.append(MedicationInfo(id: UUID().uuidString))
+            }
+        }
+    }
+
+    // MARK: - Allergies Form
+
+    @ViewBuilder
+    private var allergiesForm: some View {
+        ForEach($allergies) { $allergy in
+            Section {
+                EditRow("Substance", text: Binding(get: { allergy.substance ?? "" }, set: { allergy.substance = $0.isEmpty ? nil : $0 }))
+                EditRow("Reaction", text: Binding(get: { allergy.reaction ?? "" }, set: { allergy.reaction = $0.isEmpty ? nil : $0 }))
+                Picker("Severity", selection: Binding(get: { allergy.severity ?? "moderate" }, set: { allergy.severity = $0 })) {
+                    Text("Mild").tag("mild")
+                    Text("Moderate").tag("moderate")
+                    Text("Severe").tag("severe")
+                }
+            } header: {
+                HStack {
+                    Text(allergy.substance ?? "Allergy")
+                    Spacer()
+                    Button("Remove", role: .destructive) {
+                        allergies.removeAll { $0.id == allergy.id }
+                    }
+                    .font(.caption)
+                }
+            }
+        }
+        Section {
+            AddItemButton("Add Allergy") {
+                allergies.append(AllergyInfo(id: UUID().uuidString, severity: "moderate"))
+            }
+        }
+    }
+
+    // MARK: - Events Form
+
+    @ViewBuilder
+    private var eventsForm: some View {
+        ForEach($events) { $event in
+            Section {
+                EditRow("Type", text: Binding(get: { event.eventType ?? "" }, set: { event.eventType = $0.isEmpty ? nil : $0 }))
+                EditRow("Description", text: Binding(get: { event.description ?? "" }, set: { event.description = $0.isEmpty ? nil : $0 }))
+                EditRow("Date", text: Binding(get: { event.date ?? "" }, set: { event.date = $0.isEmpty ? nil : $0 }))
+                EditRow("Details", text: Binding(get: { event.details ?? "" }, set: { event.details = $0.isEmpty ? nil : $0 }))
+            } header: {
+                HStack {
+                    Text(event.description ?? event.eventType ?? "Event")
+                    Spacer()
+                    Button("Remove", role: .destructive) {
+                        events.removeAll { $0.id == event.id }
+                    }
+                    .font(.caption)
+                }
+            }
+        }
+        Section {
+            AddItemButton("Add Event") {
+                events.append(EventInfo(id: UUID().uuidString))
+            }
+        }
+    }
+
+    // MARK: - Save
+
+    private func save() {
+        Task {
+            let sectionName = section.id
+            switch sectionName {
+            case "patient":
+                let patient = PatientInfo(
+                    fullName: fullName.isEmpty ? nil : fullName,
+                    preferredName: preferredName.isEmpty ? nil : preferredName,
+                    dateOfBirth: dateOfBirth.isEmpty ? nil : dateOfBirth,
+                    age: age.isEmpty ? nil : age,
+                    contactInfo: contactInfo.isEmpty ? nil : contactInfo,
+                    location: location.isEmpty ? nil : location
+                )
+                let encoder = JSONEncoder()
+                encoder.keyEncodingStrategy = .convertToSnakeCase
+                if let jsonData = try? encoder.encode(patient),
+                   let dict = try? JSONSerialization.jsonObject(with: jsonData) as? [String: Any] {
+                    await viewModel.updateSection(sessionId: sessionId, section: sectionName, data: .dictionary(dict.mapValues { AnyCodableValue.from($0) }))
+                }
+            case "caregivers":
+                await saveCodableList(caregivers, section: sectionName)
+            case "providers":
+                await saveCodableList(providers, section: sectionName)
+            case "conditions":
+                await saveCodableList(conditions, section: sectionName)
+            case "medications":
+                await saveCodableList(medications, section: sectionName)
+            case "allergies":
+                await saveCodableList(allergies, section: sectionName)
+            case "events":
+                await saveCodableList(events, section: sectionName)
+            default:
+                break
+            }
+            dismiss()
+        }
+    }
+
+    private func saveCodableList<T: Encodable>(_ items: [T], section: String) async {
+        let encoder = JSONEncoder()
+        encoder.keyEncodingStrategy = .convertToSnakeCase
+        if let jsonData = try? encoder.encode(items),
+           let array = try? JSONSerialization.jsonObject(with: jsonData) as? [[String: Any]] {
+            let codableArray = array.map { dict in
+                AnyCodableValue.dictionary(dict.mapValues { AnyCodableValue.from($0) })
+            }
+            await viewModel.updateSection(sessionId: sessionId, section: section, data: .array(codableArray))
+        }
+    }
+}
+
+// MARK: - Edit Row
+
+private struct EditRow: View {
+    let label: String
+    @Binding var text: String
+
+    init(_ label: String, text: Binding<String>) {
+        self.label = label
+        self._text = text
+    }
+
+    var body: some View {
+        HStack {
+            Text(label)
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .frame(width: 100, alignment: .leading)
+            TextField(label, text: $text)
+                .font(.subheadline)
+        }
+    }
+}
+
+// MARK: - Add Item Button
+
+private struct AddItemButton: View {
+    let label: String
+    let action: () -> Void
+
+    init(_ label: String, action: @escaping () -> Void) {
+        self.label = label
+        self.action = action
+    }
+
+    var body: some View {
+        Button {
+            action()
+        } label: {
+            Label(label, systemImage: "plus.circle.fill")
+                .font(.subheadline)
+                .foregroundStyle(Color.accentColor)
         }
     }
 }

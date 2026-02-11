@@ -297,6 +297,7 @@ base-uri 'self'
 - **Placeholder hash detection**: Release builds trigger `assertionFailure` if pinned hashes still contain placeholder values, preventing broken production builds
 - **API base URL enforcement**: Release builds crash (`fatalError`) if `API_BASE_URL` is not configured; DEBUG falls back to localhost
 - **ATS**: `NSAppTransportSecurity` restricts to HTTPS in production; local networking allowed for development only
+- **Authenticated file downloads**: `APIClient.downloadData()` fetches raw data with JWT auth + token refresh for endpoints like profile PDF export, preventing unauthenticated access via Safari
 - **Image downloads**: `CachedAsyncImage` uses `URLSession.shared` (no pinning) for S3 presigned URLs — documented and intentional
 
 **Input Validation & Integrity:**

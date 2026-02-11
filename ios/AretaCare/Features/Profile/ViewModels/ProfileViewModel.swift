@@ -166,9 +166,21 @@ final class ProfileViewModel {
 
     // MARK: - Export Profile
 
-    func exportProfileURL(sessionId: String, format: String) -> URL? {
-        let path = APIEndpoints.Profile.export(sessionId, format: format)
-        return URL(string: APIClient.shared.baseURL.absoluteString + path)
+    func exportProfile(sessionId: String, format: String) async throws -> URL {
+        let path = APIEndpoints.Profile.export(sessionId)
+        let queryItems = [URLQueryItem(name: "format", value: format)]
+        let data = try await APIClient.shared.downloadData(path, queryItems: queryItems)
+
+        let ext = format == "pdf" ? "pdf" : "json"
+        let filename = "health_profile.\(ext)"
+        let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent(filename)
+
+        try data.write(to: tempURL)
+        return tempURL
+    }
+
+    func setError(_ message: String) {
+        errorMessage = message
     }
 
     func dismissError() {
