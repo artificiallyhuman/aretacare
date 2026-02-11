@@ -177,10 +177,10 @@ private struct AudioRecordingRowView: View {
                 .frame(width: 36)
 
             VStack(alignment: .leading, spacing: 4) {
-                Text(recording.filename)
+                Text(recording.aiSummary ?? recording.filename)
                     .font(.subheadline.weight(.medium))
                     .foregroundStyle(.primary)
-                    .lineLimit(1)
+                    .lineLimit(2)
 
                 if let transcript = recording.transcribedText {
                     Text(transcript)
@@ -387,7 +387,7 @@ private struct AudioRecordingDetailView: View {
             }
             .padding()
         }
-        .navigationTitle(recording.filename)
+        .navigationTitle(recording.aiSummary ?? recording.filename)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .cancellationAction) {

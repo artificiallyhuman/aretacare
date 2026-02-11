@@ -1,0 +1,172 @@
+import SwiftUI
+
+struct SessionDetailView: View {
+    let sessionId: String
+    let viewModel: SettingsViewModel
+
+    @Environment(\.dismiss) private var dismiss
+    @Environment(\.colorScheme) private var colorScheme
+
+    @State private var showRenameAlert = false
+    @State private var renameText = ""
+    @State private var showColorPicker = false
+    @State private var showCollaboration = false
+    @State private var showDeleteConfirmation = false
+
+    private var session: SessionResponse? {
+        viewModel.sessions.first { $0.id == sessionId }
+    }
+
+    var body: some View {
+        if let session {
+            Form {
+                // Session info
+                Section {
+                    HStack {
+                        Label("Name", systemImage: "textformat")
+                        Spacer()
+                        Text(session.name)
+                            .foregroundStyle(.secondary)
+                        Image(systemName: "chevron.right")
+                            .font(.caption)
+                            .foregroundStyle(.tertiary)
+                    }
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        renameText = session.name
+                        showRenameAlert = true
+                    }
+
+                    HStack {
+                        Label("Color", systemImage: "paintpalette")
+                        Spacer()
+                        Circle()
+                            .fill(swatchColor(for: session))
+                            .frame(width: 20, height: 20)
+                        Image(systemName: "chevron.right")
+                            .font(.caption)
+                            .foregroundStyle(.tertiary)
+                    }
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        showColorPicker = true
+                    }
+
+                    HStack {
+                        Label("Created", systemImage: "calendar")
+                        Spacer()
+                        Text(session.createdAt, style: .date)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+
+                // Statistics
+                if let stats = viewModel.sessionStatistics[sessionId] {
+                    Section("Statistics") {
+                        statisticRow(label: "Messages", count: stats.messageCount, icon: "bubble.left")
+                        statisticRow(label: "Journal Entries", count: stats.journalEntryCount, icon: "book")
+                        statisticRow(label: "Documents", count: stats.documentCount, icon: "doc")
+                        statisticRow(label: "Audio Recordings", count: stats.audioRecordingCount, icon: "mic")
+                    }
+                }
+
+                // Collaboration
+                Section {
+                    HStack {
+                        Label("Collaboration", systemImage: "person.2")
+                        Spacer()
+                        if !session.collaborators.isEmpty {
+                            Text("\(session.collaborators.count)")
+                                .foregroundStyle(.secondary)
+                        }
+                        Image(systemName: "chevron.right")
+                            .font(.caption)
+                            .foregroundStyle(.tertiary)
+                    }
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        showCollaboration = true
+                    }
+                }
+
+                // Delete
+                Section {
+                    Button(role: .destructive) {
+                        showDeleteConfirmation = true
+                    } label: {
+                        HStack {
+                            Label("Delete Session", systemImage: "trash")
+                            Spacer()
+                        }
+                    }
+                } footer: {
+                    Text("Permanently deletes all conversations, journal entries, documents, and recordings in this session.")
+                }
+            }
+            .navigationTitle(session.name)
+            .navigationBarTitleDisplayMode(.inline)
+            .task {
+                if viewModel.sessionStatistics[sessionId] == nil {
+                    await viewModel.fetchStatistics(sessionId: sessionId)
+                }
+            }
+            .alert("Rename Session", isPresented: $showRenameAlert) {
+                TextField("Session name", text: $renameText)
+                Button("Rename") {
+                    Task { await viewModel.renameSession(id: sessionId, name: renameText) }
+                }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("Enter a new name (max \(AppConstants.sessionNameMaxLength) characters).")
+            }
+            .sheet(isPresented: $showColorPicker) {
+                SessionColorPickerView(session: session, viewModel: viewModel)
+            }
+            .sheet(isPresented: $showCollaboration) {
+                NavigationStack {
+                    CollaborationView(session: session)
+                        .toolbar {
+                            ToolbarItem(placement: .cancellationAction) {
+                                Button {
+                                    showCollaboration = false
+                                } label: {
+                                    Image(systemName: "xmark.circle.fill")
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
+                        }
+                }
+            }
+            .confirmationDialog("Delete Session", isPresented: $showDeleteConfirmation, titleVisibility: .visible) {
+                Button("Delete", role: .destructive) {
+                    Task {
+                        await viewModel.deleteSession(id: sessionId)
+                        dismiss()
+                    }
+                }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("Delete \"\(session.name)\"? All conversations, journal entries, documents, and recordings in this session will be permanently deleted.")
+            }
+        }
+    }
+
+    // MARK: - Helpers
+
+    private func swatchColor(for session: SessionResponse) -> Color {
+        if let colorKey = session.colorKey,
+           let sessionColor = SessionColors.color(forKey: colorKey) {
+            return sessionColor.swatch(for: colorScheme)
+        }
+        return Color(.systemGray4)
+    }
+
+    private func statisticRow(label: String, count: Int, icon: String) -> some View {
+        HStack {
+            Label(label, systemImage: icon)
+            Spacer()
+            Text("\(count)")
+                .foregroundStyle(.secondary)
+        }
+    }
+}

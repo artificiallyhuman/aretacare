@@ -28,6 +28,9 @@ final class AuthManager {
 
         do {
             guard let newToken = try await AuthInterceptor.shared.refreshAccessToken() else {
+                // Refresh returned nil (e.g. server rejected token) —
+                // clear Keychain so stale tokens don't persist across launches.
+                KeychainManager.shared.clearAll()
                 await handleLogout()
                 return
             }
@@ -37,6 +40,9 @@ final class AuthManager {
             startIdleTimer()
             NotificationManager.shared.requestAuthorization()
         } catch {
+            // Network error or other failure — clear Keychain so stale
+            // tokens don't cause repeated failures on every app launch.
+            KeychainManager.shared.clearAll()
             await handleLogout()
         }
     }

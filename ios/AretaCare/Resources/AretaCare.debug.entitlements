@@ -4,8 +4,8 @@
 <dict>
 	<key>com.apple.developer.associated-domains</key>
 	<array>
-		<string>applinks:aretacare.com</string>
-		<string>webcredentials:aretacare.com</string>
+		<string>applinks:aretacare.com?mode=developer</string>
+		<string>webcredentials:aretacare.com?mode=developer</string>
 	</array>
 	<key>aps-environment</key>
 	<string>development</string>

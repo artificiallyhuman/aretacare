@@ -12,7 +12,7 @@ struct ProfileView: View {
         Group {
             if viewModel.isLoading && viewModel.profile == nil {
                 LoadingView(message: "Loading health profile...")
-            } else if viewModel.profile == nil {
+            } else if viewModel.isProfileEmpty {
                 emptyProfileState
             } else {
                 VStack(spacing: 0) {
@@ -25,7 +25,7 @@ struct ProfileView: View {
         }
         .navigationTitle("Health Profile")
         .toolbar {
-            if viewModel.profile != nil {
+            if !viewModel.isProfileEmpty {
                 ToolbarItem(placement: .primaryAction) {
                     Menu {
                         if viewModel.hasPendingChanges {
@@ -342,61 +342,56 @@ struct ProfileView: View {
 
     private var emptyProfileState: some View {
         ScrollView {
-            VStack(spacing: 24) {
-                Spacer().frame(height: 20)
-
-                Image(systemName: "heart.text.clipboard")
-                    .font(.system(size: 56))
-                    .foregroundStyle(Color.accentColor)
-
-                Text("No Health Profile Yet")
-                    .font(.title2.weight(.bold))
-
-                Text("To get started, have a few conversations or add some journal entries first. Then tap the button below to generate your profile from that activity. You can update it anytime new information is available.")
+            VStack(alignment: .leading, spacing: 16) {
+                Text("A living summary of patient, caregiver, provider, and care details. You stay in control at all times, with full ability to edit, copy, download, or reset it, and nothing is changed without your approval.")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
 
-                if viewModel.newConversationCount > 0 || viewModel.newJournalCount > 0 {
-                    HStack(spacing: 16) {
-                        if viewModel.newConversationCount > 0 {
-                            Label(
-                                "\(viewModel.newConversationCount) conversation\(viewModel.newConversationCount == 1 ? "" : "s")",
-                                systemImage: "bubble.left.and.bubble.right"
-                            )
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                        }
-                        if viewModel.newJournalCount > 0 {
-                            Label(
-                                "\(viewModel.newJournalCount) journal entr\(viewModel.newJournalCount == 1 ? "y" : "ies")",
-                                systemImage: "book"
-                            )
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                        }
-                    }
-                }
+                VStack(spacing: 20) {
+                    Image(systemName: "person.crop.circle")
+                        .font(.system(size: 56))
+                        .foregroundStyle(Color.accentColor)
 
-                Button {
-                    Task {
-                        await viewModel.updateProfile(sessionId: sessionId)
-                        if viewModel.hasPendingChanges {
-                            showingPendingChanges = true
+                    Text("No Health Profile Yet")
+                        .font(.title3.weight(.bold))
+
+                    Text("To get started, have a few conversations or add some journal entries first. Then tap the button below to generate your profile from that activity. You can update it anytime new information is available.")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+
+                    Button {
+                        Task {
+                            await viewModel.updateProfile(sessionId: sessionId)
+                            if viewModel.hasPendingChanges {
+                                showingPendingChanges = true
+                            }
                         }
+                    } label: {
+                        Text("Generate Profile")
+                            .font(.headline)
+                            .foregroundStyle(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding()
+                            .background(Color.accentColor)
+                            .clipShape(RoundedRectangle(cornerRadius: 10))
                     }
-                } label: {
-                    Text("Generate Profile")
-                        .font(.headline)
-                        .foregroundStyle(.white)
-                        .frame(maxWidth: .infinity)
-                        .padding()
-                        .background(Color.accentColor)
-                        .clipShape(RoundedRectangle(cornerRadius: 10))
+                    .padding(.top, 4)
                 }
-                .padding(.top, 8)
+                .frame(maxWidth: .infinity)
+                .padding(24)
+                .background(
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(Color(.secondarySystemGroupedBackground))
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12)
+                        .stroke(Color(.separator), lineWidth: 1)
+                )
+                .padding(.top, 16)
             }
-            .padding(.horizontal, 32)
+            .padding(.horizontal, 20)
+            .padding(.top, 8)
         }
     }
 

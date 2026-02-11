@@ -46,9 +46,19 @@ final class NotificationManager {
 
     /// Unregister the device token from the server (called on logout).
     func unregisterToken() async {
+        guard let token = currentToken else { return }
         currentToken = nil
+
+        struct UnregisterTokenRequest: Encodable {
+            let token: String
+            let platform: String
+        }
+
         do {
-            try await APIClient.shared.delete(APIEndpoints.Notifications.unregisterToken)
+            try await APIClient.shared.delete(
+                APIEndpoints.Notifications.unregisterToken,
+                body: UnregisterTokenRequest(token: token, platform: "ios")
+            )
         } catch {
             #if DEBUG
             print("[Push] Failed to unregister token: \(error)")

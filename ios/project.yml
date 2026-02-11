@@ -11,6 +11,7 @@ settings:
     MARKETING_VERSION: "1.0.0"
     CURRENT_PROJECT_VERSION: "1"
     DEVELOPMENT_TEAM: $(DEVELOPMENT_TEAM)
+    SWIFT_EMIT_LOC_STRINGS: YES
 
 packages:
   KeychainAccess:
@@ -37,7 +38,7 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: com.aretacare.ios
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
-        SWIFT_EMIT_LOC_STRINGS: YES
+        ENABLE_USER_SCRIPT_SANDBOXING: YES
       configs:
         Debug:
           CODE_SIGN_ENTITLEMENTS: AretaCare/Resources/AretaCare.debug.entitlements

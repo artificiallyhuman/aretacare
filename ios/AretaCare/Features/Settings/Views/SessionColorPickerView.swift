@@ -7,14 +7,19 @@ struct SessionColorPickerView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) private var colorScheme
 
-    @State private var selectedKey: String?
-    @State private var conflictingSession: SessionResponse?
-    @State private var showSwapConfirmation = false
     @State private var isSaving = false
 
     private let columns = [
         GridItem(.adaptive(minimum: 56, maximum: 72), spacing: 12)
     ]
+
+    /// Colors available to this session: its own current color + any unassigned colors.
+    private var availableColors: [SessionColor] {
+        SessionColors.all.filter { color in
+            color.id == session.colorKey ||
+            viewModel.sessionUsingColor(color.id, excluding: session.id) == nil
+        }
+    }
 
     var body: some View {
         NavigationStack {
@@ -26,8 +31,8 @@ struct SessionColorPickerView: View {
                     .padding(.horizontal)
 
                 LazyVGrid(columns: columns, spacing: 16) {
-                    ForEach(SessionColors.all) { color in
-                        let isCurrent = color.id == (selectedKey ?? session.colorKey)
+                    ForEach(availableColors) { color in
+                        let isCurrent = color.id == session.colorKey
                         Button {
                             selectColor(color.id)
                         } label: {
@@ -55,7 +60,7 @@ struct SessionColorPickerView: View {
                                     .foregroundStyle(isCurrent ? .primary : .secondary)
                             }
                         }
-                        .disabled(isSaving)
+                        .disabled(isSaving || isCurrent)
                     }
                 }
                 .padding(.horizontal)
@@ -70,19 +75,6 @@ struct SessionColorPickerView: View {
                     Button("Done") { dismiss() }
                 }
             }
-            .alert("Swap Colors", isPresented: $showSwapConfirmation) {
-                Button("Swap") {
-                    Task { await applyColor(swap: true) }
-                }
-                Button("Cancel", role: .cancel) {
-                    selectedKey = nil
-                }
-            } message: {
-                if let conflicting = conflictingSession, let key = selectedKey {
-                    let colorLabel = SessionColors.color(forKey: key)?.label ?? key
-                    Text("\"\(conflicting.name)\" is already using \(colorLabel). Swap colors between the two sessions?")
-                }
-            }
             .overlay {
                 if isSaving {
                     Color.black.opacity(0.1).ignoresSafeArea()
@@ -93,35 +85,17 @@ struct SessionColorPickerView: View {
     }
 
     private func selectColor(_ colorKey: String) {
-        // Same as current - no action
-        if colorKey == session.colorKey {
-            return
-        }
+        guard colorKey != session.colorKey else { return }
 
-        selectedKey = colorKey
+        Task {
+            isSaving = true
+            defer { isSaving = false }
 
-        // Check for conflicts
-        if let conflicting = viewModel.sessionUsingColor(colorKey, excluding: session.id) {
-            conflictingSession = conflicting
-            showSwapConfirmation = true
-        } else {
-            Task { await applyColor(swap: false) }
-        }
-    }
+            await viewModel.setSessionColor(sessionId: session.id, colorKey: colorKey)
 
-    private func applyColor(swap: Bool) async {
-        guard let colorKey = selectedKey else { return }
-        isSaving = true
-        defer { isSaving = false }
-
-        await viewModel.setSessionColor(
-            sessionId: session.id,
-            colorKey: colorKey,
-            swapWithSessionId: swap ? conflictingSession?.id : nil
-        )
-
-        if viewModel.errorMessage == nil {
-            dismiss()
+            if viewModel.errorMessage == nil {
+                dismiss()
+            }
         }
     }
 }

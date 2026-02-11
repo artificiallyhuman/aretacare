@@ -22,6 +22,18 @@ final class ProfileViewModel {
         !pendingChanges.isEmpty
     }
 
+    var isProfileEmpty: Bool {
+        guard let data = profileData else { return true }
+        return data.patient == nil
+            && (data.caregivers ?? []).isEmpty
+            && (data.providers ?? []).isEmpty
+            && (data.conditions ?? []).isEmpty
+            && (data.medications ?? []).isEmpty
+            && (data.allergies ?? []).isEmpty
+            && (data.events ?? []).isEmpty
+            && data.preferences == nil
+    }
+
     // MARK: - Fetch Profile
 
     func fetchProfile(sessionId: String) async {
@@ -83,7 +95,7 @@ final class ProfileViewModel {
 
         do {
             let request = ProfileSectionUpdateRequest(section: section, data: data)
-            let _: ProfileResponse = try await APIClient.shared.put(
+            let _: ProfileResponse = try await APIClient.shared.patch(
                 APIEndpoints.Profile.updateSection(sessionId),
                 body: request
             )

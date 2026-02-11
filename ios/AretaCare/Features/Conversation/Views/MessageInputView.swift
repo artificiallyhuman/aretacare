@@ -1,13 +1,26 @@
 import SwiftUI
 import Combine
 
+// MARK: - Pending Attachment
+
+struct PendingAttachment {
+    let data: Data
+    let filename: String
+    let contentType: String
+}
+
+// MARK: - Message Input View
+
 struct MessageInputView: View {
     @Binding var text: String
     let isSending: Bool
+    let isUploading: Bool
     let hasMessages: Bool
+    let pendingAttachment: PendingAttachment?
     var onSend: () -> Void
     var onAttach: () -> Void
     var onMicrophone: () -> Void
+    var onRemoveAttachment: () -> Void
 
     @FocusState private var isFocused: Bool
     @State private var sendTrigger = 0
@@ -22,15 +35,23 @@ struct MessageInputView: View {
         "I'm caring for my dad and feeling overwhelmed\u{2026}"
     ]
 
+    private var hasText: Bool {
+        !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
     private var canSend: Bool {
-        !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !isSending
+        (hasText || pendingAttachment != nil) && !isSending && !isUploading
     }
 
     var body: some View {
         VStack(spacing: 0) {
             Divider()
 
-            HStack(alignment: .bottom, spacing: 10) {
+            if let attachment = pendingAttachment {
+                attachmentPreview(attachment)
+            }
+
+            HStack(alignment: .center, spacing: 10) {
                 // Attach button
                 Button {
                     onAttach()
@@ -39,7 +60,7 @@ struct MessageInputView: View {
                         .font(.title3)
                         .foregroundStyle(.secondary)
                 }
-                .disabled(isSending)
+                .disabled(isSending || isUploading)
 
                 // Text field
                 TextField(hasMessages ? "Type your message..." : placeholderPrompts[currentPromptIndex], text: $text, axis: .vertical)
@@ -55,7 +76,7 @@ struct MessageInputView: View {
                     .background(Color(.systemGray6))
                     .clipShape(RoundedRectangle(cornerRadius: 20))
 
-                if text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                if !hasText && pendingAttachment == nil {
                     // Microphone button
                     Button {
                         onMicrophone()
@@ -64,7 +85,7 @@ struct MessageInputView: View {
                             .font(.title3)
                             .foregroundStyle(Color.accentColor)
                     }
-                    .disabled(isSending)
+                    .disabled(isSending || isUploading)
                 } else {
                     // Send button
                     Button {
@@ -91,8 +112,48 @@ struct MessageInputView: View {
         }
     }
 
+    // MARK: - Attachment Preview
+
+    private func attachmentPreview(_ attachment: PendingAttachment) -> some View {
+        HStack(spacing: 10) {
+            if attachment.contentType.hasPrefix("image/"),
+               let uiImage = UIImage(data: attachment.data) {
+                Image(uiImage: uiImage)
+                    .resizable()
+                    .scaledToFill()
+                    .frame(width: 44, height: 44)
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+            } else {
+                Image(systemName: "doc.fill")
+                    .font(.title2)
+                    .foregroundStyle(Color.accentColor)
+                    .frame(width: 44, height: 44)
+            }
+
+            Text(attachment.filename)
+                .font(.subheadline)
+                .foregroundStyle(.primary)
+                .lineLimit(1)
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+            Button {
+                onRemoveAttachment()
+            } label: {
+                Image(systemName: "xmark.circle.fill")
+                    .font(.title3)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .padding(10)
+        .background(Color(.secondarySystemGroupedBackground))
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .padding(.horizontal, 12)
+        .padding(.top, 8)
+    }
+
     private func performSend() {
         guard canSend else { return }
+        isFocused = false
         sendTrigger += 1
         onSend()
     }
@@ -103,9 +164,12 @@ struct MessageInputView: View {
     MessageInputView(
         text: $text,
         isSending: false,
+        isUploading: false,
         hasMessages: false,
+        pendingAttachment: nil,
         onSend: {},
         onAttach: {},
-        onMicrophone: {}
+        onMicrophone: {},
+        onRemoveAttachment: {}
     )
 }

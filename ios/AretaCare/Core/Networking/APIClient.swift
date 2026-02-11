@@ -25,6 +25,7 @@ final class APIClient: Sendable {
             }
             let formatter = DateFormatter()
             formatter.locale = Locale(identifier: "en_US_POSIX")
+            formatter.timeZone = TimeZone(secondsFromGMT: 0)
             for format in ["yyyy-MM-dd'T'HH:mm:ss.SSSSSS", "yyyy-MM-dd'T'HH:mm:ss", "yyyy-MM-dd"] {
                 formatter.dateFormat = format
                 if let date = formatter.date(from: dateString) {

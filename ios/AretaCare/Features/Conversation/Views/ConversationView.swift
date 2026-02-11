@@ -38,6 +38,7 @@ struct ConversationView: View {
     @State private var showingPhotoPicker = false
     @State private var showingFilePicker = false
     @State private var selectedPhotoItems: [PhotosPickerItem] = []
+    @State private var pendingAttachment: PendingAttachment?
 
     private var currentUserId: String {
         AuthManager.shared.currentUser?.id ?? ""
@@ -58,8 +59,14 @@ struct ConversationView: View {
 
             messageList
 
+            if documentsVM.isUploading {
+                uploadIndicator
+            }
+
             if conversationVM.isSending {
-                typingIndicator
+                TypingBubbleView()
+                    .padding(.horizontal, 12)
+                    .padding(.bottom, 4)
             }
 
             if isRecordingAudio {
@@ -81,10 +88,13 @@ struct ConversationView: View {
                 MessageInputView(
                     text: $messageText,
                     isSending: conversationVM.isSending,
+                    isUploading: documentsVM.isUploading,
                     hasMessages: !conversationVM.messages.isEmpty,
+                    pendingAttachment: pendingAttachment,
                     onSend: sendMessage,
                     onAttach: { showingAttachSheet = true },
-                    onMicrophone: { startAudioRecording() }
+                    onMicrophone: { startAudioRecording() },
+                    onRemoveAttachment: { pendingAttachment = nil }
                 )
             }
         }
@@ -353,26 +363,19 @@ struct ConversationView: View {
         }
     }
 
-    // MARK: - Typing Indicator
+    // MARK: - Upload Indicator
 
-    private var typingIndicator: some View {
+    private var uploadIndicator: some View {
         HStack {
-            HStack(spacing: 4) {
-                ForEach(0..<3, id: \.self) { i in
-                    Circle()
-                        .fill(Color.secondary)
-                        .frame(width: 6, height: 6)
-                        .offset(y: conversationVM.isSending ? -4 : 0)
-                        .animation(
-                            .easeInOut(duration: 0.4)
-                            .repeatForever(autoreverses: true)
-                            .delay(Double(i) * 0.15),
-                            value: conversationVM.isSending
-                        )
-                }
+            HStack(spacing: 8) {
+                ProgressView()
+                    .controlSize(.small)
+                Text("Uploading...")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
             }
             .padding(.horizontal, 14)
-            .padding(.vertical, 12)
+            .padding(.vertical, 10)
             .background(Color(.systemGray6))
             .clipShape(RoundedRectangle(cornerRadius: 18))
 
@@ -386,12 +389,40 @@ struct ConversationView: View {
 
     private func sendMessage() {
         let text = messageText
+        let attachment = pendingAttachment
         messageText = ""
+        pendingAttachment = nil
         sendHapticTrigger += 1
         guard let sessionId = currentSessionId else { return }
-        Task {
-            await conversationVM.sendMessage(text: text, sessionId: sessionId)
-            scrollToBottom.toggle()
+
+        if let attachment {
+            Task {
+                if let response = await documentsVM.uploadDocument(
+                    sessionId: sessionId,
+                    fileData: attachment.data,
+                    filename: attachment.filename,
+                    contentType: attachment.contentType,
+                    skipJournalSynthesis: true
+                ) {
+                    let messageType = attachment.contentType.hasPrefix("image/") ? "image" : "document"
+                    let content = text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : text
+                    await conversationVM.sendDocumentMessage(
+                        sessionId: sessionId,
+                        documentId: response.id,
+                        filename: attachment.filename,
+                        messageType: messageType,
+                        mediaUrl: response.mediaUrl,
+                        thumbnailUrl: response.thumbnailUrl,
+                        content: content
+                    )
+                    scrollToBottom.toggle()
+                }
+            }
+        } else {
+            Task {
+                await conversationVM.sendMessage(text: text, sessionId: sessionId)
+                scrollToBottom.toggle()
+            }
         }
     }
 
@@ -426,10 +457,9 @@ struct ConversationView: View {
     // MARK: - Attachment Handling
 
     private func handleCameraImage(_ image: UIImage) {
-        guard let sessionId = currentSessionId,
-              let data = image.jpegData(compressionQuality: 0.85) else { return }
+        guard let data = image.jpegData(compressionQuality: 0.85) else { return }
         let filename = "photo_\(Date().apiDateString).jpg"
-        uploadAttachment(sessionId: sessionId, data: data, filename: filename, contentType: "image/jpeg")
+        pendingAttachment = PendingAttachment(data: data, filename: filename, contentType: "image/jpeg")
     }
 
     private func handlePhotoSelection(_ items: [PhotosPickerItem]) {
@@ -437,10 +467,9 @@ struct ConversationView: View {
         selectedPhotoItems = []
 
         Task {
-            if let data = try? await item.loadTransferable(type: Data.self),
-               let sessionId = currentSessionId {
+            if let data = try? await item.loadTransferable(type: Data.self) {
                 let filename = "photo_\(Date().apiDateString).jpg"
-                uploadAttachment(sessionId: sessionId, data: data, filename: filename, contentType: "image/jpeg")
+                pendingAttachment = PendingAttachment(data: data, filename: filename, contentType: "image/jpeg")
             }
         }
     }
@@ -452,35 +481,13 @@ struct ConversationView: View {
             guard url.startAccessingSecurityScopedResource() else { return }
             defer { url.stopAccessingSecurityScopedResource() }
 
-            guard let data = try? Data(contentsOf: url),
-                  let sessionId = currentSessionId else { return }
+            guard let data = try? Data(contentsOf: url) else { return }
             let filename = url.lastPathComponent
             let contentType = mimeType(for: url.pathExtension)
-            uploadAttachment(sessionId: sessionId, data: data, filename: filename, contentType: contentType)
+            pendingAttachment = PendingAttachment(data: data, filename: filename, contentType: contentType)
 
         case .failure:
             break
-        }
-    }
-
-    private func uploadAttachment(sessionId: String, data: Data, filename: String, contentType: String) {
-        Task {
-            if let response = await documentsVM.uploadDocument(
-                sessionId: sessionId,
-                fileData: data,
-                filename: filename,
-                contentType: contentType
-            ) {
-                // Send a document message in the conversation
-                let messageType = contentType.hasPrefix("image/") ? "image" : "document"
-                await conversationVM.sendDocumentMessage(
-                    sessionId: sessionId,
-                    documentId: response.id,
-                    filename: filename,
-                    messageType: messageType
-                )
-                scrollToBottom.toggle()
-            }
         }
     }
 
@@ -492,6 +499,39 @@ struct ConversationView: View {
         case "txt": return "text/plain"
         default: return "application/octet-stream"
         }
+    }
+}
+
+// MARK: - Typing Bubble
+
+private struct TypingBubbleView: View {
+    @State private var animating = false
+
+    var body: some View {
+        HStack {
+            HStack(spacing: 5) {
+                ForEach(0..<3, id: \.self) { index in
+                    Circle()
+                        .fill(Color(.systemGray))
+                        .frame(width: 8, height: 8)
+                        .scaleEffect(animating ? 1.0 : 0.5)
+                        .opacity(animating ? 1.0 : 0.4)
+                        .animation(
+                            .easeInOut(duration: 0.6)
+                            .repeatForever(autoreverses: true)
+                            .delay(Double(index) * 0.2),
+                            value: animating
+                        )
+                }
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
+            .background(Color(.systemGray6))
+            .clipShape(RoundedRectangle(cornerRadius: 18))
+
+            Spacer()
+        }
+        .onAppear { animating = true }
     }
 }
 

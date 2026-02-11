@@ -82,6 +82,7 @@ actor AuthInterceptor {
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("ios", forHTTPHeaderField: "X-Client-Type")
+        request.timeoutInterval = 10
 
         let body = ["refresh_token": refreshToken]
         request.httpBody = try JSONEncoder().encode(body)

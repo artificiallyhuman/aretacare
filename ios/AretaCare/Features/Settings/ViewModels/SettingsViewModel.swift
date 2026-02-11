@@ -141,7 +141,7 @@ final class SettingsViewModel {
 
         do {
             let request = SessionRenameRequest(name: name)
-            let _: SessionResponse = try await APIClient.shared.post(
+            let _: SessionResponse = try await APIClient.shared.patch(
                 APIEndpoints.Sessions.rename(id),
                 body: request
             )
@@ -167,7 +167,7 @@ final class SettingsViewModel {
 
         do {
             let body = SessionColorUpdate(colorKey: colorKey, swapWithSessionId: swapWithSessionId)
-            let _: EmptyResponse = try await APIClient.shared.post(
+            let _: EmptyResponse = try await APIClient.shared.put(
                 APIEndpoints.Sessions.setColor(sessionId),
                 body: body
             )

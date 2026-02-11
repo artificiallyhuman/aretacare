@@ -216,14 +216,10 @@ final class AuthViewModel {
     func verifyEmail(token: String) async {
         emailVerificationStatus = .verifying
 
-        struct VerifyEmailRequest: Encodable {
-            let token: String
-        }
-
         do {
-            let _: EmptyResponse = try await APIClient.shared.post(
+            let _: EmptyResponse = try await APIClient.shared.get(
                 APIEndpoints.Auth.verifyEmail,
-                body: VerifyEmailRequest(token: token)
+                queryItems: [URLQueryItem(name: "token", value: token)]
             )
             emailVerificationStatus = .success
         } catch let error as APIError {

@@ -13,13 +13,7 @@ struct SettingsView: View {
     @State private var showDeleteAccountPasswordPrompt = false
     @State private var isDeletingAccount = false
 
-    // Session management
-    @State private var sessionToRename: SessionResponse?
-    @State private var renameText = ""
-    @State private var sessionToDelete: SessionResponse?
-    @State private var showDeleteSessionConfirmation = false
-    @State private var sessionForColorPicker: SessionResponse?
-    @State private var sessionForCollaboration: SessionResponse?
+    // Session management (detail view handles rename/color/delete)
 
     var body: some View {
         Form {
@@ -43,43 +37,6 @@ struct SettingsView: View {
         }
         .sheet(isPresented: $showChangePassword) {
             ChangePasswordView(viewModel: viewModel)
-        }
-        .sheet(item: $sessionForColorPicker) { session in
-            SessionColorPickerView(session: session, viewModel: viewModel)
-        }
-        .sheet(item: $sessionForCollaboration) { session in
-            NavigationStack {
-                CollaborationView(session: session)
-            }
-        }
-        .alert("Rename Session", isPresented: .init(
-            get: { sessionToRename != nil },
-            set: { if !$0 { sessionToRename = nil } }
-        )) {
-            TextField("Session name", text: $renameText)
-            Button("Rename") {
-                if let session = sessionToRename {
-                    Task { await viewModel.renameSession(id: session.id, name: renameText) }
-                }
-                sessionToRename = nil
-            }
-            Button("Cancel", role: .cancel) {
-                sessionToRename = nil
-            }
-        } message: {
-            Text("Enter a new name (max \(AppConstants.sessionNameMaxLength) characters).")
-        }
-        .confirmationDialog("Delete Session", isPresented: $showDeleteSessionConfirmation, titleVisibility: .visible) {
-            Button("Delete", role: .destructive) {
-                if let session = sessionToDelete {
-                    Task { await viewModel.deleteSession(id: session.id) }
-                }
-            }
-            Button("Cancel", role: .cancel) {}
-        } message: {
-            if let session = sessionToDelete {
-                Text("Delete \"\(session.name)\"? All conversations, journal entries, documents, and recordings in this session will be permanently deleted.")
-            }
         }
         .alert("Log Out Everywhere", isPresented: $showLogoutEverywhereConfirmation) {
             Button("Log Out All Devices", role: .destructive) {
@@ -256,92 +213,47 @@ struct SettingsView: View {
     }
 
     private func sessionRow(_ session: SessionResponse) -> some View {
-        HStack(spacing: 12) {
-            // Color swatch
-            if let colorKey = session.colorKey,
-               let sessionColor = SessionColors.color(forKey: colorKey) {
+        NavigationLink {
+            SessionDetailView(sessionId: session.id, viewModel: viewModel)
+        } label: {
+            HStack(spacing: 12) {
+                // Color swatch
                 Circle()
-                    .fill(sessionColor.swatchLight)
+                    .fill(sessionSwatchColor(session))
                     .frame(width: 24, height: 24)
-                    .onTapGesture {
-                        sessionForColorPicker = session
-                    }
-            } else {
-                Circle()
-                    .fill(Color(.systemGray4))
-                    .frame(width: 24, height: 24)
-                    .onTapGesture {
-                        sessionForColorPicker = session
-                    }
-            }
 
-            VStack(alignment: .leading, spacing: 2) {
-                Text(session.name)
-                    .lineLimit(1)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(session.name)
+                        .lineLimit(1)
 
-                if let stats = viewModel.sessionStatistics[session.id] {
-                    HStack(spacing: 8) {
-                        statisticLabel(count: stats.messageCount, icon: "bubble.left")
-                        statisticLabel(count: stats.journalEntryCount, icon: "book")
-                        statisticLabel(count: stats.documentCount, icon: "doc")
-                        statisticLabel(count: stats.audioRecordingCount, icon: "mic")
-                    }
-                    .font(.caption2)
-                    .foregroundStyle(.tertiary)
-                }
-            }
-
-            Spacer()
-
-            if !session.collaborators.isEmpty {
-                HStack(spacing: 2) {
-                    Image(systemName: "person.2")
+                    if let stats = viewModel.sessionStatistics[session.id] {
+                        HStack(spacing: 8) {
+                            statisticLabel(count: stats.messageCount, icon: "bubble.left")
+                            statisticLabel(count: stats.journalEntryCount, icon: "book")
+                            statisticLabel(count: stats.documentCount, icon: "doc")
+                            statisticLabel(count: stats.audioRecordingCount, icon: "mic")
+                        }
                         .font(.caption2)
-                    Text("\(session.collaborators.count)")
-                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
+                    }
                 }
-                .foregroundStyle(.secondary)
+
+                Spacer()
+
+                if !session.collaborators.isEmpty {
+                    HStack(spacing: 2) {
+                        Image(systemName: "person.2")
+                            .font(.caption2)
+                        Text("\(session.collaborators.count)")
+                            .font(.caption2)
+                    }
+                    .foregroundStyle(.secondary)
+                }
             }
         }
-        .contentShape(Rectangle())
         .task {
             if viewModel.sessionStatistics[session.id] == nil {
                 await viewModel.fetchStatistics(sessionId: session.id)
-            }
-        }
-        .contextMenu {
-            Button {
-                renameText = session.name
-                sessionToRename = session
-            } label: {
-                Label("Rename", systemImage: "pencil")
-            }
-
-            Button {
-                sessionForColorPicker = session
-            } label: {
-                Label("Change Color", systemImage: "paintpalette")
-            }
-
-            Button {
-                sessionForCollaboration = session
-            } label: {
-                Label("Manage Sharing", systemImage: "person.2")
-            }
-
-            Button(role: .destructive) {
-                sessionToDelete = session
-                showDeleteSessionConfirmation = true
-            } label: {
-                Label("Delete", systemImage: "trash")
-            }
-        }
-        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-            Button(role: .destructive) {
-                sessionToDelete = session
-                showDeleteSessionConfirmation = true
-            } label: {
-                Label("Delete", systemImage: "trash")
             }
         }
     }
@@ -390,6 +302,14 @@ struct SettingsView: View {
         let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0"
         let build = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "1"
         return "\(version) (\(build))"
+    }
+
+    private func sessionSwatchColor(_ session: SessionResponse) -> Color {
+        if let colorKey = session.colorKey,
+           let sessionColor = SessionColors.color(forKey: colorKey) {
+            return sessionColor.swatchLight
+        }
+        return Color(.systemGray4)
     }
 
     private func statisticLabel(count: Int, icon: String) -> some View {

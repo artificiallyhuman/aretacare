@@ -82,7 +82,7 @@ final class DocumentsViewModel {
 
     // MARK: - Upload Document
 
-    func uploadDocument(sessionId: String, fileData: Data, filename: String, contentType: String) async -> DocumentUploadResponse? {
+    func uploadDocument(sessionId: String, fileData: Data, filename: String, contentType: String, skipJournalSynthesis: Bool = false) async -> DocumentUploadResponse? {
         guard fileData.count <= AppConstants.maxFileSizeBytes else {
             errorMessage = "File exceeds the 30 MB size limit."
             return nil
@@ -94,12 +94,22 @@ final class DocumentsViewModel {
 
         do {
             var multipart = MultipartFormData()
-            multipart.addTextField(name: "session_id", value: sessionId)
             multipart.addFileField(name: "file", filename: filename, mimeType: contentType, data: fileData)
+
+            var queryItems = [
+                URLQueryItem(name: "session_id", value: sessionId),
+                URLQueryItem(name: "skip_journal_synthesis", value: skipJournalSynthesis ? "true" : "false")
+            ]
+
+            let dateFormatter = DateFormatter()
+            dateFormatter.dateFormat = "yyyy-MM-dd"
+            dateFormatter.locale = Locale(identifier: "en_US_POSIX")
+            queryItems.append(URLQueryItem(name: "user_date", value: dateFormatter.string(from: Date())))
 
             let response: DocumentUploadResponse = try await APIClient.shared.upload(
                 APIEndpoints.Documents.upload,
-                multipart: multipart
+                multipart: multipart,
+                queryItems: queryItems
             )
             // Refresh the list
             await fetchDocuments(sessionId: sessionId, category: selectedCategory)
@@ -117,7 +127,7 @@ final class DocumentsViewModel {
 
         do {
             let request = DocumentUpdateRequest(aiDescription: description, category: category)
-            let updated: DocumentResponse = try await APIClient.shared.put(
+            let updated: DocumentResponse = try await APIClient.shared.patch(
                 APIEndpoints.Documents.update(String(id)),
                 body: request
             )

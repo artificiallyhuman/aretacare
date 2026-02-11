@@ -179,10 +179,15 @@ final class ConversationViewModel {
         errorMessage = nil
         invalidateCache(for: sessionId)
 
+        let df = DateFormatter()
+        df.dateFormat = "yyyy-MM-dd_h-mma"
+        df.locale = Locale(identifier: "en_US_POSIX")
+        let filename = "Recording_\(df.string(from: Date())).\(AppConstants.audioFileExtension)"
+
         var multipart = MultipartFormData()
         multipart.addFileField(
             name: "audio",
-            filename: "recording.\(AppConstants.audioFileExtension)",
+            filename: filename,
             mimeType: AppConstants.audioMimeType,
             data: data
         )
@@ -197,7 +202,8 @@ final class ConversationViewModel {
 
             // Send the transcribed text as a conversation message so AI responds
             if let transcribedText = response.transcribedText, !transcribedText.isEmpty {
-                // sendMessage manages its own isSending state
+                // Reset isSending before calling sendMessage, which has its own guard on isSending
+                isSending = false
                 await sendMessage(
                     text: transcribedText,
                     sessionId: sessionId,
@@ -214,12 +220,33 @@ final class ConversationViewModel {
 
     // MARK: - Send Document/Image Message
 
-    func sendDocumentMessage(sessionId: String, documentId: Int, filename: String, messageType: String) async {
+    func sendDocumentMessage(sessionId: String, documentId: Int, filename: String, messageType: String, mediaUrl: String? = nil, thumbnailUrl: String? = nil, content: String? = nil) async {
         isSending = true
         errorMessage = nil
         invalidateCache(for: sessionId)
 
+        let displayContent = content ?? "Uploaded: \(filename)"
+
+        // Optimistically add user message so doc/image appears immediately
         let now = Date()
+        let msgType: MessageType = messageType == "image" ? .image : .document
+        let tempUserMessage = MessageResponse(
+            id: -Int.random(in: 1...999_999),
+            sessionId: sessionId,
+            role: .user,
+            content: displayContent,
+            createdAt: now,
+            updatedAt: nil,
+            messageType: msgType,
+            documentId: documentId,
+            mediaUrl: mediaUrl,
+            thumbnailUrl: thumbnailUrl,
+            extractedText: nil,
+            createdBy: nil,
+            lastEditedBy: nil
+        )
+        messages.append(tempUserMessage)
+
         let dateFormatter = DateFormatter()
         dateFormatter.dateFormat = "yyyy-MM-dd"
         dateFormatter.locale = Locale(identifier: "en_US_POSIX")
@@ -231,7 +258,7 @@ final class ConversationViewModel {
         let currentTime = timeFormatter.string(from: now)
 
         let request = SendMessageRequest(
-            content: "Uploaded: \(filename)",
+            content: displayContent,
             sessionId: sessionId,
             messageType: messageType,
             documentId: documentId,
@@ -245,8 +272,9 @@ final class ConversationViewModel {
                 APIEndpoints.Conversation.sendMessage,
                 body: request
             )
-            // Refresh history to get the full message with media URLs
-            await fetchHistory(sessionId: sessionId)
+            // Remove temp message and refresh to get real server state
+            messages.removeAll { $0.id == tempUserMessage.id }
+            await fetchHistory(sessionId: sessionId, forceRefresh: true)
         } catch {
             errorMessage = error.localizedDescription
         }

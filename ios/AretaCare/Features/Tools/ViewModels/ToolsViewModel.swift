@@ -58,10 +58,15 @@ final class ToolsViewModel {
     func transcribeAudio(data: Data, sessionId: String) async -> String? {
         errorMessage = nil
 
+        let df = DateFormatter()
+        df.dateFormat = "yyyy-MM-dd_h-mma"
+        df.locale = Locale(identifier: "en_US_POSIX")
+        let filename = "Recording_\(df.string(from: Date())).\(AppConstants.audioFileExtension)"
+
         var multipart = MultipartFormData()
         multipart.addFileField(
             name: "audio",
-            filename: "recording.\(AppConstants.audioFileExtension)",
+            filename: filename,
             mimeType: AppConstants.audioMimeType,
             data: data
         )

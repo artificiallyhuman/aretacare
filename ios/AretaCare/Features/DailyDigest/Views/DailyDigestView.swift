@@ -178,36 +178,31 @@ struct DailyDigestView: View {
 
     private var initialEmptyState: some View {
         VStack(spacing: 20) {
-            Image(systemName: "doc.text.magnifyingglass")
+            Image(systemName: "list.clipboard")
                 .font(.system(size: 48))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Color.accentColor)
 
-            Text("No Digests Yet")
+            Text("No Daily Digests Yet")
                 .font(.title3.weight(.semibold))
 
-            if viewModel.shouldGenerate {
-                Text("Generate a summary of your recent conversations, journal entries, and health activity.")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
+            Text("Your first daily digest will auto-generate after 24 hours of activity")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
 
-                Button {
-                    Task { await generateDigest() }
-                } label: {
-                    Label("Generate Today's Digest", systemImage: "sparkles")
-                        .font(.headline)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 12)
-                }
-                .buttonStyle(.borderedProminent)
-            } else {
-                Text("There isn't enough new activity to generate a digest yet. Keep using the app and check back later.")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
+            Button {
+                Task { await generateDigest() }
+            } label: {
+                Text("Generate Your First Daily Digest")
+                    .font(.headline)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 12)
             }
+            .buttonStyle(.borderedProminent)
         }
-        .padding(.vertical, 20)
+        .padding(24)
+        .background(Color(.secondarySystemBackground))
+        .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 
     // MARK: - Date Navigator Bar
