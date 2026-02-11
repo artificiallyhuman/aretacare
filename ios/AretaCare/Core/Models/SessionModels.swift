@@ -76,6 +76,11 @@ struct SessionColorUpdate: Codable {
     let swapWithSessionId: String?
 }
 
+struct AutoAssignColorsResponse: Codable {
+    let colors: [String: String] // session_id -> color_key
+    let message: String
+}
+
 // MARK: - Invitations
 
 struct InvitationSendRequest: Codable {

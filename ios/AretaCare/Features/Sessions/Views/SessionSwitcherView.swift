@@ -6,6 +6,7 @@ struct SessionSwitcherView: View {
     @Environment(\.dismiss) private var dismiss
 
     @State private var showingNewSession = false
+    @State private var showingSessionLimit = false
     @State private var newSessionName = ""
     @State private var showLogoutConfirmation = false
 
@@ -20,11 +21,14 @@ struct SessionSwitcherView: View {
 
                 Section {
                     Button {
-                        showingNewSession = true
+                        if sessionVM.canCreateSession {
+                            showingNewSession = true
+                        } else {
+                            showingSessionLimit = true
+                        }
                     } label: {
                         Label("New Session", systemImage: "plus.circle")
                     }
-                    .disabled(!sessionVM.canCreateSession)
                 }
 
                 Section {
@@ -61,6 +65,11 @@ struct SessionSwitcherView: View {
                 }
             } message: {
                 Text("Enter a name for your new session (max \(AppConstants.sessionNameMaxLength) characters).")
+            }
+            .alert("Session Limit", isPresented: $showingSessionLimit) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text("You've reached the maximum number of owned sessions (\(AppConstants.maxOwnedSessions)). Delete a session to create a new one.")
             }
             .alert("Log Out", isPresented: $showLogoutConfirmation) {
                 Button("Log Out", role: .destructive) {

@@ -209,6 +209,11 @@ struct ProfileView: View {
                                             .font(.caption)
                                             .foregroundStyle(.tertiary)
                                     }
+                                    if let location = caregiver.location {
+                                        Text(location)
+                                            .font(.caption)
+                                            .foregroundStyle(.tertiary)
+                                    }
                                 }
                             }
                         }
@@ -234,6 +239,11 @@ struct ProfileView: View {
                                     }
                                     if let org = provider.organization {
                                         Text(org)
+                                            .font(.caption)
+                                            .foregroundStyle(.tertiary)
+                                    }
+                                    if let contact = provider.contactInfo {
+                                        Text(contact)
                                             .font(.caption)
                                             .foregroundStyle(.tertiary)
                                     }
@@ -286,9 +296,22 @@ struct ProfileView: View {
                             onEdit: { editingSection = .init("medications") }
                         ) {
                             ForEach(medications) { med in
-                                AccentCard(color: .pink) {
-                                    Text(med.name ?? "Unknown")
-                                        .font(.subheadline.weight(.semibold))
+                                let medStatus = (med.status ?? "active").lowercased()
+                                let isActive = medStatus != "discontinued" && medStatus != "paused"
+                                AccentCard(color: isActive ? .pink : .gray) {
+                                    HStack {
+                                        Text(med.name ?? "Unknown")
+                                            .font(.subheadline.weight(.semibold))
+                                        Spacer()
+                                        if let status = med.status {
+                                            StatusBadge(text: status.capitalized, color: medicationStatusColor(status))
+                                        }
+                                    }
+                                    if let desc = med.description, !desc.isEmpty {
+                                        Text(desc)
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                    }
                                     if let dose = med.dose {
                                         HStack(spacing: 4) {
                                             Image(systemName: "cross.case")
@@ -299,8 +322,18 @@ struct ProfileView: View {
                                                 .foregroundStyle(.secondary)
                                         }
                                     }
+                                    if let cat = med.category, let label = medicationCategoryLabel(cat) {
+                                        Text(label)
+                                            .font(.caption2)
+                                            .foregroundStyle(.tertiary)
+                                    }
                                     if let prescriber = med.prescriber {
                                         Text("Prescribed by \(prescriber)")
+                                            .font(.caption)
+                                            .foregroundStyle(.tertiary)
+                                    }
+                                    if let startDate = med.startDate {
+                                        Text("Started: \(startDate)")
                                             .font(.caption)
                                             .foregroundStyle(.tertiary)
                                     }
@@ -310,6 +343,7 @@ struct ProfileView: View {
                                             .foregroundStyle(.secondary)
                                     }
                                 }
+                                .opacity(isActive ? 1.0 : 0.7)
                             }
                         }
                     }
@@ -353,16 +387,19 @@ struct ProfileView: View {
                             onEdit: { editingSection = .init("events") }
                         ) {
                             ForEach(events) { event in
-                                AccentCard(color: .blue) {
+                                AccentCard(color: eventTypeColor(event.eventType)) {
                                     HStack {
                                         Text(event.description ?? event.eventType ?? "Event")
                                             .font(.subheadline.weight(.semibold))
                                         Spacer()
-                                        if let date = event.date {
-                                            Text(date)
-                                                .font(.caption)
-                                                .foregroundStyle(.tertiary)
+                                        if let type = event.eventType {
+                                            StatusBadge(text: eventTypeLabel(type), color: eventTypeColor(type))
                                         }
+                                    }
+                                    if let date = event.date {
+                                        Text(date)
+                                            .font(.caption)
+                                            .foregroundStyle(.tertiary)
                                     }
                                     if let details = event.details {
                                         Text(details)
@@ -380,7 +417,8 @@ struct ProfileView: View {
                             title: "Preferences",
                             systemImage: "gearshape.fill",
                             color: .indigo,
-                            count: nil
+                            count: nil,
+                            onEdit: { editingSection = .init("preferences") }
                         ) {
                             if let emergency = prefs.emergencyInstructions, !emergency.isEmpty {
                                 HStack(alignment: .top, spacing: 10) {
@@ -665,6 +703,8 @@ struct ProfileView: View {
                 lines.append("  \(item.name ?? "Unknown")")
                 if let v = item.relationship { lines.append("    Relationship: \(v)") }
                 if let v = item.role { lines.append("    Role: \(v)") }
+                if let v = item.contactInfo { lines.append("    Contact: \(v)") }
+                if let v = item.location { lines.append("    Location: \(v)") }
             }
             lines.append("")
         }
@@ -674,6 +714,7 @@ struct ProfileView: View {
                 lines.append("  \(item.name ?? "Unknown")")
                 if let v = item.specialty { lines.append("    Specialty: \(v)") }
                 if let v = item.organization { lines.append("    Organization: \(v)") }
+                if let v = item.contactInfo { lines.append("    Contact: \(v)") }
             }
             lines.append("")
         }
@@ -692,8 +733,12 @@ struct ProfileView: View {
                 var desc = item.name ?? "Unknown"
                 if let dose = item.dose { desc += " - \(dose)" }
                 if let freq = item.frequency { desc += " (\(freq))" }
+                if let status = item.status { desc += " [\(status.uppercased())]" }
                 lines.append("  \(desc)")
+                if let v = item.description, !v.isEmpty { lines.append("    \(v)") }
+                if let v = item.category, let label = medicationCategoryLabel(v) { lines.append("    Category: \(label)") }
                 if let v = item.prescriber { lines.append("    Prescriber: \(v)") }
+                if let v = item.startDate { lines.append("    Started: \(v)") }
                 if let v = item.notes { lines.append("    \(v)") }
             }
             lines.append("")
@@ -712,6 +757,7 @@ struct ProfileView: View {
             lines.append("Key Events")
             for item in items {
                 var desc = item.description ?? item.eventType ?? "Event"
+                if let type = item.eventType { desc += " [\(eventTypeLabel(type))]" }
                 if let date = item.date { desc += " (\(date))" }
                 lines.append("  \(desc)")
                 if let v = item.details { lines.append("    \(v)") }
@@ -773,6 +819,58 @@ struct ProfileView: View {
         case "important": return .orange
         case "preferred": return .gray
         default: return .indigo
+        }
+    }
+
+    private func medicationStatusColor(_ status: String) -> Color {
+        switch status.lowercased() {
+        case "active": return .green
+        case "paused": return .yellow
+        case "discontinued": return .gray
+        default: return .green
+        }
+    }
+
+    private func medicationCategoryLabel(_ category: String) -> String? {
+        let labels: [String: String] = [
+            "multiple": "Multiple Uses",
+            "pain_management": "Pain Relief",
+            "cardiovascular": "Heart & Blood Pressure",
+            "diabetes": "Diabetes & Blood Sugar",
+            "mental_health": "Mental Health",
+            "antibiotics": "Infection & Antibiotics",
+            "respiratory": "Breathing & Lungs",
+            "gastrointestinal": "Stomach & Digestion",
+            "neurological": "Brain & Nerves",
+            "endocrine": "Hormones",
+            "oncology": "Cancer Treatment",
+            "immunosuppressant": "Immune System",
+            "vitamins_supplements": "Vitamins & Supplements",
+            "other": "Other"
+        ]
+        return labels[category.lowercased()]
+    }
+
+    private func eventTypeLabel(_ type: String) -> String {
+        let labels: [String: String] = [
+            "hospitalization": "Hospitalization",
+            "surgery": "Surgery",
+            "er_visit": "ER Visit",
+            "major_diagnosis": "Major Diagnosis",
+            "procedure": "Procedure",
+            "other": "Other"
+        ]
+        return labels[type.lowercased()] ?? type.capitalized
+    }
+
+    private func eventTypeColor(_ type: String?) -> Color {
+        switch (type ?? "").lowercased() {
+        case "hospitalization": return .red
+        case "surgery": return .purple
+        case "er_visit": return .orange
+        case "major_diagnosis": return .pink
+        case "procedure": return .blue
+        default: return .blue
         }
     }
 }
@@ -951,6 +1049,13 @@ private struct ProfileSectionEditView: View {
     @State private var allergies: [AllergyInfo] = []
     @State private var events: [EventInfo] = []
 
+    // Preferences
+    @State private var emergencyInstructions = ""
+    @State private var additionalNotes = ""
+    @State private var communicationPreferences: [CommunicationPreference] = []
+    @State private var caregivingGuidelines: [CaregivingGuideline] = []
+    @State private var importantContext: [ImportantContext] = []
+
     var body: some View {
         Form {
             switch section.id {
@@ -961,6 +1066,7 @@ private struct ProfileSectionEditView: View {
             case "medications": medicationsForm
             case "allergies": allergiesForm
             case "events": eventsForm
+            case "preferences": preferencesForm
             default: Text("Unknown section")
             }
         }
@@ -986,6 +1092,7 @@ private struct ProfileSectionEditView: View {
         case "medications": return "Medications"
         case "allergies": return "Allergies"
         case "events": return "Events"
+        case "preferences": return "Preferences"
         default: return section.id.capitalized
         }
     }
@@ -1005,6 +1112,13 @@ private struct ProfileSectionEditView: View {
         medications = profileData.medications ?? []
         allergies = profileData.allergies ?? []
         events = profileData.events ?? []
+        if let prefs = profileData.preferences {
+            emergencyInstructions = prefs.emergencyInstructions ?? ""
+            additionalNotes = prefs.additionalNotes ?? ""
+            communicationPreferences = prefs.communicationPreferences ?? []
+            caregivingGuidelines = prefs.caregivingGuidelines ?? []
+            importantContext = prefs.importantContext ?? []
+        }
     }
 
     // MARK: - Patient Form
@@ -1034,6 +1148,7 @@ private struct ProfileSectionEditView: View {
                     EditRow("Relationship", text: Binding(get: { caregiver.relationship ?? "" }, set: { caregiver.relationship = $0.isEmpty ? nil : $0 }))
                     EditRow("Role", text: Binding(get: { caregiver.role ?? "" }, set: { caregiver.role = $0.isEmpty ? nil : $0 }))
                     EditRow("Contact", text: Binding(get: { caregiver.contactInfo ?? "" }, set: { caregiver.contactInfo = $0.isEmpty ? nil : $0 }))
+                    EditRow("Location", text: Binding(get: { caregiver.location ?? "" }, set: { caregiver.location = $0.isEmpty ? nil : $0 }))
                 } header: {
                     HStack {
                         Text(caregiver.name ?? "Caregiver")
@@ -1062,6 +1177,7 @@ private struct ProfileSectionEditView: View {
                 EditRow("Name", text: Binding(get: { provider.name ?? "" }, set: { provider.name = $0.isEmpty ? nil : $0 }))
                 EditRow("Specialty", text: Binding(get: { provider.specialty ?? "" }, set: { provider.specialty = $0.isEmpty ? nil : $0 }))
                 EditRow("Organization", text: Binding(get: { provider.organization ?? "" }, set: { provider.organization = $0.isEmpty ? nil : $0 }))
+                EditRow("Contact Info", text: Binding(get: { provider.contactInfo ?? "" }, set: { provider.contactInfo = $0.isEmpty ? nil : $0 }))
             } header: {
                 HStack {
                     Text(provider.name ?? "Provider")
@@ -1120,8 +1236,31 @@ private struct ProfileSectionEditView: View {
         ForEach($medications) { $med in
             Section {
                 EditRow("Name", text: Binding(get: { med.name ?? "" }, set: { med.name = $0.isEmpty ? nil : $0 }))
+                EditRow("Description", text: Binding(get: { med.description ?? "" }, set: { med.description = $0.isEmpty ? nil : $0 }))
                 EditRow("Dose", text: Binding(get: { med.dose ?? "" }, set: { med.dose = $0.isEmpty ? nil : $0 }))
                 EditRow("Frequency", text: Binding(get: { med.frequency ?? "" }, set: { med.frequency = $0.isEmpty ? nil : $0 }))
+                Picker("Status", selection: Binding(get: { med.status ?? "active" }, set: { med.status = $0 })) {
+                    Text("Active").tag("active")
+                    Text("Paused").tag("paused")
+                    Text("Discontinued").tag("discontinued")
+                }
+                Picker("Category", selection: Binding(get: { med.category ?? "other" }, set: { med.category = $0 })) {
+                    Text("Multiple Uses").tag("multiple")
+                    Text("Pain Relief").tag("pain_management")
+                    Text("Heart & Blood Pressure").tag("cardiovascular")
+                    Text("Diabetes & Blood Sugar").tag("diabetes")
+                    Text("Mental Health").tag("mental_health")
+                    Text("Infection & Antibiotics").tag("antibiotics")
+                    Text("Breathing & Lungs").tag("respiratory")
+                    Text("Stomach & Digestion").tag("gastrointestinal")
+                    Text("Brain & Nerves").tag("neurological")
+                    Text("Hormones").tag("endocrine")
+                    Text("Cancer Treatment").tag("oncology")
+                    Text("Immune System").tag("immunosuppressant")
+                    Text("Vitamins & Supplements").tag("vitamins_supplements")
+                    Text("Other").tag("other")
+                }
+                EditRow("Start Date", text: Binding(get: { med.startDate ?? "" }, set: { med.startDate = $0.isEmpty ? nil : $0 }))
                 EditRow("Prescriber", text: Binding(get: { med.prescriber ?? "" }, set: { med.prescriber = $0.isEmpty ? nil : $0 }))
                 EditRow("Notes", text: Binding(get: { med.notes ?? "" }, set: { med.notes = $0.isEmpty ? nil : $0 }))
             } header: {
@@ -1137,7 +1276,7 @@ private struct ProfileSectionEditView: View {
         }
         Section {
             AddItemButton("Add Medication") {
-                medications.append(MedicationInfo(id: UUID().uuidString))
+                medications.append(MedicationInfo(id: UUID().uuidString, status: "active", category: "other"))
             }
         }
     }
@@ -1201,6 +1340,94 @@ private struct ProfileSectionEditView: View {
         }
     }
 
+    // MARK: - Preferences Form
+
+    @ViewBuilder
+    private var preferencesForm: some View {
+        Section("Emergency Instructions") {
+            TextEditor(text: $emergencyInstructions)
+                .frame(minHeight: 80)
+                .font(.subheadline)
+        }
+
+        Section("Communication Preferences") {
+            ForEach($communicationPreferences) { $pref in
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack {
+                        Text(pref.preference ?? "Preference")
+                            .font(.subheadline.weight(.medium))
+                        Spacer()
+                        Button("Remove", role: .destructive) {
+                            communicationPreferences.removeAll { $0.id == pref.id }
+                        }
+                        .font(.caption)
+                    }
+                    EditRow("Preference", text: Binding(get: { pref.preference ?? "" }, set: { pref.preference = $0.isEmpty ? nil : $0 }))
+                    EditRow("Category", text: Binding(get: { pref.category ?? "" }, set: { pref.category = $0.isEmpty ? nil : $0 }))
+                    EditRow("Details", text: Binding(get: { pref.details ?? "" }, set: { pref.details = $0.isEmpty ? nil : $0 }))
+                }
+            }
+            AddItemButton("Add Preference") {
+                communicationPreferences.append(CommunicationPreference(id: UUID().uuidString))
+            }
+        }
+
+        Section("Caregiving Guidelines") {
+            ForEach($caregivingGuidelines) { $guide in
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack {
+                        Text(guide.guideline ?? "Guideline")
+                            .font(.subheadline.weight(.medium))
+                        Spacer()
+                        Button("Remove", role: .destructive) {
+                            caregivingGuidelines.removeAll { $0.id == guide.id }
+                        }
+                        .font(.caption)
+                    }
+                    EditRow("Guideline", text: Binding(get: { guide.guideline ?? "" }, set: { guide.guideline = $0.isEmpty ? nil : $0 }))
+                    EditRow("Category", text: Binding(get: { guide.category ?? "" }, set: { guide.category = $0.isEmpty ? nil : $0 }))
+                    Picker("Importance", selection: Binding(get: { guide.importance ?? "preferred" }, set: { guide.importance = $0 })) {
+                        Text("Critical").tag("critical")
+                        Text("Important").tag("important")
+                        Text("Preferred").tag("preferred")
+                    }
+                    EditRow("Details", text: Binding(get: { guide.details ?? "" }, set: { guide.details = $0.isEmpty ? nil : $0 }))
+                }
+            }
+            AddItemButton("Add Guideline") {
+                caregivingGuidelines.append(CaregivingGuideline(id: UUID().uuidString, importance: "preferred"))
+            }
+        }
+
+        Section("Important Context") {
+            ForEach($importantContext) { $ctx in
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack {
+                        Text(ctx.context ?? "Context")
+                            .font(.subheadline.weight(.medium))
+                        Spacer()
+                        Button("Remove", role: .destructive) {
+                            importantContext.removeAll { $0.id == ctx.id }
+                        }
+                        .font(.caption)
+                    }
+                    EditRow("Context", text: Binding(get: { ctx.context ?? "" }, set: { ctx.context = $0.isEmpty ? nil : $0 }))
+                    EditRow("Category", text: Binding(get: { ctx.category ?? "" }, set: { ctx.category = $0.isEmpty ? nil : $0 }))
+                    EditRow("Details", text: Binding(get: { ctx.details ?? "" }, set: { ctx.details = $0.isEmpty ? nil : $0 }))
+                }
+            }
+            AddItemButton("Add Context") {
+                importantContext.append(ImportantContext(id: UUID().uuidString))
+            }
+        }
+
+        Section("Additional Notes") {
+            TextEditor(text: $additionalNotes)
+                .frame(minHeight: 80)
+                .font(.subheadline)
+        }
+    }
+
     // MARK: - Save
 
     private func save() {
@@ -1234,6 +1461,20 @@ private struct ProfileSectionEditView: View {
                 await saveCodableList(allergies, section: sectionName)
             case "events":
                 await saveCodableList(events, section: sectionName)
+            case "preferences":
+                let prefs = PreferencesInfo(
+                    communicationPreferences: communicationPreferences.isEmpty ? nil : communicationPreferences,
+                    caregivingGuidelines: caregivingGuidelines.isEmpty ? nil : caregivingGuidelines,
+                    importantContext: importantContext.isEmpty ? nil : importantContext,
+                    emergencyInstructions: emergencyInstructions.isEmpty ? nil : emergencyInstructions,
+                    additionalNotes: additionalNotes.isEmpty ? nil : additionalNotes
+                )
+                let encoder = JSONEncoder()
+                encoder.keyEncodingStrategy = .convertToSnakeCase
+                if let jsonData = try? encoder.encode(prefs),
+                   let dict = try? JSONSerialization.jsonObject(with: jsonData) as? [String: Any] {
+                    await viewModel.updateSection(sessionId: sessionId, section: sectionName, data: .dictionary(dict.mapValues { AnyCodableValue.from($0) }))
+                }
             default:
                 break
             }
@@ -1344,7 +1585,8 @@ private struct PendingChangesView: View {
                 }
 
                 ForEach(viewModel.pendingChanges) { change in
-                    VStack(alignment: .leading, spacing: 8) {
+                    VStack(alignment: .leading, spacing: 10) {
+                        // Header: type badge + section + item name
                         HStack {
                             Text(change.changeType.rawValue.capitalized)
                                 .font(.caption2.weight(.semibold))
@@ -1354,18 +1596,34 @@ private struct PendingChangesView: View {
                                 .foregroundStyle(changeTypeColor(change.changeType))
                                 .clipShape(Capsule())
 
-                            Text(change.section.capitalized)
+                            Text(change.section.replacingOccurrences(of: "_", with: " ").capitalized)
+                                .font(.subheadline.weight(.semibold))
+
+                            if let name = itemName(change) {
+                                Text("— \(name)")
+                                    .font(.subheadline)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+
+                        // Change details
+                        changeDetailView(change)
+
+                        // Reasoning
+                        HStack(alignment: .top, spacing: 4) {
+                            Text("Reasoning:")
+                                .font(.caption.weight(.medium))
+                                .foregroundStyle(.secondary)
+                            Text(change.reasoning)
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }
 
-                        Text(change.reasoning)
-                            .font(.subheadline)
-
                         Text(change.fieldPath)
-                            .font(.caption)
+                            .font(.caption2)
                             .foregroundStyle(.tertiary)
 
+                        // Accept / Reject buttons
                         HStack(spacing: 12) {
                             Button {
                                 decisions[change.id] = true
@@ -1410,6 +1668,145 @@ private struct PendingChangesView: View {
         }
     }
 
+    // MARK: - Change Detail View
+
+    @ViewBuilder
+    private func changeDetailView(_ change: PendingChange) -> some View {
+        switch change.changeType {
+        case .add:
+            if let newValue = change.newValue {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("New item to add:")
+                        .font(.caption.weight(.medium))
+                        .foregroundStyle(.green)
+                    ForEach(dictionaryEntries(newValue), id: \.key) { entry in
+                        HStack(alignment: .top, spacing: 4) {
+                            Text("\u{2022}")
+                                .font(.caption)
+                                .foregroundStyle(.green)
+                            Text("\(formatKey(entry.key)):")
+                                .font(.caption.weight(.medium))
+                                .foregroundStyle(Color(.label))
+                            Text(entry.value)
+                                .font(.caption)
+                                .foregroundStyle(.green)
+                        }
+                    }
+                }
+                .padding(8)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Color.green.opacity(0.08))
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+            }
+
+        case .edit:
+            if let oldValue = change.oldValue, let newValue = change.newValue {
+                let oldEntries = dictionaryMap(oldValue)
+                let newEntries = dictionaryMap(newValue)
+
+                if !oldEntries.isEmpty || !newEntries.isEmpty {
+                    // Object edit — show changed fields
+                    let allKeys = Array(Set(Array(oldEntries.keys) + Array(newEntries.keys)))
+                        .filter { $0 != "id" }
+                        .sorted()
+                    VStack(alignment: .leading, spacing: 4) {
+                        ForEach(allKeys, id: \.self) { key in
+                            let oldVal = oldEntries[key]
+                            let newVal = newEntries[key]
+                            if oldVal != newVal, oldVal != nil || newVal != nil {
+                                HStack(alignment: .top, spacing: 4) {
+                                    Text("\(formatKey(key)):")
+                                        .font(.caption.weight(.medium))
+                                        .foregroundStyle(Color(.label))
+                                    if let old = oldVal {
+                                        Text(old)
+                                            .font(.caption)
+                                            .strikethrough()
+                                            .foregroundStyle(.red)
+                                    }
+                                    Text("\u{2192}")
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                    Text(newVal ?? "(removed)")
+                                        .font(.caption)
+                                        .foregroundStyle(.green)
+                                }
+                            }
+                        }
+                    }
+                    .padding(8)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(Color(.systemGray6))
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                } else {
+                    // Simple value edit
+                    VStack(alignment: .leading, spacing: 4) {
+                        HStack(spacing: 4) {
+                            Text("Current:")
+                                .font(.caption.weight(.medium))
+                                .foregroundStyle(.red)
+                            Text(displayString(oldValue))
+                                .font(.caption)
+                                .foregroundStyle(.red)
+                        }
+                        .padding(6)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(Color.red.opacity(0.08))
+                        .clipShape(RoundedRectangle(cornerRadius: 6))
+
+                        HStack(spacing: 4) {
+                            Text("Proposed:")
+                                .font(.caption.weight(.medium))
+                                .foregroundStyle(.green)
+                            Text(displayString(newValue))
+                                .font(.caption)
+                                .foregroundStyle(.green)
+                        }
+                        .padding(6)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(Color.green.opacity(0.08))
+                        .clipShape(RoundedRectangle(cornerRadius: 6))
+                    }
+                }
+            }
+
+        case .delete:
+            if let oldValue = change.oldValue {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("To delete:")
+                        .font(.caption.weight(.medium))
+                        .foregroundStyle(.red)
+                    let entries = dictionaryEntries(oldValue)
+                    if !entries.isEmpty {
+                        ForEach(entries, id: \.key) { entry in
+                            HStack(alignment: .top, spacing: 4) {
+                                Text("\u{2022}")
+                                    .font(.caption)
+                                    .foregroundStyle(.red)
+                                Text("\(formatKey(entry.key)):")
+                                    .font(.caption.weight(.medium))
+                                    .foregroundStyle(Color(.label))
+                                Text(entry.value)
+                                    .font(.caption)
+                                    .foregroundStyle(.red)
+                            }
+                        }
+                    } else {
+                        Text(displayString(oldValue))
+                            .font(.caption)
+                            .foregroundStyle(.red)
+                    }
+                }
+                .padding(8)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Color.red.opacity(0.08))
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+            }
+        }
+    }
+
+    // MARK: - Helpers
+
     private func submitDecisions() {
         var codableDecisions: [String: AnyCodableValue] = [:]
         for (id, accepted) in decisions {
@@ -1428,5 +1825,59 @@ private struct PendingChangesView: View {
         case .edit: return .orange
         case .delete: return .red
         }
+    }
+
+    private func itemName(_ change: PendingChange) -> String? {
+        if let name = extractString(change.newValue, key: "name") { return name }
+        if let name = extractString(change.oldValue, key: "name") { return name }
+        if let name = extractString(change.newValue, key: "substance") { return name }
+        if let name = extractString(change.oldValue, key: "substance") { return name }
+        return nil
+    }
+
+    private func extractString(_ value: AnyCodableValue?, key: String) -> String? {
+        guard case .dictionary(let dict) = value,
+              case .string(let str) = dict[key] else { return nil }
+        return str.isEmpty ? nil : str
+    }
+
+    private func displayString(_ value: AnyCodableValue) -> String {
+        switch value {
+        case .string(let s): return s
+        case .int(let i): return String(i)
+        case .double(let d): return String(d)
+        case .bool(let b): return b ? "true" : "false"
+        case .null: return "(none)"
+        case .array, .dictionary: return "(complex value)"
+        }
+    }
+
+    private func dictionaryEntries(_ value: AnyCodableValue) -> [(key: String, value: String)] {
+        guard case .dictionary(let dict) = value else {
+            return []
+        }
+        return dict.compactMap { key, val in
+            guard key != "id" else { return nil }
+            let str = displayString(val)
+            guard !str.isEmpty, str != "(none)" else { return nil }
+            return (key: key, value: str)
+        }.sorted { $0.key < $1.key }
+    }
+
+    private func dictionaryMap(_ value: AnyCodableValue) -> [String: String] {
+        guard case .dictionary(let dict) = value else { return [:] }
+        var result: [String: String] = [:]
+        for (key, val) in dict {
+            guard key != "id" else { continue }
+            let str = displayString(val)
+            if !str.isEmpty, str != "(none)" {
+                result[key] = str
+            }
+        }
+        return result
+    }
+
+    private func formatKey(_ key: String) -> String {
+        key.replacingOccurrences(of: "_", with: " ")
     }
 }

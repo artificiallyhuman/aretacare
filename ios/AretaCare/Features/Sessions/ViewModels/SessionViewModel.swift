@@ -47,6 +47,11 @@ final class SessionViewModel {
             if let current = currentSession {
                 currentSession = fetched.first { $0.id == current.id } ?? fetched.first
             }
+
+            // Auto-assign colors if 2+ sessions and any lack a color
+            if fetched.count >= 2 && fetched.contains(where: { $0.colorKey == nil }) {
+                await autoAssignColors()
+            }
         } catch {
             errorMessage = error.localizedDescription
         }
@@ -71,6 +76,11 @@ final class SessionViewModel {
             )
             sessions.append(newSession)
             currentSession = newSession
+
+            // Auto-assign colors when going to 2+ sessions
+            if sessions.count >= 2 {
+                await autoAssignColors()
+            }
         } catch {
             errorMessage = error.localizedDescription
         }
@@ -144,6 +154,22 @@ final class SessionViewModel {
     }
 
     // MARK: - Session Color
+
+    private func autoAssignColors() async {
+        do {
+            let _: AutoAssignColorsResponse = try await APIClient.shared.post(
+                APIEndpoints.Sessions.autoAssignColors
+            )
+            // Re-fetch sessions to pick up the assigned colors
+            let fetched: [SessionResponse] = try await APIClient.shared.get(APIEndpoints.Sessions.base)
+            sessions = fetched
+            if let current = currentSession {
+                currentSession = fetched.first { $0.id == current.id } ?? currentSession
+            }
+        } catch {
+            // Non-fatal — colors are cosmetic
+        }
+    }
 
     func setSessionColor(sessionId: String, colorKey: String) async {
         errorMessage = nil

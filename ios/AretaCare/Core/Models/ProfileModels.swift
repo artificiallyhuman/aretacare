@@ -43,6 +43,8 @@ struct MedicationInfo: Codable, Identifiable {
     var description: String?
     var dose: String?
     var frequency: String?
+    var status: String? // "active", "paused", "discontinued"
+    var category: String? // medication category key
     var startDate: String?
     var prescriber: String?
     var notes: String?
