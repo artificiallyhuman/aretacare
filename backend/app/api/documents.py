@@ -759,7 +759,36 @@ async def get_document(
         raise HTTPException(status_code=404, detail="Session not found")
     check_session_access(session, current_user.id, db)
 
-    return document
+    has_collaborators = session_has_collaborators(document.session_id, db)
+
+    if has_collaborators:
+        user_ids = [uid for uid in [document.uploaded_by_user_id, document.last_edited_by_user_id] if uid]
+        user_map = get_user_map(user_ids, db)
+        return {
+            "id": document.id,
+            "session_id": document.session_id,
+            "filename": document.filename,
+            "content_type": document.content_type,
+            "extracted_text": document.extracted_text,
+            "uploaded_at": document.uploaded_at,
+            "category": document.category.value if document.category else None,
+            "ai_description": document.ai_description,
+            "uploaded_by": build_source_tag_info(user_map.get(document.uploaded_by_user_id)) if document.uploaded_by_user_id else None,
+            "last_edited_by": build_source_tag_info(user_map.get(document.last_edited_by_user_id)) if document.last_edited_by_user_id else None
+        }
+
+    return {
+        "id": document.id,
+        "session_id": document.session_id,
+        "filename": document.filename,
+        "content_type": document.content_type,
+        "extracted_text": document.extracted_text,
+        "uploaded_at": document.uploaded_at,
+        "category": document.category.value if document.category else None,
+        "ai_description": document.ai_description,
+        "uploaded_by": None,
+        "last_edited_by": None
+    }
 
 
 @router.patch("/{document_id}", response_model=DocumentResponse)
@@ -817,7 +846,18 @@ async def update_document(
             "last_edited_by": build_source_tag_info(user_map.get(document.last_edited_by_user_id)) if document.last_edited_by_user_id else None
         }
 
-    return document
+    return {
+        "id": document.id,
+        "session_id": document.session_id,
+        "filename": document.filename,
+        "content_type": document.content_type,
+        "extracted_text": document.extracted_text,
+        "uploaded_at": document.uploaded_at,
+        "category": document.category.value if document.category else None,
+        "ai_description": document.ai_description,
+        "uploaded_by": None,
+        "last_edited_by": None
+    }
 
 
 @router.delete("/{document_id}")

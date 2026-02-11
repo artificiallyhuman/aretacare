@@ -120,7 +120,9 @@ const ConversationCoach = () => {
     }
 
     try {
-      const audioFile = new File([audioBlob], 'recording.webm', { type: 'audio/webm' });
+      const now = new Date();
+      const timestamp = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}_${now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }).replace(/[: ]/g, '-')}`;
+      const audioFile = new File([audioBlob], `Recording_${timestamp}.webm`, { type: 'audio/webm' });
       const response = await conversationAPI.transcribeAudio(audioFile, sessionId);
       const transcribedText = response.data.transcribed_text;
 

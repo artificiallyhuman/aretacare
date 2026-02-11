@@ -293,7 +293,21 @@ async def update_journal_entry(
             "last_edited_by": build_source_tag_info(current_user)
         }
 
-    return entry
+    return {
+        "id": entry.id,
+        "session_id": entry.session_id,
+        "entry_date": entry.entry_date,
+        "entry_type": entry.entry_type,
+        "title": entry.title,
+        "content": entry.content,
+        "created_by": entry.created_by,
+        "created_at": entry.created_at,
+        "updated_at": entry.updated_at,
+        "source_message_ids": entry.source_message_ids,
+        "entry_metadata": entry.entry_metadata,
+        "created_by_info": None,
+        "last_edited_by": None
+    }
 
 
 @router.delete("/{entry_id}")

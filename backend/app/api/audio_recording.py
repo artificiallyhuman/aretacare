@@ -184,7 +184,38 @@ async def get_audio_recording(
     if not recording:
         raise HTTPException(status_code=404, detail="Recording not found")
 
-    return recording
+    has_collaborators = session_has_collaborators(session_id, db)
+
+    if has_collaborators:
+        user_ids = [uid for uid in [recording.created_by_user_id, recording.last_edited_by_user_id] if uid]
+        user_map = get_user_map(user_ids, db)
+        return {
+            "id": recording.id,
+            "session_id": recording.session_id,
+            "filename": recording.filename,
+            "s3_key": recording.s3_key,
+            "duration": recording.duration,
+            "transcribed_text": recording.transcribed_text,
+            "category": recording.category.value if recording.category else None,
+            "ai_summary": recording.ai_summary,
+            "created_at": recording.created_at,
+            "created_by": build_source_tag_info(user_map.get(recording.created_by_user_id)) if recording.created_by_user_id else None,
+            "last_edited_by": build_source_tag_info(user_map.get(recording.last_edited_by_user_id)) if recording.last_edited_by_user_id else None
+        }
+
+    return {
+        "id": recording.id,
+        "session_id": recording.session_id,
+        "filename": recording.filename,
+        "s3_key": recording.s3_key,
+        "duration": recording.duration,
+        "transcribed_text": recording.transcribed_text,
+        "category": recording.category.value if recording.category else None,
+        "ai_summary": recording.ai_summary,
+        "created_at": recording.created_at,
+        "created_by": None,
+        "last_edited_by": None
+    }
 
 
 @router.patch("/{session_id}/{recording_id}", response_model=AudioRecordingResponse)
@@ -250,7 +281,19 @@ async def update_audio_recording(
             "last_edited_by": build_source_tag_info(user_map.get(recording.last_edited_by_user_id)) if recording.last_edited_by_user_id else None
         }
 
-    return recording
+    return {
+        "id": recording.id,
+        "session_id": recording.session_id,
+        "filename": recording.filename,
+        "s3_key": recording.s3_key,
+        "duration": recording.duration,
+        "transcribed_text": recording.transcribed_text,
+        "category": recording.category.value if recording.category else None,
+        "ai_summary": recording.ai_summary,
+        "created_at": recording.created_at,
+        "created_by": None,
+        "last_edited_by": None
+    }
 
 
 @router.delete("/{session_id}/{recording_id}")
