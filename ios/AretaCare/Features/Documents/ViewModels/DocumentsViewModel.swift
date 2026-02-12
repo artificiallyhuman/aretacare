@@ -171,6 +171,23 @@ final class DocumentsViewModel {
         }
     }
 
+    /// Downloads a document to a temporary file for Quick Look preview.
+    func downloadToTempFile(id: Int, filename: String) async -> URL? {
+        guard let downloadUrl = await getDownloadUrl(id: id) else { return nil }
+        do {
+            let (data, _) = try await URLSession.shared.data(from: downloadUrl)
+            let tempDir = FileManager.default.temporaryDirectory
+                .appendingPathComponent("QuickLook", isDirectory: true)
+            try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+            let fileURL = tempDir.appendingPathComponent(filename)
+            try data.write(to: fileURL)
+            return fileURL
+        } catch {
+            errorMessage = error.localizedDescription
+            return nil
+        }
+    }
+
     // MARK: - Preview URL (for list thumbnails)
 
     func fetchPreviewUrl(for document: DocumentResponse) async {

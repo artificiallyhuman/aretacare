@@ -50,6 +50,83 @@ struct ConversationView: View {
     }
 
     var body: some View {
+        conversationContent
+            .overlay(alignment: .top) { copiedToast }
+            .sensoryFeedback(.success, trigger: copyHapticTrigger)
+            .sensoryFeedback(.success, trigger: sendHapticTrigger)
+            .sensoryFeedback(.impact(flexibility: .rigid), trigger: resetHapticTrigger)
+            .animation(.easeInOut(duration: 0.2), value: showCopiedToast)
+            .sessionBackground(
+                colorKey: sessionVM.currentSession?.colorKey,
+                colorScheme: colorScheme
+            )
+            .navigationTitle(sessionVM.currentSession?.name ?? "Chat")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button {
+                        showingSessionSwitcher = true
+                    } label: {
+                        Image(systemName: "list.bullet")
+                    }
+                }
+            }
+            .sheet(isPresented: $showingSessionSwitcher) {
+                SessionSwitcherView(sessionVM: sessionVM)
+            }
+            .modifier(ConversationSheetsModifier(
+                showingAttachSheet: $showingAttachSheet,
+                showingCamera: $showingCamera,
+                showingPhotoPicker: $showingPhotoPicker,
+                showingFilePicker: $showingFilePicker,
+                selectedPhotoItems: $selectedPhotoItems,
+                showResetConfirmation: $showResetConfirmation,
+                showingMicPermissionAlert: $showingMicPermissionAlert,
+                showFileSizeAlert: $showFileSizeAlert,
+                resetMessage: $resetMessage,
+                resetHapticTrigger: $resetHapticTrigger,
+                currentSessionId: currentSessionId,
+                conversationVM: conversationVM,
+                handleCameraImage: handleCameraImage,
+                handlePhotoSelection: handlePhotoSelection,
+                handleFileImport: handleFileImport
+            ))
+            .task {
+                await sessionVM.fetchSessions()
+                if let sessionId = currentSessionId {
+                    await conversationVM.fetchHistory(sessionId: sessionId)
+                }
+            }
+            .onChange(of: sessionVM.currentSession?.id) { _, newId in
+                guard let newId else { return }
+                conversationVM.clearMessages()
+                Task {
+                    await conversationVM.fetchHistory(sessionId: newId)
+                }
+            }
+            // Poll for new messages from collaborators every 10 seconds
+            .task(id: currentSessionId) {
+                guard let sessionId = currentSessionId,
+                      !(sessionVM.currentSession?.collaborators.isEmpty ?? true) else { return }
+                while !Task.isCancelled {
+                    try? await Task.sleep(for: .seconds(10))
+                    guard !Task.isCancelled else { break }
+                    await conversationVM.pollForNewMessages(sessionId: sessionId)
+                }
+            }
+            .onChange(of: networkMonitor.isConnected) { wasConnected, isConnected in
+                if !wasConnected && isConnected && !conversationVM.failedMessageIds.isEmpty {
+                    guard let sessionId = currentSessionId else { return }
+                    Task {
+                        await conversationVM.retryAllFailed(sessionId: sessionId)
+                    }
+                }
+            }
+    }
+
+    // MARK: - Extracted Views (type-checker workaround)
+
+    private var conversationContent: some View {
         VStack(spacing: 0) {
             if let error = conversationVM.errorMessage {
                 ErrorBannerView(message: error) {
@@ -99,127 +176,28 @@ struct ConversationView: View {
                 )
             }
         }
-        .overlay(alignment: .top) {
-            if showCopiedToast {
-                Text("Copied")
-                    .font(.subheadline.weight(.medium))
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 8)
-                    .background(Capsule().fill(.black.opacity(0.75)))
-                    .transition(.move(edge: .top).combined(with: .opacity))
-                    .padding(.top, 8)
-                    .onAppear {
-                        Task {
-                            try? await Task.sleep(for: .seconds(1.5))
-                            withAnimation(.easeOut(duration: 0.3)) {
-                                showCopiedToast = false
-                            }
+    }
+
+    @ViewBuilder
+    private var copiedToast: some View {
+        if showCopiedToast {
+            Text("Copied")
+                .font(.subheadline.weight(.medium))
+                .foregroundStyle(.white)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 8)
+                .background(Capsule().fill(.black.opacity(0.75)))
+                .transition(.move(edge: .top).combined(with: .opacity))
+                .padding(.top, 8)
+                .accessibilityLabel("Copied to clipboard")
+                .onAppear {
+                    Task {
+                        try? await Task.sleep(for: .seconds(1.5))
+                        withAnimation(.easeOut(duration: 0.3)) {
+                            showCopiedToast = false
                         }
                     }
-            }
-        }
-        .sensoryFeedback(.success, trigger: copyHapticTrigger)
-        .sensoryFeedback(.success, trigger: sendHapticTrigger)
-        .sensoryFeedback(.impact(flexibility: .rigid), trigger: resetHapticTrigger)
-        .animation(.easeInOut(duration: 0.2), value: showCopiedToast)
-        .sessionBackground(
-            colorKey: sessionVM.currentSession?.colorKey,
-            colorScheme: colorScheme
-        )
-        .navigationTitle(sessionVM.currentSession?.name ?? "Chat")
-        .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            ToolbarItem(placement: .topBarLeading) {
-                Button {
-                    showingSessionSwitcher = true
-                } label: {
-                    Image(systemName: "list.bullet")
                 }
-            }
-        }
-        .sheet(isPresented: $showingSessionSwitcher) {
-            SessionSwitcherView(sessionVM: sessionVM)
-        }
-        .confirmationDialog("Add Attachment", isPresented: $showingAttachSheet, titleVisibility: .visible) {
-            Button("Take Photo") { showingCamera = true }
-            Button("Choose Photo") { showingPhotoPicker = true }
-            Button("Choose File") { showingFilePicker = true }
-            Button("Cancel", role: .cancel) {}
-        }
-        .fullScreenCover(isPresented: $showingCamera) {
-            CameraPickerView { image in
-                handleCameraImage(image)
-            }
-            .ignoresSafeArea()
-        }
-        .photosPicker(isPresented: $showingPhotoPicker, selection: $selectedPhotoItems, maxSelectionCount: 1, matching: .images)
-        .onChange(of: selectedPhotoItems) { _, items in
-            handlePhotoSelection(items)
-        }
-        .fileImporter(isPresented: $showingFilePicker, allowedContentTypes: [.pdf, .plainText, .jpeg, .png], allowsMultipleSelection: false) { result in
-            handleFileImport(result)
-        }
-        .alert("Reset Conversation", isPresented: $showResetConfirmation) {
-            Button("Reset", role: .destructive) {
-                if let msg = resetMessage, let sessionId = currentSessionId {
-                    resetHapticTrigger += 1
-                    Task {
-                        await conversationVM.resetConversation(messageId: msg.id, sessionId: sessionId)
-                    }
-                }
-            }
-            Button("Cancel", role: .cancel) {
-                resetMessage = nil
-            }
-        } message: {
-            Text("All messages after this point will be permanently deleted. This cannot be undone.")
-        }
-        .alert("Microphone Access Required", isPresented: $showingMicPermissionAlert) {
-            Button("Open Settings") {
-                if let url = URL(string: UIApplication.openSettingsURLString) {
-                    UIApplication.shared.open(url)
-                }
-            }
-            Button("Cancel", role: .cancel) {}
-        } message: {
-            Text("Please allow microphone access in Settings to record voice messages.")
-        }
-        .alert("File Too Large", isPresented: $showFileSizeAlert) {
-            Button("OK", role: .cancel) {}
-        } message: {
-            Text("File too large. Maximum file size is 30 MB.")
-        }
-        .task {
-            await sessionVM.fetchSessions()
-            if let sessionId = currentSessionId {
-                await conversationVM.fetchHistory(sessionId: sessionId)
-            }
-        }
-        .onChange(of: sessionVM.currentSession?.id) { _, newId in
-            guard let newId else { return }
-            conversationVM.clearMessages()
-            Task {
-                await conversationVM.fetchHistory(sessionId: newId)
-            }
-        }
-        // Poll for new messages from collaborators every 10 seconds
-        .task(id: currentSessionId) {
-            guard let sessionId = currentSessionId,
-                  !(sessionVM.currentSession?.collaborators.isEmpty ?? true) else { return }
-            while !Task.isCancelled {
-                try? await Task.sleep(for: .seconds(10))
-                guard !Task.isCancelled else { break }
-                await conversationVM.pollForNewMessages(sessionId: sessionId)
-            }
-        }
-        .onChange(of: networkMonitor.isConnected) { wasConnected, isConnected in
-            if !wasConnected && isConnected && !conversationVM.failedMessageIds.isEmpty {
-                guard let sessionId = currentSessionId else { return }
-                Task {
-                    await conversationVM.retryAllFailed(sessionId: sessionId)
-                }
-            }
         }
     }
 
@@ -345,6 +323,7 @@ struct ConversationView: View {
                                 .background(Circle().fill(Color.accentColor))
                                 .shadow(radius: 4)
                         }
+                        .accessibilityLabel("Scroll to latest message")
                         .padding(.trailing, 12)
                         .padding(.bottom, 8)
                         .transition(.scale.combined(with: .opacity))
@@ -520,6 +499,79 @@ struct ConversationView: View {
         }
     }
 
+}
+
+// MARK: - Sheets & Alerts Modifier (extracted for type-checker)
+
+private struct ConversationSheetsModifier: ViewModifier {
+    @Binding var showingAttachSheet: Bool
+    @Binding var showingCamera: Bool
+    @Binding var showingPhotoPicker: Bool
+    @Binding var showingFilePicker: Bool
+    @Binding var selectedPhotoItems: [PhotosPickerItem]
+    @Binding var showResetConfirmation: Bool
+    @Binding var showingMicPermissionAlert: Bool
+    @Binding var showFileSizeAlert: Bool
+    @Binding var resetMessage: MessageResponse?
+    @Binding var resetHapticTrigger: Int
+    let currentSessionId: String?
+    let conversationVM: ConversationViewModel
+    let handleCameraImage: (UIImage) -> Void
+    let handlePhotoSelection: ([PhotosPickerItem]) -> Void
+    let handleFileImport: (Result<[URL], Error>) -> Void
+
+    func body(content: Content) -> some View {
+        content
+            .confirmationDialog("Add Attachment", isPresented: $showingAttachSheet, titleVisibility: .visible) {
+                Button("Take Photo") { showingCamera = true }
+                Button("Choose Photo") { showingPhotoPicker = true }
+                Button("Choose File") { showingFilePicker = true }
+                Button("Cancel", role: .cancel) {}
+            }
+            .fullScreenCover(isPresented: $showingCamera) {
+                CameraPickerView { image in
+                    handleCameraImage(image)
+                }
+                .ignoresSafeArea()
+            }
+            .photosPicker(isPresented: $showingPhotoPicker, selection: $selectedPhotoItems, maxSelectionCount: 1, matching: .images)
+            .onChange(of: selectedPhotoItems) { _, items in
+                handlePhotoSelection(items)
+            }
+            .fileImporter(isPresented: $showingFilePicker, allowedContentTypes: [.pdf, .plainText, .jpeg, .png], allowsMultipleSelection: false) { result in
+                handleFileImport(result)
+            }
+            .alert("Reset Conversation", isPresented: $showResetConfirmation) {
+                Button("Reset", role: .destructive) {
+                    if let msg = resetMessage, let sessionId = currentSessionId {
+                        resetHapticTrigger += 1
+                        Task {
+                            await conversationVM.resetConversation(messageId: msg.id, sessionId: sessionId)
+                        }
+                    }
+                }
+                Button("Cancel", role: .cancel) {
+                    resetMessage = nil
+                }
+            } message: {
+                Text("All messages after this point will be permanently deleted. This cannot be undone.")
+            }
+            .alert("Microphone Access Required", isPresented: $showingMicPermissionAlert) {
+                Button("Open Settings") {
+                    if let url = URL(string: UIApplication.openSettingsURLString) {
+                        UIApplication.shared.open(url)
+                    }
+                }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("Please allow microphone access in Settings to record voice messages.")
+            }
+            .alert("File Too Large", isPresented: $showFileSizeAlert) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text("File too large. Maximum file size is 30 MB.")
+            }
+    }
 }
 
 #Preview {

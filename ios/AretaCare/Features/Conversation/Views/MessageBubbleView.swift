@@ -161,6 +161,7 @@ struct MessageBubbleView: View {
                                     .foregroundStyle(.secondary)
                             }
                     }
+                    .accessibilityHidden(true)
                 }
 
                 HStack(spacing: 8) {
@@ -194,10 +195,12 @@ struct MessageBubbleView: View {
                             .font(.title)
                             .foregroundStyle(isUser ? .white : Color.accentColor)
                     }
+                    .accessibilityLabel(isPlayingAudio ? "Pause audio" : "Play audio")
                 } else {
                     Image(systemName: "waveform")
                         .font(.title3)
                         .foregroundStyle(isUser ? .white.opacity(0.9) : Color.accentColor)
+                        .accessibilityHidden(true)
                 }
 
                 Text("Audio Message")
@@ -218,6 +221,7 @@ struct MessageBubbleView: View {
                 NotificationCenter.default.removeObserver(obs)
                 playbackObserver = nil
             }
+            AudioSessionManager.shared.deactivate()
         }
     }
 
@@ -241,6 +245,17 @@ struct MessageBubbleView: View {
                     isPlayingAudio = false
                     audioPlayer?.seek(to: .zero)
                 }
+            }
+            try? AudioSessionManager.shared.activateForPlayback()
+            NowPlayingManager.shared.registerRemoteCommands()
+            NowPlayingManager.shared.onTogglePlayPause = { [self] in
+                toggleAudioPlayback()
+            }
+            NowPlayingManager.shared.onPlay = { [self] in
+                if !isPlayingAudio { toggleAudioPlayback() }
+            }
+            NowPlayingManager.shared.onPause = { [self] in
+                if isPlayingAudio { toggleAudioPlayback() }
             }
             audioPlayer?.play()
             isPlayingAudio = true
@@ -288,6 +303,7 @@ struct MessageBubbleView: View {
                                 .foregroundStyle(.secondary)
                             }
                     }
+                    .accessibilityHidden(true)
                 } else {
                     HStack(spacing: 8) {
                         Image(systemName: "photo.fill")
@@ -314,6 +330,7 @@ struct MessageBubbleView: View {
         Image(systemName: "exclamationmark.circle.fill")
             .font(.body)
             .foregroundStyle(.red)
+            .accessibilityLabel("Message failed to send")
     }
 
     // MARK: - Helpers

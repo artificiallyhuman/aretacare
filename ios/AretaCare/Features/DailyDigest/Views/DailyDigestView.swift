@@ -200,6 +200,7 @@ struct DailyDigestView: View {
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 12)
             }
+            .accessibilityHint("Generates a summary of your recent activity")
             .buttonStyle(.borderedProminent)
         }
         .padding(24)
@@ -292,6 +293,7 @@ struct DailyDigestView: View {
                 Image(systemName: "info.circle")
                     .foregroundStyle(.orange)
                     .font(.caption)
+                    .accessibilityHidden(true)
                 Text("AI-generated \u{2014} not medical advice.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
@@ -371,6 +373,31 @@ struct DailyDigestView: View {
         }
         .background(Color(.secondarySystemBackground))
         .clipShape(RoundedRectangle(cornerRadius: 12))
+        .contextMenu {
+            Button {
+                UIPasteboard.general.string = digest.displayContent
+                copyHapticTrigger += 1
+            } label: {
+                Label("Copy", systemImage: "doc.on.doc")
+            }
+            Button {
+                editingContent = digest.displayContent
+                showingEditor = true
+            } label: {
+                Label("Edit", systemImage: "pencil")
+            }
+            Button {
+                showRegenerateConfirmation = true
+            } label: {
+                Label("Regenerate", systemImage: "arrow.clockwise")
+            }
+            Divider()
+            Button(role: .destructive) {
+                showDeleteConfirmation = true
+            } label: {
+                Label("Delete", systemImage: "trash")
+            }
+        }
     }
 
     // MARK: - Calendar Sheet

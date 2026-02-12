@@ -96,10 +96,12 @@ struct SessionSwitcherView: View {
                     Circle()
                         .fill(sessionColor.swatch(for: colorScheme))
                         .frame(width: 24, height: 24)
+                        .accessibilityHidden(true)
                 } else {
                     Circle()
                         .fill(Color.secondary.opacity(0.3))
                         .frame(width: 24, height: 24)
+                        .accessibilityHidden(true)
                 }
 
                 VStack(alignment: .leading, spacing: 2) {
@@ -127,6 +129,7 @@ struct SessionSwitcherView: View {
                     Image(systemName: "checkmark")
                         .font(.body.weight(.semibold))
                         .foregroundStyle(Color.accentColor)
+                        .accessibilityHidden(true)
                 }
             }
             .contentShape(Rectangle())

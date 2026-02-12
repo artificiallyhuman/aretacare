@@ -79,6 +79,7 @@ struct SettingsView: View {
                 Image(systemName: "chevron.right")
                     .font(.caption)
                     .foregroundStyle(.tertiary)
+                    .accessibilityHidden(true)
             }
             .contentShape(Rectangle())
             .onTapGesture { showChangeName = true }
@@ -93,6 +94,7 @@ struct SettingsView: View {
                 Image(systemName: "chevron.right")
                     .font(.caption)
                     .foregroundStyle(.tertiary)
+                    .accessibilityHidden(true)
             }
             .contentShape(Rectangle())
             .onTapGesture { showChangeEmail = true }
@@ -116,6 +118,7 @@ struct SettingsView: View {
                 Image(systemName: "chevron.right")
                     .font(.caption)
                     .foregroundStyle(.tertiary)
+                    .accessibilityHidden(true)
             }
             .contentShape(Rectangle())
             .onTapGesture { showChangePassword = true }
@@ -199,6 +202,7 @@ struct SettingsView: View {
                 Circle()
                     .fill(sessionSwatchColor(session))
                     .frame(width: 24, height: 24)
+                    .accessibilityHidden(true)
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(session.name)

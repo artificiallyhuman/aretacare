@@ -24,6 +24,8 @@ struct SourceTagView: View {
                     .padding(8)
                     .presentationCompactAdaptation(.popover)
             }
+            .accessibilityLabel("Contributor: \(sourceTag.name)")
+            .accessibilityHint("Tap to show full name")
         }
     }
 }

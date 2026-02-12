@@ -23,5 +23,7 @@ struct FilterChipView: View {
             .foregroundStyle(isSelected ? .white : .primary)
             .clipShape(Capsule())
         }
+        .accessibilityLabel("\(title) filter")
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 }

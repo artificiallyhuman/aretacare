@@ -85,6 +85,7 @@ struct ProfileView: View {
                             .foregroundStyle(.white)
                             .clipShape(Capsule())
                     }
+                    .accessibilityLabel("Review \(viewModel.pendingChanges.count) pending changes")
                     .padding(.bottom)
                 }
             }
@@ -895,6 +896,7 @@ private struct ProfileCardSection<Content: View>: View {
                     .frame(width: 30, height: 30)
                     .background(color.gradient)
                     .clipShape(RoundedRectangle(cornerRadius: 8))
+                    .accessibilityHidden(true)
 
                 Text(title)
                     .font(.headline)
@@ -922,6 +924,7 @@ private struct ProfileCardSection<Content: View>: View {
                             .background(color.opacity(0.1))
                             .clipShape(RoundedRectangle(cornerRadius: 6))
                     }
+                    .accessibilityLabel("Edit \(title)")
                 }
             }
 

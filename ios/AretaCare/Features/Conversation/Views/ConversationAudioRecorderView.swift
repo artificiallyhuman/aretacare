@@ -21,20 +21,27 @@ struct ConversationAudioRecorderView: View {
                         .font(.title2)
                         .foregroundStyle(.secondary)
                 }
+                .accessibilityLabel("Cancel recording")
 
                 // Waveform
                 HStack(spacing: 4) {
                     ForEach(0..<5, id: \.self) { index in
-                        WaveformBar(isAnimating: recorder.isRecording, delay: Double(index) * 0.08)
+                        WaveformBar(
+                            isAnimating: recorder.isRecording,
+                            delay: Double(index) * 0.08,
+                            audioLevel: recorder.isRecording ? recorder.audioLevel : nil
+                        )
                     }
                 }
                 .frame(height: 32)
+                .accessibilityHidden(true)
 
                 // Timer
                 Text(recorder.formattedDuration)
                     .font(.system(.body, design: .monospaced))
                     .foregroundStyle(recorder.isRecording ? Color.red : .secondary)
                     .frame(minWidth: 50)
+                    .accessibilityLabel("Recording duration: \(recorder.formattedDuration)")
 
                 Spacer()
 
@@ -51,6 +58,7 @@ struct ConversationAudioRecorderView: View {
                             .font(.title2)
                             .foregroundStyle(Color.accentColor)
                     }
+                    .accessibilityLabel(recorder.isPaused ? "Resume recording" : "Pause recording")
                 }
 
                 // Stop and send
@@ -61,6 +69,7 @@ struct ConversationAudioRecorderView: View {
                         .font(.title)
                         .foregroundStyle(Color.accentColor)
                 }
+                .accessibilityLabel("Stop recording and send")
                 .sensoryFeedback(.success, trigger: sendTrigger)
             }
             .padding(.horizontal, 12)

@@ -68,6 +68,8 @@ struct MainTabView: View {
                         .padding(.vertical, 8)
                         .background(Color.red.opacity(0.9))
                         .transition(.move(edge: .top).combined(with: .opacity))
+                        .accessibilityElement(children: .combine)
+                        .accessibilityLabel("No internet connection")
                     }
                 }
                 .animation(.easeInOut(duration: 0.3), value: networkMonitor.isConnected)

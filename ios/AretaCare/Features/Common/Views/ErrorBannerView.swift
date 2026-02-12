@@ -10,6 +10,7 @@ struct ErrorBannerView: View {
             Image(systemName: "exclamationmark.triangle.fill")
                 .foregroundStyle(.white)
                 .font(.subheadline)
+                .accessibilityHidden(true)
 
             Text(message)
                 .font(.subheadline)
@@ -26,6 +27,7 @@ struct ErrorBannerView: View {
                         .font(.caption.bold())
                         .foregroundStyle(.white.opacity(0.8))
                 }
+                .accessibilityLabel("Dismiss error")
             }
         }
         .padding(.horizontal, 16)
@@ -34,6 +36,8 @@ struct ErrorBannerView: View {
         .clipShape(RoundedRectangle(cornerRadius: 10))
         .padding(.horizontal)
         .transition(.move(edge: .top).combined(with: .opacity))
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Error: \(message)")
         .task(id: message) {
             guard let seconds = autoDismissAfter else { return }
             try? await Task.sleep(for: .seconds(seconds))

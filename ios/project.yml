@@ -70,6 +70,7 @@ targets:
         NSPhotoLibraryUsageDescription: "AretaCare needs photo library access to upload medical document images."
         UIBackgroundModes:
           - remote-notification
+          - audio
     dependencies:
       - package: KeychainAccess
       - package: MarkdownUI

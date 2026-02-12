@@ -28,6 +28,7 @@ struct AudioPlayerView: View {
                             .font(.system(size: 40))
                             .foregroundStyle(Color.accentColor)
                     }
+                    .accessibilityLabel(isPlaying ? "Pause" : "Play")
 
                     VStack(spacing: 4) {
                         // Progress slider
@@ -36,16 +37,19 @@ struct AudioPlayerView: View {
                                 seek(to: progress)
                             }
                         }
+                        .accessibilityLabel("Playback position")
 
                         // Time labels
                         HStack {
                             Text(formatTime(progress))
                                 .font(.caption2)
                                 .foregroundStyle(.secondary)
+                                .accessibilityHidden(true)
                             Spacer()
                             Text(formatTime(duration))
                                 .font(.caption2)
                                 .foregroundStyle(.secondary)
+                                .accessibilityHidden(true)
                         }
                     }
                 }
@@ -80,6 +84,14 @@ struct AudioPlayerView: View {
             let currentTime = CMTimeGetSeconds(time)
             if !currentTime.isNaN {
                 progress = currentTime
+                if isPlaying {
+                    NowPlayingManager.shared.updateNowPlayingInfo(
+                        title: "Audio Recording",
+                        duration: duration,
+                        currentTime: currentTime,
+                        isPlaying: true
+                    )
+                }
             }
         }
 
@@ -92,6 +104,12 @@ struct AudioPlayerView: View {
             isPlaying = false
             progress = 0
             avPlayer.seek(to: .zero)
+            NowPlayingManager.shared.updateNowPlayingInfo(
+                title: "Audio Recording",
+                duration: duration,
+                currentTime: 0,
+                isPlaying: false
+            )
         }
 
         isLoading = false
@@ -102,12 +120,51 @@ struct AudioPlayerView: View {
 
         if isPlaying {
             player.pause()
+            isPlaying = false
+            NowPlayingManager.shared.updateNowPlayingInfo(
+                title: "Audio Recording",
+                duration: duration,
+                currentTime: progress,
+                isPlaying: false
+            )
         } else {
-            try? AVAudioSession.sharedInstance().setCategory(.playback)
-            try? AVAudioSession.sharedInstance().setActive(true)
+            try? AudioSessionManager.shared.activateForPlayback()
+            setupNowPlaying()
             player.play()
+            isPlaying = true
+            NowPlayingManager.shared.updateNowPlayingInfo(
+                title: "Audio Recording",
+                duration: duration,
+                currentTime: progress,
+                isPlaying: true
+            )
         }
-        isPlaying.toggle()
+    }
+
+    private func setupNowPlaying() {
+        NowPlayingManager.shared.registerRemoteCommands()
+        NowPlayingManager.shared.onPlay = { [self] in
+            if !isPlaying { togglePlayback() }
+        }
+        NowPlayingManager.shared.onPause = { [self] in
+            if isPlaying { togglePlayback() }
+        }
+        NowPlayingManager.shared.onTogglePlayPause = { [self] in
+            togglePlayback()
+        }
+
+        AudioSessionManager.shared.onInterruptionBegan = { [self] in
+            if isPlaying {
+                player?.pause()
+                isPlaying = false
+            }
+        }
+        AudioSessionManager.shared.onInterruptionEnded = { [self] shouldResume in
+            if shouldResume && !isPlaying {
+                player?.play()
+                isPlaying = true
+            }
+        }
     }
 
     private func seek(to time: Double) {
@@ -120,7 +177,7 @@ struct AudioPlayerView: View {
             player?.removeTimeObserver(observer)
         }
         player = nil
-        try? AVAudioSession.sharedInstance().setActive(false)
+        AudioSessionManager.shared.deactivate()
     }
 
     private func formatTime(_ seconds: Double) -> String {

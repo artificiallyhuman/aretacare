@@ -18,6 +18,8 @@ struct DocumentsListView: View {
     @State private var uploadHapticTrigger = 0
     @State private var deleteHapticTrigger = 0
     @State private var showFileSizeAlert = false
+    @State private var shareDocumentUrl: URL?
+    @State private var showingDocumentShareSheet = false
 
     private let currentUserId = AuthManager.shared.currentUser?.id ?? ""
 
@@ -58,6 +60,7 @@ struct DocumentsListView: View {
                     } label: {
                         Image(systemName: "calendar")
                     }
+                    .accessibilityLabel("Open calendar")
                 }
             }
             ToolbarItem(placement: .primaryAction) {
@@ -66,6 +69,7 @@ struct DocumentsListView: View {
                 } label: {
                     Image(systemName: "plus")
                 }
+                .accessibilityLabel("Upload document")
             }
         }
         .confirmationDialog("Upload Document", isPresented: $showingPickerChoice) {
@@ -124,6 +128,11 @@ struct DocumentsListView: View {
         }
         .sensoryFeedback(.success, trigger: uploadHapticTrigger)
         .sensoryFeedback(.impact(flexibility: .rigid), trigger: deleteHapticTrigger)
+        .sheet(isPresented: $showingDocumentShareSheet) {
+            if let url = shareDocumentUrl {
+                ShareSheet(activityItems: [url])
+            }
+        }
         .refreshable {
             await viewModel.fetchDocuments(sessionId: sessionId, category: viewModel.selectedCategory, date: viewModel.selectedDateString)
             await viewModel.fetchDates(sessionId: sessionId)
@@ -187,15 +196,46 @@ struct DocumentsListView: View {
                             previewUrl: viewModel.previewUrls[document.id]
                         )
                     }
+                    .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                        Button(role: .destructive) {
+                            deleteHapticTrigger += 1
+                            Task { await viewModel.deleteDocument(id: document.id, sessionId: sessionId) }
+                        } label: {
+                            Label("Delete", systemImage: "trash")
+                        }
+                    }
+                    .swipeActions(edge: .leading) {
+                        Button {
+                            shareDocument(document)
+                        } label: {
+                            Label("Share", systemImage: "square.and.arrow.up")
+                        }
+                        .tint(.blue)
+                    }
+                    .contextMenu {
+                        Button {
+                            UIPasteboard.general.string = document.filename
+                        } label: {
+                            Label("Copy Name", systemImage: "doc.on.doc")
+                        }
+                        Button {
+                            shareDocument(document)
+                        } label: {
+                            Label("Share", systemImage: "square.and.arrow.up")
+                        }
+                        Button(role: .destructive) {
+                            deleteHapticTrigger += 1
+                            Task { await viewModel.deleteDocument(id: document.id, sessionId: sessionId) }
+                        } label: {
+                            Label("Delete", systemImage: "trash")
+                        }
+                    }
                     .onAppear {
                         Task { await viewModel.fetchPreviewUrl(for: document) }
                         if document.id == viewModel.documents.last?.id {
                             Task { await viewModel.loadMoreIfNeeded(sessionId: sessionId) }
                         }
                     }
-                }
-                .onDelete { offsets in
-                    deleteDocuments(at: offsets)
                 }
             }
             .listStyle(.plain)
@@ -280,11 +320,12 @@ struct DocumentsListView: View {
         }
     }
 
-    private func deleteDocuments(at offsets: IndexSet) {
-        deleteHapticTrigger += 1
-        for index in offsets {
-            let doc = viewModel.documents[index]
-            Task { await viewModel.deleteDocument(id: doc.id, sessionId: sessionId) }
+    private func shareDocument(_ document: DocumentResponse) {
+        Task {
+            if let url = await viewModel.getDownloadUrl(id: document.id) {
+                shareDocumentUrl = url
+                showingDocumentShareSheet = true
+            }
         }
     }
 

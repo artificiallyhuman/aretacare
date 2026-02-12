@@ -44,6 +44,7 @@ struct AudioRecordingsView: View {
                     } label: {
                         Image(systemName: "calendar")
                     }
+                    .accessibilityLabel("Open calendar")
                 }
             }
             ToolbarItem(placement: .primaryAction) {
@@ -52,6 +53,7 @@ struct AudioRecordingsView: View {
                 } label: {
                     Image(systemName: "plus")
                 }
+                .accessibilityLabel("Record new audio")
             }
         }
         .sheet(isPresented: $showingRecorder) {
@@ -142,17 +144,38 @@ struct AudioRecordingsView: View {
                     } label: {
                         AudioRecordingRowView(recording: recording, sessionId: sessionId, viewModel: viewModel, currentUserId: currentUserId)
                     }
+                    .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                        Button(role: .destructive) {
+                            deleteHapticTrigger += 1
+                            Task { await viewModel.deleteRecording(sessionId: sessionId, recordingId: recording.id) }
+                        } label: {
+                            Label("Delete", systemImage: "trash")
+                        }
+                    }
+                    .contextMenu {
+                        if let summary = recording.aiSummary {
+                            Button {
+                                UIPasteboard.general.string = summary
+                            } label: {
+                                Label("Copy Summary", systemImage: "doc.on.doc")
+                            }
+                        }
+                        Button {
+                            selectedRecording = recording
+                        } label: {
+                            Label("View Details", systemImage: "info.circle")
+                        }
+                        Button(role: .destructive) {
+                            deleteHapticTrigger += 1
+                            Task { await viewModel.deleteRecording(sessionId: sessionId, recordingId: recording.id) }
+                        } label: {
+                            Label("Delete", systemImage: "trash")
+                        }
+                    }
                     .onAppear {
                         if recording.id == viewModel.recordings.last?.id {
                             Task { await viewModel.loadMoreIfNeeded(sessionId: sessionId) }
                         }
-                    }
-                }
-                .onDelete { offsets in
-                    deleteHapticTrigger += 1
-                    for index in offsets {
-                        let rec = viewModel.recordings[index]
-                        Task { await viewModel.deleteRecording(sessionId: sessionId, recordingId: rec.id) }
                     }
                 }
             }

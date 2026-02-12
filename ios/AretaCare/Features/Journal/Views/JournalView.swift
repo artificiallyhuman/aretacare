@@ -38,6 +38,7 @@ struct JournalView: View {
                     .background(Circle().fill(Color.accentColor))
                     .shadow(color: .black.opacity(0.15), radius: 4, y: 2)
             }
+            .accessibilityLabel("Create new journal entry")
             .padding(24)
         }
         .navigationTitle("Care Journal")
@@ -180,6 +181,19 @@ struct JournalView: View {
                             }
                             .buttonStyle(.plain)
                             .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                                Button(role: .destructive) {
+                                    entryToDelete = entry
+                                    showDeleteConfirmation = true
+                                } label: {
+                                    Label("Delete", systemImage: "trash")
+                                }
+                            }
+                            .contextMenu {
+                                Button {
+                                    UIPasteboard.general.string = entry.content
+                                } label: {
+                                    Label("Copy Content", systemImage: "doc.on.doc")
+                                }
                                 Button(role: .destructive) {
                                     entryToDelete = entry
                                     showDeleteConfirmation = true
@@ -365,6 +379,7 @@ private struct JournalEntryRow: View {
                             .padding(.horizontal, 6)
                             .padding(.vertical, 3)
                             .background(Capsule().fill(.purple))
+                            .accessibilityLabel("AI generated")
                     }
 
                     Spacer()

@@ -11,6 +11,9 @@ struct DocumentDetailView: View {
     @State private var showingDeleteConfirmation = false
     @State private var showingShareSheet = false
     @State private var showingEditSheet = false
+    @State private var quickLookURL: URL?
+    @State private var showingQuickLook = false
+    @State private var isLoadingQuickLook = false
 
     private let currentUserId = AuthManager.shared.currentUser?.id ?? ""
 
@@ -73,8 +76,48 @@ struct DocumentDetailView: View {
                 DocumentEditSheet(document: document, viewModel: viewModel)
             }
         }
+        .fullScreenCover(isPresented: $showingQuickLook) {
+            if let url = quickLookURL {
+                QuickLookPreviewView(url: url)
+                    .ignoresSafeArea()
+            }
+        }
         .task {
             await loadDownloadUrl()
+        }
+    }
+
+    private var quickLookButton: some View {
+        Button {
+            openQuickLook()
+        } label: {
+            Group {
+                if isLoadingQuickLook {
+                    ProgressView()
+                        .tint(.primary)
+                } else {
+                    Image(systemName: "arrow.up.left.and.arrow.down.right")
+                }
+            }
+            .font(.subheadline)
+            .padding(8)
+            .background(.ultraThinMaterial)
+            .clipShape(Circle())
+        }
+        .padding(8)
+    }
+
+    private func openQuickLook() {
+        guard !isLoadingQuickLook else { return }
+        isLoadingQuickLook = true
+        Task {
+            quickLookURL = await viewModel.downloadToTempFile(
+                id: document.id, filename: document.filename
+            )
+            isLoadingQuickLook = false
+            if quickLookURL != nil {
+                showingQuickLook = true
+            }
         }
     }
 
@@ -128,6 +171,9 @@ struct DocumentDetailView: View {
                 PDFPreviewView(url: url)
                     .frame(height: 400)
                     .clipShape(RoundedRectangle(cornerRadius: 12))
+                    .overlay(alignment: .topTrailing) {
+                        quickLookButton
+                    }
             }
         } else if document.contentType.hasPrefix("image/"), let url = downloadUrl {
             VStack(alignment: .leading, spacing: 8) {
@@ -149,6 +195,9 @@ struct DocumentDetailView: View {
                     @unknown default:
                         EmptyView()
                     }
+                }
+                .overlay(alignment: .topTrailing) {
+                    quickLookButton
                 }
             }
         } else if document.contentType == "text/plain", let text = document.extractedText, !text.isEmpty {

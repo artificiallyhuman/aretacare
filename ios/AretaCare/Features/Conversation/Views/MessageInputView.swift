@@ -126,11 +126,13 @@ struct MessageInputView: View {
                     .scaledToFill()
                     .frame(width: 44, height: 44)
                     .clipShape(RoundedRectangle(cornerRadius: 8))
+                    .accessibilityHidden(true)
             } else {
                 Image(systemName: "doc.fill")
                     .font(.title2)
                     .foregroundStyle(Color.accentColor)
                     .frame(width: 44, height: 44)
+                    .accessibilityHidden(true)
             }
 
             Text(attachment.filename)
@@ -146,6 +148,7 @@ struct MessageInputView: View {
                     .font(.title3)
                     .foregroundStyle(.secondary)
             }
+            .accessibilityLabel("Remove attachment")
         }
         .padding(10)
         .background(Color(.secondarySystemGroupedBackground))

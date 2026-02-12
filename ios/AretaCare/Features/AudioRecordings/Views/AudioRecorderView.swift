@@ -16,15 +16,21 @@ struct AudioRecorderView: View {
                 // Waveform animation
                 HStack(spacing: 6) {
                     ForEach(0..<5, id: \.self) { index in
-                        WaveformBar(isAnimating: recorder.isRecording, delay: Double(index) * 0.1)
+                        WaveformBar(
+                            isAnimating: recorder.isRecording,
+                            delay: Double(index) * 0.1,
+                            audioLevel: recorder.isRecording ? recorder.audioLevel : nil
+                        )
                     }
                 }
                 .frame(height: 60)
+                .accessibilityHidden(true)
 
                 // Timer
                 Text(recorder.formattedDuration)
                     .font(.system(size: 48, weight: .light, design: .monospaced))
                     .foregroundStyle(recorder.isRecording ? .primary : .secondary)
+                    .accessibilityLabel("Recording time: \(recorder.formattedDuration)")
 
                 // Max duration warning
                 if recorder.elapsedTime > AppConstants.maxRecordingDuration - 60 {
@@ -52,6 +58,7 @@ struct AudioRecorderView: View {
                                 .background(Color(.systemGray5))
                                 .clipShape(Circle())
                         }
+                        .accessibilityLabel(recorder.isPaused ? "Resume recording" : "Pause recording")
                     }
 
                     // Record / Stop
@@ -78,6 +85,7 @@ struct AudioRecorderView: View {
                             }
                         }
                     }
+                    .accessibilityLabel(recorder.isRecording || recorder.isPaused ? "Stop recording" : "Start recording")
                 }
 
                 Text(recorder.isRecording ? "Tap to stop" : (recorder.isPaused ? "Paused" : "Tap to record"))

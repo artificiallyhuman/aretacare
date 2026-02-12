@@ -14,6 +14,8 @@ struct UploadingOverlay: View {
             }
             .padding(24)
             .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16))
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel("Upload in progress")
         }
     }
 }
