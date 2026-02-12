@@ -140,7 +140,7 @@ docker compose up --build
 After deploying the semantic journal retrieval feature, backfill embeddings for existing journal entries:
 
 ```bash
-# Call the admin endpoint repeatedly until remaining reaches 0
+# Call the admin endpoint to process a batch (repeat if remaining > 0)
 curl -X POST "http://localhost:8000/api/admin/embeddings/backfill?batch_size=100" \
   -H "Authorization: Bearer <admin-token>"
 ```

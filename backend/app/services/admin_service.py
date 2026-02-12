@@ -786,7 +786,7 @@ class AdminService:
                 "name": "database",
                 "status": "unhealthy",
                 "latency_ms": None,
-                "message": str(e)
+                "message": str(e) or type(e).__name__
             })
             overall_status = "unhealthy"
 
@@ -806,11 +806,11 @@ class AdminService:
                 "name": "s3",
                 "status": "unhealthy",
                 "latency_ms": None,
-                "message": str(e)
+                "message": str(e) or type(e).__name__
             })
             overall_status = "unhealthy"
 
-        # Check OpenAI (lightweight ping)
+        # Check OpenAI Chat API (lightweight ping)
         openai_start = time.time()
         try:
             async with httpx.AsyncClient(timeout=10.0) as client:
@@ -839,7 +839,49 @@ class AdminService:
                 "name": "openai",
                 "status": "unhealthy",
                 "latency_ms": None,
-                "message": str(e)
+                "message": str(e) or type(e).__name__
+            })
+            if overall_status == "healthy":
+                overall_status = "degraded"
+
+        # Check OpenAI Embeddings API (separate from chat — can fail independently)
+        embed_start = time.time()
+        try:
+            from app.config import ai_config
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                response = await client.post(
+                    "https://api.openai.com/v1/embeddings",
+                    headers={"Authorization": f"Bearer {settings.OPENAI_API_KEY}"},
+                    json={"model": ai_config.EMBEDDING_MODEL, "input": "health check"}
+                )
+                embed_latency = (time.time() - embed_start) * 1000
+                if response.status_code == 200:
+                    services.append({
+                        "name": "openai embeddings",
+                        "status": "healthy",
+                        "latency_ms": round(embed_latency, 2),
+                        "message": None
+                    })
+                else:
+                    error_detail = ""
+                    try:
+                        error_detail = response.json().get("error", {}).get("message", "")
+                    except Exception:
+                        pass
+                    services.append({
+                        "name": "openai embeddings",
+                        "status": "degraded",
+                        "latency_ms": round(embed_latency, 2),
+                        "message": f"HTTP {response.status_code}" + (f": {error_detail}" if error_detail else "")
+                    })
+                    if overall_status == "healthy":
+                        overall_status = "degraded"
+        except Exception as e:
+            services.append({
+                "name": "openai embeddings",
+                "status": "unhealthy",
+                "latency_ms": None,
+                "message": str(e) or type(e).__name__
             })
             if overall_status == "healthy":
                 overall_status = "degraded"
