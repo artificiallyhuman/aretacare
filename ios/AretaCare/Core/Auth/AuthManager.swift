@@ -60,6 +60,7 @@ final class AuthManager {
             let user: UserResponse?
             let requiresMfa: Bool?
             let mfaToken: String?
+            let mfaMethods: [String]?
         }
 
         let response: LoginResponse = try await APIClient.shared.post(
@@ -69,7 +70,7 @@ final class AuthManager {
 
         if response.requiresMfa == true, let mfaToken = response.mfaToken {
             self.mfaToken = mfaToken
-            return .mfaRequired(mfaToken: mfaToken)
+            return .mfaRequired(mfaToken: mfaToken, methods: response.mfaMethods ?? [])
         }
 
         guard let accessToken = response.accessToken, let user = response.user else {
@@ -88,11 +89,12 @@ final class AuthManager {
 
     // MARK: - MFA Verification
 
-    func verifyMFALogin(mfaToken: String, code: String? = nil, method: String? = nil, trustedDevice: Bool = false) async throws {
+    func verifyMFALogin(mfaToken: String, code: String? = nil, method: String? = nil, credential: [String: AnyCodableValue]? = nil, trustedDevice: Bool = false) async throws {
         struct MFAVerifyRequest: Encodable {
             let mfaToken: String
             let code: String?
             let method: String?
+            let credential: [String: AnyCodableValue]?
             let trustDevice: Bool?
         }
         struct MFAVerifyResponse: Decodable {
@@ -108,6 +110,7 @@ final class AuthManager {
                 mfaToken: mfaToken,
                 code: code,
                 method: method,
+                credential: credential,
                 trustDevice: trustedDevice ? true : nil
             )
         )
@@ -251,7 +254,7 @@ final class AuthManager {
 
 enum LoginResult {
     case success
-    case mfaRequired(mfaToken: String)
+    case mfaRequired(mfaToken: String, methods: [String])
 }
 
 struct RegistrationConsents {

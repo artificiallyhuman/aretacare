@@ -18,6 +18,7 @@ final class AuthViewModel {
 
     // Login result
     var mfaToken: String?
+    var mfaMethods: [String] = []
     var navigateToMFA = false
 
     // Registration
@@ -121,8 +122,9 @@ final class AuthViewModel {
             switch result {
             case .success:
                 break
-            case .mfaRequired(let token):
+            case .mfaRequired(let token, let methods):
                 mfaToken = token
+                mfaMethods = methods
                 navigateToMFA = true
             }
         } catch let error as APIError {
@@ -244,6 +246,46 @@ final class AuthViewModel {
             )
             mfaToken = nil
             navigateToMFA = false
+        } catch let error as APIError {
+            setError(error.errorDescription ?? "Verification failed. Please try again.")
+        } catch {
+            setError("An unexpected error occurred. Please try again.")
+        }
+
+        isLoading = false
+    }
+
+    func verifyMFAWithPasskey(mfaToken token: String, trustDevice: Bool) async {
+        isLoading = true
+        clearError()
+
+        do {
+            // Step 1: Get passkey authentication options from backend
+            let optionsRequest = MFAPasskeyOptionsRequest(mfaToken: token)
+            let optionsResponse: PasskeyAuthenticationOptionsResponse = try await APIClient.shared.post(
+                APIEndpoints.Auth.loginMFAPasskeyOptions,
+                body: optionsRequest
+            )
+
+            // Step 2: Present system passkey prompt
+            let passkeyManager = await MainActor.run { PasskeyAuthManager() }
+            let credential = try await passkeyManager.authenticate(options: optionsResponse.options)
+
+            // Step 3: Send credential to backend for verification
+            try await authManager.verifyMFALogin(
+                mfaToken: token,
+                method: "passkey",
+                credential: credential,
+                trustedDevice: trustDevice
+            )
+            mfaToken = nil
+            navigateToMFA = false
+        } catch let error as PasskeyError {
+            if case .cancelled = error {
+                // User cancelled — don't show error, just stop loading
+            } else {
+                setError(error.errorDescription ?? "Passkey authentication failed.")
+            }
         } catch let error as APIError {
             setError(error.errorDescription ?? "Verification failed. Please try again.")
         } catch {

@@ -145,7 +145,7 @@ struct LoginView: View {
         .navigationBarBackButtonHidden(true)
         .navigationDestination(isPresented: $viewModel.navigateToMFA) {
             if let token = viewModel.mfaToken {
-                MFAVerifyView(mfaToken: token)
+                MFAVerifyView(mfaToken: token, mfaMethods: viewModel.mfaMethods)
             }
         }
     }

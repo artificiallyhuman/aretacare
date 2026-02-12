@@ -44,7 +44,7 @@ Technical documentation of AretaCare's security measures.
 
 | Method | Description | Max Per User |
 |--------|-------------|--------------|
-| Passkeys (WebAuthn) | Biometrics/hardware keys, phishing-resistant | 10 |
+| Passkeys (WebAuthn) | Biometrics/hardware keys, phishing-resistant. Web: `@simplewebauthn/browser`. iOS: `ASAuthorizationController` (Face ID/Touch ID) | 10 |
 | TOTP | 6-digit codes from authenticator apps | 1 |
 | Backup Codes | One-time recovery codes | 10 |
 
@@ -290,6 +290,7 @@ base-uri 'self'
 **Token & Auth Security:**
 - **Keychain storage**: Access/refresh tokens stored via KeychainAccess with `.afterFirstUnlockThisDeviceOnly` accessibility (prevents restoration to other devices); errors logged in DEBUG only
 - **Token refresh pinning**: `AuthInterceptor` uses a dedicated `URLSession` with `CertificatePinningDelegate` for refresh requests, ensuring refresh tokens are never sent over unpinned connections
+- **Passkey login (WebAuthn)**: `PasskeyAuthManager` wraps `ASAuthorizationController` for passkey assertion during MFA login. Credential data (authenticatorData, signature, clientDataJSON) is base64url-encoded and sent to backend for cryptographic verification. Requires `webcredentials` associated domain entitlement.
 - **Logout data cleanup**: On logout, `AuthManager` clears all `ResponseCache` instances, `ImageCache`, UserDefaults keys (`lastSessionId`, `activeTab`, biometric preference), and push token before clearing Keychain — prevents data leakage on shared devices
 
 **Network Security:**

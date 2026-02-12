@@ -121,7 +121,7 @@ AretaCare implements comprehensive security measures:
 - **Biometric Re-Auth (iOS)**: Opt-in Face ID/Touch ID lock on foreground return after 5 min; passcode fallback; opaque lock screen hides health data
 
 ### Multi-Factor Authentication (MFA)
-- **Passkeys (WebAuthn)**: Phishing-resistant authentication using biometrics or hardware keys; maximum 10 per account
+- **Passkeys (WebAuthn)**: Phishing-resistant authentication using biometrics or hardware keys; maximum 10 per account; supported for MFA login on both web (WebAuthn API) and iOS (ASAuthorizationController with Face ID/Touch ID)
 - **TOTP (Authenticator Apps)**: 6-digit time-based codes with 30-second rotation; secrets encrypted at rest using Fernet; replay protection prevents code reuse
 - **Backup Codes**: 10 one-time-use recovery codes; bcrypt hashed, never stored in plaintext
 - **Trusted Devices**: 30-day trust duration with secure HttpOnly cookies; tokens SHA-256 hashed before storage; maximum 10 per user (oldest auto-removed)
