@@ -190,6 +190,7 @@ final class DocumentsViewModel {
 
     // MARK: - Preview URL (for list thumbnails)
 
+    @MainActor
     func fetchPreviewUrl(for document: DocumentResponse) async {
         guard previewUrls[document.id] == nil else { return }
 

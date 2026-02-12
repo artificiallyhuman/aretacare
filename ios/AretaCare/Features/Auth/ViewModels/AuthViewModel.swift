@@ -268,7 +268,7 @@ final class AuthViewModel {
             )
 
             // Step 2: Present system passkey prompt
-            let passkeyManager = await MainActor.run { PasskeyAuthManager() }
+            let passkeyManager = PasskeyAuthManager()
             let credential = try await passkeyManager.authenticate(options: optionsResponse.options)
 
             // Step 3: Send credential to backend for verification

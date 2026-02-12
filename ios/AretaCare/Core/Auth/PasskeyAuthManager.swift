@@ -6,6 +6,10 @@ import UIKit
 final class PasskeyAuthManager: NSObject, ASAuthorizationControllerDelegate, ASAuthorizationControllerPresentationContextProviding {
     private var continuation: CheckedContinuation<[String: AnyCodableValue], Error>?
 
+    nonisolated override init() {
+        super.init()
+    }
+
     /// Performs a passkey assertion using the backend-provided WebAuthn options.
     /// Returns a credential dictionary ready to send to the `/auth/login/mfa-verify` endpoint.
     func authenticate(options: [String: AnyCodableValue]) async throws -> [String: AnyCodableValue] {

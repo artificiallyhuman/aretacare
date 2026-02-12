@@ -33,21 +33,17 @@ struct DocumentsListView: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            categoryFilter
-
-            Group {
-                if viewModel.isLoading && viewModel.documents.isEmpty {
-                    SkeletonListView()
-                } else if viewModel.documents.isEmpty {
-                    EmptyStateView(
-                        systemImage: "doc.text",
-                        title: "No Documents Uploaded Yet",
-                        subtitle: "Tap the + button to upload medical documents, lab results, and more."
-                    )
-                } else {
-                    documentList
-                }
+        Group {
+            if viewModel.isLoading && viewModel.documents.isEmpty {
+                SkeletonListView()
+            } else if viewModel.documents.isEmpty && viewModel.selectedCategory == nil {
+                EmptyStateView(
+                    systemImage: "doc.text",
+                    title: "No Documents Uploaded Yet",
+                    subtitle: "Tap the + button to upload medical documents, lab results, and more."
+                )
+            } else {
+                documentList
             }
         }
         .navigationTitle("Document Manager")
@@ -188,54 +184,68 @@ struct DocumentsListView: View {
             }
 
             List {
-                ForEach(filteredDocuments) { document in
-                    NavigationLink(destination: DocumentDetailView(document: document, viewModel: viewModel)) {
-                        DocumentRowView(
-                            document: document,
-                            currentUserId: currentUserId,
-                            previewUrl: viewModel.previewUrls[document.id]
+                Section {
+                    if viewModel.documents.isEmpty {
+                        ContentUnavailableView(
+                            "No Documents in This Category",
+                            systemImage: "line.3.horizontal.decrease.circle",
+                            description: Text("Try selecting a different category or tap \"All\" to see everything.")
                         )
-                    }
-                    .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                        Button(role: .destructive) {
-                            deleteHapticTrigger += 1
-                            Task { await viewModel.deleteDocument(id: document.id, sessionId: sessionId) }
-                        } label: {
-                            Label("Delete", systemImage: "trash")
+                        .listRowSeparator(.hidden)
+                    } else {
+                        ForEach(filteredDocuments) { document in
+                            NavigationLink(destination: DocumentDetailView(document: document, viewModel: viewModel)) {
+                                DocumentRowView(
+                                    document: document,
+                                    currentUserId: currentUserId,
+                                    previewUrl: viewModel.previewUrls[document.id]
+                                )
+                            }
+                            .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                                Button(role: .destructive) {
+                                    deleteHapticTrigger += 1
+                                    Task { await viewModel.deleteDocument(id: document.id, sessionId: sessionId) }
+                                } label: {
+                                    Label("Delete", systemImage: "trash")
+                                }
+                            }
+                            .swipeActions(edge: .leading) {
+                                Button {
+                                    shareDocument(document)
+                                } label: {
+                                    Label("Share", systemImage: "square.and.arrow.up")
+                                }
+                                .tint(.blue)
+                            }
+                            .contextMenu {
+                                Button {
+                                    UIPasteboard.general.string = document.filename
+                                } label: {
+                                    Label("Copy Name", systemImage: "doc.on.doc")
+                                }
+                                Button {
+                                    shareDocument(document)
+                                } label: {
+                                    Label("Share", systemImage: "square.and.arrow.up")
+                                }
+                                Button(role: .destructive) {
+                                    deleteHapticTrigger += 1
+                                    Task { await viewModel.deleteDocument(id: document.id, sessionId: sessionId) }
+                                } label: {
+                                    Label("Delete", systemImage: "trash")
+                                }
+                            }
+                            .onAppear {
+                                Task { await viewModel.fetchPreviewUrl(for: document) }
+                                if document.id == viewModel.documents.last?.id {
+                                    Task { await viewModel.loadMoreIfNeeded(sessionId: sessionId) }
+                                }
+                            }
                         }
                     }
-                    .swipeActions(edge: .leading) {
-                        Button {
-                            shareDocument(document)
-                        } label: {
-                            Label("Share", systemImage: "square.and.arrow.up")
-                        }
-                        .tint(.blue)
-                    }
-                    .contextMenu {
-                        Button {
-                            UIPasteboard.general.string = document.filename
-                        } label: {
-                            Label("Copy Name", systemImage: "doc.on.doc")
-                        }
-                        Button {
-                            shareDocument(document)
-                        } label: {
-                            Label("Share", systemImage: "square.and.arrow.up")
-                        }
-                        Button(role: .destructive) {
-                            deleteHapticTrigger += 1
-                            Task { await viewModel.deleteDocument(id: document.id, sessionId: sessionId) }
-                        } label: {
-                            Label("Delete", systemImage: "trash")
-                        }
-                    }
-                    .onAppear {
-                        Task { await viewModel.fetchPreviewUrl(for: document) }
-                        if document.id == viewModel.documents.last?.id {
-                            Task { await viewModel.loadMoreIfNeeded(sessionId: sessionId) }
-                        }
-                    }
+                } header: {
+                    categoryFilter
+                        .textCase(nil)
                 }
             }
             .listStyle(.plain)

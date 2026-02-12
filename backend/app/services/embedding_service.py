@@ -86,13 +86,13 @@ class EmbeddingService:
         )
         return response.data[0].embedding
 
-    def _prepare_embedding_text(self, entry: JournalEntry) -> str:
+    def _prepare_embedding_text(self, entry: JournalEntry, max_chars: int = 24000) -> str:
         """Prepare text for embedding from a journal entry.
 
         Combines type, date, title, and content for richer semantic representation.
-        Truncates to ~7500 tokens (~30000 chars) to stay within the 8192 token limit.
+        Truncates to stay within the 8192 token limit of the embedding model.
+        Default 24K chars assumes ~3 chars/token worst case for dense/medical text.
         """
-        MAX_CHARS = 30000
         parts = [
             f"[{entry.entry_type.value}]",
             f"Date: {entry.entry_date.isoformat()}",
@@ -100,8 +100,8 @@ class EmbeddingService:
             entry.content
         ]
         text = "\n".join(parts)
-        if len(text) > MAX_CHARS:
-            text = text[:MAX_CHARS]
+        if len(text) > max_chars:
+            text = text[:max_chars]
         return text
 
     async def embed_journal_entry(self, entry: JournalEntry) -> Optional[JournalEntryEmbedding]:
@@ -109,6 +109,7 @@ class EmbeddingService:
 
         Skips re-embedding if content is unchanged (based on content_hash).
         Updates embedding if content has changed.
+        Retries with progressively shorter text if the token limit is exceeded.
         """
         try:
             content_hash = compute_content_hash(entry.title, entry.content)
@@ -121,9 +122,22 @@ class EmbeddingService:
             if existing and existing.content_hash == content_hash:
                 return existing
 
-            # Generate embedding
-            embedding_text = self._prepare_embedding_text(entry)
-            vector = await self.generate_embedding(embedding_text)
+            # Generate embedding with progressive truncation on token limit errors
+            vector = None
+            for max_chars in [24000, 16000, 8000]:
+                try:
+                    embedding_text = self._prepare_embedding_text(entry, max_chars=max_chars)
+                    vector = await self.generate_embedding(embedding_text)
+                    break
+                except Exception as e:
+                    if "maximum context length" in str(e).lower() or "8192" in str(e):
+                        logger.warning(f"Entry {entry.id} exceeded token limit at {max_chars} chars, retrying with shorter text")
+                        continue
+                    raise
+
+            if vector is None:
+                logger.error(f"Entry {entry.id} exceeded token limit even at minimum truncation")
+                return None
 
             if existing:
                 existing.embedding = vector

@@ -9,33 +9,42 @@ struct AudioRecordingsView: View {
     @State private var selectedCategory: AudioCategory?
     @State private var showingDatePicker = false
     @State private var deleteHapticTrigger = 0
+    @State private var searchText = ""
 
     private let currentUserId = AuthManager.shared.currentUser?.id ?? ""
 
     private var filteredRecordings: [AudioRecordingResponse] {
-        guard let category = selectedCategory else { return viewModel.recordings }
-        return viewModel.recordings.filter { $0.category == category.rawValue }
+        var results = viewModel.recordings
+        if let category = selectedCategory {
+            results = results.filter { $0.category == category.rawValue }
+        }
+        if !searchText.isEmpty {
+            let lowered = searchText.lowercased()
+            results = results.filter {
+                ($0.aiSummary?.lowercased().contains(lowered) ?? false) ||
+                $0.filename.lowercased().contains(lowered) ||
+                ($0.transcribedText?.lowercased().contains(lowered) ?? false)
+            }
+        }
+        return results
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            categoryFilter
-
-            Group {
-                if viewModel.isLoading && viewModel.recordings.isEmpty {
-                    SkeletonListView()
-                } else if viewModel.recordings.isEmpty {
-                    EmptyStateView(
-                        systemImage: "mic",
-                        title: "No Audio Recordings",
-                        subtitle: "Record voice memos about symptoms, appointments, or care notes."
-                    )
-                } else {
-                    recordingsList
-                }
+        Group {
+            if viewModel.isLoading && viewModel.recordings.isEmpty {
+                SkeletonListView()
+            } else if viewModel.recordings.isEmpty {
+                EmptyStateView(
+                    systemImage: "mic",
+                    title: "No Audio Recordings",
+                    subtitle: "Record voice memos about symptoms, appointments, or care notes."
+                )
+            } else {
+                recordingsList
             }
         }
         .navigationTitle("Audio Recordings")
+        .searchable(text: $searchText, prompt: "Search recordings...")
         .toolbar {
             ToolbarItem(placement: .topBarLeading) {
                 if !viewModel.allDates.isEmpty {
@@ -138,45 +147,59 @@ struct AudioRecordingsView: View {
             }
 
             List {
-                ForEach(filteredRecordings) { recording in
-                    Button {
-                        selectedRecording = recording
-                    } label: {
-                        AudioRecordingRowView(recording: recording, sessionId: sessionId, viewModel: viewModel, currentUserId: currentUserId)
-                    }
-                    .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                        Button(role: .destructive) {
-                            deleteHapticTrigger += 1
-                            Task { await viewModel.deleteRecording(sessionId: sessionId, recordingId: recording.id) }
-                        } label: {
-                            Label("Delete", systemImage: "trash")
-                        }
-                    }
-                    .contextMenu {
-                        if let summary = recording.aiSummary {
+                Section {
+                    if filteredRecordings.isEmpty {
+                        ContentUnavailableView(
+                            "No Recordings in This Category",
+                            systemImage: "line.3.horizontal.decrease.circle",
+                            description: Text("Try selecting a different category or tap \"All\" to see everything.")
+                        )
+                        .listRowSeparator(.hidden)
+                    } else {
+                        ForEach(filteredRecordings) { recording in
                             Button {
-                                UIPasteboard.general.string = summary
+                                selectedRecording = recording
                             } label: {
-                                Label("Copy Summary", systemImage: "doc.on.doc")
+                                AudioRecordingRowView(recording: recording, sessionId: sessionId, viewModel: viewModel, currentUserId: currentUserId)
+                            }
+                            .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                                Button(role: .destructive) {
+                                    deleteHapticTrigger += 1
+                                    Task { await viewModel.deleteRecording(sessionId: sessionId, recordingId: recording.id) }
+                                } label: {
+                                    Label("Delete", systemImage: "trash")
+                                }
+                            }
+                            .contextMenu {
+                                if let summary = recording.aiSummary {
+                                    Button {
+                                        UIPasteboard.general.string = summary
+                                    } label: {
+                                        Label("Copy Summary", systemImage: "doc.on.doc")
+                                    }
+                                }
+                                Button {
+                                    selectedRecording = recording
+                                } label: {
+                                    Label("View Details", systemImage: "info.circle")
+                                }
+                                Button(role: .destructive) {
+                                    deleteHapticTrigger += 1
+                                    Task { await viewModel.deleteRecording(sessionId: sessionId, recordingId: recording.id) }
+                                } label: {
+                                    Label("Delete", systemImage: "trash")
+                                }
+                            }
+                            .onAppear {
+                                if recording.id == viewModel.recordings.last?.id {
+                                    Task { await viewModel.loadMoreIfNeeded(sessionId: sessionId) }
+                                }
                             }
                         }
-                        Button {
-                            selectedRecording = recording
-                        } label: {
-                            Label("View Details", systemImage: "info.circle")
-                        }
-                        Button(role: .destructive) {
-                            deleteHapticTrigger += 1
-                            Task { await viewModel.deleteRecording(sessionId: sessionId, recordingId: recording.id) }
-                        } label: {
-                            Label("Delete", systemImage: "trash")
-                        }
                     }
-                    .onAppear {
-                        if recording.id == viewModel.recordings.last?.id {
-                            Task { await viewModel.loadMoreIfNeeded(sessionId: sessionId) }
-                        }
-                    }
+                } header: {
+                    categoryFilter
+                        .textCase(nil)
                 }
             }
             .listStyle(.plain)

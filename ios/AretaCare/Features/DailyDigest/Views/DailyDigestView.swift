@@ -71,7 +71,7 @@ struct DailyDigestView: View {
                 try? await Task.sleep(for: .seconds(1800))
                 guard !Task.isCancelled else { break }
                 await viewModel.checkShouldGenerate(sessionId: sessionId)
-                if viewModel.shouldGenerate && viewModel.allDigests.isEmpty {
+                if viewModel.shouldGenerate {
                     await viewModel.generate(sessionId: sessionId)
                     selectedDigest = viewModel.latestDigest
                 }
