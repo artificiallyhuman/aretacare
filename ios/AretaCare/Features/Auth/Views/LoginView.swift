@@ -118,12 +118,14 @@ struct LoginView: View {
                             .font(.subheadline.weight(.medium))
                     }
 
-                    NavigationLink {
-                        WaitlistView()
-                    } label: {
-                        Text("Join the waitlist")
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
+                    if viewModel.controlSignups {
+                        NavigationLink {
+                            WaitlistView()
+                        } label: {
+                            Text("Join the waitlist")
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                        }
                     }
                 }
 
@@ -142,6 +144,7 @@ struct LoginView: View {
             .padding(.horizontal, 24)
             .padding(.bottom, 32)
         }
+        .task { await viewModel.checkSignupMode() }
         .navigationBarBackButtonHidden(true)
         .navigationDestination(isPresented: $viewModel.navigateToMFA) {
             if let token = viewModel.mfaToken {
