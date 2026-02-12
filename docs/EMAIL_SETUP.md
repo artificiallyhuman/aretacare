@@ -5,14 +5,37 @@ This guide explains how to configure email notifications for AretaCare using Gma
 ## Email Notification Types
 
 AretaCare sends automated emails for:
-- **Password changes** - Security notification when password is updated
-- **Email changes** - Notification to old address when email is changed
-- **Collaborator added** - Notification to session owner when collaborator is added
-- **Collaborator invitation (existing user)** - Notification when added as a collaborator
-- **Collaborator invitation (new user)** - Registration link for non-members invited to collaborate (bypasses waitlist)
-- **Invitation accepted** - Notification to session owner when invitee registers and verifies email
-- **Collaborator removed** - Notification when removed from a session
-- **Password reset** - Password reset link when requested
+
+**Account & Verification:**
+- **Registration verification** — Verification link on signup
+- **Email change verification** — Verification link to new address
+- **Email change notification** — Security notice to old address
+- **Password reset** — Reset link when requested
+- **Password changed** — Security notification after update
+
+**Collaboration:**
+- **Collaborator added (to owner)** — Notification to session owner
+- **Collaborator invitation (existing user)** — Notification when added as a collaborator
+- **Collaborator invitation (new user)** — Registration link for non-members (bypasses waitlist)
+- **Invitation accepted** — Notification to owner when invitee registers and verifies
+- **Collaborator removed** — Notification when removed from a session
+- **Ownership transferred** — Notifications to both old and new owner
+
+**MFA & Security:**
+- **MFA enabled/disabled** — Confirmation emails
+- **New passkey added** — Security notification
+- **New trusted device** — Security notification
+- **MFA reset by admin** — Notification that MFA was removed
+- **Security alerts** — Critical event notifications to security team (rate-limited to 10/hour)
+
+**Admin & Waitlist:**
+- **Waitlist invitation** — Approval email with registration link
+- **Waitlist user registered** — Admin notification
+- **Inactive account notification** — Re-engagement emails
+
+**Feedback:**
+- **Feedback to team** — Forwards user feedback to team
+- **Feedback confirmation** — Acknowledgment to user
 
 ## Gmail App Password Setup
 

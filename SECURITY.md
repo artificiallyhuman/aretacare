@@ -153,6 +153,12 @@ AretaCare implements comprehensive security measures:
 - **Logout Data Cleanup (iOS)**: All in-memory caches, image cache, and UserDefaults preferences cleared on logout to prevent data leakage on shared devices
 - **Build Safety (iOS)**: Release builds crash if `API_BASE_URL` is not configured or if certificate pinning uses placeholder hashes
 
+### Push Notifications (iOS)
+- **Feature-gated**: Disabled by default (`PUSH_NOTIFICATIONS_ENABLED=False`); APNs credentials validated at startup
+- **Fire-and-forget**: Push sends run in daemon threads and never block API responses
+- **Auto-cleanup**: Invalid/expired device tokens automatically removed when APNs reports them
+- **Scope**: Notifications for shared session messages, session sharing, and daily digests only
+
 ### File Upload Security
 - **Content-Disposition Headers**: Forces download instead of browser execution
 - **File Type Validation**: MIME type and extension checking (iOS uses UTType for photo format detection)
@@ -193,4 +199,4 @@ If you have questions about this security policy or responsible disclosure, plea
 
 ---
 
-**Last Updated**: 2026-02-10
+**Last Updated**: 2026-02-12
