@@ -50,40 +50,32 @@ struct CollaborationAwarenessPopup: View {
     }
 }
 
-// MARK: - View Modifier for showing at login
+// MARK: - View Modifier for showing on session switch
 
 struct CollaborationAwarenessModifier: ViewModifier {
     let session: SessionResponse?
-    @Binding var hasShownPopup: Bool
 
     @State private var showPopup = false
 
     func body(content: Content) -> some View {
         content
             .onChange(of: session?.id, initial: true) { _, _ in
-                checkAndShow()
+                guard let session, !session.collaborators.isEmpty else { return }
+                showPopup = true
             }
             .sheet(isPresented: $showPopup) {
                 if let session {
                     CollaborationAwarenessPopup(session: session) {
                         showPopup = false
-                        hasShownPopup = true
                     }
                     .presentationDetents([.medium])
                 }
             }
     }
-
-    private func checkAndShow() {
-        guard !hasShownPopup,
-              let session,
-              !session.collaborators.isEmpty else { return }
-        showPopup = true
-    }
 }
 
 extension View {
-    func collaborationAwareness(session: SessionResponse?, hasShownPopup: Binding<Bool>) -> some View {
-        modifier(CollaborationAwarenessModifier(session: session, hasShownPopup: hasShownPopup))
+    func collaborationAwareness(session: SessionResponse?) -> some View {
+        modifier(CollaborationAwarenessModifier(session: session))
     }
 }

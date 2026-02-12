@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { useSessionContext } from '../contexts/SessionContext';
@@ -7,23 +7,27 @@ export default function CollaborationAwarenessPopup() {
   const { activeSession, sessions, loading } = useSessionContext();
   const navigate = useNavigate();
   const [show, setShow] = useState(false);
+  const prevSessionIdRef = useRef(null);
 
   useEffect(() => {
-    // Only evaluate once loading is complete and active session is resolved
     if (loading || !activeSession) return;
 
-    // Check if user just logged in
+    // Consume login flag if present
     const justLoggedIn = sessionStorage.getItem('just_logged_in');
-    if (!justLoggedIn) return;
+    if (justLoggedIn) {
+      sessionStorage.removeItem('just_logged_in');
+    }
 
-    // Clear the flag immediately so it doesn't trigger again
-    sessionStorage.removeItem('just_logged_in');
+    const isCollab = activeSession.collaborators && activeSession.collaborators.length > 0;
+    const sessionChanged = prevSessionIdRef.current !== null && prevSessionIdRef.current !== activeSession.id;
 
-    // Show popup only if active session has collaborators
-    if (activeSession.collaborators && activeSession.collaborators.length > 0) {
+    // Show on login to a collaborative session, or on switching to one
+    if (isCollab && (justLoggedIn || sessionChanged)) {
       setShow(true);
     }
-  }, [loading, activeSession]);
+
+    prevSessionIdRef.current = activeSession.id;
+  }, [loading, activeSession?.id]);
 
   if (!show || !activeSession) return null;
 

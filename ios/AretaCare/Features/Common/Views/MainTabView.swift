@@ -3,7 +3,6 @@ import SwiftUI
 struct MainTabView: View {
     @State private var sessionVM = SessionViewModel()
     @State private var digestBadgeVM = DailyDigestViewModel()
-    @State private var hasShownCollabPopup = false
     @AppStorage("activeTab") private var activeTab = 0
     private let networkMonitor = NetworkMonitor.shared
     private let notificationRouter = NotificationRouter.shared
@@ -72,10 +71,7 @@ struct MainTabView: View {
                     }
                 }
                 .animation(.easeInOut(duration: 0.3), value: networkMonitor.isConnected)
-                .collaborationAwareness(
-                    session: sessionVM.currentSession,
-                    hasShownPopup: $hasShownCollabPopup
-                )
+                .collaborationAwareness(session: sessionVM.currentSession)
             }
         }
         .task {
