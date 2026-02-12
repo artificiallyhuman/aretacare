@@ -29,6 +29,7 @@ const Conversation = () => {
   const [loading, setLoading] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [isAITyping, setIsAITyping] = useState(false);
+  const [typingStartTime, setTypingStartTime] = useState(null);
   const [error, setError] = useState('');
   const [showScrollButton, setShowScrollButton] = useState(false);
   const [showScrollTopButton, setShowScrollTopButton] = useState(false);
@@ -537,6 +538,7 @@ const Conversation = () => {
 
       // Show typing indicator
       setIsAITyping(true);
+      setTypingStartTime(Date.now());
 
       // Scroll to show the typing indicator (after it renders)
       requestAnimationFrame(() => {
@@ -545,35 +547,52 @@ const Conversation = () => {
         }
       });
 
-      // Send message with user context (timezone, time, session activity)
-      const response = await conversationAPI.sendMessage({
-        content,
-        session_id: activeSessionId,
-        message_type: messageType,
-        document_id: documentId,
-        audio_recording_id: audioRecordingId,
-        entry_date: userDate,
-        user_timezone: userTimezone,
-        current_time: currentTime
-      });
+      // Send message with 120s timeout (embedding retries + AI response)
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 120000);
+
+      try {
+        const response = await conversationAPI.sendMessage({
+          content,
+          session_id: activeSessionId,
+          message_type: messageType,
+          document_id: documentId,
+          audio_recording_id: audioRecordingId,
+          entry_date: userDate,
+          user_timezone: userTimezone,
+          current_time: currentTime
+        }, { signal: controller.signal });
+        clearTimeout(timeoutId);
+      } catch (sendErr) {
+        clearTimeout(timeoutId);
+        throw sendErr;
+      }
 
       // Reload conversation history to get the real messages (user + AI response)
       await loadConversationHistory(activeSessionId);
     } catch (err) {
       console.error('Error sending message:', err);
-      // Use specific error message from API if available
-      const errorMessage = err.response?.data?.detail || 'Failed to send message. Please try again.';
+      const isTimeout = err.name === 'CanceledError' || err.name === 'AbortError' || err.code === 'ERR_CANCELED';
+      const errorMessage = isTimeout
+        ? 'Response took too long. Your message was saved — please check back in a moment.'
+        : (err.response?.data?.detail || 'Failed to send message. Please try again.');
       setError(errorMessage);
       // Auto-clear error after 8 seconds
       setTimeout(() => setError(''), 8000);
-      // Remove the temporary message on error
-      setMessages(prevMessages => prevMessages.filter(msg => msg.id !== tempUserMessage.id));
+      if (isTimeout) {
+        // On timeout, keep user message visible (it was saved server-side) and reload history
+        setTimeout(() => loadConversationHistory(activeSessionId), 3000);
+      } else {
+        // Remove the temporary message on non-timeout error
+        setMessages(prevMessages => prevMessages.filter(msg => msg.id !== tempUserMessage.id));
+      }
       // Reset the flag on error
       expectingAIResponse.current = false;
     } finally {
       setLoading(false);
       setIsUploading(false);
       setIsAITyping(false);
+      setTypingStartTime(null);
     }
   };
 
@@ -922,7 +941,7 @@ const Conversation = () => {
                 )}
                 {isAITyping && (
                   <div ref={typingIndicatorRef}>
-                    <TypingIndicator />
+                    <TypingIndicator startTime={typingStartTime} />
                   </div>
                 )}
               </>

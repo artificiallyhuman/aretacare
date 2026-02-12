@@ -28,6 +28,11 @@ DEFAULT_TOP_K = 10
 # conversation message, journal create/update, and admin backfill).
 _shared_async_client: Optional[AsyncOpenAI] = None
 
+# Fast-fail client for query-time embedding (similarity search during conversation).
+# Uses short timeout and no retries so the critical path isn't blocked by
+# transient OpenAI outages — the search gracefully falls back to date-only context.
+_shared_query_client: Optional[AsyncOpenAI] = None
+
 
 def _get_shared_client() -> AsyncOpenAI:
     global _shared_async_client
@@ -37,6 +42,18 @@ def _get_shared_client() -> AsyncOpenAI:
             timeout=settings.OPENAI_TIMEOUT_SECONDS
         )
     return _shared_async_client
+
+
+def _get_query_client() -> AsyncOpenAI:
+    """Client for query-time embedding (similarity search) — fails fast."""
+    global _shared_query_client
+    if _shared_query_client is None:
+        _shared_query_client = AsyncOpenAI(
+            api_key=settings.OPENAI_API_KEY,
+            timeout=10,
+            max_retries=0
+        )
+    return _shared_query_client
 
 
 def compute_content_hash(title: str, content: str) -> str:
@@ -51,10 +68,19 @@ class EmbeddingService:
     def __init__(self, db: Session):
         self.db = db
         self.client = _get_shared_client()
+        self.query_client = _get_query_client()
 
     async def generate_embedding(self, text: str) -> List[float]:
         """Generate embedding vector for text using OpenAI."""
         response = await self.client.embeddings.create(
+            model=ai_config.EMBEDDING_MODEL,
+            input=text
+        )
+        return response.data[0].embedding
+
+    async def generate_embedding_fast(self, text: str) -> List[float]:
+        """Generate embedding with short timeout and no retries for query-time use."""
+        response = await self.query_client.embeddings.create(
             model=ai_config.EMBEDDING_MODEL,
             input=text
         )
@@ -138,7 +164,7 @@ class EmbeddingService:
         entries from the last min_days_old days and any in exclude_entry_ids.
         """
         try:
-            query_vector = await self.generate_embedding(query_text)
+            query_vector = await self.generate_embedding_fast(query_text)
             cutoff_date = date.today() - timedelta(days=min_days_old)
 
             # pgvector cosine distance: 1 - (a <=> b) = cosine similarity

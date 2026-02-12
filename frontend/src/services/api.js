@@ -342,8 +342,8 @@ export const documentAPI = {
 
 // Conversation API (new)
 export const conversationAPI = {
-  sendMessage: (data) =>
-    api.post('/conversation/message', data),
+  sendMessage: (data, config = {}) =>
+    api.post('/conversation/message', data, config),
   getHistory: (sessionId, limit = 50, offset = 0) =>
     api.get(`/conversation/${sessionId}/history`, { params: { limit, offset } }),
   transcribeAudio: (audioFile, sessionId, skipJournalSynthesis = false, config = {}) => {
