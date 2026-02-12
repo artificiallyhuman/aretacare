@@ -68,6 +68,7 @@ targets:
         NSCameraUsageDescription: "AretaCare needs camera access to capture photos of medical documents."
         NSFaceIDUsageDescription: "AretaCare uses Face ID to protect your health information."
         NSPhotoLibraryUsageDescription: "AretaCare needs photo library access to upload medical document images."
+        ITSAppUsesNonExemptEncryption: false
         UIBackgroundModes:
           - remote-notification
           - audio
