@@ -83,3 +83,7 @@ Thumbs.db
 
 # Alembic
 alembic/versions/*.pyc
+
+# iOS projects
+ios/APP_STORE_DEPLOYMENT.md
+ios/AretaCare.xcodeproj
