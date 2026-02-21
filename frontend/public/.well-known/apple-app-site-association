@@ -2,7 +2,7 @@
   "applinks": {
     "details": [
       {
-        "appIDs": ["TEAMID.com.aretacare.ios"],
+        "appIDs": ["95N89VR7T6.com.aretacare.ios"],
         "paths": [
           "/verify-email*",
           "/verify-email-change*",
