@@ -10,6 +10,7 @@ struct MFASetupView: View {
     @State private var showingBackupCodes = false
     @State private var showingDeletePasskeyConfirm = false
     @State private var passkeyToDelete: PasskeyInfo?
+    @State private var showingPasskeySetup = false
 
     var body: some View {
         List {
@@ -99,6 +100,12 @@ struct MFASetupView: View {
                             }
                         }
                     }
+                }
+
+                Button {
+                    showingPasskeySetup = true
+                } label: {
+                    Label("Register New Passkey", systemImage: "person.badge.key")
                 }
             }
 
@@ -222,6 +229,12 @@ struct MFASetupView: View {
                 BackupCodesSheet(codes: viewModel.backupCodes)
             }
         }
+        // Passkey Setup sheet
+        .sheet(isPresented: $showingPasskeySetup) {
+            NavigationStack {
+                PasskeySetupSheet(viewModel: viewModel)
+            }
+        }
         .task {
             await viewModel.fetchStatus()
             await viewModel.listPasskeys()
@@ -335,6 +348,83 @@ private struct TOTPSetupSheet: View {
         let scaledImage = outputImage.transformed(by: CGAffineTransform(scaleX: scale, y: scale))
         guard let cgImage = context.createCGImage(scaledImage, from: scaledImage.extent) else { return nil }
         return UIImage(cgImage: cgImage)
+    }
+}
+
+// MARK: - Passkey Setup Sheet
+
+private struct PasskeySetupSheet: View {
+    let viewModel: MFAViewModel
+    @Environment(\.dismiss) private var dismiss
+    @State private var deviceName = UIDevice.current.name
+    @State private var isRegistering = false
+
+    var body: some View {
+        ScrollView {
+            VStack(spacing: 24) {
+                Image(systemName: "person.badge.key.fill")
+                    .font(.system(size: 48))
+                    .foregroundStyle(.blue)
+
+                Text("Register a passkey to use Face ID or Touch ID for two-factor authentication.")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal)
+
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Passkey Name")
+                        .font(.subheadline.weight(.medium))
+
+                    TextField("e.g., iPhone, iPad", text: $deviceName)
+                        .textFieldStyle(.roundedBorder)
+                        .onChange(of: deviceName) { _, newValue in
+                            if newValue.count > 100 {
+                                deviceName = String(newValue.prefix(100))
+                            }
+                        }
+
+                    Text("A name to help you identify this passkey later.")
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
+                }
+
+                Button {
+                    isRegistering = true
+                    Task {
+                        await viewModel.registerPasskey(deviceName: deviceName.trimmingCharacters(in: .whitespaces))
+                        isRegistering = false
+                        if viewModel.successMessage != nil {
+                            dismiss()
+                        }
+                    }
+                } label: {
+                    if isRegistering {
+                        ProgressView()
+                            .frame(maxWidth: .infinity)
+                    } else {
+                        Text("Register Passkey")
+                            .frame(maxWidth: .infinity)
+                    }
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(deviceName.trimmingCharacters(in: .whitespaces).isEmpty || isRegistering)
+
+                if let error = viewModel.errorMessage {
+                    Text(error)
+                        .font(.caption)
+                        .foregroundStyle(.red)
+                }
+            }
+            .padding()
+        }
+        .navigationTitle("Register Passkey")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .cancellationAction) {
+                Button("Cancel") { dismiss() }
+            }
+        }
     }
 }
 

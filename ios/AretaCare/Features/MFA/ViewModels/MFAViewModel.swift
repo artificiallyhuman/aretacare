@@ -167,6 +167,44 @@ final class MFAViewModel {
         }
     }
 
+    func registerPasskey(deviceName: String) async {
+        isLoading = true
+        errorMessage = nil
+        defer { isLoading = false }
+
+        do {
+            // Step 1: Get registration options from server
+            let optionsResponse: PasskeyRegistrationOptionsResponse = try await APIClient.shared.post(
+                APIEndpoints.MFA.passkeyRegisterOptions
+            )
+
+            // Step 2: Perform platform WebAuthn registration ceremony
+            let credential = try await PasskeyAuthManager().register(options: optionsResponse.options)
+
+            // Step 3: Verify with server
+            let verifyRequest = PasskeyRegistrationVerifyRequest(
+                credential: credential,
+                deviceName: deviceName
+            )
+            let response: PasskeyRegistrationVerifyResponse = try await APIClient.shared.post(
+                APIEndpoints.MFA.passkeyRegisterVerify,
+                body: verifyRequest
+            )
+
+            if response.success {
+                successMessage = "Passkey registered successfully."
+                await listPasskeys()
+                await fetchStatus()
+            } else {
+                errorMessage = "Failed to register passkey. Please try again."
+            }
+        } catch PasskeyError.cancelled {
+            // User cancelled — don't show error
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
     func deletePasskey(id: String) async {
         errorMessage = nil
 

@@ -32,9 +32,9 @@ final class CertificatePinningDelegate: NSObject, URLSessionDelegate, Sendable {
 
     private let pinnedKeyHashes: Set<String> = [
         // Primary leaf certificate public key hash
-        "BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB=",
+        "0LSDaM3YYZuUsSwwuqYc/Xfz2wwppQBsZED6FjqKl4E=",
         // Backup / intermediate CA public key hash
-        "CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC="
+        "kIdp6NNEd8wsugYyyIYFsi1ylMCED3hZbSR8ZFsa/A4="
     ]
 
     override init() {
@@ -59,9 +59,9 @@ final class CertificatePinningDelegate: NSObject, URLSessionDelegate, Sendable {
         }
 
         #if DEBUG
-        // Skip pinning for localhost/simulator development
+        // Skip pinning for localhost/simulator and staging development
         let host = challenge.protectionSpace.host
-        if host == "localhost" || host == "127.0.0.1" {
+        if host == "localhost" || host == "127.0.0.1" || host == "staging-api.aretacare.com" {
             completionHandler(.useCredential, URLCredential(trust: serverTrust))
             return
         }

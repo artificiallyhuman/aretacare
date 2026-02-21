@@ -50,9 +50,74 @@ final class PasskeyAuthManager: NSObject, ASAuthorizationControllerDelegate, ASA
         }
     }
 
+    /// Performs a passkey registration using the backend-provided WebAuthn options.
+    /// Returns a credential dictionary ready to send to the `/mfa/passkey/register/verify` endpoint.
+    func register(options: [String: AnyCodableValue]) async throws -> [String: AnyCodableValue] {
+        guard let challengeString = options["challenge"]?.stringValue,
+              let challenge = Data.fromBase64URL(challengeString) else {
+            throw PasskeyError.invalidOptions("Missing or invalid challenge")
+        }
+
+        guard let rp = options["rp"]?.dictionaryValue,
+              let rpId = rp["id"]?.stringValue else {
+            throw PasskeyError.invalidOptions("Missing rp.id")
+        }
+
+        guard let user = options["user"]?.dictionaryValue,
+              let userIdString = user["id"]?.stringValue,
+              let userId = Data.fromBase64URL(userIdString),
+              let userName = user["name"]?.stringValue else {
+            throw PasskeyError.invalidOptions("Missing user.id or user.name")
+        }
+
+        let provider = ASAuthorizationPlatformPublicKeyCredentialProvider(relyingPartyIdentifier: rpId)
+        let request = provider.createCredentialRegistrationRequest(
+            challenge: challenge,
+            name: userName,
+            userID: userId
+        )
+
+        let controller = ASAuthorizationController(authorizationRequests: [request])
+        controller.delegate = self
+        controller.presentationContextProvider = self
+
+        return try await withCheckedThrowingContinuation { continuation in
+            self.continuation = continuation
+            controller.performRequests()
+        }
+    }
+
     // MARK: - ASAuthorizationControllerDelegate
 
     func authorizationController(controller: ASAuthorizationController, didCompleteWithAuthorization authorization: ASAuthorization) {
+        // Handle registration credential
+        if let registration = authorization.credential as? ASAuthorizationPlatformPublicKeyCredentialRegistration {
+            let credentialID = registration.credentialID
+            let clientDataJSON = registration.rawClientDataJSON
+
+            guard let attestationObject = registration.rawAttestationObject else {
+                continuation?.resume(throwing: PasskeyError.registrationFailed("Missing attestation object"))
+                continuation = nil
+                return
+            }
+
+            let credential: [String: AnyCodableValue] = [
+                "id": .string(credentialID.base64URLEncodedString()),
+                "rawId": .string(credentialID.base64URLEncodedString()),
+                "type": .string("public-key"),
+                "authenticatorAttachment": .string("platform"),
+                "response": .dictionary([
+                    "clientDataJSON": .string(clientDataJSON.base64URLEncodedString()),
+                    "attestationObject": .string(attestationObject.base64URLEncodedString())
+                ])
+            ]
+
+            continuation?.resume(returning: credential)
+            continuation = nil
+            return
+        }
+
+        // Handle assertion credential (login flow)
         guard let assertion = authorization.credential as? ASAuthorizationPlatformPublicKeyCredentialAssertion else {
             continuation?.resume(throwing: PasskeyError.unexpectedCredentialType)
             continuation = nil
@@ -121,6 +186,7 @@ enum PasskeyError: LocalizedError {
     case unexpectedCredentialType
     case cancelled
     case authenticationFailed(String)
+    case registrationFailed(String)
 
     var errorDescription: String? {
         switch self {
@@ -132,6 +198,8 @@ enum PasskeyError: LocalizedError {
             return "Passkey authentication was cancelled."
         case .authenticationFailed(let detail):
             return "Passkey authentication failed: \(detail)"
+        case .registrationFailed(let detail):
+            return "Passkey registration failed: \(detail)"
         }
     }
 }
