@@ -20,6 +20,7 @@ final class AuthViewModel {
     var mfaToken: String?
     var mfaMethods: [String] = []
     var navigateToMFA = false
+    var mfaNavigationData: MFANavigationData?
 
     // Registration
     var registrationSuccess = false
@@ -126,6 +127,7 @@ final class AuthViewModel {
                 mfaToken = token
                 mfaMethods = methods
                 navigateToMFA = true
+                mfaNavigationData = MFANavigationData(token: token, methods: methods)
             }
         } catch let error as APIError {
             setError(error.errorDescription ?? "Login failed. Please try again.")
@@ -321,4 +323,9 @@ final class AuthViewModel {
         passwordResetRequested = false
         passwordResetSuccess = false
     }
+}
+
+struct MFANavigationData: Hashable {
+    let token: String
+    let methods: [String]
 }

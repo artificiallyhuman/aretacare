@@ -9,6 +9,7 @@ final class AuthManager {
     private(set) var currentUser: UserResponse?
     private(set) var isLoading = true
     private(set) var mfaToken: String?
+    private(set) var mfaMethods: [String] = []
 
     // Idle timeout
     private var lastActivityDate = Date()
@@ -70,7 +71,8 @@ final class AuthManager {
 
         if response.requiresMfa == true, let mfaToken = response.mfaToken {
             self.mfaToken = mfaToken
-            return .mfaRequired(mfaToken: mfaToken, methods: response.mfaMethods ?? [])
+            self.mfaMethods = response.mfaMethods ?? []
+            return .mfaRequired(mfaToken: mfaToken, methods: self.mfaMethods)
         }
 
         guard let accessToken = response.accessToken, let user = response.user else {
@@ -196,6 +198,7 @@ final class AuthManager {
             isAuthenticated = false
             currentUser = nil
             mfaToken = nil
+            mfaMethods = []
             stopIdleTimer()
             BiometricManager.shared.clearLock()
             UserDefaults.standard.removeObject(forKey: "biometricLockEnabled")

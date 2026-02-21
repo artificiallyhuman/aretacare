@@ -146,10 +146,8 @@ struct LoginView: View {
         }
         .task { await viewModel.checkSignupMode() }
         .navigationBarBackButtonHidden(true)
-        .navigationDestination(isPresented: $viewModel.navigateToMFA) {
-            if let token = viewModel.mfaToken {
-                MFAVerifyView(mfaToken: token, mfaMethods: viewModel.mfaMethods)
-            }
+        .navigationDestination(item: $viewModel.mfaNavigationData) { data in
+            MFAVerifyView(mfaToken: data.token, mfaMethods: data.methods)
         }
     }
 

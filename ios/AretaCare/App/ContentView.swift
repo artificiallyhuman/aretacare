@@ -11,7 +11,7 @@ struct ContentView: View {
             } else if !authManager.isAuthenticated {
                 if let mfaToken = authManager.mfaToken {
                     NavigationStack {
-                        MFAVerifyView(mfaToken: mfaToken)
+                        MFAVerifyView(mfaToken: mfaToken, mfaMethods: authManager.mfaMethods)
                     }
                 } else {
                     NavigationStack {
