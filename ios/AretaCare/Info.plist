@@ -24,19 +24,21 @@
 	<string>1</string>
 	<key>FRONTEND_URL</key>
 	<string>$(FRONTEND_URL)</string>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 	<key>NSAppTransportSecurity</key>
 	<dict>
 		<key>NSAllowsLocalNetworking</key>
 		<true/>
 	</dict>
 	<key>NSCameraUsageDescription</key>
-	<string>AretaCare needs camera access to capture photos of medical documents.</string>
+	<string>AretaCare needs camera access to capture photos of documents.</string>
 	<key>NSFaceIDUsageDescription</key>
-	<string>AretaCare uses Face ID to protect your health information.</string>
+	<string>AretaCare uses Face ID to protect your information.</string>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>AretaCare needs microphone access to record voice memos for your health journal.</string>
+	<string>AretaCare needs microphone access to record voice memos.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>AretaCare needs photo library access to upload medical document images.</string>
+	<string>AretaCare needs photo library access to upload images.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>
