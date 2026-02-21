@@ -331,7 +331,7 @@ POST /api/feedback/submit
   "captcha_token": "hcaptcha_token"
 }
 ```
-Rate limited: 3/hour per IP.
+Authentication optional. Rate limited: 3/hour per IP.
 
 ---
 
