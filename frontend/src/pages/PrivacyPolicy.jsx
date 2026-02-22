@@ -15,7 +15,7 @@ const PrivacyPolicy = () => {
           </Link>
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-6 sm:p-8">
             <h1 className="text-4xl sm:text-5xl font-bold text-gray-900 dark:text-white mb-2">Privacy Policy</h1>
-            <p className="text-sm text-gray-500 dark:text-gray-400">Last Updated: January 24, 2026</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400">Last Updated: February 22, 2026</p>
           </div>
         </div>
 
@@ -25,7 +25,7 @@ const PrivacyPolicy = () => {
           <section>
             <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4 pb-2 border-b-2 border-primary-200 dark:border-primary-800">1. Introduction</h2>
             <p className="text-gray-700 dark:text-gray-300 leading-relaxed text-base">
-              AretaCare™ is an AI assistant that helps patients and caregivers organize and understand medical information. It is a consumer tool and does not provide medical advice, diagnosis, or treatment. This Privacy Policy explains how we collect, use, and protect your information. AretaCare is operated by AretaCare LLC.
+              AretaCare™ is an AI assistant that helps patients and caregivers organize and understand medical information. It is a consumer tool and does not provide medical advice, diagnosis, or treatment. AretaCare is available as a web application and a native iOS app. This Privacy Policy explains how we collect, use, and protect your information across all platforms. AretaCare is operated by AretaCare LLC.
             </p>
           </section>
 
@@ -140,6 +140,37 @@ const PrivacyPolicy = () => {
                   <li>Session data and authentication tokens</li>
                   <li>Usage logs and error reports</li>
                   <li>Browser type and device information</li>
+                  <li>Push notification device tokens (iOS app)</li>
+                  <li>Device integrity status (iOS app — used to detect compromised devices)</li>
+                </ul>
+              </div>
+
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">iOS App — Device Permissions</h3>
+                <p className="text-gray-700 dark:text-gray-300 leading-relaxed text-base mb-3">
+                  The iOS app may request the following device permissions, each of which you can grant or deny:
+                </p>
+                <ul className="list-disc list-inside space-y-2 text-gray-700 dark:text-gray-300 pl-4">
+                  <li><strong>Microphone:</strong> Used to record voice memos for your health journal. Audio is recorded locally and uploaded to our servers for transcription.</li>
+                  <li><strong>Camera:</strong> Used to capture photos of medical documents for upload. Photos are not stored locally after upload.</li>
+                  <li><strong>Photo Library:</strong> Used to select existing photos of medical documents for upload.</li>
+                  <li><strong>Face ID / Touch ID:</strong> Used for optional biometric app lock. Biometric data never leaves your device.</li>
+                  <li><strong>Notifications:</strong> Used to deliver push notifications. You can disable notifications at any time in iOS Settings.</li>
+                </ul>
+              </div>
+
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">iOS App — On-Device Data</h3>
+                <p className="text-gray-700 dark:text-gray-300 leading-relaxed text-base mb-3">
+                  When you use the AretaCare iOS app, the following data is stored locally on your device:
+                </p>
+                <ul className="list-disc list-inside space-y-2 text-gray-700 dark:text-gray-300 pl-4">
+                  <li><strong>Keychain:</strong> Authentication tokens (access and refresh tokens) are stored in the iOS Keychain with device-only accessibility — they cannot be restored to other devices via backup</li>
+                  <li><strong>Biometric authentication:</strong> If you enable biometric lock (Face ID or Touch ID), the app uses iOS system biometric APIs to verify your identity. AretaCare does not access, store, or transmit your biometric data — all biometric processing is handled entirely by iOS on your device</li>
+                  <li><strong>Image cache:</strong> Viewed images (documents, thumbnails) are cached in device memory for performance and cleared on logout or when the device needs to reclaim memory</li>
+                  <li><strong>Response cache:</strong> Recent API responses are cached temporarily in device memory to improve performance. All caches are cleared on logout</li>
+                  <li><strong>Preferences:</strong> Non-sensitive settings (active session, selected tab, biometric lock preference) are stored in app-local storage and cleared on logout</li>
+                  <li><strong>Temporary files:</strong> Audio recordings and document previews may create temporary files that are automatically deleted after use</li>
                 </ul>
               </div>
             </div>
@@ -189,6 +220,13 @@ const PrivacyPolicy = () => {
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">Email Service Provider</h3>
                 <p className="text-gray-700 dark:text-gray-300 leading-relaxed text-base mb-3">
                   Emails are sent via a third-party email service provider (currently Gmail). Your email address is shared with this provider for the purpose of delivering notifications. Email delivery is subject to the provider's terms of service and privacy policy.
+                </p>
+              </div>
+
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">Push Notifications (iOS App)</h3>
+                <p className="text-gray-700 dark:text-gray-300 leading-relaxed text-base mb-3">
+                  If you use the iOS app, you may choose to enable push notifications. Push notifications are delivered via Apple Push Notification service (APNs). Your device token is stored on our server and deleted when you log out or disable notifications. Push notifications do not contain sensitive medical information.
                 </p>
               </div>
 
@@ -274,7 +312,7 @@ const PrivacyPolicy = () => {
                 AretaCare uses the following third-party services that may access your data:
               </p>
 
-              <div className="grid gap-4 sm:grid-cols-3">
+              <div className="grid gap-4 sm:grid-cols-2">
                 <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-5 border border-gray-200 dark:border-gray-600">
                   <h3 className="font-semibold text-gray-900 dark:text-white mb-3">OpenAI</h3>
                   <ul className="text-sm text-gray-600 dark:text-gray-300 space-y-1.5">
@@ -297,6 +335,14 @@ const PrivacyPolicy = () => {
                     <li>• Currently Gmail (see Section 4)</li>
                   </ul>
                 </div>
+                <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-5 border border-gray-200 dark:border-gray-600">
+                  <h3 className="font-semibold text-gray-900 dark:text-white mb-3">Apple (iOS App)</h3>
+                  <ul className="text-sm text-gray-600 dark:text-gray-300 space-y-1.5">
+                    <li>• Delivers push notifications via Apple Push Notification service (APNs)</li>
+                    <li>• Processes biometric authentication (Face ID/Touch ID) on-device</li>
+                    <li>• Provides Keychain for secure token storage</li>
+                  </ul>
+                </div>
               </div>
               <p className="text-gray-700 dark:text-gray-300 leading-relaxed text-base">
                 Your use of these services through AretaCare is subject to their respective privacy policies and terms of service.
@@ -314,6 +360,7 @@ const PrivacyPolicy = () => {
                   <li><strong>Database:</strong> PostgreSQL database (account, conversations, journal, health profiles, daily digests, document and audio metadata)</li>
                   <li><strong>File Storage:</strong> AWS S3 (documents, images, audio files)</li>
                   <li><strong>Browser:</strong> Access tokens in memory (not persisted); refresh tokens and trusted device tokens in secure HttpOnly cookies; only non-sensitive preferences (theme, active session ID) in localStorage</li>
+                  <li><strong>iOS Device:</strong> Authentication tokens in iOS Keychain (device-only, not included in backups); images and API responses cached in memory (cleared on logout); non-sensitive preferences in app-local storage (cleared on logout)</li>
                 </ul>
               </div>
 
@@ -329,6 +376,11 @@ const PrivacyPolicy = () => {
                   <li>S3 file storage uses AES-256 encryption at rest</li>
                   <li>Database encryption at rest (PostgreSQL)</li>
                   <li>Access controls on database and storage</li>
+                  <li>iOS: SSL certificate pinning to prevent man-in-the-middle attacks</li>
+                  <li>iOS: Keychain storage with device-only accessibility (tokens cannot be transferred to other devices)</li>
+                  <li>iOS: Optional biometric authentication (Face ID/Touch ID) for app access</li>
+                  <li>iOS: Device integrity checking to detect compromised devices</li>
+                  <li>iOS: All cached data (images, API responses, preferences) cleared on logout</li>
                 </ul>
               </div>
 
@@ -343,6 +395,8 @@ const PrivacyPolicy = () => {
                   <li>Storing your backup codes in a safe location</li>
                   <li>Keeping your own copies of important documents</li>
                   <li>Reviewing our open source code if you have security concerns</li>
+                  <li>On iOS: enabling the biometric lock feature in Settings for additional app-level protection</li>
+                  <li>On iOS: logging out before uninstalling the app to ensure all Keychain data is removed</li>
                 </ul>
               </div>
             </div>
@@ -387,7 +441,11 @@ const PrivacyPolicy = () => {
                   <li>All sessions you own and their complete data (conversations, journal, daily digests)</li>
                   <li>All documents, audio recordings, thumbnails, and associated files in S3 storage</li>
                   <li>Your access to any sessions shared with you (the shared sessions remain for other collaborators)</li>
+                  <li>Your push notification device tokens (iOS app)</li>
                 </ul>
+                <p className="text-gray-700 dark:text-gray-300 leading-relaxed text-base mt-3">
+                  On the iOS app, logging out clears all locally stored data including Keychain tokens, cached images, cached API responses, and app preferences. Uninstalling the app removes all on-device data. Keychain items may persist after uninstallation on some iOS versions; logging out before uninstalling ensures complete removal.
+                </p>
               </div>
 
               <div>
