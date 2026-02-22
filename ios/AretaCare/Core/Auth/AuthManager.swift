@@ -24,8 +24,7 @@ final class AuthManager {
     // MARK: - App Launch
 
     func initAuth() async {
-        isLoading = true
-        defer { isLoading = false }
+        await MainActor.run { isLoading = true }
 
         do {
             guard let newToken = try await AuthInterceptor.shared.refreshAccessToken() else {
@@ -33,11 +32,15 @@ final class AuthManager {
                 // clear Keychain so stale tokens don't persist across launches.
                 KeychainManager.shared.clearAll()
                 await handleLogout()
+                await MainActor.run { isLoading = false }
                 return
             }
             await AuthInterceptor.shared.setAccessToken(newToken)
             try await fetchCurrentUser()
-            isAuthenticated = true
+            await MainActor.run {
+                isAuthenticated = true
+                isLoading = false
+            }
             startIdleTimer()
             NotificationManager.shared.requestAuthorization()
         } catch {
@@ -45,6 +48,7 @@ final class AuthManager {
             // tokens don't cause repeated failures on every app launch.
             KeychainManager.shared.clearAll()
             await handleLogout()
+            await MainActor.run { isLoading = false }
         }
     }
 
