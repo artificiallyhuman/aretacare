@@ -456,24 +456,52 @@ class AdminService:
         """
         unusual_accounts = []
 
-        # Get per-user metrics
+        # Pre-aggregate each metric separately to avoid Cartesian product explosion.
+        # Joining all tables together multiplies intermediate rows (e.g., 100 conversations
+        # x 50 documents x 10 audio = 50,000 rows per session before GROUP BY).
+        conv_counts = db.query(
+            SessionModel.user_id.label('user_id'),
+            func.count(Conversation.id).label('conversation_count')
+        ).join(
+            Conversation, SessionModel.id == Conversation.session_id
+        ).group_by(SessionModel.user_id).subquery()
+
+        doc_counts = db.query(
+            SessionModel.user_id.label('user_id'),
+            func.count(Document.id).label('document_count')
+        ).join(
+            Document, SessionModel.id == Document.session_id
+        ).group_by(SessionModel.user_id).subquery()
+
+        audio_counts = db.query(
+            SessionModel.user_id.label('user_id'),
+            func.count(AudioRecording.id).label('audio_count')
+        ).join(
+            AudioRecording, SessionModel.id == AudioRecording.session_id
+        ).group_by(SessionModel.user_id).subquery()
+
+        session_counts = db.query(
+            SessionModel.user_id.label('user_id'),
+            func.count(SessionModel.id).label('session_count')
+        ).group_by(SessionModel.user_id).subquery()
+
         user_metrics = db.query(
             User.id,
             User.email,
             User.name,
-            func.count(func.distinct(Conversation.id)).label('conversation_count'),
-            func.count(func.distinct(Document.id)).label('document_count'),
-            func.count(func.distinct(AudioRecording.id)).label('audio_count'),
-            func.count(func.distinct(SessionModel.id)).label('session_count')
+            func.coalesce(conv_counts.c.conversation_count, 0).label('conversation_count'),
+            func.coalesce(doc_counts.c.document_count, 0).label('document_count'),
+            func.coalesce(audio_counts.c.audio_count, 0).label('audio_count'),
+            func.coalesce(session_counts.c.session_count, 0).label('session_count')
         ).outerjoin(
-            SessionModel, User.id == SessionModel.user_id
+            conv_counts, User.id == conv_counts.c.user_id
         ).outerjoin(
-            Conversation, SessionModel.id == Conversation.session_id
+            doc_counts, User.id == doc_counts.c.user_id
         ).outerjoin(
-            Document, SessionModel.id == Document.session_id
+            audio_counts, User.id == audio_counts.c.user_id
         ).outerjoin(
-            AudioRecording, SessionModel.id == AudioRecording.session_id
-        ).group_by(User.id).all()
+            session_counts, User.id == session_counts.c.user_id
+        ).all()
 
         if len(user_metrics) < 3:  # Need at least 3 data points for meaningful std dev
             return []
