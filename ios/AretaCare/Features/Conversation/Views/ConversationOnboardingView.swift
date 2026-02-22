@@ -72,11 +72,10 @@ struct ConversationOnboardingView: View {
 
                         if showGoodToKnow {
                             VStack(alignment: .leading, spacing: 10) {
-                                infoRow(icon: "person.2", text: "Bring others into the conversation under Collaboration")
-                                infoRow(icon: "gearshape", text: "Tap a session in Settings to rename, share, or delete it")
+                                infoRow(icon: "person.2", text: "Share a session with others from Settings")
+                                infoRow(icon: "gearshape", text: "Tap a session in Settings to rename or delete it")
                                 infoRow(icon: "bolt", text: "AI generates your Daily Digest and Care Journal automatically")
                                 infoRow(icon: "folder", text: "View your files in Document Manager and Audio Recordings")
-                                infoRow(icon: "book.closed", text: "Learn more about AretaCare on the About page")
                             }
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .padding(.top, 10)

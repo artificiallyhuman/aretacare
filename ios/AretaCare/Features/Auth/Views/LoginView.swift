@@ -16,6 +16,11 @@ struct LoginView: View {
                 AuthHeaderView()
                     .padding(.top, 40)
 
+                Text("A platform for patients and caregivers navigating the healthcare system.")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+
                 // Medical Disclaimer
                 MedicalDisclaimerBanner()
 
@@ -109,27 +114,49 @@ struct LoginView: View {
                     Rectangle().fill(Color(.separator)).frame(height: 1)
                 }
 
-                // Sign Up / Waitlist Links
-                VStack(spacing: 12) {
-                    NavigationLink {
-                        RegisterView()
-                    } label: {
-                        Text("Create a free account")
-                            .font(.subheadline.weight(.medium))
-                    }
-
+                // Sign Up / Waitlist / Learn More
+                VStack(spacing: 10) {
                     if viewModel.controlSignups {
                         NavigationLink {
                             WaitlistView()
                         } label: {
                             Text("Join the waitlist")
-                                .font(.subheadline)
-                                .foregroundStyle(.secondary)
+                                .font(.subheadline.weight(.semibold))
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 12)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 10)
+                                        .strokeBorder(Color(.separator), lineWidth: 1)
+                                )
                         }
+                    } else {
+                        NavigationLink {
+                            RegisterView()
+                        } label: {
+                            Text("Create a free account")
+                                .font(.subheadline.weight(.semibold))
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 12)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 10)
+                                        .strokeBorder(Color(.separator), lineWidth: 1)
+                                )
+                        }
+                    }
+
+                    Link(destination: AppConstants.aboutURL) {
+                        Text("Learn more")
+                            .font(.subheadline.weight(.semibold))
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 12)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 10)
+                                    .strokeBorder(Color(.separator), lineWidth: 1)
+                            )
                     }
                 }
 
-                // Terms & Privacy
+                // Terms, Privacy & Contact
                 HStack(spacing: 4) {
                     Link("Terms of Service", destination: AppConstants.termsURL)
                         .font(.caption)
@@ -137,6 +164,11 @@ struct LoginView: View {
                     Text("\u{00B7}")
                         .foregroundStyle(.secondary)
                     Link("Privacy Policy", destination: AppConstants.privacyURL)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Text("\u{00B7}")
+                        .foregroundStyle(.secondary)
+                    Link("Contact Us", destination: AppConstants.contactURL)
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }

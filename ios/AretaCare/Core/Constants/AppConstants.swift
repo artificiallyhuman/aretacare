@@ -24,6 +24,8 @@ enum AppConstants {
 
     static var termsURL: URL { URL(string: "\(frontendBaseURL)/terms")! }
     static var privacyURL: URL { URL(string: "\(frontendBaseURL)/privacy")! }
+    static var contactURL: URL { URL(string: "\(frontendBaseURL)/contact")! }
+    static var aboutURL: URL { URL(string: "\(frontendBaseURL)/about")! }
 
     static let clientType = "ios"
     static let clientTypeHeader = "X-Client-Type"
