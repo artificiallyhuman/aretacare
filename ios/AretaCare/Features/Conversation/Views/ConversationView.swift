@@ -11,9 +11,9 @@ struct ConversationView: View {
 
     @State private var messageText = ""
     @State private var showingSessionSwitcher = false
-    @State private var showingAttachSheet = false
     @State private var scrollToBottom = false
     @State private var showScrollToBottomButton = false
+    @State private var messageCountWhenScrolledAway = 0
     @State private var editingMessage: MessageResponse?
     @State private var editText = ""
     @State private var showResetConfirmation = false
@@ -55,7 +55,7 @@ struct ConversationView: View {
             .sensoryFeedback(.success, trigger: copyHapticTrigger)
             .sensoryFeedback(.success, trigger: sendHapticTrigger)
             .sensoryFeedback(.impact(flexibility: .rigid), trigger: resetHapticTrigger)
-            .animation(.easeInOut(duration: 0.2), value: showCopiedToast)
+            .animation(.snappy(duration: 0.25), value: showCopiedToast)
             .sessionBackground(
                 colorKey: sessionVM.currentSession?.colorKey,
                 colorScheme: colorScheme
@@ -75,7 +75,6 @@ struct ConversationView: View {
                 SessionSwitcherView(sessionVM: sessionVM)
             }
             .modifier(ConversationSheetsModifier(
-                showingAttachSheet: $showingAttachSheet,
                 showingCamera: $showingCamera,
                 showingPhotoPicker: $showingPhotoPicker,
                 showingFilePicker: $showingFilePicker,
@@ -169,7 +168,9 @@ struct ConversationView: View {
                     hasMessages: !conversationVM.messages.isEmpty,
                     pendingAttachment: pendingAttachment,
                     onSend: sendMessage,
-                    onAttach: { showingAttachSheet = true },
+                    onTakePhoto: { showingCamera = true },
+                    onChoosePhoto: { showingPhotoPicker = true },
+                    onChooseFile: { showingFilePicker = true },
                     onMicrophone: { startAudioRecording() },
                     onRemoveAttachment: { pendingAttachment = nil }
                 )
@@ -237,7 +238,20 @@ struct ConversationView: View {
                             .disabled(conversationVM.isLoading)
                         }
 
-                        ForEach(conversationVM.messages) { message in
+                        ForEach(Array(conversationVM.messages.enumerated()), id: \.element.id) { index, message in
+                            // Date separator
+                            if index == 0 || !Calendar.current.isDate(message.createdAt, inSameDayAs: conversationVM.messages[index - 1].createdAt) {
+                                Text(message.createdAt.chatDateLabel)
+                                    .font(.caption2.weight(.medium))
+                                    .foregroundStyle(.secondary)
+                                    .padding(.horizontal, 12)
+                                    .padding(.vertical, 4)
+                                    .background(Color(.systemGray5).opacity(0.8))
+                                    .clipShape(Capsule())
+                                    .frame(maxWidth: .infinity)
+                                    .padding(.vertical, 8)
+                            }
+
                             if editingMessage?.id == message.id {
                                 // Inline edit mode
                                 VStack(spacing: 8) {
@@ -304,14 +318,22 @@ struct ConversationView: View {
                         // Bottom anchor for scroll position tracking
                         Color.clear.frame(height: 1)
                             .id("scroll-bottom")
-                            .onAppear { showScrollToBottomButton = false }
-                            .onDisappear { showScrollToBottomButton = true }
+                            .onAppear {
+                                showScrollToBottomButton = false
+                                messageCountWhenScrolledAway = 0
+                            }
+                            .onDisappear {
+                                showScrollToBottomButton = true
+                                messageCountWhenScrolledAway = conversationVM.messages.count
+                            }
                     }
                     .padding(.vertical, 8)
                 }
-                .scrollDismissesKeyboard(.interactively)
+                .scrollDismissesKeyboard(.immediately)
                 .overlay(alignment: .bottomTrailing) {
                     if showScrollToBottomButton {
+                        let newMessageCount = max(conversationVM.messages.count - messageCountWhenScrolledAway, 0)
+
                         Button {
                             scrollToLatest(proxy: proxy)
                         } label: {
@@ -320,15 +342,25 @@ struct ConversationView: View {
                                 .foregroundStyle(.white)
                                 .frame(width: 36, height: 36)
                                 .background(Circle().fill(Color.accentColor))
-                                .shadow(radius: 4)
+                                .shadow(color: .black.opacity(0.15), radius: 6, y: 3)
+                                .overlay(alignment: .topTrailing) {
+                                    if newMessageCount > 0 {
+                                        Text("\(newMessageCount)")
+                                            .font(.caption2.weight(.bold))
+                                            .foregroundStyle(.white)
+                                            .frame(minWidth: 18, minHeight: 18)
+                                            .background(Circle().fill(.red))
+                                            .offset(x: 6, y: -6)
+                                    }
+                                }
                         }
-                        .accessibilityLabel("Scroll to latest message")
+                        .accessibilityLabel("Scroll to latest message\(newMessageCount > 0 ? ", \(newMessageCount) new" : "")")
                         .padding(.trailing, 12)
                         .padding(.bottom, 8)
                         .transition(.scale.combined(with: .opacity))
                     }
                 }
-                .animation(.easeInOut(duration: 0.2), value: showScrollToBottomButton)
+                .animation(.spring(duration: 0.3), value: showScrollToBottomButton)
                 .refreshable {
                     if let sessionId = currentSessionId {
                         await conversationVM.fetchHistory(sessionId: sessionId, forceRefresh: true)
@@ -503,7 +535,6 @@ struct ConversationView: View {
 // MARK: - Sheets & Alerts Modifier (extracted for type-checker)
 
 private struct ConversationSheetsModifier: ViewModifier {
-    @Binding var showingAttachSheet: Bool
     @Binding var showingCamera: Bool
     @Binding var showingPhotoPicker: Bool
     @Binding var showingFilePicker: Bool
@@ -521,12 +552,6 @@ private struct ConversationSheetsModifier: ViewModifier {
 
     func body(content: Content) -> some View {
         content
-            .confirmationDialog("Add Attachment", isPresented: $showingAttachSheet, titleVisibility: .visible) {
-                Button("Take Photo") { showingCamera = true }
-                Button("Choose Photo") { showingPhotoPicker = true }
-                Button("Choose File") { showingFilePicker = true }
-                Button("Cancel", role: .cancel) {}
-            }
             .fullScreenCover(isPresented: $showingCamera) {
                 CameraPickerView { image in
                     handleCameraImage(image)
@@ -540,7 +565,7 @@ private struct ConversationSheetsModifier: ViewModifier {
             .fileImporter(isPresented: $showingFilePicker, allowedContentTypes: [.pdf, .plainText, .jpeg, .png], allowsMultipleSelection: false) { result in
                 handleFileImport(result)
             }
-            .alert("Reset Conversation", isPresented: $showResetConfirmation) {
+            .confirmationDialog("Reset Conversation", isPresented: $showResetConfirmation, titleVisibility: .visible) {
                 Button("Reset", role: .destructive) {
                     if let msg = resetMessage, let sessionId = currentSessionId {
                         resetHapticTrigger += 1

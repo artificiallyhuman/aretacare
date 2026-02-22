@@ -29,7 +29,7 @@ struct ContentView: View {
                     .transition(.opacity)
             }
         }
-        .animation(.easeInOut(duration: 0.3), value: biometricManager.isLocked)
+        .animation(.spring(duration: 0.35), value: biometricManager.isLocked)
     }
 
     private var loadingView: some View {

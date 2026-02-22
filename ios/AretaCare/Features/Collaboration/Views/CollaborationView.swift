@@ -11,12 +11,21 @@ struct CollaborationView: View {
     @State private var showingTransferConfirm = false
     @State private var transferTarget: CollaboratorInfo?
     @State private var showingLeaveConfirm = false
+    @State private var shareHapticTrigger = 0
+    @State private var showingInviteConfirm = false
+    @State private var checkedUserName: String?
 
     @Environment(\.dismiss) private var dismiss
 
     private var isOwner: Bool { session.isOwner }
     private var totalPeople: Int { session.collaborators.count + 1 } // owner + collaborators
     private var canAddMore: Bool { totalPeople < AppConstants.maxCollaboratorsPerSession }
+
+    private var isEmailFormatValid: Bool {
+        let trimmed = email.trimmingCharacters(in: .whitespacesAndNewlines)
+        let pattern = #"^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$"#
+        return trimmed.range(of: pattern, options: .regularExpression) != nil
+    }
 
     var body: some View {
         List {
@@ -60,10 +69,18 @@ struct CollaborationView: View {
             // Add Collaborator (owner only)
             if isOwner && canAddMore {
                 Section("Share Session") {
-                    TextField("Email address", text: $email)
-                        .keyboardType(.emailAddress)
-                        .textContentType(.emailAddress)
-                        .textInputAutocapitalization(.never)
+                    HStack {
+                        TextField("Email address", text: $email)
+                            .keyboardType(.emailAddress)
+                            .textContentType(.emailAddress)
+                            .textInputAutocapitalization(.never)
+
+                        if !email.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                            Image(systemName: isEmailFormatValid ? "checkmark.circle.fill" : "xmark.circle.fill")
+                                .foregroundStyle(isEmailFormatValid ? .green : .red)
+                                .font(.subheadline)
+                        }
+                    }
 
                     Toggle(isOn: $sharingConsent) {
                         Text("I confirm I have the right to share the information in this session with the collaborator I\u{2019}m adding. If I\u{2019}m the patient, this is my consent. If I\u{2019}m a caregiver, I have the patient\u{2019}s permission to share it.")
@@ -82,7 +99,7 @@ struct CollaborationView: View {
                                 .frame(maxWidth: .infinity)
                         }
                     }
-                    .disabled(email.isEmpty || !sharingConsent || viewModel.isLoading)
+                    .disabled(!isEmailFormatValid || !sharingConsent || viewModel.isLoading)
                 }
             } else if isOwner && !canAddMore {
                 Section {
@@ -167,6 +184,15 @@ struct CollaborationView: View {
         } message: {
             Text("You will lose access to all data in this session.")
         }
+        .alert("Send Invitation?", isPresented: $showingInviteConfirm) {
+            Button("Send Invitation") {
+                Task { await sendInvitation() }
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("\(email) doesn\u{2019}t have an AretaCare account yet. Send them an email invitation to join this session?")
+        }
+        .sensoryFeedback(.success, trigger: shareHapticTrigger)
         .task {
             viewModel.loadCollaborators(session: session)
             await viewModel.fetchPendingInvitations(sessionId: session.id)
@@ -174,10 +200,30 @@ struct CollaborationView: View {
     }
 
     private func share() async {
-        await viewModel.shareSession(sessionId: session.id, email: email)
+        guard let result = await viewModel.checkUser(sessionId: session.id, email: email) else {
+            return
+        }
+
+        if result.exists {
+            checkedUserName = result.name
+            await viewModel.shareSession(sessionId: session.id, email: email)
+            if viewModel.errorMessage == nil {
+                email = ""
+                sharingConsent = false
+                checkedUserName = nil
+                shareHapticTrigger += 1
+            }
+        } else {
+            showingInviteConfirm = true
+        }
+    }
+
+    private func sendInvitation() async {
+        await viewModel.sendInvitation(sessionId: session.id, email: email)
         if viewModel.errorMessage == nil {
             email = ""
             sharingConsent = false
+            shareHapticTrigger += 1
         }
     }
 }
@@ -230,15 +276,18 @@ private struct PendingInvitationRow: View {
             Spacer()
             Button {
                 Task {
-                    await viewModel.sendInvitation(
+                    await viewModel.resendInvitation(
                         sessionId: sessionId,
                         email: invitation.email
                     )
                 }
             } label: {
                 Image(systemName: "arrow.clockwise")
-                    .foregroundStyle(Color.accentColor)
+                    .font(.body)
+                    .frame(width: 44, height: 44)
+                    .contentShape(Rectangle())
             }
+            .buttonStyle(.borderless)
             .disabled(viewModel.isLoading)
             Button(role: .destructive) {
                 Task {
@@ -249,8 +298,12 @@ private struct PendingInvitationRow: View {
                 }
             } label: {
                 Image(systemName: "xmark.circle")
+                    .font(.body)
                     .foregroundStyle(.red)
+                    .frame(width: 44, height: 44)
+                    .contentShape(Rectangle())
             }
+            .buttonStyle(.borderless)
         }
     }
 }

@@ -7,6 +7,7 @@ struct AudioRecorderView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var recorder = AudioRecorderManager()
     @State private var showingPermissionAlert = false
+    @State private var showingCancelConfirmation = false
 
     var body: some View {
         NavigationStack {
@@ -53,6 +54,7 @@ struct AudioRecorderView: View {
                             }
                         } label: {
                             Image(systemName: recorder.isPaused ? "play.fill" : "pause.fill")
+                                .contentTransition(.symbolEffect(.replace))
                                 .font(.title2)
                                 .frame(width: 56, height: 56)
                                 .background(Color(.systemGray5))
@@ -100,10 +102,22 @@ struct AudioRecorderView: View {
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") {
-                        recorder.stop()
-                        dismiss()
+                        if recorder.isRecording || recorder.isPaused || recorder.elapsedTime > 0 {
+                            showingCancelConfirmation = true
+                        } else {
+                            dismiss()
+                        }
                     }
                 }
+            }
+            .confirmationDialog("Discard Recording?", isPresented: $showingCancelConfirmation, titleVisibility: .visible) {
+                Button("Discard", role: .destructive) {
+                    recorder.stop()
+                    dismiss()
+                }
+                Button("Keep Recording", role: .cancel) {}
+            } message: {
+                Text("Your recording will be lost if you leave now.")
             }
             .alert("Microphone Access Required", isPresented: $showingPermissionAlert) {
                 Button("Open Settings") {

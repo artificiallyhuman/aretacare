@@ -14,6 +14,8 @@ struct DocumentDetailView: View {
     @State private var quickLookURL: URL?
     @State private var showingQuickLook = false
     @State private var isLoadingQuickLook = false
+    @State private var showSavedToast = false
+    @State private var saveHapticTrigger = 0
 
     private let currentUserId = AuthManager.shared.currentUser?.id ?? ""
 
@@ -73,9 +75,17 @@ struct DocumentDetailView: View {
         }
         .sheet(isPresented: $showingEditSheet) {
             NavigationStack {
-                DocumentEditSheet(document: document, viewModel: viewModel)
+                DocumentEditSheet(document: document, viewModel: viewModel) {
+                    saveHapticTrigger += 1
+                    withAnimation(.spring(duration: 0.3)) {
+                        showSavedToast = true
+                    }
+                }
             }
         }
+        .sensoryFeedback(.success, trigger: saveHapticTrigger)
+        .toast("Saved", icon: "checkmark", isPresented: $showSavedToast)
+        .animation(.spring(duration: 0.3), value: showSavedToast)
         .fullScreenCover(isPresented: $showingQuickLook) {
             if let url = quickLookURL {
                 QuickLookPreviewView(url: url)
@@ -278,11 +288,18 @@ struct DocumentDetailView: View {
 private struct DocumentEditSheet: View {
     let document: DocumentResponse
     let viewModel: DocumentsViewModel
+    var onSave: (() -> Void)?
 
     @Environment(\.dismiss) private var dismiss
     @State private var selectedCategory: DocumentCategory?
     @State private var descriptionText: String = ""
     @State private var isSaving = false
+    @State private var initialCategory: DocumentCategory?
+    @State private var initialDescription: String = ""
+
+    private var hasChanges: Bool {
+        selectedCategory != initialCategory || descriptionText != initialDescription
+    }
 
     var body: some View {
         Form {
@@ -319,8 +336,11 @@ private struct DocumentEditSheet: View {
                 selectedCategory = DocumentCategory(rawValue: cat)
             }
             descriptionText = document.aiDescription ?? ""
+            initialCategory = selectedCategory
+            initialDescription = descriptionText
         }
         .disabled(isSaving)
+        .interactiveDismissDisabled(hasChanges)
     }
 
     private func save() {
@@ -334,6 +354,7 @@ private struct DocumentEditSheet: View {
             )
             isSaving = false
             if success {
+                onSave?()
                 dismiss()
             }
         }

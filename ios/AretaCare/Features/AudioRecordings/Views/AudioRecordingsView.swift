@@ -10,6 +10,8 @@ struct AudioRecordingsView: View {
     @State private var showingDatePicker = false
     @State private var deleteHapticTrigger = 0
     @State private var searchText = ""
+    @State private var debouncedSearchText = ""
+    @State private var searchDebounceTask: Task<Void, Never>?
 
     private let currentUserId = AuthManager.shared.currentUser?.id ?? ""
 
@@ -18,8 +20,8 @@ struct AudioRecordingsView: View {
         if let category = selectedCategory {
             results = results.filter { $0.category == category.rawValue }
         }
-        if !searchText.isEmpty {
-            let lowered = searchText.lowercased()
+        if !debouncedSearchText.isEmpty {
+            let lowered = debouncedSearchText.lowercased()
             results = results.filter {
                 ($0.aiSummary?.lowercased().contains(lowered) ?? false) ||
                 $0.filename.lowercased().contains(lowered) ||
@@ -34,10 +36,10 @@ struct AudioRecordingsView: View {
             if viewModel.isLoading && viewModel.recordings.isEmpty {
                 SkeletonListView()
             } else if viewModel.recordings.isEmpty {
-                EmptyStateView(
+                ContentUnavailableView(
+                    "No Audio Recordings",
                     systemImage: "mic",
-                    title: "No Audio Recordings",
-                    subtitle: "Record voice memos about symptoms, appointments, or care notes."
+                    description: Text("Record voice memos about symptoms, appointments, or care notes.")
                 )
             } else {
                 recordingsList
@@ -92,6 +94,14 @@ struct AudioRecordingsView: View {
             }
         }
         .sensoryFeedback(.impact(flexibility: .rigid), trigger: deleteHapticTrigger)
+        .onChange(of: searchText) { _, newValue in
+            searchDebounceTask?.cancel()
+            searchDebounceTask = Task {
+                try? await Task.sleep(for: .milliseconds(200))
+                guard !Task.isCancelled else { return }
+                debouncedSearchText = newValue
+            }
+        }
         .task {
             await viewModel.fetchRecordings(sessionId: sessionId)
             await viewModel.fetchDates(sessionId: sessionId)
@@ -296,6 +306,8 @@ private struct AudioRecordingDetailView: View {
     @State private var editingSummary: String = ""
     @State private var isEditing = false
     @State private var isSaving = false
+    @State private var showSavedToast = false
+    @State private var saveHapticTrigger = 0
 
     var body: some View {
         ScrollView {
@@ -440,6 +452,9 @@ private struct AudioRecordingDetailView: View {
                 Button("Done") { dismiss() }
             }
         }
+        .sensoryFeedback(.success, trigger: saveHapticTrigger)
+        .toast("Saved", icon: "checkmark", isPresented: $showSavedToast)
+        .animation(.spring(duration: 0.3), value: showSavedToast)
         .confirmationDialog("Delete Recording", isPresented: $showingDeleteConfirm, titleVisibility: .visible) {
             Button("Delete", role: .destructive) {
                 Task {
@@ -466,6 +481,10 @@ private struct AudioRecordingDetailView: View {
             aiSummary: newSummary.isEmpty ? nil : newSummary
         )
         isEditing = false
+        saveHapticTrigger += 1
+        withAnimation(.spring(duration: 0.3)) {
+            showSavedToast = true
+        }
     }
 
     private func formatDuration(_ seconds: Double) -> String {

@@ -10,7 +10,7 @@ final class APIClient: Sendable {
 
     private init() {
         let config = URLSessionConfiguration.default
-        config.timeoutIntervalForRequest = 30
+        config.timeoutIntervalForRequest = 120
         config.timeoutIntervalForResource = 600
         let pinningDelegate = CertificatePinningDelegate()
         self.session = URLSession(configuration: config, delegate: pinningDelegate, delegateQueue: nil)
@@ -319,6 +319,12 @@ final class APIClient: Sendable {
         if let http = response as? HTTPURLResponse {
             let size = data.count
             print("[API] \(http.statusCode) (\(size) bytes)")
+            if !(200...299).contains(http.statusCode) {
+                print("[API] URL: \(http.url?.absoluteString ?? "?")")
+                if let body = String(data: data, encoding: .utf8) {
+                    print("[API] Body: \(body)")
+                }
+            }
         }
         #endif
     }

@@ -7,6 +7,8 @@ final class NowPlayingManager {
     var onPlay: (() -> Void)?
     var onPause: (() -> Void)?
     var onTogglePlayPause: (() -> Void)?
+    var onSkipForward: (() -> Void)?
+    var onSkipBackward: (() -> Void)?
 
     private var commandsRegistered = false
 
@@ -35,6 +37,20 @@ final class NowPlayingManager {
             Task { @MainActor in self?.onTogglePlayPause?() }
             return .success
         }
+
+        commandCenter.skipForwardCommand.isEnabled = true
+        commandCenter.skipForwardCommand.preferredIntervals = [15]
+        commandCenter.skipForwardCommand.addTarget { [weak self] _ in
+            Task { @MainActor in self?.onSkipForward?() }
+            return .success
+        }
+
+        commandCenter.skipBackwardCommand.isEnabled = true
+        commandCenter.skipBackwardCommand.preferredIntervals = [15]
+        commandCenter.skipBackwardCommand.addTarget { [weak self] _ in
+            Task { @MainActor in self?.onSkipBackward?() }
+            return .success
+        }
     }
 
     func updateNowPlayingInfo(
@@ -42,14 +58,15 @@ final class NowPlayingManager {
         artist: String = "AretaCare",
         duration: TimeInterval,
         currentTime: TimeInterval,
-        isPlaying: Bool
+        isPlaying: Bool,
+        rate: Float = 1.0
     ) {
         var info = [String: Any]()
         info[MPMediaItemPropertyTitle] = title
         info[MPMediaItemPropertyArtist] = artist
         info[MPMediaItemPropertyPlaybackDuration] = duration
         info[MPNowPlayingInfoPropertyElapsedPlaybackTime] = currentTime
-        info[MPNowPlayingInfoPropertyPlaybackRate] = isPlaying ? 1.0 : 0.0
+        info[MPNowPlayingInfoPropertyPlaybackRate] = isPlaying ? rate : 0.0
         MPNowPlayingInfoCenter.default().nowPlayingInfo = info
     }
 
@@ -58,6 +75,8 @@ final class NowPlayingManager {
         onPlay = nil
         onPause = nil
         onTogglePlayPause = nil
+        onSkipForward = nil
+        onSkipBackward = nil
     }
 
     func unregisterRemoteCommands() {
@@ -65,6 +84,8 @@ final class NowPlayingManager {
         commandCenter.playCommand.removeTarget(nil)
         commandCenter.pauseCommand.removeTarget(nil)
         commandCenter.togglePlayPauseCommand.removeTarget(nil)
+        commandCenter.skipForwardCommand.removeTarget(nil)
+        commandCenter.skipBackwardCommand.removeTarget(nil)
         commandsRegistered = false
     }
 }

@@ -26,7 +26,30 @@ final class CollaborationViewModel {
         }
     }
 
-    // MARK: - Share Session
+    // MARK: - Check User & Share
+
+    func checkUser(sessionId: String, email: String) async -> UserExistsResponse? {
+        isLoading = true
+        errorMessage = nil
+        successMessage = nil
+        defer { isLoading = false }
+
+        do {
+            let request = UserCheckRequest(email: email)
+            let response: UserExistsResponse = try await APIClient.shared.post(
+                APIEndpoints.Sessions.checkUser(sessionId),
+                body: request
+            )
+            if let message = response.message, message.contains("cannot add yourself") {
+                errorMessage = message
+                return nil
+            }
+            return response
+        } catch {
+            errorMessage = error.localizedDescription
+            return nil
+        }
+    }
 
     func shareSession(sessionId: String, email: String) async {
         isLoading = true
@@ -59,12 +82,33 @@ final class CollaborationViewModel {
 
         do {
             let request = InvitationSendRequest(email: email, confirmSharingConsent: true)
-            let response: MessageResponseGeneric = try await APIClient.shared.post(
+            let response: PendingInvitationResponse = try await APIClient.shared.post(
                 APIEndpoints.Sessions.sendInvitation(sessionId),
                 body: request
             )
-            successMessage = response.message
-            await fetchPendingInvitations(sessionId: sessionId)
+            successMessage = "Invitation sent to \(response.email)."
+            pendingInvitations.append(response)
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    /// Resend an invitation — removes the old entry first to avoid duplicate IDs in the list.
+    func resendInvitation(sessionId: String, email: String) async {
+        isLoading = true
+        errorMessage = nil
+        successMessage = nil
+        defer { isLoading = false }
+
+        do {
+            let request = InvitationSendRequest(email: email, confirmSharingConsent: true)
+            let response: PendingInvitationResponse = try await APIClient.shared.post(
+                APIEndpoints.Sessions.sendInvitation(sessionId),
+                body: request
+            )
+            pendingInvitations.removeAll { $0.email == email }
+            pendingInvitations.append(response)
+            successMessage = "Invitation resent to \(response.email)."
         } catch {
             errorMessage = error.localizedDescription
         }

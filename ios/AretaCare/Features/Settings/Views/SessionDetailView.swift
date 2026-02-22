@@ -12,6 +12,7 @@ struct SessionDetailView: View {
     @State private var showColorPicker = false
     @State private var showCollaboration = false
     @State private var showDeleteConfirmation = false
+    @State private var saveHapticTrigger = 0
 
     private var session: SessionResponse? {
         viewModel.sessions.first { $0.id == sessionId }
@@ -63,10 +64,10 @@ struct SessionDetailView: View {
                 // Statistics
                 if let stats = viewModel.sessionStatistics[sessionId] {
                     Section("Statistics") {
-                        statisticRow(label: "Messages", count: stats.messageCount, icon: "bubble.left")
-                        statisticRow(label: "Journal Entries", count: stats.journalEntryCount, icon: "book")
-                        statisticRow(label: "Documents", count: stats.documentCount, icon: "doc")
-                        statisticRow(label: "Audio Recordings", count: stats.audioRecordingCount, icon: "mic")
+                        statisticRow(label: "Messages", count: stats.conversations, icon: "bubble.left")
+                        statisticRow(label: "Journal Entries", count: stats.journalEntries, icon: "book")
+                        statisticRow(label: "Documents", count: stats.documents, icon: "doc")
+                        statisticRow(label: "Audio Recordings", count: stats.audioRecordings, icon: "mic")
                     }
                 }
 
@@ -113,7 +114,10 @@ struct SessionDetailView: View {
             .alert("Rename Session", isPresented: $showRenameAlert) {
                 TextField("Session name", text: $renameText)
                 Button("Rename") {
-                    Task { await viewModel.renameSession(id: sessionId, name: renameText) }
+                    Task {
+                        await viewModel.renameSession(id: sessionId, name: renameText)
+                        saveHapticTrigger += 1
+                    }
                 }
                 Button("Cancel", role: .cancel) {}
             } message: {
@@ -137,7 +141,8 @@ struct SessionDetailView: View {
                         }
                 }
             }
-            .alert("Delete Session", isPresented: $showDeleteConfirmation) {
+            .sensoryFeedback(.success, trigger: saveHapticTrigger)
+            .confirmationDialog("Delete Session", isPresented: $showDeleteConfirmation, titleVisibility: .visible) {
                 Button("Delete", role: .destructive) {
                     Task {
                         await viewModel.deleteSession(id: sessionId)

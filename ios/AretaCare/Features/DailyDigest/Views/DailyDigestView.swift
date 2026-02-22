@@ -10,6 +10,7 @@ struct DailyDigestView: View {
     @State private var showingCalendar = false
     @State private var showingEditor = false
     @State private var editingContent = ""
+    @State private var originalEditingContent = ""
 
     // Alerts
     @State private var showDeleteConfirmation = false
@@ -18,6 +19,8 @@ struct DailyDigestView: View {
     // Haptics
     @State private var copyHapticTrigger = 0
     @State private var deleteHapticTrigger = 0
+    @State private var saveHapticTrigger = 0
+    @State private var showSavedToast = false
 
     var body: some View {
         ScrollView {
@@ -83,7 +86,7 @@ struct DailyDigestView: View {
         .sheet(isPresented: $showingEditor) {
             digestEditor
         }
-        .alert("Delete Digest", isPresented: $showDeleteConfirmation) {
+        .confirmationDialog("Delete Digest", isPresented: $showDeleteConfirmation, titleVisibility: .visible) {
             Button("Delete", role: .destructive) {
                 guard let digest = selectedDigest else { return }
                 deleteHapticTrigger += 1
@@ -93,7 +96,7 @@ struct DailyDigestView: View {
         } message: {
             Text("Are you sure you want to delete this digest? This cannot be undone.")
         }
-        .alert("Regenerate Digest", isPresented: $showRegenerateConfirmation) {
+        .confirmationDialog("Regenerate Digest", isPresented: $showRegenerateConfirmation, titleVisibility: .visible) {
             Button("Regenerate", role: .destructive) {
                 guard let digest = selectedDigest else { return }
                 Task { await regenerateDigest(replacing: digest) }
@@ -103,7 +106,10 @@ struct DailyDigestView: View {
             Text("This will delete the current digest and generate a new one. Any edits will be lost.")
         }
         .sensoryFeedback(.success, trigger: copyHapticTrigger)
+        .sensoryFeedback(.success, trigger: saveHapticTrigger)
         .sensoryFeedback(.impact(flexibility: .rigid), trigger: deleteHapticTrigger)
+        .toast("Saved", icon: "checkmark", isPresented: $showSavedToast)
+        .animation(.spring(duration: 0.3), value: showSavedToast)
         .overlay(alignment: .top) {
             if let error = viewModel.errorMessage {
                 ErrorBannerView(message: error) {
@@ -310,6 +316,7 @@ struct DailyDigestView: View {
 
                     Button {
                         editingContent = digest.displayContent
+                        originalEditingContent = digest.displayContent
                         showingEditor = true
                     } label: {
                         Label("Edit", systemImage: "pencil")
@@ -460,11 +467,16 @@ struct DailyDigestView: View {
                                     }
                                 }
                                 showingEditor = false
+                                saveHapticTrigger += 1
+                                withAnimation(.spring(duration: 0.3)) {
+                                    showSavedToast = true
+                                }
                             }
                         }
                         .disabled(editingContent.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                     }
                 }
+                .interactiveDismissDisabled(editingContent != originalEditingContent)
         }
     }
 

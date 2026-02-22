@@ -12,6 +12,9 @@ struct AudioPlayerView: View {
     @State private var duration: Double = 0
     @State private var isLoading = true
     @State private var timeObserver: Any?
+    @State private var playbackRate: Float = 1.0
+
+    private static let playbackRates: [Float] = [1.0, 1.25, 1.5, 2.0]
 
     var body: some View {
         VStack(spacing: 12) {
@@ -19,38 +22,80 @@ struct AudioPlayerView: View {
                 ProgressView()
                     .frame(height: 44)
             } else {
-                HStack(spacing: 16) {
-                    // Play/Pause
-                    Button {
-                        togglePlayback()
-                    } label: {
-                        Image(systemName: isPlaying ? "pause.circle.fill" : "play.circle.fill")
-                            .font(.system(size: 40))
-                            .foregroundStyle(Color.accentColor)
+                VStack(spacing: 8) {
+                    // Progress slider
+                    Slider(value: $progress, in: 0...max(duration, 1)) { editing in
+                        if !editing {
+                            seek(to: progress)
+                        }
                     }
-                    .accessibilityLabel(isPlaying ? "Pause" : "Play")
+                    .accessibilityLabel("Playback position")
 
-                    VStack(spacing: 4) {
-                        // Progress slider
-                        Slider(value: $progress, in: 0...max(duration, 1)) { editing in
-                            if !editing {
-                                seek(to: progress)
-                            }
-                        }
-                        .accessibilityLabel("Playback position")
+                    // Time labels
+                    HStack {
+                        Text(formatTime(progress))
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                            .accessibilityHidden(true)
+                        Spacer()
+                        Text("-\(formatTime(max(duration - progress, 0)))")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                            .accessibilityHidden(true)
+                    }
 
-                        // Time labels
-                        HStack {
-                            Text(formatTime(progress))
-                                .font(.caption2)
-                                .foregroundStyle(.secondary)
-                                .accessibilityHidden(true)
-                            Spacer()
-                            Text(formatTime(duration))
-                                .font(.caption2)
-                                .foregroundStyle(.secondary)
-                                .accessibilityHidden(true)
+                    // Playback controls
+                    HStack(spacing: 24) {
+                        // Skip backward 15s
+                        Button {
+                            skip(by: -15)
+                        } label: {
+                            Image(systemName: "gobackward.15")
+                                .font(.title2)
+                                .foregroundStyle(.primary)
                         }
+                        .accessibilityLabel("Skip back 15 seconds")
+                        .disabled(progress <= 0)
+
+                        // Play/Pause
+                        Button {
+                            togglePlayback()
+                        } label: {
+                            Image(systemName: isPlaying ? "pause.circle.fill" : "play.circle.fill")
+                                .contentTransition(.symbolEffect(.replace))
+                                .font(.system(size: 44))
+                                .foregroundStyle(Color.accentColor)
+                        }
+                        .accessibilityLabel(isPlaying ? "Pause" : "Play")
+
+                        // Skip forward 15s
+                        Button {
+                            skip(by: 15)
+                        } label: {
+                            Image(systemName: "goforward.15")
+                                .font(.title2)
+                                .foregroundStyle(.primary)
+                        }
+                        .accessibilityLabel("Skip forward 15 seconds")
+                        .disabled(progress >= duration)
+                    }
+
+                    // Playback speed
+                    HStack {
+                        Spacer()
+                        Button {
+                            cyclePlaybackRate()
+                        } label: {
+                            Text(playbackRate == 1.0 ? "1x" : String(format: "%.2gx", playbackRate))
+                                .font(.caption.weight(.semibold))
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 4)
+                                .background(Color(.systemGray5))
+                                .clipShape(Capsule())
+                        }
+                        .accessibilityLabel("Playback speed \(String(format: "%.2g", playbackRate))x")
+                        .accessibilityHint("Double tap to change speed")
+                        Spacer()
                     }
                 }
             }
@@ -86,12 +131,14 @@ struct AudioPlayerView: View {
                 self.progress = currentTime
                 if self.isPlaying {
                     let dur = self.duration
+                    let rate = self.playbackRate
                     MainActor.assumeIsolated {
                         NowPlayingManager.shared.updateNowPlayingInfo(
                             title: "Audio Recording",
                             duration: dur,
                             currentTime: currentTime,
-                            isPlaying: true
+                            isPlaying: true,
+                            rate: rate
                         )
                     }
                 }
@@ -136,13 +183,14 @@ struct AudioPlayerView: View {
         } else {
             try? AudioSessionManager.shared.activateForPlayback()
             setupNowPlaying()
-            player.play()
+            player.rate = playbackRate
             isPlaying = true
             NowPlayingManager.shared.updateNowPlayingInfo(
                 title: "Audio Recording",
                 duration: duration,
                 currentTime: progress,
-                isPlaying: true
+                isPlaying: true,
+                rate: playbackRate
             )
         }
     }
@@ -158,6 +206,12 @@ struct AudioPlayerView: View {
         NowPlayingManager.shared.onTogglePlayPause = { [self] in
             togglePlayback()
         }
+        NowPlayingManager.shared.onSkipForward = { [self] in
+            skip(by: 15)
+        }
+        NowPlayingManager.shared.onSkipBackward = { [self] in
+            skip(by: -15)
+        }
 
         AudioSessionManager.shared.onInterruptionBegan = { [self] in
             if isPlaying {
@@ -170,6 +224,25 @@ struct AudioPlayerView: View {
                 player?.play()
                 isPlaying = true
             }
+        }
+    }
+
+    private func skip(by seconds: Double) {
+        let newTime = min(max(progress + seconds, 0), duration)
+        seek(to: newTime)
+        progress = newTime
+    }
+
+    private func cyclePlaybackRate() {
+        guard let currentIndex = Self.playbackRates.firstIndex(of: playbackRate) else {
+            playbackRate = 1.0
+            player?.rate = isPlaying ? 1.0 : 0
+            return
+        }
+        let nextIndex = (currentIndex + 1) % Self.playbackRates.count
+        playbackRate = Self.playbackRates[nextIndex]
+        if isPlaying {
+            player?.rate = playbackRate
         }
     }
 

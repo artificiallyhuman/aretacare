@@ -38,7 +38,7 @@ struct SettingsView: View {
         .sheet(isPresented: $showChangePassword) {
             ChangePasswordView(viewModel: viewModel)
         }
-        .alert("Log Out Everywhere", isPresented: $showLogoutEverywhereConfirmation) {
+        .confirmationDialog("Log Out Everywhere", isPresented: $showLogoutEverywhereConfirmation, titleVisibility: .visible) {
             Button("Log Out All Devices", role: .destructive) {
                 Task { await viewModel.logoutEverywhere() }
             }
@@ -218,10 +218,10 @@ struct SettingsView: View {
 
                     if let stats = viewModel.sessionStatistics[session.id] {
                         HStack(spacing: 8) {
-                            statisticLabel(count: stats.messageCount, icon: "bubble.left")
-                            statisticLabel(count: stats.journalEntryCount, icon: "book")
-                            statisticLabel(count: stats.documentCount, icon: "doc")
-                            statisticLabel(count: stats.audioRecordingCount, icon: "mic")
+                            statisticLabel(count: stats.conversations, icon: "bubble.left")
+                            statisticLabel(count: stats.journalEntries, icon: "book")
+                            statisticLabel(count: stats.documents, icon: "doc")
+                            statisticLabel(count: stats.audioRecordings, icon: "mic")
                         }
                         .font(.caption2)
                         .foregroundStyle(.tertiary)

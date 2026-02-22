@@ -12,8 +12,14 @@ struct JournalEntryEditorView: View {
     @State private var entryType: EntryType = .other
     @State private var entryDate: Date = Date()
     @State private var isSaving = false
+    @State private var initialTitle = ""
+    @State private var initialContent = ""
 
     private var isEditing: Bool { existingEntry != nil }
+
+    private var hasChanges: Bool {
+        title != initialTitle || content != initialContent
+    }
 
     private var isValid: Bool {
         !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
@@ -89,7 +95,10 @@ struct JournalEntryEditorView: View {
                         entryDate = date
                     }
                 }
+                initialTitle = title
+                initialContent = content
             }
+            .interactiveDismissDisabled(hasChanges)
         }
     }
 

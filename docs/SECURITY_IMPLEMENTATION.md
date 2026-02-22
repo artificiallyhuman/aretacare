@@ -297,6 +297,7 @@ base-uri 'self'
 **Network Security:**
 - **SSL certificate pinning**: `CertificatePinningDelegate` validates SHA-256 public key hashes against the server certificate chain on every request; localhost/127.0.0.1 bypassed in DEBUG only
 - **Placeholder hash detection**: Release builds trigger `assertionFailure` if pinned hashes still contain placeholder values, preventing broken production builds
+- **Request timeouts**: 120s request timeout (matches web frontend), 600s for multipart uploads
 - **API base URL enforcement**: Release builds crash (`fatalError`) if `API_BASE_URL` is not configured; DEBUG falls back to localhost
 - **ATS**: `NSAppTransportSecurity` restricts to HTTPS in production; local networking allowed for development only
 - **Authenticated file downloads**: `APIClient.downloadData()` fetches raw data with JWT auth + token refresh for endpoints like profile PDF export, preventing unauthenticated access via Safari

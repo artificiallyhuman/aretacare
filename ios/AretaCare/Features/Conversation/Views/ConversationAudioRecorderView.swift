@@ -6,6 +6,7 @@ struct ConversationAudioRecorderView: View {
     var onStop: (Data) -> Void
 
     @State private var sendTrigger = 0
+    @State private var showingCancelConfirmation = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -14,8 +15,12 @@ struct ConversationAudioRecorderView: View {
             HStack(spacing: 16) {
                 // Cancel button
                 Button {
-                    recorder.stop()
-                    onCancel()
+                    if recorder.isRecording || recorder.isPaused || recorder.elapsedTime > 0 {
+                        showingCancelConfirmation = true
+                    } else {
+                        recorder.stop()
+                        onCancel()
+                    }
                 } label: {
                     Image(systemName: "xmark.circle.fill")
                         .font(.title2)
@@ -55,6 +60,7 @@ struct ConversationAudioRecorderView: View {
                         }
                     } label: {
                         Image(systemName: recorder.isPaused ? "play.circle.fill" : "pause.circle.fill")
+                            .contentTransition(.symbolEffect(.replace))
                             .font(.title2)
                             .foregroundStyle(Color.accentColor)
                     }
@@ -68,6 +74,7 @@ struct ConversationAudioRecorderView: View {
                     Image(systemName: "arrow.up.circle.fill")
                         .font(.title)
                         .foregroundStyle(Color.accentColor)
+                        .symbolEffect(.bounce, value: sendTrigger)
                 }
                 .accessibilityLabel("Stop recording and send")
                 .sensoryFeedback(.success, trigger: sendTrigger)
@@ -75,6 +82,15 @@ struct ConversationAudioRecorderView: View {
             .padding(.horizontal, 12)
             .padding(.vertical, 10)
             .background(Color(.systemBackground))
+            .confirmationDialog("Discard Recording?", isPresented: $showingCancelConfirmation, titleVisibility: .visible) {
+                Button("Discard", role: .destructive) {
+                    recorder.stop()
+                    onCancel()
+                }
+                Button("Keep Recording", role: .cancel) {}
+            } message: {
+                Text("Your recording will be lost if you cancel now.")
+            }
         }
     }
 

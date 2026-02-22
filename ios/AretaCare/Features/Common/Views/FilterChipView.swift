@@ -22,6 +22,7 @@ struct FilterChipView: View {
             .background(isSelected ? selectedColor : Color(.systemGray5))
             .foregroundStyle(isSelected ? .white : .primary)
             .clipShape(Capsule())
+            .animation(.snappy(duration: 0.2), value: isSelected)
         }
         .accessibilityLabel("\(title) filter")
         .accessibilityAddTraits(isSelected ? .isSelected : [])

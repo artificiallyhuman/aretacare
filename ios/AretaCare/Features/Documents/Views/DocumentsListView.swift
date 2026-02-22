@@ -14,6 +14,8 @@ struct DocumentsListView: View {
     @State private var pendingUpload: PendingUpload?
     @State private var selectedPhotoItems: [PhotosPickerItem] = []
     @State private var searchText = ""
+    @State private var debouncedSearchText = ""
+    @State private var searchDebounceTask: Task<Void, Never>?
     @State private var showingDatePicker = false
     @State private var uploadHapticTrigger = 0
     @State private var deleteHapticTrigger = 0
@@ -24,8 +26,8 @@ struct DocumentsListView: View {
     private let currentUserId = AuthManager.shared.currentUser?.id ?? ""
 
     private var filteredDocuments: [DocumentResponse] {
-        guard !searchText.isEmpty else { return viewModel.documents }
-        let lowered = searchText.lowercased()
+        guard !debouncedSearchText.isEmpty else { return viewModel.documents }
+        let lowered = debouncedSearchText.lowercased()
         return viewModel.documents.filter {
             $0.filename.lowercased().contains(lowered) ||
             ($0.aiDescription?.lowercased().contains(lowered) ?? false)
@@ -33,14 +35,37 @@ struct DocumentsListView: View {
     }
 
     var body: some View {
+        mainContent
+            .onChange(of: selectedPhotoItems) { _, items in
+                handlePhotoSelection(items)
+            }
+            .onChange(of: viewModel.selectedCategory) { _, _ in
+                Task { await viewModel.fetchDocuments(sessionId: sessionId, category: viewModel.selectedCategory, date: viewModel.selectedDateString) }
+            }
+            .onChange(of: searchText) { _, newValue in
+                debounceSearch(newValue)
+            }
+            .task {
+                await viewModel.fetchDocuments(sessionId: sessionId)
+                await viewModel.fetchDates(sessionId: sessionId)
+            }
+            .sensoryFeedback(.success, trigger: uploadHapticTrigger)
+            .sensoryFeedback(.impact(flexibility: .rigid), trigger: deleteHapticTrigger)
+            .refreshable {
+                await viewModel.fetchDocuments(sessionId: sessionId, category: viewModel.selectedCategory, date: viewModel.selectedDateString)
+                await viewModel.fetchDates(sessionId: sessionId)
+            }
+    }
+
+    private var mainContent: some View {
         Group {
             if viewModel.isLoading && viewModel.documents.isEmpty {
                 SkeletonListView()
             } else if viewModel.documents.isEmpty && viewModel.selectedCategory == nil {
-                EmptyStateView(
+                ContentUnavailableView(
+                    "No Documents Uploaded Yet",
                     systemImage: "doc.text",
-                    title: "No Documents Uploaded Yet",
-                    subtitle: "Tap the + button to upload medical documents, lab results, and more."
+                    description: Text("Tap the + button to upload medical documents, lab results, and more.")
                 )
             } else {
                 documentList
@@ -102,6 +127,11 @@ struct DocumentsListView: View {
                 onDismiss: { showingDatePicker = false }
             )
         }
+        .sheet(isPresented: $showingDocumentShareSheet) {
+            if let url = shareDocumentUrl {
+                ShareSheet(activityItems: [url])
+            }
+        }
         .overlay {
             if viewModel.isUploading {
                 UploadingOverlay()
@@ -111,27 +141,6 @@ struct DocumentsListView: View {
             Button("OK", role: .cancel) {}
         } message: {
             Text("File too large. Maximum file size is 30 MB.")
-        }
-        .onChange(of: selectedPhotoItems) { _, items in
-            handlePhotoSelection(items)
-        }
-        .onChange(of: viewModel.selectedCategory) { _, _ in
-            Task { await viewModel.fetchDocuments(sessionId: sessionId, category: viewModel.selectedCategory, date: viewModel.selectedDateString) }
-        }
-        .task {
-            await viewModel.fetchDocuments(sessionId: sessionId)
-            await viewModel.fetchDates(sessionId: sessionId)
-        }
-        .sensoryFeedback(.success, trigger: uploadHapticTrigger)
-        .sensoryFeedback(.impact(flexibility: .rigid), trigger: deleteHapticTrigger)
-        .sheet(isPresented: $showingDocumentShareSheet) {
-            if let url = shareDocumentUrl {
-                ShareSheet(activityItems: [url])
-            }
-        }
-        .refreshable {
-            await viewModel.fetchDocuments(sessionId: sessionId, category: viewModel.selectedCategory, date: viewModel.selectedDateString)
-            await viewModel.fetchDates(sessionId: sessionId)
         }
     }
 
@@ -272,6 +281,15 @@ struct DocumentsListView: View {
 
         case .failure:
             break
+        }
+    }
+
+    private func debounceSearch(_ text: String) {
+        searchDebounceTask?.cancel()
+        searchDebounceTask = Task {
+            try? await Task.sleep(for: .milliseconds(200))
+            guard !Task.isCancelled else { return }
+            debouncedSearchText = text
         }
     }
 

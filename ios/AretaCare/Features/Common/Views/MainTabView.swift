@@ -72,7 +72,7 @@ struct MainTabView: View {
                         .accessibilityLabel("No internet connection")
                     }
                 }
-                .animation(.easeInOut(duration: 0.3), value: networkMonitor.isConnected)
+                .animation(.spring(duration: 0.35), value: networkMonitor.isConnected)
                 .collaborationAwareness(session: sessionVM.currentSession)
             }
         }

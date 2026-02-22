@@ -9,6 +9,8 @@ struct JournalView: View {
     @State private var entryToDelete: JournalEntryResponse?
     @State private var showDeleteConfirmation = false
     @State private var searchText = ""
+    @State private var debouncedSearchText = ""
+    @State private var searchDebounceTask: Task<Void, Never>?
     @State private var deleteHapticTrigger = 0
 
     var body: some View {
@@ -17,10 +19,10 @@ struct JournalView: View {
                 if viewModel.isLoading && viewModel.entriesByDate.isEmpty {
                     SkeletonListView()
                 } else if viewModel.entriesByDate.isEmpty {
-                    EmptyStateView(
+                    ContentUnavailableView(
+                        "No Journal Entries Yet",
                         systemImage: "book",
-                        title: "No Journal Entries Yet",
-                        subtitle: "Start a conversation to generate entries, or tap + to create one manually."
+                        description: Text("Start a conversation to generate entries, or tap + to create one manually.")
                     )
                 } else {
                     journalList
@@ -55,6 +57,14 @@ struct JournalView: View {
                 }
             }
         }
+        .onChange(of: searchText) { _, newValue in
+            searchDebounceTask?.cancel()
+            searchDebounceTask = Task {
+                try? await Task.sleep(for: .milliseconds(200))
+                guard !Task.isCancelled else { return }
+                debouncedSearchText = newValue
+            }
+        }
         .task {
             await viewModel.fetchEntries(sessionId: sessionId)
             await viewModel.fetchDates(sessionId: sessionId)
@@ -80,7 +90,7 @@ struct JournalView: View {
             JournalEntryEditorView(sessionId: sessionId, viewModel: viewModel)
         }
         .sensoryFeedback(.impact(flexibility: .rigid), trigger: deleteHapticTrigger)
-        .alert("Delete Entry", isPresented: $showDeleteConfirmation) {
+        .confirmationDialog("Delete Entry", isPresented: $showDeleteConfirmation, titleVisibility: .visible) {
             Button("Delete", role: .destructive) {
                 if let entry = entryToDelete {
                     deleteHapticTrigger += 1
@@ -107,8 +117,8 @@ struct JournalView: View {
 
     private var searchFilteredGroups: [(date: String, entries: [JournalEntryResponse])] {
         let filtered = viewModel.filteredEntriesByDate
-        guard !searchText.isEmpty else { return filtered }
-        let lowered = searchText.lowercased()
+        guard !debouncedSearchText.isEmpty else { return filtered }
+        let lowered = debouncedSearchText.lowercased()
         return filtered.compactMap { group in
             let matches = group.entries.filter {
                 $0.title.lowercased().contains(lowered) ||
@@ -166,6 +176,18 @@ struct JournalView: View {
                     }
 
                 let displayGroups = searchFilteredGroups
+
+                if displayGroups.isEmpty && !debouncedSearchText.isEmpty {
+                    ContentUnavailableView.search(text: debouncedSearchText)
+                        .listRowSeparator(.hidden)
+                } else if displayGroups.isEmpty && !viewModel.selectedEntryTypes.isEmpty {
+                    ContentUnavailableView(
+                        "No Entries in This Category",
+                        systemImage: "line.3.horizontal.decrease.circle",
+                        description: Text("Try selecting a different category or clear the filter.")
+                    )
+                    .listRowSeparator(.hidden)
+                }
 
                 ForEach(displayGroups, id: \.date) { group in
                     Section {

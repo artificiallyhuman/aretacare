@@ -18,13 +18,16 @@ struct MessageInputView: View {
     let hasMessages: Bool
     let pendingAttachment: PendingAttachment?
     var onSend: () -> Void
-    var onAttach: () -> Void
+    var onTakePhoto: () -> Void
+    var onChoosePhoto: () -> Void
+    var onChooseFile: () -> Void
     var onMicrophone: () -> Void
     var onRemoveAttachment: () -> Void
 
     @FocusState private var isFocused: Bool
     @State private var sendTrigger = 0
     @State private var currentPromptIndex = 0
+    @State private var showingAttachOptions = false
 
     private let placeholderPrompts = [
         "My mom's been in the hospital for a week\u{2026}",
@@ -54,7 +57,7 @@ struct MessageInputView: View {
             HStack(alignment: .center, spacing: 10) {
                 // Attach button
                 Button {
-                    onAttach()
+                    showingAttachOptions = true
                 } label: {
                     Image(systemName: "paperclip")
                         .font(.title3)
@@ -62,6 +65,12 @@ struct MessageInputView: View {
                 }
                 .accessibilityLabel("Attach file")
                 .disabled(isSending || isUploading)
+                .confirmationDialog("Add Attachment", isPresented: $showingAttachOptions, titleVisibility: .visible) {
+                    Button("Take Photo") { onTakePhoto() }
+                    Button("Choose Photo") { onChoosePhoto() }
+                    Button("Choose File") { onChooseFile() }
+                    Button("Cancel", role: .cancel) {}
+                }
 
                 // Text field
                 TextField(hasMessages ? "Type your message..." : placeholderPrompts[currentPromptIndex], text: $text, axis: .vertical)
@@ -96,6 +105,7 @@ struct MessageInputView: View {
                         Image(systemName: "arrow.up.circle.fill")
                             .font(.title2)
                             .foregroundStyle(canSend ? Color.accentColor : Color.secondary)
+                            .symbolEffect(.bounce, value: sendTrigger)
                     }
                     .accessibilityLabel("Send message")
                     .disabled(!canSend)
@@ -108,7 +118,7 @@ struct MessageInputView: View {
         }
         .onReceive(Timer.publish(every: 4, on: .main, in: .common).autoconnect()) { _ in
             if !hasMessages && text.isEmpty {
-                withAnimation(.easeInOut(duration: 0.3)) {
+                withAnimation(.spring(duration: 0.3)) {
                     currentPromptIndex = (currentPromptIndex + 1) % placeholderPrompts.count
                 }
             }
@@ -174,7 +184,9 @@ struct MessageInputView: View {
         hasMessages: false,
         pendingAttachment: nil,
         onSend: {},
-        onAttach: {},
+        onTakePhoto: {},
+        onChoosePhoto: {},
+        onChooseFile: {},
         onMicrophone: {},
         onRemoveAttachment: {}
     )

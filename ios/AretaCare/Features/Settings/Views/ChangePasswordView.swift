@@ -19,6 +19,10 @@ struct ChangePasswordView: View {
         newPassword.count >= 8
     }
 
+    private var passwordStrength: PasswordStrength {
+        PasswordStrength.evaluate(newPassword)
+    }
+
     private var isValid: Bool {
         !currentPassword.isEmpty && passwordLongEnough && passwordsMatch
     }
@@ -37,7 +41,7 @@ struct ChangePasswordView: View {
                     SecureField("Confirm New Password", text: $confirmPassword)
                         .textContentType(.newPassword)
                 } footer: {
-                    VStack(alignment: .leading, spacing: 4) {
+                    VStack(alignment: .leading, spacing: 6) {
                         validationRow(
                             label: "At least 8 characters",
                             isValid: newPassword.isEmpty || passwordLongEnough
@@ -46,6 +50,21 @@ struct ChangePasswordView: View {
                             label: "Passwords match",
                             isValid: confirmPassword.isEmpty || passwordsMatch
                         )
+
+                        if !newPassword.isEmpty {
+                            HStack(spacing: 4) {
+                                ForEach(0..<3, id: \.self) { index in
+                                    RoundedRectangle(cornerRadius: 2)
+                                        .fill(index < passwordStrength.bars ? passwordStrength.color : Color(.systemGray4))
+                                        .frame(height: 4)
+                                }
+                            }
+                            .padding(.top, 4)
+
+                            Text("Strength: \(passwordStrength.label)")
+                                .font(.caption2)
+                                .foregroundStyle(passwordStrength.color)
+                        }
                     }
                 }
 
@@ -101,6 +120,50 @@ struct ChangePasswordView: View {
             localError = viewModel.errorMessage
             viewModel.dismissError()
         }
+    }
+}
+
+// MARK: - Password Strength
+
+private enum PasswordStrength {
+    case weak, fair, strong
+
+    var label: String {
+        switch self {
+        case .weak: "Weak"
+        case .fair: "Fair"
+        case .strong: "Strong"
+        }
+    }
+
+    var bars: Int {
+        switch self {
+        case .weak: 1
+        case .fair: 2
+        case .strong: 3
+        }
+    }
+
+    var color: Color {
+        switch self {
+        case .weak: .red
+        case .fair: .orange
+        case .strong: .green
+        }
+    }
+
+    static func evaluate(_ password: String) -> PasswordStrength {
+        var score = 0
+        if password.count >= 8 { score += 1 }
+        if password.count >= 12 { score += 1 }
+        if password.range(of: "[A-Z]", options: .regularExpression) != nil { score += 1 }
+        if password.range(of: "[a-z]", options: .regularExpression) != nil { score += 1 }
+        if password.range(of: "[0-9]", options: .regularExpression) != nil { score += 1 }
+        if password.range(of: "[^A-Za-z0-9]", options: .regularExpression) != nil { score += 1 }
+
+        if score <= 2 { return .weak }
+        if score <= 4 { return .fair }
+        return .strong
     }
 }
 

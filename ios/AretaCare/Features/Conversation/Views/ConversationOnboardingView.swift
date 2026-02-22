@@ -53,7 +53,7 @@ struct ConversationOnboardingView: View {
                     // Good to Know
                     VStack(spacing: 0) {
                         Button {
-                            withAnimation(.easeInOut(duration: 0.25)) {
+                            withAnimation(.spring(duration: 0.3)) {
                                 showGoodToKnow.toggle()
                             }
                         } label: {

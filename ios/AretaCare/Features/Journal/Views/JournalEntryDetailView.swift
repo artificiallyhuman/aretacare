@@ -114,7 +114,7 @@ struct JournalEntryDetailView: View {
                 existingEntry: entry
             )
         }
-        .alert("Delete Entry", isPresented: $showDeleteConfirmation) {
+        .confirmationDialog("Delete Entry", isPresented: $showDeleteConfirmation, titleVisibility: .visible) {
             Button("Delete", role: .destructive) {
                 Task {
                     await viewModel.deleteEntry(sessionId: sessionId, entryId: entry.id)

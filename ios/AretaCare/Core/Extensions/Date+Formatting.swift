@@ -52,6 +52,17 @@ extension Date {
         Self.weekdayDateFormatter.string(from: self)
     }
 
+    /// Chat-style date label (e.g., "Today", "Yesterday", "Feb 18").
+    var chatDateLabel: String {
+        if isToday { return "Today" }
+        if isYesterday { return "Yesterday" }
+        let cal = Calendar.current
+        if cal.isDate(self, equalTo: Date(), toGranularity: .year) {
+            return Self.chatDateSameYearFormatter.string(from: self)
+        }
+        return shortDateString
+    }
+
     // MARK: - Helpers
 
     /// Whether this date is today.
@@ -108,6 +119,12 @@ extension Date {
     private static let weekdayDateFormatter: DateFormatter = {
         let f = DateFormatter()
         f.dateFormat = "EEEE, MMM d, yyyy"
+        return f
+    }()
+
+    private static let chatDateSameYearFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "MMM d"
         return f
     }()
 
