@@ -10,172 +10,150 @@ struct LoginView: View {
     }
 
     var body: some View {
-        ScrollView {
-            VStack(spacing: 24) {
-                // Header
-                AuthHeaderView()
-                    .padding(.top, 40)
+        VStack(spacing: 0) {
+            Spacer(minLength: 0)
 
-                Text("A platform for patients and caregivers navigating the healthcare system.")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
+            // Medical disclaimer
+            MedicalDisclaimerBanner()
 
-                // Medical Disclaimer
-                MedicalDisclaimerBanner()
+            Spacer(minLength: 0)
 
-                // Error Banner
-                if viewModel.showError, let message = viewModel.errorMessage {
-                    ErrorBannerView(message: message)
-                }
+            // Header
+            AuthHeaderView(compact: true)
 
-                // Form
-                VStack(spacing: 16) {
-                    // Email Field
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text("Email address")
-                            .font(.subheadline.weight(.medium))
+            Text("A platform for patients and caregivers navigating the healthcare system.")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+                .padding(.top, 4)
 
-                        TextField("your@email.com", text: $viewModel.email)
-                            .textContentType(.emailAddress)
-                            .keyboardType(.emailAddress)
-                            .textInputAutocapitalization(.never)
-                            .autocorrectionDisabled()
-                            .focused($focusedField, equals: .email)
-                            .submitLabel(.next)
-                            .onSubmit { focusedField = .password }
-                            .tint(.primary)
-                            .padding()
-                            .background(Color(.secondarySystemBackground))
-                            .clipShape(RoundedRectangle(cornerRadius: 10))
-                    }
+            // Error Banner
+            if viewModel.showError, let message = viewModel.errorMessage {
+                ErrorBannerView(message: message)
+                    .padding(.top, 8)
+            }
 
-                    // Password Field
-                    VStack(alignment: .leading, spacing: 6) {
-                        HStack {
-                            Text("Password")
-                                .font(.subheadline.weight(.medium))
-                            Spacer()
-                            NavigationLink("Forgot Password?") {
-                                ForgotPasswordView()
-                            }
-                            .font(.subheadline)
-                        }
+            // Grouped fields card (iOS Settings style)
+            VStack(spacing: 0) {
+                TextField("Email address", text: $viewModel.email)
+                    .textContentType(.emailAddress)
+                    .keyboardType(.emailAddress)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+                    .focused($focusedField, equals: .email)
+                    .submitLabel(.next)
+                    .onSubmit { focusedField = .password }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 12)
 
-                        HStack {
-                            Group {
-                                if showPassword {
-                                    TextField("Enter your password", text: $viewModel.password)
-                                        .textContentType(.password)
-                                } else {
-                                    SecureField("Enter your password", text: $viewModel.password)
-                                        .textContentType(.password)
-                                }
-                            }
-                            .focused($focusedField, equals: .password)
-                            .submitLabel(.go)
-                            .onSubmit { attemptLogin() }
+                Divider()
+                    .padding(.leading, 16)
 
-                            Button { showPassword.toggle() } label: {
-                                Image(systemName: showPassword ? "eye.slash" : "eye")
-                                    .foregroundStyle(.secondary)
-                            }
-                        }
-                        .padding()
-                        .background(Color(.secondarySystemBackground))
-                        .clipShape(RoundedRectangle(cornerRadius: 10))
-                    }
-                }
-
-                // Login Button
-                Button(action: attemptLogin) {
-                    ZStack {
-                        Text("Log In")
-                            .opacity(viewModel.isLoading ? 0 : 1)
-                        ProgressView()
-                            .opacity(viewModel.isLoading ? 1 : 0)
-                    }
-                    .font(.headline)
-                    .foregroundStyle(.white)
-                    .frame(maxWidth: .infinity)
-                    .padding()
-                    .background(viewModel.canLogin ? Color.blue : Color.gray)
-                    .clipShape(RoundedRectangle(cornerRadius: 10))
-                }
-                .disabled(!viewModel.canLogin || viewModel.isLoading)
-
-                // Divider
                 HStack {
-                    Rectangle().fill(Color(.separator)).frame(height: 1)
-                    Text("New to AretaCare?")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .fixedSize()
-                    Rectangle().fill(Color(.separator)).frame(height: 1)
-                }
-
-                // Sign Up / Waitlist / Learn More
-                VStack(spacing: 10) {
-                    if viewModel.controlSignups {
-                        NavigationLink {
-                            WaitlistView()
-                        } label: {
-                            Text("Join the waitlist")
-                                .font(.subheadline.weight(.semibold))
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, 12)
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 10)
-                                        .strokeBorder(Color(.separator), lineWidth: 1)
-                                )
-                        }
-                    } else {
-                        NavigationLink {
-                            RegisterView()
-                        } label: {
-                            Text("Create a free account")
-                                .font(.subheadline.weight(.semibold))
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, 12)
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 10)
-                                        .strokeBorder(Color(.separator), lineWidth: 1)
-                                )
+                    Group {
+                        if showPassword {
+                            TextField("Password", text: $viewModel.password)
+                                .textContentType(.password)
+                        } else {
+                            SecureField("Password", text: $viewModel.password)
+                                .textContentType(.password)
                         }
                     }
+                    .focused($focusedField, equals: .password)
+                    .submitLabel(.go)
+                    .onSubmit { attemptLogin() }
 
-                    Link(destination: AppConstants.aboutURL) {
-                        Text("Learn more")
-                            .font(.subheadline.weight(.semibold))
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 12)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 10)
-                                    .strokeBorder(Color(.separator), lineWidth: 1)
-                            )
+                    Button { showPassword.toggle() } label: {
+                        Image(systemName: showPassword ? "eye.slash" : "eye")
+                            .foregroundStyle(.secondary)
                     }
                 }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 12)
+            }
+            .background(Color(.secondarySystemGroupedBackground))
+            .clipShape(RoundedRectangle(cornerRadius: 10))
+            .padding(.top, 16)
 
-                // Terms, Privacy & Contact
-                HStack(spacing: 4) {
-                    Link("Terms of Service", destination: AppConstants.termsURL)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    Text("\u{00B7}")
-                        .foregroundStyle(.secondary)
-                    Link("Privacy Policy", destination: AppConstants.privacyURL)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    Text("\u{00B7}")
-                        .foregroundStyle(.secondary)
-                    Link("Contact Us", destination: AppConstants.contactURL)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+            // Forgot Password
+            HStack {
+                Spacer()
+                NavigationLink("Forgot Password?") {
+                    ForgotPasswordView()
+                }
+                .font(.footnote)
+            }
+            .padding(.top, 6)
+
+            // Log In button (system style)
+            Button(action: attemptLogin) {
+                if viewModel.isLoading {
+                    ProgressView()
+                        .frame(maxWidth: .infinity)
+                } else {
+                    Text("Log In")
+                        .frame(maxWidth: .infinity)
                 }
             }
-            .padding(.horizontal, 24)
-            .padding(.bottom, 32)
+            .buttonStyle(.borderedProminent)
+            .controlSize(.large)
+            .disabled(!viewModel.canLogin || viewModel.isLoading)
+            .padding(.top, 14)
+
+            // New to AretaCare?
+            HStack {
+                Rectangle().fill(Color(.separator)).frame(height: 1)
+                Text("New to AretaCare?")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize()
+                Rectangle().fill(Color(.separator)).frame(height: 1)
+            }
+            .padding(.top, 16)
+
+            // Secondary button
+            if viewModel.controlSignups {
+                NavigationLink {
+                    WaitlistView()
+                } label: {
+                    Text("Join the waitlist")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.large)
+                .padding(.top, 10)
+            } else {
+                NavigationLink {
+                    RegisterView()
+                } label: {
+                    Text("Create a free account")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.large)
+                .padding(.top, 10)
+            }
+
+            Link("Learn more", destination: AppConstants.aboutURL)
+                .font(.body)
+                .padding(.top, 8)
+
+            Spacer(minLength: 0)
+
+            // Footer
+            HStack(spacing: 4) {
+                Link("Terms", destination: AppConstants.termsURL)
+                Text("\u{00B7}")
+                Link("Privacy", destination: AppConstants.privacyURL)
+                Text("\u{00B7}")
+                Link("Contact", destination: AppConstants.contactURL)
+            }
+            .font(.caption)
+            .foregroundStyle(.secondary)
+            .padding(.bottom, 8)
         }
+        .padding(.horizontal, 24)
+        .background(Color(.systemGroupedBackground))
         .task { await viewModel.checkSignupMode() }
         .navigationBarBackButtonHidden(true)
         .navigationDestination(item: $viewModel.mfaNavigationData) { data in

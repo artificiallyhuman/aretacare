@@ -72,10 +72,9 @@ struct ConversationOnboardingView: View {
 
                         if showGoodToKnow {
                             VStack(alignment: .leading, spacing: 10) {
-                                infoRow(icon: "person.2", text: "Share a session with others from Settings")
-                                infoRow(icon: "gearshape", text: "Tap a session in Settings to rename or delete it")
+                                infoRow(icon: "gearshape", text: "Rename, share, and delete sessions in Settings")
                                 infoRow(icon: "bolt", text: "AI generates your Daily Digest and Care Journal automatically")
-                                infoRow(icon: "folder", text: "View your files in Document Manager and Audio Recordings")
+                                infoRow(icon: "folder", text: "Find Document Manager and Audio Recordings in the Tools tab")
                             }
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .padding(.top, 10)
@@ -86,21 +85,14 @@ struct ConversationOnboardingView: View {
 
                     Divider()
 
-                    // Footer
-                    VStack(spacing: 6) {
-                        (Text("Type a message, ")
-                         + Text(Image(systemName: "paperclip"))
-                         + Text(" upload documents, or ")
-                         + Text(Image(systemName: "mic.fill"))
-                         + Text(" record audio"))
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                            .multilineTextAlignment(.center)
-
-                        Image(systemName: "arrow.down")
-                            .font(.caption)
-                            .foregroundStyle(Color.accentColor)
+                    // Input hints
+                    HStack(spacing: 20) {
+                        Label("Message", systemImage: "text.bubble")
+                        Label("Attach", systemImage: "paperclip")
+                        Label("Record", systemImage: "mic.fill")
                     }
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
                     .padding(.bottom, 4)
                 }
                 .padding(20)
