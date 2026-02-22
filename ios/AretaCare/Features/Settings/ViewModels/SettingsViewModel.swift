@@ -156,7 +156,10 @@ final class SettingsViewModel {
 
         do {
             try await APIClient.shared.delete(APIEndpoints.Sessions.delete(id))
-            sessions.removeAll { $0.id == id }
+            await MainActor.run {
+                sessions.removeAll { $0.id == id }
+                NotificationCenter.default.post(name: .sessionsDidChange, object: nil)
+            }
         } catch {
             errorMessage = error.localizedDescription
         }

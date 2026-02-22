@@ -137,7 +137,7 @@ struct SessionDetailView: View {
                         }
                 }
             }
-            .confirmationDialog("Delete Session", isPresented: $showDeleteConfirmation, titleVisibility: .visible) {
+            .alert("Delete Session", isPresented: $showDeleteConfirmation) {
                 Button("Delete", role: .destructive) {
                     Task {
                         await viewModel.deleteSession(id: sessionId)

@@ -83,14 +83,17 @@ struct AudioPlayerView: View {
         timeObserver = avPlayer.addPeriodicTimeObserver(forInterval: interval, queue: .main) { time in
             let currentTime = CMTimeGetSeconds(time)
             if !currentTime.isNaN {
-                progress = currentTime
-                if isPlaying {
-                    NowPlayingManager.shared.updateNowPlayingInfo(
-                        title: "Audio Recording",
-                        duration: duration,
-                        currentTime: currentTime,
-                        isPlaying: true
-                    )
+                self.progress = currentTime
+                if self.isPlaying {
+                    let dur = self.duration
+                    MainActor.assumeIsolated {
+                        NowPlayingManager.shared.updateNowPlayingInfo(
+                            title: "Audio Recording",
+                            duration: dur,
+                            currentTime: currentTime,
+                            isPlaying: true
+                        )
+                    }
                 }
             }
         }
@@ -101,15 +104,18 @@ struct AudioPlayerView: View {
             object: playerItem,
             queue: .main
         ) { _ in
-            isPlaying = false
-            progress = 0
+            self.isPlaying = false
+            self.progress = 0
             avPlayer.seek(to: .zero)
-            NowPlayingManager.shared.updateNowPlayingInfo(
-                title: "Audio Recording",
-                duration: duration,
-                currentTime: 0,
-                isPlaying: false
-            )
+            let dur = self.duration
+            MainActor.assumeIsolated {
+                NowPlayingManager.shared.updateNowPlayingInfo(
+                    title: "Audio Recording",
+                    duration: dur,
+                    currentTime: 0,
+                    isPlaying: false
+                )
+            }
         }
 
         isLoading = false

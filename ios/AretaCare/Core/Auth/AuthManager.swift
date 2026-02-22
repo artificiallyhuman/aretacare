@@ -276,4 +276,6 @@ struct RegistrationConsents {
 extension Notification.Name {
     /// Posted when the user logs out. Caches should observe this to clear sensitive data.
     static let userDidLogout = Notification.Name("userDidLogout")
+    /// Posted when sessions are created or deleted outside of SessionViewModel.
+    static let sessionsDidChange = Notification.Name("sessionsDidChange")
 }

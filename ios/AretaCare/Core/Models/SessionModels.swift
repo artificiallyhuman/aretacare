@@ -46,6 +46,14 @@ struct SessionStatistics: Codable {
         case audioRecordingCount = "audio_recordings"
         case journalEntryCount = "journal_entries"
     }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        messageCount = (try? container.decode(Int.self, forKey: .messageCount)) ?? 0
+        documentCount = (try? container.decode(Int.self, forKey: .documentCount)) ?? 0
+        audioRecordingCount = (try? container.decode(Int.self, forKey: .audioRecordingCount)) ?? 0
+        journalEntryCount = (try? container.decode(Int.self, forKey: .journalEntryCount)) ?? 0
+    }
 }
 
 // MARK: - Collaboration

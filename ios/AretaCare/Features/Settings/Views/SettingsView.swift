@@ -177,19 +177,27 @@ struct SettingsView: View {
     // MARK: - Sessions Section
 
     private var sessionsSection: some View {
-        Section {
-            if viewModel.sessions.isEmpty {
-                Text("No sessions")
-                    .foregroundStyle(.secondary)
-            } else {
-                ForEach(viewModel.sessions.filter(\.isOwner)) { session in
-                    sessionRow(session)
+        Group {
+            Section {
+                if viewModel.sessions.filter(\.isOwner).isEmpty {
+                    Text("No sessions")
+                        .foregroundStyle(.secondary)
+                } else {
+                    ForEach(viewModel.sessions.filter(\.isOwner)) { session in
+                        sessionRow(session)
+                    }
+                }
+            } header: {
+                Text("Your Sessions (\(viewModel.sessions.filter(\.isOwner).count) of \(AppConstants.maxOwnedSessions))")
+            }
+
+            if !viewModel.sessions.filter({ !$0.isOwner }).isEmpty {
+                Section("Shared with You (\(viewModel.sessions.filter { !$0.isOwner }.count))") {
+                    ForEach(viewModel.sessions.filter { !$0.isOwner }) { session in
+                        sessionRow(session)
+                    }
                 }
             }
-        } header: {
-            Text("Sessions")
-        } footer: {
-            Text("You own \(viewModel.sessions.filter(\.isOwner).count) of \(AppConstants.maxOwnedSessions) sessions.")
         }
     }
 
@@ -292,7 +300,7 @@ struct SettingsView: View {
                     Text("Delete Account")
                         .font(.title2.weight(.bold))
 
-                    Text("This action is permanent and cannot be undone. All your health data will be deleted.")
+                    Text("This action is permanent and cannot be undone.")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)

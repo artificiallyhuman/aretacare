@@ -110,6 +110,9 @@ struct MainTabView: View {
         .onReceive(NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)) { _ in
             NotificationManager.shared.clearBadge()
         }
+        .onReceive(NotificationCenter.default.publisher(for: .sessionsDidChange)) { _ in
+            Task { await sessionVM.fetchSessions() }
+        }
     }
 }
 

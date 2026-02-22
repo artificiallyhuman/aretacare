@@ -8,7 +8,7 @@ struct AuthHeaderView: View {
             Image("large_logo")
                 .resizable()
                 .scaledToFit()
-                .frame(width: compact ? 48 : 64, height: compact ? 48 : 64)
+                .frame(width: compact ? 80 : 64, height: compact ? 80 : 64)
 
             HStack(spacing: 0) {
                 Text("AretaCare")
