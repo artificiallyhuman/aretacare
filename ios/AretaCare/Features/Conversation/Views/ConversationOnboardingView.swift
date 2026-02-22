@@ -74,7 +74,7 @@ struct ConversationOnboardingView: View {
                             VStack(alignment: .leading, spacing: 10) {
                                 infoRow(icon: "gearshape", text: "Rename, share, and delete sessions in Settings")
                                 infoRow(icon: "bolt", text: "AI generates your Daily Digest and Care Journal automatically")
-                                infoRow(icon: "folder", text: "Find Document Manager and Audio Recordings in the Tools tab")
+                                infoRow(icon: "folder", text: "View documents and audio recordings in the Tools menu")
                             }
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .padding(.top, 10)
