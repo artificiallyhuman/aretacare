@@ -3,8 +3,8 @@
 
 #include? "Secrets.xcconfig"
 
-API_BASE_URL = https:/$()/staging-api.aretacare.com/api
-FRONTEND_URL = https:/$()/staging.aretacare.com
+// API_BASE_URL and FRONTEND_URL default to localhost in code.
+// Override in Secrets.xcconfig for staging/remote servers.
 SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG
 GCC_OPTIMIZATION_LEVEL = 0
 ENABLE_TESTABILITY = YES

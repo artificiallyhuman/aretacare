@@ -59,9 +59,13 @@ final class CertificatePinningDelegate: NSObject, URLSessionDelegate, Sendable {
         }
 
         #if DEBUG
-        // Skip pinning for localhost/simulator and staging development
+        // Skip pinning for localhost/simulator and non-production API hosts
         let host = challenge.protectionSpace.host
-        if host == "localhost" || host == "127.0.0.1" || host == "staging-api.aretacare.com" {
+        let isLocalhost = host == "localhost" || host == "127.0.0.1"
+        let isConfiguredAPIHost = Bundle.main.object(forInfoDictionaryKey: "API_BASE_URL")
+            .flatMap { ($0 as? String).flatMap { URL(string: $0)?.host } }
+            .map { $0 == host } ?? false
+        if isLocalhost || (isConfiguredAPIHost && host != "api.aretacare.com") {
             completionHandler(.useCredential, URLCredential(trust: serverTrust))
             return
         }
