@@ -79,17 +79,48 @@ final class AudioRecorderManager: NSObject, AVAudioRecorderDelegate {
     }
 
     /// Stops recording and waits for the file to be finalized before returning data.
+    /// Times out after 3 seconds and reads directly from the file if the delegate doesn't fire.
     func stopAsync() async -> Data? {
         stopTimer()
         audioLevel = 0
         guard let recorder = audioRecorder else { return nil }
+        let fileURL = recorder.url
         isRecording = false
         isPaused = false
 
-        return await withCheckedContinuation { continuation in
-            stopContinuation = continuation
-            recorder.stop()
+        let result = await withTaskGroup(of: Data?.self) { group -> Data? in
+            group.addTask { @MainActor in
+                await withCheckedContinuation { continuation in
+                    self.stopContinuation = continuation
+                    recorder.stop()
+                }
+            }
+            group.addTask {
+                try? await Task.sleep(for: .seconds(3))
+                return nil // sentinel for timeout
+            }
+
+            // Whichever finishes first wins
+            if let first = await group.next() {
+                group.cancelAll()
+                if let data = first {
+                    return data
+                }
+                // Timeout — read directly from file as fallback
+                return try? Data(contentsOf: fileURL)
+            }
+            return nil
         }
+
+        // If we timed out, the continuation may still be pending — resume it to avoid leak
+        if let continuation = stopContinuation {
+            stopContinuation = nil
+            continuation.resume(returning: result)
+        }
+        audioRecorder = nil
+        AudioSessionManager.shared.deactivate()
+
+        return result
     }
 
     /// Synchronous stop for cancel actions where data isn't needed.
@@ -106,7 +137,10 @@ final class AudioRecorderManager: NSObject, AVAudioRecorderDelegate {
 
         AudioSessionManager.shared.deactivate()
 
-        return try? Data(contentsOf: url)
+        let data = try? Data(contentsOf: url)
+        // Clean up temp recording file
+        try? FileManager.default.removeItem(at: url)
+        return data
     }
 
     private func startTimer() {

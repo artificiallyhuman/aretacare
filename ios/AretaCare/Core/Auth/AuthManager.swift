@@ -1,7 +1,7 @@
 import Foundation
 import SwiftUI
 
-@Observable
+@Observable @MainActor
 final class AuthManager {
     static let shared = AuthManager()
 
@@ -24,31 +24,25 @@ final class AuthManager {
     // MARK: - App Launch
 
     func initAuth() async {
-        await MainActor.run { isLoading = true }
+        isLoading = true
 
         do {
             guard let newToken = try await AuthInterceptor.shared.refreshAccessToken() else {
-                // Refresh returned nil (e.g. server rejected token) —
-                // clear Keychain so stale tokens don't persist across launches.
                 KeychainManager.shared.clearAll()
-                await handleLogout()
-                await MainActor.run { isLoading = false }
+                handleLogout()
+                isLoading = false
                 return
             }
             await AuthInterceptor.shared.setAccessToken(newToken)
             try await fetchCurrentUser()
-            await MainActor.run {
-                isAuthenticated = true
-                isLoading = false
-            }
+            isAuthenticated = true
+            isLoading = false
             startIdleTimer()
             NotificationManager.shared.requestAuthorization()
         } catch {
-            // Network error or other failure — clear Keychain so stale
-            // tokens don't cause repeated failures on every app launch.
             KeychainManager.shared.clearAll()
-            await handleLogout()
-            await MainActor.run { isLoading = false }
+            handleLogout()
+            isLoading = false
         }
     }
 
@@ -185,7 +179,7 @@ final class AuthManager {
             #endif
         }
 
-        await handleLogout()
+        handleLogout()
     }
 
     /// Force-clear local auth state without server call.
@@ -194,26 +188,24 @@ final class AuthManager {
     func forceLogout() async {
         await AuthInterceptor.shared.clearAccessToken()
         KeychainManager.shared.clearAll()
-        await handleLogout()
+        handleLogout()
     }
 
-    private func handleLogout() async {
-        await MainActor.run {
-            isAuthenticated = false
-            currentUser = nil
-            mfaToken = nil
-            mfaMethods = []
-            stopIdleTimer()
-            BiometricManager.shared.clearLock()
-            UserDefaults.standard.removeObject(forKey: "biometricLockEnabled")
-            UserDefaults.standard.removeObject(forKey: "lastSessionId")
-            UserDefaults.standard.removeObject(forKey: "activeTab")
+    private func handleLogout() {
+        isAuthenticated = false
+        currentUser = nil
+        mfaToken = nil
+        mfaMethods = []
+        stopIdleTimer()
+        BiometricManager.shared.clearLock()
+        UserDefaults.standard.removeObject(forKey: "biometricLockEnabled")
+        UserDefaults.standard.removeObject(forKey: "lastSessionId")
+        UserDefaults.standard.removeObject(forKey: "activeTab")
 
-            // Clear cached data
-            ConversationViewModel.clearCache()
-            ImageCache.shared.clear()
-            NotificationCenter.default.post(name: .userDidLogout, object: nil)
-        }
+        // Clear cached data
+        ConversationViewModel.clearCache()
+        ImageCache.shared.clear()
+        NotificationCenter.default.post(name: .userDidLogout, object: nil)
     }
 
     // MARK: - User
@@ -234,7 +226,7 @@ final class AuthManager {
         stopIdleTimer()
         idleTimer = Timer.scheduledTimer(withTimeInterval: 15, repeats: true) { [weak self] _ in
             guard let self else { return }
-            DispatchQueue.main.async {
+            Task { @MainActor in
                 // Pause idle timeout while biometric lock is active
                 guard !BiometricManager.shared.isLocked else {
                     self.lastActivityDate = Date()
@@ -243,7 +235,7 @@ final class AuthManager {
 
                 let elapsed = Date().timeIntervalSince(self.lastActivityDate)
                 if elapsed >= Self.idleTimeoutInterval {
-                    Task { await self.logout() }
+                    await self.logout()
                 } else if elapsed >= Self.idleWarningInterval {
                     self.showIdleWarning = true
                 }

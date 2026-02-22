@@ -1,7 +1,7 @@
 import Foundation
 import Observation
 
-@Observable
+@Observable @MainActor
 final class ProfileViewModel {
     private(set) var profile: ProfileResponse?
     private(set) var pendingChanges: [PendingChange] = []

@@ -1,10 +1,11 @@
 import Foundation
 import Observation
 
-@Observable
+@Observable @MainActor
 final class ConversationViewModel {
     private(set) var messages: [MessageResponse] = []
     private(set) var isLoading = false
+    private(set) var isLoadingMore = false
     private(set) var isSending = false
     private(set) var hasMore = false
     var errorMessage: String?
@@ -19,6 +20,12 @@ final class ConversationViewModel {
     private var retryCount: [Int: Int] = [:]
     private static let maxRetries = 3
     private static let historyCache = ResponseCache<ConversationHistory>(ttl: 120) // 2 min
+
+    /// Monotonically decreasing counter for temp message IDs (avoids random collisions).
+    private static var nextTempId = -1
+
+    /// In-flight send task, cancelled on session switch.
+    private var sendTask: Task<Void, Never>?
 
     // Cached formatters (ARCH-3: avoid creating new instances per call)
     private static let apiDateFormatter: DateFormatter = {
@@ -43,9 +50,11 @@ final class ConversationViewModel {
     // MARK: - Fetch History
 
     func fetchHistory(sessionId: String, loadMore: Bool = false, forceRefresh: Bool = false) async {
-        guard !isLoading else { return }
-
-        if !loadMore {
+        if loadMore {
+            guard !isLoadingMore else { return }
+            isLoadingMore = true
+        } else {
+            guard !isLoading else { return }
             // Check cache for initial load
             if !forceRefresh, let cached = Self.historyCache.get(sessionId) {
                 messages = cached.messages
@@ -85,7 +94,11 @@ final class ConversationViewModel {
             errorMessage = error.localizedDescription
         }
 
-        isLoading = false
+        if loadMore {
+            isLoadingMore = false
+        } else {
+            isLoading = false
+        }
     }
 
     // MARK: - Send Message
@@ -101,7 +114,7 @@ final class ConversationViewModel {
         // Optimistically add user message
         let now = Date()
         let tempUserMessage = MessageResponse(
-            id: -Int.random(in: 1...999_999),
+            id: { Self.nextTempId -= 1; return Self.nextTempId }(),
             sessionId: sessionId,
             role: .user,
             content: trimmed,
@@ -244,7 +257,7 @@ final class ConversationViewModel {
         let now = Date()
         let msgType: MessageType = messageType == "image" ? .image : .document
         let tempUserMessage = MessageResponse(
-            id: -Int.random(in: 1...999_999),
+            id: { Self.nextTempId -= 1; return Self.nextTempId }(),
             sessionId: sessionId,
             role: .user,
             content: displayContent,
@@ -348,6 +361,8 @@ final class ConversationViewModel {
     // MARK: - Clear
 
     func clearMessages() {
+        sendTask?.cancel()
+        sendTask = nil
         messages = []
         hasMore = false
         totalCount = 0

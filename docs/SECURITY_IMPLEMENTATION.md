@@ -291,7 +291,7 @@ base-uri 'self'
 **Token & Auth Security:**
 - **Keychain storage**: Access/refresh tokens stored via KeychainAccess with `.afterFirstUnlockThisDeviceOnly` accessibility (prevents restoration to other devices); errors logged in DEBUG only
 - **Token refresh pinning**: `AuthInterceptor` uses a dedicated `URLSession` with `CertificatePinningDelegate` for refresh requests, ensuring refresh tokens are never sent over unpinned connections
-- **Passkey login (WebAuthn)**: `PasskeyAuthManager` wraps `ASAuthorizationController` for passkey assertion during MFA login. Credential data (authenticatorData, signature, clientDataJSON) is base64url-encoded and sent to backend for cryptographic verification. Requires `webcredentials` associated domain entitlement.
+- **Passkey login (WebAuthn)**: `PasskeyAuthManager` wraps `ASAuthorizationController` for passkey assertion during MFA login. Credential data (authenticatorData, signature, clientDataJSON) is base64url-encoded and sent to backend for cryptographic verification. Requires `webcredentials` associated domain entitlement. Concurrency guard throws if a passkey operation is already in progress (prevents double-tap crashes).
 - **Logout data cleanup**: On logout, `AuthManager` clears all `ResponseCache` instances, `ImageCache`, UserDefaults keys (`lastSessionId`, `activeTab`, biometric preference), and push token before clearing Keychain — prevents data leakage on shared devices
 
 **Network Security:**
@@ -302,6 +302,7 @@ base-uri 'self'
 - **ATS**: `NSAppTransportSecurity` restricts to HTTPS in production; local networking allowed for development only
 - **Authenticated file downloads**: `APIClient.downloadData()` fetches raw data with JWT auth + token refresh for endpoints like profile PDF export, preventing unauthenticated access via Safari
 - **Image downloads**: `CachedAsyncImage` uses `URLSession.shared` (no pinning) for S3 presigned URLs — documented and intentional
+- **Temp file cleanup**: `DocumentsViewModel.cleanupTempFiles()` removes QuickLook temp directory after preview; `AudioRecorderManager.stop()` deletes temp recording files after use
 
 **Input Validation & Integrity:**
 - **Deep link token validation**: `AretaCareApp` validates token format (non-empty, length bounds, alphanumeric+hyphens) before routing universal links

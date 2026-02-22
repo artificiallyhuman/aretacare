@@ -1,7 +1,7 @@
 import Foundation
 import Observation
 
-@Observable
+@Observable @MainActor
 final class MFAViewModel {
     private(set) var mfaStatus: MFAStatusResponse?
     private(set) var passkeys: [PasskeyInfo] = []

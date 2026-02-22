@@ -206,9 +206,6 @@ final class APIClient: Sendable {
     // MARK: - Request Helpers
 
     private func performAuthorizedRequest(_ request: URLRequest) async throws -> (Data, URLResponse) {
-        guard NetworkMonitor.shared.isConnected else {
-            throw APIError.offline
-        }
         let authorizedRequest = await AuthInterceptor.shared.authorize(request)
         logRequest(authorizedRequest)
         do {

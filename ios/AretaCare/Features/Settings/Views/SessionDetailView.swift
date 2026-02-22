@@ -100,6 +100,17 @@ struct SessionDetailView: View {
                             Spacer()
                         }
                     }
+                    .confirmationDialog("Delete Session", isPresented: $showDeleteConfirmation, titleVisibility: .visible) {
+                        Button("Delete", role: .destructive) {
+                            Task {
+                                await viewModel.deleteSession(id: sessionId)
+                                dismiss()
+                            }
+                        }
+                        Button("Cancel", role: .cancel) {}
+                    } message: {
+                        Text("Delete \"\(session.name)\"? All conversations, journal entries, documents, and recordings in this session will be permanently deleted.")
+                    }
                 } footer: {
                     Text("Permanently deletes all conversations, journal entries, documents, and recordings in this session.")
                 }
@@ -142,17 +153,6 @@ struct SessionDetailView: View {
                 }
             }
             .sensoryFeedback(.success, trigger: saveHapticTrigger)
-            .confirmationDialog("Delete Session", isPresented: $showDeleteConfirmation, titleVisibility: .visible) {
-                Button("Delete", role: .destructive) {
-                    Task {
-                        await viewModel.deleteSession(id: sessionId)
-                        dismiss()
-                    }
-                }
-                Button("Cancel", role: .cancel) {}
-            } message: {
-                Text("Delete \"\(session.name)\"? All conversations, journal entries, documents, and recordings in this session will be permanently deleted.")
-            }
         }
     }
 

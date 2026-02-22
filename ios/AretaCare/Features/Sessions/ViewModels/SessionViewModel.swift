@@ -1,7 +1,7 @@
 import Foundation
 import Observation
 
-@Observable
+@Observable @MainActor
 final class SessionViewModel {
     private(set) var sessions: [SessionResponse] = []
     private(set) var currentSession: SessionResponse? {
@@ -116,6 +116,7 @@ final class SessionViewModel {
                         currentSession = newSession
                     } catch {
                         currentSession = nil
+                        errorMessage = "Unable to create a new session. Please try again."
                     }
                 } else {
                     // Prefer owned sessions, then most recent by activity

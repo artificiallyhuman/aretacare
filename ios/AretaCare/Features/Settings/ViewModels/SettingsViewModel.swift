@@ -1,7 +1,7 @@
 import Foundation
 import Observation
 
-@Observable
+@Observable @MainActor
 final class SettingsViewModel {
     private(set) var sessions: [SessionResponse] = []
     private(set) var sessionStatistics: [String: SessionStatistics] = [:]
@@ -156,10 +156,8 @@ final class SettingsViewModel {
 
         do {
             try await APIClient.shared.delete(APIEndpoints.Sessions.delete(id))
-            await MainActor.run {
-                sessions.removeAll { $0.id == id }
-                NotificationCenter.default.post(name: .sessionsDidChange, object: nil)
-            }
+            sessions.removeAll { $0.id == id }
+            NotificationCenter.default.post(name: .sessionsDidChange, object: nil)
         } catch {
             errorMessage = error.localizedDescription
         }

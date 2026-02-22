@@ -13,6 +13,10 @@ final class PasskeyAuthManager: NSObject, ASAuthorizationControllerDelegate, ASA
     /// Performs a passkey assertion using the backend-provided WebAuthn options.
     /// Returns a credential dictionary ready to send to the `/auth/login/mfa-verify` endpoint.
     func authenticate(options: [String: AnyCodableValue]) async throws -> [String: AnyCodableValue] {
+        guard continuation == nil else {
+            throw PasskeyError.authenticationFailed("A passkey operation is already in progress")
+        }
+
         guard let challengeString = options["challenge"]?.stringValue,
               let challenge = Data.fromBase64URL(challengeString) else {
             throw PasskeyError.invalidOptions("Missing or invalid challenge")
@@ -53,6 +57,10 @@ final class PasskeyAuthManager: NSObject, ASAuthorizationControllerDelegate, ASA
     /// Performs a passkey registration using the backend-provided WebAuthn options.
     /// Returns a credential dictionary ready to send to the `/mfa/passkey/register/verify` endpoint.
     func register(options: [String: AnyCodableValue]) async throws -> [String: AnyCodableValue] {
+        guard continuation == nil else {
+            throw PasskeyError.registrationFailed("A passkey operation is already in progress")
+        }
+
         guard let challengeString = options["challenge"]?.stringValue,
               let challenge = Data.fromBase64URL(challengeString) else {
             throw PasskeyError.invalidOptions("Missing or invalid challenge")

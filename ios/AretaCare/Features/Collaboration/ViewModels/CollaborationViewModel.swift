@@ -1,7 +1,7 @@
 import Foundation
 import Observation
 
-@Observable
+@Observable @MainActor
 final class CollaborationViewModel {
     private(set) var collaborators: [CollaboratorInfo] = []
     private(set) var pendingInvitations: [PendingInvitationResponse] = []

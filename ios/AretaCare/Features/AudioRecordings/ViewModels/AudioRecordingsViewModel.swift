@@ -1,7 +1,7 @@
 import Foundation
 import Observation
 
-@Observable
+@Observable @MainActor
 final class AudioRecordingsViewModel {
     private(set) var recordings: [AudioRecordingResponse] = []
     private(set) var isLoading = false

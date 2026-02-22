@@ -1,7 +1,7 @@
 import Foundation
 import Observation
 
-@Observable
+@Observable @MainActor
 final class ToolsViewModel {
     // Jargon Translator
     private(set) var translationResult: JargonTranslationResponse?

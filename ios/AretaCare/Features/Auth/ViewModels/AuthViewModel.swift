@@ -1,7 +1,7 @@
 import Foundation
 import SwiftUI
 
-@Observable
+@Observable @MainActor
 final class AuthViewModel {
     // MARK: - Fields
 

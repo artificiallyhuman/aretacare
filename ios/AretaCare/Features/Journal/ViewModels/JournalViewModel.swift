@@ -1,7 +1,7 @@
 import Foundation
 import Observation
 
-@Observable
+@Observable @MainActor
 final class JournalViewModel {
     private(set) var entriesByDate: [(date: String, entries: [JournalEntryResponse])] = []
     private(set) var isLoading = false

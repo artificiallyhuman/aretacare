@@ -82,13 +82,22 @@ final class ImageCache: @unchecked Sendable {
         cache.totalCostLimit = 50 * 1024 * 1024 // 50 MB
     }
 
+    /// Returns a cache key URL with query parameters stripped.
+    /// Presigned S3 URLs share the same path but rotate query params on each request;
+    /// using the path-only key avoids duplicate downloads.
+    private func cacheKey(for url: URL) -> NSURL {
+        var components = URLComponents(url: url, resolvingAgainstBaseURL: false)
+        components?.query = nil
+        return (components?.url ?? url) as NSURL
+    }
+
     func get(_ url: URL) -> UIImage? {
-        cache.object(forKey: url as NSURL)
+        cache.object(forKey: cacheKey(for: url))
     }
 
     func set(_ image: UIImage, for url: URL) {
         let cost = image.jpegData(compressionQuality: 1.0)?.count ?? 0
-        cache.setObject(image, forKey: url as NSURL, cost: cost)
+        cache.setObject(image, forKey: cacheKey(for: url), cost: cost)
     }
 
     func clear() {

@@ -1,7 +1,7 @@
 import Foundation
 import Observation
 
-@Observable
+@Observable @MainActor
 final class DailyDigestViewModel {
     private(set) var latestDigest: DailyPlanResponse?
     private(set) var allDigests: [DailyPlanResponse] = []

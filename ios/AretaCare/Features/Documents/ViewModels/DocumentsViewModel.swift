@@ -1,7 +1,7 @@
 import Foundation
 import Observation
 
-@Observable
+@Observable @MainActor
 final class DocumentsViewModel {
     private(set) var documents: [DocumentResponse] = []
     private(set) var isLoading = false
@@ -18,6 +18,16 @@ final class DocumentsViewModel {
 
     /// Cached preview URLs keyed by document ID (presigned, expires after ~15 min).
     private(set) var previewUrls: [Int: URL] = [:]
+    /// Track which preview URLs are being fetched to avoid duplicate requests.
+    private var previewUrlsInFlight: Set<Int> = []
+
+    // Cached formatter (REL-9: avoid creating new instances per call)
+    private static let apiDateFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "yyyy-MM-dd"
+        f.locale = Locale(identifier: "en_US_POSIX")
+        return f
+    }()
 
     // MARK: - Date Navigation
 
@@ -100,11 +110,7 @@ final class DocumentsViewModel {
                 URLQueryItem(name: "session_id", value: sessionId),
                 URLQueryItem(name: "skip_journal_synthesis", value: skipJournalSynthesis ? "true" : "false")
             ]
-
-            let dateFormatter = DateFormatter()
-            dateFormatter.dateFormat = "yyyy-MM-dd"
-            dateFormatter.locale = Locale(identifier: "en_US_POSIX")
-            queryItems.append(URLQueryItem(name: "user_date", value: dateFormatter.string(from: Date())))
+            queryItems.append(URLQueryItem(name: "user_date", value: Self.apiDateFormatter.string(from: Date())))
 
             let response: DocumentUploadResponse = try await APIClient.shared.upload(
                 APIEndpoints.Documents.upload,
@@ -188,19 +194,28 @@ final class DocumentsViewModel {
         }
     }
 
-    // MARK: - Preview URL (for list thumbnails)
+    /// Cleans up temporary Quick Look files.
+    func cleanupTempFiles() {
+        let tempDir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("QuickLook", isDirectory: true)
+        try? FileManager.default.removeItem(at: tempDir)
+    }
 
-    @MainActor
+    // MARK: - Preview URLs
+
+    /// Fetches a single preview URL with deduplication.
     func fetchPreviewUrl(for document: DocumentResponse) async {
-        guard previewUrls[document.id] == nil else { return }
+        guard previewUrls[document.id] == nil,
+              !previewUrlsInFlight.contains(document.id) else { return }
+
+        previewUrlsInFlight.insert(document.id)
+        defer { previewUrlsInFlight.remove(document.id) }
 
         if document.contentType.hasPrefix("image/") {
-            // Images: use the full download URL as preview
             if let url = await getDownloadUrl(id: document.id) {
                 previewUrls[document.id] = url
             }
         } else if document.contentType == "application/pdf" {
-            // PDFs: use the thumbnail endpoint
             do {
                 let response: ThumbnailUrlResponse = try await APIClient.shared.get(
                     APIEndpoints.Documents.thumbnailUrl(String(document.id))
@@ -210,6 +225,20 @@ final class DocumentsViewModel {
                 }
             } catch {
                 // No thumbnail available — not all PDFs have one
+            }
+        }
+    }
+
+    /// Batch-fetches preview URLs for all visible documents concurrently.
+    func fetchPreviewUrls(for documents: [DocumentResponse]) async {
+        let needed = documents.filter { previewUrls[$0.id] == nil && !previewUrlsInFlight.contains($0.id) }
+        guard !needed.isEmpty else { return }
+
+        await withTaskGroup(of: Void.self) { group in
+            for doc in needed {
+                group.addTask { [weak self] in
+                    await self?.fetchPreviewUrl(for: doc)
+                }
             }
         }
     }

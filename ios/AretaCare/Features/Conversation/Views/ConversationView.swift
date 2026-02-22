@@ -79,17 +79,27 @@ struct ConversationView: View {
                 showingPhotoPicker: $showingPhotoPicker,
                 showingFilePicker: $showingFilePicker,
                 selectedPhotoItems: $selectedPhotoItems,
-                showResetConfirmation: $showResetConfirmation,
                 showingMicPermissionAlert: $showingMicPermissionAlert,
                 showFileSizeAlert: $showFileSizeAlert,
-                resetMessage: $resetMessage,
-                resetHapticTrigger: $resetHapticTrigger,
-                currentSessionId: currentSessionId,
-                conversationVM: conversationVM,
                 handleCameraImage: handleCameraImage,
                 handlePhotoSelection: handlePhotoSelection,
                 handleFileImport: handleFileImport
             ))
+            .confirmationDialog("Reset Conversation", isPresented: $showResetConfirmation, titleVisibility: .visible) {
+                Button("Reset", role: .destructive) {
+                    if let msg = resetMessage, let sessionId = currentSessionId {
+                        resetHapticTrigger += 1
+                        Task {
+                            await conversationVM.resetConversation(messageId: msg.id, sessionId: sessionId)
+                        }
+                    }
+                }
+                Button("Cancel", role: .cancel) {
+                    resetMessage = nil
+                }
+            } message: {
+                Text("All messages after this point will be permanently deleted. This cannot be undone.")
+            }
             .task {
                 if let sessionId = currentSessionId {
                     await conversationVM.fetchHistory(sessionId: sessionId)
@@ -539,13 +549,8 @@ private struct ConversationSheetsModifier: ViewModifier {
     @Binding var showingPhotoPicker: Bool
     @Binding var showingFilePicker: Bool
     @Binding var selectedPhotoItems: [PhotosPickerItem]
-    @Binding var showResetConfirmation: Bool
     @Binding var showingMicPermissionAlert: Bool
     @Binding var showFileSizeAlert: Bool
-    @Binding var resetMessage: MessageResponse?
-    @Binding var resetHapticTrigger: Int
-    let currentSessionId: String?
-    let conversationVM: ConversationViewModel
     let handleCameraImage: (UIImage) -> Void
     let handlePhotoSelection: ([PhotosPickerItem]) -> Void
     let handleFileImport: (Result<[URL], Error>) -> Void
@@ -564,21 +569,6 @@ private struct ConversationSheetsModifier: ViewModifier {
             }
             .fileImporter(isPresented: $showingFilePicker, allowedContentTypes: [.pdf, .plainText, .jpeg, .png], allowsMultipleSelection: false) { result in
                 handleFileImport(result)
-            }
-            .confirmationDialog("Reset Conversation", isPresented: $showResetConfirmation, titleVisibility: .visible) {
-                Button("Reset", role: .destructive) {
-                    if let msg = resetMessage, let sessionId = currentSessionId {
-                        resetHapticTrigger += 1
-                        Task {
-                            await conversationVM.resetConversation(messageId: msg.id, sessionId: sessionId)
-                        }
-                    }
-                }
-                Button("Cancel", role: .cancel) {
-                    resetMessage = nil
-                }
-            } message: {
-                Text("All messages after this point will be permanently deleted. This cannot be undone.")
             }
             .alert("Microphone Access Required", isPresented: $showingMicPermissionAlert) {
                 Button("Open Settings") {
