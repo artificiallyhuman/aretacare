@@ -39,6 +39,13 @@ struct SessionStatistics: Codable {
     let documentCount: Int
     let audioRecordingCount: Int
     let journalEntryCount: Int
+
+    enum CodingKeys: String, CodingKey {
+        case messageCount = "conversations"
+        case documentCount = "documents"
+        case audioRecordingCount = "audio_recordings"
+        case journalEntryCount = "journal_entries"
+    }
 }
 
 // MARK: - Collaboration

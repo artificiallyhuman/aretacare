@@ -92,7 +92,6 @@ struct ConversationView: View {
                 handleFileImport: handleFileImport
             ))
             .task {
-                await sessionVM.fetchSessions()
                 if let sessionId = currentSessionId {
                     await conversationVM.fetchHistory(sessionId: sessionId)
                 }

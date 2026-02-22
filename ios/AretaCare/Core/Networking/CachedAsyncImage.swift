@@ -90,4 +90,8 @@ final class ImageCache: @unchecked Sendable {
         let cost = image.jpegData(compressionQuality: 1.0)?.count ?? 0
         cache.setObject(image, forKey: url as NSURL, cost: cost)
     }
+
+    func clear() {
+        cache.removeAllObjects()
+    }
 }

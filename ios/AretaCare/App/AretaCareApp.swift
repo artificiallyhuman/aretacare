@@ -20,6 +20,9 @@ struct AretaCareApp: App {
                 .task {
                     await authManager.initAuth()
                 }
+                .onReceive(NotificationCenter.default.publisher(for: UIApplication.didReceiveMemoryWarningNotification)) { _ in
+                    ImageCache.shared.clear()
+                }
                 .onOpenURL { url in
                     handleUniversalLink(url)
                 }

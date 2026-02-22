@@ -282,7 +282,7 @@ struct MessageBubbleView: View {
                         image
                             .resizable()
                             .scaledToFit()
-                            .frame(maxWidth: 200)
+                            .frame(maxWidth: 200, minHeight: 1)
                             .clipShape(RoundedRectangle(cornerRadius: 8))
                     } placeholder: {
                         Color(.systemGray5)

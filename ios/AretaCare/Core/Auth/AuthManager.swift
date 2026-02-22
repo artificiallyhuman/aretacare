@@ -207,6 +207,7 @@ final class AuthManager {
 
             // Clear cached data
             ConversationViewModel.clearCache()
+            ImageCache.shared.clear()
             NotificationCenter.default.post(name: .userDidLogout, object: nil)
         }
     }
