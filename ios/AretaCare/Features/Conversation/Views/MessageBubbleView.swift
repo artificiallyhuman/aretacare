@@ -1,5 +1,6 @@
 import SwiftUI
 import AVFoundation
+import UniformTypeIdentifiers
 
 struct MessageBubbleView: View {
     let message: MessageResponse
@@ -73,7 +74,7 @@ struct MessageBubbleView: View {
             }
             .contextMenu {
                 Button {
-                    UIPasteboard.general.string = message.content
+                    copyFormatted(message.content)
                     onCopy?(message.content)
                 } label: {
                     Label("Copy", systemImage: "doc.on.doc")
@@ -341,6 +342,26 @@ struct MessageBubbleView: View {
 
     private var failedOrNormalBackground: AnyShapeStyle {
         isFailed ? AnyShapeStyle(Color.red.opacity(0.15)) : bubbleBackground
+    }
+
+    /// Copies markdown content to the pasteboard with rich text formatting (RTF)
+    /// so that pasting into Notes, Mail, etc. preserves bold, italic, code, and links.
+    private func copyFormatted(_ markdown: String) {
+        if let attributed = try? NSAttributedString(
+            markdown: markdown,
+            options: .init(interpretedSyntax: .inlineOnlyPreservingWhitespace)
+        ),
+        let rtfData = try? attributed.data(
+            from: NSRange(location: 0, length: attributed.length),
+            documentAttributes: [.documentType: NSAttributedString.DocumentType.rtf]
+        ) {
+            UIPasteboard.general.setItems([[
+                UTType.rtf.identifier: rtfData,
+                UTType.utf8PlainText.identifier: Data(markdown.utf8)
+            ]])
+        } else {
+            UIPasteboard.general.string = markdown
+        }
     }
 
     private var documentFilename: String {
