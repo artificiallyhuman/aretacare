@@ -32,13 +32,13 @@
 		<true/>
 	</dict>
 	<key>NSCameraUsageDescription</key>
-	<string>AretaCare needs camera access to capture photos of documents.</string>
+	<string>AretaCare needs camera access to capture photos of medical documents.</string>
 	<key>NSFaceIDUsageDescription</key>
-	<string>AretaCare uses Face ID to protect your information.</string>
+	<string>AretaCare uses Face ID to protect your health information.</string>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>AretaCare needs microphone access to record voice memos.</string>
+	<string>AretaCare needs microphone access to record voice memos for your health journal.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>AretaCare needs photo library access to upload images.</string>
+	<string>AretaCare needs photo library access to upload medical document images.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

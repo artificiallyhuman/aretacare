@@ -302,7 +302,7 @@ struct DailyDigestView: View {
 
                 Menu {
                     Button {
-                        UIPasteboard.general.string = digest.displayContent
+                        ClipboardHelper.copyFormatted(digest.displayContent)
                         copyHapticTrigger += 1
                     } label: {
                         Label("Copy", systemImage: "doc.on.doc")
@@ -375,7 +375,7 @@ struct DailyDigestView: View {
         .clipShape(RoundedRectangle(cornerRadius: 12))
         .contextMenu {
             Button {
-                UIPasteboard.general.string = digest.displayContent
+                ClipboardHelper.copyFormatted(digest.displayContent)
                 copyHapticTrigger += 1
             } label: {
                 Label("Copy", systemImage: "doc.on.doc")

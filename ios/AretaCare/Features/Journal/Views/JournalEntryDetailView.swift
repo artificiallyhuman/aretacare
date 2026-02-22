@@ -85,7 +85,7 @@ struct JournalEntryDetailView: View {
             ToolbarItem(placement: .primaryAction) {
                 Menu {
                     Button {
-                        UIPasteboard.general.string = entry.content
+                        ClipboardHelper.copyFormatted(entry.content)
                         copyHapticTrigger += 1
                     } label: {
                         Label("Copy Content", systemImage: "doc.on.doc")
