@@ -60,6 +60,7 @@ enum AppConstants {
     static let maxRecordingDuration: TimeInterval = 15 * 60 // 15 minutes
     static let audioFileExtension = "m4a"
     static let audioMimeType = "audio/m4a"
+    static let maxAudioFileSizeBytes: Int = 100 * 1024 * 1024 // 100 MB
 
     // MARK: - Pagination
 

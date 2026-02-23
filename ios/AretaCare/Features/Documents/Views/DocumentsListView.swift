@@ -59,6 +59,13 @@ struct DocumentsListView: View {
 
     private var mainContent: some View {
         Group {
+            if let error = viewModel.errorMessage {
+                ErrorBannerView(message: error) {
+                    viewModel.dismissError()
+                }
+                .padding(.top, 4)
+            }
+
             if viewModel.isLoading && viewModel.documents.isEmpty {
                 SkeletonListView()
             } else if viewModel.documents.isEmpty && viewModel.selectedCategory == nil {

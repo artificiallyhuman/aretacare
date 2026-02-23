@@ -1,4 +1,5 @@
 import SwiftUI
+import UniformTypeIdentifiers
 
 struct AudioRecordingsView: View {
     let sessionId: String
@@ -12,6 +13,9 @@ struct AudioRecordingsView: View {
     @State private var searchText = ""
     @State private var debouncedSearchText = ""
     @State private var searchDebounceTask: Task<Void, Never>?
+    @State private var showingAddChoice = false
+    @State private var showingFilePicker = false
+    @State private var showFileSizeAlert = false
 
     private let currentUserId = AuthManager.shared.currentUser?.id ?? ""
 
@@ -33,13 +37,20 @@ struct AudioRecordingsView: View {
 
     var body: some View {
         Group {
+            if let error = viewModel.errorMessage {
+                ErrorBannerView(message: error) {
+                    viewModel.dismissError()
+                }
+                .padding(.top, 4)
+            }
+
             if viewModel.isLoading && viewModel.recordings.isEmpty {
                 SkeletonListView()
             } else if viewModel.recordings.isEmpty {
                 ContentUnavailableView(
                     "No Audio Recordings",
                     systemImage: "mic",
-                    description: Text("Record voice memos about symptoms, appointments, or care notes.")
+                    description: Text("Record or upload audio about symptoms, appointments, or care notes.")
                 )
             } else {
                 recordingsList
@@ -60,11 +71,11 @@ struct AudioRecordingsView: View {
             }
             ToolbarItem(placement: .primaryAction) {
                 Button {
-                    showingRecorder = true
+                    showingAddChoice = true
                 } label: {
                     Image(systemName: "plus")
                 }
-                .accessibilityLabel("Record new audio")
+                .accessibilityLabel("Add audio recording")
             }
         }
         .sheet(isPresented: $showingRecorder) {
@@ -88,6 +99,19 @@ struct AudioRecordingsView: View {
                 onDismiss: { showingDatePicker = false }
             )
         }
+        .confirmationDialog("Add Audio", isPresented: $showingAddChoice) {
+            Button("Record Audio") { showingRecorder = true }
+            Button("Choose File") { showingFilePicker = true }
+            Button("Cancel", role: .cancel) {}
+        }
+        .fileImporter(isPresented: $showingFilePicker, allowedContentTypes: [.mp3, .mpeg4Audio, .wav, .audio], allowsMultipleSelection: false) { result in
+            handleAudioFileImport(result)
+        }
+        .alert("File Too Large", isPresented: $showFileSizeAlert) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text("Audio files must be under 100 MB.")
+        }
         .overlay {
             if viewModel.isUploading {
                 UploadingOverlay(message: "Uploading & Transcribing...")
@@ -109,6 +133,35 @@ struct AudioRecordingsView: View {
         .refreshable {
             await viewModel.fetchRecordings(sessionId: sessionId, date: viewModel.selectedDateString)
             await viewModel.fetchDates(sessionId: sessionId)
+        }
+    }
+
+    private func handleAudioFileImport(_ result: Result<[URL], Error>) {
+        switch result {
+        case .success(let urls):
+            guard let url = urls.first else { return }
+            guard url.startAccessingSecurityScopedResource() else { return }
+            defer { url.stopAccessingSecurityScopedResource() }
+
+            guard let data = try? Data(contentsOf: url) else { return }
+            if data.count > AppConstants.maxAudioFileSizeBytes {
+                showFileSizeAlert = true
+                return
+            }
+            let filename = url.lastPathComponent
+            let mimeType = url.pathExtension.mimeTypeForExtension
+
+            Task {
+                await viewModel.uploadRecording(
+                    sessionId: sessionId,
+                    audioData: data,
+                    filename: filename,
+                    mimeType: mimeType
+                )
+            }
+
+        case .failure:
+            break
         }
     }
 

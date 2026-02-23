@@ -258,6 +258,8 @@ final class APIClient: Sendable {
                 throw APIError.mfaRequired(mfaToken: mfaToken)
             }
             throw APIError.forbidden(code: errorCode)
+        case 400:
+            throw APIError.validationError(message: detail?.message ?? "Invalid request")
         case 404:
             throw APIError.notFound
         case 422:

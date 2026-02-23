@@ -143,6 +143,13 @@ struct ConversationView: View {
                 .padding(.top, 4)
             }
 
+            if let error = documentsVM.errorMessage {
+                ErrorBannerView(message: error) {
+                    documentsVM.dismissError()
+                }
+                .padding(.top, 4)
+            }
+
             messageList
 
             if documentsVM.isUploading {

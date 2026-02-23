@@ -104,7 +104,7 @@ final class AudioRecordingsViewModel {
 
     // MARK: - Upload Recording (transcribe)
 
-    func uploadRecording(sessionId: String, audioData: Data, filename: String) async {
+    func uploadRecording(sessionId: String, audioData: Data, filename: String, mimeType: String = AppConstants.audioMimeType) async {
         isUploading = true
         errorMessage = nil
         defer { isUploading = false }
@@ -113,7 +113,7 @@ final class AudioRecordingsViewModel {
             var multipart = MultipartFormData()
             multipart.addTextField(name: "session_id", value: sessionId)
             multipart.addTextField(name: "skip_journal_synthesis", value: "false")
-            multipart.addFileField(name: "audio", filename: filename, mimeType: AppConstants.audioMimeType, data: audioData)
+            multipart.addFileField(name: "audio", filename: filename, mimeType: mimeType, data: audioData)
 
             let _: AudioTranscribeResponse = try await APIClient.shared.upload(
                 APIEndpoints.Conversation.transcribe,
