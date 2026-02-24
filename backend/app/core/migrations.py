@@ -1320,6 +1320,7 @@ def run_migrations():
             except Exception as e:
                 # Constraint might already exist
                 if "already exists" in str(e).lower() or "duplicate" in str(e).lower():
+                    conn.rollback()
                     logger.info("Unique constraint on daily_plans already exists")
                     mark_migration_complete(conn, migration_name)
                 else:
@@ -1421,6 +1422,7 @@ def run_migrations():
             except Exception as e:
                 # Constraint might already exist
                 if "already exists" in str(e).lower() or "duplicate" in str(e).lower():
+                    conn.rollback()
                     logger.info("Unique constraint on pending_invitations already exists")
                     mark_migration_complete(conn, migration_name)
                 else:
