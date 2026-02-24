@@ -91,7 +91,9 @@ final class ConversationViewModel {
             totalCount = history.totalCount
             hasMore = history.hasMore
         } catch {
-            errorMessage = error.localizedDescription
+            if !isCancellation(error) {
+                errorMessage = error.localizedDescription
+            }
         }
 
         if loadMore {
@@ -409,6 +411,14 @@ final class ConversationViewModel {
 
     func dismissError() {
         errorMessage = nil
+    }
+
+    private func isCancellation(_ error: Error) -> Bool {
+        if error is CancellationError { return true }
+        if (error as? URLError)?.code == .cancelled { return true }
+        if case APIError.networkError(let underlying) = error,
+           (underlying as? URLError)?.code == .cancelled { return true }
+        return false
     }
 }
 

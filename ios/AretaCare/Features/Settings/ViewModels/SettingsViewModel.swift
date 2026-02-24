@@ -173,6 +173,7 @@ final class SettingsViewModel {
                 body: body
             )
             await fetchSessions()
+            NotificationCenter.default.post(name: .sessionsDidChange, object: nil)
         } catch {
             errorMessage = error.localizedDescription
         }
