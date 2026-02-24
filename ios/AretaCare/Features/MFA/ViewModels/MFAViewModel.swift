@@ -38,10 +38,21 @@ final class MFAViewModel {
 
     // MARK: - Enable / Disable MFA
 
-    func enableMFA(method: String = "totp") async {
+    func enableMFA() async {
         isLoading = true
         errorMessage = nil
         defer { isLoading = false }
+
+        // Pick preferred method based on what's configured
+        let method: String
+        if mfaStatus?.hasPasskeys == true {
+            method = "passkey"
+        } else if mfaStatus?.hasTotp == true {
+            method = "totp"
+        } else {
+            errorMessage = "Please configure at least one MFA method first."
+            return
+        }
 
         do {
             let request = EnableMFARequest(preferredMethod: method)

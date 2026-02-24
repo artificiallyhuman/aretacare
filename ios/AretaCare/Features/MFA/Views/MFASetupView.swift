@@ -44,6 +44,26 @@ struct MFASetupView: View {
                 Text("MFA adds an extra layer of security to your account by requiring a second form of verification when signing in.")
             }
 
+            // Messages
+            if let error = viewModel.errorMessage {
+                Section {
+                    ErrorBannerView(message: error) { viewModel.dismissMessages() }
+                }
+                .listRowBackground(Color.clear)
+                .listRowInsets(EdgeInsets())
+            }
+
+            if let success = viewModel.successMessage {
+                Section {
+                    HStack {
+                        Image(systemName: "checkmark.circle.fill")
+                            .foregroundStyle(.green)
+                        Text(success)
+                            .font(.subheadline)
+                    }
+                }
+            }
+
             // TOTP Section
             Section("Authenticator App") {
                 if viewModel.mfaStatus?.hasTotp == true {
@@ -172,25 +192,6 @@ struct MFASetupView: View {
                 }
             }
 
-            // Messages
-            if let error = viewModel.errorMessage {
-                Section {
-                    ErrorBannerView(message: error) { viewModel.dismissMessages() }
-                }
-                .listRowBackground(Color.clear)
-                .listRowInsets(EdgeInsets())
-            }
-
-            if let success = viewModel.successMessage {
-                Section {
-                    HStack {
-                        Image(systemName: "checkmark.circle.fill")
-                            .foregroundStyle(.green)
-                        Text(success)
-                            .font(.subheadline)
-                    }
-                }
-            }
         }
         .listStyle(.insetGrouped)
         .navigationTitle("MFA Setup")
@@ -434,44 +435,91 @@ private struct BackupCodesSheet: View {
     let codes: [String]
 
     @Environment(\.dismiss) private var dismiss
+    @State private var confirmed = false
+    @State private var showCopiedToast = false
 
     var body: some View {
-        VStack(spacing: 20) {
-            Text("Save these backup codes in a safe place. Each code can only be used once.")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
+        ScrollView {
+            VStack(spacing: 20) {
+                Text("Save these backup codes in a safe place. Each code can only be used once.")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal)
+
+                LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 8) {
+                    ForEach(codes, id: \.self) { code in
+                        Text(code)
+                            .font(.system(.body, design: .monospaced))
+                            .padding(.vertical, 8)
+                            .frame(maxWidth: .infinity)
+                            .background(Color(.systemGray6))
+                            .clipShape(RoundedRectangle(cornerRadius: 8))
+                    }
+                }
                 .padding(.horizontal)
 
-            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 8) {
-                ForEach(codes, id: \.self) { code in
-                    Text(code)
-                        .font(.system(.body, design: .monospaced))
-                        .padding(.vertical, 8)
-                        .frame(maxWidth: .infinity)
-                        .background(Color(.systemGray6))
-                        .clipShape(RoundedRectangle(cornerRadius: 8))
-                }
-            }
-            .padding(.horizontal)
-
-            Button {
-                UIPasteboard.general.string = codes.joined(separator: "\n")
-            } label: {
-                Label("Copy All Codes", systemImage: "doc.on.doc")
+                Button {
+                    UIPasteboard.general.string = codes.joined(separator: "\n")
+                    withAnimation { showCopiedToast = true }
+                } label: {
+                    Label(
+                        showCopiedToast ? "Copied" : "Copy All Codes",
+                        systemImage: showCopiedToast ? "checkmark" : "doc.on.doc"
+                    )
                     .frame(maxWidth: .infinity)
-            }
-            .buttonStyle(.borderedProminent)
-            .padding(.horizontal)
+                }
+                .buttonStyle(.borderedProminent)
+                .padding(.horizontal)
 
-            Spacer()
+                // Warning banner
+                HStack(alignment: .top, spacing: 10) {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .foregroundStyle(.orange)
+
+                    Text("Store these codes in a secure location like a password manager. If you lose access to your authenticator and these codes, you may be locked out of your account.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .padding(12)
+                .background(
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(Color.orange.opacity(0.08))
+                )
+                .padding(.horizontal)
+
+                // Confirmation checkbox
+                Button {
+                    confirmed.toggle()
+                } label: {
+                    HStack(alignment: .top, spacing: 12) {
+                        Image(systemName: confirmed ? "checkmark.square.fill" : "square")
+                            .foregroundStyle(confirmed ? .blue : .secondary)
+                            .font(.title3)
+
+                        Text("I have saved these backup codes in a secure location")
+                            .font(.subheadline)
+                            .foregroundStyle(.primary)
+                            .multilineTextAlignment(.leading)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .padding(.horizontal)
+            }
+            .padding(.top)
+            .padding(.bottom, 32)
         }
-        .padding(.top)
+        .toast("Codes copied to clipboard", icon: "doc.on.doc", isPresented: $showCopiedToast)
         .navigationTitle("Backup Codes")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .confirmationAction) {
                 Button("Done") { dismiss() }
+                    .disabled(!confirmed)
             }
         }
     }

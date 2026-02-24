@@ -10,11 +10,9 @@ struct AretaCareApp: App {
     var body: some Scene {
         WindowGroup {
             ContentView()
-                .overlay {
-                    if let route = deepLinkRoute {
-                        NavigationStack {
-                            deepLinkDestination(for: route)
-                        }
+                .fullScreenCover(item: $deepLinkRoute) { route in
+                    NavigationStack {
+                        deepLinkDestination(for: route)
                     }
                 }
                 .task {
@@ -72,21 +70,26 @@ struct AretaCareApp: App {
         switch route {
         case .verifyEmail(let token):
             VerifyEmailView(token: token)
-                .onDisappear { deepLinkRoute = nil }
         case .resetPassword(let token):
             ResetPasswordView(token: token)
-                .onDisappear { deepLinkRoute = nil }
         case .register(let invitationToken):
             RegisterView(invitationToken: invitationToken)
-                .onDisappear { deepLinkRoute = nil }
         }
     }
 }
 
 // MARK: - Deep Link Routes
 
-enum DeepLinkRoute: Equatable {
+enum DeepLinkRoute: Equatable, Identifiable {
     case verifyEmail(token: String)
     case resetPassword(token: String)
     case register(invitationToken: String)
+
+    var id: String {
+        switch self {
+        case .verifyEmail(let token): return "verify-\(token)"
+        case .resetPassword(let token): return "reset-\(token)"
+        case .register(let token): return "register-\(token)"
+        }
+    }
 }
