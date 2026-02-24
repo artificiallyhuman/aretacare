@@ -6,6 +6,8 @@ so notification sends never block API responses.
 """
 import asyncio
 import logging
+import os
+import tempfile
 import threading
 from enum import Enum
 from typing import List, Optional
@@ -27,6 +29,24 @@ class PushNotificationService:
     _client = None
     _client_lock = threading.Lock()
 
+    _key_tempfile = None  # Hold reference to prevent cleanup
+
+    @classmethod
+    def _resolve_key_path(cls) -> str | None:
+        """Resolve the APNs key path, writing APNS_KEY_CONTENT to a temp file if needed."""
+        if settings.APNS_KEY_CONTENT:
+            if cls._key_tempfile is None:
+                cls._key_tempfile = tempfile.NamedTemporaryFile(
+                    mode="w", suffix=".p8", delete=False
+                )
+                cls._key_tempfile.write(settings.APNS_KEY_CONTENT)
+                cls._key_tempfile.flush()
+                logger.info(f"Wrote APNs key content to temp file: {cls._key_tempfile.name}")
+            return cls._key_tempfile.name
+        if settings.APNS_KEY_PATH:
+            return settings.APNS_KEY_PATH
+        return None
+
     @classmethod
     def _get_client(cls):
         """Lazy-init APNs client (singleton, thread-safe)."""
@@ -35,13 +55,14 @@ class PushNotificationService:
                 if cls._client is None:
                     if not settings.PUSH_NOTIFICATIONS_ENABLED:
                         return None
-                    if not settings.APNS_KEY_PATH or not settings.APNS_KEY_ID or not settings.APNS_TEAM_ID:
+                    key_path = cls._resolve_key_path()
+                    if not key_path or not settings.APNS_KEY_ID or not settings.APNS_TEAM_ID:
                         logger.warning("APNs configuration incomplete — push notifications disabled")
                         return None
                     try:
                         from aioapns import APNs
                         cls._client = APNs(
-                            key=settings.APNS_KEY_PATH,
+                            key=key_path,
                             key_id=settings.APNS_KEY_ID,
                             team_id=settings.APNS_TEAM_ID,
                             topic=settings.APNS_TOPIC,

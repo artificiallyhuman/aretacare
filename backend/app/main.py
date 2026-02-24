@@ -83,8 +83,8 @@ def validate_startup():
     # Push notifications partially configured warning
     if settings.PUSH_NOTIFICATIONS_ENABLED:
         missing_apns = []
-        if not settings.APNS_KEY_PATH:
-            missing_apns.append("APNS_KEY_PATH")
+        if not settings.APNS_KEY_PATH and not settings.APNS_KEY_CONTENT:
+            missing_apns.append("APNS_KEY_PATH or APNS_KEY_CONTENT")
         if not settings.APNS_KEY_ID:
             missing_apns.append("APNS_KEY_ID")
         if not settings.APNS_TEAM_ID:

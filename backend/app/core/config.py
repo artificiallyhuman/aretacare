@@ -90,6 +90,7 @@ class Settings(BaseSettings):
     # Push Notifications (APNs)
     PUSH_NOTIFICATIONS_ENABLED: bool = False  # Feature flag — disabled by default
     APNS_KEY_PATH: str = ""         # Path to .p8 key file from Apple Developer
+    APNS_KEY_CONTENT: str = ""      # Raw .p8 key content (alternative to KEY_PATH for container deploys)
     APNS_KEY_ID: str = ""           # 10-character Key ID from Apple Developer
     APNS_TEAM_ID: str = ""          # Apple Developer Team ID
     APNS_TOPIC: str = "com.aretacare.ios"  # iOS bundle ID
