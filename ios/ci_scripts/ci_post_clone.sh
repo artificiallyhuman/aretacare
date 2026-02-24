@@ -3,6 +3,13 @@ set -e
 
 echo "Running ci_post_clone.sh..."
 
+# Install XcodeGen and generate .xcodeproj
+brew install xcodegen
+cd "$CI_PRIMARY_REPOSITORY_PATH/ios"
+xcodegen generate
+echo "Generated AretaCare.xcodeproj"
+cd "$CI_PRIMARY_REPOSITORY_PATH"
+
 # Create empty Secrets.xcconfig so #include? doesn't warn
 # Note: DEVELOPMENT_TEAM is handled automatically by Xcode Cloud code signing
 SECRETS_PATH="$CI_PRIMARY_REPOSITORY_PATH/ios/AretaCare/Configuration/Secrets.xcconfig"
