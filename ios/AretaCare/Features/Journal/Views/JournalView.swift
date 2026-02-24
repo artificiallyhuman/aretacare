@@ -13,6 +13,8 @@ struct JournalView: View {
     @State private var searchDebounceTask: Task<Void, Never>?
     @State private var deleteHapticTrigger = 0
 
+    private var currentUserId: String { AuthManager.shared.currentUser?.id ?? "" }
+
     var body: some View {
         ZStack(alignment: .bottomTrailing) {
             Group {
@@ -199,7 +201,7 @@ struct JournalView: View {
                                     viewModel: viewModel
                                 )
                             } label: {
-                                JournalEntryRow(entry: entry)
+                                JournalEntryRow(entry: entry, currentUserId: currentUserId)
                             }
                             .buttonStyle(.plain)
                             .swipeActions(edge: .trailing, allowsFullSwipe: false) {
@@ -355,6 +357,7 @@ struct JournalView: View {
 
 private struct JournalEntryRow: View {
     let entry: JournalEntryResponse
+    let currentUserId: String
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -402,6 +405,11 @@ private struct JournalEntryRow: View {
                             .padding(.vertical, 3)
                             .background(Capsule().fill(.purple))
                             .accessibilityLabel("AI generated")
+                    }
+
+                    // Source tag
+                    if let sourceTag = entry.lastEditedBy ?? entry.createdByInfo {
+                        SourceTagView(sourceTag: sourceTag, currentUserId: currentUserId)
                     }
 
                     Spacer()

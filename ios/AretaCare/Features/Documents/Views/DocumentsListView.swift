@@ -441,8 +441,8 @@ private struct DocumentRowView: View {
 
             Spacer()
 
-            if let uploadedBy = document.uploadedBy {
-                SourceTagView(sourceTag: uploadedBy, currentUserId: currentUserId)
+            if let sourceTag = document.lastEditedBy ?? document.uploadedBy {
+                SourceTagView(sourceTag: sourceTag, currentUserId: currentUserId)
             }
         }
         .padding(.vertical, 4)

@@ -324,8 +324,8 @@ private struct AudioRecordingRowView: View {
 
             Spacer()
 
-            if let createdBy = recording.createdBy {
-                SourceTagView(sourceTag: createdBy, currentUserId: currentUserId)
+            if let sourceTag = recording.lastEditedBy ?? recording.createdBy {
+                SourceTagView(sourceTag: sourceTag, currentUserId: currentUserId)
             }
         }
         .padding(.vertical, 4)

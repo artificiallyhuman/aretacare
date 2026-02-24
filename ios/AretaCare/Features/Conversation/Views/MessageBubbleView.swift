@@ -22,8 +22,8 @@ struct MessageBubbleView: View {
             if isUser { Spacer(minLength: 48) }
 
             // Source tag for collaborator messages
-            if !isUser, let createdBy = message.createdBy {
-                SourceTagView(sourceTag: createdBy, currentUserId: currentUserId)
+            if !isUser, let sourceTag = message.lastEditedBy ?? message.createdBy {
+                SourceTagView(sourceTag: sourceTag, currentUserId: currentUserId)
             }
 
             VStack(alignment: isUser ? .trailing : .leading, spacing: 4) {
@@ -95,8 +95,8 @@ struct MessageBubbleView: View {
             }
 
             // Source tag for user messages from collaborators
-            if isUser, let createdBy = message.createdBy {
-                SourceTagView(sourceTag: createdBy, currentUserId: currentUserId)
+            if isUser, let sourceTag = message.lastEditedBy ?? message.createdBy {
+                SourceTagView(sourceTag: sourceTag, currentUserId: currentUserId)
             }
 
             if !isUser { Spacer(minLength: 48) }
