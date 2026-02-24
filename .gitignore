@@ -105,6 +105,10 @@ ios/DerivedData/
 # iOS sensitive configs
 ios/AretaCare/Configuration/Secrets.xcconfig
 
+# APNs keys
+backend/certs/
+*.p8
+
 # App Store deployment guide (private reference)
 ios/APP_STORE_DEPLOYMENT.md
 
