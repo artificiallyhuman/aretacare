@@ -5,6 +5,7 @@ Uses fire-and-forget daemon threads (matching SecurityService pattern)
 so notification sends never block API responses.
 """
 import asyncio
+import base64
 import logging
 import os
 import tempfile
@@ -32,19 +33,58 @@ class PushNotificationService:
     _key_tempfile = None  # Hold reference to prevent cleanup
 
     @classmethod
+    def _normalize_pem_file(cls, path: str) -> str:
+        """
+        Ensure a PEM file is properly formatted.
+        Fixes common issues: missing trailing newline, extra whitespace,
+        Windows line endings, or content pasted without newlines.
+        Returns path to a valid temp file, or the original path if already valid.
+        """
+        try:
+            with open(path, "r") as f:
+                content = f.read()
+        except Exception as e:
+            logger.error(f"Cannot read APNs key file at {path}: {e}")
+            return path
+
+        # Normalize: strip whitespace, ensure proper line endings
+        content = content.strip().replace("\r\n", "\n").replace("\r", "\n")
+        if not content.endswith("\n"):
+            content += "\n"
+
+        # Write normalized content to a temp file
+        if cls._key_tempfile is None:
+            cls._key_tempfile = tempfile.NamedTemporaryFile(
+                mode="w", suffix=".p8", delete=False
+            )
+            cls._key_tempfile.write(content)
+            cls._key_tempfile.flush()
+            logger.info("Wrote normalized APNs key to temp file")
+        return cls._key_tempfile.name
+
+    @classmethod
     def _resolve_key_path(cls) -> str | None:
-        """Resolve the APNs key path, writing APNS_KEY_CONTENT to a temp file if needed."""
+        """Resolve the APNs key path from APNS_KEY_CONTENT (base64) or APNS_KEY_PATH (file)."""
         if settings.APNS_KEY_CONTENT:
             if cls._key_tempfile is None:
+                content = settings.APNS_KEY_CONTENT
+                # Decode base64 if the content doesn't look like a PEM file
+                if not content.strip().startswith("-----"):
+                    try:
+                        content = base64.b64decode(content).decode("utf-8")
+                    except Exception:
+                        logger.error("APNS_KEY_CONTENT is not valid PEM or base64")
+                        return None
+                content = content.strip() + "\n"
                 cls._key_tempfile = tempfile.NamedTemporaryFile(
                     mode="w", suffix=".p8", delete=False
                 )
-                cls._key_tempfile.write(settings.APNS_KEY_CONTENT)
+                cls._key_tempfile.write(content)
                 cls._key_tempfile.flush()
-                logger.info(f"Wrote APNs key content to temp file: {cls._key_tempfile.name}")
+                logger.info("Wrote APNs key content to temp file")
             return cls._key_tempfile.name
         if settings.APNS_KEY_PATH:
-            return settings.APNS_KEY_PATH
+            return cls._normalize_pem_file(settings.APNS_KEY_PATH)
         return None
 
     @classmethod
