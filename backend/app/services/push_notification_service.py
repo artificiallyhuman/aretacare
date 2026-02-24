@@ -30,62 +30,49 @@ class PushNotificationService:
     _client = None
     _client_lock = threading.Lock()
 
-    _key_tempfile = None  # Hold reference to prevent cleanup
+    _resolved_key = None  # Cached key content string
 
     @classmethod
-    def _normalize_pem_file(cls, path: str) -> str:
+    def _resolve_key(cls) -> str | None:
         """
-        Ensure a PEM file is properly formatted.
-        Fixes common issues: missing trailing newline, extra whitespace,
-        Windows line endings, or content pasted without newlines.
-        Returns path to a valid temp file, or the original path if already valid.
+        Resolve APNs key content as a string (not a file path).
+        Supports: APNS_KEY_CONTENT (base64 or raw PEM) or APNS_KEY_PATH (file).
+        Returns the PEM string directly for aioapns.
         """
-        try:
-            with open(path, "r") as f:
-                content = f.read()
-        except Exception as e:
-            logger.error(f"Cannot read APNs key file at {path}: {e}")
-            return path
+        if cls._resolved_key is not None:
+            return cls._resolved_key
 
-        # Normalize: strip whitespace, ensure proper line endings
-        content = content.strip().replace("\r\n", "\n").replace("\r", "\n")
-        if not content.endswith("\n"):
-            content += "\n"
+        content = None
 
-        # Write normalized content to a temp file
-        if cls._key_tempfile is None:
-            cls._key_tempfile = tempfile.NamedTemporaryFile(
-                mode="w", suffix=".p8", delete=False
-            )
-            cls._key_tempfile.write(content)
-            cls._key_tempfile.flush()
-            logger.info("Wrote normalized APNs key to temp file")
-        return cls._key_tempfile.name
-
-    @classmethod
-    def _resolve_key_path(cls) -> str | None:
-        """Resolve the APNs key path from APNS_KEY_CONTENT (base64) or APNS_KEY_PATH (file)."""
         if settings.APNS_KEY_CONTENT:
-            if cls._key_tempfile is None:
-                content = settings.APNS_KEY_CONTENT
-                # Decode base64 if the content doesn't look like a PEM file
-                if not content.strip().startswith("-----"):
-                    try:
-                        content = base64.b64decode(content).decode("utf-8")
-                    except Exception:
-                        logger.error("APNS_KEY_CONTENT is not valid PEM or base64")
-                        return None
-                content = content.strip() + "\n"
-                cls._key_tempfile = tempfile.NamedTemporaryFile(
-                    mode="w", suffix=".p8", delete=False
-                )
-                cls._key_tempfile.write(content)
-                cls._key_tempfile.flush()
-                logger.info("Wrote APNs key content to temp file")
-            return cls._key_tempfile.name
-        if settings.APNS_KEY_PATH:
-            return cls._normalize_pem_file(settings.APNS_KEY_PATH)
-        return None
+            content = settings.APNS_KEY_CONTENT
+            # Decode base64 if not already PEM
+            if not content.strip().startswith("-----"):
+                try:
+                    content = base64.b64decode(content).decode("utf-8")
+                except Exception:
+                    logger.error("APNS_KEY_CONTENT is not valid PEM or base64")
+                    return None
+        elif settings.APNS_KEY_PATH:
+            try:
+                with open(settings.APNS_KEY_PATH, "r") as f:
+                    content = f.read()
+            except Exception as e:
+                logger.error(f"Cannot read APNs key file at {settings.APNS_KEY_PATH}: {e}")
+                return None
+
+        if content:
+            # Normalize whitespace
+            content = content.strip().replace("\r\n", "\n").replace("\r", "\n")
+            if not content.endswith("\n"):
+                content += "\n"
+            cls._resolved_key = content
+            logger.info(
+                f"APNs key loaded (starts with: {content[:27]}..., "
+                f"lines: {content.count(chr(10))}, length: {len(content)})"
+            )
+
+        return cls._resolved_key
 
     @classmethod
     def _get_client(cls):
@@ -95,14 +82,14 @@ class PushNotificationService:
                 if cls._client is None:
                     if not settings.PUSH_NOTIFICATIONS_ENABLED:
                         return None
-                    key_path = cls._resolve_key_path()
-                    if not key_path or not settings.APNS_KEY_ID or not settings.APNS_TEAM_ID:
+                    key = cls._resolve_key()
+                    if not key or not settings.APNS_KEY_ID or not settings.APNS_TEAM_ID:
                         logger.warning("APNs configuration incomplete — push notifications disabled")
                         return None
                     try:
                         from aioapns import APNs
                         cls._client = APNs(
-                            key=key_path,
+                            key=key,
                             key_id=settings.APNS_KEY_ID,
                             team_id=settings.APNS_TEAM_ID,
                             topic=settings.APNS_TOPIC,
