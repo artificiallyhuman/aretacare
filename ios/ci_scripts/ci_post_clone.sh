@@ -8,6 +8,13 @@ brew install xcodegen
 cd "$CI_PRIMARY_REPOSITORY_PATH/ios"
 xcodegen generate
 echo "Generated AretaCare.xcodeproj"
+
+# Copy Package.resolved into the generated xcodeproj so Xcode Cloud finds it
+RESOLVED_DIR="$CI_PRIMARY_REPOSITORY_PATH/ios/AretaCare.xcodeproj/project.xcworkspace/xcshareddata/swiftpm"
+mkdir -p "$RESOLVED_DIR"
+cp "$CI_PRIMARY_REPOSITORY_PATH/ios/Package.resolved" "$RESOLVED_DIR/Package.resolved"
+echo "Copied Package.resolved"
+
 cd "$CI_PRIMARY_REPOSITORY_PATH"
 
 # Create empty Secrets.xcconfig so #include? doesn't warn
