@@ -15,7 +15,7 @@ class ConsentType(str, enum.Enum):
     HIPAA = "hipaa"  # Acknowledges consumer tool, not HIPAA-covered
     DATA_PROCESSING = "data_processing"  # Consents to data collection/storage/processing
     TERMS_PRIVACY = "terms_privacy"  # Agrees to Terms of Service and Privacy Policy
-    AGE_USE = "age_use"  # Confirms 18+ and lawful use
+    AGE_USE = "age_use"  # Confirms 18+, US residency, and lawful use
     SHARING_AUTHORIZATION = "sharing_authorization"  # Confirms right to share session with collaborator
 
 
@@ -38,8 +38,8 @@ CONSENT_VERSIONS = {
         "text": "I agree to the Terms of Service and Privacy Policy."
     },
     ConsentType.AGE_USE: {
-        "version": "1.0",
-        "text": "I am at least 18 years old and will use AretaCare only for lawful, personal purposes."
+        "version": "1.1",
+        "text": "I am at least 18 years old, reside in the United States, and will use AretaCare only for lawful, personal purposes within the United States."
     },
     ConsentType.SHARING_AUTHORIZATION: {
         "version": "1.0",

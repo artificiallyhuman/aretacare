@@ -99,7 +99,7 @@ function Register() {
     }
 
     if (!acknowledgeAgeAndUse) {
-      setError('You must confirm you are at least 18 years old');
+      setError('You must confirm you are at least 18 years old and reside in the United States');
       return;
     }
 
@@ -416,7 +416,7 @@ function Register() {
                       required
                     />
                     <label htmlFor="acknowledgeAgeAndUse" className="ml-3 text-sm text-gray-700 dark:text-gray-300 cursor-pointer">
-                      I am at least 18 years old and will use AretaCare only for lawful, personal purposes.
+                      I am at least 18 years old, reside in the United States, and will use AretaCare only for lawful, personal purposes within the United States.
                     </label>
                   </div>
 

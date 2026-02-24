@@ -14,6 +14,7 @@ struct ConversationView: View {
     @State private var scrollToBottom = false
     @State private var showScrollToBottomButton = false
     @State private var messageCountWhenScrolledAway = 0
+    @State private var bottomAnchorHasAppeared = false
     @State private var editingMessage: MessageResponse?
     @State private var editText = ""
     @State private var showResetConfirmation = false
@@ -108,6 +109,8 @@ struct ConversationView: View {
             .onChange(of: sessionVM.currentSession?.id) { _, newId in
                 guard let newId else { return }
                 conversationVM.clearMessages()
+                showScrollToBottomButton = false
+                bottomAnchorHasAppeared = false
                 Task {
                     await conversationVM.fetchHistory(sessionId: newId)
                 }
@@ -336,6 +339,7 @@ struct ConversationView: View {
                         Color.clear.frame(height: 1)
                             .id("scroll-bottom")
                             .onAppear {
+                                bottomAnchorHasAppeared = true
                                 showScrollToBottomButton = false
                                 messageCountWhenScrolledAway = 0
                             }
@@ -384,13 +388,27 @@ struct ConversationView: View {
                     }
                 }
                 .onChange(of: conversationVM.messages.count) { _, _ in
-                    scrollToLatest(proxy: proxy)
+                    if !showScrollToBottomButton {
+                        scrollToLatest(proxy: proxy)
+                    }
                 }
                 .onChange(of: scrollToBottom) { _, _ in
                     scrollToLatest(proxy: proxy)
                 }
                 .onAppear {
-                    scrollToLatest(proxy: proxy)
+                    bottomAnchorHasAppeared = false
+                    Task {
+                        try? await Task.sleep(for: .milliseconds(100))
+                        scrollToLatest(proxy: proxy)
+                        // Fallback: if scroll didn't reach the bottom anchor, show button
+                        try? await Task.sleep(for: .milliseconds(400))
+                        if !bottomAnchorHasAppeared && !conversationVM.messages.isEmpty {
+                            withAnimation(.spring(duration: 0.3)) {
+                                showScrollToBottomButton = true
+                            }
+                            messageCountWhenScrolledAway = conversationVM.messages.count
+                        }
+                    }
                 }
             }
         }
@@ -481,9 +499,9 @@ struct ConversationView: View {
     }
 
     private func scrollToLatest(proxy: ScrollViewProxy) {
-        guard let lastId = conversationVM.messages.last?.id else { return }
+        guard !conversationVM.messages.isEmpty else { return }
         withAnimation(.easeOut(duration: 0.2)) {
-            proxy.scrollTo(lastId, anchor: .bottom)
+            proxy.scrollTo("scroll-bottom", anchor: .bottom)
         }
     }
 

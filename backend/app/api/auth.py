@@ -236,7 +236,7 @@ def register(request: Request, response: Response, user_data: UserRegister, db: 
     if not user_data.acknowledge_age_and_use:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="You must confirm you are at least 18 years old"
+            detail="You must confirm you are at least 18 years old and reside in the United States"
         )
 
     # Check if signups are controlled (waitlist mode)

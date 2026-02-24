@@ -11,7 +11,7 @@ class UserRegister(BaseModel):
     acknowledge_hipaa: bool = Field(..., description="User acknowledges HIPAA limitations")
     acknowledge_ai_processing: bool = Field(..., description="User acknowledges AI processing of their information")
     agree_to_terms: bool = Field(..., description="User agrees to Terms of Service and Privacy Policy")
-    acknowledge_age_and_use: bool = Field(..., description="User confirms they are 18+ and will use for lawful purposes")
+    acknowledge_age_and_use: bool = Field(..., description="User confirms they are 18+, reside in the US, and will use for lawful purposes")
     invitation_token: str | None = Field(None, description="Optional invitation token for accepting session invitations")
 
 

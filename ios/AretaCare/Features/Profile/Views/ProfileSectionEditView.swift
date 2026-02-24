@@ -349,29 +349,29 @@ struct ProfileSectionEditView: View {
         }
 
         Section("Caregiving Guidelines") {
-            ForEach($caregivingGuidelines) { $guide in
-                VStack(alignment: .leading, spacing: 6) {
-                    HStack {
-                        Text(guide.guideline ?? "Guideline")
-                            .font(.subheadline.weight(.medium))
-                        Spacer()
-                        Button("Remove", role: .destructive) {
-                            caregivingGuidelines.removeAll { $0.id == guide.id }
-                        }
-                        .font(.caption)
-                    }
-                    ProfileEditRow("Guideline", text: Binding(get: { guide.guideline ?? "" }, set: { guide.guideline = $0.isEmpty ? nil : $0 }))
-                    ProfileEditRow("Category", text: Binding(get: { guide.category ?? "" }, set: { guide.category = $0.isEmpty ? nil : $0 }))
-                    Picker("Importance", selection: Binding(get: { guide.importance ?? "preferred" }, set: { guide.importance = $0 })) {
-                        Text("Critical").tag("critical")
-                        Text("Important").tag("important")
-                        Text("Preferred").tag("preferred")
-                    }
-                    ProfileEditRow("Details", text: Binding(get: { guide.details ?? "" }, set: { guide.details = $0.isEmpty ? nil : $0 }))
-                }
-            }
             ProfileAddItemButton("Add Guideline") {
                 caregivingGuidelines.append(CaregivingGuideline(id: UUID().uuidString, importance: "preferred"))
+            }
+        }
+        ForEach($caregivingGuidelines) { $guide in
+            Section {
+                ProfileEditRow("Guideline", text: Binding(get: { guide.guideline ?? "" }, set: { guide.guideline = $0.isEmpty ? nil : $0 }))
+                ProfileEditRow("Category", text: Binding(get: { guide.category ?? "" }, set: { guide.category = $0.isEmpty ? nil : $0 }))
+                Picker("Importance", selection: Binding(get: { guide.importance ?? "preferred" }, set: { guide.importance = $0 })) {
+                    Text("Critical").tag("critical")
+                    Text("Important").tag("important")
+                    Text("Preferred").tag("preferred")
+                }
+                ProfileEditRow("Details", text: Binding(get: { guide.details ?? "" }, set: { guide.details = $0.isEmpty ? nil : $0 }))
+            } header: {
+                HStack {
+                    Text(guide.guideline ?? "Guideline")
+                    Spacer()
+                    Button("Remove", role: .destructive) {
+                        caregivingGuidelines.removeAll { $0.id == guide.id }
+                    }
+                    .font(.caption)
+                }
             }
         }
 

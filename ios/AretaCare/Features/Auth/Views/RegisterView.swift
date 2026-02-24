@@ -299,7 +299,7 @@ struct RegisterView: View {
 
                 ConsentCheckbox(
                     isChecked: $viewModel.consentAgeUse,
-                    text: "I am at least 18 years old and will use AretaCare only for lawful, personal purposes."
+                    text: "I am at least 18 years old, reside in the United States, and will use AretaCare only for lawful, personal purposes within the United States."
                 )
             }
 

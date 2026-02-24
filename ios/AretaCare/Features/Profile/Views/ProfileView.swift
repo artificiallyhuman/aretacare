@@ -272,7 +272,7 @@ struct ProfileView: View {
                             count: conditions.count,
                             onEdit: { editingSection = .init("conditions") }
                         ) {
-                            ForEach(conditions) { condition in
+                            ForEach(sortedConditions(conditions)) { condition in
                                 AccentCard(color: profileStatusColor(condition.status ?? "")) {
                                     HStack {
                                         Text(condition.clinicalTerm ?? condition.description ?? "Unknown")
@@ -306,7 +306,7 @@ struct ProfileView: View {
                             count: medications.count,
                             onEdit: { editingSection = .init("medications") }
                         ) {
-                            ForEach(medications) { med in
+                            ForEach(sortedMedications(medications)) { med in
                                 let medStatus = (med.status ?? "active").lowercased()
                                 let isActive = medStatus != "discontinued" && medStatus != "paused"
                                 AccentCard(color: isActive ? .pink : .gray) {
@@ -397,7 +397,7 @@ struct ProfileView: View {
                             count: events.count,
                             onEdit: { editingSection = .init("events") }
                         ) {
-                            ForEach(events) { event in
+                            ForEach(sortedEvents(events)) { event in
                                 AccentCard(color: profileEventTypeColor(event.eventType)) {
                                     HStack {
                                         Text(event.description ?? event.eventType ?? "Event")
@@ -692,6 +692,40 @@ struct ProfileView: View {
         return parts.isEmpty ? "New activity detected" : parts.joined(separator: ", ")
     }
 
+    // MARK: - Sorting Helpers
+
+    private func sortedConditions(_ conditions: [ConditionInfo]) -> [ConditionInfo] {
+        let statusOrder = ["active": 0, "monitoring": 1, "resolved": 2]
+        return conditions.sorted { a, b in
+            let statusA = statusOrder[(a.status ?? "").lowercased()] ?? 1
+            let statusB = statusOrder[(b.status ?? "").lowercased()] ?? 1
+            if statusA != statusB { return statusA < statusB }
+            return (a.diagnosisDate ?? "") > (b.diagnosisDate ?? "")
+        }
+    }
+
+    private func sortedMedications(_ medications: [MedicationInfo]) -> [MedicationInfo] {
+        let categoryOrder: [String: Int] = [
+            "multiple": 0, "pain_management": 1, "cardiovascular": 2, "diabetes": 3,
+            "mental_health": 4, "antibiotics": 5, "respiratory": 6, "gastrointestinal": 7,
+            "neurological": 8, "endocrine": 9, "oncology": 10, "immunosuppressant": 11,
+            "vitamins_supplements": 12, "other": 13
+        ]
+        let statusOrder = ["active": 0, "paused": 1, "discontinued": 2]
+        return medications.sorted { a, b in
+            let catA = categoryOrder[(a.category ?? "other").lowercased()] ?? 13
+            let catB = categoryOrder[(b.category ?? "other").lowercased()] ?? 13
+            if catA != catB { return catA < catB }
+            let statA = statusOrder[(a.status ?? "active").lowercased()] ?? 0
+            let statB = statusOrder[(b.status ?? "active").lowercased()] ?? 0
+            return statA < statB
+        }
+    }
+
+    private func sortedEvents(_ events: [EventInfo]) -> [EventInfo] {
+        events.sorted { ($0.date ?? "") > ($1.date ?? "") }
+    }
+
     // MARK: - Copy & Export
 
     private func copyProfileToClipboard() {
@@ -731,7 +765,7 @@ struct ProfileView: View {
         }
         if let items = data.conditions, !items.isEmpty {
             lines.append("Conditions")
-            for item in items {
+            for item in sortedConditions(items) {
                 lines.append("  \(item.clinicalTerm ?? item.description ?? "Unknown") (\(item.status ?? "unknown"))")
                 if let v = item.diagnosisDate { lines.append("    Diagnosed: \(v)") }
                 if let v = item.details { lines.append("    \(v)") }
@@ -740,7 +774,7 @@ struct ProfileView: View {
         }
         if let items = data.medications, !items.isEmpty {
             lines.append("Medications")
-            for item in items {
+            for item in sortedMedications(items) {
                 var desc = item.name ?? "Unknown"
                 if let dose = item.dose { desc += " - \(dose)" }
                 if let freq = item.frequency { desc += " (\(freq))" }
@@ -766,7 +800,7 @@ struct ProfileView: View {
         }
         if let items = data.events, !items.isEmpty {
             lines.append("Key Events")
-            for item in items {
+            for item in sortedEvents(items) {
                 var desc = item.description ?? item.eventType ?? "Event"
                 if let type = item.eventType { desc += " [\(profileEventTypeLabel(type))]" }
                 if let date = item.date { desc += " (\(date))" }
