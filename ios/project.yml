@@ -21,6 +21,9 @@ packages:
   MarkdownUI:
     url: https://github.com/gonzalezreal/swift-markdown-ui
     from: "2.4.0"
+  RevenueCat:
+    url: https://github.com/RevenueCat/purchases-ios-spm.git
+    from: "5.27.1"
 
 targets:
   AretaCare:
@@ -69,6 +72,7 @@ targets:
         NSCameraUsageDescription: "AretaCare needs camera access to capture photos of medical documents."
         NSFaceIDUsageDescription: "AretaCare uses Face ID to protect your health information."
         NSPhotoLibraryUsageDescription: "AretaCare needs photo library access to upload medical document images."
+        REVENUECAT_API_KEY: $(REVENUECAT_API_KEY)
         ITSAppUsesNonExemptEncryption: false
         UIBackgroundModes:
           - remote-notification
@@ -76,3 +80,7 @@ targets:
     dependencies:
       - package: KeychainAccess
       - package: MarkdownUI
+      - package: RevenueCat
+        product: RevenueCat
+      - package: RevenueCat
+        product: RevenueCatUI

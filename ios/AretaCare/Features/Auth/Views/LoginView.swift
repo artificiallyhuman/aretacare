@@ -126,7 +126,7 @@ struct LoginView: View {
                 NavigationLink {
                     RegisterView()
                 } label: {
-                    Text("Create a free account")
+                    Text("Create an account")
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.bordered)

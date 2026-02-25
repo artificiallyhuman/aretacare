@@ -39,6 +39,9 @@ final class AuthManager {
             isLoading = false
             startIdleTimer()
             NotificationManager.shared.requestAuthorization()
+            if let userId = currentUser?.id {
+                await SubscriptionManager.shared.login(appUserID: userId)
+            }
         } catch {
             KeychainManager.shared.clearAll()
             handleLogout()
@@ -84,6 +87,7 @@ final class AuthManager {
         isAuthenticated = true
         startIdleTimer()
         NotificationManager.shared.requestAuthorization()
+        await SubscriptionManager.shared.login(appUserID: user.id)
         return .success
     }
 
@@ -127,6 +131,7 @@ final class AuthManager {
         self.mfaToken = nil
         startIdleTimer()
         NotificationManager.shared.requestAuthorization()
+        await SubscriptionManager.shared.login(appUserID: response.user.id)
     }
 
     // MARK: - Register
@@ -179,6 +184,7 @@ final class AuthManager {
             #endif
         }
 
+        await SubscriptionManager.shared.logout()
         handleLogout()
     }
 
@@ -188,6 +194,7 @@ final class AuthManager {
     func forceLogout() async {
         await AuthInterceptor.shared.clearAccessToken()
         KeychainManager.shared.clearAll()
+        await SubscriptionManager.shared.logout()
         handleLogout()
     }
 

@@ -1,4 +1,5 @@
 import SwiftUI
+import RevenueCat
 
 @main
 struct AretaCareApp: App {
@@ -16,6 +17,7 @@ struct AretaCareApp: App {
                     }
                 }
                 .task {
+                    SubscriptionManager.shared.configure()
                     await authManager.initAuth()
                 }
                 .onReceive(NotificationCenter.default.publisher(for: UIApplication.didReceiveMemoryWarningNotification)) { _ in

@@ -78,4 +78,18 @@ enum AppConstants {
     /// Access token lifetime (for preemptive refresh if needed).
     static let accessTokenLifetimeSeconds: TimeInterval = 60 * 60 // 1 hour
 
+    // MARK: - Subscription (RevenueCat)
+
+    /// RevenueCat API key, set via xcconfig (REVENUECAT_API_KEY) in Secrets.xcconfig.
+    static var revenueCatAPIKey: String {
+        guard let key = Bundle.main.infoDictionary?["REVENUECAT_API_KEY"] as? String, !key.isEmpty else {
+            fatalError("REVENUECAT_API_KEY not set in Secrets.xcconfig")
+        }
+        return key
+    }
+
+    static let entitlementID = "AretaCare LLC Pro"
+    static let monthlyProductID = "monthly"
+    static let yearlyProductID = "yearly"
+
 }

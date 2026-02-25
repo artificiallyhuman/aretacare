@@ -1,7 +1,9 @@
 import SwiftUI
+import RevenueCatUI
 
 struct ContentView: View {
     @State private var authManager = AuthManager.shared
+    @State private var subscriptionManager = SubscriptionManager.shared
     private let biometricManager = BiometricManager.shared
 
     var body: some View {
@@ -18,6 +20,10 @@ struct ContentView: View {
                         LoginView()
                     }
                 }
+            } else if subscriptionManager.isCheckingEntitlement {
+                loadingView
+            } else if !subscriptionManager.isProUser {
+                subscriptionGateView
             } else {
                 MainTabView()
                     .idleTimeout(authManager: authManager)
@@ -30,6 +36,18 @@ struct ContentView: View {
             }
         }
         .animation(.spring(duration: 0.35), value: biometricManager.isLocked)
+    }
+
+    // MARK: - Subscription Gate
+
+    private var subscriptionGateView: some View {
+        PaywallView()
+            .onPurchaseCompleted { customerInfo in
+                subscriptionManager.updateEntitlements(from: customerInfo)
+            }
+            .onRestoreCompleted { customerInfo in
+                subscriptionManager.updateEntitlements(from: customerInfo)
+            }
     }
 
     private var loadingView: some View {
