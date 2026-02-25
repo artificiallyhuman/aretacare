@@ -134,7 +134,7 @@ struct SettingsView: View {
                 SubscriptionView()
             } label: {
                 HStack {
-                    Label("Subscription", systemImage: "crown")
+                    Label("Subscription", systemImage: "creditcard")
                     Spacer()
                     Text(subscriptionManager.currentPlanDescription)
                         .foregroundStyle(.secondary)

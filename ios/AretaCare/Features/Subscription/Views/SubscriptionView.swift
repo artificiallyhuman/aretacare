@@ -35,7 +35,7 @@ struct SubscriptionView: View {
     private var currentPlanSection: some View {
         Section {
             HStack {
-                Label("Plan", systemImage: "crown")
+                Label("Plan", systemImage: "creditcard")
                 Spacer()
                 Text(subscriptionManager.currentPlanDescription)
                     .foregroundStyle(.secondary)
