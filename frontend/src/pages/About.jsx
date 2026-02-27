@@ -141,10 +141,16 @@ const FAQ_DATA = [
   // PLATFORM DETAILS
   {
     id: 'why-free',
-    title: 'Why is AretaCare free?',
+    title: 'Is AretaCare free?',
     icon: 'M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z',
-    content: 'The goal is to make the platform accessible to anyone who needs help managing care. Optional ways to support AretaCare may be added later, but the core platform will remain free to use.',
+    content: 'The AretaCare web app is completely free. The iOS app requires a subscription after a 7-day free trial to help cover the additional cost of building and maintaining a native mobile experience.',
     category: 'PLATFORM DETAILS',
+  },
+  {
+    id: 'why-mobile-paid',
+    title: 'Why does the mobile app cost money?',
+    icon: 'M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z',
+    content: 'Maintaining a native iOS app is a significant undertaking on top of the web platform. It requires its own design, development, and testing to deliver a quality mobile experience. The subscription helps cover this additional work so we can keep the web app free for everyone.',
   },
   {
     id: 'open-source',
@@ -619,7 +625,7 @@ const About = () => {
                   </svg>
                 </div>
                 <div className="flex-grow">
-                  <h3 className="text-2xl font-bold text-green-600 dark:text-green-400">Free for all who need it</h3>
+                  <h3 className="text-2xl font-bold text-green-600 dark:text-green-400">Accessible to all who need it</h3>
                 </div>
               </div>
               <div className="prose prose-gray dark:prose-invert max-w-none text-gray-700 dark:text-gray-300 space-y-4 leading-relaxed pl-16">
@@ -627,13 +633,13 @@ const About = () => {
                   Caregiving is stressful enough without worrying about another bill.
                 </p>
                 <p>
-                  AretaCare's core platform is free and will remain free. You shouldn't have to check your insurance coverage to get the help you need.
+                  The AretaCare web app is free and will remain free. You shouldn't have to check your insurance coverage to get the help you need.
                 </p>
                 <p>
-                  To keep innovating and delivering the service you deserve, AretaCare needs a sustainable model. We'll explore options like optional premium features that pay the bills without putting core features behind a paywall.
+                  The iOS app requires a subscription to help cover the additional cost of building and maintaining a native mobile experience. This keeps the web app free for everyone while allowing us to deliver a quality experience on both platforms.
                 </p>
                 <p className="font-semibold text-gray-900 dark:text-white bg-green-50 dark:bg-green-900/20 p-4 rounded-lg border-l-2 border-green-500 dark:border-green-400">
-                  AretaCare is available to anyone who needs it, regardless of their ability to pay.
+                  AretaCare's web app is available to anyone who needs it, regardless of their ability to pay.
                 </p>
               </div>
             </div>
