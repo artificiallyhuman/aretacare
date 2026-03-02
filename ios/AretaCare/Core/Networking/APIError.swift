@@ -23,6 +23,8 @@ enum APIError: LocalizedError {
                 return "Your account is inactive."
             } else if code == "SESSION_ACCESS_DENIED" {
                 return "You no longer have access to this session."
+            } else if code == "EMAIL_NOT_VERIFIED" {
+                return "Your email has not been verified yet. Please check your inbox for a verification link."
             }
             return "You don't have permission to perform this action."
         case .mfaRequired:
