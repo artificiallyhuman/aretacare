@@ -29,11 +29,10 @@ fi
 RELEASE_CONFIG="$CI_PRIMARY_REPOSITORY_PATH/ios/AretaCare/Configuration/Release.xcconfig"
 
 if [ "$CI_BRANCH" = "main" ]; then
-    # Production — Release.xcconfig already has production URLs, no changes needed
     echo "Branch: main — using production URLs"
 else
     # Staging — override Release.xcconfig URLs
-    sed -i '' "s|API_BASE_URL = .*|API_BASE_URL = https:/\$()/staging.aretacare.com/api|" "$RELEASE_CONFIG"
+    sed -i '' "s|API_BASE_URL = .*|API_BASE_URL = https:/\$()/staging-api.aretacare.com/api|" "$RELEASE_CONFIG"
     sed -i '' "s|FRONTEND_URL = .*|FRONTEND_URL = https:/\$()/staging.aretacare.com|" "$RELEASE_CONFIG"
     echo "Branch: $CI_BRANCH — using staging URLs"
 fi
