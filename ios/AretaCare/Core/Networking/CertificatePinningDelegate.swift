@@ -32,10 +32,13 @@ final class CertificatePinningDelegate: NSObject, URLSessionDelegate, Sendable {
 
     private let pinnedKeyHashes: Set<String> = [
         // Primary leaf certificate public key hash
-        "0LSDaM3YYZuUsSwwuqYc/Xfz2wwppQBsZED6FjqKl4E=",
+        "OER7+0HU06hZroWKjSjEkqFjo31AJ2PUoxXRLrCNtBk=",
         // Backup / intermediate CA public key hash
         "kIdp6NNEd8wsugYyyIYFsi1ylMCED3hZbSR8ZFsa/A4="
     ]
+
+    /// The production API host — only this host requires certificate pinning.
+    private static let productionHost = "api.aretacare.com"
 
     override init() {
         super.init()
@@ -78,6 +81,14 @@ final class CertificatePinningDelegate: NSObject, URLSessionDelegate, Sendable {
             print("[SSL] Trust evaluation failed: \(error?.localizedDescription ?? "unknown")")
             #endif
             completionHandler(.cancelAuthenticationChallenge, nil)
+            return
+        }
+
+        // Only enforce pin checking for the production API host.
+        // Non-production hosts (e.g., staging) still pass trust evaluation above
+        // but skip the pin check since their certificates rotate independently.
+        if challenge.protectionSpace.host != Self.productionHost {
+            completionHandler(.useCredential, URLCredential(trust: serverTrust))
             return
         }
 
