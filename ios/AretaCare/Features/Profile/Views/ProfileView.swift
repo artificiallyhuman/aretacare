@@ -156,9 +156,6 @@ struct ProfileView: View {
             await viewModel.fetchProfile(sessionId: sessionId)
             await viewModel.checkProfile(sessionId: sessionId)
         }
-        .refreshable {
-            await viewModel.fetchProfile(sessionId: sessionId)
-        }
     }
 
     // MARK: - Profile Content
@@ -533,6 +530,9 @@ struct ProfileView: View {
                 .padding(.horizontal)
                 .padding(.top, 8)
             }
+        }
+        .refreshable {
+            await viewModel.fetchProfile(sessionId: sessionId)
         }
     }
 

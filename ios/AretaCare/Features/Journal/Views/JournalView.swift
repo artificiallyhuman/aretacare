@@ -71,10 +71,6 @@ struct JournalView: View {
             await viewModel.fetchEntries(sessionId: sessionId)
             await viewModel.fetchDates(sessionId: sessionId)
         }
-        .refreshable {
-            await viewModel.fetchEntries(sessionId: sessionId, forceRefresh: true)
-            await viewModel.fetchDates(sessionId: sessionId)
-        }
         .sheet(isPresented: $showingDatePicker) {
             DateCalendarSheetView(
                 sortedDates: viewModel.sortedDates,
@@ -252,6 +248,10 @@ struct JournalView: View {
                     .disabled(viewModel.isLoading)
                 }
                 }
+            }
+            .refreshable {
+                await viewModel.fetchEntries(sessionId: sessionId, forceRefresh: true)
+                await viewModel.fetchDates(sessionId: sessionId)
             }
         }
     }
