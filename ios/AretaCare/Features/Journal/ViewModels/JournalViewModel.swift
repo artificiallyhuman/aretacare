@@ -88,9 +88,17 @@ final class JournalViewModel {
             return
         }
 
-        isLoading = true
+        // Skip isLoading for pull-to-refresh — .refreshable shows its own spinner,
+        // and setting isLoading triggers view updates that can cancel the refresh task.
+        if !forceRefresh {
+            isLoading = true
+        }
         errorMessage = nil
-        defer { isLoading = false }
+        defer {
+            if !forceRefresh {
+                isLoading = false
+            }
+        }
 
         do {
             var queryItems: [URLQueryItem] = [
