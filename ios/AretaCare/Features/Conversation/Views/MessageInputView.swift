@@ -169,9 +169,11 @@ struct MessageInputView: View {
 
     private func performSend() {
         guard canSend else { return }
-        isFocused = false
         sendTrigger += 1
         onSend()
+        // Dismiss focus AFTER onSend reads the text — dismissing first can
+        // drop uncommitted dictation text from the binding.
+        isFocused = false
     }
 }
 

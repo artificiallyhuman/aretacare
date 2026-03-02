@@ -441,9 +441,13 @@ struct ConversationView: View {
     private func sendMessage() {
         let text = messageText
         let attachment = pendingAttachment
-        messageText = ""
         pendingAttachment = nil
         sendHapticTrigger += 1
+        // Clear text on next run loop — by then MessageInputView.performSend()
+        // has dismissed focus, so the TextField binding syncs correctly.
+        Task { @MainActor in
+            messageText = ""
+        }
         guard let sessionId = currentSessionId else { return }
 
         if let attachment {
