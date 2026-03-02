@@ -11,7 +11,7 @@ struct DocumentsListView: View {
     @State private var showingPickerChoice = false
     @State private var showingDuplicateAlert = false
     @State private var duplicateMatches: [DuplicateMatch] = []
-    @State private var pendingUpload: PendingUpload?
+    @State private var pendingUploads: [PendingUpload] = []
     @State private var selectedPhotoItems: [PhotosPickerItem] = []
     @State private var searchText = ""
     @State private var debouncedSearchText = ""
@@ -20,6 +20,9 @@ struct DocumentsListView: View {
     @State private var uploadHapticTrigger = 0
     @State private var deleteHapticTrigger = 0
     @State private var showFileSizeAlert = false
+    @State private var oversizedFilenames: [String] = []
+    @State private var showBatchResultToast = false
+    @State private var batchResultMessage = ""
     @State private var shareDocumentUrl: URL?
     @State private var showingDocumentShareSheet = false
 
@@ -105,21 +108,26 @@ struct DocumentsListView: View {
             Button("Files") { showingFilePicker = true }
             Button("Cancel", role: .cancel) {}
         }
-        .photosPicker(isPresented: $showingPhotoPicker, selection: $selectedPhotoItems, maxSelectionCount: 1, matching: .images)
-        .fileImporter(isPresented: $showingFilePicker, allowedContentTypes: [.pdf, .plainText, .jpeg, .png], allowsMultipleSelection: false) { result in
+        .photosPicker(isPresented: $showingPhotoPicker, selection: $selectedPhotoItems, maxSelectionCount: 20, matching: .images)
+        .fileImporter(isPresented: $showingFilePicker, allowedContentTypes: [.pdf, .plainText, .jpeg, .png], allowsMultipleSelection: true) { result in
             handleFileImport(result)
         }
-        .alert("Duplicate Document Found", isPresented: $showingDuplicateAlert) {
+        .alert(
+            duplicateMatches.count == 1 ? "Duplicate Document Found" : "Duplicate Documents Found",
+            isPresented: $showingDuplicateAlert
+        ) {
             Button("Upload Anyway") {
-                if let upload = pendingUpload {
-                    performUpload(upload)
-                }
+                performBatchUpload(pendingUploads)
             }
             Button("Cancel", role: .cancel) {
-                pendingUpload = nil
+                pendingUploads = []
             }
         } message: {
-            Text("A document with this filename already exists in this session.")
+            if duplicateMatches.count == 1 {
+                Text("A document named \"\(duplicateMatches.first?.filename ?? "")\" already exists in this session.")
+            } else {
+                Text("\(duplicateMatches.count) documents with matching filenames already exist in this session.")
+            }
         }
         .sheet(isPresented: $showingDatePicker) {
             DateCalendarSheetView(
@@ -140,14 +148,28 @@ struct DocumentsListView: View {
             }
         }
         .overlay {
-            if viewModel.isUploading {
+            if viewModel.isBatchUploading {
+                UploadingOverlay(
+                    fileProgress: viewModel.batchUploadProgress,
+                    currentIndex: viewModel.batchCurrentIndex,
+                    totalCount: viewModel.batchUploadProgress.count,
+                    onCancel: { viewModel.cancelBatchUpload() }
+                )
+            } else if viewModel.isUploading {
                 UploadingOverlay()
             }
         }
+        .toast(batchResultMessage, icon: "checkmark", isPresented: $showBatchResultToast)
         .alert("File Too Large", isPresented: $showFileSizeAlert) {
-            Button("OK", role: .cancel) {}
+            Button("OK", role: .cancel) { oversizedFilenames = [] }
         } message: {
-            Text("File too large. Maximum file size is 30 MB.")
+            if oversizedFilenames.count == 1 {
+                Text("\"\(oversizedFilenames.first ?? "")\" exceeds the 30 MB limit and was skipped.")
+            } else if oversizedFilenames.count > 1 {
+                Text("\(oversizedFilenames.count) files exceed the 30 MB limit and were skipped.")
+            } else {
+                Text("File too large. Maximum file size is 30 MB.")
+            }
         }
     }
 
@@ -273,18 +295,32 @@ struct DocumentsListView: View {
     private func handleFileImport(_ result: Result<[URL], Error>) {
         switch result {
         case .success(let urls):
-            guard let url = urls.first else { return }
-            guard url.startAccessingSecurityScopedResource() else { return }
-            defer { url.stopAccessingSecurityScopedResource() }
+            var uploads: [PendingUpload] = []
+            var oversized: [String] = []
 
-            guard let data = try? Data(contentsOf: url) else { return }
-            if data.count > AppConstants.maxFileSizeBytes {
-                showFileSizeAlert = true
-                return
+            for url in urls {
+                guard url.startAccessingSecurityScopedResource() else { continue }
+                defer { url.stopAccessingSecurityScopedResource() }
+
+                guard let data = try? Data(contentsOf: url) else { continue }
+                if data.count > AppConstants.maxFileSizeBytes {
+                    oversized.append(url.lastPathComponent)
+                    continue
+                }
+                uploads.append(PendingUpload(
+                    data: data,
+                    filename: url.lastPathComponent,
+                    contentType: url.pathExtension.mimeTypeForExtension
+                ))
             }
-            let filename = url.lastPathComponent
-            let contentType = url.pathExtension.mimeTypeForExtension
-            prepareUpload(data: data, filename: filename, contentType: contentType)
+
+            if !oversized.isEmpty {
+                oversizedFilenames = oversized
+                showFileSizeAlert = true
+            }
+            if !uploads.isEmpty {
+                prepareUploads(uploads)
+            }
 
         case .failure:
             break
@@ -301,15 +337,16 @@ struct DocumentsListView: View {
     }
 
     private func handlePhotoSelection(_ items: [PhotosPickerItem]) {
-        guard let item = items.first else { return }
+        guard !items.isEmpty else { return }
         selectedPhotoItems = []
 
         Task {
-            if let data = try? await item.loadTransferable(type: Data.self) {
-                if data.count > AppConstants.maxFileSizeBytes {
-                    showFileSizeAlert = true
-                    return
-                }
+            var uploads: [PendingUpload] = []
+            var oversized: [String] = []
+
+            for (index, item) in items.enumerated() {
+                guard let data = try? await item.loadTransferable(type: Data.self) else { continue }
+
                 let ext: String
                 let contentType: String
                 if let type = item.supportedContentTypes.first,
@@ -321,37 +358,80 @@ struct DocumentsListView: View {
                     ext = "jpg"
                     contentType = "image/jpeg"
                 }
-                let filename = "photo_\(Date().apiDateString).\(ext)"
-                prepareUpload(data: data, filename: filename, contentType: contentType)
+                let filename = items.count == 1
+                    ? "photo_\(Date().apiDateString).\(ext)"
+                    : "photo_\(Date().apiDateString)_\(index + 1).\(ext)"
+
+                if data.count > AppConstants.maxFileSizeBytes {
+                    oversized.append(filename)
+                    continue
+                }
+                uploads.append(PendingUpload(data: data, filename: filename, contentType: contentType))
+            }
+
+            if !oversized.isEmpty {
+                oversizedFilenames = oversized
+                showFileSizeAlert = true
+            }
+            if !uploads.isEmpty {
+                prepareUploads(uploads)
             }
         }
     }
 
-    private func prepareUpload(data: Data, filename: String, contentType: String) {
-        let upload = PendingUpload(data: data, filename: filename, contentType: contentType)
-
+    private func prepareUploads(_ uploads: [PendingUpload]) {
         Task {
-            let duplicates = await viewModel.checkDuplicates(sessionId: sessionId, filenames: [filename])
+            let filenames = uploads.map(\.filename)
+            let duplicates = await viewModel.checkDuplicates(sessionId: sessionId, filenames: filenames)
+
             if duplicates.isEmpty {
-                performUpload(upload)
+                performBatchUpload(uploads)
             } else {
-                pendingUpload = upload
+                pendingUploads = uploads
                 duplicateMatches = duplicates
                 showingDuplicateAlert = true
             }
         }
     }
 
-    private func performUpload(_ upload: PendingUpload) {
+    private func performBatchUpload(_ uploads: [PendingUpload]) {
         Task {
-            let result = await viewModel.uploadDocument(
-                sessionId: sessionId,
-                fileData: upload.data,
-                filename: upload.filename,
-                contentType: upload.contentType
-            )
-            if result != nil { uploadHapticTrigger += 1 }
-            pendingUpload = nil
+            if uploads.count == 1 {
+                // Single file: use simple overlay path
+                let result = await viewModel.uploadDocument(
+                    sessionId: sessionId,
+                    fileData: uploads[0].data,
+                    filename: uploads[0].filename,
+                    contentType: uploads[0].contentType
+                )
+                if result != nil { uploadHapticTrigger += 1 }
+                pendingUploads = []
+                return
+            }
+
+            let result = await viewModel.uploadDocuments(sessionId: sessionId, files: uploads)
+            pendingUploads = []
+
+            if result.successCount > 0 {
+                uploadHapticTrigger += 1
+            }
+
+            if result.wasCancelled && result.successCount > 0 {
+                batchResultMessage = "Cancelled. \(result.successCount) uploaded."
+            } else if result.failCount > 0 && result.successCount > 0 {
+                batchResultMessage = "\(result.successCount) uploaded, \(result.failCount) failed."
+            } else if result.failCount > 0 {
+                batchResultMessage = "\(result.failCount) upload\(result.failCount == 1 ? "" : "s") failed."
+            } else if result.successCount > 1 {
+                batchResultMessage = "\(result.successCount) documents uploaded."
+            } else {
+                viewModel.clearBatchProgress()
+                return
+            }
+
+            try? await Task.sleep(for: .seconds(1.5))
+            viewModel.clearBatchProgress()
+            showBatchResultToast = true
         }
     }
 
@@ -367,12 +447,6 @@ struct DocumentsListView: View {
 }
 
 // MARK: - Supporting Views
-
-private struct PendingUpload {
-    let data: Data
-    let filename: String
-    let contentType: String
-}
 
 private struct DocumentRowView: View {
     let document: DocumentResponse

@@ -6,6 +6,10 @@ final class AudioRecordingsViewModel {
     private(set) var recordings: [AudioRecordingResponse] = []
     private(set) var isLoading = false
     private(set) var isUploading = false
+    private(set) var isBatchUploading = false
+    private(set) var batchUploadProgress: [UploadFileProgress] = []
+    private(set) var batchCurrentIndex: Int = 0
+    private var batchCancelled = false
     private(set) var hasMore = false
     private(set) var total = 0
     private(set) var errorMessage: String?
@@ -123,6 +127,89 @@ final class AudioRecordingsViewModel {
         } catch {
             errorMessage = error.localizedDescription
         }
+    }
+
+    // MARK: - Batch Upload
+
+    func uploadRecordings(sessionId: String, files: [PendingUpload]) async -> UploadBatchResult {
+        guard !files.isEmpty else {
+            return UploadBatchResult(successCount: 0, failCount: 0, cancelledCount: 0, wasCancelled: false)
+        }
+
+        isBatchUploading = true
+        isUploading = true
+        batchCancelled = false
+        errorMessage = nil
+
+        batchUploadProgress = files.enumerated().map { index, file in
+            UploadFileProgress(id: index, filename: file.filename, status: .pending)
+        }
+        batchCurrentIndex = 0
+
+        var successCount = 0
+        var failCount = 0
+
+        for (index, file) in files.enumerated() {
+            if batchCancelled {
+                for i in index..<files.count {
+                    batchUploadProgress[i].status = .cancelled
+                }
+                break
+            }
+
+            batchCurrentIndex = index
+            batchUploadProgress[index].status = .uploading
+
+            do {
+                var multipart = MultipartFormData()
+                multipart.addTextField(name: "session_id", value: sessionId)
+                multipart.addTextField(name: "skip_journal_synthesis", value: "false")
+                multipart.addFileField(name: "audio", filename: file.filename, mimeType: file.contentType, data: file.data)
+
+                let _: AudioTranscribeResponse = try await APIClient.shared.upload(
+                    APIEndpoints.Conversation.transcribe,
+                    multipart: multipart
+                )
+
+                batchUploadProgress[index].status = .success
+                successCount += 1
+            } catch {
+                if batchCancelled {
+                    batchUploadProgress[index].status = .cancelled
+                } else {
+                    batchUploadProgress[index].status = .error(error.localizedDescription)
+                    failCount += 1
+                }
+            }
+        }
+
+        if successCount > 0 {
+            await fetchRecordings(sessionId: sessionId)
+        }
+
+        let cancelledCount = batchUploadProgress.filter {
+            if case .cancelled = $0.status { return true }
+            return false
+        }.count
+
+        isUploading = false
+        isBatchUploading = false
+
+        return UploadBatchResult(
+            successCount: successCount,
+            failCount: failCount,
+            cancelledCount: cancelledCount,
+            wasCancelled: batchCancelled
+        )
+    }
+
+    func cancelBatchUpload() {
+        batchCancelled = true
+    }
+
+    func clearBatchProgress() {
+        batchUploadProgress = []
+        batchCurrentIndex = 0
     }
 
     // MARK: - Update Recording

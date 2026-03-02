@@ -16,6 +16,9 @@ struct AudioRecordingsView: View {
     @State private var showingAddChoice = false
     @State private var showingFilePicker = false
     @State private var showFileSizeAlert = false
+    @State private var oversizedFilenames: [String] = []
+    @State private var showBatchResultToast = false
+    @State private var batchResultMessage = ""
 
     private let currentUserId = AuthManager.shared.currentUser?.id ?? ""
 
@@ -104,19 +107,34 @@ struct AudioRecordingsView: View {
             Button("Choose File") { showingFilePicker = true }
             Button("Cancel", role: .cancel) {}
         }
-        .fileImporter(isPresented: $showingFilePicker, allowedContentTypes: [.mp3, .mpeg4Audio, .wav, .audio], allowsMultipleSelection: false) { result in
+        .fileImporter(isPresented: $showingFilePicker, allowedContentTypes: [.mp3, .mpeg4Audio, .wav, .audio], allowsMultipleSelection: true) { result in
             handleAudioFileImport(result)
         }
         .alert("File Too Large", isPresented: $showFileSizeAlert) {
-            Button("OK", role: .cancel) {}
+            Button("OK", role: .cancel) { oversizedFilenames = [] }
         } message: {
-            Text("Audio files must be under 100 MB.")
+            if oversizedFilenames.count == 1 {
+                Text("\"\(oversizedFilenames.first ?? "")\" exceeds the 100 MB limit and was skipped.")
+            } else if oversizedFilenames.count > 1 {
+                Text("\(oversizedFilenames.count) files exceed the 100 MB limit and were skipped.")
+            } else {
+                Text("Audio files must be under 100 MB.")
+            }
         }
         .overlay {
-            if viewModel.isUploading {
+            if viewModel.isBatchUploading {
+                UploadingOverlay(
+                    message: "Uploading & Transcribing...",
+                    fileProgress: viewModel.batchUploadProgress,
+                    currentIndex: viewModel.batchCurrentIndex,
+                    totalCount: viewModel.batchUploadProgress.count,
+                    onCancel: { viewModel.cancelBatchUpload() }
+                )
+            } else if viewModel.isUploading {
                 UploadingOverlay(message: "Uploading & Transcribing...")
             }
         }
+        .toast(batchResultMessage, icon: "checkmark", isPresented: $showBatchResultToast)
         .sensoryFeedback(.impact(flexibility: .rigid), trigger: deleteHapticTrigger)
         .onChange(of: searchText) { _, newValue in
             searchDebounceTask?.cancel()
@@ -139,25 +157,62 @@ struct AudioRecordingsView: View {
     private func handleAudioFileImport(_ result: Result<[URL], Error>) {
         switch result {
         case .success(let urls):
-            guard let url = urls.first else { return }
-            guard url.startAccessingSecurityScopedResource() else { return }
-            defer { url.stopAccessingSecurityScopedResource() }
+            var uploads: [PendingUpload] = []
+            var oversized: [String] = []
 
-            guard let data = try? Data(contentsOf: url) else { return }
-            if data.count > AppConstants.maxAudioFileSizeBytes {
-                showFileSizeAlert = true
-                return
+            for url in urls {
+                guard url.startAccessingSecurityScopedResource() else { continue }
+                defer { url.stopAccessingSecurityScopedResource() }
+
+                guard let data = try? Data(contentsOf: url) else { continue }
+                if data.count > AppConstants.maxAudioFileSizeBytes {
+                    oversized.append(url.lastPathComponent)
+                    continue
+                }
+                uploads.append(PendingUpload(
+                    data: data,
+                    filename: url.lastPathComponent,
+                    contentType: url.pathExtension.mimeTypeForExtension
+                ))
             }
-            let filename = url.lastPathComponent
-            let mimeType = url.pathExtension.mimeTypeForExtension
 
-            Task {
-                await viewModel.uploadRecording(
-                    sessionId: sessionId,
-                    audioData: data,
-                    filename: filename,
-                    mimeType: mimeType
-                )
+            if !oversized.isEmpty {
+                oversizedFilenames = oversized
+                showFileSizeAlert = true
+            }
+
+            guard !uploads.isEmpty else { return }
+
+            if uploads.count == 1 {
+                Task {
+                    await viewModel.uploadRecording(
+                        sessionId: sessionId,
+                        audioData: uploads[0].data,
+                        filename: uploads[0].filename,
+                        mimeType: uploads[0].contentType
+                    )
+                }
+            } else {
+                Task {
+                    let result = await viewModel.uploadRecordings(sessionId: sessionId, files: uploads)
+
+                    if result.wasCancelled && result.successCount > 0 {
+                        batchResultMessage = "Cancelled. \(result.successCount) uploaded."
+                    } else if result.failCount > 0 && result.successCount > 0 {
+                        batchResultMessage = "\(result.successCount) uploaded, \(result.failCount) failed."
+                    } else if result.failCount > 0 {
+                        batchResultMessage = "\(result.failCount) upload\(result.failCount == 1 ? "" : "s") failed."
+                    } else if result.successCount > 1 {
+                        batchResultMessage = "\(result.successCount) recordings uploaded."
+                    } else {
+                        viewModel.clearBatchProgress()
+                        return
+                    }
+
+                    try? await Task.sleep(for: .seconds(1.5))
+                    viewModel.clearBatchProgress()
+                    showBatchResultToast = true
+                }
             }
 
         case .failure:
