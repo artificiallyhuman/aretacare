@@ -35,11 +35,12 @@ Located at the top of `ai_config.py`:
 
 Control how much information is sent to the AI:
 
-- `MAX_CONVERSATION_CONTEXT` - Number of recent conversation messages (default: 30)
+- `MAX_CONVERSATION_CONTEXT` - Number of recent conversation messages (default: 15)
 - `MAX_SUMMARY_CONTEXT` - Messages for medical summary context (default: 50)
-- `MAX_JOURNAL_TOKENS` - Maximum tokens for journal context (default: 10,000)
-  - Uses tiered loading: last 7 days full detail, 8-30 days summarized, 30+ days titles only
+- `MAX_JOURNAL_TOKENS` - Maximum tokens for journal context (default: 50,000)
+  - Uses tiered loading: last 7 days full detail, 8-30 days summarized
   - 1 token ≈ 4 characters
+- `MAX_RELEVANT_JOURNAL_TOKENS` - Maximum tokens for semantically retrieved journal entries (default: 20,000)
 
 ### Core Prompts
 

@@ -22,6 +22,8 @@ from app.models.journal import JournalEntry
 logger = logging.getLogger(__name__)
 
 DEFAULT_TOP_K = 10
+MIN_SIMILARITY_THRESHOLD = 0.3  # Minimum cosine similarity to include in results
+MIN_QUERY_LENGTH = 15  # Skip semantic search for very short messages (e.g., "Yes", "OK")
 
 # Shared AsyncOpenAI client — avoids leaking httpx connection pools when
 # EmbeddingService is instantiated per-request (which happens on every
@@ -170,14 +172,23 @@ class EmbeddingService:
         query_text: str,
         exclude_entry_ids: Optional[List[int]] = None,
         top_k: int = DEFAULT_TOP_K,
-        min_days_old: int = 8
+        min_days_old: int = 8,
+        min_similarity: float = MIN_SIMILARITY_THRESHOLD
     ) -> List[Tuple[JournalEntry, float]]:
         """Find journal entries semantically similar to query text.
 
         Returns entries sorted by similarity (highest first), excluding
         entries from the last min_days_old days and any in exclude_entry_ids.
+        Skips search entirely for very short messages (< MIN_QUERY_LENGTH chars)
+        whose embeddings lack discriminative power.
         """
         try:
+            # Short messages like "Yes", "OK", "Thanks" produce near-random
+            # similarity scores — skip to avoid injecting unrelated context.
+            if len(query_text.strip()) < MIN_QUERY_LENGTH:
+                logger.info(f"Skipping semantic search — query too short ({len(query_text.strip())} chars)")
+                return []
+
             query_vector = await self.generate_embedding_fast(query_text)
             cutoff_date = date.today() - timedelta(days=min_days_old)
 
@@ -228,6 +239,8 @@ class EmbeddingService:
             similar_entries = []
             for row in rows:
                 entry_id, similarity = row
+                if float(similarity) < min_similarity:
+                    break  # Results are sorted by similarity desc; remaining are lower
                 entry = self.db.query(JournalEntry).filter(
                     JournalEntry.id == entry_id
                 ).first()

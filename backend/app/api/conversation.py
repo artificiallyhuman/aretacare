@@ -148,10 +148,10 @@ async def send_message(
         db.commit()
         db.refresh(user_message)
 
-        # Get conversation history for context
+        # Get conversation history for context (most recent 30 messages)
         history = db.query(Conversation).filter(
             Conversation.session_id == session_id
-        ).order_by(Conversation.created_at).limit(30).all()
+        ).order_by(Conversation.created_at.desc()).limit(30).all()[::-1]
 
         history_messages = [
             {"role": msg.role.value, "content": msg.content}
