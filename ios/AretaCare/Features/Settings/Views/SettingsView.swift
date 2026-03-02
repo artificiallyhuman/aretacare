@@ -315,6 +315,7 @@ struct SettingsView: View {
 
     private var deleteAccountSheet: some View {
         NavigationStack {
+            ScrollView {
             VStack(spacing: 24) {
                 // Warning header
                 VStack(spacing: 12) {
@@ -380,10 +381,10 @@ struct SettingsView: View {
                     || deletePassword.isEmpty
                     || isDeletingAccount
                 )
-
-                Spacer()
             }
             .padding()
+            }
+            .scrollDismissesKeyboard(.interactively)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {

@@ -10,16 +10,15 @@ struct LoginView: View {
     }
 
     var body: some View {
+        ScrollView {
         VStack(spacing: 0) {
-            Spacer(minLength: 0)
-
             // Medical disclaimer
             MedicalDisclaimerBanner()
-
-            Spacer(minLength: 0)
+                .padding(.top, 16)
 
             // Header
             AuthHeaderView(compact: true)
+                .padding(.top, 16)
 
             Text("A platform for patients and caregivers navigating the healthcare system.")
                 .font(.footnote)
@@ -138,8 +137,6 @@ struct LoginView: View {
                 .font(.body)
                 .padding(.top, 8)
 
-            Spacer(minLength: 0)
-
             // Footer
             HStack(spacing: 4) {
                 Link("Terms", destination: AppConstants.termsURL)
@@ -150,9 +147,12 @@ struct LoginView: View {
             }
             .font(.caption)
             .foregroundStyle(.secondary)
-            .padding(.bottom, 8)
+            .padding(.top, 24)
+            .padding(.bottom, 16)
         }
         .padding(.horizontal, 24)
+        }
+        .scrollDismissesKeyboard(.interactively)
         .background(Color(.systemGroupedBackground))
         .task { await viewModel.checkSignupMode() }
         .navigationBarBackButtonHidden(true)

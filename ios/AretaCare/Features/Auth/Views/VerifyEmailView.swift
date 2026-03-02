@@ -7,10 +7,10 @@ struct VerifyEmailView: View {
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
+        ScrollView {
         VStack(spacing: 24) {
-            Spacer()
-
             AuthHeaderView(compact: true)
+                .padding(.top, 32)
 
             switch viewModel.emailVerificationStatus {
             case .pending, .verifying:
@@ -78,9 +78,10 @@ struct VerifyEmailView: View {
                 }
             }
 
-            Spacer()
         }
         .padding(.horizontal, 24)
+        .padding(.bottom, 32)
+        }
         .navigationTitle("Verify Email")
         .navigationBarTitleDisplayMode(.inline)
         .task {
