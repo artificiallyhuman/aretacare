@@ -189,4 +189,4 @@ MIT with Commons Clause restrictions. See `LICENSE` and `COMMONS-CLAUSE.md`.
 
 ---
 
-*Built for patients and caregivers who need more calm, clarity, and confidence.*
+*Built for patients and caregivers.*
