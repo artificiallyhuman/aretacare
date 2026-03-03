@@ -142,6 +142,7 @@ final class MFAViewModel {
 
     func generateBackupCodes() async {
         errorMessage = nil
+        isLoading = true
 
         do {
             let response: BackupCodesResponse = try await APIClient.shared.post(
@@ -152,6 +153,8 @@ final class MFAViewModel {
         } catch {
             errorMessage = error.localizedDescription
         }
+
+        isLoading = false
     }
 
     func fetchBackupCodesCount() async {

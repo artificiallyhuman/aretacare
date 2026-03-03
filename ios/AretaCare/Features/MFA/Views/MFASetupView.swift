@@ -37,6 +37,7 @@ struct MFASetupView: View {
                     } label: {
                         Label("Enable MFA", systemImage: "lock.shield")
                     }
+                    .disabled(viewModel.isLoading)
                 }
             } header: {
                 Text("Status")
@@ -75,16 +76,20 @@ struct MFASetupView: View {
                             Task { await viewModel.deleteTOTP() }
                         }
                         .font(.subheadline)
+                        .disabled(viewModel.isLoading)
                     }
                 } else {
                     Button {
                         Task {
                             await viewModel.setupTOTP()
-                            showingTOTPSetup = true
+                            if viewModel.totpSecret != nil {
+                                showingTOTPSetup = true
+                            }
                         }
                     } label: {
                         Label("Set Up Authenticator App", systemImage: "qrcode")
                     }
+                    .disabled(viewModel.isLoading)
                 }
             }
 
@@ -142,11 +147,14 @@ struct MFASetupView: View {
                 Button {
                     Task {
                         await viewModel.generateBackupCodes()
-                        showingBackupCodes = true
+                        if !viewModel.backupCodes.isEmpty {
+                            showingBackupCodes = true
+                        }
                     }
                 } label: {
                     Text(viewModel.backupCodesRemaining > 0 ? "Regenerate Backup Codes" : "Generate Backup Codes")
                 }
+                .disabled(viewModel.isLoading)
             } header: {
                 Text("Backup Codes")
             } footer: {
@@ -188,6 +196,7 @@ struct MFASetupView: View {
                         } label: {
                             Label("Revoke All Trusted Devices", systemImage: "xmark.circle")
                         }
+                        .disabled(viewModel.isLoading)
                     }
                 }
             }
