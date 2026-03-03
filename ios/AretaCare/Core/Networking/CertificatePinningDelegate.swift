@@ -104,7 +104,7 @@ final class CertificatePinningDelegate: NSObject, URLSessionDelegate, Sendable {
                 continue
             }
 
-            let hash = sha256Base64(data: publicKeyData)
+            let hash = spkiHash(for: publicKey, rawKeyData: publicKeyData)
             if pinnedKeyHashes.contains(hash) {
                 completionHandler(.useCredential, URLCredential(trust: serverTrust))
                 return
@@ -117,8 +117,66 @@ final class CertificatePinningDelegate: NSObject, URLSessionDelegate, Sendable {
         completionHandler(.cancelAuthenticationChallenge, nil)
     }
 
+    /// Hashes the public key in SubjectPublicKeyInfo (SPKI) format to match openssl output.
+    /// `SecKeyCopyExternalRepresentation` returns raw key bytes without the ASN.1 SPKI header.
+    /// We prepend the appropriate header before hashing so the result matches:
+    ///   openssl x509 -pubkey -noout | openssl pkey -pubin -outform der | sha256 | base64
+    private func spkiHash(for key: SecKey, rawKeyData: Data) -> String {
+        var spkiData = Data()
+
+        // Determine key type and prepend the correct ASN.1 SPKI header
+        if let attributes = SecKeyCopyAttributes(key) as? [CFString: Any],
+           let keyType = attributes[kSecAttrKeyType] as? String,
+           let keySize = attributes[kSecAttrKeySizeInBits] as? Int {
+            if keyType == (kSecAttrKeyTypeRSA as String) {
+                // RSA keys: SPKI header varies by key size
+                switch keySize {
+                case 2048:
+                    spkiData.append(contentsOf: Self.rsa2048SPKIHeader)
+                case 4096:
+                    spkiData.append(contentsOf: Self.rsa4096SPKIHeader)
+                default:
+                    // Unsupported RSA size — fall back to raw hash
+                    return sha256Base64(data: rawKeyData)
+                }
+            } else if keyType == (kSecAttrKeyTypeECSECPrimeRandom as String) {
+                // EC P-256 key
+                spkiData.append(contentsOf: Self.ecDSASecp256r1SPKIHeader)
+            } else {
+                return sha256Base64(data: rawKeyData)
+            }
+        } else {
+            return sha256Base64(data: rawKeyData)
+        }
+
+        spkiData.append(rawKeyData)
+        return sha256Base64(data: spkiData)
+    }
+
     private func sha256Base64(data: Data) -> String {
         let hash = SHA256.hash(data: data)
         return Data(hash).base64EncodedString()
     }
+
+    // ASN.1 DER headers for SubjectPublicKeyInfo wrapping.
+    // These are fixed byte sequences defined by the ASN.1 structure for each key type.
+
+    // RSA 2048: 30 82 01 22 30 0d 06 09 2a 86 48 86 f7 0d 01 01 01 05 00 03 82 01 0f 00
+    private static let rsa2048SPKIHeader: [UInt8] = [
+        0x30, 0x82, 0x01, 0x22, 0x30, 0x0d, 0x06, 0x09, 0x2a, 0x86, 0x48, 0x86,
+        0xf7, 0x0d, 0x01, 0x01, 0x01, 0x05, 0x00, 0x03, 0x82, 0x01, 0x0f, 0x00
+    ]
+
+    // RSA 4096: 30 82 02 22 30 0d 06 09 2a 86 48 86 f7 0d 01 01 01 05 00 03 82 02 0f 00
+    private static let rsa4096SPKIHeader: [UInt8] = [
+        0x30, 0x82, 0x02, 0x22, 0x30, 0x0d, 0x06, 0x09, 0x2a, 0x86, 0x48, 0x86,
+        0xf7, 0x0d, 0x01, 0x01, 0x01, 0x05, 0x00, 0x03, 0x82, 0x02, 0x0f, 0x00
+    ]
+
+    // EC P-256 (secp256r1): 30 59 30 13 06 07 2a 86 48 ce 3d 02 01 06 08 2a 86 48 ce 3d 03 01 07 03 42 00
+    private static let ecDSASecp256r1SPKIHeader: [UInt8] = [
+        0x30, 0x59, 0x30, 0x13, 0x06, 0x07, 0x2a, 0x86, 0x48, 0xce, 0x3d, 0x02,
+        0x01, 0x06, 0x08, 0x2a, 0x86, 0x48, 0xce, 0x3d, 0x03, 0x01, 0x07, 0x03,
+        0x42, 0x00
+    ]
 }
