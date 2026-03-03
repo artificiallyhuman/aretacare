@@ -18,12 +18,26 @@ struct CollaborationAwarenessPopup: View {
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
 
-            if !session.collaborators.isEmpty {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Collaborators:")
+            VStack(alignment: .leading, spacing: 8) {
+                if !session.isOwner {
+                    Text("Owner:")
                         .font(.subheadline.weight(.medium))
+                    HStack(spacing: 8) {
+                        Image(systemName: "person.circle.fill")
+                            .foregroundStyle(.secondary)
+                        Text(session.ownerName)
+                            .font(.subheadline)
+                    }
+                }
 
-                    ForEach(session.collaborators) { collaborator in
+                // Show other collaborators (filter out the current user by comparing with ownerId)
+                let otherCollaborators = session.collaborators.filter { $0.userId != AuthManager.shared.currentUser?.id }
+                if !otherCollaborators.isEmpty {
+                    Text(session.isOwner ? "Collaborators:" : "Other collaborators:")
+                        .font(.subheadline.weight(.medium))
+                        .padding(.top, session.isOwner ? 0 : 4)
+
+                    ForEach(otherCollaborators) { collaborator in
                         HStack(spacing: 8) {
                             Image(systemName: "person.circle")
                                 .foregroundStyle(.secondary)
@@ -32,11 +46,11 @@ struct CollaborationAwarenessPopup: View {
                         }
                     }
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding()
-                .background(Color(.systemGray6))
-                .clipShape(RoundedRectangle(cornerRadius: 10))
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding()
+            .background(Color(.systemGray6))
+            .clipShape(RoundedRectangle(cornerRadius: 10))
 
             Button {
                 onDismiss()
