@@ -602,6 +602,7 @@ async def get_session_documents(
     session_id: str,
     category: Optional[str] = None,
     search: Optional[str] = Query(None, max_length=100),
+    date: Optional[str] = None,
     limit: int = Query(50, ge=1, le=100),
     offset: int = Query(0, ge=0, le=10000),
     current_user: User = Depends(get_current_user),
@@ -634,6 +635,17 @@ async def get_session_documents(
             (DocumentModel.filename.ilike(search_term)) |
             (DocumentModel.ai_description.ilike(search_term))
         )
+
+    # Filter by date if provided
+    if date:
+        from datetime import date as date_type
+        from sqlalchemy import cast
+        from sqlalchemy import Date as SQLDate
+        try:
+            parsed_date = date_type.fromisoformat(date)
+            query = query.filter(cast(DocumentModel.uploaded_at, SQLDate) == parsed_date)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid date format (use YYYY-MM-DD)")
 
     # Get total count before pagination
     total = query.count()
@@ -694,6 +706,41 @@ async def get_session_documents(
     )
 
 
+@router.get("/session/{session_id}/dates")
+async def get_document_dates(
+    session_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Get all distinct dates that have documents, with counts."""
+    from sqlalchemy import func, desc, cast
+    from sqlalchemy import Date as SQLDate
+
+    session = db.query(SessionModel).filter(SessionModel.id == session_id).first()
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+    check_session_access(session, current_user.id, db)
+
+    date_col = cast(DocumentModel.uploaded_at, SQLDate)
+    rows = (
+        db.query(
+            date_col.label("upload_date"),
+            func.count(DocumentModel.id).label("entry_count")
+        )
+        .filter(DocumentModel.session_id == session_id)
+        .group_by(date_col)
+        .order_by(desc(date_col))
+        .all()
+    )
+
+    return {
+        "dates": [
+            {"date": row.upload_date.isoformat(), "entry_count": row.entry_count}
+            for row in rows
+        ]
+    }
+
+
 @router.get("/{document_id}", response_model=DocumentResponse)
 async def get_document(
     document_id: int,
@@ -712,7 +759,36 @@ async def get_document(
         raise HTTPException(status_code=404, detail="Session not found")
     check_session_access(session, current_user.id, db)
 
-    return document
+    has_collaborators = session_has_collaborators(document.session_id, db)
+
+    if has_collaborators:
+        user_ids = [uid for uid in [document.uploaded_by_user_id, document.last_edited_by_user_id] if uid]
+        user_map = get_user_map(user_ids, db)
+        return {
+            "id": document.id,
+            "session_id": document.session_id,
+            "filename": document.filename,
+            "content_type": document.content_type,
+            "extracted_text": document.extracted_text,
+            "uploaded_at": document.uploaded_at,
+            "category": document.category.value if document.category else None,
+            "ai_description": document.ai_description,
+            "uploaded_by": build_source_tag_info(user_map.get(document.uploaded_by_user_id)) if document.uploaded_by_user_id else None,
+            "last_edited_by": build_source_tag_info(user_map.get(document.last_edited_by_user_id)) if document.last_edited_by_user_id else None
+        }
+
+    return {
+        "id": document.id,
+        "session_id": document.session_id,
+        "filename": document.filename,
+        "content_type": document.content_type,
+        "extracted_text": document.extracted_text,
+        "uploaded_at": document.uploaded_at,
+        "category": document.category.value if document.category else None,
+        "ai_description": document.ai_description,
+        "uploaded_by": None,
+        "last_edited_by": None
+    }
 
 
 @router.patch("/{document_id}", response_model=DocumentResponse)
@@ -770,7 +846,18 @@ async def update_document(
             "last_edited_by": build_source_tag_info(user_map.get(document.last_edited_by_user_id)) if document.last_edited_by_user_id else None
         }
 
-    return document
+    return {
+        "id": document.id,
+        "session_id": document.session_id,
+        "filename": document.filename,
+        "content_type": document.content_type,
+        "extracted_text": document.extracted_text,
+        "uploaded_at": document.uploaded_at,
+        "category": document.category.value if document.category else None,
+        "ai_description": document.ai_description,
+        "uploaded_by": None,
+        "last_edited_by": None
+    }
 
 
 @router.delete("/{document_id}")

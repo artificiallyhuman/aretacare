@@ -6,7 +6,7 @@ Interactive docs: `/docs` (Swagger) or `/redoc` (ReDoc)
 
 ## Authentication
 
-JWT-based auth with access tokens (1 hour) + refresh tokens (7 days max, session cookie that expires on browser close).
+JWT-based auth with access tokens (1 hour) + refresh tokens (7 days max, session cookie that expires on browser close). iOS clients receive tokens in the response body (stored in Keychain) via the `X-Client-Type: ios` header.
 
 ### Register
 ```bash
@@ -19,17 +19,21 @@ POST /api/auth/register
   "password": "securepassword123",
   "acknowledge_not_medical_advice": true,
   "acknowledge_hipaa": true,
-  "acknowledge_email_communications": true,
-  "agree_to_terms": true
+  "acknowledge_ai_processing": true,
+  "agree_to_terms": true,
+  "acknowledge_age_and_use": true,
+  "invitation_token": null
 }
 ```
-Requires email verification before login.
+Requires email verification before login. `invitation_token` is optional (for users invited as session collaborators — bypasses waitlist).
 
 ### Login
 ```bash
 POST /api/auth/login
 ```
-Returns `access_token` + sets HttpOnly refresh cookie. If MFA enabled, returns `requires_mfa: true` with `mfa_token`.
+Returns `access_token` + sets HttpOnly refresh cookie. If MFA enabled and device is not trusted, returns `requires_mfa: true` with `mfa_token` and `mfa_methods` array.
+
+iOS clients (with `X-Client-Type: ios` header) also receive `refresh_token` in the response body. Web clients receive `null`.
 
 ### Verify MFA (when required)
 ```bash
@@ -38,11 +42,12 @@ POST /api/auth/login/mfa-verify
 ```json
 {
   "mfa_token": "temporary-mfa-token",
-  "method": "totp",  // or "passkey", "backup_code"
+  "method": "totp",
   "code": "123456",
   "trust_device": true
 }
 ```
+Supported methods: `totp`, `passkey`, `backup_code`.
 
 ### Other Auth Endpoints
 | Endpoint | Method | Description |
@@ -55,7 +60,7 @@ POST /api/auth/login/mfa-verify
 | `/auth/resend-verification` | POST | Resend verification (1/min) |
 | `/auth/password/reset-request` | POST | Request password reset |
 | `/auth/password/reset` | POST | Complete password reset |
-| `/auth/email` | PUT | Request email change |
+| `/auth/email` | PUT | Request email change (requires MFA if enabled) |
 | `/auth/email/verify?token=` | POST | Complete email change |
 
 **Token Usage:** Include `Authorization: Bearer <token>` header on all authenticated requests.
@@ -111,10 +116,12 @@ POST /api/mfa/verify-for-action
 {
   "method": "totp",
   "code": "123456",
-  "action_type": "password_change"  // or "email_change", "account_delete"
+  "action_type": "password_change"
 }
 ```
-Returns `action_token` - include as `X-MFA-Action-Token` header when performing the action.
+Action types: `password_change`, `email_change`, `account_delete`
+
+Returns `action_token` — include as `X-MFA-Action-Token` header when performing the action. Single-use, expires in 5 minutes.
 
 ---
 
@@ -152,12 +159,12 @@ POST   /api/sessions/{id}/transfer                     # Transfer ownership
 
 ### Upload
 ```bash
-POST /api/documents/upload
+POST /api/documents/upload?session_id={uuid}&user_date=2025-01-15&skip_journal_synthesis=false
 Content-Type: multipart/form-data
 ```
-Parameters: `file`, `session_id`, `user_date` (YYYY-MM-DD), `skip_journal_synthesis` (optional)
+The multipart body contains only `file`. Parameters `session_id`, `user_date`, and `skip_journal_synthesis` are **query parameters** (not form fields).
 
-Supported: PDF, PNG, JPG, TXT (30MB max). Auto-categorizes into 12 categories.
+Supported: PDF, PNG, JPG, TXT (30MB max). Auto-categorizes into 14 categories.
 
 ### Check for Duplicates
 ```bash
@@ -173,12 +180,13 @@ Returns matching documents within the session:
 
 ### Manage
 ```bash
-GET    /api/documents/session/{session_id}           # List documents
-GET    /api/documents/{id}                           # Get document
-PUT    /api/documents/{id}                           # Update description
-DELETE /api/documents/{id}                           # Delete
-GET    /api/documents/{id}/media-url                 # Get presigned URL
-GET    /api/documents/{id}/thumbnail-url             # Get thumbnail URL (PDFs)
+GET    /api/documents/session/{session_id}              # List documents (?category=&search=&date=YYYY-MM-DD)
+GET    /api/documents/session/{session_id}/dates         # Dates with document counts (for calendar)
+GET    /api/documents/{id}                               # Get document
+PATCH  /api/documents/{id}                               # Update category/description
+DELETE /api/documents/{id}                               # Delete
+GET    /api/documents/{id}/media-url                     # Get presigned URL
+GET    /api/documents/{id}/thumbnail-url                 # Get thumbnail URL (PDFs)
 ```
 
 ---
@@ -196,11 +204,12 @@ Supported: MP3, M4A, WAV, WebM, OGG (100MB max). Auto-transcribes, categorizes, 
 
 ### Manage
 ```bash
-GET    /api/audio-recordings/{session_id}            # List (optional: ?category=&search=)
-GET    /api/audio-recordings/{id}                    # Get recording
-PUT    /api/audio-recordings/{id}                    # Update summary
-DELETE /api/audio-recordings/{id}                    # Delete
-GET    /api/audio-recordings/{id}/audio-url          # Get playback URL
+GET    /api/audio-recordings/{session_id}                       # List (?category=&search=&date=YYYY-MM-DD)
+GET    /api/audio-recordings/{session_id}/dates                  # Dates with recording counts (for calendar)
+GET    /api/audio-recordings/{session_id}/{recording_id}         # Get recording
+PATCH  /api/audio-recordings/{session_id}/{recording_id}         # Update category/summary
+DELETE /api/audio-recordings/{session_id}/{recording_id}         # Delete
+GET    /api/audio-recordings/{session_id}/{recording_id}/url     # Get playback URL
 ```
 
 ---
@@ -216,15 +225,18 @@ POST /api/conversation/message
   "session_id": "uuid",
   "content": "Your message",
   "document_id": null,
-  "entry_date": "2025-01-15"
+  "audio_recording_id": null,
+  "entry_date": "2025-01-15",
+  "user_timezone": "America/New_York",
+  "current_time": "2:30 PM"
 }
 ```
-Returns both `user_message` and `assistant_message`.
+Returns both `user_message` and `assistant_message`. In shared sessions, also sends push notifications to collaborators.
 
 ### History & Edit
 ```bash
-GET   /api/conversation/{session_id}/history  # Get all messages
-PATCH /api/conversation/{message_id}          # Edit message: {"content": "..."}
+GET   /api/conversation/{session_id}/history?limit=50&offset=0  # Get messages (paginated)
+PATCH /api/conversation/{message_id}                             # Edit message: {"content": "..."}
 ```
 
 ### Reset to Message
@@ -248,10 +260,12 @@ Returns:
 ## Journal
 
 ```bash
-GET    /api/journal/{session_id}   # Returns entries_by_date object
-POST   /api/journal/{session_id}   # Create entry
-PUT    /api/journal/{id}           # Update entry
-DELETE /api/journal/{id}           # Delete entry
+GET    /api/journal/{session_id}                  # Paginated entries (?limit=&offset=&entry_type=)
+GET    /api/journal/{session_id}/date/{date}      # Entries for a specific date (YYYY-MM-DD)
+GET    /api/journal/{session_id}/dates             # Dates with entry counts (for calendar)
+POST   /api/journal/{session_id}                  # Create entry
+PATCH  /api/journal/{entry_id}                    # Update entry
+DELETE /api/journal/{entry_id}                    # Delete entry
 ```
 
 Entry types: `MEDICAL_UPDATE`, `TREATMENT_CHANGE`, `APPOINTMENT`, `INSIGHT`, `MILESTONE`, `OTHER`
@@ -306,14 +320,32 @@ POST /api/tools/conversation-coach
 
 ---
 
+## Push Notifications (iOS)
+
+Device tokens for APNs push notifications. Only functional when `PUSH_NOTIFICATIONS_ENABLED=True` on the backend.
+
+```bash
+POST   /api/notifications/device-token    # Register token
+DELETE /api/notifications/device-token    # Unregister on logout
+```
+```json
+{"token": "apns-device-token", "platform": "ios", "app_version": "1.0.0"}
+```
+
+Notifications are sent automatically for: new messages in shared sessions, session sharing invitations, and daily digest generation.
+
+---
+
 ## Waitlist (when CONTROL_SIGNUPS=TRUE)
 
 Random visitors must join the waitlist and wait for admin approval. However, users invited as collaborators via `/api/sessions/{id}/send-invitation` can register directly using the invitation link.
 
 ```bash
 GET  /api/waitlist/signup-mode  # Check if waitlist mode active
-POST /api/waitlist/join         # Join waitlist: {"email": "..."}
+POST /api/waitlist/join         # Join waitlist: {"email": "...", "captcha_token": "..."}
 ```
+
+iOS clients (with `X-Client-Type: ios` header) skip hCaptcha verification — the existing rate limit provides anti-spam protection.
 
 ---
 
@@ -326,12 +358,22 @@ POST /api/feedback/submit
 {
   "name": "John",
   "email": "john@example.com",
-  "feedback_type": "bug",  // "improvement", "feature", "other"
+  "feedback_type": "bug",
   "message": "...",
   "captcha_token": "hcaptcha_token"
 }
 ```
-Authentication optional. Rate limited: 3/hour per IP.
+Types: `bug`, `improvement`, `feature`, `other`. Authentication optional. Rate limited: 3/hour per IP.
+
+---
+
+## Health Check
+
+```bash
+GET /api/health             # Simple check for load balancers
+GET /api/health/detailed    # Comprehensive (DB, S3, OpenAI, OpenAI Embeddings connectivity)
+```
+Simple returns: `{"status": "healthy", "service": "AretaCare API"}`
 
 ---
 
@@ -357,15 +399,6 @@ Response:
 
 ---
 
-## Health Check
-
-```bash
-GET /health
-```
-Returns: `{"status": "healthy", "service": "AretaCare API"}`
-
----
-
 ## Error Handling
 
 Standard HTTP status codes: `200` OK, `201` Created, `400` Bad Request, `401` Unauthorized, `403` Forbidden, `404` Not Found, `429` Rate Limited, `500` Server Error
@@ -378,13 +411,18 @@ Error format: `{"detail": "Error message"}`
 
 | Endpoint | Limit |
 |----------|-------|
-| Login | 5/min |
+| Login | 6/minute |
 | Registration | 3/hour |
 | Password Reset | 3/hour |
-| File Upload | 10/min (docs), 5/min (audio) |
-| AI Chat | 30/min |
+| MFA Verification | 3/minute |
+| File Upload | 10/minute (docs), 5/minute (audio) |
+| AI Chat | 30/minute |
 | Feedback | 3/hour |
-| General API | 100/min |
+| Waitlist | 5/hour |
+| Admin Destructive | 5/hour (delete user, delete session, S3 cleanup) |
+| Admin Sensitive | 10/hour (reset password, reset MFA, transfer) |
+| Admin Email | 20/hour (invitations, notifications) |
+| General API | 100/minute |
 
 ---
 
@@ -409,18 +447,17 @@ api.interceptors.request.use(config => {
 const login = async (email, password) => {
   const res = await api.post('/auth/login', { email, password });
   if (res.data.requires_mfa) {
-    return { requiresMfa: true, mfaToken: res.data.mfa_token };
+    return { requiresMfa: true, mfaToken: res.data.mfa_token, methods: res.data.mfa_methods };
   }
   localStorage.setItem('auth_token', res.data.access_token);
   return { user: res.data.user };
 };
 
-// Upload document
+// Upload document (session_id is a query param, not form field)
 const uploadDoc = async (file, sessionId) => {
   const formData = new FormData();
   formData.append('file', file);
-  formData.append('session_id', sessionId);
-  return api.post('/documents/upload', formData);
+  return api.post(`/documents/upload?session_id=${sessionId}`, formData);
 };
 
 // Send message

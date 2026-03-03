@@ -80,6 +80,21 @@ def validate_startup():
             "Set SMTP_PASSWORD or clear SMTP_HOST to suppress this warning."
         )
 
+    # Push notifications partially configured warning
+    if settings.PUSH_NOTIFICATIONS_ENABLED:
+        missing_apns = []
+        if not settings.APNS_KEY_PATH and not settings.APNS_KEY_CONTENT:
+            missing_apns.append("APNS_KEY_PATH or APNS_KEY_CONTENT")
+        if not settings.APNS_KEY_ID:
+            missing_apns.append("APNS_KEY_ID")
+        if not settings.APNS_TEAM_ID:
+            missing_apns.append("APNS_TEAM_ID")
+        if missing_apns:
+            warnings.append(
+                f"PUSH_NOTIFICATIONS_ENABLED is True but {', '.join(missing_apns)} "
+                "not set — push notifications will not work."
+            )
+
     # Database connectivity
     try:
         with engine.connect() as conn:
@@ -130,6 +145,8 @@ app.add_middleware(
         "Origin",
         "X-Requested-With",
         "X-MFA-Action-Token",
+        "X-Client-Type",
+        "X-Trusted-Device",
     ],
 )
 

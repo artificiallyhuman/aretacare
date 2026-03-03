@@ -1,6 +1,23 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 
-const TypingIndicator = () => {
+const TypingIndicator = ({ startTime }) => {
+  const [elapsed, setElapsed] = useState(0);
+
+  useEffect(() => {
+    if (!startTime) return;
+    const interval = setInterval(() => {
+      setElapsed(Math.floor((Date.now() - startTime) / 1000));
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [startTime]);
+
+  let statusText = 'Thinking...';
+  if (elapsed >= 30) {
+    statusText = 'Taking longer than usual — hang tight...';
+  } else if (elapsed >= 10) {
+    statusText = 'Still thinking...';
+  }
+
   return (
     <div className="flex justify-start mb-4">
       <div className="max-w-[85%] sm:max-w-md md:max-w-2xl lg:max-w-3xl rounded-lg px-4 py-3 bg-gray-100 dark:bg-gray-800">
@@ -10,7 +27,7 @@ const TypingIndicator = () => {
             <div className="w-2 h-2 bg-gray-500 dark:bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
             <div className="w-2 h-2 bg-gray-500 dark:bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
           </div>
-          <span className="text-sm text-gray-600 dark:text-gray-400">Thinking...</span>
+          <span className="text-sm text-gray-600 dark:text-gray-400">{statusText}</span>
         </div>
       </div>
     </div>

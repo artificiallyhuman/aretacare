@@ -22,11 +22,18 @@ from app.models.journal import JournalEntry
 logger = logging.getLogger(__name__)
 
 DEFAULT_TOP_K = 10
+MIN_SIMILARITY_THRESHOLD = 0.3  # Minimum cosine similarity to include in results
+MIN_QUERY_LENGTH = 15  # Skip semantic search for very short messages (e.g., "Yes", "OK")
 
 # Shared AsyncOpenAI client — avoids leaking httpx connection pools when
 # EmbeddingService is instantiated per-request (which happens on every
 # conversation message, journal create/update, and admin backfill).
 _shared_async_client: Optional[AsyncOpenAI] = None
+
+# Fast-fail client for query-time embedding (similarity search during conversation).
+# Uses short timeout and no retries so the critical path isn't blocked by
+# transient OpenAI outages — the search gracefully falls back to date-only context.
+_shared_query_client: Optional[AsyncOpenAI] = None
 
 
 def _get_shared_client() -> AsyncOpenAI:
@@ -37,6 +44,18 @@ def _get_shared_client() -> AsyncOpenAI:
             timeout=settings.OPENAI_TIMEOUT_SECONDS
         )
     return _shared_async_client
+
+
+def _get_query_client() -> AsyncOpenAI:
+    """Client for query-time embedding (similarity search) — fails fast."""
+    global _shared_query_client
+    if _shared_query_client is None:
+        _shared_query_client = AsyncOpenAI(
+            api_key=settings.OPENAI_API_KEY,
+            timeout=10,
+            max_retries=0
+        )
+    return _shared_query_client
 
 
 def compute_content_hash(title: str, content: str) -> str:
@@ -51,6 +70,7 @@ class EmbeddingService:
     def __init__(self, db: Session):
         self.db = db
         self.client = _get_shared_client()
+        self.query_client = _get_query_client()
 
     async def generate_embedding(self, text: str) -> List[float]:
         """Generate embedding vector for text using OpenAI."""
@@ -60,13 +80,21 @@ class EmbeddingService:
         )
         return response.data[0].embedding
 
-    def _prepare_embedding_text(self, entry: JournalEntry) -> str:
+    async def generate_embedding_fast(self, text: str) -> List[float]:
+        """Generate embedding with short timeout and no retries for query-time use."""
+        response = await self.query_client.embeddings.create(
+            model=ai_config.EMBEDDING_MODEL,
+            input=text
+        )
+        return response.data[0].embedding
+
+    def _prepare_embedding_text(self, entry: JournalEntry, max_chars: int = 24000) -> str:
         """Prepare text for embedding from a journal entry.
 
         Combines type, date, title, and content for richer semantic representation.
-        Truncates to ~7500 tokens (~30000 chars) to stay within the 8192 token limit.
+        Truncates to stay within the 8192 token limit of the embedding model.
+        Default 24K chars assumes ~3 chars/token worst case for dense/medical text.
         """
-        MAX_CHARS = 30000
         parts = [
             f"[{entry.entry_type.value}]",
             f"Date: {entry.entry_date.isoformat()}",
@@ -74,8 +102,8 @@ class EmbeddingService:
             entry.content
         ]
         text = "\n".join(parts)
-        if len(text) > MAX_CHARS:
-            text = text[:MAX_CHARS]
+        if len(text) > max_chars:
+            text = text[:max_chars]
         return text
 
     async def embed_journal_entry(self, entry: JournalEntry) -> Optional[JournalEntryEmbedding]:
@@ -83,6 +111,7 @@ class EmbeddingService:
 
         Skips re-embedding if content is unchanged (based on content_hash).
         Updates embedding if content has changed.
+        Retries with progressively shorter text if the token limit is exceeded.
         """
         try:
             content_hash = compute_content_hash(entry.title, entry.content)
@@ -95,9 +124,22 @@ class EmbeddingService:
             if existing and existing.content_hash == content_hash:
                 return existing
 
-            # Generate embedding
-            embedding_text = self._prepare_embedding_text(entry)
-            vector = await self.generate_embedding(embedding_text)
+            # Generate embedding with progressive truncation on token limit errors
+            vector = None
+            for max_chars in [24000, 16000, 8000]:
+                try:
+                    embedding_text = self._prepare_embedding_text(entry, max_chars=max_chars)
+                    vector = await self.generate_embedding(embedding_text)
+                    break
+                except Exception as e:
+                    if "maximum context length" in str(e).lower() or "8192" in str(e):
+                        logger.warning(f"Entry {entry.id} exceeded token limit at {max_chars} chars, retrying with shorter text")
+                        continue
+                    raise
+
+            if vector is None:
+                logger.error(f"Entry {entry.id} exceeded token limit even at minimum truncation")
+                return None
 
             if existing:
                 existing.embedding = vector
@@ -130,15 +172,24 @@ class EmbeddingService:
         query_text: str,
         exclude_entry_ids: Optional[List[int]] = None,
         top_k: int = DEFAULT_TOP_K,
-        min_days_old: int = 8
+        min_days_old: int = 8,
+        min_similarity: float = MIN_SIMILARITY_THRESHOLD
     ) -> List[Tuple[JournalEntry, float]]:
         """Find journal entries semantically similar to query text.
 
         Returns entries sorted by similarity (highest first), excluding
         entries from the last min_days_old days and any in exclude_entry_ids.
+        Skips search entirely for very short messages (< MIN_QUERY_LENGTH chars)
+        whose embeddings lack discriminative power.
         """
         try:
-            query_vector = await self.generate_embedding(query_text)
+            # Short messages like "Yes", "OK", "Thanks" produce near-random
+            # similarity scores — skip to avoid injecting unrelated context.
+            if len(query_text.strip()) < MIN_QUERY_LENGTH:
+                logger.info(f"Skipping semantic search — query too short ({len(query_text.strip())} chars)")
+                return []
+
+            query_vector = await self.generate_embedding_fast(query_text)
             cutoff_date = date.today() - timedelta(days=min_days_old)
 
             # pgvector cosine distance: 1 - (a <=> b) = cosine similarity
@@ -188,6 +239,8 @@ class EmbeddingService:
             similar_entries = []
             for row in rows:
                 entry_id, similarity = row
+                if float(similarity) < min_similarity:
+                    break  # Results are sorted by similarity desc; remaining are lower
                 entry = self.db.query(JournalEntry).filter(
                     JournalEntry.id == entry_id
                 ).first()

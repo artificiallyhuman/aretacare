@@ -118,9 +118,10 @@ AretaCare implements comprehensive security measures:
 - **MFA Lockout**: 5 failed MFA attempts triggers 15-minute lockout with security alert
 - **Account Enumeration Prevention**: Registration returns identical responses for existing and new emails
 - **Sign Out Everywhere**: Users can end all active sign-ins
+- **Biometric Re-Auth (iOS)**: Opt-in Face ID/Touch ID lock on foreground return after 5 min; passcode fallback; opaque lock screen hides health data
 
 ### Multi-Factor Authentication (MFA)
-- **Passkeys (WebAuthn)**: Phishing-resistant authentication using biometrics or hardware keys; maximum 10 per account
+- **Passkeys (WebAuthn)**: Phishing-resistant authentication using biometrics or hardware keys; maximum 10 per account; supported for MFA login on both web (WebAuthn API) and iOS (ASAuthorizationController with Face ID/Touch ID)
 - **TOTP (Authenticator Apps)**: 6-digit time-based codes with 30-second rotation; secrets encrypted at rest using Fernet; replay protection prevents code reuse
 - **Backup Codes**: 10 one-time-use recovery codes; bcrypt hashed, never stored in plaintext
 - **Trusted Devices**: 30-day trust duration with secure HttpOnly cookies; tokens SHA-256 hashed before storage; maximum 10 per user (oldest auto-removed)
@@ -139,17 +140,29 @@ AretaCare implements comprehensive security measures:
 
 ### Data Protection
 - **Encryption in Transit**: TLS/SSL for all connections, HSTS header enforces HTTPS (1-year max-age, preload)
+- **SSL Certificate Pinning (iOS)**: SHA-256 public key pinning on all HTTPS requests including token refresh; Release builds assert if placeholder hashes are detected
 - **Encryption at Rest**: S3 server-side encryption (AES-256)
+- **Keychain Security (iOS)**: Tokens stored with `.afterFirstUnlockThisDeviceOnly` (prevents Keychain restoration to other devices)
 - **SQL Injection Prevention**: SQLAlchemy ORM with parameterized queries
-- **XSS Prevention**: ReactMarkdown for safe content rendering
-- **Input Validation**: Pydantic schemas for all API requests
+- **XSS Prevention**: ReactMarkdown (web) and MarkdownUI (iOS) for safe content rendering
+- **Input Validation**: Pydantic schemas for all API inputs; iOS validates deep link token format before routing
+- **Client-Side File Validation (iOS)**: File size checked against 30MB limit before upload; photo format detected via UTType
 - **Session Name Validation**: Character restrictions (alphanumeric, spaces, hyphens, underscores, apostrophes only)
 - **Security Headers**: X-Content-Type-Options, X-Frame-Options, X-XSS-Protection, Referrer-Policy, Permissions-Policy, CSP
+- **Device Integrity (iOS)**: Runtime jailbreak detection (suspicious files, sandbox escape, debugger attachment); logs warnings on compromised devices
+- **Logout Data Cleanup (iOS)**: All in-memory caches, image cache, and UserDefaults preferences cleared on logout to prevent data leakage on shared devices
+- **Build Safety (iOS)**: Release builds crash if `API_BASE_URL` is not configured or if certificate pinning uses placeholder hashes
+
+### Push Notifications (iOS)
+- **Feature-gated**: Disabled by default (`PUSH_NOTIFICATIONS_ENABLED=False`); APNs credentials validated at startup
+- **Fire-and-forget**: Push sends run in daemon threads and never block API responses
+- **Auto-cleanup**: Invalid/expired device tokens automatically removed when APNs reports them
+- **Scope**: Notifications for shared session messages, session sharing, and daily digests only
 
 ### File Upload Security
 - **Content-Disposition Headers**: Forces download instead of browser execution
-- **File Type Validation**: MIME type and extension checking
-- **File Size Limits**: 30MB documents, 100MB audio (OpenAI file URL limit is 32MB; audio is transcribed first)
+- **File Type Validation**: MIME type and extension checking (iOS uses UTType for photo format detection)
+- **File Size Limits**: 30MB documents, 100MB audio — enforced server-side and client-side (iOS validates before upload)
 - **Image Validation**: PIL verification for image uploads
 
 ### Access Control
@@ -186,4 +199,4 @@ If you have questions about this security policy or responsible disclosure, plea
 
 ---
 
-**Last Updated**: 2026-02-09
+**Last Updated**: 2026-02-12

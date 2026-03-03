@@ -169,6 +169,43 @@ async def get_entries_for_date(
     return entries
 
 
+@router.get("/{session_id}/dates")
+async def get_journal_dates(
+    session_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Get all distinct dates that have journal entries, with entry counts.
+
+    Returns a lightweight list for the calendar/date picker view.
+    """
+    from app.models.journal import JournalEntry
+    from sqlalchemy import func, desc
+
+    session = db.query(SessionModel).filter(SessionModel.id == session_id).first()
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+    check_session_access(session, current_user.id, db)
+
+    rows = (
+        db.query(
+            JournalEntry.entry_date,
+            func.count(JournalEntry.id).label("entry_count")
+        )
+        .filter(JournalEntry.session_id == session_id)
+        .group_by(JournalEntry.entry_date)
+        .order_by(desc(JournalEntry.entry_date))
+        .all()
+    )
+
+    return {
+        "dates": [
+            {"date": row.entry_date.isoformat(), "entry_count": row.entry_count}
+            for row in rows
+        ]
+    }
+
+
 @router.post("/{session_id}", response_model=JournalEntryResponse)
 async def create_journal_entry(
     session_id: str,
@@ -256,7 +293,21 @@ async def update_journal_entry(
             "last_edited_by": build_source_tag_info(current_user)
         }
 
-    return entry
+    return {
+        "id": entry.id,
+        "session_id": entry.session_id,
+        "entry_date": entry.entry_date,
+        "entry_type": entry.entry_type,
+        "title": entry.title,
+        "content": entry.content,
+        "created_by": entry.created_by,
+        "created_at": entry.created_at,
+        "updated_at": entry.updated_at,
+        "source_message_ids": entry.source_message_ids,
+        "entry_metadata": entry.entry_metadata,
+        "created_by_info": None,
+        "last_edited_by": None
+    }
 
 
 @router.delete("/{entry_id}")

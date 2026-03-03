@@ -44,7 +44,7 @@ Technical documentation of AretaCare's security measures.
 
 | Method | Description | Max Per User |
 |--------|-------------|--------------|
-| Passkeys (WebAuthn) | Biometrics/hardware keys, phishing-resistant | 10 |
+| Passkeys (WebAuthn) | Biometrics/hardware keys, phishing-resistant. Web: `@simplewebauthn/browser`. iOS: `ASAuthorizationController` (Face ID/Touch ID) | 10 |
 | TOTP | 6-digit codes from authenticator apps | 1 |
 | Backup Codes | One-time recovery codes | 10 |
 
@@ -185,7 +185,7 @@ All admin actions are logged to the audit log.
 | At Rest (S3) | AES-256 server-side encryption |
 | Passwords | bcrypt hashing |
 | SQL Injection | SQLAlchemy ORM with parameterized queries |
-| XSS Prevention | ReactMarkdown for safe rendering |
+| XSS Prevention | ReactMarkdown (web), MarkdownUI (iOS) for safe rendering |
 
 ### Complete Data Deletion
 
@@ -280,9 +280,48 @@ base-uri 'self'
 
 ## Frontend Security
 
-- **Token storage**: Access token in localStorage (short-lived), refresh token in HttpOnly cookie only
+### Web (React)
+- **Token storage**: Access token in localStorage (short-lived, 1 hour), refresh token in HttpOnly cookie only
 - **XSS prevention**: ReactMarkdown for content rendering, no `dangerouslySetInnerHTML`
 - **Credentials**: `withCredentials: true` on axios for cookie transmission
+- **Send timeout**: 120-second AbortController timeout on message sends to handle slow AI responses gracefully
+
+### iOS (SwiftUI)
+
+**Token & Auth Security:**
+- **Keychain storage**: Access/refresh tokens stored via KeychainAccess with `.afterFirstUnlockThisDeviceOnly` accessibility (prevents restoration to other devices); errors logged in DEBUG only
+- **Token refresh pinning**: `AuthInterceptor` uses a dedicated `URLSession` with `CertificatePinningDelegate` for refresh requests, ensuring refresh tokens are never sent over unpinned connections
+- **Passkey login (WebAuthn)**: `PasskeyAuthManager` wraps `ASAuthorizationController` for passkey assertion during MFA login. Credential data (authenticatorData, signature, clientDataJSON) is base64url-encoded and sent to backend for cryptographic verification. Requires `webcredentials` associated domain entitlement. Concurrency guard throws if a passkey operation is already in progress (prevents double-tap crashes).
+- **Logout data cleanup**: On logout, `AuthManager` clears all `ResponseCache` instances, `ImageCache`, UserDefaults keys (`lastSessionId`, `activeTab`, biometric preference), and push token before clearing Keychain — prevents data leakage on shared devices
+
+**Network Security:**
+- **SSL certificate pinning**: `CertificatePinningDelegate` validates SHA-256 public key hashes against the server certificate chain on every request; localhost/127.0.0.1 bypassed in DEBUG only
+- **Placeholder hash detection**: Release builds trigger `assertionFailure` if pinned hashes still contain placeholder values, preventing broken production builds
+- **Request timeouts**: 120s request timeout (matches web frontend), 600s for multipart uploads
+- **API base URL enforcement**: Release builds crash (`fatalError`) if `API_BASE_URL` is not configured; DEBUG falls back to localhost
+- **ATS**: `NSAppTransportSecurity` restricts to HTTPS in production; local networking allowed for development only
+- **Authenticated file downloads**: `APIClient.downloadData()` fetches raw data with JWT auth + token refresh for endpoints like profile PDF export, preventing unauthenticated access via Safari
+- **Image downloads**: `CachedAsyncImage` uses `URLSession.shared` (no pinning) for S3 presigned URLs — documented and intentional
+- **Temp file cleanup**: `DocumentsViewModel.cleanupTempFiles()` removes QuickLook temp directory after preview; `AudioRecorderManager.stop()` deletes temp recording files after use
+
+**Input Validation & Integrity:**
+- **Deep link token validation**: `AretaCareApp` validates token format (non-empty, length bounds, alphanumeric+hyphens) before routing universal links
+- **Client-side file size validation**: File size checked against `AppConstants.maxFileSizeBytes` (30MB) before upload in conversation and document views
+- **Photo format detection**: `PhotosPickerItem` content type inspected via `UTType` to determine actual format (JPEG/PNG/HEIC) instead of hardcoding `.jpg`
+- **Registration AutoFill**: Password fields use `.textContentType(.newPassword)` to trigger iOS strong password suggestions
+- **Device integrity**: `DeviceIntegrityChecker` detects jailbreak indicators (suspicious files, sandbox escape, debugger attachment) on real devices; skips on simulator
+
+**Session & Lifecycle Security:**
+- **Biometric re-auth**: Opt-in Face ID/Touch ID lock (Settings > Security) on foreground return after 5 min background. Uses `.deviceOwnerAuthentication` (passcode fallback). Preference cleared on logout. Idle timer pauses while lock screen active. Opaque lock screen hides health data.
+- **Idle timeout**: 30 min with 1-min warning; `@MainActor`-safe timer callbacks
+- **APNs entitlements**: `aps-environment: development` (Debug) / `production` (Release) via per-config entitlements
+- **Push token lifecycle**: Token unregistered (awaited) before auth tokens cleared during logout
+- **Privacy permissions**: Camera, microphone, photo library, Face ID usage descriptions in Info.plist
+
+**UI Security:**
+- **Delete account**: Requires typing confirmation phrase + password (matches web friction)
+- **Error banner**: Auto-dismisses after 8 seconds with entry/exit animations
+- **Accessibility**: All icon-only buttons have `.accessibilityLabel()` for VoiceOver support
 
 ---
 
@@ -308,6 +347,7 @@ allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
 | `S3_BUCKET_NAME` non-empty, no spaces | Error (blocks startup) |
 | Database connectivity (`SELECT 1`) | Error (blocks startup) |
 | `SMTP_HOST` set but `SMTP_PASSWORD` empty | Warning (startup continues) |
+| `PUSH_NOTIFICATIONS_ENABLED` true but APNs keys missing | Warning (startup continues) |
 
 This prevents the app from starting with obviously broken credentials that would only fail at first use.
 

@@ -148,10 +148,10 @@ async def send_message(
         db.commit()
         db.refresh(user_message)
 
-        # Get conversation history for context
+        # Get conversation history for context (most recent 30 messages)
         history = db.query(Conversation).filter(
             Conversation.session_id == session_id
-        ).order_by(Conversation.created_at).limit(30).all()
+        ).order_by(Conversation.created_at.desc()).limit(30).all()[::-1]
 
         history_messages = [
             {"role": msg.role.value, "content": msg.content}
@@ -261,15 +261,34 @@ async def send_message(
         db.refresh(assistant_message)
         # --- End atomic zone ---
 
+        # Push notification for shared sessions (non-blocking, fire-and-forget)
+        try:
+            from app.models import SessionCollaborator
+            collaborators = db.query(SessionCollaborator.user_id).filter(
+                SessionCollaborator.session_id == session_id
+            ).all()
+            if collaborators:
+                all_participant_ids = [c.user_id for c in collaborators] + [session.owner_id]
+                from app.services.push_notification_service import PushNotificationService
+                PushNotificationService.notify_new_message(
+                    session_id=session_id,
+                    session_name=session.name,
+                    sender_user_id=current_user.id,
+                    collaborator_user_ids=all_participant_ids,
+                )
+        except Exception as push_err:
+            logger.warning(f"Push notification failed (non-fatal): {push_err}")
+
         # Deferred embeddings for journal entries created during synthesis.
         # Runs after commit so entries are persisted regardless of embedding success.
-        for created_entry in synthesis_result.created_entries:
-            try:
-                from app.services.embedding_service import EmbeddingService
-                embedding_service = EmbeddingService(db)
-                await embedding_service.embed_journal_entry(created_entry)
-            except Exception as embed_err:
-                logger.warning(f"Deferred embedding failed for entry {created_entry.id}: {embed_err}")
+        if synthesis_result.created_entries:
+            from app.services.embedding_service import EmbeddingService
+            embedding_service = EmbeddingService(db)
+            for created_entry in synthesis_result.created_entries:
+                try:
+                    await embedding_service.embed_journal_entry(created_entry)
+                except Exception as embed_err:
+                    logger.warning(f"Deferred embedding failed for entry {created_entry.id}: {embed_err}")
 
         return {
             "message": {

@@ -15,7 +15,7 @@ const TermsOfService = () => {
           </Link>
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-6 sm:p-8">
             <h1 className="text-4xl sm:text-5xl font-bold text-gray-900 dark:text-white mb-2">Terms of Service</h1>
-            <p className="text-sm text-gray-500 dark:text-gray-400">Last Updated: January 24, 2026</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400">Last Updated: February 24, 2026</p>
           </div>
         </div>
 
@@ -25,13 +25,31 @@ const TermsOfService = () => {
           <section>
             <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4 pb-2 border-b-2 border-primary-200 dark:border-primary-800">1. Acceptance of Terms</h2>
             <p className="text-gray-700 dark:text-gray-300 leading-relaxed text-base">
-              By accessing and using AretaCare™, you agree to be bound by these Terms of Service. If you do not agree to these terms, please do not use this application.
+              By accessing and using AretaCare™, whether through the web application or the iOS app, you agree to be bound by these Terms of Service. If you do not agree to these terms, please do not use this application.
             </p>
           </section>
 
-          {/* Section 2 */}
+          {/* Section 2 - Eligibility */}
           <section>
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4 pb-2 border-b-2 border-primary-200 dark:border-primary-800">2. Open Source Project</h2>
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4 pb-2 border-b-2 border-primary-200 dark:border-primary-800">2. Eligibility</h2>
+            <div className="space-y-4">
+              <p className="text-gray-700 dark:text-gray-300 leading-relaxed text-base">
+                AretaCare is intended for use by individuals who are at least 18 years old and reside in the United States. By creating an account, you represent and warrant that:
+              </p>
+              <ul className="list-disc list-inside space-y-2 text-gray-700 dark:text-gray-300 pl-4">
+                <li>You are at least 18 years of age</li>
+                <li>You reside in the United States</li>
+                <li>You will use AretaCare only for lawful, personal purposes within the United States</li>
+              </ul>
+              <p className="text-gray-700 dark:text-gray-300 leading-relaxed text-base">
+                AretaCare is not available to users outside the United States. We do not make any representations that the service is appropriate or available for use in other locations. If you access AretaCare from outside the United States, you do so at your own risk and are responsible for compliance with local laws.
+              </p>
+            </div>
+          </section>
+
+          {/* Section 3 */}
+          <section>
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4 pb-2 border-b-2 border-primary-200 dark:border-primary-800">3. Open Source Project</h2>
             <div className="space-y-4">
               <p className="text-gray-700 dark:text-gray-300 leading-relaxed text-base">
                 AretaCare is an open source project released under the MIT License with Commons Clause restrictions. The source code is available on{' '}
@@ -45,9 +63,29 @@ const TermsOfService = () => {
             </div>
           </section>
 
-          {/* Section 3 - Medical Disclaimer */}
+          {/* Section 4 - Supported Platforms */}
           <section>
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4 pb-2 border-b-2 border-primary-200 dark:border-primary-800">3. Medical Disclaimer</h2>
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4 pb-2 border-b-2 border-primary-200 dark:border-primary-800">4. Supported Platforms</h2>
+            <div className="space-y-4">
+              <p className="text-gray-700 dark:text-gray-300 leading-relaxed text-base">
+                AretaCare is available on the following platforms:
+              </p>
+              <ul className="list-disc list-inside space-y-2 text-gray-700 dark:text-gray-300 pl-4">
+                <li><strong>Web application:</strong> Accessible via modern web browsers</li>
+                <li><strong>iOS app:</strong> Requires iOS 17.0 or later. Available for iPhone and iPad.</li>
+              </ul>
+              <p className="text-gray-700 dark:text-gray-300 leading-relaxed text-base">
+                Features and functionality are generally consistent across platforms, though some platform-specific differences may exist (e.g., biometric lock is iOS-only, push notifications are iOS-only). We do not guarantee feature parity across all platforms at all times.
+              </p>
+              <p className="text-gray-700 dark:text-gray-300 leading-relaxed text-base">
+                Use of the iOS app is also subject to the Apple Media Services Terms and Conditions, including the Licensed Application End User License Agreement (EULA).
+              </p>
+            </div>
+          </section>
+
+          {/* Section 5 - Medical Disclaimer */}
+          <section>
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4 pb-2 border-b-2 border-primary-200 dark:border-primary-800">5. Medical Disclaimer</h2>
             <div className="space-y-4">
               <div className="bg-amber-50 dark:bg-amber-900/30 border-l-4 border-amber-500 dark:border-amber-600 p-5 rounded-r-lg">
                 <p className="text-amber-900 dark:text-amber-200 font-semibold mb-3 flex items-start">
@@ -84,9 +122,9 @@ const TermsOfService = () => {
             </div>
           </section>
 
-          {/* Section 4 - AI-Generated Content Disclaimer */}
+          {/* Section 6 - AI-Generated Content Disclaimer */}
           <section>
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4 pb-2 border-b-2 border-primary-200 dark:border-primary-800">4. AI-Generated Content Disclaimer</h2>
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4 pb-2 border-b-2 border-primary-200 dark:border-primary-800">6. AI-Generated Content Disclaimer</h2>
             <div className="space-y-4">
               <div className="bg-red-50 dark:bg-red-900/30 border-l-4 border-red-500 dark:border-red-600 p-5 rounded-r-lg">
                 <p className="text-red-900 dark:text-red-200 font-semibold mb-3 flex items-start">
@@ -136,9 +174,9 @@ const TermsOfService = () => {
             </div>
           </section>
 
-          {/* Section 5 */}
+          {/* Section 7 */}
           <section>
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4 pb-2 border-b-2 border-primary-200 dark:border-primary-800">5. No Warranties</h2>
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4 pb-2 border-b-2 border-primary-200 dark:border-primary-800">7. No Warranties</h2>
             <div className="space-y-4">
               <p className="text-gray-700 dark:text-gray-300 leading-relaxed text-base">
                 AretaCare is provided "AS IS" and "AS AVAILABLE" without any warranties of any kind, either express or implied, including but not limited to:
@@ -154,9 +192,9 @@ const TermsOfService = () => {
             </div>
           </section>
 
-          {/* Section 6 */}
+          {/* Section 8 */}
           <section>
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4 pb-2 border-b-2 border-primary-200 dark:border-primary-800">6. Direct-to-Consumer Use and HIPAA Status</h2>
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4 pb-2 border-b-2 border-primary-200 dark:border-primary-800">8. Direct-to-Consumer Use and HIPAA Status</h2>
             <div className="space-y-4">
               <p className="text-gray-700 dark:text-gray-300 leading-relaxed text-base">
                 AretaCare is a direct-to-consumer tool designed for personal use by patients and caregivers. It is not a HIPAA-covered service, does not integrate with healthcare provider systems, and is not intended to serve as a medical record system.
@@ -167,9 +205,9 @@ const TermsOfService = () => {
             </div>
           </section>
 
-          {/* Section 7 */}
+          {/* Section 9 */}
           <section>
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4 pb-2 border-b-2 border-primary-200 dark:border-primary-800">7. User Responsibilities</h2>
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4 pb-2 border-b-2 border-primary-200 dark:border-primary-800">9. User Responsibilities</h2>
             <div className="space-y-4">
               <p className="text-gray-700 dark:text-gray-300 leading-relaxed text-base">You are responsible for:</p>
               <ul className="list-disc list-inside space-y-2 text-gray-700 dark:text-gray-300 dark:text-gray-300 pl-4">
@@ -180,14 +218,16 @@ const TermsOfService = () => {
                 <li>Ensuring the accuracy of information you provide</li>
                 <li>Making your own independent medical decisions with qualified healthcare providers</li>
                 <li>Backing up any important information stored in the application</li>
-                <li>Obtaining proper consent before sharing session data with collaborators (see Section 8)</li>
+                <li>Obtaining proper consent before sharing session data with collaborators (see Section 10)</li>
+                <li>On iOS: keeping your device software up to date and not circumventing device security measures (jailbreaking)</li>
+                <li>On iOS: logging out before transferring, selling, or disposing of your device to prevent unauthorized access to your account</li>
               </ul>
             </div>
           </section>
 
-          {/* Section 8 - Session Sharing Consent */}
+          {/* Section 10 - Session Sharing Consent */}
           <section>
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4 pb-2 border-b-2 border-primary-200 dark:border-primary-800">8. Session Sharing and Consent</h2>
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4 pb-2 border-b-2 border-primary-200 dark:border-primary-800">10. Session Sharing and Consent</h2>
             <div className="space-y-4">
               <p className="text-gray-700 dark:text-gray-300 leading-relaxed text-base">
                 AretaCare allows you to share sessions with other users. When adding a collaborator, you must confirm that you have the right to share the information in that session.
@@ -213,9 +253,9 @@ const TermsOfService = () => {
             </div>
           </section>
 
-          {/* Section 9 - Email Communications */}
+          {/* Section 11 - Email Communications */}
           <section>
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4 pb-2 border-b-2 border-primary-200 dark:border-primary-800">9. Email Communications</h2>
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4 pb-2 border-b-2 border-primary-200 dark:border-primary-800">11. Email Communications</h2>
             <div className="space-y-4">
               <p className="text-gray-700 dark:text-gray-300 leading-relaxed text-base">
                 By creating an account, you consent to receive automated email notifications from AretaCare. These emails are essential for account security and session management.
@@ -258,9 +298,9 @@ const TermsOfService = () => {
             </div>
           </section>
 
-          {/* Section 10 */}
+          {/* Section 12 */}
           <section>
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4 pb-2 border-b-2 border-primary-200 dark:border-primary-800">10. Limitation of Liability</h2>
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4 pb-2 border-b-2 border-primary-200 dark:border-primary-800">12. Limitation of Liability</h2>
             <div className="space-y-4">
               <p className="text-gray-700 dark:text-gray-300 leading-relaxed text-base">
                 To the maximum extent permitted by applicable law, AretaCare and its developers shall not be liable for any indirect, incidental, special, consequential, or punitive damages resulting from your use of the application. This limitation does not affect any rights that cannot be waived under applicable law.
@@ -271,12 +311,12 @@ const TermsOfService = () => {
             </div>
           </section>
 
-          {/* Section 11 */}
+          {/* Section 13 */}
           <section>
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4 pb-2 border-b-2 border-primary-200 dark:border-primary-800">11. Third-Party Services</h2>
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4 pb-2 border-b-2 border-primary-200 dark:border-primary-800">13. Third-Party Services</h2>
             <div className="space-y-4">
               <p className="text-gray-700 dark:text-gray-300 leading-relaxed text-base">AretaCare uses third-party services including:</p>
-              <div className="grid gap-4 sm:grid-cols-2">
+              <div className="grid gap-4 sm:grid-cols-3">
                 <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 border border-gray-200 dark:border-gray-600">
                   <h3 className="font-semibold text-gray-900 dark:text-white mb-2">OpenAI</h3>
                   <p className="text-sm text-gray-600 dark:text-gray-300">For AI-powered features and transcription</p>
@@ -285,6 +325,10 @@ const TermsOfService = () => {
                   <h3 className="font-semibold text-gray-900 dark:text-white mb-2">AWS S3</h3>
                   <p className="text-sm text-gray-600 dark:text-gray-300">For document storage</p>
                 </div>
+                <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 border border-gray-200 dark:border-gray-600">
+                  <h3 className="font-semibold text-gray-900 dark:text-white mb-2">Apple</h3>
+                  <p className="text-sm text-gray-600 dark:text-gray-300">For iOS push notifications, biometric auth, and Keychain storage</p>
+                </div>
               </div>
               <p className="text-gray-700 dark:text-gray-300 leading-relaxed text-base">
                 Your use of these services through AretaCare is subject to their respective terms of service and privacy policies.
@@ -292,9 +336,9 @@ const TermsOfService = () => {
             </div>
           </section>
 
-          {/* Section 12 - Data Use */}
+          {/* Section 14 - Data Use */}
           <section>
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4 pb-2 border-b-2 border-primary-200 dark:border-primary-800">12. Data Use and Privacy</h2>
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4 pb-2 border-b-2 border-primary-200 dark:border-primary-800">14. Data Use and Privacy</h2>
             <div className="space-y-4">
               <p className="text-gray-700 dark:text-gray-300 leading-relaxed text-base">
                 AretaCare never sells your personal data or shares it with hospitals, insurers, advertisers, or data brokers.
@@ -314,33 +358,33 @@ const TermsOfService = () => {
             </div>
           </section>
 
-          {/* Section 13 */}
+          {/* Section 15 */}
           <section>
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4 pb-2 border-b-2 border-primary-200 dark:border-primary-800">13. Modifications to Terms</h2>
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4 pb-2 border-b-2 border-primary-200 dark:border-primary-800">15. Modifications to Terms</h2>
             <p className="text-gray-700 dark:text-gray-300 leading-relaxed text-base">
               We reserve the right to modify these Terms of Service at any time. Changes will be effective immediately upon posting. Your continued use of AretaCare after changes constitutes acceptance of the modified terms.
             </p>
           </section>
 
-          {/* Section 14 */}
+          {/* Section 16 */}
           <section>
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4 pb-2 border-b-2 border-primary-200 dark:border-primary-800">14. Termination</h2>
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4 pb-2 border-b-2 border-primary-200 dark:border-primary-800">16. Termination</h2>
             <p className="text-gray-700 dark:text-gray-300 leading-relaxed text-base">
               We reserve the right to terminate or suspend your access to AretaCare at any time, without notice, for any reason, including violation of these terms.
             </p>
           </section>
 
-          {/* Section 15 */}
+          {/* Section 17 */}
           <section>
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4 pb-2 border-b-2 border-primary-200 dark:border-primary-800">15. Governing Law</h2>
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4 pb-2 border-b-2 border-primary-200 dark:border-primary-800">17. Governing Law</h2>
             <p className="text-gray-700 dark:text-gray-300 leading-relaxed text-base">
               These Terms of Service shall be governed by and construed in accordance with the laws of the State of Illinois, United States, without regard to its conflict of law provisions. Any disputes arising from these terms or your use of AretaCare shall be resolved in the state or federal courts located in Illinois.
             </p>
           </section>
 
-          {/* Section 16 */}
+          {/* Section 18 */}
           <section>
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4 pb-2 border-b-2 border-primary-200 dark:border-primary-800">16. Contact</h2>
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4 pb-2 border-b-2 border-primary-200 dark:border-primary-800">18. Contact</h2>
             <p className="text-gray-700 dark:text-gray-300 leading-relaxed text-base">
               For questions or support, please contact us at{' '}
               <a href="mailto:support@aretacare.com" className="text-primary-600 hover:text-primary-700 font-medium underline">

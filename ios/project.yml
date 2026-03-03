@@ -1,0 +1,86 @@
+name: AretaCare
+options:
+  bundleIdPrefix: com.aretacare
+  deploymentTarget:
+    iOS: "17.0"
+  xcodeVersion: "16.0"
+  generateEmptyDirectories: true
+
+settings:
+  base:
+    MARKETING_VERSION: "1.0.0"
+    CURRENT_PROJECT_VERSION: "1"
+    DEVELOPMENT_TEAM: $(DEVELOPMENT_TEAM)
+    SWIFT_EMIT_LOC_STRINGS: YES
+    ASSETCATALOG_COMPILER_GENERATE_ASSET_SYMBOL_EXTENSIONS: YES
+
+packages:
+  KeychainAccess:
+    url: https://github.com/kishikawakatsumi/KeychainAccess
+    from: "4.2.2"
+  MarkdownUI:
+    url: https://github.com/gonzalezreal/swift-markdown-ui
+    from: "2.4.0"
+  RevenueCat:
+    url: https://github.com/RevenueCat/purchases-ios-spm.git
+    from: "5.27.1"
+
+targets:
+  AretaCare:
+    type: application
+    platform: iOS
+    sources:
+      - path: AretaCare
+        excludes:
+          - "Configuration/*.xcconfig"
+          - "Configuration/*.template"
+    configFiles:
+      Debug: AretaCare/Configuration/Debug.xcconfig
+      Release: AretaCare/Configuration/Release.xcconfig
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.aretacare.ios
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+        ENABLE_USER_SCRIPT_SANDBOXING: YES
+      configs:
+        Debug:
+          CODE_SIGN_ENTITLEMENTS: AretaCare/Resources/AretaCare.debug.entitlements
+        Release:
+          CODE_SIGN_ENTITLEMENTS: AretaCare/Resources/AretaCare.entitlements
+    info:
+      path: AretaCare/Info.plist
+      properties:
+        CFBundleDisplayName: AretaCare
+        UIApplicationSceneManifest:
+          UIApplicationSupportsMultipleScenes: false
+        UILaunchScreen: {}
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationPortraitUpsideDown
+        UISupportedInterfaceOrientations~ipad:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationPortraitUpsideDown
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+        UIApplicationSupportsIndirectInputEvents: true
+        NSAppTransportSecurity:
+          NSAllowsLocalNetworking: true
+        API_BASE_URL: $(API_BASE_URL)
+        FRONTEND_URL: $(FRONTEND_URL)
+        NSMicrophoneUsageDescription: "AretaCare needs microphone access to record voice memos for your health journal."
+        NSCameraUsageDescription: "AretaCare needs camera access to capture photos of medical documents."
+        NSFaceIDUsageDescription: "AretaCare uses Face ID to protect your health information."
+        NSPhotoLibraryUsageDescription: "AretaCare needs photo library access to upload medical document images."
+        REVENUECAT_API_KEY: $(REVENUECAT_API_KEY)
+        ITSAppUsesNonExemptEncryption: false
+        UIBackgroundModes:
+          - remote-notification
+          - audio
+    dependencies:
+      - package: KeychainAccess
+      - package: MarkdownUI
+      - package: RevenueCat
+        product: RevenueCat
+      - package: RevenueCat
+        product: RevenueCatUI

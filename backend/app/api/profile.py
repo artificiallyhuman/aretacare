@@ -533,6 +533,8 @@ async def _generate_profile_pdf(profile: Profile, session: UserSession, timezone
                     story.append(Paragraph(cg['role'], item_detail_style))
                 if cg.get("contact_info"):
                     story.append(Paragraph(f"Contact: {cg['contact_info']}", item_detail_style))
+                if cg.get("location"):
+                    story.append(Paragraph(f"Location: {cg['location']}", item_detail_style))
 
         # Providers
         providers = profile_data.get("providers", [])
@@ -646,11 +648,15 @@ async def _generate_profile_pdf(profile: Profile, session: UserSession, timezone
                             dosage_parts.append(m['frequency'])
                         if dosage_parts:
                             title += f" · {', '.join(dosage_parts)}"
+                        if m.get("status"):
+                            title += f" {format_status(m['status'])}"
                         story.append(Paragraph(title, item_title_style))
                         if m.get("description"):
                             story.append(Paragraph(m['description'], item_detail_style))
                         if m.get("prescriber"):
                             story.append(Paragraph(f"Prescribed by: {m['prescriber']}", item_detail_style))
+                        if m.get("start_date"):
+                            story.append(Paragraph(f"Started: {m['start_date']}", item_detail_style))
                         if m.get("notes"):
                             story.append(Paragraph(f"Note: {m['notes']}", item_detail_style))
 

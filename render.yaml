@@ -75,6 +75,18 @@ services:
         sync: false  # Your domain for passkeys, e.g., yourdomain.com
       - key: WEBAUTHN_ORIGIN
         sync: false  # Your frontend origin for passkeys, e.g., https://yourdomain.com
+      - key: PUSH_NOTIFICATIONS_ENABLED
+        value: "FALSE"  # Set to TRUE to enable iOS push notifications (requires APNs key)
+      - key: APNS_KEY_ID
+        sync: false  # 10-char Key ID from Apple Developer > Keys
+      - key: APNS_TEAM_ID
+        sync: false  # Your Apple Team ID
+      - key: APNS_TOPIC
+        value: com.aretacare.ios
+      - key: APNS_USE_SANDBOX
+        value: "FALSE"  # TRUE for TestFlight/debug, FALSE for App Store builds
+      - key: APNS_KEY_PATH
+        sync: false  # Path to .p8 key file on server (e.g., /etc/secrets/AuthKey.p8)
 
   # Frontend
   - type: web

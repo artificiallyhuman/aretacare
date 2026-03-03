@@ -20,6 +20,7 @@ async def get_audio_recordings(
     session_id: str,
     category: str = None,
     search: str = Query(None, max_length=100),
+    date: str = None,
     limit: int = Query(50, ge=1, le=100),
     offset: int = Query(0, ge=0, le=10000),
     current_user: User = Depends(get_current_user),
@@ -52,6 +53,17 @@ async def get_audio_recordings(
             (AudioRecording.ai_summary.ilike(search_term)) |
             (AudioRecording.transcribed_text.ilike(search_term))
         )
+
+    # Filter by date if provided
+    if date:
+        from datetime import date as date_type
+        from sqlalchemy import cast
+        from sqlalchemy import Date as SQLDate
+        try:
+            parsed_date = date_type.fromisoformat(date)
+            query = query.filter(cast(AudioRecording.created_at, SQLDate) == parsed_date)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid date format (use YYYY-MM-DD)")
 
     # Get total count before pagination
     total = query.count()
@@ -114,6 +126,41 @@ async def get_audio_recordings(
     }
 
 
+@router.get("/{session_id}/dates")
+async def get_audio_recording_dates(
+    session_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Get all distinct dates that have audio recordings, with counts."""
+    from sqlalchemy import func, desc, cast
+    from sqlalchemy import Date as SQLDate
+
+    session = db.query(SessionModel).filter(SessionModel.id == session_id).first()
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+    check_session_access(session, current_user.id, db)
+
+    date_col = cast(AudioRecording.created_at, SQLDate)
+    rows = (
+        db.query(
+            date_col.label("recording_date"),
+            func.count(AudioRecording.id).label("entry_count")
+        )
+        .filter(AudioRecording.session_id == session_id)
+        .group_by(date_col)
+        .order_by(desc(date_col))
+        .all()
+    )
+
+    return {
+        "dates": [
+            {"date": row.recording_date.isoformat(), "entry_count": row.entry_count}
+            for row in rows
+        ]
+    }
+
+
 @router.get("/{session_id}/{recording_id}", response_model=AudioRecordingResponse)
 async def get_audio_recording(
     session_id: str,
@@ -137,7 +184,38 @@ async def get_audio_recording(
     if not recording:
         raise HTTPException(status_code=404, detail="Recording not found")
 
-    return recording
+    has_collaborators = session_has_collaborators(session_id, db)
+
+    if has_collaborators:
+        user_ids = [uid for uid in [recording.created_by_user_id, recording.last_edited_by_user_id] if uid]
+        user_map = get_user_map(user_ids, db)
+        return {
+            "id": recording.id,
+            "session_id": recording.session_id,
+            "filename": recording.filename,
+            "s3_key": recording.s3_key,
+            "duration": recording.duration,
+            "transcribed_text": recording.transcribed_text,
+            "category": recording.category.value if recording.category else None,
+            "ai_summary": recording.ai_summary,
+            "created_at": recording.created_at,
+            "created_by": build_source_tag_info(user_map.get(recording.created_by_user_id)) if recording.created_by_user_id else None,
+            "last_edited_by": build_source_tag_info(user_map.get(recording.last_edited_by_user_id)) if recording.last_edited_by_user_id else None
+        }
+
+    return {
+        "id": recording.id,
+        "session_id": recording.session_id,
+        "filename": recording.filename,
+        "s3_key": recording.s3_key,
+        "duration": recording.duration,
+        "transcribed_text": recording.transcribed_text,
+        "category": recording.category.value if recording.category else None,
+        "ai_summary": recording.ai_summary,
+        "created_at": recording.created_at,
+        "created_by": None,
+        "last_edited_by": None
+    }
 
 
 @router.patch("/{session_id}/{recording_id}", response_model=AudioRecordingResponse)
@@ -203,7 +281,19 @@ async def update_audio_recording(
             "last_edited_by": build_source_tag_info(user_map.get(recording.last_edited_by_user_id)) if recording.last_edited_by_user_id else None
         }
 
-    return recording
+    return {
+        "id": recording.id,
+        "session_id": recording.session_id,
+        "filename": recording.filename,
+        "s3_key": recording.s3_key,
+        "duration": recording.duration,
+        "transcribed_text": recording.transcribed_text,
+        "category": recording.category.value if recording.category else None,
+        "ai_summary": recording.ai_summary,
+        "created_at": recording.created_at,
+        "created_by": None,
+        "last_edited_by": None
+    }
 
 
 @router.delete("/{session_id}/{recording_id}")

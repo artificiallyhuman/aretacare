@@ -1,0 +1,20 @@
+{
+  "applinks": {
+    "details": [
+      {
+        "appIDs": ["95N89VR7T6.com.aretacare.ios"],
+        "paths": [
+          "/verify-email*",
+          "/verify-email-change*",
+          "/password-reset*",
+          "/register*",
+          "/collaboration",
+          "/settings"
+        ]
+      }
+    ]
+  },
+  "webcredentials": {
+    "apps": ["95N89VR7T6.com.aretacare.ios"]
+  }
+}

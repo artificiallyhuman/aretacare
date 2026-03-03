@@ -11,7 +11,7 @@ class UserRegister(BaseModel):
     acknowledge_hipaa: bool = Field(..., description="User acknowledges HIPAA limitations")
     acknowledge_ai_processing: bool = Field(..., description="User acknowledges AI processing of their information")
     agree_to_terms: bool = Field(..., description="User agrees to Terms of Service and Privacy Policy")
-    acknowledge_age_and_use: bool = Field(..., description="User confirms they are 18+ and will use for lawful purposes")
+    acknowledge_age_and_use: bool = Field(..., description="User confirms they are 18+, reside in the US, and will use for lawful purposes")
     invitation_token: str | None = Field(None, description="Optional invitation token for accepting session invitations")
 
 
@@ -38,12 +38,14 @@ class UserResponse(BaseModel):
 class TokenResponse(BaseModel):
     """Schema for token response.
 
-    Note: refresh_token is no longer returned in the response body for security.
-    It is only sent via HttpOnly cookie to prevent XSS attacks from stealing it.
+    Note: refresh_token is only returned in the response body for iOS clients
+    (identified by X-Client-Type: ios header) which store it in Keychain.
+    Web clients receive it only via HttpOnly cookie to prevent XSS attacks.
     """
     access_token: str
     token_type: str = "bearer"
     user: UserResponse
+    refresh_token: str | None = None
 
 
 class RefreshTokenRequest(BaseModel):
@@ -123,3 +125,7 @@ class LoginResponse(BaseModel):
     requires_mfa: bool = False
     mfa_token: str | None = None
     mfa_methods: list[str] | None = None
+
+    # iOS-only fields (included when X-Client-Type: ios header is present)
+    refresh_token: str | None = None
+    trusted_device_token: str | None = None

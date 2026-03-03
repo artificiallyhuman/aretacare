@@ -456,24 +456,52 @@ class AdminService:
         """
         unusual_accounts = []
 
-        # Get per-user metrics
+        # Pre-aggregate each metric separately to avoid Cartesian product explosion.
+        # Joining all tables together multiplies intermediate rows (e.g., 100 conversations
+        # x 50 documents x 10 audio = 50,000 rows per session before GROUP BY).
+        conv_counts = db.query(
+            SessionModel.user_id.label('user_id'),
+            func.count(Conversation.id).label('conversation_count')
+        ).join(
+            Conversation, SessionModel.id == Conversation.session_id
+        ).group_by(SessionModel.user_id).subquery()
+
+        doc_counts = db.query(
+            SessionModel.user_id.label('user_id'),
+            func.count(Document.id).label('document_count')
+        ).join(
+            Document, SessionModel.id == Document.session_id
+        ).group_by(SessionModel.user_id).subquery()
+
+        audio_counts = db.query(
+            SessionModel.user_id.label('user_id'),
+            func.count(AudioRecording.id).label('audio_count')
+        ).join(
+            AudioRecording, SessionModel.id == AudioRecording.session_id
+        ).group_by(SessionModel.user_id).subquery()
+
+        session_counts = db.query(
+            SessionModel.user_id.label('user_id'),
+            func.count(SessionModel.id).label('session_count')
+        ).group_by(SessionModel.user_id).subquery()
+
         user_metrics = db.query(
             User.id,
             User.email,
             User.name,
-            func.count(func.distinct(Conversation.id)).label('conversation_count'),
-            func.count(func.distinct(Document.id)).label('document_count'),
-            func.count(func.distinct(AudioRecording.id)).label('audio_count'),
-            func.count(func.distinct(SessionModel.id)).label('session_count')
+            func.coalesce(conv_counts.c.conversation_count, 0).label('conversation_count'),
+            func.coalesce(doc_counts.c.document_count, 0).label('document_count'),
+            func.coalesce(audio_counts.c.audio_count, 0).label('audio_count'),
+            func.coalesce(session_counts.c.session_count, 0).label('session_count')
         ).outerjoin(
-            SessionModel, User.id == SessionModel.user_id
+            conv_counts, User.id == conv_counts.c.user_id
         ).outerjoin(
-            Conversation, SessionModel.id == Conversation.session_id
+            doc_counts, User.id == doc_counts.c.user_id
         ).outerjoin(
-            Document, SessionModel.id == Document.session_id
+            audio_counts, User.id == audio_counts.c.user_id
         ).outerjoin(
-            AudioRecording, SessionModel.id == AudioRecording.session_id
-        ).group_by(User.id).all()
+            session_counts, User.id == session_counts.c.user_id
+        ).all()
 
         if len(user_metrics) < 3:  # Need at least 3 data points for meaningful std dev
             return []
@@ -786,7 +814,7 @@ class AdminService:
                 "name": "database",
                 "status": "unhealthy",
                 "latency_ms": None,
-                "message": str(e)
+                "message": str(e) or type(e).__name__
             })
             overall_status = "unhealthy"
 
@@ -806,11 +834,11 @@ class AdminService:
                 "name": "s3",
                 "status": "unhealthy",
                 "latency_ms": None,
-                "message": str(e)
+                "message": str(e) or type(e).__name__
             })
             overall_status = "unhealthy"
 
-        # Check OpenAI (lightweight ping)
+        # Check OpenAI Chat API (lightweight ping)
         openai_start = time.time()
         try:
             async with httpx.AsyncClient(timeout=10.0) as client:
@@ -839,7 +867,49 @@ class AdminService:
                 "name": "openai",
                 "status": "unhealthy",
                 "latency_ms": None,
-                "message": str(e)
+                "message": str(e) or type(e).__name__
+            })
+            if overall_status == "healthy":
+                overall_status = "degraded"
+
+        # Check OpenAI Embeddings API (separate from chat — can fail independently)
+        embed_start = time.time()
+        try:
+            from app.config import ai_config
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                response = await client.post(
+                    "https://api.openai.com/v1/embeddings",
+                    headers={"Authorization": f"Bearer {settings.OPENAI_API_KEY}"},
+                    json={"model": ai_config.EMBEDDING_MODEL, "input": "health check"}
+                )
+                embed_latency = (time.time() - embed_start) * 1000
+                if response.status_code == 200:
+                    services.append({
+                        "name": "openai embeddings",
+                        "status": "healthy",
+                        "latency_ms": round(embed_latency, 2),
+                        "message": None
+                    })
+                else:
+                    error_detail = ""
+                    try:
+                        error_detail = response.json().get("error", {}).get("message", "")
+                    except Exception:
+                        pass
+                    services.append({
+                        "name": "openai embeddings",
+                        "status": "degraded",
+                        "latency_ms": round(embed_latency, 2),
+                        "message": f"HTTP {response.status_code}" + (f": {error_detail}" if error_detail else "")
+                    })
+                    if overall_status == "healthy":
+                        overall_status = "degraded"
+        except Exception as e:
+            services.append({
+                "name": "openai embeddings",
+                "status": "unhealthy",
+                "latency_ms": None,
+                "message": str(e) or type(e).__name__
             })
             if overall_status == "healthy":
                 overall_status = "degraded"

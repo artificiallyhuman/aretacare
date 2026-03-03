@@ -1,0 +1,11 @@
+// Release configuration for AretaCare
+// Production settings
+
+#include? "Secrets.xcconfig"
+
+API_BASE_URL = https:/$()/api.aretacare.com/api
+FRONTEND_URL = https:/$()/www.aretacare.com
+SWIFT_COMPILATION_MODE = wholemodule
+GCC_OPTIMIZATION_LEVEL = s
+SWIFT_OPTIMIZATION_LEVEL = -O
+VALIDATE_PRODUCT = YES

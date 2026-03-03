@@ -114,7 +114,8 @@ docker compose down -v   # Stop and reset database
 | Layer | Technology |
 |-------|------------|
 | Frontend | React 18, Vite, Tailwind CSS |
-| Backend | FastAPI, SQLAlchemy, PostgreSQL + pgvector (27 tables) |
+| iOS App | SwiftUI (iOS 17+), `@Observable @MainActor` ViewModels, XcodeGen, KeychainAccess, MarkdownUI |
+| Backend | FastAPI, SQLAlchemy, PostgreSQL + pgvector (28 tables) |
 | AI | OpenAI GPT-5.2, GPT-4o-transcribe, text-embedding-3-small |
 | Storage | AWS S3 |
 | Deployment | Docker Compose, Render |
@@ -135,7 +136,7 @@ aretacare/
 │   ├── api/          # FastAPI routes
 │   ├── config/       # AI configuration
 │   ├── core/         # Auth, migrations, config
-│   ├── models/       # SQLAlchemy models (27 tables)
+│   ├── models/       # SQLAlchemy models (28 tables)
 │   ├── schemas/      # Pydantic schemas
 │   └── services/     # Business logic
 ├── frontend/src/
@@ -143,6 +144,10 @@ aretacare/
 │   ├── components/   # UI components
 │   ├── contexts/     # State management
 │   └── services/     # API client
+├── ios/AretaCare/
+│   ├── App/          # Entry point, content view
+│   ├── Core/         # Auth, networking, models, constants
+│   └── Features/     # SwiftUI views + ViewModels per feature
 ├── docs/             # Documentation
 ├── docker-compose.yml
 └── render.yaml       # Production deployment
@@ -155,11 +160,12 @@ aretacare/
 | Document | Description |
 |----------|-------------|
 | [SECURITY.md](SECURITY.md) | Vulnerability reporting |
-| [docs/SETUP_GUIDE.md](docs/SETUP_GUIDE.md) | AWS and OpenAI setup |
+| [docs/SETUP_GUIDE.md](docs/SETUP_GUIDE.md) | AWS, OpenAI, and iOS setup |
 | [docs/API_USAGE.md](docs/API_USAGE.md) | API reference |
 | [docs/SAFETY_GUIDELINES.md](docs/SAFETY_GUIDELINES.md) | AI safety requirements |
 | [docs/AWS_IAM_POLICY.md](docs/AWS_IAM_POLICY.md) | S3 permissions |
 | [docs/EMAIL_SETUP.md](docs/EMAIL_SETUP.md) | Email configuration |
+| [docs/FEEDBACK_SYSTEM.md](docs/FEEDBACK_SYSTEM.md) | Feedback form and hCaptcha |
 | [docs/SECURITY_IMPLEMENTATION.md](docs/SECURITY_IMPLEMENTATION.md) | Security details |
 
 ---

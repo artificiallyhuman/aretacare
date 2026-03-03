@@ -251,7 +251,7 @@ def register(request: Request, response: Response, user_data: UserRegister, db: 
     if not user_data.acknowledge_age_and_use:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="You must confirm you are at least 18 years old"
+            detail="You must confirm you are at least 18 years old and reside in the United States"
         )
 
     # Check if signups are controlled (waitlist mode)
@@ -509,8 +509,8 @@ def login(
 
     If MFA is enabled and device is not trusted, returns MFA challenge instead of tokens.
     """
-    # Get trusted device cookie directly from request
-    trusted_device = request.cookies.get(TRUSTED_DEVICE_COOKIE_NAME)
+    # Get trusted device token from cookie, with header fallback for iOS clients
+    trusted_device = request.cookies.get(TRUSTED_DEVICE_COOKIE_NAME) or request.headers.get("X-Trusted-Device")
 
     ip_address = security_service.get_client_ip(request)
     user_agent = security_service.get_user_agent(request)
@@ -634,9 +634,13 @@ def login(
     # Note: refresh_token is NOT returned in body to prevent XSS attacks from stealing it
     set_refresh_token_cookie(response, refresh_token)
 
+    # For iOS clients, also include refresh_token in response body (stored in Keychain)
+    is_ios = request.headers.get("X-Client-Type") == "ios"
+
     return LoginResponse(
         access_token=access_token,
-        user=UserResponse.model_validate(user)
+        user=UserResponse.model_validate(user),
+        refresh_token=refresh_token if is_ios else None,
     )
 
 
@@ -733,12 +737,18 @@ def verify_mfa_login(
     # MFA verified successfully - delete the challenge
     MFAService.delete_login_challenge(db, data.mfa_token)
 
+    # Detect iOS client
+    is_ios = request.headers.get("X-Client-Type") == "ios"
+
     # Handle trusted device
+    trusted_device_token_value = None
     if data.trust_device:
         device_token = MFAService.create_trusted_device(
             db, user_id, user_agent, ip_address
         )
         set_trusted_device_cookie(response, device_token)
+        if is_ios:
+            trusted_device_token_value = device_token
 
         # Send email notification for new trusted device
         from app.services.email_service import EmailService
@@ -766,7 +776,9 @@ def verify_mfa_login(
 
     return LoginResponse(
         access_token=access_token,
-        user=UserResponse.model_validate(user)
+        user=UserResponse.model_validate(user),
+        refresh_token=refresh_token if is_ios else None,
+        trusted_device_token=trusted_device_token_value,
     )
 
 
@@ -1372,9 +1384,13 @@ def refresh_access_token(
     # Note: refresh_token is NOT returned in body to prevent XSS attacks from stealing it
     set_refresh_token_cookie(response, new_refresh_token)
 
+    # For iOS clients, also include refresh_token in response body (stored in Keychain)
+    is_ios = request.headers.get("X-Client-Type") == "ios"
+
     return TokenResponse(
         access_token=access_token,
-        user=UserResponse.model_validate(user)
+        user=UserResponse.model_validate(user),
+        refresh_token=new_refresh_token if is_ios else None,
     )
 
 

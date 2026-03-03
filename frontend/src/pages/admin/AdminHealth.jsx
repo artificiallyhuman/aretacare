@@ -40,34 +40,39 @@ function StatusBadge({ status }) {
   );
 }
 
+const SERVICE_LABELS = {
+  'database': 'Database',
+  's3': 'S3',
+  'openai': 'OpenAI',
+  'openai embeddings': 'OpenAI Embeddings',
+};
+
 function ServiceCard({ service }) {
+  const label = SERVICE_LABELS[service.name] || service.name;
   return (
     <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4">
-      <div className="flex items-center justify-between mb-3">
-        <h3 className="font-medium text-gray-900 dark:text-white capitalize">{service.name}</h3>
+      <h3 className="font-medium text-gray-900 dark:text-white mb-2">{label}</h3>
+      <div className="mb-2">
         <StatusBadge status={service.status} />
       </div>
-      <div className="space-y-2">
-        {service.latency_ms !== null && (
-          <div className="flex justify-between text-sm">
-            <span className="text-gray-500 dark:text-gray-400">Latency</span>
-            <span className={`font-medium ${
-              service.latency_ms < 100
-                ? 'text-green-600 dark:text-green-400'
-                : service.latency_ms < 500
-                ? 'text-yellow-600 dark:text-yellow-400'
-                : 'text-red-600 dark:text-red-400'
-            }`}>
-              {service.latency_ms.toFixed(0)}ms
-            </span>
-          </div>
-        )}
-        {service.message && (
-          <div className="text-sm text-gray-500 dark:text-gray-400 truncate" title={service.message}>
-            {service.message}
-          </div>
-        )}
-      </div>
+      {service.latency_ms !== null ? (
+        <p className={`text-sm font-medium ${
+          service.latency_ms < 100
+            ? 'text-green-600 dark:text-green-400'
+            : service.latency_ms < 500
+            ? 'text-yellow-600 dark:text-yellow-400'
+            : 'text-red-600 dark:text-red-400'
+        }`}>
+          {service.latency_ms.toFixed(0)}ms
+        </p>
+      ) : (
+        <p className="text-sm text-gray-400 dark:text-gray-500">—</p>
+      )}
+      {service.message && (
+        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1 truncate" title={service.message}>
+          {service.message}
+        </p>
+      )}
     </div>
   );
 }
@@ -214,47 +219,10 @@ export default function AdminHealth() {
             </div>
 
             {/* Service Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
               {health.services.map((service) => (
                 <ServiceCard key={service.name} service={service} />
               ))}
-            </div>
-
-            {/* Service Details Table */}
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
-              <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700">
-                <h3 className="font-semibold text-gray-900 dark:text-white">Service Details</h3>
-              </div>
-              <div className="overflow-x-auto">
-              <table className="w-full min-w-[500px]">
-                <thead className="bg-gray-50 dark:bg-gray-700">
-                  <tr>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Service</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Status</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Latency</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Message</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                  {health.services.map((service) => (
-                    <tr key={service.name} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
-                      <td className="px-4 py-3 font-medium text-gray-900 dark:text-white capitalize">
-                        {service.name}
-                      </td>
-                      <td className="px-4 py-3">
-                        <StatusBadge status={service.status} />
-                      </td>
-                      <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">
-                        {service.latency_ms !== null ? `${service.latency_ms.toFixed(0)}ms` : '-'}
-                      </td>
-                      <td className="px-4 py-3 text-sm text-gray-500 dark:text-gray-400">
-                        {service.message || '-'}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              </div>
             </div>
 
             {/* Maintenance */}
@@ -267,7 +235,7 @@ export default function AdminHealth() {
                   <div>
                     <p className="font-medium text-gray-900 dark:text-white">Backfill Journal Embeddings</p>
                     <p className="text-sm text-gray-500 dark:text-gray-400">
-                      Generate semantic embeddings for journal entries that don't have them yet. Click repeatedly until remaining reaches 0.
+                      Generate semantic embeddings for journal entries that don't have them yet.
                     </p>
                   </div>
                   <button
