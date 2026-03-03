@@ -69,6 +69,13 @@ function Contact() {
       return;
     }
 
+    // Validate email format for unauthenticated users
+    if (!user && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email.trim())) {
+      setError('Please enter a valid email address');
+      setLoading(false);
+      return;
+    }
+
     if (formData.feedbackTypes.length === 0) {
       setError('Please select at least one feedback type');
       setLoading(false);
@@ -208,30 +215,44 @@ function Contact() {
             {/* Name */}
             <div>
               <label htmlFor="name" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Name
+                Name *
               </label>
               <input
                 type="text"
                 id="name"
                 name="name"
                 value={formData.name}
-                readOnly
-                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-100 dark:bg-gray-600 text-gray-700 dark:text-gray-300 cursor-not-allowed"
+                onChange={handleChange}
+                required
+                readOnly={!!user}
+                placeholder={user ? '' : 'Your name'}
+                className={`w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg ${
+                  user
+                    ? 'bg-gray-100 dark:bg-gray-600 text-gray-700 dark:text-gray-300 cursor-not-allowed'
+                    : 'focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white'
+                }`}
               />
             </div>
 
             {/* Email */}
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Email Address
+                Email Address *
               </label>
               <input
                 type="email"
                 id="email"
                 name="email"
                 value={formData.email}
-                readOnly
-                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-100 dark:bg-gray-600 text-gray-700 dark:text-gray-300 cursor-not-allowed"
+                onChange={handleChange}
+                required
+                readOnly={!!user}
+                placeholder={user ? '' : 'your@email.com'}
+                className={`w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg ${
+                  user
+                    ? 'bg-gray-100 dark:bg-gray-600 text-gray-700 dark:text-gray-300 cursor-not-allowed'
+                    : 'focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white'
+                }`}
               />
             </div>
 

@@ -7,8 +7,9 @@ import html
 from app.core.database import get_db
 from app.core.config import settings
 from app.core.rate_limit import limiter, RateLimits
-from app.api.auth import get_current_user
+from app.api.auth import get_optional_user
 from app.models.user import User
+from typing import Optional
 from app.schemas.feedback import FeedbackSubmit, FeedbackResponse, FeedbackType
 from app.services.email_service import email_service
 
@@ -102,12 +103,12 @@ async def submit_feedback(
     request: Request,
     feedback: FeedbackSubmit,
     db: DBSession = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: Optional[User] = Depends(get_optional_user)
 ):
     """
     Submit user feedback
 
-    Requires authentication and hCaptcha verification
+    Works with or without authentication. hCaptcha required.
     Rate limited to 3 submissions per hour per IP
     """
     # Get client IP for hCaptcha verification
@@ -132,7 +133,7 @@ async def submit_feedback(
 
     # Get additional metadata for diagnostics (privacy-conscious)
     metadata = {
-        "user_id": current_user.id,
+        "user_id": current_user.id if current_user else None,
         "user_email": feedback.email,
         "user_name": sanitized_name,
         "feedback_types": feedback_types_str,

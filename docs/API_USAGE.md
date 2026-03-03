@@ -363,7 +363,7 @@ POST /api/feedback/submit
   "captcha_token": "hcaptcha_token"
 }
 ```
-Types: `bug`, `improvement`, `feature`, `other`. Rate limited: 3/hour per IP.
+Types: `bug`, `improvement`, `feature`, `other`. Authentication optional. Rate limited: 3/hour per IP.
 
 ---
 

@@ -192,15 +192,7 @@ function Login() {
           </div>
         </div>
         <p className="mt-2 text-center text-sm text-gray-500 dark:text-gray-400 text-balance">
-          A platform for patients and caregivers navigating the healthcare system.{' '}
-          <Link
-            to="/about"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 hover:underline transition-colors"
-          >
-            Learn more →
-          </Link>
+          A platform for patients and caregivers navigating the healthcare system.
         </p>
       </div>
 
@@ -341,24 +333,31 @@ function Login() {
               </div>
             </div>
 
-            <div className="mt-4 space-y-2">
+            <div className="mt-4 space-y-3">
               {/* Create account / Join waitlist link */}
               {controlSignups ? (
                 <Link
                   to="/waitlist"
-                  className="block w-full text-center px-4 py-2 text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 hover:underline transition-colors"
+                  className="block w-full text-center py-3 font-semibold text-primary-600 dark:text-primary-400 border border-gray-200 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
                 >
                   Join the waitlist
                 </Link>
               ) : (
                 <Link
                   to="/register"
-                  className="block w-full text-center px-4 py-2 text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 hover:underline transition-colors"
+                  className="block w-full text-center py-3 font-semibold text-primary-600 dark:text-primary-400 border border-gray-200 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
                 >
                   Create a free account
                 </Link>
               )}
-
+              <Link
+                to="/about"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="block w-full text-center py-3 font-semibold text-primary-600 dark:text-primary-400 border border-gray-200 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+              >
+                Learn more
+              </Link>
             </div>
           </div>
         </div>
@@ -373,6 +372,10 @@ function Login() {
           <span>•</span>
           <Link to="/privacy" className="hover:text-gray-700 dark:hover:text-gray-300 underline">
             Privacy Policy
+          </Link>
+          <span>•</span>
+          <Link to="/contact" className="hover:text-gray-700 dark:hover:text-gray-300 underline">
+            Contact Us
           </Link>
         </div>
       </div>

@@ -37,6 +37,7 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 security = HTTPBearer()
+security_optional = HTTPBearer(auto_error=False)
 
 # Cookie configuration for refresh tokens
 REFRESH_TOKEN_COOKIE_NAME = "refresh_token"
@@ -202,6 +203,20 @@ def get_current_user(
         )
 
     return user
+
+
+def get_optional_user(
+    request: Request,
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security_optional),
+    db: DBSession = Depends(get_db)
+) -> Optional[User]:
+    """Get the current user if authenticated, or None if not."""
+    if credentials is None:
+        return None
+    try:
+        return get_current_user(request, credentials, db)
+    except HTTPException:
+        return None
 
 
 @router.post("/register", response_model=RegistrationResponse, status_code=status.HTTP_201_CREATED)

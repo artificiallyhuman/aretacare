@@ -287,14 +287,10 @@ function AppContent() {
             }
           />
 
-          {/* Contact/Feedback Route (not in menu) */}
+          {/* Contact/Feedback Route (public for App Store support URL) */}
           <Route
             path="/contact"
-            element={
-              <ProtectedRoute>
-                <Contact />
-              </ProtectedRoute>
-            }
+            element={<Contact />}
           />
 
           {/* Profile Route (not in menu - accessible at /profile) */}
