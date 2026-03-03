@@ -393,7 +393,12 @@ struct ConversationView: View {
                     }
                 }
                 .onChange(of: scrollToBottom) { _, _ in
-                    scrollToLatest(proxy: proxy)
+                    // Defer scroll to let LazyVStack lay out new messages
+                    // (fetchHistory replaces all messages, causing a full re-render)
+                    Task {
+                        try? await Task.sleep(for: .milliseconds(150))
+                        scrollToLatest(proxy: proxy)
+                    }
                 }
                 .onAppear {
                     bottomAnchorHasAppeared = false
