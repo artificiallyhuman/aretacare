@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { useSessionContext } from '../contexts/SessionContext';
 
 export default function CollaborationAwarenessPopup() {
-  const { activeSession, sessions, loading } = useSessionContext();
+  const { activeSession, sessions, loading, user } = useSessionContext();
   const navigate = useNavigate();
   const [show, setShow] = useState(false);
   const prevSessionIdRef = useRef(null);
@@ -31,8 +31,10 @@ export default function CollaborationAwarenessPopup() {
 
   if (!show || !activeSession) return null;
 
-  const collaboratorCount = activeSession.collaborators.length;
-  const peopleWord = collaboratorCount === 1 ? 'person' : 'people';
+  const otherCollaborators = activeSession.collaborators.filter(c => c.user_id !== user?.id);
+  // Count other people: collaborators (minus self) + owner (if you're not the owner)
+  const otherPeopleCount = otherCollaborators.length + (activeSession.is_owner ? 0 : 1);
+  const peopleWord = otherPeopleCount === 1 ? 'person' : 'people';
 
   return createPortal(
     <div className="fixed inset-0 bg-black bg-opacity-50 dark:bg-opacity-70 flex items-center justify-center p-4 z-50">
@@ -62,22 +64,39 @@ export default function CollaborationAwarenessPopup() {
           <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded px-4 py-3">
             <p className="text-sm text-amber-900 dark:text-amber-200">
               Your current session <strong>"{activeSession.name}"</strong> is shared with{' '}
-              <strong>{collaboratorCount} {peopleWord}</strong>.
+              <strong>{otherPeopleCount} other {peopleWord}</strong>.
               Anything you enter (e.g., messages, documents) can be viewed by collaborators.
             </p>
           </div>
 
-          {/* List collaborator names */}
+          {/* List other people in the session */}
           <div className="text-sm text-gray-600 dark:text-gray-400">
-            <p className="font-medium text-gray-700 dark:text-gray-300 mb-1">Collaborators:</p>
-            <ul className="space-y-0.5">
-              {activeSession.collaborators.map(c => (
-                <li key={c.user_id} className="flex items-center gap-1.5">
-                  <span className="w-1.5 h-1.5 rounded-full bg-gray-400 dark:bg-gray-500"></span>
-                  {c.name}
-                </li>
-              ))}
-            </ul>
+            {!activeSession.is_owner && (
+              <>
+                <p className="font-medium text-gray-700 dark:text-gray-300 mb-1">Owner:</p>
+                <ul className="space-y-0.5 mb-2">
+                  <li className="flex items-center gap-1.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-gray-400 dark:bg-gray-500"></span>
+                    {activeSession.owner_name}
+                  </li>
+                </ul>
+              </>
+            )}
+            {otherCollaborators.length > 0 && (
+              <>
+                <p className="font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  {activeSession.is_owner ? 'Collaborators:' : 'Other collaborators:'}
+                </p>
+                <ul className="space-y-0.5">
+                  {otherCollaborators.map(c => (
+                    <li key={c.user_id} className="flex items-center gap-1.5">
+                      <span className="w-1.5 h-1.5 rounded-full bg-gray-400 dark:bg-gray-500"></span>
+                      {c.name}
+                    </li>
+                  ))}
+                </ul>
+              </>
+            )}
           </div>
 
           {/* Show option to switch if user has other sessions */}
