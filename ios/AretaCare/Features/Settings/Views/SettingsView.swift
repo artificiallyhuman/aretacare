@@ -1,5 +1,4 @@
 import SwiftUI
-import RevenueCatUI
 
 struct SettingsView: View {
     @State private var viewModel = SettingsViewModel()
@@ -14,7 +13,6 @@ struct SettingsView: View {
     @State private var deleteConfirmationText = ""
     @State private var deletePassword = ""
     @State private var isDeletingAccount = false
-    @State private var showCustomerCenter = false
 
     // Session management (detail view handles rename/color/delete)
 
@@ -67,9 +65,6 @@ struct SettingsView: View {
             }
         }
         .disabled(isDeletingAccount)
-        .sheet(isPresented: $showCustomerCenter) {
-            CustomerCenterSheet()
-        }
     }
 
     // MARK: - Account Section
@@ -295,13 +290,6 @@ struct SettingsView: View {
                 Text(appVersion)
                     .foregroundStyle(.secondary)
             }
-
-            Button {
-                showCustomerCenter = true
-            } label: {
-                Label("Manage Subscription", systemImage: "creditcard")
-            }
-            .tint(.primary)
 
             NavigationLink {
                 FeedbackView()
