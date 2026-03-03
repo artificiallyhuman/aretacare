@@ -246,6 +246,7 @@ struct DocumentsListView: View {
                                 } label: {
                                     Label("Delete", systemImage: "trash")
                                 }
+                                .disabled(viewModel.isLoading)
                             }
                             .swipeActions(edge: .leading) {
                                 Button {

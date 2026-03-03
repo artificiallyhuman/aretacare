@@ -304,6 +304,7 @@ private struct PendingInvitationRow: View {
                     .contentShape(Rectangle())
             }
             .buttonStyle(.borderless)
+            .disabled(viewModel.isLoading)
         }
     }
 }

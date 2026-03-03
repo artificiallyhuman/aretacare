@@ -89,6 +89,7 @@ struct DailyDigestView: View {
         .confirmationDialog("Delete Digest", isPresented: $showDeleteConfirmation, titleVisibility: .visible) {
             Button("Delete", role: .destructive) {
                 guard let digest = selectedDigest else { return }
+                guard !viewModel.isLoading && !viewModel.isGenerating else { return }
                 deleteHapticTrigger += 1
                 Task { await deleteDigest(digest) }
             }
@@ -99,6 +100,7 @@ struct DailyDigestView: View {
         .confirmationDialog("Regenerate Digest", isPresented: $showRegenerateConfirmation, titleVisibility: .visible) {
             Button("Regenerate", role: .destructive) {
                 guard let digest = selectedDigest else { return }
+                guard !viewModel.isLoading && !viewModel.isGenerating else { return }
                 Task { await regenerateDigest(replacing: digest) }
             }
             Button("Cancel", role: .cancel) {}
@@ -208,6 +210,7 @@ struct DailyDigestView: View {
             }
             .accessibilityHint("Generates a summary of your recent activity")
             .buttonStyle(.borderedProminent)
+            .disabled(viewModel.isLoading || viewModel.isGenerating)
         }
         .padding(24)
         .background(Color(.secondarySystemBackground))
@@ -473,7 +476,7 @@ struct DailyDigestView: View {
                                 }
                             }
                         }
-                        .disabled(editingContent.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                        .disabled(editingContent.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || viewModel.isLoading)
                     }
                 }
                 .interactiveDismissDisabled(editingContent != originalEditingContent)

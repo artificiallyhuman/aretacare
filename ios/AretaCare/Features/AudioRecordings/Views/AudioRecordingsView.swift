@@ -287,6 +287,7 @@ struct AudioRecordingsView: View {
                                 } label: {
                                     Label("Delete", systemImage: "trash")
                                 }
+                                .disabled(viewModel.isLoading)
                             }
                             .contextMenu {
                                 if let summary = recording.aiSummary {
@@ -307,6 +308,7 @@ struct AudioRecordingsView: View {
                                 } label: {
                                     Label("Delete", systemImage: "trash")
                                 }
+                                .disabled(viewModel.isLoading)
                             }
                             .onAppear {
                                 if recording.id == viewModel.recordings.last?.id {

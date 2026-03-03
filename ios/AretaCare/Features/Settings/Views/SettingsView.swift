@@ -41,7 +41,10 @@ struct SettingsView: View {
         }
         .confirmationDialog("Log Out Everywhere", isPresented: $showLogoutEverywhereConfirmation, titleVisibility: .visible) {
             Button("Log Out All Devices", role: .destructive) {
-                Task { await viewModel.logoutEverywhere() }
+                Task {
+                    guard !viewModel.isLoading else { return }
+                    await viewModel.logoutEverywhere()
+                }
             }
             Button("Cancel", role: .cancel) {}
         } message: {

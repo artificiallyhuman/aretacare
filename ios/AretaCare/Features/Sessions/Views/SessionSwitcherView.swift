@@ -59,6 +59,7 @@ struct SessionSwitcherView: View {
                     let name = newSessionName.trimmingCharacters(in: .whitespacesAndNewlines)
                     newSessionName = ""
                     Task {
+                        guard !sessionVM.isLoading else { return }
                         await sessionVM.createSession(name: name.isEmpty ? nil : name)
                         dismiss()
                     }
