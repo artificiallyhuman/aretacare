@@ -170,10 +170,9 @@ New journal entries are automatically embedded on creation. The backfill is only
 7. Audio: record, verify transcription, play back from message bubble
 8. Audio recordings: upload from Audio tab, verify journal synthesis triggers, edit category/summary
 9. Daily digest: open Digest tab, verify markdown rendering, verify periodic auto-generation check
-10. Settings: rename session, change color, session statistics display
-11. Collaboration: share session, revoke, resend invitation
-12. Logout: verify push token unregistered before auth cleared (check backend logs)
-13. Release build: verify `aps-environment: production` in entitlements, verify crash without `API_BASE_URL`
+10. Settings: rename session, change color, session statistics display, collaboration (share/revoke/invite)
+11. Logout: verify push token unregistered before auth cleared (check backend logs)
+12. Release build: verify `aps-environment: production` in entitlements, verify crash without `API_BASE_URL`
 
 ### iOS Pre-Deploy
 - Replace `TEAMID` in `frontend/public/.well-known/apple-app-site-association` with your actual Apple Team ID

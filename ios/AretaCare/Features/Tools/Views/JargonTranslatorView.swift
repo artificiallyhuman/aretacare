@@ -2,6 +2,7 @@ import SwiftUI
 
 struct JargonTranslatorView: View {
     let sessionId: String
+    var sessionName: String = ""
 
     @State private var viewModel = ToolsViewModel()
     @State private var medicalTerm = ""
@@ -11,12 +12,39 @@ struct JargonTranslatorView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
+                // Session indicator
+                if !sessionName.isEmpty {
+                    HStack(spacing: 6) {
+                        Image(systemName: "folder")
+                            .font(.caption2)
+                        Text(sessionName)
+                            .font(.caption)
+                    }
+                    .foregroundStyle(.secondary)
+                }
+
+                // Hero header
+                VStack(spacing: 12) {
+                    Image(systemName: "character.book.closed")
+                        .font(.system(size: 28))
+                        .foregroundStyle(.white)
+                        .frame(width: 60, height: 60)
+                        .background(Circle().fill(Color.accentColor.gradient))
+
+                    Text("Translate complex medical terms into plain, easy-to-understand language.")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 4)
+
                 // Medical disclaimer
                 HStack(spacing: 8) {
                     Image(systemName: "info.circle")
                         .foregroundStyle(.orange)
                         .font(.caption)
-                    Text("This tool is for informational purposes only and is not medical advice.")
+                    Text("Explanations are for informational purposes only and are not medical advice.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -28,10 +56,6 @@ struct JargonTranslatorView: View {
 
                 // Input
                 VStack(alignment: .leading, spacing: 12) {
-                    Text("Enter a medical term or phrase you would like explained in plain language.")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-
                     VStack(alignment: .leading, spacing: 8) {
                         Text("Medical Term")
                             .font(.subheadline.weight(.medium))
@@ -74,38 +98,42 @@ struct JargonTranslatorView: View {
 
                 // Result
                 if let result = viewModel.translationResult {
-                    VStack(alignment: .leading, spacing: 12) {
-                        HStack {
-                            Text(result.term)
-                                .font(.title3.weight(.semibold))
-                            Spacer()
-                            Button {
-                                let text = "**\(result.term)**\n\n\(result.explanation)" +
-                                    (result.contextNote.isEmpty ? "" : "\n\n*\(result.contextNote)*")
-                                UIPasteboard.general.string = text
-                                copyTrigger += 1
-                            } label: {
-                                Image(systemName: "doc.on.doc")
-                                    .font(.subheadline)
-                                    .foregroundStyle(Color.accentColor)
+                    VStack(alignment: .leading, spacing: 0) {
+                        Color.accentColor.frame(height: 3)
+
+                        VStack(alignment: .leading, spacing: 12) {
+                            HStack {
+                                Text(result.term)
+                                    .font(.title3.weight(.semibold))
+                                Spacer()
+                                Button {
+                                    let text = "**\(result.term)**\n\n\(result.explanation)" +
+                                        (result.contextNote.isEmpty ? "" : "\n\n*\(result.contextNote)*")
+                                    UIPasteboard.general.string = text
+                                    copyTrigger += 1
+                                } label: {
+                                    Image(systemName: "doc.on.doc")
+                                        .font(.subheadline)
+                                        .foregroundStyle(Color.accentColor)
+                                }
+                            }
+
+                            Divider()
+
+                            Text("Explanation")
+                                .font(.subheadline.weight(.medium))
+                            MarkdownTextView(content: result.explanation)
+
+                            if !result.contextNote.isEmpty {
+                                Divider()
+                                Text("Context Note")
+                                    .font(.subheadline.weight(.medium))
+                                MarkdownTextView(content: result.contextNote)
+                                    .foregroundStyle(.secondary)
                             }
                         }
-
-                        Divider()
-
-                        Text("Explanation")
-                            .font(.subheadline.weight(.medium))
-                        MarkdownTextView(content: result.explanation)
-
-                        if !result.contextNote.isEmpty {
-                            Divider()
-                            Text("Context Note")
-                                .font(.subheadline.weight(.medium))
-                            MarkdownTextView(content: result.contextNote)
-                                .foregroundStyle(.secondary)
-                        }
+                        .padding()
                     }
-                    .padding()
                     .background(Color(.secondarySystemGroupedBackground))
                     .clipShape(RoundedRectangle(cornerRadius: 12))
                 }

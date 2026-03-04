@@ -2,6 +2,7 @@ import SwiftUI
 
 struct ConversationCoachView: View {
     let sessionId: String
+    var sessionName: String = ""
 
     @State private var viewModel = ToolsViewModel()
     @State private var situation = ""
@@ -16,12 +17,39 @@ struct ConversationCoachView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
+                // Session indicator
+                if !sessionName.isEmpty {
+                    HStack(spacing: 6) {
+                        Image(systemName: "folder")
+                            .font(.caption2)
+                        Text(sessionName)
+                            .font(.caption)
+                    }
+                    .foregroundStyle(.secondary)
+                }
+
+                // Hero header
+                VStack(spacing: 12) {
+                    Image(systemName: "bubble.left.and.text.bubble.right")
+                        .font(.system(size: 28))
+                        .foregroundStyle(.white)
+                        .frame(width: 60, height: 60)
+                        .background(Circle().fill(Color.accentColor.gradient))
+
+                    Text("Prepare for healthcare conversations with personalized coaching tips.")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 4)
+
                 // Medical disclaimer
                 HStack(spacing: 8) {
                     Image(systemName: "info.circle")
                         .foregroundStyle(.orange)
                         .font(.caption)
-                    Text("This tool is for preparation purposes only and is not medical advice.")
+                    Text("Suggestions are for preparation purposes only and are not medical advice.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -33,10 +61,6 @@ struct ConversationCoachView: View {
 
                 // Input
                 VStack(alignment: .leading, spacing: 12) {
-                    Text("Describe the healthcare conversation you want to prepare for and get personalized coaching tips.")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-
                     VStack(alignment: .leading, spacing: 8) {
                         HStack {
                             Text("Situation")
@@ -156,28 +180,32 @@ struct ConversationCoachView: View {
 
                 // Result
                 if let result = viewModel.coachingResult {
-                    VStack(alignment: .leading, spacing: 12) {
-                        HStack {
-                            Image(systemName: "bubble.left.and.text.bubble.right")
-                                .foregroundStyle(Color.accentColor)
-                            Text("Coaching Advice")
-                                .font(.headline)
-                            Spacer()
-                            Button {
-                                UIPasteboard.general.string = result
-                                copyTrigger += 1
-                            } label: {
-                                Image(systemName: "doc.on.doc")
-                                    .font(.subheadline)
+                    VStack(alignment: .leading, spacing: 0) {
+                        Color.accentColor.frame(height: 3)
+
+                        VStack(alignment: .leading, spacing: 12) {
+                            HStack {
+                                Image(systemName: "bubble.left.and.text.bubble.right")
                                     .foregroundStyle(Color.accentColor)
+                                Text("Coaching Advice")
+                                    .font(.headline)
+                                Spacer()
+                                Button {
+                                    UIPasteboard.general.string = result
+                                    copyTrigger += 1
+                                } label: {
+                                    Image(systemName: "doc.on.doc")
+                                        .font(.subheadline)
+                                        .foregroundStyle(Color.accentColor)
+                                }
                             }
+
+                            Divider()
+
+                            MarkdownTextView(content: result)
                         }
-
-                        Divider()
-
-                        MarkdownTextView(content: result)
+                        .padding()
                     }
-                    .padding()
                     .background(Color(.secondarySystemGroupedBackground))
                     .clipShape(RoundedRectangle(cornerRadius: 12))
                 }

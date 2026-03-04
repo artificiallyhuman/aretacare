@@ -7,6 +7,10 @@ struct ToolsMenuView: View {
         sessionVM.currentSession?.id ?? ""
     }
 
+    private var sessionName: String {
+        sessionVM.currentSession?.name ?? ""
+    }
+
     var body: some View {
         Form {
             if sessionId.isEmpty {
@@ -15,27 +19,40 @@ struct ToolsMenuView: View {
                         .foregroundStyle(.secondary)
                 }
             } else {
+                if !sessionName.isEmpty {
+                    Section {
+                        HStack(spacing: 6) {
+                            Image(systemName: "folder")
+                                .font(.caption2)
+                            Text(sessionName)
+                                .font(.caption)
+                        }
+                        .foregroundStyle(.secondary)
+                    }
+                    .listRowBackground(Color.clear)
+                }
+
                 Section("Session Tools") {
                     NavigationLink {
-                        JournalView(sessionId: sessionId)
+                        JournalView(sessionId: sessionId, sessionName: sessionName)
                     } label: {
                         toolRow(icon: "book", title: "Care Journal", subtitle: "View and manage journal entries")
                     }
 
                     NavigationLink {
-                        DocumentsListView(sessionId: sessionId)
+                        DocumentsListView(sessionId: sessionId, sessionName: sessionName)
                     } label: {
                         toolRow(icon: "doc.text", title: "Document Manager", subtitle: "Upload and manage medical documents")
                     }
 
                     NavigationLink {
-                        AudioRecordingsView(sessionId: sessionId)
+                        AudioRecordingsView(sessionId: sessionId, sessionName: sessionName)
                     } label: {
                         toolRow(icon: "mic", title: "Audio Recordings", subtitle: "Record and review voice memos")
                     }
 
                     NavigationLink {
-                        ProfileView(sessionId: sessionId)
+                        ProfileView(sessionId: sessionId, sessionName: sessionName)
                     } label: {
                         toolRow(icon: "heart.text.clipboard", title: "Health Profile", subtitle: "View your AI-generated health summary")
                     }
@@ -43,20 +60,20 @@ struct ToolsMenuView: View {
 
                 Section("AI Assistants") {
                     NavigationLink {
-                        JargonTranslatorView(sessionId: sessionId)
+                        JargonTranslatorView(sessionId: sessionId, sessionName: sessionName)
                     } label: {
                         toolRow(icon: "character.book.closed", title: "Jargon Translator", subtitle: "Understand complex medical terminology")
                     }
 
                     NavigationLink {
-                        ConversationCoachView(sessionId: sessionId)
+                        ConversationCoachView(sessionId: sessionId, sessionName: sessionName)
                     } label: {
                         toolRow(icon: "bubble.left.and.text.bubble.right", title: "Conversation Coach", subtitle: "Prepare for healthcare conversations")
                     }
                 }
             }
         }
-        .navigationTitle(sessionVM.currentSession?.name ?? "Tools")
+        .navigationTitle("Tools")
     }
 
     // MARK: - Row Helper

@@ -72,9 +72,10 @@ struct ConversationOnboardingView: View {
 
                         if showGoodToKnow {
                             VStack(alignment: .leading, spacing: 10) {
-                                infoRow(icon: "gearshape", text: "Rename, share, and delete sessions in Settings")
-                                infoRow(icon: "bolt", text: "AI generates your Daily Digest and Care Journal automatically")
-                                infoRow(icon: "folder", text: "View documents and audio recordings in the Tools menu")
+                                infoRow(icon: "list.bullet", text: "Create and switch between sessions using the chat menu")
+                                infoRow(icon: "doc.text.magnifyingglass", text: "AI generates your daily digest automatically")
+                                infoRow(icon: "wrench.and.screwdriver", text: "View care journal, documents, recordings, and health profile in Tools")
+                                infoRow(icon: "gear", text: "Add collaborators, rename, and delete sessions in Settings")
                             }
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .padding(.top, 10)

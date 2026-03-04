@@ -29,6 +29,19 @@ struct DailyDigestView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 0) {
+                if let name = sessionVM.currentSession?.name {
+                    HStack(spacing: 6) {
+                        Image(systemName: "folder")
+                            .font(.caption2)
+                        Text(name)
+                            .font(.caption)
+                    }
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal)
+                    .padding(.top, 4)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                }
+
                 if selectedDigest != nil || viewModel.allDigests.count > 1 {
                     dateNavigatorBar
                 }
@@ -47,7 +60,7 @@ struct DailyDigestView: View {
                 .padding()
             }
         }
-        .navigationTitle(sessionVM.currentSession?.name ?? "Daily Digest")
+        .navigationTitle("Daily Digest")
         .navigationBarTitleDisplayMode(.large)
         .toolbar {
             ToolbarItem(placement: .topBarLeading) {
@@ -307,7 +320,7 @@ struct DailyDigestView: View {
                     .foregroundStyle(.orange)
                     .font(.caption)
                     .accessibilityHidden(true)
-                Text("AI-generated \u{2014} not medical advice.")
+                Text("Daily Digest summarizes information you've provided and is not medical advice.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
 

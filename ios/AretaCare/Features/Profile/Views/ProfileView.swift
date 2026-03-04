@@ -2,6 +2,7 @@ import SwiftUI
 
 struct ProfileView: View {
     let sessionId: String
+    var sessionName: String = ""
 
     @State private var viewModel = ProfileViewModel()
     @State private var showingRegenConfirm = false
@@ -166,6 +167,35 @@ struct ProfileView: View {
     private var profileContent: some View {
         ScrollView {
             VStack(spacing: 0) {
+                if !sessionName.isEmpty {
+                    HStack(spacing: 6) {
+                        Image(systemName: "folder")
+                            .font(.caption2)
+                        Text(sessionName)
+                            .font(.caption)
+                    }
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 16)
+                    .padding(.top, 4)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                }
+
+                HStack(spacing: 8) {
+                    Image(systemName: "info.circle")
+                        .foregroundStyle(.orange)
+                        .font(.caption)
+                    Text("This summary is generated from your conversations and journal entries. It may be incomplete or contain errors. Review and edit before sharing with healthcare providers.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                .padding(10)
+                .background(
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(Color.orange.opacity(0.08))
+                )
+                .padding(.horizontal, 16)
+                .padding(.top, 8)
+
                 if viewModel.needsUpdate && !viewModel.isUpdating {
                     newActivityBanner
                 }

@@ -4,6 +4,7 @@ struct SettingsView: View {
     @State private var viewModel = SettingsViewModel()
     @State private var subscriptionManager = SubscriptionManager.shared
 
+    @Environment(\.openURL) private var openURL
     @AppStorage("biometricLockEnabled") private var biometricLockEnabled = false
     @State private var showChangeName = false
     @State private var showChangeEmail = false
@@ -287,22 +288,31 @@ struct SettingsView: View {
 
     private var supportSection: some View {
         Section("Support") {
-            Link(destination: AppConstants.aboutURL) {
+            Button {
+                openURL(AppConstants.aboutURL)
+            } label: {
                 Label("About AretaCare", systemImage: "info.circle")
             }
+            .foregroundStyle(.primary)
+
+            Button {
+                openURL(AppConstants.termsURL)
+            } label: {
+                Label("Terms of Service", systemImage: "doc.text")
+            }
+            .foregroundStyle(.primary)
+
+            Button {
+                openURL(AppConstants.privacyURL)
+            } label: {
+                Label("Privacy Policy", systemImage: "hand.raised")
+            }
+            .foregroundStyle(.primary)
 
             NavigationLink {
                 FeedbackView()
             } label: {
                 Label("Contact Us", systemImage: "envelope")
-            }
-
-            Link(destination: AppConstants.termsURL) {
-                Label("Terms of Service", systemImage: "doc.text")
-            }
-
-            Link(destination: AppConstants.privacyURL) {
-                Label("Privacy Policy", systemImage: "hand.raised")
             }
 
             HStack {

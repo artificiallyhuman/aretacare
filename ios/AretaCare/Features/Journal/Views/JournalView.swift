@@ -2,6 +2,7 @@ import SwiftUI
 
 struct JournalView: View {
     let sessionId: String
+    var sessionName: String = ""
 
     @State private var viewModel = JournalViewModel()
     @State private var showingEditor = false
@@ -169,7 +170,35 @@ struct JournalView: View {
 
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 4, pinnedViews: .sectionHeaders) {
+                    if !sessionName.isEmpty {
+                        HStack(spacing: 6) {
+                            Image(systemName: "folder")
+                                .font(.caption2)
+                            Text(sessionName)
+                                .font(.caption)
+                        }
+                        .foregroundStyle(.secondary)
+                        .padding(.horizontal)
+                        .padding(.top, 4)
+                    }
+
                     Section {
+                        HStack(spacing: 8) {
+                            Image(systemName: "info.circle")
+                                .foregroundStyle(.orange)
+                                .font(.caption)
+                            Text("Journal entries are generated from your conversations and uploads. Review for accuracy before sharing.")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        .padding(10)
+                        .background(
+                            RoundedRectangle(cornerRadius: 8)
+                                .fill(Color.orange.opacity(0.08))
+                        )
+                        .padding(.horizontal)
+                        .padding(.top, 8)
+
                         filterChips
                     }
 
@@ -434,6 +463,6 @@ private struct JournalEntryRow: View {
 
 #Preview {
     NavigationStack {
-        JournalView(sessionId: "preview-session")
+        JournalView(sessionId: "preview-session", sessionName: "Preview")
     }
 }

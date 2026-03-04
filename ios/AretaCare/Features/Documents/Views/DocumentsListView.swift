@@ -4,6 +4,7 @@ import UniformTypeIdentifiers
 
 struct DocumentsListView: View {
     let sessionId: String
+    var sessionName: String = ""
 
     @State private var viewModel = DocumentsViewModel()
     @State private var showingFilePicker = false
@@ -197,6 +198,35 @@ struct DocumentsListView: View {
 
     private var documentList: some View {
         VStack(spacing: 0) {
+            if !sessionName.isEmpty {
+                HStack(spacing: 6) {
+                    Image(systemName: "folder")
+                        .font(.caption2)
+                    Text(sessionName)
+                        .font(.caption)
+                }
+                .foregroundStyle(.secondary)
+                .padding(.horizontal)
+                .padding(.top, 4)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+
+            HStack(spacing: 8) {
+                Image(systemName: "info.circle")
+                    .foregroundStyle(.orange)
+                    .font(.caption)
+                Text("AI-generated descriptions may contain errors. Please review for accuracy.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            .padding(10)
+            .background(
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(Color.orange.opacity(0.08))
+            )
+            .padding(.horizontal)
+            .padding(.top, 8)
+
             if viewModel.isJumpedToDate {
                 DateNavigatorBar(
                     selectedDateString: viewModel.selectedDateString,

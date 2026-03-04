@@ -20,9 +20,6 @@ struct RegisterView: View {
                 AuthHeaderView()
                     .padding(.top, 16)
 
-                // Medical Disclaimer
-                MedicalDisclaimerBanner()
-
                 // Invitation Notice
                 if invitationToken != nil {
                     invitationBanner
