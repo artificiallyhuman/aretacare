@@ -12,17 +12,6 @@ struct JargonTranslatorView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
-                // Session indicator
-                if !sessionName.isEmpty {
-                    HStack(spacing: 6) {
-                        Image(systemName: "folder")
-                            .font(.caption2)
-                        Text(sessionName)
-                            .font(.caption)
-                    }
-                    .foregroundStyle(.secondary)
-                }
-
                 // Hero header
                 VStack(spacing: 12) {
                     Image(systemName: "character.book.closed")
@@ -146,6 +135,19 @@ struct JargonTranslatorView: View {
             .padding()
         }
         .sensoryFeedback(.success, trigger: copyTrigger)
-        .navigationTitle("Jargon Translator")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .principal) {
+                VStack(spacing: 1) {
+                    Text("Jargon Translator")
+                        .font(.headline)
+                    if !sessionName.isEmpty {
+                        Text(sessionName)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+        }
     }
 }

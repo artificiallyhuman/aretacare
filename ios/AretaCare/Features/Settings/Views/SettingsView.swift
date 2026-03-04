@@ -291,23 +291,38 @@ struct SettingsView: View {
             Button {
                 openURL(AppConstants.aboutURL)
             } label: {
-                Label("About AretaCare", systemImage: "info.circle")
+                Label {
+                    Text("About AretaCare")
+                        .foregroundStyle(.primary)
+                } icon: {
+                    Image(systemName: "info.circle")
+                        .foregroundStyle(Color.accentColor)
+                }
             }
-            .foregroundStyle(.primary)
 
             Button {
                 openURL(AppConstants.termsURL)
             } label: {
-                Label("Terms of Service", systemImage: "doc.text")
+                Label {
+                    Text("Terms of Service")
+                        .foregroundStyle(.primary)
+                } icon: {
+                    Image(systemName: "doc.text")
+                        .foregroundStyle(Color.accentColor)
+                }
             }
-            .foregroundStyle(.primary)
 
             Button {
                 openURL(AppConstants.privacyURL)
             } label: {
-                Label("Privacy Policy", systemImage: "hand.raised")
+                Label {
+                    Text("Privacy Policy")
+                        .foregroundStyle(.primary)
+                } icon: {
+                    Image(systemName: "hand.raised")
+                        .foregroundStyle(Color.accentColor)
+                }
             }
-            .foregroundStyle(.primary)
 
             NavigationLink {
                 FeedbackView()

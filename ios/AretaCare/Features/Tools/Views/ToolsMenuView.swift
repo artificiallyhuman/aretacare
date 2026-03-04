@@ -19,19 +19,6 @@ struct ToolsMenuView: View {
                         .foregroundStyle(.secondary)
                 }
             } else {
-                if !sessionName.isEmpty {
-                    Section {
-                        HStack(spacing: 6) {
-                            Image(systemName: "folder")
-                                .font(.caption2)
-                            Text(sessionName)
-                                .font(.caption)
-                        }
-                        .foregroundStyle(.secondary)
-                    }
-                    .listRowBackground(Color.clear)
-                }
-
                 Section("Session Tools") {
                     NavigationLink {
                         JournalView(sessionId: sessionId, sessionName: sessionName)
@@ -73,7 +60,20 @@ struct ToolsMenuView: View {
                 }
             }
         }
-        .navigationTitle("Tools")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .principal) {
+                VStack(spacing: 1) {
+                    Text("Tools")
+                        .font(.headline)
+                    if !sessionName.isEmpty {
+                        Text(sessionName)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+        }
     }
 
     // MARK: - Row Helper

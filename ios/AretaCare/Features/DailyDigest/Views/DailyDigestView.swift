@@ -29,19 +29,6 @@ struct DailyDigestView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 0) {
-                if let name = sessionVM.currentSession?.name {
-                    HStack(spacing: 6) {
-                        Image(systemName: "folder")
-                            .font(.caption2)
-                        Text(name)
-                            .font(.caption)
-                    }
-                    .foregroundStyle(.secondary)
-                    .padding(.horizontal)
-                    .padding(.top, 4)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                }
-
                 if selectedDigest != nil || viewModel.allDigests.count > 1 {
                     dateNavigatorBar
                 }
@@ -60,9 +47,19 @@ struct DailyDigestView: View {
                 .padding()
             }
         }
-        .navigationTitle("Daily Digest")
-        .navigationBarTitleDisplayMode(.large)
+        .navigationBarTitleDisplayMode(.inline)
         .toolbar {
+            ToolbarItem(placement: .principal) {
+                VStack(spacing: 1) {
+                    Text("Daily Digest")
+                        .font(.headline)
+                    if let name = sessionVM.currentSession?.name {
+                        Text(name)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
             ToolbarItem(placement: .topBarLeading) {
                 if !viewModel.allDigests.isEmpty {
                     Button {

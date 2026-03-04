@@ -82,9 +82,20 @@ struct DocumentsListView: View {
                 documentList
             }
         }
-        .navigationTitle("Document Manager")
+        .navigationBarTitleDisplayMode(.inline)
         .searchable(text: $searchText, prompt: "Search documents...")
         .toolbar {
+            ToolbarItem(placement: .principal) {
+                VStack(spacing: 1) {
+                    Text("Document Manager")
+                        .font(.headline)
+                    if !sessionName.isEmpty {
+                        Text(sessionName)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
             ToolbarItem(placement: .topBarLeading) {
                 if !viewModel.allDates.isEmpty {
                     Button {
@@ -198,19 +209,6 @@ struct DocumentsListView: View {
 
     private var documentList: some View {
         VStack(spacing: 0) {
-            if !sessionName.isEmpty {
-                HStack(spacing: 6) {
-                    Image(systemName: "folder")
-                        .font(.caption2)
-                    Text(sessionName)
-                        .font(.caption)
-                }
-                .foregroundStyle(.secondary)
-                .padding(.horizontal)
-                .padding(.top, 4)
-                .frame(maxWidth: .infinity, alignment: .leading)
-            }
-
             HStack(spacing: 8) {
                 Image(systemName: "info.circle")
                     .foregroundStyle(.orange)

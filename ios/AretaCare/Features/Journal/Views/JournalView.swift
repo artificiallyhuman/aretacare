@@ -46,9 +46,20 @@ struct JournalView: View {
             .accessibilityLabel("Create new journal entry")
             .padding(24)
         }
-        .navigationTitle("Care Journal")
+        .navigationBarTitleDisplayMode(.inline)
         .searchable(text: $searchText, prompt: "Search journal entries...")
         .toolbar {
+            ToolbarItem(placement: .principal) {
+                VStack(spacing: 1) {
+                    Text("Care Journal")
+                        .font(.headline)
+                    if !sessionName.isEmpty {
+                        Text(sessionName)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
             ToolbarItem(placement: .topBarLeading) {
                 if !viewModel.allDates.isEmpty {
                     Button {
@@ -170,18 +181,6 @@ struct JournalView: View {
 
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 4, pinnedViews: .sectionHeaders) {
-                    if !sessionName.isEmpty {
-                        HStack(spacing: 6) {
-                            Image(systemName: "folder")
-                                .font(.caption2)
-                            Text(sessionName)
-                                .font(.caption)
-                        }
-                        .foregroundStyle(.secondary)
-                        .padding(.horizontal)
-                        .padding(.top, 4)
-                    }
-
                     Section {
                         HStack(spacing: 8) {
                             Image(systemName: "info.circle")

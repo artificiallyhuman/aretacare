@@ -60,9 +60,20 @@ struct AudioRecordingsView: View {
                 recordingsList
             }
         }
-        .navigationTitle("Audio Recordings")
+        .navigationBarTitleDisplayMode(.inline)
         .searchable(text: $searchText, prompt: "Search recordings...")
         .toolbar {
+            ToolbarItem(placement: .principal) {
+                VStack(spacing: 1) {
+                    Text("Audio Recordings")
+                        .font(.headline)
+                    if !sessionName.isEmpty {
+                        Text(sessionName)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
             ToolbarItem(placement: .topBarLeading) {
                 if !viewModel.allDates.isEmpty {
                     Button {
@@ -241,19 +252,6 @@ struct AudioRecordingsView: View {
 
     private var recordingsList: some View {
         VStack(spacing: 0) {
-            if !sessionName.isEmpty {
-                HStack(spacing: 6) {
-                    Image(systemName: "folder")
-                        .font(.caption2)
-                    Text(sessionName)
-                        .font(.caption)
-                }
-                .foregroundStyle(.secondary)
-                .padding(.horizontal)
-                .padding(.top, 4)
-                .frame(maxWidth: .infinity, alignment: .leading)
-            }
-
             HStack(spacing: 8) {
                 Image(systemName: "info.circle")
                     .foregroundStyle(.orange)

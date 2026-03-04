@@ -24,7 +24,20 @@ struct ProfileView: View {
                 profileContent
             }
         }
-        .navigationTitle("Health Profile")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .principal) {
+                VStack(spacing: 1) {
+                    Text("Health Profile")
+                        .font(.headline)
+                    if !sessionName.isEmpty {
+                        Text(sessionName)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+        }
         .toolbar {
             if !viewModel.isProfileEmpty {
                 ToolbarItem(placement: .primaryAction) {
@@ -167,34 +180,11 @@ struct ProfileView: View {
     private var profileContent: some View {
         ScrollView {
             VStack(spacing: 0) {
-                if !sessionName.isEmpty {
-                    HStack(spacing: 6) {
-                        Image(systemName: "folder")
-                            .font(.caption2)
-                        Text(sessionName)
-                            .font(.caption)
-                    }
+                Text("This summary is generated from your conversations and journal entries. Review and edit before sharing with healthcare providers.")
+                    .font(.caption)
                     .foregroundStyle(.secondary)
                     .padding(.horizontal, 16)
-                    .padding(.top, 4)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                }
-
-                HStack(spacing: 8) {
-                    Image(systemName: "info.circle")
-                        .foregroundStyle(.orange)
-                        .font(.caption)
-                    Text("This summary is generated from your conversations and journal entries. It may be incomplete or contain errors. Review and edit before sharing with healthcare providers.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-                .padding(10)
-                .background(
-                    RoundedRectangle(cornerRadius: 8)
-                        .fill(Color.orange.opacity(0.08))
-                )
-                .padding(.horizontal, 16)
-                .padding(.top, 8)
+                    .padding(.top, 8)
 
                 if viewModel.needsUpdate && !viewModel.isUpdating {
                     newActivityBanner
