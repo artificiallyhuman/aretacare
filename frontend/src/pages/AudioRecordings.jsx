@@ -61,7 +61,7 @@ const AudioRecordings = () => {
   const searchInputRef = useRef(null);
   const isSearchFocused = useRef(false);
   const [uploading, setUploading] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState('');
+  const [uploadProgress, setUploadProgress] = useState([]);
   const fileInputRef = useRef(null);
   const [recordingToDelete, setRecordingToDelete] = useState(null);
   const abortControllerRef = useRef(null);
@@ -259,150 +259,238 @@ const AudioRecordings = () => {
   };
 
   const handleFileUpload = async (event) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
+    const files = Array.from(event.target.files || []);
+    if (files.length === 0) return;
 
-    // Validate file type
     const allowedTypes = ['audio/mpeg', 'audio/mp4', 'audio/x-m4a', 'audio/m4a', 'audio/wav', 'audio/webm', 'audio/ogg'];
     const allowedExtensions = ['.mp3', '.mp4', '.m4a', '.wav', '.webm', '.ogg'];
-    const fileExt = '.' + file.name.split('.').pop().toLowerCase();
+    const maxSize = 100 * 1024 * 1024; // 100MB per file
 
-    if (!allowedTypes.includes(file.type) && !allowedExtensions.includes(fileExt)) {
-      setError('Invalid file type. Please upload an audio file (MP3, M4A, WAV, WebM, OGG).');
+    // Validate all files first
+    const invalidFiles = [];
+    const oversizedFiles = [];
+
+    files.forEach(file => {
+      const fileExt = '.' + file.name.split('.').pop().toLowerCase();
+      if (!allowedTypes.includes(file.type) && !allowedExtensions.includes(fileExt)) {
+        invalidFiles.push(file.name);
+      }
+      if (file.size > maxSize) {
+        oversizedFiles.push(file.name);
+      }
+    });
+
+    if (invalidFiles.length > 0) {
+      setError(`Invalid file type(s): ${invalidFiles.join(', ')}. Please upload audio files only (MP3, M4A, WAV, WebM, OGG).`);
       if (fileInputRef.current) fileInputRef.current.value = '';
       return;
     }
 
-    // Validate file size (100MB - audio is transcribed, not sent as URL to OpenAI)
-    const maxSize = 100 * 1024 * 1024;
-    if (file.size > maxSize) {
-      setError('File size exceeds 100MB limit. Please choose a smaller file.');
+    if (oversizedFiles.length > 0) {
+      setError(`File(s) exceed 100MB limit: ${oversizedFiles.join(', ')}. Each file must be 100MB or less.`);
       if (fileInputRef.current) fileInputRef.current.value = '';
       return;
     }
 
-    // Note: Long audio files (>20 minutes) are automatically split into chunks and processed sequentially
+    await processFileUpload(files);
+  };
 
+  const processFileUpload = async (files) => {
     setUploading(true);
     setError(null);
-    setUploadProgress('Uploading audio file...');
     uploadCancelledRef.current = false;
 
-    // Create AbortController for this upload
-    abortControllerRef.current = new AbortController();
+    // Initialize progress for each file
+    const initialProgress = files.map((file, index) => ({
+      id: index,
+      filename: file.name,
+      status: 'pending',
+      progress: 0,
+      message: 'Waiting...'
+    }));
+    setUploadProgress(initialProgress);
 
-    try {
-      // Use the same transcribe endpoint that handles recording transcription
-      setUploadProgress('Processing audio (this may take a while for long files)...');
-      // Pass false for skipJournalSynthesis so journal entries ARE created for direct uploads
-      const response = await conversationAPI.transcribeAudio(file, sessionId, false, {
-        signal: abortControllerRef.current.signal
-      });
+    let successCount = 0;
+    let failCount = 0;
 
-      // Check if cancelled while upload was in progress
-      // The upload completed on the backend, so we need to clean up
+    // Upload files sequentially to avoid overwhelming the backend
+    for (let i = 0; i < files.length; i++) {
+      // Check if upload was cancelled
       if (uploadCancelledRef.current) {
-        // Delete the recording that was just created
-        if (response?.data?.recording_id) {
-          setUploadProgress('Cleaning up...');
-          try {
-            await audioRecordingsAPI.deleteRecording(sessionId, response.data.recording_id);
-          } catch (deleteErr) {
-            console.error('Failed to delete cancelled recording:', deleteErr);
-          }
-        }
-        setUploadProgress('Upload cancelled.');
-        if (fileInputRef.current) {
-          fileInputRef.current.value = '';
-        }
-        setTimeout(() => {
-          setUploadProgress('');
-        }, 3000);
-        return;
+        // Mark remaining files as cancelled
+        setUploadProgress(prev => prev.map((p, idx) =>
+          idx >= i && p.status === 'pending' ? { ...p, status: 'cancelled', message: 'Cancelled' } : p
+        ));
+        break;
       }
 
-      setUploadProgress('Audio processed successfully. Journal entries may have been created.');
+      const file = files[i];
 
-      // Reload recordings to show the new one
-      await loadRecordings();
+      // Create new AbortController for this upload
+      abortControllerRef.current = new AbortController();
 
-      // Clear the file input
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
-      }
+      try {
+        // Update status to uploading
+        setUploadProgress(prev => prev.map((p, idx) =>
+          idx === i ? { ...p, status: 'uploading', message: 'Uploading & transcribing...' } : p
+        ));
 
-      // Clear success message after 3 seconds
-      setTimeout(() => {
-        setUploadProgress('');
-      }, 3000);
-    } catch (err) {
-      // Check if this was a cancellation (axios uses CanceledError with code ERR_CANCELED)
-      const isCancelled = err.name === 'CanceledError' ||
-                         err.name === 'AbortError' ||
-                         err.code === 'ERR_CANCELED' ||
-                         uploadCancelledRef.current;
-      if (isCancelled) {
-        // The backend may have finished processing before the abort took effect
-        // Poll for the recording and delete it when found
-        setUploadProgress('Cleaning up...');
-        try {
-          const uploadedBaseName = file.name.replace(/\.[^/.]+$/, ''); // Remove extension
+        // Pass false for skipJournalSynthesis so journal entries ARE created for direct uploads
+        const response = await conversationAPI.transcribeAudio(file, sessionId, false, {
+          signal: abortControllerRef.current.signal
+        });
 
-          // Estimate max processing time based on file size
-          // Audio transcription takes roughly 0.5-1x real-time
-          // Audio files are typically ~1MB per minute, so ~30s processing per MB
-          // Base: 15s for upload/conversion + ~30s per MB for transcription, max 300s
-          const fileSizeMB = file.size / (1024 * 1024);
-          const maxWaitMs = Math.min(15000 + fileSizeMB * 30000, 300000);
-          const pollIntervalMs = 3000; // Poll every 3 seconds
-          const startTime = Date.now();
-
-          // Poll until we find the recording or timeout
-          while (Date.now() - startTime < maxWaitMs) {
-            // Check if user started a new upload (cancel flag would be cleared)
-            if (!uploadCancelledRef.current) break;
-
-            await new Promise(resolve => setTimeout(resolve, pollIntervalMs));
-
-            // Fetch recent recordings and find one matching this file
-            // Note: Backend converts audio to MP3, so compare base filename without extension
-            const listResponse = await audioRecordingsAPI.getRecordings(sessionId);
-            const recs = listResponse.data.recordings || listResponse.data;
-            const recentRec = recs.find(r => {
-              const recBaseName = r.filename.replace(/\.[^/.]+$/, ''); // Remove extension
-              return recBaseName === uploadedBaseName &&
-                new Date(r.created_at + 'Z') > new Date(Date.now() - 300000); // Created in last 5 minutes
-            });
-
-            if (recentRec) {
-              await audioRecordingsAPI.deleteRecording(sessionId, recentRec.id);
-              break; // Successfully deleted
+        // Check if cancelled while upload was in progress
+        // The upload completed on the backend, so we need to clean up
+        if (uploadCancelledRef.current) {
+          // Delete the recording that was just created
+          if (response?.data?.recording_id) {
+            setUploadProgress(prev => prev.map((p, idx) =>
+              idx === i ? { ...p, status: 'cancelled', message: 'Cleaning up...' } : p
+            ));
+            try {
+              await audioRecordingsAPI.deleteRecording(sessionId, response.data.recording_id);
+            } catch (deleteErr) {
+              console.error('Failed to delete cancelled recording:', deleteErr);
             }
           }
-        } catch (cleanupErr) {
-          console.error('Failed to clean up cancelled upload:', cleanupErr);
+          setUploadProgress(prev => prev.map((p, idx) =>
+            idx === i ? { ...p, status: 'cancelled', message: 'Cancelled' } : p
+          ));
+          // Mark remaining files as cancelled
+          setUploadProgress(prev => prev.map((p, idx) =>
+            idx > i && p.status === 'pending' ? { ...p, status: 'cancelled', message: 'Cancelled' } : p
+          ));
+          break;
         }
 
-        setUploadProgress('Upload cancelled.');
-        setError(null);
-        if (fileInputRef.current) {
-          fileInputRef.current.value = '';
+        // Update status to success
+        setUploadProgress(prev => prev.map((p, idx) =>
+          idx === i ? { ...p, status: 'success', progress: 100, message: 'Complete' } : p
+        ));
+
+        successCount++;
+      } catch (err) {
+        // Check if this was a cancellation (axios uses CanceledError with code ERR_CANCELED)
+        const isCancelled = err.name === 'CanceledError' ||
+                           err.name === 'AbortError' ||
+                           err.code === 'ERR_CANCELED' ||
+                           uploadCancelledRef.current;
+        if (isCancelled) {
+          // The backend may have finished processing before the abort took effect
+          // Poll for the recording and delete it when found
+          setUploadProgress(prev => prev.map((p, idx) =>
+            idx === i ? { ...p, status: 'cancelled', message: 'Cleaning up...' } : p
+          ));
+          try {
+            const uploadedBaseName = file.name.replace(/\.[^/.]+$/, ''); // Remove extension
+
+            // Estimate max processing time based on file size
+            // Audio transcription takes roughly 0.5-1x real-time
+            // Audio files are typically ~1MB per minute, so ~30s processing per MB
+            // Base: 15s for upload/conversion + ~30s per MB for transcription, max 300s
+            const fileSizeMB = file.size / (1024 * 1024);
+            const maxWaitMs = Math.min(15000 + fileSizeMB * 30000, 300000);
+            const pollIntervalMs = 3000; // Poll every 3 seconds
+            const startTime = Date.now();
+
+            // Poll until we find the recording or timeout
+            while (Date.now() - startTime < maxWaitMs) {
+              // Check if user started a new upload (cancel flag would be cleared)
+              if (!uploadCancelledRef.current) break;
+
+              await new Promise(resolve => setTimeout(resolve, pollIntervalMs));
+
+              // Fetch recent recordings and find one matching this file
+              // Note: Backend converts audio to MP3, so compare base filename without extension
+              const listResponse = await audioRecordingsAPI.getRecordings(sessionId);
+              const recs = listResponse.data.recordings || listResponse.data;
+              const recentRec = recs.find(r => {
+                const recBaseName = r.filename.replace(/\.[^/.]+$/, ''); // Remove extension
+                return recBaseName === uploadedBaseName &&
+                  new Date(r.created_at + 'Z') > new Date(Date.now() - 300000); // Created in last 5 minutes
+              });
+
+              if (recentRec) {
+                await audioRecordingsAPI.deleteRecording(sessionId, recentRec.id);
+                break; // Successfully deleted
+              }
+            }
+          } catch (cleanupErr) {
+            console.error('Failed to clean up cancelled upload:', cleanupErr);
+          }
+
+          setUploadProgress(prev => prev.map((p, idx) =>
+            idx === i ? { ...p, status: 'cancelled', message: 'Cancelled' } : p
+          ));
+          // Mark remaining files as cancelled
+          setUploadProgress(prev => prev.map((p, idx) =>
+            idx > i && p.status === 'pending' ? { ...p, status: 'cancelled', message: 'Cancelled' } : p
+          ));
+          break;
         }
-        setTimeout(() => {
-          setUploadProgress('');
-        }, 3000);
-      } else {
-        console.error('Error uploading audio:', err);
-        const errorMessage = err.response?.data?.detail || 'Failed to upload audio file. Please try again.';
-        setError(errorMessage);
-        if (fileInputRef.current) {
-          fileInputRef.current.value = '';
-        }
+
+        console.error(`Error uploading ${file.name}:`, err);
+        const errorMessage = err.response?.data?.detail || 'Upload failed';
+
+        // Update status to error
+        setUploadProgress(prev => prev.map((p, idx) =>
+          idx === i ? { ...p, status: 'error', message: errorMessage } : p
+        ));
+
+        failCount++;
       }
-    } finally {
-      abortControllerRef.current = null;
-      setUploading(false);
     }
+
+    // Clear the abort controller
+    abortControllerRef.current = null;
+
+    // Reload recordings to show the new ones (only if not cancelled)
+    if (!uploadCancelledRef.current) {
+      await loadRecordings();
+    } else if (successCount > 0) {
+      // If some files uploaded before cancel, still reload
+      await loadRecordings();
+    }
+
+    // Clear the file input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+
+    // Show summary message
+    if (uploadCancelledRef.current) {
+      if (successCount > 0) {
+        setUploadProgress(prev => [
+          ...prev.filter(p => p.id !== 'summary'),
+          { id: 'summary', status: 'warning', message: `Upload cancelled. ${successCount} recording${successCount > 1 ? 's' : ''} uploaded before cancellation.` }
+        ]);
+      } else {
+        setUploadProgress(prev => [
+          ...prev.filter(p => p.id !== 'summary'),
+          { id: 'summary', status: 'info', message: 'Upload cancelled.' }
+        ]);
+      }
+    } else if (successCount > 0 && failCount === 0) {
+      setUploadProgress(prev => [
+        ...prev,
+        { id: 'summary', status: 'info', message: `Successfully uploaded ${successCount} recording${successCount > 1 ? 's' : ''}. Journal entries have been created.` }
+      ]);
+    } else if (successCount > 0 && failCount > 0) {
+      setUploadProgress(prev => [
+        ...prev,
+        { id: 'summary', status: 'warning', message: `Uploaded ${successCount} recording${successCount > 1 ? 's' : ''}, ${failCount} failed. Journal entries created for successful uploads.` }
+      ]);
+    } else if (failCount > 0) {
+      setError(`Failed to upload ${failCount} recording${failCount > 1 ? 's' : ''}.`);
+    }
+
+    // Clear progress after 5 seconds
+    setTimeout(() => {
+      setUploadProgress([]);
+      setUploading(false);
+      setError(null);
+    }, 5000);
   };
 
   if (sessionLoading) {
@@ -445,6 +533,7 @@ const AudioRecordings = () => {
             <input
               ref={fileInputRef}
               type="file"
+              multiple
               accept="audio/mpeg,audio/mp4,audio/x-m4a,audio/m4a,audio/wav,audio/webm,audio/ogg,.mp3,.mp4,.m4a,.wav,.webm,.ogg"
               onChange={handleFileUpload}
               disabled={uploading}
@@ -454,7 +543,7 @@ const AudioRecordings = () => {
             <label
               htmlFor="audio-file-upload"
               className={`btn-primary inline-flex items-center gap-2 cursor-pointer ${uploading ? 'opacity-50 cursor-not-allowed' : ''}`}
-              title="Upload audio files (MP3, M4A, WAV, WebM, OGG) - Max 100MB (long files automatically chunked)"
+              title="Upload audio files (MP3, M4A, WAV, WebM, OGG) - Max 100MB each (long files automatically chunked)"
             >
               {uploading ? (
                 <>
@@ -495,27 +584,105 @@ const AudioRecordings = () => {
           </div>
         </div>
 
-        {/* Upload progress message */}
-        {uploadProgress && (
-          <div className="mb-4 bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300 px-4 py-3 rounded flex items-center justify-between gap-2">
-            <div className="flex items-center gap-2">
-              <svg className="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-              </svg>
-              {uploadProgress}
-            </div>
-            {uploading && (
-              <button
-                onClick={cancelUpload}
-                className="p-1 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600 rounded transition-colors"
-                title="Cancel upload"
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+        {/* Upload progress */}
+        {uploadProgress.length > 0 && (
+          <div className="mb-4 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4 space-y-3 overflow-hidden">
+            <div className="flex items-center justify-between gap-2 mb-2">
+              <div className="flex items-center gap-2">
+                <svg className="w-5 h-5 text-blue-600 dark:text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
                 </svg>
-              </button>
-            )}
+                <h3 className="text-sm font-semibold text-gray-900 dark:text-white">
+                  Upload Progress
+                </h3>
+              </div>
+              {uploading && (
+                <button
+                  onClick={cancelUpload}
+                  className="p-1 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600 rounded transition-colors"
+                  title="Cancel upload"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              )}
+            </div>
+            {uploadProgress.map((item) => {
+              if (item.id === 'summary') {
+                const bgColor = item.status === 'info' ? 'bg-green-50 dark:bg-green-900/30 border-green-200 dark:border-green-800 text-green-700 dark:text-green-300' :
+                                item.status === 'warning' ? 'bg-yellow-50 dark:bg-yellow-900/30 border-yellow-200 dark:border-yellow-800 text-yellow-700 dark:text-yellow-300' :
+                                'bg-blue-50 dark:bg-blue-900/30 border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300';
+                return (
+                  <div key={item.id} className={`border px-3 py-2 rounded ${bgColor}`}>
+                    {item.message}
+                  </div>
+                );
+              }
+
+              const statusIcon = {
+                pending: (
+                  <svg className="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                ),
+                uploading: (
+                  <svg className="w-4 h-4 text-blue-600 dark:text-blue-400 animate-spin" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                ),
+                success: (
+                  <svg className="w-4 h-4 text-green-600 dark:text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                ),
+                error: (
+                  <svg className="w-4 h-4 text-red-600 dark:text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                ),
+                cancelled: (
+                  <svg className="w-4 h-4 text-gray-500 dark:text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+                  </svg>
+                )
+              };
+
+              const statusColor = {
+                pending: 'text-gray-600 dark:text-gray-400',
+                uploading: 'text-blue-700 dark:text-blue-300',
+                success: 'text-green-700 dark:text-green-300',
+                error: 'text-red-700 dark:text-red-300',
+                cancelled: 'text-gray-500 dark:text-gray-400'
+              };
+
+              return (
+                <div key={item.id} className="space-y-1 min-w-0">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <div className="flex-shrink-0">
+                      {statusIcon[item.status]}
+                    </div>
+                    <span className={`text-sm font-medium ${statusColor[item.status]} flex-1 truncate min-w-0`} title={item.filename}>
+                      {item.filename}
+                    </span>
+                    <span className={`text-xs ${statusColor[item.status]} flex-shrink-0 whitespace-nowrap`}>
+                      {item.message}
+                    </span>
+                  </div>
+                  {item.status === 'uploading' && (
+                    <div className="ml-6 mr-6 bg-gray-200 dark:bg-gray-700 rounded-full h-1.5 overflow-hidden">
+                      <div className="bg-blue-600 dark:bg-blue-400 h-1.5 rounded-full transition-all duration-300 animate-pulse" style={{ width: '70%' }}></div>
+                    </div>
+                  )}
+                  {item.status === 'success' && (
+                    <div className="ml-6 mr-6 bg-gray-200 dark:bg-gray-700 rounded-full h-1.5 overflow-hidden">
+                      <div className="bg-green-600 dark:bg-green-400 h-1.5 rounded-full transition-all duration-300" style={{ width: '100%' }}></div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         )}
 
