@@ -288,41 +288,26 @@ struct SettingsView: View {
 
     private var supportSection: some View {
         Section("Support") {
-            Button {
-                openURL(AppConstants.aboutURL)
-            } label: {
-                Label {
-                    Text("About AretaCare")
-                        .foregroundStyle(.primary)
-                } icon: {
-                    Image(systemName: "info.circle")
-                        .foregroundStyle(Color.accentColor)
-                }
+            HStack {
+                Image(systemName: "info.circle")
+                    .foregroundStyle(Color.accentColor)
+                Text("About AretaCare")
             }
+            .onTapGesture { openURL(AppConstants.aboutURL) }
 
-            Button {
-                openURL(AppConstants.termsURL)
-            } label: {
-                Label {
-                    Text("Terms of Service")
-                        .foregroundStyle(.primary)
-                } icon: {
-                    Image(systemName: "doc.text")
-                        .foregroundStyle(Color.accentColor)
-                }
+            HStack {
+                Image(systemName: "doc.text")
+                    .foregroundStyle(Color.accentColor)
+                Text("Terms of Service")
             }
+            .onTapGesture { openURL(AppConstants.termsURL) }
 
-            Button {
-                openURL(AppConstants.privacyURL)
-            } label: {
-                Label {
-                    Text("Privacy Policy")
-                        .foregroundStyle(.primary)
-                } icon: {
-                    Image(systemName: "hand.raised")
-                        .foregroundStyle(Color.accentColor)
-                }
+            HStack {
+                Image(systemName: "hand.raised")
+                    .foregroundStyle(Color.accentColor)
+                Text("Privacy Policy")
             }
+            .onTapGesture { openURL(AppConstants.privacyURL) }
 
             NavigationLink {
                 FeedbackView()
