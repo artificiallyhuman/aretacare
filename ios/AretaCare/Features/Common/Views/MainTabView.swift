@@ -31,7 +31,7 @@ struct MainTabView: View {
                     }
 
                     NavigationStack {
-                        DailyDigestView(sessionId: currentSessionId)
+                        DailyDigestView(sessionVM: sessionVM)
                     }
                     .tag(1)
                     .tabItem {

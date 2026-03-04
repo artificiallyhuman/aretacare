@@ -1,7 +1,11 @@
 import SwiftUI
 
 struct DailyDigestView: View {
-    let sessionId: String
+    let sessionVM: SessionViewModel
+
+    private var sessionId: String {
+        sessionVM.currentSession?.id ?? ""
+    }
 
     @State private var viewModel = DailyDigestViewModel()
     @State private var selectedDigest: DailyPlanResponse?
@@ -43,7 +47,7 @@ struct DailyDigestView: View {
                 .padding()
             }
         }
-        .navigationTitle("Daily Digest")
+        .navigationTitle(sessionVM.currentSession?.name ?? "Daily Digest")
         .navigationBarTitleDisplayMode(.large)
         .toolbar {
             ToolbarItem(placement: .topBarLeading) {
@@ -507,6 +511,6 @@ struct DailyDigestView: View {
 
 #Preview {
     NavigationStack {
-        DailyDigestView(sessionId: "preview-session")
+        DailyDigestView(sessionVM: SessionViewModel())
     }
 }

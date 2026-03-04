@@ -21,8 +21,8 @@ struct SettingsView: View {
             accountSection
             securitySection
             sessionsSection
+            supportSection
             dangerZoneSection
-            aboutSection
         }
         .navigationTitle("Settings")
         .task {
@@ -190,7 +190,7 @@ struct SettingsView: View {
         }
     }
 
-    // MARK: - Sessions Section
+    // MARK: - Session Management
 
     private var sessionsSection: some View {
         Group {
@@ -283,21 +283,33 @@ struct SettingsView: View {
         }
     }
 
-    // MARK: - About Section
+    // MARK: - Support Section
 
-    private var aboutSection: some View {
-        Section("About") {
-            HStack {
-                Label("Version", systemImage: "info.circle")
-                Spacer()
-                Text(appVersion)
-                    .foregroundStyle(.secondary)
+    private var supportSection: some View {
+        Section("Support") {
+            Link(destination: AppConstants.aboutURL) {
+                Label("About AretaCare", systemImage: "info.circle")
             }
 
             NavigationLink {
                 FeedbackView()
             } label: {
-                Label("Send Feedback", systemImage: "envelope")
+                Label("Contact Us", systemImage: "envelope")
+            }
+
+            Link(destination: AppConstants.termsURL) {
+                Label("Terms of Service", systemImage: "doc.text")
+            }
+
+            Link(destination: AppConstants.privacyURL) {
+                Label("Privacy Policy", systemImage: "hand.raised")
+            }
+
+            HStack {
+                Label("Version", systemImage: "app.badge")
+                Spacer()
+                Text(appVersion)
+                    .foregroundStyle(.secondary)
             }
         }
     }

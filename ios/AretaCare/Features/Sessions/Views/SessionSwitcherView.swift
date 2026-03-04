@@ -14,8 +14,20 @@ struct SessionSwitcherView: View {
         NavigationStack {
             List {
                 Section {
-                    ForEach(sessionVM.sessions) { session in
+                    ForEach(sessionVM.sessions.filter(\.isOwner)) { session in
                         sessionRow(session)
+                    }
+                } header: {
+                    Text("Your Sessions")
+                } footer: {
+                    Text("Rename, share, and delete sessions in Settings.")
+                }
+
+                if !sessionVM.sessions.filter({ !$0.isOwner }).isEmpty {
+                    Section("Shared with You") {
+                        ForEach(sessionVM.sessions.filter { !$0.isOwner }) { session in
+                            sessionRow(session)
+                        }
                     }
                 }
 
@@ -36,13 +48,13 @@ struct SessionSwitcherView: View {
                         showLogoutConfirmation = true
                     } label: {
                         HStack {
-                            Label("Log Out", systemImage: "rectangle.portrait.and.arrow.right")
+                            Label("Logout", systemImage: "rectangle.portrait.and.arrow.right")
                             Spacer()
                         }
                     }
                     .tint(.red)
                 } footer: {
-                    Text("Log out of this device only.")
+                    Text("Logout from this device only.")
                 }
             }
             .navigationTitle("Sessions")
@@ -72,8 +84,8 @@ struct SessionSwitcherView: View {
             } message: {
                 Text("You've reached the maximum number of owned sessions (\(AppConstants.maxOwnedSessions)). Delete a session to create a new one.")
             }
-            .alert("Log Out", isPresented: $showLogoutConfirmation) {
-                Button("Log Out", role: .destructive) {
+            .alert("Logout", isPresented: $showLogoutConfirmation) {
+                Button("Logout", role: .destructive) {
                     Task { await AuthManager.shared.logout() }
                 }
                 Button("Cancel", role: .cancel) {}

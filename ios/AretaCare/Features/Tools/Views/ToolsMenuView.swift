@@ -15,15 +15,13 @@ struct ToolsMenuView: View {
                         .foregroundStyle(.secondary)
                 }
             } else {
-                Section("Journal") {
+                Section("Session Tools") {
                     NavigationLink {
                         JournalView(sessionId: sessionId)
                     } label: {
                         toolRow(icon: "book", title: "Care Journal", subtitle: "View and manage journal entries")
                     }
-                }
 
-                Section("Content") {
                     NavigationLink {
                         DocumentsListView(sessionId: sessionId)
                     } label: {
@@ -35,9 +33,7 @@ struct ToolsMenuView: View {
                     } label: {
                         toolRow(icon: "mic", title: "Audio Recordings", subtitle: "Record and review voice memos")
                     }
-                }
 
-                Section("Health") {
                     NavigationLink {
                         ProfileView(sessionId: sessionId)
                     } label: {
@@ -60,7 +56,7 @@ struct ToolsMenuView: View {
                 }
             }
         }
-        .navigationTitle("Tools")
+        .navigationTitle(sessionVM.currentSession?.name ?? "Tools")
     }
 
     // MARK: - Row Helper
