@@ -5,6 +5,7 @@ struct AudioRecordingsView: View {
     let sessionId: String
     var sessionName: String = ""
 
+    @Environment(\.horizontalSizeClass) private var sizeClass
     @State private var viewModel = AudioRecordingsViewModel()
     @State private var showingRecorder = false
     @State private var selectedRecording: AudioRecordingResponse?
@@ -40,24 +41,42 @@ struct AudioRecordingsView: View {
     }
 
     var body: some View {
-        Group {
-            if let error = viewModel.errorMessage {
-                ErrorBannerView(message: error) {
-                    viewModel.dismissError()
-                }
-                .padding(.top, 4)
+        HStack(spacing: 0) {
+            if sizeClass == .regular, !viewModel.allDates.isEmpty {
+                DateSidebarView(
+                    sortedDates: viewModel.sortedDates,
+                    selectedDate: viewModel.selectedDateString,
+                    countLabel: { "\($0) \($0 == 1 ? "recording" : "recordings")" },
+                    onSelect: { dateInfo in
+                        Task { await viewModel.jumpToDate(sessionId: sessionId, date: dateInfo.date) }
+                    },
+                    onShowAll: {
+                        Task { await viewModel.jumpToLatest(sessionId: sessionId) }
+                    }
+                )
+                .frame(width: 260)
+                Divider()
             }
 
-            if viewModel.isLoading && viewModel.recordings.isEmpty {
-                SkeletonListView()
-            } else if viewModel.recordings.isEmpty {
-                ContentUnavailableView(
-                    "No Audio Recordings",
-                    systemImage: "mic",
-                    description: Text("Record or upload audio about symptoms, appointments, or care notes.")
-                )
-            } else {
-                recordingsList
+            Group {
+                if let error = viewModel.errorMessage {
+                    ErrorBannerView(message: error) {
+                        viewModel.dismissError()
+                    }
+                    .padding(.top, 4)
+                }
+
+                if viewModel.isLoading && viewModel.recordings.isEmpty {
+                    SkeletonListView()
+                } else if viewModel.recordings.isEmpty {
+                    ContentUnavailableView(
+                        "No Audio Recordings",
+                        systemImage: "mic",
+                        description: Text("Record or upload audio about symptoms, appointments, or care notes.")
+                    )
+                } else {
+                    recordingsList
+                }
             }
         }
         .navigationBarTitleDisplayMode(.inline)
@@ -75,7 +94,7 @@ struct AudioRecordingsView: View {
                 }
             }
             ToolbarItem(placement: .topBarLeading) {
-                if !viewModel.allDates.isEmpty {
+                if sizeClass != .regular, !viewModel.allDates.isEmpty {
                     Button {
                         showingDatePicker = true
                     } label: {

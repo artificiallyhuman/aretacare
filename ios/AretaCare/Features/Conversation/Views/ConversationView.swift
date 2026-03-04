@@ -61,9 +61,19 @@ struct ConversationView: View {
                 colorKey: sessionVM.currentSession?.colorKey,
                 colorScheme: colorScheme
             )
-            .navigationTitle(sessionVM.currentSession?.name ?? "Chat")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
+                ToolbarItem(placement: .principal) {
+                    VStack(spacing: 1) {
+                        Text("Chat")
+                            .font(.headline)
+                        if let name = sessionVM.currentSession?.name {
+                            Text(name)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
                 ToolbarItem(placement: .topBarLeading) {
                     Button {
                         showingSessionSwitcher = true
@@ -349,8 +359,6 @@ struct ConversationView: View {
                             }
                     }
                     .padding(.vertical, 8)
-                    .frame(maxWidth: 700)
-                    .frame(maxWidth: .infinity)
                 }
                 .scrollDismissesKeyboard(.immediately)
                 .overlay(alignment: .bottomTrailing) {

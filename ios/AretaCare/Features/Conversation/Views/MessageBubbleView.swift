@@ -10,16 +10,18 @@ struct MessageBubbleView: View {
     var onReset: ((MessageResponse) -> Void)?
     var onRetry: ((MessageResponse) -> Void)?
 
+    @Environment(\.horizontalSizeClass) private var sizeClass
     @State private var showTimestamp = false
     @State private var audioPlayer: AVPlayer?
     @State private var isPlayingAudio = false
     @State private var playbackObserver: NSObjectProtocol?
 
     private var isUser: Bool { message.role == .user }
+    private var spacerMinLength: CGFloat { sizeClass == .regular ? 200 : 48 }
 
     var body: some View {
         HStack(alignment: .bottom, spacing: 6) {
-            if isUser { Spacer(minLength: 48) }
+            if isUser { Spacer(minLength: spacerMinLength) }
 
             // Source tag for collaborator messages
             if !isUser, let sourceTag = message.lastEditedBy ?? message.createdBy {
@@ -99,7 +101,7 @@ struct MessageBubbleView: View {
                 SourceTagView(sourceTag: sourceTag, currentUserId: currentUserId)
             }
 
-            if !isUser { Spacer(minLength: 48) }
+            if !isUser { Spacer(minLength: spacerMinLength) }
         }
         .padding(.horizontal, 12)
     }

@@ -6,6 +6,7 @@ struct DocumentsListView: View {
     let sessionId: String
     var sessionName: String = ""
 
+    @Environment(\.horizontalSizeClass) private var sizeClass
     @State private var viewModel = DocumentsViewModel()
     @State private var showingFilePicker = false
     @State private var showingPhotoPicker = false
@@ -39,7 +40,25 @@ struct DocumentsListView: View {
     }
 
     var body: some View {
-        mainContent
+        HStack(spacing: 0) {
+            if sizeClass == .regular, !viewModel.allDates.isEmpty {
+                DateSidebarView(
+                    sortedDates: viewModel.sortedDates,
+                    selectedDate: viewModel.selectedDateString,
+                    countLabel: { "\($0) \($0 == 1 ? "document" : "documents")" },
+                    onSelect: { dateInfo in
+                        Task { await viewModel.jumpToDate(sessionId: sessionId, date: dateInfo.date) }
+                    },
+                    onShowAll: {
+                        Task { await viewModel.jumpToLatest(sessionId: sessionId) }
+                    }
+                )
+                .frame(width: 260)
+                Divider()
+            }
+
+            mainContent
+        }
             .onChange(of: selectedPhotoItems) { _, items in
                 handlePhotoSelection(items)
             }
@@ -97,7 +116,7 @@ struct DocumentsListView: View {
                 }
             }
             ToolbarItem(placement: .topBarLeading) {
-                if !viewModel.allDates.isEmpty {
+                if sizeClass != .regular, !viewModel.allDates.isEmpty {
                     Button {
                         showingDatePicker = true
                     } label: {

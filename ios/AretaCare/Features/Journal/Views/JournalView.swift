@@ -4,6 +4,7 @@ struct JournalView: View {
     let sessionId: String
     var sessionName: String = ""
 
+    @Environment(\.horizontalSizeClass) private var sizeClass
     @State private var viewModel = JournalViewModel()
     @State private var showingEditor = false
     @State private var showingDatePicker = false
@@ -17,34 +18,52 @@ struct JournalView: View {
     private var currentUserId: String { AuthManager.shared.currentUser?.id ?? "" }
 
     var body: some View {
-        ZStack(alignment: .bottomTrailing) {
-            Group {
-                if viewModel.isLoading && viewModel.entriesByDate.isEmpty {
-                    SkeletonListView()
-                } else if viewModel.entriesByDate.isEmpty {
-                    ContentUnavailableView(
-                        "No Journal Entries Yet",
-                        systemImage: "book",
-                        description: Text("Start a conversation to generate entries, or tap + to create one manually.")
-                    )
-                } else {
-                    journalList
-                }
+        HStack(spacing: 0) {
+            if sizeClass == .regular, !viewModel.allDates.isEmpty {
+                DateSidebarView(
+                    sortedDates: viewModel.sortedDates,
+                    selectedDate: viewModel.selectedDateString,
+                    countLabel: { count in "\(count) \(count == 1 ? "entry" : "entries")" },
+                    onSelect: { dateInfo in
+                        Task { await viewModel.jumpToDate(sessionId: sessionId, date: dateInfo.date) }
+                    },
+                    onShowAll: {
+                        Task { await viewModel.jumpToLatest(sessionId: sessionId) }
+                    }
+                )
+                .frame(width: 260)
+                Divider()
             }
 
-            // Floating add button
-            Button {
-                showingEditor = true
-            } label: {
-                Image(systemName: "plus")
-                    .font(.title2.weight(.semibold))
-                    .foregroundStyle(.white)
-                    .frame(width: 56, height: 56)
-                    .background(Circle().fill(Color.accentColor))
-                    .shadow(color: .black.opacity(0.15), radius: 4, y: 2)
+            ZStack(alignment: .bottomTrailing) {
+                Group {
+                    if viewModel.isLoading && viewModel.entriesByDate.isEmpty {
+                        SkeletonListView()
+                    } else if viewModel.entriesByDate.isEmpty {
+                        ContentUnavailableView(
+                            "No Journal Entries Yet",
+                            systemImage: "book",
+                            description: Text("Start a conversation to generate entries, or tap + to create one manually.")
+                        )
+                    } else {
+                        journalList
+                    }
+                }
+
+                // Floating add button
+                Button {
+                    showingEditor = true
+                } label: {
+                    Image(systemName: "plus")
+                        .font(.title2.weight(.semibold))
+                        .foregroundStyle(.white)
+                        .frame(width: 56, height: 56)
+                        .background(Circle().fill(Color.accentColor))
+                        .shadow(color: .black.opacity(0.15), radius: 4, y: 2)
+                }
+                .accessibilityLabel("Create new journal entry")
+                .padding(24)
             }
-            .accessibilityLabel("Create new journal entry")
-            .padding(24)
         }
         .navigationBarTitleDisplayMode(.inline)
         .searchable(text: $searchText, prompt: "Search journal entries...")
@@ -61,7 +80,7 @@ struct JournalView: View {
                 }
             }
             ToolbarItem(placement: .topBarLeading) {
-                if !viewModel.allDates.isEmpty {
+                if sizeClass != .regular, !viewModel.allDates.isEmpty {
                     Button {
                         showingDatePicker = true
                     } label: {

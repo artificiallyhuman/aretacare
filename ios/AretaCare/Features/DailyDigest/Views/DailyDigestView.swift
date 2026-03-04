@@ -7,6 +7,7 @@ struct DailyDigestView: View {
         sessionVM.currentSession?.id ?? ""
     }
 
+    @Environment(\.horizontalSizeClass) private var sizeClass
     @State private var viewModel = DailyDigestViewModel()
     @State private var selectedDigest: DailyPlanResponse?
 
@@ -27,27 +28,43 @@ struct DailyDigestView: View {
     @State private var showSavedToast = false
 
     var body: some View {
-        ScrollView {
-            VStack(spacing: 0) {
-                if selectedDigest != nil || viewModel.allDigests.count > 1 {
-                    dateNavigatorBar
-                }
-
-                VStack(spacing: 20) {
-                    if viewModel.isLoading && viewModel.allDigests.isEmpty {
-                        loadingState
-                    } else if viewModel.isGenerating {
-                        generatingState
-                    } else if let digest = selectedDigest {
-                        digestCard(digest)
-                    } else if viewModel.allDigests.isEmpty {
-                        initialEmptyState
+        HStack(spacing: 0) {
+            if sizeClass == .regular, !digestDateInfos.isEmpty {
+                DateSidebarView(
+                    sortedDates: digestDateInfos,
+                    selectedDate: selectedDigest?.date,
+                    countLabel: { _ in "" },
+                    onSelect: { dateInfo in
+                        if let digest = viewModel.digest(for: dateInfo.date) {
+                            selectedDigest = digest
+                        }
                     }
-                }
-                .padding()
+                )
+                .frame(width: 260)
+                Divider()
             }
-            .frame(maxWidth: 700)
-            .frame(maxWidth: .infinity)
+
+            ScrollView {
+                VStack(spacing: 0) {
+                    if sizeClass != .regular,
+                       selectedDigest != nil || viewModel.allDigests.count > 1 {
+                        dateNavigatorBar
+                    }
+
+                    VStack(spacing: 20) {
+                        if viewModel.isLoading && viewModel.allDigests.isEmpty {
+                            loadingState
+                        } else if viewModel.isGenerating {
+                            generatingState
+                        } else if let digest = selectedDigest {
+                            digestCard(digest)
+                        } else if viewModel.allDigests.isEmpty {
+                            initialEmptyState
+                        }
+                    }
+                    .padding()
+                }
+            }
         }
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
@@ -63,7 +80,7 @@ struct DailyDigestView: View {
                 }
             }
             ToolbarItem(placement: .topBarLeading) {
-                if !viewModel.allDigests.isEmpty {
+                if sizeClass != .regular, !viewModel.allDigests.isEmpty {
                     Button {
                         showingCalendar = true
                     } label: {
