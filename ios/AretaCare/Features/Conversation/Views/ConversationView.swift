@@ -349,6 +349,8 @@ struct ConversationView: View {
                             }
                     }
                     .padding(.vertical, 8)
+                    .frame(maxWidth: 700)
+                    .frame(maxWidth: .infinity)
                 }
                 .scrollDismissesKeyboard(.immediately)
                 .overlay(alignment: .bottomTrailing) {

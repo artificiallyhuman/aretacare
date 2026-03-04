@@ -81,6 +81,8 @@ struct VerifyEmailView: View {
         }
         .padding(.horizontal, 24)
         .padding(.bottom, 32)
+        .frame(maxWidth: 500)
+        .frame(maxWidth: .infinity)
         }
         .navigationTitle("Verify Email")
         .navigationBarTitleDisplayMode(.inline)

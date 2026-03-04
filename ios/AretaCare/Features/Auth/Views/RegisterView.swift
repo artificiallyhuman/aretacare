@@ -65,6 +65,8 @@ struct RegisterView: View {
             }
             .padding(.horizontal, 24)
             .padding(.bottom, 32)
+            .frame(maxWidth: 500)
+            .frame(maxWidth: .infinity)
         }
         .navigationTitle("Sign Up")
         .navigationBarTitleDisplayMode(.inline)

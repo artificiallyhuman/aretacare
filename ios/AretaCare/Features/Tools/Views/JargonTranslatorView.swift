@@ -133,6 +133,8 @@ struct JargonTranslatorView: View {
                 }
             }
             .padding()
+            .frame(maxWidth: 700)
+            .frame(maxWidth: .infinity)
         }
         .sensoryFeedback(.success, trigger: copyTrigger)
         .navigationBarTitleDisplayMode(.inline)

@@ -151,6 +151,8 @@ struct LoginView: View {
             .padding(.bottom, 16)
         }
         .padding(.horizontal, 24)
+        .frame(maxWidth: 500)
+        .frame(maxWidth: .infinity)
         }
         .scrollDismissesKeyboard(.interactively)
         .background(Color(.systemGroupedBackground))

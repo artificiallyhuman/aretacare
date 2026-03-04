@@ -82,6 +82,8 @@ struct WaitlistView: View {
                     .padding(.top, 8)
             }
             .padding()
+            .frame(maxWidth: 500)
+            .frame(maxWidth: .infinity)
         }
         .navigationTitle("Waitlist")
     }

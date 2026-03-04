@@ -205,6 +205,8 @@ struct ConversationCoachView: View {
                 }
             }
             .padding()
+            .frame(maxWidth: 700)
+            .frame(maxWidth: .infinity)
         }
         .sensoryFeedback(.success, trigger: copyTrigger)
         .alert("Microphone Access Required", isPresented: $showingMicPermissionAlert) {

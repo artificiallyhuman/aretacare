@@ -46,6 +46,8 @@ struct DailyDigestView: View {
                 }
                 .padding()
             }
+            .frame(maxWidth: 700)
+            .frame(maxWidth: .infinity)
         }
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
