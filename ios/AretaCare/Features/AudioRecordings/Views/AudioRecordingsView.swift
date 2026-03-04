@@ -54,7 +54,7 @@ struct AudioRecordingsView: View {
                         Task { await viewModel.jumpToLatest(sessionId: sessionId) }
                     }
                 )
-                .frame(width: 260)
+                .frame(width: 300)
                 Divider()
             }
 
@@ -287,7 +287,7 @@ struct AudioRecordingsView: View {
             .padding(.horizontal)
             .padding(.top, 8)
 
-            if viewModel.isJumpedToDate {
+            if sizeClass != .regular, viewModel.isJumpedToDate {
                 DateNavigatorBar(
                     selectedDateString: viewModel.selectedDateString,
                     canGoBack: viewModel.selectedDateString.flatMap { viewModel.previousDate(before: $0) } != nil,

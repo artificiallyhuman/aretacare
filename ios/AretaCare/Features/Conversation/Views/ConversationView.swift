@@ -64,15 +64,8 @@ struct ConversationView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .principal) {
-                    VStack(spacing: 1) {
-                        Text("Chat")
-                            .font(.headline)
-                        if let name = sessionVM.currentSession?.name {
-                            Text(name)
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                    }
+                    Text(sessionVM.currentSession?.name ?? "Chat")
+                        .font(.headline)
                 }
                 ToolbarItem(placement: .topBarLeading) {
                     Button {

@@ -31,7 +31,7 @@ struct JournalView: View {
                         Task { await viewModel.jumpToLatest(sessionId: sessionId) }
                     }
                 )
-                .frame(width: 260)
+                .frame(width: 300)
                 Divider()
             }
 
@@ -194,7 +194,7 @@ struct JournalView: View {
 
     private var journalList: some View {
         VStack(spacing: 0) {
-            if viewModel.isJumpedToDate {
+            if sizeClass != .regular, viewModel.isJumpedToDate {
                 dateNavigatorBar
             }
 
