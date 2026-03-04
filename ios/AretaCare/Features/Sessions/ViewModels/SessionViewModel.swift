@@ -34,13 +34,22 @@ final class SessionViewModel {
             let fetched: [SessionResponse] = try await APIClient.shared.get(APIEndpoints.Sessions.base)
             sessions = fetched
 
-            // If no current session selected, try to restore last session, else pick first active
+            // If no current session selected, restore using priority:
+            // 1. Backend preference (synced across devices)
+            // 2. Local UserDefaults cache (offline fallback)
+            // 3. Most recent session by activity
             if currentSession == nil {
-                let lastId = UserDefaults.standard.string(forKey: "lastSessionId")
-                if let lastId, let restored = fetched.first(where: { $0.id == lastId && $0.isActive }) {
+                let backendId = AuthManager.shared.currentUser?.lastActiveSessionId
+                let localId = UserDefaults.standard.string(forKey: "lastSessionId")
+
+                let activeSessions = fetched.filter(\.isActive)
+
+                if let backendId, let restored = activeSessions.first(where: { $0.id == backendId }) {
                     currentSession = restored
-                } else if let first = fetched.first(where: \.isActive) {
-                    currentSession = first
+                } else if let localId, let restored = activeSessions.first(where: { $0.id == localId }) {
+                    currentSession = restored
+                } else {
+                    currentSession = activeSessions.max(by: { $0.lastActivity < $1.lastActivity })
                 }
             }
             // Refresh current session data from the fetched list
@@ -90,6 +99,11 @@ final class SessionViewModel {
 
     func switchSession(to session: SessionResponse) {
         currentSession = session
+
+        // Notify backend to update last_active_session_id (fire-and-forget, matches web behavior)
+        Task {
+            let _: SessionResponse? = try? await APIClient.shared.get(APIEndpoints.Sessions.get(session.id))
+        }
     }
 
     // MARK: - Delete Session
