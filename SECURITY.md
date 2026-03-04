@@ -140,7 +140,7 @@ AretaCare implements comprehensive security measures:
 
 ### Data Protection
 - **Encryption in Transit**: TLS/SSL for all connections, HSTS header enforces HTTPS (1-year max-age, preload)
-- **SSL Certificate Pinning (iOS)**: SHA-256 public key pinning on all HTTPS requests including token refresh; Release builds assert if placeholder hashes are detected
+- **SSL Certificate Pinning (iOS)**: SHA-256 SPKI public key pinning on all HTTPS requests including token refresh; Release builds assert if placeholder hashes are detected
 - **Encryption at Rest**: S3 server-side encryption (AES-256)
 - **Keychain Security (iOS)**: Tokens stored with `.afterFirstUnlockThisDeviceOnly` (prevents Keychain restoration to other devices)
 - **SQL Injection Prevention**: SQLAlchemy ORM with parameterized queries

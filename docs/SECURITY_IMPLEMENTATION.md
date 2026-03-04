@@ -295,7 +295,7 @@ base-uri 'self'
 - **Logout data cleanup**: On logout, `AuthManager` clears all `ResponseCache` instances, `ImageCache`, UserDefaults keys (`lastSessionId`, `activeTab`, biometric preference), and push token before clearing Keychain — prevents data leakage on shared devices
 
 **Network Security:**
-- **SSL certificate pinning**: `CertificatePinningDelegate` validates SHA-256 public key hashes against the server certificate chain on every request; localhost/127.0.0.1 bypassed in DEBUG only
+- **SSL certificate pinning**: `CertificatePinningDelegate` validates SHA-256 SPKI (SubjectPublicKeyInfo) public key hashes against the server certificate chain on every request, with ASN.1 DER headers for RSA-2048/4096 and EC P-256 keys (matches `openssl` output format); localhost/127.0.0.1 bypassed in DEBUG only
 - **Placeholder hash detection**: Release builds trigger `assertionFailure` if pinned hashes still contain placeholder values, preventing broken production builds
 - **Request timeouts**: 120s request timeout (matches web frontend), 600s for multipart uploads
 - **API base URL enforcement**: Release builds crash (`fatalError`) if `API_BASE_URL` is not configured; DEBUG falls back to localhost
