@@ -31,7 +31,7 @@ struct JournalView: View {
                         Task { await viewModel.jumpToLatest(sessionId: sessionId) }
                     }
                 )
-                .frame(width: 300)
+                .frame(width: 375)
                 Divider()
             }
 

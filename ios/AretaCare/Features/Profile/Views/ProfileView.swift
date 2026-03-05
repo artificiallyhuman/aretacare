@@ -180,11 +180,21 @@ struct ProfileView: View {
     private var profileContent: some View {
         ScrollView {
             VStack(spacing: 0) {
-                Text("This summary is generated from your conversations and journal entries. Review and edit before sharing with healthcare providers.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .padding(.horizontal, 16)
-                    .padding(.top, 8)
+                HStack(spacing: 8) {
+                    Image(systemName: "info.circle")
+                        .foregroundStyle(.orange)
+                        .font(.caption)
+                    Text("This summary is generated from your conversations and journal entries. Review and edit before sharing with healthcare providers.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                .padding(10)
+                .background(
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(Color.orange.opacity(0.08))
+                )
+                .padding(.horizontal)
+                .padding(.top, 8)
 
                 if viewModel.needsUpdate && !viewModel.isUpdating {
                     newActivityBanner

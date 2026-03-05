@@ -40,7 +40,7 @@ struct DailyDigestView: View {
                         }
                     }
                 )
-                .frame(width: 300)
+                .frame(width: 375)
                 Divider()
             }
 
