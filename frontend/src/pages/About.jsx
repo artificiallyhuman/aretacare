@@ -280,7 +280,7 @@ const About = () => {
       <div className="text-center mb-8">
         <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-3">How AretaCare Works</h3>
         <p className="text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
-          AretaCare helps you make sense of complicated medical information, stay organized through stressful moments, and have confident conversations with your care team.
+          AretaCare helps you make sense of complicated medical information, stay organized through stressful moments, and have confident conversations with your care team. It's available as a free web app and as a native iOS app.
         </p>
       </div>
 
@@ -630,13 +630,10 @@ const About = () => {
               </div>
               <div className="prose prose-gray dark:prose-invert max-w-none text-gray-700 dark:text-gray-300 space-y-4 leading-relaxed pl-16">
                 <p>
-                  Caregiving is stressful enough without worrying about another bill.
+                  The AretaCare web app is completely free. Caregiving is stressful enough without worrying about another bill.
                 </p>
                 <p>
-                  The AretaCare web app is free and will remain free. You shouldn't have to check your insurance coverage to get the help you need.
-                </p>
-                <p>
-                  The iOS app requires a subscription to help cover the additional cost of building and maintaining a native mobile experience. This keeps the web app free for everyone while allowing us to deliver a quality experience on both platforms.
+                  The iOS app requires a subscription after a 7-day free trial to help cover the additional cost of building and maintaining a native mobile experience. This keeps the web app free for everyone while allowing us to deliver a quality experience on both platforms.
                 </p>
                 <p className="font-semibold text-gray-900 dark:text-white bg-green-50 dark:bg-green-900/20 p-4 rounded-lg border-l-2 border-green-500 dark:border-green-400">
                   AretaCare's web app is available to anyone who needs it, regardless of their ability to pay.
@@ -795,7 +792,7 @@ const About = () => {
               <div>
                 <h5 className="font-semibold text-gray-900 dark:text-white mb-2">Secure Sign-In Sessions</h5>
                 <p className="leading-relaxed">
-                  When you sign in, AretaCare uses modern session tokens that expire after about an hour. A separate renewal token is stored securely in your browser in a way that website scripts cannot access. For your security, closing your browser automatically logs you out, and sessions expire after 7 days even if your browser stays open.
+                  When you sign in, AretaCare uses modern session tokens that expire after about an hour. On the web, a separate renewal token is stored securely in your browser in a way that website scripts cannot access, and closing your browser automatically logs you out. On the iOS app, tokens are stored in your device's secure Keychain, and you can enable Face ID or Touch ID to lock the app when it's in the background. All sessions expire after 7 days.
                 </p>
               </div>
               <div>
