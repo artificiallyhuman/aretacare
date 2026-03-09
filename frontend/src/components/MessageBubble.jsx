@@ -200,8 +200,8 @@ const MessageBubble = memo(({ message, onThumbnailLoad, onMessageUpdate, onReset
                   h2: ({node, ...props}) => <h2 className="text-lg font-semibold mb-2 mt-3" {...props} />,
                   h3: ({node, ...props}) => <h3 className="text-base font-semibold mb-2 mt-3" {...props} />,
                   // Custom list styles with better spacing
-                  ul: ({node, ...props}) => <ul className="mb-3 space-y-1 pl-5" {...props} />,
-                  ol: ({node, ...props}) => <ol className="mb-3 space-y-1 pl-5" {...props} />,
+                  ul: ({node, ...props}) => <ul className="list-disc mb-3 space-y-1 pl-5" {...props} />,
+                  ol: ({node, ...props}) => <ol className="list-decimal mb-3 space-y-1 pl-5" {...props} />,
                   li: ({node, ...props}) => <li className="leading-relaxed" {...props} />,
                   // Code blocks
                   code: ({node, inline, ...props}) =>
