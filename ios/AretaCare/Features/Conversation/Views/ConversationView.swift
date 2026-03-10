@@ -179,6 +179,8 @@ struct ConversationView: View {
                         guard let sessionId = currentSessionId else { return }
                         Task {
                             await conversationVM.uploadAudioMessage(data: audioData, sessionId: sessionId)
+                            showScrollToBottomButton = false
+                            messageCountWhenScrolledAway = 0
                             scrollToBottom.toggle()
                         }
                     }
@@ -399,7 +401,7 @@ struct ConversationView: View {
                     // Defer scroll to let LazyVStack lay out new messages
                     // (fetchHistory replaces all messages, causing a full re-render)
                     Task {
-                        try? await Task.sleep(for: .milliseconds(150))
+                        try? await Task.sleep(for: .milliseconds(250))
                         scrollToLatest(proxy: proxy)
                     }
                 }
@@ -478,12 +480,16 @@ struct ConversationView: View {
                         thumbnailUrl: response.thumbnailUrl,
                         content: content
                     )
+                    showScrollToBottomButton = false
+                    messageCountWhenScrolledAway = 0
                     scrollToBottom.toggle()
                 }
             }
         } else {
             Task {
                 await conversationVM.sendMessage(text: text, sessionId: sessionId)
+                showScrollToBottomButton = false
+                messageCountWhenScrolledAway = 0
                 scrollToBottom.toggle()
             }
         }
@@ -501,6 +507,8 @@ struct ConversationView: View {
                     guard let sessionId = currentSessionId else { return }
                     Task {
                         await conversationVM.uploadAudioMessage(data: audioData, sessionId: sessionId)
+                        showScrollToBottomButton = false
+                        messageCountWhenScrolledAway = 0
                         scrollToBottom.toggle()
                     }
                 }

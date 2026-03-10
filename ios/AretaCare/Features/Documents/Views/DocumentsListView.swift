@@ -152,6 +152,7 @@ struct DocumentsListView: View {
             }
             Button("Cancel", role: .cancel) {
                 pendingUploads = []
+                viewModel.setPreparingUpload(false)
             }
         } message: {
             if duplicateMatches.count == 1 {
@@ -188,6 +189,8 @@ struct DocumentsListView: View {
                 )
             } else if viewModel.isUploading {
                 UploadingOverlay()
+            } else if viewModel.isPreparingUpload {
+                UploadingOverlay(message: "Preparing files...")
             }
         }
         .toast(batchResultMessage, icon: "checkmark", isPresented: $showBatchResultToast)
@@ -367,6 +370,7 @@ struct DocumentsListView: View {
                 showFileSizeAlert = true
             }
             if !uploads.isEmpty {
+                viewModel.setPreparingUpload(true)
                 prepareUploads(uploads)
             }
 
@@ -387,6 +391,7 @@ struct DocumentsListView: View {
     private func handlePhotoSelection(_ items: [PhotosPickerItem]) {
         guard !items.isEmpty else { return }
         selectedPhotoItems = []
+        viewModel.setPreparingUpload(true)
 
         Task {
             var uploads: [PendingUpload] = []
@@ -421,7 +426,9 @@ struct DocumentsListView: View {
                 oversizedFilenames = oversized
                 showFileSizeAlert = true
             }
-            if !uploads.isEmpty {
+            if uploads.isEmpty {
+                viewModel.setPreparingUpload(false)
+            } else {
                 prepareUploads(uploads)
             }
         }

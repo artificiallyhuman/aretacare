@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Request, Query
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, UploadFile, File, Request, Query
 from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.core.rate_limit import limiter, RateLimits
@@ -202,6 +202,7 @@ def validate_pdf_content(file_content: bytes) -> tuple[bool, str, str]:
 @limiter.limit(RateLimits.FILE_UPLOAD)
 async def upload_document(
     request: Request,
+    background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
     session_id: str = None,
     skip_journal_synthesis: str = "false",  # "true" for conversation uploads, "false" for management uploads
@@ -455,47 +456,50 @@ async def upload_document(
         # Create journal entry from document content (only for management page uploads)
         # Conversation uploads skip this and synthesize when the document is used in conversation
         skip_synthesis = skip_journal_synthesis.lower() == "true"
-        synthesis_warning = None  # Will be set if synthesis has warnings
 
         if not skip_synthesis:
-            try:
-                journal_service = JournalService(db)
+            # Defer journal synthesis to background so it doesn't block the upload response.
+            # Uses a separate DB session since the request session closes after the response is sent.
+            _doc_filename = file.filename
+            _doc_id = document.id
+            _doc_user_id = current_user.id
 
-                # Use user's local date if provided, otherwise server date
-                from datetime import date as date_type
-                if user_date:
-                    try:
-                        entry_date = date_type.fromisoformat(user_date)
-                    except ValueError:
+            async def _run_journal_synthesis():
+                from app.core.database import SessionLocal
+                bg_db = SessionLocal()
+                try:
+                    bg_journal_service = JournalService(bg_db)
+                    from datetime import date as date_type
+                    if user_date:
+                        try:
+                            entry_date = date_type.fromisoformat(user_date)
+                        except ValueError:
+                            entry_date = date_type.today()
+                    else:
                         entry_date = date_type.today()
-                else:
-                    entry_date = date_type.today()
 
-                # Use specialized document synthesis method with native file support
-                synthesis_result = await journal_service.synthesize_from_document(
-                    filename=file.filename,
-                    ai_description=ai_description or "",
-                    session_id=session_id,
-                    document_url=document_url,  # Use presigned URL for native file support
-                    content_type=actual_content_type,
-                    extracted_text=extracted_text or "",  # Fallback only if URL unavailable
-                    entry_date=entry_date,
-                    document_id=document.id,
-                    user_id=current_user.id
-                )
+                    synthesis_result = await bg_journal_service.synthesize_from_document(
+                        filename=_doc_filename,
+                        ai_description=ai_description or "",
+                        session_id=session_id,
+                        document_url=document_url,
+                        content_type=actual_content_type,
+                        extracted_text=extracted_text or "",
+                        entry_date=entry_date,
+                        document_id=_doc_id,
+                        user_id=_doc_user_id
+                    )
 
-                if synthesis_result.should_create and len(synthesis_result.suggested_entries) > 0:
-                    logger.info(f"Created {len(synthesis_result.suggested_entries)} comprehensive journal entries from document upload")
-                else:
-                    logger.info("No journal entries created from document upload (not journal-worthy)")
+                    if synthesis_result.should_create and len(synthesis_result.suggested_entries) > 0:
+                        logger.info(f"Background: Created {len(synthesis_result.suggested_entries)} journal entries from document upload")
+                    else:
+                        logger.info("Background: No journal entries created from document upload")
+                except Exception as e:
+                    logger.warning(f"Background journal synthesis failed for {_doc_filename}: {e}")
+                finally:
+                    bg_db.close()
 
-                # Capture synthesis warning for user
-                synthesis_warning = synthesis_result.warning if synthesis_result else None
-
-            except Exception as e:
-                # Log but don't fail the upload if journal synthesis fails
-                logger.warning(f"Failed to create journal entry from document upload: {e}")
-                synthesis_warning = None
+            background_tasks.add_task(_run_journal_synthesis)
         else:
             logger.info("Skipping journal synthesis for conversation document upload (will synthesize in conversation)")
 
@@ -522,8 +526,6 @@ async def upload_document(
                 warnings.append("Only the first 100 pages were processed due to document length.")
             elif extraction_method == "failed" and not extracted_text:
                 warnings.append("Text extraction failed. The AI will analyze the document visually.")
-        if synthesis_warning:
-            warnings.append(synthesis_warning)
 
         processing_warning = " ".join(warnings) if warnings else None
 

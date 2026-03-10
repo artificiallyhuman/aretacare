@@ -1,4 +1,5 @@
 import Foundation
+import UIKit
 import Observation
 
 @Observable @MainActor
@@ -7,6 +8,7 @@ final class DocumentsViewModel {
     private(set) var isLoading = false
     private(set) var isUploading = false
     private(set) var isBatchUploading = false
+    private(set) var isPreparingUpload = false
     private(set) var batchUploadProgress: [UploadFileProgress] = []
     private(set) var batchCurrentIndex: Int = 0
     private var batchCancelled = false
@@ -32,6 +34,10 @@ final class DocumentsViewModel {
         f.locale = Locale(identifier: "en_US_POSIX")
         return f
     }()
+
+    func setPreparingUpload(_ value: Bool) {
+        isPreparingUpload = value
+    }
 
     // MARK: - Date Navigation
 
@@ -103,6 +109,7 @@ final class DocumentsViewModel {
         }
 
         isUploading = true
+        isPreparingUpload = false
         errorMessage = nil
         defer { isUploading = false }
 
@@ -139,6 +146,7 @@ final class DocumentsViewModel {
 
         isBatchUploading = true
         isUploading = true
+        isPreparingUpload = false
         batchCancelled = false
         errorMessage = nil
 
@@ -146,6 +154,14 @@ final class DocumentsViewModel {
             UploadFileProgress(id: index, filename: file.filename, status: .pending)
         }
         batchCurrentIndex = 0
+
+        // Request background execution time so uploads continue if the app is backgrounded
+        var backgroundTaskId: UIBackgroundTaskIdentifier = .invalid
+        backgroundTaskId = UIApplication.shared.beginBackgroundTask {
+            self.batchCancelled = true
+            UIApplication.shared.endBackgroundTask(backgroundTaskId)
+            backgroundTaskId = .invalid
+        }
 
         var successCount = 0
         var failCount = 0
@@ -200,6 +216,10 @@ final class DocumentsViewModel {
 
         isUploading = false
         isBatchUploading = false
+
+        if backgroundTaskId != .invalid {
+            UIApplication.shared.endBackgroundTask(backgroundTaskId)
+        }
 
         return UploadBatchResult(
             successCount: successCount,

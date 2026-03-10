@@ -12,6 +12,7 @@ final class APIClient: Sendable {
         let config = URLSessionConfiguration.default
         config.timeoutIntervalForRequest = 120
         config.timeoutIntervalForResource = 600
+        config.waitsForConnectivity = true
         let pinningDelegate = CertificatePinningDelegate()
         self.session = URLSession(configuration: config, delegate: pinningDelegate, delegateQueue: nil)
 

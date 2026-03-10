@@ -1,4 +1,5 @@
 import Foundation
+import UIKit
 import Observation
 
 @Observable @MainActor
@@ -146,6 +147,14 @@ final class AudioRecordingsViewModel {
         }
         batchCurrentIndex = 0
 
+        // Request background execution time so uploads continue if the app is backgrounded
+        var backgroundTaskId: UIBackgroundTaskIdentifier = .invalid
+        backgroundTaskId = UIApplication.shared.beginBackgroundTask {
+            self.batchCancelled = true
+            UIApplication.shared.endBackgroundTask(backgroundTaskId)
+            backgroundTaskId = .invalid
+        }
+
         var successCount = 0
         var failCount = 0
 
@@ -194,6 +203,10 @@ final class AudioRecordingsViewModel {
 
         isUploading = false
         isBatchUploading = false
+
+        if backgroundTaskId != .invalid {
+            UIApplication.shared.endBackgroundTask(backgroundTaskId)
+        }
 
         return UploadBatchResult(
             successCount: successCount,

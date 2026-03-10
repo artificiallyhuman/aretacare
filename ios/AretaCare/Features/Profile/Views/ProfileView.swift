@@ -336,55 +336,66 @@ struct ProfileView: View {
                             count: medications.count,
                             onEdit: { editingSection = .init("medications") }
                         ) {
-                            ForEach(sortedMedications(medications)) { med in
-                                let medStatus = (med.status ?? "active").lowercased()
-                                let isActive = medStatus != "discontinued" && medStatus != "paused"
-                                AccentCard(color: isActive ? .pink : .gray) {
+                            ForEach(medicationsGroupedByCategory(medications), id: \.category) { group in
+                                VStack(alignment: .leading, spacing: 6) {
                                     HStack {
-                                        Text(med.name ?? "Unknown")
-                                            .font(.subheadline.weight(.semibold))
+                                        Text(group.label)
+                                            .font(.caption.weight(.bold))
+                                            .foregroundStyle(.secondary)
+                                            .textCase(.uppercase)
                                         Spacer()
-                                        if let status = med.status {
-                                            StatusBadge(text: status.capitalized, color: profileMedicationStatusColor(status))
+                                        Text("\(group.medications.count)")
+                                            .font(.caption2.weight(.medium))
+                                            .foregroundStyle(.tertiary)
+                                    }
+                                    .padding(.top, 4)
+
+                                    ForEach(group.medications) { med in
+                                        let medStatus = (med.status ?? "active").lowercased()
+                                        let isActive = medStatus != "discontinued" && medStatus != "paused"
+                                        AccentCard(color: isActive ? .pink : .gray) {
+                                            HStack {
+                                                Text(med.name ?? "Unknown")
+                                                    .font(.subheadline.weight(.semibold))
+                                                Spacer()
+                                                if let status = med.status {
+                                                    StatusBadge(text: status.capitalized, color: profileMedicationStatusColor(status))
+                                                }
+                                            }
+                                            if let desc = med.description, !desc.isEmpty {
+                                                Text(desc)
+                                                    .font(.caption)
+                                                    .foregroundStyle(.secondary)
+                                            }
+                                            if let dose = med.dose {
+                                                HStack(spacing: 4) {
+                                                    Image(systemName: "cross.case")
+                                                        .font(.caption2)
+                                                        .foregroundStyle(.pink)
+                                                    Text(dose + (med.frequency.map { " \u{2022} \($0)" } ?? ""))
+                                                        .font(.caption)
+                                                        .foregroundStyle(.secondary)
+                                                }
+                                            }
+                                            if let prescriber = med.prescriber {
+                                                Text("Prescribed by \(prescriber)")
+                                                    .font(.caption)
+                                                    .foregroundStyle(.tertiary)
+                                            }
+                                            if let startDate = med.startDate {
+                                                Text("Started: \(startDate)")
+                                                    .font(.caption)
+                                                    .foregroundStyle(.tertiary)
+                                            }
+                                            if let notes = med.notes {
+                                                Text(notes)
+                                                    .font(.caption)
+                                                    .foregroundStyle(.secondary)
+                                            }
                                         }
-                                    }
-                                    if let desc = med.description, !desc.isEmpty {
-                                        Text(desc)
-                                            .font(.caption)
-                                            .foregroundStyle(.secondary)
-                                    }
-                                    if let dose = med.dose {
-                                        HStack(spacing: 4) {
-                                            Image(systemName: "cross.case")
-                                                .font(.caption2)
-                                                .foregroundStyle(.pink)
-                                            Text(dose + (med.frequency.map { " \u{2022} \($0)" } ?? ""))
-                                                .font(.caption)
-                                                .foregroundStyle(.secondary)
-                                        }
-                                    }
-                                    if let cat = med.category, let label = profileMedicationCategoryLabel(cat) {
-                                        Text(label)
-                                            .font(.caption2)
-                                            .foregroundStyle(.tertiary)
-                                    }
-                                    if let prescriber = med.prescriber {
-                                        Text("Prescribed by \(prescriber)")
-                                            .font(.caption)
-                                            .foregroundStyle(.tertiary)
-                                    }
-                                    if let startDate = med.startDate {
-                                        Text("Started: \(startDate)")
-                                            .font(.caption)
-                                            .foregroundStyle(.tertiary)
-                                    }
-                                    if let notes = med.notes {
-                                        Text(notes)
-                                            .font(.caption)
-                                            .foregroundStyle(.secondary)
+                                        .opacity(isActive ? 1.0 : 0.7)
                                     }
                                 }
-                                .opacity(isActive ? 1.0 : 0.7)
                             }
                         }
                     }
@@ -752,6 +763,29 @@ struct ProfileView: View {
             let statA = statusOrder[(a.status ?? "active").lowercased()] ?? 0
             let statB = statusOrder[(b.status ?? "active").lowercased()] ?? 0
             return statA < statB
+        }
+    }
+
+    private let medicationCategoryOrder: [String] = [
+        "multiple", "pain_management", "cardiovascular", "diabetes",
+        "mental_health", "antibiotics", "respiratory", "gastrointestinal",
+        "neurological", "endocrine", "oncology", "immunosuppressant",
+        "vitamins_supplements", "other"
+    ]
+
+    private func medicationsGroupedByCategory(_ medications: [MedicationInfo]) -> [(category: String, label: String, medications: [MedicationInfo])] {
+        let statusOrder = ["active": 0, "paused": 1, "discontinued": 2]
+        return medicationCategoryOrder.compactMap { categoryKey in
+            let medsInCategory = medications
+                .filter { ($0.category ?? "other").lowercased() == categoryKey }
+                .sorted { a, b in
+                    let statA = statusOrder[(a.status ?? "active").lowercased()] ?? 0
+                    let statB = statusOrder[(b.status ?? "active").lowercased()] ?? 0
+                    return statA < statB
+                }
+            guard !medsInCategory.isEmpty else { return nil }
+            let label = profileMedicationCategoryLabel(categoryKey) ?? categoryKey.capitalized
+            return (category: categoryKey, label: label, medications: medsInCategory)
         }
     }
 

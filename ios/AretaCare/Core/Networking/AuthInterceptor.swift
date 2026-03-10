@@ -17,6 +17,7 @@ actor AuthInterceptor {
         let delegate = CertificatePinningDelegate()
         let config = URLSessionConfiguration.ephemeral
         config.timeoutIntervalForRequest = 10
+        config.waitsForConnectivity = true
         return URLSession(configuration: config, delegate: delegate, delegateQueue: nil)
     }()
 
