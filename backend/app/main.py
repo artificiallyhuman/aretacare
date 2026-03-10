@@ -118,6 +118,14 @@ def validate_startup():
 
 validate_startup()
 
+# Dispose connection pool before workers fork.
+# Module-level code above (migrations, validation) creates DB connections that
+# get cached in the pool. With --workers N, uvicorn forks child processes that
+# inherit these connections. libpq connections aren't fork-safe — reusing them
+# in child workers causes segfaults (exit code 139). Disposing forces each
+# worker to create fresh connections after fork.
+engine.dispose()
+
 app = FastAPI(
     title="AretaCare API",
     description="Calm. Clarity. Confidence. - Helping families navigate medical information",
