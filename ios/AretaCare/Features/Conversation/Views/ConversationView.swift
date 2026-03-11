@@ -233,16 +233,12 @@ struct ConversationView: View {
                         Color.clear.frame(height: 1)
                             .id("bottom")
                             .onAppear {
-                                withAnimation(.spring(duration: 0.3)) {
-                                    showScrollToBottomButton = false
-                                }
+                                showScrollToBottomButton = false
                                 messageCountWhenScrolledAway = 0
                             }
                             .onDisappear {
                                 guard !conversationVM.messages.isEmpty else { return }
-                                withAnimation(.spring(duration: 0.3)) {
-                                    showScrollToBottomButton = true
-                                }
+                                showScrollToBottomButton = true
                                 messageCountWhenScrolledAway = conversationVM.messages.count
                             }
                             .scaleEffect(x: 1, y: -1)
@@ -391,38 +387,42 @@ struct ConversationView: View {
                 .scaleEffect(x: 1, y: -1)
                 .clipped()
                 .overlay(alignment: .bottomTrailing) {
-                    if showScrollToBottomButton {
-                        let newMessageCount = max(conversationVM.messages.count - messageCountWhenScrolledAway, 0)
+                    // Group + .animation scoped here so the button's opacity
+                    // transition doesn't leak to the ScrollView's compositing layer.
+                    Group {
+                        if showScrollToBottomButton {
+                            let newMessageCount = max(conversationVM.messages.count - messageCountWhenScrolledAway, 0)
 
-                        Button {
-                            withAnimation(.easeOut(duration: 0.2)) {
-                                proxy.scrollTo("bottom", anchor: .top)
-                            }
-                        } label: {
-                            Image(systemName: "arrow.down")
-                                .font(.body.weight(.semibold))
-                                .foregroundStyle(.white)
-                                .frame(width: 36, height: 36)
-                                .background(Circle().fill(Color.accentColor))
-                                .shadow(color: .black.opacity(0.15), radius: 6, y: 3)
-                                .overlay(alignment: .topTrailing) {
-                                    if newMessageCount > 0 {
-                                        Text("\(newMessageCount)")
-                                            .font(.caption2.weight(.bold))
-                                            .foregroundStyle(.white)
-                                            .frame(minWidth: 18, minHeight: 18)
-                                            .background(Circle().fill(.red))
-                                            .offset(x: 6, y: -6)
-                                    }
+                            Button {
+                                withAnimation(.easeOut(duration: 0.2)) {
+                                    proxy.scrollTo("bottom", anchor: .top)
                                 }
+                            } label: {
+                                Image(systemName: "arrow.down")
+                                    .font(.body.weight(.semibold))
+                                    .foregroundStyle(.white)
+                                    .frame(width: 36, height: 36)
+                                    .background(Circle().fill(Color.accentColor))
+                                    .shadow(color: .black.opacity(0.15), radius: 6, y: 3)
+                                    .overlay(alignment: .topTrailing) {
+                                        if newMessageCount > 0 {
+                                            Text("\(newMessageCount)")
+                                                .font(.caption2.weight(.bold))
+                                                .foregroundStyle(.white)
+                                                .frame(minWidth: 18, minHeight: 18)
+                                                .background(Circle().fill(.red))
+                                                .offset(x: 6, y: -6)
+                                        }
+                                    }
+                            }
+                            .accessibilityLabel("Scroll to latest message\(newMessageCount > 0 ? ", \(newMessageCount) new" : "")")
+                            .padding(.trailing, 12)
+                            .padding(.bottom, 8)
+                            .transition(.scale.combined(with: .opacity))
                         }
-                        .accessibilityLabel("Scroll to latest message\(newMessageCount > 0 ? ", \(newMessageCount) new" : "")")
-                        .padding(.trailing, 12)
-                        .padding(.bottom, 8)
-                        .transition(.scale.combined(with: .opacity))
                     }
+                    .animation(.spring(duration: 0.3), value: showScrollToBottomButton)
                 }
-                .animation(.spring(duration: 0.3), value: showScrollToBottomButton)
             }
         }
     }
