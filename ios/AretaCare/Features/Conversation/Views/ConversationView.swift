@@ -60,7 +60,6 @@ struct ConversationView: View {
                 colorScheme: colorScheme
             )
             .navigationBarTitleDisplayMode(.inline)
-            .toolbarBackground(.visible, for: .navigationBar)
             .toolbar {
                 ToolbarItem(placement: .principal) {
                     Text(sessionVM.currentSession?.name ?? "Chat")
