@@ -60,6 +60,7 @@ struct ConversationView: View {
                 colorScheme: colorScheme
             )
             .navigationBarTitleDisplayMode(.inline)
+            .toolbarBackground(.visible, for: .navigationBar)
             .toolbar {
                 ToolbarItem(placement: .principal) {
                     Text(sessionVM.currentSession?.name ?? "Chat")
@@ -385,7 +386,6 @@ struct ConversationView: View {
                     .padding(.vertical, 8)
                 }
                 .scaleEffect(x: 1, y: -1, anchor: .center)
-                .clipped()
                 .scrollDismissesKeyboard(.immediately)
                 .overlay(alignment: .bottomTrailing) {
                     if showScrollToBottomButton {
