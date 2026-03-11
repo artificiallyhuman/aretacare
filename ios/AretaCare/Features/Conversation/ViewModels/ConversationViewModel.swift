@@ -10,6 +10,9 @@ final class ConversationViewModel {
     private(set) var hasMore = false
     var errorMessage: String?
 
+    /// Incremented after each silent reconciliation so the view can observe completion.
+    private(set) var reconcileToken = 0
+
     /// IDs of messages that failed to send and can be retried.
     private(set) var failedMessageIds: Set<Int> = []
 
@@ -449,8 +452,9 @@ final class ConversationViewModel {
 
     // MARK: - Silent Reconciliation
 
-    /// Fetches fresh history and replaces messages without showing loading state.
+    /// Fetches fresh history and reconciles in-place without full array replacement.
     /// Runs after send to sync temp message IDs with server truth.
+    /// In-place updates preserve ForEach identity and prevent scroll position jumps.
     private func silentReconcile(sessionId: String) async {
         guard !isSending else { return }
 
@@ -463,10 +467,51 @@ final class ConversationViewModel {
                 APIEndpoints.Conversation.history(sessionId),
                 queryItems: queryItems
             )
-            messages = history.messages
+
+            // Build lookup of server messages by ID for updating existing messages
+            let serverById = Dictionary(uniqueKeysWithValues: history.messages.map { ($0.id, $0) })
+
+            // Build signature-based lookup for matching temp messages to server messages.
+            // Signature = "role|first 100 chars of content". Collect all matches per signature
+            // so we can consume them in order (handles duplicate content).
+            var serverBySignature: [String: [MessageResponse]] = [:]
+            for msg in history.messages {
+                let sig = "\(msg.role.rawValue)|\(msg.content.prefix(100))"
+                serverBySignature[sig, default: []].append(msg)
+            }
+
+            var reconciledIds = Set<Int>()
+
+            // Update existing messages in-place
+            for i in messages.indices {
+                let local = messages[i]
+                if local.id < 0 {
+                    // Temp message: find matching server message by signature
+                    let sig = "\(local.role.rawValue)|\(local.content.prefix(100))"
+                    if let candidates = serverBySignature[sig],
+                       let match = candidates.first(where: { !reconciledIds.contains($0.id) }) {
+                        messages[i] = match
+                        reconciledIds.insert(match.id)
+                    }
+                } else if let updated = serverById[local.id] {
+                    // Existing server message: update metadata only if changed
+                    if local != updated {
+                        messages[i] = updated
+                    }
+                    reconciledIds.insert(local.id)
+                }
+            }
+
+            // Append any new server messages not yet in the local array (e.g. from collaborators)
+            let newMessages = history.messages.filter { !reconciledIds.contains($0.id) }
+            if !newMessages.isEmpty {
+                messages.append(contentsOf: newMessages)
+            }
+
             totalCount = history.totalCount
             hasMore = history.hasMore
             Self.historyCache.set(history, for: sessionId)
+            reconcileToken += 1
         } catch {
             // Silent failure — user already sees correct messages
         }

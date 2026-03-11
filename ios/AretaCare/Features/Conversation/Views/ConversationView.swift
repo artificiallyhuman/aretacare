@@ -11,7 +11,6 @@ struct ConversationView: View {
 
     @State private var messageText = ""
     @State private var showingSessionSwitcher = false
-    @State private var scrollToBottom = false
     @State private var showScrollToBottomButton = false
     @State private var messageCountWhenScrolledAway = 0
     @State private var bottomAnchorHasAppeared = false
@@ -171,7 +170,6 @@ struct ConversationView: View {
                             await conversationVM.uploadAudioMessage(data: audioData, sessionId: sessionId)
                             showScrollToBottomButton = false
                             messageCountWhenScrolledAway = 0
-                            scrollToBottom.toggle()
                         }
                     }
                 )
@@ -384,7 +382,6 @@ struct ConversationView: View {
                     }
                     .padding(.vertical, 8)
                 }
-                .defaultScrollAnchor(.bottom)
                 .scrollDismissesKeyboard(.immediately)
                 .overlay(alignment: .bottomTrailing) {
                     if showScrollToBottomButton {
@@ -436,12 +433,13 @@ struct ConversationView: View {
                         }
                     }
                 }
-                .onChange(of: scrollToBottom) { _, _ in
-                    // Defer scroll to let LazyVStack lay out new messages
-                    // (fetchHistory replaces all messages, causing a full re-render)
-                    Task {
-                        try? await Task.sleep(for: .milliseconds(250))
-                        scrollToLatest(proxy: proxy)
+                .onChange(of: conversationVM.reconcileToken) { _, _ in
+                    // After silent reconciliation, correct scroll if user was at bottom
+                    if !showScrollToBottomButton {
+                        Task {
+                            try? await Task.sleep(for: .milliseconds(50))
+                            scrollToLatest(proxy: proxy)
+                        }
                     }
                 }
                 .onAppear {
@@ -499,7 +497,6 @@ struct ConversationView: View {
                     )
                     showScrollToBottomButton = false
                     messageCountWhenScrolledAway = 0
-                    scrollToBottom.toggle()
                 }
             }
         } else {
@@ -507,7 +504,6 @@ struct ConversationView: View {
                 await conversationVM.sendMessage(text: text, sessionId: sessionId)
                 showScrollToBottomButton = false
                 messageCountWhenScrolledAway = 0
-                scrollToBottom.toggle()
             }
         }
     }
@@ -526,7 +522,6 @@ struct ConversationView: View {
                         await conversationVM.uploadAudioMessage(data: audioData, sessionId: sessionId)
                         showScrollToBottomButton = false
                         messageCountWhenScrolledAway = 0
-                        scrollToBottom.toggle()
                     }
                 }
             } else {

@@ -16,7 +16,7 @@ enum MessageType: String, Codable, Sendable {
 
 // MARK: - Source Tag
 
-struct SourceTagInfo: Codable, Sendable {
+struct SourceTagInfo: Codable, Sendable, Equatable {
     let userId: String
     let name: String
     let initials: String
@@ -24,7 +24,7 @@ struct SourceTagInfo: Codable, Sendable {
 
 // MARK: - Message
 
-struct MessageResponse: Codable, Identifiable, Sendable {
+struct MessageResponse: Codable, Identifiable, Sendable, Equatable {
     let id: Int
     let sessionId: String
     let role: MessageRole
