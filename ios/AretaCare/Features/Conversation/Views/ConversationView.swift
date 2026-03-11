@@ -251,7 +251,7 @@ struct ConversationView: View {
                             TypingBubbleView()
                                 .padding(.horizontal, 12)
                                 .padding(.bottom, 4)
-                                .rotation3DEffect(.degrees(180), axis: (1, 0, 0))
+                                .scaleEffect(x: 1, y: -1, anchor: .center)
                         }
 
                         // Upload indicator (visual bottom)
@@ -272,7 +272,7 @@ struct ConversationView: View {
                             }
                             .padding(.horizontal, 12)
                             .padding(.bottom, 4)
-                            .rotation3DEffect(.degrees(180), axis: (1, 0, 0))
+                            .scaleEffect(x: 1, y: -1, anchor: .center)
                         }
 
                         // Messages newest-first; each row flipped back to normal
@@ -352,7 +352,7 @@ struct ConversationView: View {
                                         .padding(.vertical, 8)
                                 }
                             }
-                            .rotation3DEffect(.degrees(180), axis: (1, 0, 0))
+                            .scaleEffect(x: 1, y: -1, anchor: .center)
                             .id("msg-\(message.id)")
                         }
 
@@ -379,12 +379,12 @@ struct ConversationView: View {
                                 }
                             }
                             .disabled(conversationVM.isLoading)
-                            .rotation3DEffect(.degrees(180), axis: (1, 0, 0))
+                            .scaleEffect(x: 1, y: -1, anchor: .center)
                         }
                     }
                     .padding(.vertical, 8)
                 }
-                .rotation3DEffect(.degrees(180), axis: (1, 0, 0))
+                .scaleEffect(x: 1, y: -1, anchor: .center)
                 .scrollDismissesKeyboard(.immediately)
                 .overlay(alignment: .bottomTrailing) {
                     if showScrollToBottomButton {
