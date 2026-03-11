@@ -30,12 +30,14 @@ struct ContentView: View {
             }
         }
         .overlay {
-            if authManager.isAuthenticated && biometricManager.isLocked {
-                BiometricLockView()
-                    .transition(.opacity)
+            Group {
+                if authManager.isAuthenticated && biometricManager.isLocked {
+                    BiometricLockView()
+                        .transition(.opacity)
+                }
             }
+            .animation(.spring(duration: 0.35), value: biometricManager.isLocked)
         }
-        .animation(.spring(duration: 0.35), value: biometricManager.isLocked)
     }
 
     // MARK: - Subscription Gate

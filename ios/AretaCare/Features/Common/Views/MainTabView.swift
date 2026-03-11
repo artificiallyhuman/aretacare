@@ -56,23 +56,25 @@ struct MainTabView: View {
                     }
                 }
                 .overlay(alignment: .top) {
-                    if !networkMonitor.isConnected {
-                        HStack(spacing: 8) {
-                            Image(systemName: "wifi.slash")
-                                .font(.subheadline)
-                            Text("No internet connection")
-                                .font(.subheadline.weight(.medium))
+                    Group {
+                        if !networkMonitor.isConnected {
+                            HStack(spacing: 8) {
+                                Image(systemName: "wifi.slash")
+                                    .font(.subheadline)
+                                Text("No internet connection")
+                                    .font(.subheadline.weight(.medium))
+                            }
+                            .foregroundStyle(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 8)
+                            .background(Color.red.opacity(0.9))
+                            .transition(.move(edge: .top).combined(with: .opacity))
+                            .accessibilityElement(children: .combine)
+                            .accessibilityLabel("No internet connection")
                         }
-                        .foregroundStyle(.white)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 8)
-                        .background(Color.red.opacity(0.9))
-                        .transition(.move(edge: .top).combined(with: .opacity))
-                        .accessibilityElement(children: .combine)
-                        .accessibilityLabel("No internet connection")
                     }
+                    .animation(.spring(duration: 0.35), value: networkMonitor.isConnected)
                 }
-                .animation(.spring(duration: 0.35), value: networkMonitor.isConnected)
                 .collaborationAwareness(session: sessionVM.currentSession)
             }
         }

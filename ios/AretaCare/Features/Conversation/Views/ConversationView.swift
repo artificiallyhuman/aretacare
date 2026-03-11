@@ -54,11 +54,6 @@ struct ConversationView: View {
             .sensoryFeedback(.success, trigger: copyHapticTrigger)
             .sensoryFeedback(.success, trigger: sendHapticTrigger)
             .sensoryFeedback(.impact(flexibility: .rigid), trigger: resetHapticTrigger)
-            .animation(.snappy(duration: 0.25), value: showCopiedToast)
-            .sessionBackground(
-                colorKey: sessionVM.currentSession?.colorKey,
-                colorScheme: colorScheme
-            )
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .principal) {
@@ -138,6 +133,19 @@ struct ConversationView: View {
     // MARK: - Extracted Views (type-checker workaround)
 
     private var conversationContent: some View {
+        ZStack {
+            // Session background color in a ZStack layer instead of .background()
+            // modifier. scaleEffect(x: 1, y: -1) on the ScrollView creates a
+            // compositing layer that renders behind .background(), making messages
+            // appear faded. ZStack rendering order is explicit and unaffected by
+            // child transforms.
+            if let bgColor = SessionColors.backgroundColor(
+                forKey: sessionVM.currentSession?.colorKey,
+                colorScheme: colorScheme
+            ) {
+                bgColor.ignoresSafeArea()
+            }
+
         VStack(spacing: 0) {
             if let error = conversationVM.errorMessage {
                 ErrorBannerView(message: error) {
@@ -185,6 +193,7 @@ struct ConversationView: View {
                 )
             }
         }
+        } // ZStack
     }
 
     @ViewBuilder
@@ -319,7 +328,9 @@ struct ConversationView: View {
                                             editingMessage = msg
                                         },
                                         onCopy: { _ in
-                                            showCopiedToast = true
+                                            withAnimation(.snappy(duration: 0.25)) {
+                                                showCopiedToast = true
+                                            }
                                             copyHapticTrigger += 1
                                         },
                                         onReset: { msg in
