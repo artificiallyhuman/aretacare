@@ -165,11 +165,11 @@ struct ConversationView: View {
                     },
                     onStop: { audioData in
                         isRecordingAudio = false
+                        showScrollToBottomButton = false
+                        messageCountWhenScrolledAway = 0
                         guard let sessionId = currentSessionId else { return }
                         Task {
                             await conversationVM.uploadAudioMessage(data: audioData, sessionId: sessionId)
-                            showScrollToBottomButton = false
-                            messageCountWhenScrolledAway = 0
                         }
                     }
                 )
@@ -475,6 +475,12 @@ struct ConversationView: View {
         }
         guard let sessionId = currentSessionId else { return }
 
+        // Reset scroll state BEFORE the async send so that when the optimistic
+        // message append triggers onChange(of: messages.count), the auto-scroll
+        // check (!showScrollToBottomButton) passes.
+        showScrollToBottomButton = false
+        messageCountWhenScrolledAway = 0
+
         if let attachment {
             Task {
                 if let response = await documentsVM.uploadDocument(
@@ -495,15 +501,11 @@ struct ConversationView: View {
                         thumbnailUrl: response.thumbnailUrl,
                         content: content
                     )
-                    showScrollToBottomButton = false
-                    messageCountWhenScrolledAway = 0
                 }
             }
         } else {
             Task {
                 await conversationVM.sendMessage(text: text, sessionId: sessionId)
-                showScrollToBottomButton = false
-                messageCountWhenScrolledAway = 0
             }
         }
     }
@@ -517,11 +519,11 @@ struct ConversationView: View {
                     // Auto-stop and upload on max duration
                     guard let audioData = audioRecorder.stop() else { return }
                     isRecordingAudio = false
+                    showScrollToBottomButton = false
+                    messageCountWhenScrolledAway = 0
                     guard let sessionId = currentSessionId else { return }
                     Task {
                         await conversationVM.uploadAudioMessage(data: audioData, sessionId: sessionId)
-                        showScrollToBottomButton = false
-                        messageCountWhenScrolledAway = 0
                     }
                 }
             } else {
