@@ -13,7 +13,6 @@ struct ConversationView: View {
     @State private var showingSessionSwitcher = false
     @State private var showScrollToBottomButton = false
     @State private var messageCountWhenScrolledAway = 0
-    @State private var scrollAnchorID: String?
     @State private var editingMessage: MessageResponse?
     @State private var editText = ""
     @State private var showResetConfirmation = false
@@ -112,7 +111,6 @@ struct ConversationView: View {
                 guard let newId else { return }
                 conversationVM.clearMessages()
                 showScrollToBottomButton = false
-                scrollAnchorID = nil
                 Task {
                     await conversationVM.fetchHistory(sessionId: newId)
                 }
@@ -214,7 +212,11 @@ struct ConversationView: View {
         }
     }
 
-    // MARK: - Message List
+    // MARK: - Message List (inverted ScrollView)
+    //
+    // The ScrollView is flipped 180° so offset-0 = visual bottom.
+    // Each row is flipped back to look normal. Messages render newest-first,
+    // so new content appears at the visual bottom without any programmatic scroll.
 
     @ViewBuilder
     private var messageList: some View {
@@ -224,207 +226,199 @@ struct ConversationView: View {
         } else if conversationVM.messages.isEmpty {
             ConversationOnboardingView()
         } else {
-            ScrollView {
-                VStack(spacing: 8) {
-                    if conversationVM.hasMore {
-                        Button {
-                            Task {
-                                if let sessionId = currentSessionId {
-                                    await conversationVM.fetchHistory(
-                                        sessionId: sessionId,
-                                        loadMore: true
-                                    )
+            ScrollViewReader { proxy in
+                ScrollView {
+                    VStack(spacing: 8) {
+                        // Bottom anchor (internal top = visual bottom after flip)
+                        Color.clear.frame(height: 1)
+                            .id("bottom")
+                            .onAppear {
+                                withAnimation(.spring(duration: 0.3)) {
+                                    showScrollToBottomButton = false
                                 }
+                                messageCountWhenScrolledAway = 0
                             }
-                        } label: {
-                            if conversationVM.isLoading {
-                                ProgressView()
-                                    .padding()
-                            } else {
-                                Text("Load earlier messages")
-                                    .font(.footnote)
-                                    .foregroundStyle(.secondary)
-                                    .padding()
+                            .onDisappear {
+                                guard !conversationVM.messages.isEmpty else { return }
+                                withAnimation(.spring(duration: 0.3)) {
+                                    showScrollToBottomButton = true
+                                }
+                                messageCountWhenScrolledAway = conversationVM.messages.count
                             }
-                        }
-                        .disabled(conversationVM.isLoading)
-                    }
 
-                    ForEach(conversationVM.messages, id: \.id) { message in
-                        // Date separator — uses pre-computed set (no index access in closure)
-                        if dateHeaderMessageIds.contains(message.id) {
-                            Text(message.createdAt.chatDateLabel)
-                                .font(.caption2.weight(.medium))
-                                .foregroundStyle(.secondary)
+                        // Typing indicator (visual bottom)
+                        if conversationVM.isSending {
+                            TypingBubbleView()
                                 .padding(.horizontal, 12)
-                                .padding(.vertical, 4)
-                                .background(Color(.systemGray5).opacity(0.8))
-                                .clipShape(Capsule())
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, 8)
+                                .padding(.bottom, 4)
+                                .rotation3DEffect(.degrees(180), axis: (1, 0, 0))
                         }
 
-                        if editingMessage?.id == message.id {
-                            // Inline edit mode
-                            VStack(spacing: 8) {
-                                TextEditor(text: $editText)
-                                    .frame(minHeight: 60, maxHeight: 150)
-                                    .padding(8)
-                                    .background(Color(.systemGray6))
-                                    .clipShape(RoundedRectangle(cornerRadius: 12))
-                                    .padding(.horizontal, 12)
-
-                                HStack {
-                                    Button("Cancel") {
-                                        editingMessage = nil
-                                        editText = ""
-                                    }
-                                    .foregroundStyle(.secondary)
-
-                                    Spacer()
-
-                                    Button("Save") {
-                                        let msgId = message.id
-                                        let text = editText
-                                        editingMessage = nil
-                                        editText = ""
-                                        Task {
-                                            if let sessionId = currentSessionId {
-                                                await conversationVM.editMessage(messageId: msgId, content: text, sessionId: sessionId)
-                                            }
-                                        }
-                                    }
-                                    .fontWeight(.semibold)
-                                    .disabled(editText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                        // Upload indicator (visual bottom)
+                        if documentsVM.isUploading {
+                            HStack {
+                                HStack(spacing: 8) {
+                                    ProgressView()
+                                        .controlSize(.small)
+                                    Text("Uploading...")
+                                        .font(.subheadline)
+                                        .foregroundStyle(.secondary)
                                 }
-                                .padding(.horizontal, 16)
+                                .padding(.horizontal, 14)
+                                .padding(.vertical, 10)
+                                .background(Color(.systemGray6))
+                                .clipShape(RoundedRectangle(cornerRadius: 18))
+                                Spacer()
                             }
-                            .id("msg-\(message.id)")
-                        } else {
-                            MessageBubbleView(
-                                message: message,
-                                currentUserId: currentUserId,
-                                isFailed: conversationVM.isMessageFailed(message.id),
-                                onEdit: { msg in
-                                    editText = msg.content
-                                    editingMessage = msg
-                                },
-                                onCopy: { _ in
-                                    showCopiedToast = true
-                                    copyHapticTrigger += 1
-                                },
-                                onReset: { msg in
-                                    resetMessage = msg
-                                    showResetConfirmation = true
-                                },
-                                onRetry: { msg in
-                                    guard let sessionId = currentSessionId else { return }
-                                    Task {
-                                        await conversationVM.retryMessage(messageId: msg.id, sessionId: sessionId)
-                                    }
-                                }
-                            )
-                            .id("msg-\(message.id)")
-                        }
-                    }
-
-                    // Upload & typing indicators inside scroll content
-                    if documentsVM.isUploading {
-                        HStack {
-                            HStack(spacing: 8) {
-                                ProgressView()
-                                    .controlSize(.small)
-                                Text("Uploading...")
-                                    .font(.subheadline)
-                                    .foregroundStyle(.secondary)
-                            }
-                            .padding(.horizontal, 14)
-                            .padding(.vertical, 10)
-                            .background(Color(.systemGray6))
-                            .clipShape(RoundedRectangle(cornerRadius: 18))
-                            Spacer()
-                        }
-                        .padding(.horizontal, 12)
-                        .padding(.bottom, 4)
-                    }
-
-                    if conversationVM.isSending {
-                        TypingBubbleView()
                             .padding(.horizontal, 12)
                             .padding(.bottom, 4)
-                    }
-                }
-                .padding(.vertical, 8)
-            }
-            .scrollPosition(id: $scrollAnchorID, anchor: .bottom)
-            .defaultScrollAnchor(.bottom)
-            .scrollDismissesKeyboard(.immediately)
-            .overlay(alignment: .bottomTrailing) {
-                if showScrollToBottomButton {
-                    let newMessageCount = max(conversationVM.messages.count - messageCountWhenScrolledAway, 0)
-
-                    Button {
-                        withAnimation(.easeOut(duration: 0.2)) {
-                            scrollToBottom()
+                            .rotation3DEffect(.degrees(180), axis: (1, 0, 0))
                         }
-                    } label: {
-                        Image(systemName: "arrow.down")
-                            .font(.body.weight(.semibold))
-                            .foregroundStyle(.white)
-                            .frame(width: 36, height: 36)
-                            .background(Circle().fill(Color.accentColor))
-                            .shadow(color: .black.opacity(0.15), radius: 6, y: 3)
-                            .overlay(alignment: .topTrailing) {
-                                if newMessageCount > 0 {
-                                    Text("\(newMessageCount)")
-                                        .font(.caption2.weight(.bold))
-                                        .foregroundStyle(.white)
-                                        .frame(minWidth: 18, minHeight: 18)
-                                        .background(Circle().fill(.red))
-                                        .offset(x: 6, y: -6)
+
+                        // Messages newest-first; each row flipped back to normal
+                        ForEach(Array(conversationVM.messages.reversed()), id: \.id) { message in
+                            VStack(spacing: 0) {
+                                if editingMessage?.id == message.id {
+                                    VStack(spacing: 8) {
+                                        TextEditor(text: $editText)
+                                            .frame(minHeight: 60, maxHeight: 150)
+                                            .padding(8)
+                                            .background(Color(.systemGray6))
+                                            .clipShape(RoundedRectangle(cornerRadius: 12))
+                                            .padding(.horizontal, 12)
+
+                                        HStack {
+                                            Button("Cancel") {
+                                                editingMessage = nil
+                                                editText = ""
+                                            }
+                                            .foregroundStyle(.secondary)
+
+                                            Spacer()
+
+                                            Button("Save") {
+                                                let msgId = message.id
+                                                let text = editText
+                                                editingMessage = nil
+                                                editText = ""
+                                                Task {
+                                                    if let sessionId = currentSessionId {
+                                                        await conversationVM.editMessage(messageId: msgId, content: text, sessionId: sessionId)
+                                                    }
+                                                }
+                                            }
+                                            .fontWeight(.semibold)
+                                            .disabled(editText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                                        }
+                                        .padding(.horizontal, 16)
+                                    }
+                                } else {
+                                    MessageBubbleView(
+                                        message: message,
+                                        currentUserId: currentUserId,
+                                        isFailed: conversationVM.isMessageFailed(message.id),
+                                        onEdit: { msg in
+                                            editText = msg.content
+                                            editingMessage = msg
+                                        },
+                                        onCopy: { _ in
+                                            showCopiedToast = true
+                                            copyHapticTrigger += 1
+                                        },
+                                        onReset: { msg in
+                                            resetMessage = msg
+                                            showResetConfirmation = true
+                                        },
+                                        onRetry: { msg in
+                                            guard let sessionId = currentSessionId else { return }
+                                            Task {
+                                                await conversationVM.retryMessage(messageId: msg.id, sessionId: sessionId)
+                                            }
+                                        }
+                                    )
+                                }
+
+                                // Date header below message in internal layout
+                                // → appears above message visually after row flip
+                                if dateHeaderMessageIds.contains(message.id) {
+                                    Text(message.createdAt.chatDateLabel)
+                                        .font(.caption2.weight(.medium))
+                                        .foregroundStyle(.secondary)
+                                        .padding(.horizontal, 12)
+                                        .padding(.vertical, 4)
+                                        .background(Color(.systemGray5).opacity(0.8))
+                                        .clipShape(Capsule())
+                                        .frame(maxWidth: .infinity)
+                                        .padding(.vertical, 8)
                                 }
                             }
+                            .rotation3DEffect(.degrees(180), axis: (1, 0, 0))
+                            .id("msg-\(message.id)")
+                        }
+
+                        // Load more (internal bottom = visual top)
+                        if conversationVM.hasMore {
+                            Button {
+                                Task {
+                                    if let sessionId = currentSessionId {
+                                        await conversationVM.fetchHistory(
+                                            sessionId: sessionId,
+                                            loadMore: true
+                                        )
+                                    }
+                                }
+                            } label: {
+                                if conversationVM.isLoading {
+                                    ProgressView()
+                                        .padding()
+                                } else {
+                                    Text("Load earlier messages")
+                                        .font(.footnote)
+                                        .foregroundStyle(.secondary)
+                                        .padding()
+                                }
+                            }
+                            .disabled(conversationVM.isLoading)
+                            .rotation3DEffect(.degrees(180), axis: (1, 0, 0))
+                        }
                     }
-                    .accessibilityLabel("Scroll to latest message\(newMessageCount > 0 ? ", \(newMessageCount) new" : "")")
-                    .padding(.trailing, 12)
-                    .padding(.bottom, 8)
-                    .transition(.scale.combined(with: .opacity))
+                    .padding(.vertical, 8)
                 }
-            }
-            .animation(.spring(duration: 0.3), value: showScrollToBottomButton)
-            .refreshable {
-                if let sessionId = currentSessionId {
-                    await conversationVM.fetchHistory(sessionId: sessionId, forceRefresh: true)
-                }
-            }
-            .onChange(of: conversationVM.messages.count) { _, _ in
-                if !showScrollToBottomButton {
-                    scrollToBottom()
-                }
-            }
-            .onChange(of: conversationVM.isSending) { _, _ in
-                if !showScrollToBottomButton {
-                    scrollToBottom()
-                }
-            }
-            .onChange(of: scrollAnchorID) { _, _ in
-                let atBottom = isAtBottom
-                if atBottom && showScrollToBottomButton {
-                    withAnimation(.spring(duration: 0.3)) {
-                        showScrollToBottomButton = false
+                .rotation3DEffect(.degrees(180), axis: (1, 0, 0))
+                .scrollDismissesKeyboard(.immediately)
+                .overlay(alignment: .bottomTrailing) {
+                    if showScrollToBottomButton {
+                        let newMessageCount = max(conversationVM.messages.count - messageCountWhenScrolledAway, 0)
+
+                        Button {
+                            withAnimation(.easeOut(duration: 0.2)) {
+                                proxy.scrollTo("bottom", anchor: .top)
+                            }
+                        } label: {
+                            Image(systemName: "arrow.down")
+                                .font(.body.weight(.semibold))
+                                .foregroundStyle(.white)
+                                .frame(width: 36, height: 36)
+                                .background(Circle().fill(Color.accentColor))
+                                .shadow(color: .black.opacity(0.15), radius: 6, y: 3)
+                                .overlay(alignment: .topTrailing) {
+                                    if newMessageCount > 0 {
+                                        Text("\(newMessageCount)")
+                                            .font(.caption2.weight(.bold))
+                                            .foregroundStyle(.white)
+                                            .frame(minWidth: 18, minHeight: 18)
+                                            .background(Circle().fill(.red))
+                                            .offset(x: 6, y: -6)
+                                    }
+                                }
+                        }
+                        .accessibilityLabel("Scroll to latest message\(newMessageCount > 0 ? ", \(newMessageCount) new" : "")")
+                        .padding(.trailing, 12)
+                        .padding(.bottom, 8)
+                        .transition(.scale.combined(with: .opacity))
                     }
-                    messageCountWhenScrolledAway = 0
-                } else if !atBottom && !showScrollToBottomButton {
-                    withAnimation(.spring(duration: 0.3)) {
-                        showScrollToBottomButton = true
-                    }
-                    messageCountWhenScrolledAway = conversationVM.messages.count
                 }
-            }
-            .onChange(of: conversationVM.reconcileToken) { _, _ in
-                if !showScrollToBottomButton {
-                    scrollToBottom()
-                }
+                .animation(.spring(duration: 0.3), value: showScrollToBottomButton)
             }
         }
     }
@@ -497,25 +491,6 @@ struct ConversationView: View {
             } else {
                 showingMicPermissionAlert = true
             }
-        }
-    }
-
-    /// Whether the scroll position is at or near the bottom of the conversation.
-    private var isAtBottom: Bool {
-        guard let id = scrollAnchorID else { return true }
-        if let lastId = conversationVM.messages.last?.id {
-            return id == "msg-\(lastId)"
-        }
-        return true
-    }
-
-    /// Scrolls to the bottom-most message. Setting the binding is declarative —
-    /// SwiftUI applies it during the next layout pass, after new content is measured.
-    /// `.defaultScrollAnchor(.bottom)` handles keeping transient views (typing/upload
-    /// indicators) visible when they appear below the last message.
-    private func scrollToBottom() {
-        if let lastId = conversationVM.messages.last?.id {
-            scrollAnchorID = "msg-\(lastId)"
         }
     }
 
