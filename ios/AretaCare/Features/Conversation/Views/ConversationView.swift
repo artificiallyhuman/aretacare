@@ -17,7 +17,6 @@ struct ConversationView: View {
     @State private var editText = ""
     @State private var showResetConfirmation = false
     @State private var resetMessage: MessageResponse?
-    @State private var bottomAnchorDebounceTask: Task<Void, Never>?
 
     // Haptic feedback
     @State private var showCopiedToast = false
@@ -61,6 +60,7 @@ struct ConversationView: View {
                 colorScheme: colorScheme
             )
             .navigationBarTitleDisplayMode(.inline)
+            .toolbarBackground(.visible, for: .navigationBar)
             .toolbar {
                 ToolbarItem(placement: .principal) {
                     Text(sessionVM.currentSession?.name ?? "Chat")
@@ -164,8 +164,6 @@ struct ConversationView: View {
                     },
                     onStop: { audioData in
                         isRecordingAudio = false
-                        showScrollToBottomButton = false
-                        messageCountWhenScrolledAway = 0
                         guard let sessionId = currentSessionId else { return }
                         Task {
                             await conversationVM.uploadAudioMessage(data: audioData, sessionId: sessionId)
@@ -213,7 +211,11 @@ struct ConversationView: View {
         }
     }
 
-    // MARK: - Message List
+    // MARK: - Message List (Inverted ScrollView)
+    //
+    // The ScrollView is flipped with scaleEffect(x: 1, y: -1), and each child
+    // row is flipped back. Messages render newest-first so new content appears
+    // at scroll offset 0 (the visual bottom) with zero programmatic scrolling.
 
     @ViewBuilder
     private var messageList: some View {
@@ -226,47 +228,58 @@ struct ConversationView: View {
             ScrollViewReader { proxy in
                 ScrollView {
                     LazyVStack(spacing: 8) {
-                        // Load more at top
-                        if conversationVM.hasMore {
-                            Button {
-                                Task {
-                                    if let sessionId = currentSessionId {
-                                        await conversationVM.fetchHistory(
-                                            sessionId: sessionId,
-                                            loadMore: true
-                                        )
-                                    }
+                        // Bottom anchor — VStack position 0 = visual bottom after flip.
+                        // At scroll offset 0, always visible on initial load.
+                        Color.clear.frame(height: 1)
+                            .id("bottom")
+                            .onAppear {
+                                withAnimation(.spring(duration: 0.3)) {
+                                    showScrollToBottomButton = false
                                 }
-                            } label: {
-                                if conversationVM.isLoading {
-                                    ProgressView()
-                                        .padding()
-                                } else {
-                                    Text("Load earlier messages")
-                                        .font(.footnote)
-                                        .foregroundStyle(.secondary)
-                                        .padding()
-                                }
+                                messageCountWhenScrolledAway = 0
                             }
-                            .disabled(conversationVM.isLoading)
+                            .onDisappear {
+                                guard !conversationVM.messages.isEmpty else { return }
+                                withAnimation(.spring(duration: 0.3)) {
+                                    showScrollToBottomButton = true
+                                }
+                                messageCountWhenScrolledAway = conversationVM.messages.count
+                            }
+                            .scaleEffect(x: 1, y: -1)
+
+                        // Typing indicator — visual bottom, above newest messages
+                        if conversationVM.isSending {
+                            TypingBubbleView()
+                                .padding(.horizontal, 12)
+                                .padding(.bottom, 4)
+                                .scaleEffect(x: 1, y: -1)
                         }
 
-                        // Messages in chronological order
-                        ForEach(conversationVM.messages, id: \.id) { message in
-                            VStack(spacing: 0) {
-                                // Date header above message
-                                if dateHeaderMessageIds.contains(message.id) {
-                                    Text(message.createdAt.chatDateLabel)
-                                        .font(.caption2.weight(.medium))
+                        // Upload indicator — visual bottom
+                        if documentsVM.isUploading {
+                            HStack {
+                                HStack(spacing: 8) {
+                                    ProgressView()
+                                        .controlSize(.small)
+                                    Text("Uploading...")
+                                        .font(.subheadline)
                                         .foregroundStyle(.secondary)
-                                        .padding(.horizontal, 12)
-                                        .padding(.vertical, 4)
-                                        .background(Color(.systemGray5).opacity(0.8))
-                                        .clipShape(Capsule())
-                                        .frame(maxWidth: .infinity)
-                                        .padding(.vertical, 8)
                                 }
+                                .padding(.horizontal, 14)
+                                .padding(.vertical, 10)
+                                .background(Color(.systemGray6))
+                                .clipShape(RoundedRectangle(cornerRadius: 18))
+                                Spacer()
+                            }
+                            .padding(.horizontal, 12)
+                            .padding(.bottom, 4)
+                            .scaleEffect(x: 1, y: -1)
+                        }
 
+                        // Messages reversed — newest at scroll offset 0 (visual bottom).
+                        // .reversed() returns a lazy ReversedCollection (O(1), no copy).
+                        ForEach(conversationVM.messages.reversed(), id: \.id) { message in
+                            VStack(spacing: 0) {
                                 if editingMessage?.id == message.id {
                                     VStack(spacing: 8) {
                                         TextEditor(text: $editText)
@@ -326,83 +339,64 @@ struct ConversationView: View {
                                         }
                                     )
                                 }
+
+                                // Date header below content — after per-row scaleEffect
+                                // flip, this appears above the message visually.
+                                if dateHeaderMessageIds.contains(message.id) {
+                                    Text(message.createdAt.chatDateLabel)
+                                        .font(.caption2.weight(.medium))
+                                        .foregroundStyle(.secondary)
+                                        .padding(.horizontal, 12)
+                                        .padding(.vertical, 4)
+                                        .background(Color(.systemGray5).opacity(0.8))
+                                        .clipShape(Capsule())
+                                        .frame(maxWidth: .infinity)
+                                        .padding(.vertical, 8)
+                                }
                             }
                             .id("msg-\(message.id)")
+                            .scaleEffect(x: 1, y: -1)
                         }
 
-                        // Typing indicator
-                        if conversationVM.isSending {
-                            TypingBubbleView()
-                                .padding(.horizontal, 12)
-                                .padding(.bottom, 4)
-                        }
-
-                        // Upload indicator
-                        if documentsVM.isUploading {
-                            HStack {
-                                HStack(spacing: 8) {
-                                    ProgressView()
-                                        .controlSize(.small)
-                                    Text("Uploading...")
-                                        .font(.subheadline)
-                                        .foregroundStyle(.secondary)
-                                }
-                                .padding(.horizontal, 14)
-                                .padding(.vertical, 10)
-                                .background(Color(.systemGray6))
-                                .clipShape(RoundedRectangle(cornerRadius: 18))
-                                Spacer()
-                            }
-                            .padding(.horizontal, 12)
-                            .padding(.bottom, 4)
-                        }
-
-                        // Bottom anchor for scroll tracking
-                        Color.clear.frame(height: 1)
-                            .id("scroll-bottom")
-                            .onAppear {
-                                bottomAnchorDebounceTask?.cancel()
-                                withAnimation(.spring(duration: 0.3)) {
-                                    showScrollToBottomButton = false
-                                }
-                                messageCountWhenScrolledAway = 0
-                            }
-                            .onDisappear {
-                                guard !conversationVM.messages.isEmpty else { return }
-                                bottomAnchorDebounceTask?.cancel()
-                                bottomAnchorDebounceTask = Task {
-                                    try? await Task.sleep(for: .milliseconds(200))
-                                    guard !Task.isCancelled else { return }
-                                    withAnimation(.spring(duration: 0.3)) {
-                                        showScrollToBottomButton = true
+                        // Load earlier — end of VStack = visual top after flip
+                        if conversationVM.hasMore {
+                            Button {
+                                Task {
+                                    if let sessionId = currentSessionId {
+                                        await conversationVM.fetchHistory(
+                                            sessionId: sessionId,
+                                            loadMore: true
+                                        )
                                     }
-                                    messageCountWhenScrolledAway = conversationVM.messages.count
+                                }
+                            } label: {
+                                if conversationVM.isLoading {
+                                    ProgressView()
+                                        .padding()
+                                } else {
+                                    Text("Load earlier messages")
+                                        .font(.footnote)
+                                        .foregroundStyle(.secondary)
+                                        .padding()
                                 }
                             }
+                            .disabled(conversationVM.isLoading)
+                            .scaleEffect(x: 1, y: -1)
+                        }
                     }
                     .padding(.vertical, 8)
                 }
-                .defaultScrollAnchor(.bottom)
                 .scrollDismissesKeyboard(.immediately)
-                .onChange(of: conversationVM.messages.count) { _, _ in
-                    guard !showScrollToBottomButton else { return }
-                    scrollToBottom(proxy: proxy)
-                }
-                .onChange(of: conversationVM.isSending) { _, isSending in
-                    guard isSending, !showScrollToBottomButton else { return }
-                    scrollToBottom(proxy: proxy)
-                }
-                .onChange(of: conversationVM.reconcileToken) { _, _ in
-                    guard !showScrollToBottomButton else { return }
-                    scrollToBottom(proxy: proxy)
-                }
+                .scrollIndicators(.hidden)
+                .scaleEffect(x: 1, y: -1)
+                .clipped()
                 .overlay(alignment: .bottomTrailing) {
                     if showScrollToBottomButton {
                         let newMessageCount = max(conversationVM.messages.count - messageCountWhenScrolledAway, 0)
 
                         Button {
                             withAnimation(.easeOut(duration: 0.2)) {
-                                proxy.scrollTo("scroll-bottom", anchor: .bottom)
+                                proxy.scrollTo("bottom", anchor: .top)
                             }
                         } label: {
                             Image(systemName: "arrow.down")
@@ -433,14 +427,6 @@ struct ConversationView: View {
         }
     }
 
-    private func scrollToBottom(proxy: ScrollViewProxy) {
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
-            withAnimation(.easeOut(duration: 0.15)) {
-                proxy.scrollTo("scroll-bottom", anchor: .bottom)
-            }
-        }
-    }
-
     // MARK: - Actions
 
     private func sendMessage() {
@@ -454,12 +440,6 @@ struct ConversationView: View {
             messageText = ""
         }
         guard let sessionId = currentSessionId else { return }
-
-        // Reset scroll state BEFORE the async send so that when the optimistic
-        // message append triggers onChange(of: messages.count), the auto-scroll
-        // check (!showScrollToBottomButton) passes.
-        showScrollToBottomButton = false
-        messageCountWhenScrolledAway = 0
 
         if let attachment {
             Task {
@@ -499,8 +479,6 @@ struct ConversationView: View {
                     // Auto-stop and upload on max duration
                     guard let audioData = audioRecorder.stop() else { return }
                     isRecordingAudio = false
-                    showScrollToBottomButton = false
-                    messageCountWhenScrolledAway = 0
                     guard let sessionId = currentSessionId else { return }
                     Task {
                         await conversationVM.uploadAudioMessage(data: audioData, sessionId: sessionId)
@@ -512,7 +490,7 @@ struct ConversationView: View {
         }
     }
 
-    /// IDs of messages that should display a date header above them.
+    /// IDs of messages that should display a date header.
     /// Pre-computed outside ForEach to avoid index-based array access in closures,
     /// which can crash when SwiftUI's lazy evaluation races with array mutations.
     private var dateHeaderMessageIds: Set<Int> {
