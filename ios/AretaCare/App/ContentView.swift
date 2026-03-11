@@ -10,33 +10,35 @@ struct ContentView: View {
         Group {
             if authManager.isLoading {
                 loadingView
+                    .transition(.identity)
             } else if !authManager.isAuthenticated {
                 if let mfaToken = authManager.mfaToken {
                     NavigationStack {
                         MFAVerifyView(mfaToken: mfaToken, mfaMethods: authManager.mfaMethods)
                     }
+                    .transition(.identity)
                 } else {
                     NavigationStack {
                         LoginView()
                     }
+                    .transition(.identity)
                 }
             } else if subscriptionManager.isCheckingEntitlement {
                 loadingView
+                    .transition(.identity)
             } else if !subscriptionManager.isProUser {
                 subscriptionGateView
+                    .transition(.identity)
             } else {
                 MainTabView()
                     .idleTimeout(authManager: authManager)
+                    .transition(.identity)
             }
         }
         .overlay {
-            Group {
-                if authManager.isAuthenticated && biometricManager.isLocked {
-                    BiometricLockView()
-                        .transition(.opacity)
-                }
+            if authManager.isAuthenticated && biometricManager.isLocked {
+                BiometricLockView()
             }
-            .animation(.spring(duration: 0.35), value: biometricManager.isLocked)
         }
     }
 

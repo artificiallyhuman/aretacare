@@ -428,6 +428,10 @@ final class ConversationViewModel {
     func pollForNewMessages(sessionId: String) async {
         guard !isSending, !isLoading else { return }
         guard !messages.isEmpty else { return }
+        // Skip if there are unreconciled temp messages — silentReconcile
+        // hasn't replaced temp IDs yet, so the poll would see server messages
+        // as "new" and append duplicates.
+        guard !messages.contains(where: { $0.id < 0 }) else { return }
 
         do {
             let queryItems = [

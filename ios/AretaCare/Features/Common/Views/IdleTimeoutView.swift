@@ -118,7 +118,6 @@ struct IdleTimeoutModifier: ViewModifier {
                             Task { await authManager.logout() }
                         }
                     )
-                    .transition(.opacity)
                 }
             }
             .overlay {
