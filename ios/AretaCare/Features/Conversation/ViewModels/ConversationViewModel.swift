@@ -145,23 +145,44 @@ final class ConversationViewModel {
         )
 
         do {
-            let _: SendMessageResponse = try await APIClient.shared.post(
+            let response: SendMessageResponse = try await APIClient.shared.post(
                 APIEndpoints.Conversation.sendMessage,
                 body: request
             )
 
-            // Remove temp message and refresh to get real server state
-            // (both the user message with server-assigned ID and the assistant response)
-            messages.removeAll { $0.id == tempUserMessage.id }
-            await fetchHistory(sessionId: sessionId, forceRefresh: true)
+            // Append assistant response directly — avoids full array replacement
+            // which causes LazyVStack to lose scroll position and "disappear" messages.
+            let assistantMessage = MessageResponse(
+                id: response.message.id,
+                sessionId: sessionId,
+                role: .assistant,
+                content: response.message.content,
+                createdAt: response.message.createdAt,
+                updatedAt: nil,
+                messageType: .text,
+                documentId: nil,
+                mediaUrl: nil,
+                thumbnailUrl: nil,
+                extractedText: nil,
+                createdBy: nil,
+                lastEditedBy: nil
+            )
+            messages.append(assistantMessage)
+            isSending = false
+
+            // Background reconciliation to sync temp IDs with server state
+            let sid = sessionId
+            Task {
+                try? await Task.sleep(for: .seconds(2))
+                await silentReconcile(sessionId: sid)
+            }
         } catch {
             // Keep the optimistic message but mark it as failed for retry
             failedMessageIds.insert(tempUserMessage.id)
             failedMessageContent[tempUserMessage.id] = trimmed
             errorMessage = error.localizedDescription
+            isSending = false
         }
-
-        isSending = false
     }
 
     // MARK: - Retry Failed Message
@@ -289,18 +310,40 @@ final class ConversationViewModel {
         )
 
         do {
-            let _: SendMessageResponse = try await APIClient.shared.post(
+            let response: SendMessageResponse = try await APIClient.shared.post(
                 APIEndpoints.Conversation.sendMessage,
                 body: request
             )
-            // Remove temp message and refresh to get real server state
-            messages.removeAll { $0.id == tempUserMessage.id }
-            await fetchHistory(sessionId: sessionId, forceRefresh: true)
+
+            // Append assistant response directly — avoids full array replacement
+            let assistantMessage = MessageResponse(
+                id: response.message.id,
+                sessionId: sessionId,
+                role: .assistant,
+                content: response.message.content,
+                createdAt: response.message.createdAt,
+                updatedAt: nil,
+                messageType: .text,
+                documentId: nil,
+                mediaUrl: nil,
+                thumbnailUrl: nil,
+                extractedText: nil,
+                createdBy: nil,
+                lastEditedBy: nil
+            )
+            messages.append(assistantMessage)
+            isSending = false
+
+            // Background reconciliation to sync temp IDs with server state
+            let sid = sessionId
+            Task {
+                try? await Task.sleep(for: .seconds(2))
+                await silentReconcile(sessionId: sid)
+            }
         } catch {
             errorMessage = error.localizedDescription
+            isSending = false
         }
-
-        isSending = false
     }
 
     // MARK: - Edit Message
@@ -401,6 +444,31 @@ final class ConversationViewModel {
             }
         } catch {
             // Silent failure for polling — don't show error banners
+        }
+    }
+
+    // MARK: - Silent Reconciliation
+
+    /// Fetches fresh history and replaces messages without showing loading state.
+    /// Runs after send to sync temp message IDs with server truth.
+    private func silentReconcile(sessionId: String) async {
+        guard !isSending else { return }
+
+        do {
+            let queryItems = [
+                URLQueryItem(name: "limit", value: "\(AppConstants.defaultPageSize)"),
+                URLQueryItem(name: "offset", value: "0")
+            ]
+            let history: ConversationHistory = try await APIClient.shared.get(
+                APIEndpoints.Conversation.history(sessionId),
+                queryItems: queryItems
+            )
+            messages = history.messages
+            totalCount = history.totalCount
+            hasMore = history.hasMore
+            Self.historyCache.set(history, for: sessionId)
+        } catch {
+            // Silent failure — user already sees correct messages
         }
     }
 

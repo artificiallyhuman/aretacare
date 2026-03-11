@@ -158,16 +158,6 @@ struct ConversationView: View {
 
             messageList
 
-            if documentsVM.isUploading {
-                uploadIndicator
-            }
-
-            if conversationVM.isSending {
-                TypingBubbleView()
-                    .padding(.horizontal, 12)
-                    .padding(.bottom, 4)
-            }
-
             if isRecordingAudio {
                 ConversationAudioRecorderView(
                     recorder: audioRecorder,
@@ -340,6 +330,33 @@ struct ConversationView: View {
                             }
                         }
 
+                        // Upload & typing indicators inside scroll content
+                        // to prevent ScrollView resizing and scroll position loss.
+                        if documentsVM.isUploading {
+                            HStack {
+                                HStack(spacing: 8) {
+                                    ProgressView()
+                                        .controlSize(.small)
+                                    Text("Uploading...")
+                                        .font(.subheadline)
+                                        .foregroundStyle(.secondary)
+                                }
+                                .padding(.horizontal, 14)
+                                .padding(.vertical, 10)
+                                .background(Color(.systemGray6))
+                                .clipShape(RoundedRectangle(cornerRadius: 18))
+                                Spacer()
+                            }
+                            .padding(.horizontal, 12)
+                            .padding(.bottom, 4)
+                        }
+
+                        if conversationVM.isSending {
+                            TypingBubbleView()
+                                .padding(.horizontal, 12)
+                                .padding(.bottom, 4)
+                        }
+
                         // Bottom anchor for scroll position tracking
                         Color.clear.frame(height: 1)
                             .id("scroll-bottom")
@@ -397,6 +414,15 @@ struct ConversationView: View {
                         scrollToLatest(proxy: proxy)
                     }
                 }
+                .onChange(of: conversationVM.isSending) { _, isSending in
+                    // Auto-scroll when typing indicator appears inside scroll content
+                    if isSending && !showScrollToBottomButton {
+                        Task {
+                            try? await Task.sleep(for: .milliseconds(50))
+                            scrollToLatest(proxy: proxy)
+                        }
+                    }
+                }
                 .onChange(of: scrollToBottom) { _, _ in
                     // Defer scroll to let LazyVStack lay out new messages
                     // (fetchHistory replaces all messages, causing a full re-render)
@@ -422,28 +448,6 @@ struct ConversationView: View {
                 }
             }
         }
-    }
-
-    // MARK: - Upload Indicator
-
-    private var uploadIndicator: some View {
-        HStack {
-            HStack(spacing: 8) {
-                ProgressView()
-                    .controlSize(.small)
-                Text("Uploading...")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-            }
-            .padding(.horizontal, 14)
-            .padding(.vertical, 10)
-            .background(Color(.systemGray6))
-            .clipShape(RoundedRectangle(cornerRadius: 18))
-
-            Spacer()
-        }
-        .padding(.horizontal, 12)
-        .padding(.bottom, 4)
     }
 
     // MARK: - Actions
