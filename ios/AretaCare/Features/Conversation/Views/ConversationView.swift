@@ -155,6 +155,8 @@ struct ConversationView: View {
             }
 
             messageList
+                .compositingGroup()
+                .clipped()
 
             if isRecordingAudio {
                 ConversationAudioRecorderView(
