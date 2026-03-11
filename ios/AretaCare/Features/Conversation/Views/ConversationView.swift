@@ -250,9 +250,9 @@ struct ConversationView: View {
                         .disabled(conversationVM.isLoading)
                     }
 
-                    ForEach(Array(conversationVM.messages.enumerated()), id: \.element.id) { index, message in
-                        // Date separator
-                        if index == 0 || !Calendar.current.isDate(message.createdAt, inSameDayAs: conversationVM.messages[index - 1].createdAt) {
+                    ForEach(conversationVM.messages, id: \.id) { message in
+                        // Date separator — uses pre-computed set (no index access in closure)
+                        if dateHeaderMessageIds.contains(message.id) {
                             Text(message.createdAt.chatDateLabel)
                                 .font(.caption2.weight(.medium))
                                 .foregroundStyle(.secondary)
@@ -346,14 +346,12 @@ struct ConversationView: View {
                         }
                         .padding(.horizontal, 12)
                         .padding(.bottom, 4)
-                        .id("uploading")
                     }
 
                     if conversationVM.isSending {
                         TypingBubbleView()
                             .padding(.horizontal, 12)
                             .padding(.bottom, 4)
-                            .id("typing")
                     }
                 }
                 .padding(.vertical, 8)
@@ -404,8 +402,8 @@ struct ConversationView: View {
                     scrollToBottom()
                 }
             }
-            .onChange(of: conversationVM.isSending) { _, isSending in
-                if isSending && !showScrollToBottomButton {
+            .onChange(of: conversationVM.isSending) { _, _ in
+                if !showScrollToBottomButton {
                     scrollToBottom()
                 }
             }
@@ -505,23 +503,34 @@ struct ConversationView: View {
     /// Whether the scroll position is at or near the bottom of the conversation.
     private var isAtBottom: Bool {
         guard let id = scrollAnchorID else { return true }
-        if id == "typing" || id == "uploading" { return true }
         if let lastId = conversationVM.messages.last?.id {
             return id == "msg-\(lastId)"
         }
         return true
     }
 
-    /// Scrolls to the bottom-most content. Setting the binding is declarative —
+    /// Scrolls to the bottom-most message. Setting the binding is declarative —
     /// SwiftUI applies it during the next layout pass, after new content is measured.
+    /// `.defaultScrollAnchor(.bottom)` handles keeping transient views (typing/upload
+    /// indicators) visible when they appear below the last message.
     private func scrollToBottom() {
-        if conversationVM.isSending {
-            scrollAnchorID = "typing"
-        } else if documentsVM.isUploading {
-            scrollAnchorID = "uploading"
-        } else if let lastId = conversationVM.messages.last?.id {
+        if let lastId = conversationVM.messages.last?.id {
             scrollAnchorID = "msg-\(lastId)"
         }
+    }
+
+    /// IDs of messages that should display a date header above them.
+    /// Pre-computed outside ForEach to avoid index-based array access in closures,
+    /// which can crash when SwiftUI's lazy evaluation races with array mutations.
+    private var dateHeaderMessageIds: Set<Int> {
+        var ids = Set<Int>()
+        let msgs = conversationVM.messages
+        for i in msgs.indices {
+            if i == 0 || !Calendar.current.isDate(msgs[i].createdAt, inSameDayAs: msgs[i - 1].createdAt) {
+                ids.insert(msgs[i].id)
+            }
+        }
+        return ids
     }
 
     // MARK: - Attachment Handling
