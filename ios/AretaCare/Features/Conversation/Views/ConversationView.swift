@@ -382,13 +382,16 @@ struct ConversationView: View {
                     }
                     .padding(.vertical, 8)
                 }
+                .defaultScrollAnchor(.bottom)
                 .scrollDismissesKeyboard(.immediately)
                 .overlay(alignment: .bottomTrailing) {
                     if showScrollToBottomButton {
                         let newMessageCount = max(conversationVM.messages.count - messageCountWhenScrolledAway, 0)
 
                         Button {
-                            scrollToLatest(proxy: proxy)
+                            withAnimation(.easeOut(duration: 0.2)) {
+                                scrollToLatest(proxy: proxy)
+                            }
                         } label: {
                             Image(systemName: "arrow.down")
                                 .font(.body.weight(.semibold))
@@ -534,9 +537,7 @@ struct ConversationView: View {
 
     private func scrollToLatest(proxy: ScrollViewProxy) {
         guard !conversationVM.messages.isEmpty else { return }
-        withAnimation(.easeOut(duration: 0.2)) {
-            proxy.scrollTo("scroll-bottom", anchor: .bottom)
-        }
+        proxy.scrollTo("scroll-bottom", anchor: .bottom)
     }
 
     // MARK: - Attachment Handling
