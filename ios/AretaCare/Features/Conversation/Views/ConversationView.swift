@@ -225,7 +225,7 @@ struct ConversationView: View {
             ConversationOnboardingView()
         } else {
             ScrollView {
-                LazyVStack(spacing: 8) {
+                VStack(spacing: 8) {
                     if conversationVM.hasMore {
                         Button {
                             Task {
