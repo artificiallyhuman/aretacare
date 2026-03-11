@@ -385,6 +385,7 @@ struct ConversationView: View {
                     .padding(.vertical, 8)
                 }
                 .scaleEffect(x: 1, y: -1, anchor: .center)
+                .clipped()
                 .scrollDismissesKeyboard(.immediately)
                 .overlay(alignment: .bottomTrailing) {
                     if showScrollToBottomButton {
