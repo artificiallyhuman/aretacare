@@ -384,7 +384,6 @@ struct ConversationView: View {
                 .scrollDismissesKeyboard(.immediately)
                 .scrollIndicators(.hidden)
                 .scaleEffect(x: 1, y: -1)
-                .clipped()
                 .overlay(alignment: .bottomTrailing) {
                     // Group + .animation scoped here so the button's opacity
                     // transition doesn't leak to the ScrollView's compositing layer.
