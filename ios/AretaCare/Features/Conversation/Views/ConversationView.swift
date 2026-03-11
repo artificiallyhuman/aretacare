@@ -362,16 +362,29 @@ struct ConversationView: View {
                             .id("scroll-bottom")
                             .onAppear {
                                 bottomAnchorHasAppeared = true
-                                showScrollToBottomButton = false
+                                withAnimation(.spring(duration: 0.3)) {
+                                    showScrollToBottomButton = false
+                                }
                                 messageCountWhenScrolledAway = 0
                             }
                             .onDisappear {
-                                showScrollToBottomButton = true
-                                messageCountWhenScrolledAway = conversationVM.messages.count
+                                // Debounce: layout changes can briefly push the anchor
+                                // off-screen (e.g. typing indicator appearing). Only show
+                                // the scroll button if the anchor stays invisible.
+                                bottomAnchorHasAppeared = false
+                                Task { @MainActor in
+                                    try? await Task.sleep(for: .milliseconds(200))
+                                    guard !bottomAnchorHasAppeared else { return }
+                                    withAnimation(.spring(duration: 0.3)) {
+                                        showScrollToBottomButton = true
+                                    }
+                                    messageCountWhenScrolledAway = conversationVM.messages.count
+                                }
                             }
                     }
                     .padding(.vertical, 8)
                 }
+                .defaultScrollAnchor(.bottom)
                 .scrollDismissesKeyboard(.immediately)
                 .overlay(alignment: .bottomTrailing) {
                     if showScrollToBottomButton {
