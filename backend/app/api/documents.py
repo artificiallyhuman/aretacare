@@ -224,13 +224,21 @@ async def upload_document(
     )
 
     if abuse_check["abuse_detected"]:
-        # Log the abuse detection
         logger.warning(
-            f"Potential upload abuse detected: User {current_user.email} / IP {ip_address} "
+            f"Upload abuse blocked: User {current_user.email} / IP {ip_address} "
             f"has {abuse_check['failure_count']} upload failures in {abuse_check['time_window']} minutes"
         )
-        # Note: We log but don't block - admin can review security logs
-        # If needed, admin can manually disable account
+        security_service.log_event(
+            db=db,
+            event_type="upload_abuse_blocked",
+            email=current_user.email,
+            ip_address=ip_address,
+            details=f"{abuse_check['failure_count']} upload failures in {abuse_check['time_window']} minutes"
+        )
+        raise HTTPException(
+            status_code=429,
+            detail="Too many upload failures. Please wait before trying again."
+        )
 
     # Validate session
     if session_id:

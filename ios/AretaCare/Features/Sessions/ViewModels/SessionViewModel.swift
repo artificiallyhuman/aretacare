@@ -51,6 +51,11 @@ final class SessionViewModel {
                 } else {
                     currentSession = activeSessions.max(by: { $0.lastActivity < $1.lastActivity })
                 }
+
+                // Final fallback: if no active sessions, use any session
+                if currentSession == nil {
+                    currentSession = fetched.max(by: { $0.lastActivity < $1.lastActivity })
+                }
             }
             // Refresh current session data from the fetched list
             if let current = currentSession {

@@ -357,11 +357,11 @@ class MFAService:
         # Store the challenge for verification
         challenge_bytes = options.challenge
 
-        # Delete any existing registration challenges for this user
+        # Delete any existing registration challenges for this user (locked to prevent races)
         db.query(MFAChallenge).filter(
             MFAChallenge.user_id == user.id,
             MFAChallenge.challenge_type == 'webauthn_register'
-        ).delete()
+        ).with_for_update().delete()
 
         # Store new challenge
         challenge_record = MFAChallenge(
@@ -487,11 +487,11 @@ class MFAService:
 
         challenge_bytes = options.challenge
 
-        # Delete any existing auth challenges for this user
+        # Delete any existing auth challenges for this user (locked to prevent races)
         db.query(MFAChallenge).filter(
             MFAChallenge.user_id == user_id,
             MFAChallenge.challenge_type == 'webauthn_auth'
-        ).delete()
+        ).with_for_update().delete()
 
         # Store new challenge
         challenge_record = MFAChallenge(

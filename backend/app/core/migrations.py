@@ -2172,3 +2172,28 @@ def run_migrations():
             except Exception as e:
                 logger.error(f"Failed to create device_tokens table: {e}")
                 conn.rollback()
+
+        # =================================================================
+        # TRIGRAM INDEXES FOR AUDIO RECORDING TEXT SEARCH
+        # =================================================================
+        migration_name = "add_audio_trigram_indexes"
+        if not has_migration_run(conn, migration_name):
+            logger.info("Adding trigram indexes for audio recording text search...")
+            try:
+                conn.execute(text("CREATE EXTENSION IF NOT EXISTS pg_trgm"))
+                conn.commit()
+                conn.execute(text(
+                    "CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_audio_summary_trgm "
+                    "ON audio_recordings USING gin (ai_summary gin_trgm_ops)"
+                ))
+                conn.commit()
+                conn.execute(text(
+                    "CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_audio_text_trgm "
+                    "ON audio_recordings USING gin (transcribed_text gin_trgm_ops)"
+                ))
+                conn.commit()
+                mark_migration_complete(conn, migration_name)
+                logger.info("Successfully added trigram indexes for audio recording search")
+            except Exception as e:
+                logger.error(f"Failed to add trigram indexes: {e}")
+                conn.rollback()

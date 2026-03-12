@@ -22,10 +22,10 @@ enum AppConstants {
 
     // MARK: - Legal
 
-    static var termsURL: URL { URL(string: "\(frontendBaseURL)/terms")! }
-    static var privacyURL: URL { URL(string: "\(frontendBaseURL)/privacy")! }
-    static var contactURL: URL { URL(string: "\(frontendBaseURL)/contact")! }
-    static var aboutURL: URL { URL(string: "\(frontendBaseURL)/about")! }
+    static var termsURL: URL { URL(string: "\(frontendBaseURL)/terms") ?? URL(string: "https://www.aretacare.com/terms")! }
+    static var privacyURL: URL { URL(string: "\(frontendBaseURL)/privacy") ?? URL(string: "https://www.aretacare.com/privacy")! }
+    static var contactURL: URL { URL(string: "\(frontendBaseURL)/contact") ?? URL(string: "https://www.aretacare.com/contact")! }
+    static var aboutURL: URL { URL(string: "\(frontendBaseURL)/about") ?? URL(string: "https://www.aretacare.com/about")! }
 
     static let clientType = "ios"
     static let clientTypeHeader = "X-Client-Type"

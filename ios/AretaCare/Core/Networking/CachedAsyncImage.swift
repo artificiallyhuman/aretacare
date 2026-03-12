@@ -54,18 +54,30 @@ struct CachedAsyncImage<Content: View, Placeholder: View, Failure: View>: View {
         // pointing to AWS CloudFront/S3 infrastructure, which uses its own certificate chain
         // that does not match the app's pinned certificates for aretacare.com. Using the
         // pinned session here would cause all image downloads to fail.
-        do {
-            let (data, response) = try await URLSession.shared.data(from: url)
-            guard let httpResponse = response as? HTTPURLResponse,
-                  (200...299).contains(httpResponse.statusCode),
-                  let uiImage = UIImage(data: data) else {
-                phase = .failure(URLError(.badServerResponse))
+        let maxAttempts = 3
+        for attempt in 1...maxAttempts {
+            do {
+                let (data, response) = try await URLSession.shared.data(from: url)
+                guard let httpResponse = response as? HTTPURLResponse,
+                      (200...299).contains(httpResponse.statusCode),
+                      let uiImage = UIImage(data: data) else {
+                    if attempt == maxAttempts {
+                        phase = .failure(URLError(.badServerResponse))
+                    } else {
+                        try? await Task.sleep(for: .seconds(Double(attempt)))
+                    }
+                    continue
+                }
+                ImageCache.shared.set(uiImage, for: url)
+                phase = .success(Image(uiImage: uiImage))
                 return
+            } catch {
+                if attempt == maxAttempts {
+                    phase = .failure(error)
+                } else {
+                    try? await Task.sleep(for: .seconds(Double(attempt)))
+                }
             }
-            ImageCache.shared.set(uiImage, for: url)
-            phase = .success(Image(uiImage: uiImage))
-        } catch {
-            phase = .failure(error)
         }
     }
 }

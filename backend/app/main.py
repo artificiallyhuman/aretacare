@@ -90,10 +90,14 @@ def validate_startup():
         if not settings.APNS_TEAM_ID:
             missing_apns.append("APNS_TEAM_ID")
         if missing_apns:
-            warnings.append(
+            errors.append(
                 f"PUSH_NOTIFICATIONS_ENABLED is True but {', '.join(missing_apns)} "
-                "not set — push notifications will not work."
+                "not set. Either configure APNs or set PUSH_NOTIFICATIONS_ENABLED=False."
             )
+
+    # DEBUG mode warning (HSTS disabled)
+    if settings.DEBUG:
+        warnings.append("DEBUG mode is enabled — HSTS header will not be sent")
 
     # Database connectivity
     try:

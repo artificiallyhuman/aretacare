@@ -133,7 +133,9 @@ final class APIClient: Sendable {
     // MARK: - Request Building
 
     private func buildRequest(path: String, method: String, body: (some Encodable)? = nil as Empty?, queryItems: [URLQueryItem]? = nil) throws -> URLRequest {
-        var components = URLComponents(url: baseURL.appendingPathComponent(path), resolvingAgainstBaseURL: false)!
+        guard var components = URLComponents(url: baseURL.appendingPathComponent(path), resolvingAgainstBaseURL: false) else {
+            throw APIError.networkError(underlying: URLError(.badURL))
+        }
         if let queryItems, !queryItems.isEmpty {
             components.queryItems = queryItems
         }
