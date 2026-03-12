@@ -347,7 +347,7 @@ allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
 | `S3_BUCKET_NAME` non-empty, no spaces | Error (blocks startup) |
 | Database connectivity (`SELECT 1`) | Error (blocks startup) |
 | `SMTP_HOST` set but `SMTP_PASSWORD` empty | Warning (startup continues) |
-| `PUSH_NOTIFICATIONS_ENABLED` true but APNs keys missing | Warning (startup continues) |
+| `PUSH_NOTIFICATIONS_ENABLED` true but APNs keys missing | Error (blocks startup) |
 
 This prevents the app from starting with obviously broken credentials that would only fail at first use.
 
