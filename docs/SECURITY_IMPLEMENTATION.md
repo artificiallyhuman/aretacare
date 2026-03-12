@@ -371,4 +371,16 @@ Both backend and frontend containers run as non-root users (UID 1000):
 
 ## GitHub Security Features
 
-Enabled: Security Policy, Security Advisories, Private Vulnerability Reporting, Dependabot Alerts, Code Scanning, Secret Scanning.
+Enabled: Security Policy, Security Advisories, Private Vulnerability Reporting, Dependabot Alerts, Code Scanning (CodeQL), Secret Scanning.
+
+### CodeQL Code Scanning
+
+Custom workflow at `.github/workflows/codeql.yml` (default CodeQL setup cannot build Swift):
+
+| Language | Runner | Build |
+|----------|--------|-------|
+| Python | `ubuntu-latest` | Autobuild |
+| JavaScript/TypeScript | `ubuntu-latest` | Autobuild |
+| Swift | `macos-15` | XcodeGen + `xcodebuild` with code signing disabled |
+
+Runs on: push to `main`, PRs to `main`, weekly schedule (Wednesday). The Swift job creates a placeholder `Secrets.xcconfig` (no real credentials needed for static analysis) and builds with `CODE_SIGNING_ALLOWED=NO`.
