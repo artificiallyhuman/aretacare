@@ -1,0 +1,88 @@
+name: "CodeQL"
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: "25 14 * * 3" # Weekly on Wednesday
+
+jobs:
+  analyze-interpreted:
+    name: Analyze (Python & JavaScript)
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        language: [python, javascript-typescript]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: ${{ matrix.language }}
+
+      - name: Autobuild
+        uses: github/codeql-action/autobuild@v3
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:${{ matrix.language }}"
+
+  analyze-swift:
+    name: Analyze (Swift)
+    runs-on: macos-15
+    permissions:
+      security-events: write
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: "16.2"
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Create Secrets.xcconfig
+        run: |
+          cat > ios/AretaCare/Configuration/Secrets.xcconfig <<'EOF'
+          DEVELOPMENT_TEAM = CODEQL_PLACEHOLDER
+          REVENUECAT_API_KEY = codeql_placeholder_key
+          EOF
+
+      - name: Generate Xcode project
+        run: cd ios && xcodegen generate
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: swift
+
+      - name: Build for CodeQL
+        run: |
+          cd ios
+          xcodebuild build \
+            -scheme AretaCare \
+            -destination 'generic/platform=iOS Simulator' \
+            -configuration Debug \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            COMPILER_INDEX_STORE_ENABLE=NO \
+            | xcpretty || true
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:swift"
