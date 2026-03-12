@@ -8,16 +8,18 @@ import { markdownToHtml } from '../utils/markdownUtils';
 const EditableField = ({ label, value, path, multiline = false, editedData, setEditedData }) => {
   const updateValue = (newValue) => {
     const pathParts = path.split('.');
-    const newData = JSON.parse(JSON.stringify(editedData));
-    let current = newData;
-    for (let i = 0; i < pathParts.length - 1; i++) {
-      if (!current[pathParts[i]]) {
-        current[pathParts[i]] = {};
+    setEditedData(prev => {
+      const newData = JSON.parse(JSON.stringify(prev));
+      let current = newData;
+      for (let i = 0; i < pathParts.length - 1; i++) {
+        if (!current[pathParts[i]]) {
+          current[pathParts[i]] = {};
+        }
+        current = current[pathParts[i]];
       }
-      current = current[pathParts[i]];
-    }
-    current[pathParts[pathParts.length - 1]] = newValue || null;
-    setEditedData(newData);
+      current[pathParts[pathParts.length - 1]] = newValue || null;
+      return newData;
+    });
   };
 
   const currentValue = path.split('.').reduce((obj, key) => obj?.[key], editedData) || '';

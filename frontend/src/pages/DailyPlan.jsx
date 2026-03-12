@@ -114,7 +114,7 @@ const DailyPlan = () => {
         user_edited_content: editedContent
       };
       setSelectedPlan(updatedPlan);
-      setPlans(plans.map(p => p.id === selectedPlan.id ? updatedPlan : p));
+      setPlans(prev => prev.map(p => p.id === selectedPlan.id ? updatedPlan : p));
 
       setIsEditing(false);
       setEditedContent('');

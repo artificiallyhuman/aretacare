@@ -95,11 +95,12 @@ final class ProfileViewModel {
 
         do {
             let request = ProfileSectionUpdateRequest(section: section, data: data)
-            let _: ProfileResponse = try await APIClient.shared.patch(
+            let response: ProfileResponse = try await APIClient.shared.patch(
                 APIEndpoints.Profile.updateSection(sessionId),
                 body: request
             )
-            await fetchProfile(sessionId: sessionId)
+            profile = response
+            pendingChanges = response.pendingChanges ?? []
         } catch {
             errorMessage = error.localizedDescription
         }
@@ -132,11 +133,12 @@ final class ProfileViewModel {
 
         do {
             let request = ProfileRegenerateRequest(confirm: true)
-            let _: ProfileResponse = try await APIClient.shared.post(
+            let response: ProfileResponse = try await APIClient.shared.post(
                 APIEndpoints.Profile.regenerate(sessionId),
                 body: request
             )
-            await fetchProfile(sessionId: sessionId)
+            profile = response
+            pendingChanges = response.pendingChanges ?? []
         } catch {
             errorMessage = error.localizedDescription
         }
