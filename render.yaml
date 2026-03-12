@@ -12,6 +12,11 @@ services:
     name: aretacare-backend
     env: docker
     plan: standard
+    scaling:
+      minInstances: 1
+      maxInstances: 5
+      targetMemoryPercent: 80
+      targetCPUPercent: 70
     healthCheckPath: /api/health
     envVars:
       - key: DATABASE_URL
