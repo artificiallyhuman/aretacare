@@ -18,36 +18,38 @@ struct CollaborationAwarenessPopup: View {
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
 
-            VStack(alignment: .leading, spacing: 8) {
-                if !session.isOwner {
-                    Text("Owner:")
-                        .font(.subheadline.weight(.medium))
-                    HStack(spacing: 8) {
-                        Image(systemName: "person.circle.fill")
-                            .foregroundStyle(.secondary)
-                        Text(session.ownerName)
-                            .font(.subheadline)
-                    }
-                }
-
-                // Show other collaborators (filter out the current user by comparing with ownerId)
-                let otherCollaborators = session.collaborators.filter { $0.userId != AuthManager.shared.currentUser?.id }
-                if !otherCollaborators.isEmpty {
-                    Text(session.isOwner ? "Collaborators:" : "Other collaborators:")
-                        .font(.subheadline.weight(.medium))
-                        .padding(.top, session.isOwner ? 0 : 4)
-
-                    ForEach(otherCollaborators) { collaborator in
+            ScrollView {
+                VStack(alignment: .leading, spacing: 8) {
+                    if !session.isOwner {
+                        Text("Owner:")
+                            .font(.subheadline.weight(.medium))
                         HStack(spacing: 8) {
-                            Image(systemName: "person.circle")
+                            Image(systemName: "person.circle.fill")
                                 .foregroundStyle(.secondary)
-                            Text(collaborator.name)
+                            Text(session.ownerName)
                                 .font(.subheadline)
                         }
                     }
+
+                    // Show other collaborators (filter out the current user by comparing with ownerId)
+                    let otherCollaborators = session.collaborators.filter { $0.userId != AuthManager.shared.currentUser?.id }
+                    if !otherCollaborators.isEmpty {
+                        Text(session.isOwner ? "Collaborators:" : "Other collaborators:")
+                            .font(.subheadline.weight(.medium))
+                            .padding(.top, session.isOwner ? 0 : 4)
+
+                        ForEach(otherCollaborators) { collaborator in
+                            HStack(spacing: 8) {
+                                Image(systemName: "person.circle")
+                                    .foregroundStyle(.secondary)
+                                Text(collaborator.name)
+                                    .font(.subheadline)
+                            }
+                        }
+                    }
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
             .padding()
             .background(Color(.systemGray6))
             .clipShape(RoundedRectangle(cornerRadius: 10))
@@ -82,7 +84,7 @@ struct CollaborationAwarenessModifier: ViewModifier {
                     CollaborationAwarenessPopup(session: session) {
                         showPopup = false
                     }
-                    .presentationDetents([.medium])
+                    .presentationDetents([.medium, .large])
                 }
             }
     }
