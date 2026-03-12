@@ -8,12 +8,11 @@ struct JournalView: View {
     @State private var viewModel = JournalViewModel()
     @State private var showingEditor = false
     @State private var showingDatePicker = false
-    @State private var entryToDelete: JournalEntryResponse?
-    @State private var showDeleteConfirmation = false
     @State private var searchText = ""
     @State private var debouncedSearchText = ""
     @State private var searchDebounceTask: Task<Void, Never>?
     @State private var deleteHapticTrigger = 0
+    @State private var showCopiedToast = false
 
     private var currentUserId: String { AuthManager.shared.currentUser?.id ?? "" }
 
@@ -118,20 +117,8 @@ struct JournalView: View {
         .sheet(isPresented: $showingEditor) {
             JournalEntryEditorView(sessionId: sessionId, viewModel: viewModel)
         }
+        .toast("Copied", icon: "doc.on.doc", isPresented: $showCopiedToast)
         .sensoryFeedback(.impact(flexibility: .rigid), trigger: deleteHapticTrigger)
-        .confirmationDialog("Delete Entry", isPresented: $showDeleteConfirmation, titleVisibility: .visible) {
-            Button("Delete", role: .destructive) {
-                if let entry = entryToDelete {
-                    deleteHapticTrigger += 1
-                    Task {
-                        await viewModel.deleteEntry(sessionId: sessionId, entryId: entry.id)
-                    }
-                }
-            }
-            Button("Cancel", role: .cancel) {}
-        } message: {
-            Text("Are you sure you want to delete this journal entry? This cannot be undone.")
-        }
         .overlay(alignment: .top) {
             if let error = viewModel.errorMessage {
                 ErrorBannerView(message: error) {
@@ -237,37 +224,19 @@ struct JournalView: View {
                 ForEach(displayGroups, id: \.date) { group in
                     Section {
                         ForEach(group.entries) { entry in
-                            NavigationLink {
-                                JournalEntryDetailView(
-                                    entry: entry,
-                                    sessionId: sessionId,
-                                    viewModel: viewModel
-                                )
-                            } label: {
-                                JournalEntryRow(entry: entry, currentUserId: currentUserId)
-                            }
-                            .buttonStyle(.plain)
-                            .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                                Button(role: .destructive) {
-                                    entryToDelete = entry
-                                    showDeleteConfirmation = true
-                                } label: {
-                                    Label("Delete", systemImage: "trash")
+                            JournalListRow(
+                                entry: entry,
+                                sessionId: sessionId,
+                                viewModel: viewModel,
+                                currentUserId: currentUserId,
+                                onCopy: { showCopiedToast = true },
+                                onDelete: {
+                                    deleteHapticTrigger += 1
+                                    Task {
+                                        await viewModel.deleteEntry(sessionId: sessionId, entryId: entry.id)
+                                    }
                                 }
-                            }
-                            .contextMenu {
-                                Button {
-                                    UIPasteboard.general.string = entry.content
-                                } label: {
-                                    Label("Copy Content", systemImage: "doc.on.doc")
-                                }
-                                Button(role: .destructive) {
-                                    entryToDelete = entry
-                                    showDeleteConfirmation = true
-                                } label: {
-                                    Label("Delete", systemImage: "trash")
-                                }
-                            }
+                            )
                         }
                     } header: {
                         dateHeader(dateString: group.date, count: group.entries.count)
@@ -402,9 +371,71 @@ struct JournalView: View {
 
 // MARK: - Entry Row
 
+/// Wrapper that owns the delete-confirmation state so the dialog anchors to this row.
+private struct JournalListRow: View {
+    let entry: JournalEntryResponse
+    let sessionId: String
+    let viewModel: JournalViewModel
+    let currentUserId: String
+    var onCopy: (() -> Void)?
+    var onDelete: (() -> Void)?
+
+    @State private var showDeleteConfirmation = false
+
+    var body: some View {
+        NavigationLink {
+            JournalEntryDetailView(
+                entry: entry,
+                sessionId: sessionId,
+                viewModel: viewModel
+            )
+        } label: {
+            JournalEntryRow(
+                entry: entry,
+                currentUserId: currentUserId,
+                onCopy: {
+                    UIPasteboard.general.string = entry.content
+                    onCopy?()
+                },
+                onDelete: { showDeleteConfirmation = true }
+            )
+        }
+        .buttonStyle(.plain)
+        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+            Button {
+                showDeleteConfirmation = true
+            } label: {
+                Label("Delete", systemImage: "trash")
+            }
+            .tint(.red)
+        }
+        .contextMenu {
+            Button {
+                UIPasteboard.general.string = entry.content
+                onCopy?()
+            } label: {
+                Label("Copy Content", systemImage: "doc.on.doc")
+            }
+            Button(role: .destructive) {
+                showDeleteConfirmation = true
+            } label: {
+                Label("Delete", systemImage: "trash")
+            }
+        }
+        .confirmationDialog("Delete Entry", isPresented: $showDeleteConfirmation, titleVisibility: .visible) {
+            Button("Delete", role: .destructive) { onDelete?() }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Are you sure you want to delete this journal entry? This cannot be undone.")
+        }
+    }
+}
+
 private struct JournalEntryRow: View {
     let entry: JournalEntryResponse
     let currentUserId: String
+    var onCopy: (() -> Void)?
+    var onDelete: (() -> Void)?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -460,6 +491,23 @@ private struct JournalEntryRow: View {
                     }
 
                     Spacer()
+
+                    // Action buttons
+                    HStack(spacing: 12) {
+                        Button { onCopy?() } label: {
+                            Image(systemName: "doc.on.doc")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        .accessibilityLabel("Copy content")
+
+                        Button { onDelete?() } label: {
+                            Image(systemName: "trash")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        .accessibilityLabel("Delete entry")
+                    }
 
                     // Timestamp
                     Text(entry.createdAt.timeString)

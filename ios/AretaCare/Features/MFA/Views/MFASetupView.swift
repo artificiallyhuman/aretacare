@@ -8,8 +8,6 @@ struct MFASetupView: View {
     @State private var totpCode = ""
     @State private var showingTOTPSetup = false
     @State private var showingBackupCodes = false
-    @State private var showingDeletePasskeyConfirm = false
-    @State private var passkeyToDelete: PasskeyInfo?
     @State private var showingPasskeySetup = false
 
     var body: some View {
@@ -101,29 +99,7 @@ struct MFASetupView: View {
                         .font(.subheadline)
                 } else {
                     ForEach(viewModel.passkeys) { passkey in
-                        HStack {
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(passkey.deviceName)
-                                    .font(.subheadline.weight(.medium))
-                                Text("Added \(passkey.createdAt)")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                                if let lastUsed = passkey.lastUsedAt {
-                                    Text("Last used \(lastUsed)")
-                                        .font(.caption)
-                                        .foregroundStyle(.tertiary)
-                                }
-                            }
-                            Spacer()
-                        }
-                        .swipeActions {
-                            Button(role: .destructive) {
-                                passkeyToDelete = passkey
-                                showingDeletePasskeyConfirm = true
-                            } label: {
-                                Label("Delete", systemImage: "trash")
-                            }
-                        }
+                        PasskeyRow(passkey: passkey, viewModel: viewModel)
                     }
                 }
 
@@ -169,25 +145,7 @@ struct MFASetupView: View {
                         .font(.subheadline)
                 } else {
                     ForEach(viewModel.trustedDevices) { device in
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(device.deviceName ?? "Unknown Device")
-                                .font(.subheadline.weight(.medium))
-                            if let ip = device.ipAddress {
-                                Text("IP: \(ip)")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
-                            Text("Expires: \(device.trustedUntil)")
-                                .font(.caption)
-                                .foregroundStyle(.tertiary)
-                        }
-                        .swipeActions {
-                            Button(role: .destructive) {
-                                Task { await viewModel.revokeTrustedDevice(id: device.id) }
-                            } label: {
-                                Label("Revoke", systemImage: "xmark.circle")
-                            }
-                        }
+                        TrustedDeviceRow(device: device, viewModel: viewModel)
                     }
 
                     if viewModel.trustedDevices.count > 1 {
@@ -217,16 +175,6 @@ struct MFASetupView: View {
         } message: {
             Text("Enter your password to disable multi-factor authentication.")
         }
-        // Delete passkey
-        .confirmationDialog("Delete Passkey", isPresented: $showingDeletePasskeyConfirm, titleVisibility: .visible) {
-            Button("Delete", role: .destructive) {
-                if let passkey = passkeyToDelete {
-                    Task { await viewModel.deletePasskey(id: passkey.id) }
-                }
-            }
-        } message: {
-            Text("Remove \"\(passkeyToDelete?.deviceName ?? "")\" passkey? You cannot undo this.")
-        }
         // TOTP Setup sheet
         .sheet(isPresented: $showingTOTPSetup) {
             NavigationStack {
@@ -250,6 +198,108 @@ struct MFASetupView: View {
             await viewModel.listPasskeys()
             await viewModel.listTrustedDevices()
             await viewModel.fetchBackupCodesCount()
+        }
+    }
+}
+
+// MARK: - Passkey Row
+
+private struct PasskeyRow: View {
+    let passkey: PasskeyInfo
+    let viewModel: MFAViewModel
+
+    @State private var showDeleteConfirmation = false
+
+    var body: some View {
+        HStack {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(passkey.deviceName)
+                    .font(.subheadline.weight(.medium))
+                Text("Added \(passkey.createdAt)")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                if let lastUsed = passkey.lastUsedAt {
+                    Text("Last used \(lastUsed)")
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
+                }
+            }
+            Spacer()
+            Button {
+                showDeleteConfirmation = true
+            } label: {
+                Image(systemName: "trash")
+                    .font(.caption)
+                    .foregroundStyle(.red)
+            }
+            .accessibilityLabel("Delete passkey")
+        }
+        .swipeActions {
+            Button {
+                showDeleteConfirmation = true
+            } label: {
+                Label("Delete", systemImage: "trash")
+            }
+            .tint(.red)
+        }
+        .confirmationDialog("Delete Passkey", isPresented: $showDeleteConfirmation, titleVisibility: .visible) {
+            Button("Delete", role: .destructive) {
+                Task { await viewModel.deletePasskey(id: passkey.id) }
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Remove \"\(passkey.deviceName)\" passkey? You cannot undo this.")
+        }
+    }
+}
+
+// MARK: - Trusted Device Row
+
+private struct TrustedDeviceRow: View {
+    let device: TrustedDeviceInfo
+    let viewModel: MFAViewModel
+
+    @State private var showRevokeConfirmation = false
+
+    var body: some View {
+        HStack {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(device.deviceName ?? "Unknown Device")
+                    .font(.subheadline.weight(.medium))
+                if let ip = device.ipAddress {
+                    Text("IP: \(ip)")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                Text("Expires: \(device.trustedUntil)")
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
+            }
+            Spacer()
+            Button {
+                showRevokeConfirmation = true
+            } label: {
+                Image(systemName: "xmark.circle")
+                    .font(.caption)
+                    .foregroundStyle(.red)
+            }
+            .accessibilityLabel("Revoke device")
+        }
+        .swipeActions {
+            Button {
+                showRevokeConfirmation = true
+            } label: {
+                Label("Revoke", systemImage: "xmark.circle")
+            }
+            .tint(.red)
+        }
+        .confirmationDialog("Revoke Trusted Device", isPresented: $showRevokeConfirmation, titleVisibility: .visible) {
+            Button("Revoke", role: .destructive) {
+                Task { await viewModel.revokeTrustedDevice(id: device.id) }
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Revoke \"\(device.deviceName ?? "this device")\"? You will need to verify MFA again on this device.")
         }
     }
 }

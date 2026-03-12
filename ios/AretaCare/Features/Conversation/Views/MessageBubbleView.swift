@@ -12,6 +12,7 @@ struct MessageBubbleView: View {
 
     @Environment(\.horizontalSizeClass) private var sizeClass
     @State private var showTimestamp = false
+    @State private var showResetConfirmation = false
     @State private var audioPlayer: AVPlayer?
     @State private var isPlayingAudio = false
     @State private var playbackObserver: NSObjectProtocol?
@@ -34,11 +35,24 @@ struct MessageBubbleView: View {
                         failedIndicator
                     }
 
-                    bubbleContent
-                        .padding(.horizontal, 14)
-                        .padding(.vertical, 10)
-                        .background(failedOrNormalBackground)
-                        .clipShape(RoundedRectangle(cornerRadius: 18))
+                    VStack(alignment: .trailing, spacing: 0) {
+                        bubbleContent
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 10)
+
+                        if shouldShowActionButtons {
+                            Divider()
+                                .overlay(isUser ? Color.white.opacity(0.2) : Color.clear)
+                                .opacity(isUser ? 1 : 0.3)
+                                .padding(.horizontal, 8)
+
+                            actionButtons
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 6)
+                        }
+                    }
+                    .background(failedOrNormalBackground)
+                    .clipShape(RoundedRectangle(cornerRadius: 18))
                 }
 
                 if isFailed {
@@ -90,7 +104,7 @@ struct MessageBubbleView: View {
                 }
 
                 Button(role: .destructive) {
-                    onReset?(message)
+                    showResetConfirmation = true
                 } label: {
                     Label("Reset from Here", systemImage: "arrow.uturn.backward")
                 }
@@ -104,6 +118,58 @@ struct MessageBubbleView: View {
             if !isUser { Spacer(minLength: spacerMinLength) }
         }
         .padding(.horizontal, 12)
+    }
+
+    // MARK: - Action Buttons
+
+    private var shouldShowActionButtons: Bool {
+        !isFailed && message.id > 0
+    }
+
+    @ViewBuilder
+    private var actionButtons: some View {
+        if shouldShowActionButtons {
+            HStack(spacing: 12) {
+                actionButton(icon: "doc.on.doc", label: "Copy") {
+                    copyFormatted(message.content)
+                    onCopy?(message.content)
+                }
+
+                if isUser {
+                    actionButton(icon: "pencil", label: "Edit") {
+                        onEdit?(message)
+                    }
+                }
+
+                Button {
+                    showResetConfirmation = true
+                } label: {
+                    Image(systemName: "arrow.uturn.backward")
+                        .font(.caption)
+                        .foregroundStyle(isUser ? .white.opacity(0.6) : .secondary)
+                }
+                .accessibilityLabel("Reset from here")
+                .confirmationDialog("Reset Conversation", isPresented: $showResetConfirmation, titleVisibility: .visible) {
+                    Button("Reset", role: .destructive) {
+                        onReset?(message)
+                    }
+                    Button("Cancel", role: .cancel) {}
+                } message: {
+                    Text("All messages after this point will be permanently deleted. This cannot be undone.")
+                }
+            }
+        }
+    }
+
+    private func actionButton(icon: String, label: String, action: @escaping () -> Void) -> some View {
+        Button {
+            action()
+        } label: {
+            Image(systemName: icon)
+                .font(.caption)
+                .foregroundStyle(isUser ? .white.opacity(0.6) : .secondary)
+        }
+        .accessibilityLabel(label)
     }
 
     // MARK: - Bubble Content

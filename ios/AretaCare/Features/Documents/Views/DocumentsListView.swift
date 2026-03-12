@@ -27,6 +27,7 @@ struct DocumentsListView: View {
     @State private var batchResultMessage = ""
     @State private var shareDocumentUrl: URL?
     @State private var showingDocumentShareSheet = false
+    @State private var showCopiedToast = false
 
     private let currentUserId = AuthManager.shared.currentUser?.id ?? ""
 
@@ -194,6 +195,7 @@ struct DocumentsListView: View {
             }
         }
         .toast(batchResultMessage, icon: "checkmark", isPresented: $showBatchResultToast)
+        .toast("Copied", icon: "doc.on.doc", isPresented: $showCopiedToast)
         .alert("File Too Large", isPresented: $showFileSizeAlert) {
             Button("OK", role: .cancel) { oversizedFilenames = [] }
         } message: {
@@ -282,48 +284,18 @@ struct DocumentsListView: View {
                         .listRowSeparator(.hidden)
                     } else {
                         ForEach(filteredDocuments) { document in
-                            NavigationLink(destination: DocumentDetailView(document: document, viewModel: viewModel)) {
-                                DocumentRowView(
-                                    document: document,
-                                    currentUserId: currentUserId,
-                                    previewUrl: viewModel.previewUrls[document.id]
-                                )
-                            }
-                            .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                                Button(role: .destructive) {
+                            DocumentListRow(
+                                document: document,
+                                viewModel: viewModel,
+                                currentUserId: currentUserId,
+                                sessionId: sessionId,
+                                onCopy: { showCopiedToast = true },
+                                onShare: { shareDocument(document) },
+                                onDelete: {
                                     deleteHapticTrigger += 1
                                     Task { await viewModel.deleteDocument(id: document.id, sessionId: sessionId) }
-                                } label: {
-                                    Label("Delete", systemImage: "trash")
                                 }
-                                .disabled(viewModel.isLoading)
-                            }
-                            .swipeActions(edge: .leading) {
-                                Button {
-                                    shareDocument(document)
-                                } label: {
-                                    Label("Share", systemImage: "square.and.arrow.up")
-                                }
-                                .tint(.blue)
-                            }
-                            .contextMenu {
-                                Button {
-                                    UIPasteboard.general.string = document.filename
-                                } label: {
-                                    Label("Copy Name", systemImage: "doc.on.doc")
-                                }
-                                Button {
-                                    shareDocument(document)
-                                } label: {
-                                    Label("Share", systemImage: "square.and.arrow.up")
-                                }
-                                Button(role: .destructive) {
-                                    deleteHapticTrigger += 1
-                                    Task { await viewModel.deleteDocument(id: document.id, sessionId: sessionId) }
-                                } label: {
-                                    Label("Delete", systemImage: "trash")
-                                }
-                            }
+                            )
                             .onAppear {
                                 Task { await viewModel.fetchPreviewUrl(for: document) }
                                 if document.id == viewModel.documents.last?.id {
@@ -503,10 +475,79 @@ struct DocumentsListView: View {
 
 // MARK: - Supporting Views
 
+/// Wrapper that owns the delete-confirmation state so the dialog anchors to this row.
+private struct DocumentListRow: View {
+    let document: DocumentResponse
+    let viewModel: DocumentsViewModel
+    let currentUserId: String
+    let sessionId: String
+    var onCopy: (() -> Void)?
+    var onShare: (() -> Void)?
+    var onDelete: (() -> Void)?
+
+    @State private var showDeleteConfirmation = false
+
+    var body: some View {
+        NavigationLink(destination: DocumentDetailView(document: document, viewModel: viewModel)) {
+            DocumentRowView(
+                document: document,
+                currentUserId: currentUserId,
+                previewUrl: viewModel.previewUrls[document.id],
+                onCopyName: {
+                    UIPasteboard.general.string = document.filename
+                    onCopy?()
+                },
+                onShare: { onShare?() },
+                onDelete: { showDeleteConfirmation = true }
+            )
+        }
+        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+            Button {
+                showDeleteConfirmation = true
+            } label: {
+                Label("Delete", systemImage: "trash")
+            }
+            .tint(.red)
+            .disabled(viewModel.isLoading)
+        }
+        .swipeActions(edge: .leading) {
+            Button { onShare?() } label: {
+                Label("Share", systemImage: "square.and.arrow.up")
+            }
+            .tint(.blue)
+        }
+        .contextMenu {
+            Button {
+                UIPasteboard.general.string = document.filename
+                onCopy?()
+            } label: {
+                Label("Copy Name", systemImage: "doc.on.doc")
+            }
+            Button { onShare?() } label: {
+                Label("Share", systemImage: "square.and.arrow.up")
+            }
+            Button(role: .destructive) {
+                showDeleteConfirmation = true
+            } label: {
+                Label("Delete", systemImage: "trash")
+            }
+        }
+        .confirmationDialog("Delete Document", isPresented: $showDeleteConfirmation, titleVisibility: .visible) {
+            Button("Delete", role: .destructive) { onDelete?() }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Are you sure you want to delete \"\(document.filename)\"? This cannot be undone.")
+        }
+    }
+}
+
 private struct DocumentRowView: View {
     let document: DocumentResponse
     let currentUserId: String
     let previewUrl: URL?
+    var onCopyName: (() -> Void)?
+    var onShare: (() -> Void)?
+    var onDelete: (() -> Void)?
 
     var body: some View {
         HStack(spacing: 12) {
@@ -572,6 +613,25 @@ private struct DocumentRowView: View {
 
             if let sourceTag = document.lastEditedBy ?? document.uploadedBy {
                 SourceTagView(sourceTag: sourceTag, currentUserId: currentUserId)
+            }
+
+            Menu {
+                Button { onCopyName?() } label: {
+                    Label("Copy Name", systemImage: "doc.on.doc")
+                }
+                Button { onShare?() } label: {
+                    Label("Share", systemImage: "square.and.arrow.up")
+                }
+                Divider()
+                Button(role: .destructive) { onDelete?() } label: {
+                    Label("Delete", systemImage: "trash")
+                }
+            } label: {
+                Image(systemName: "ellipsis")
+                    .font(.body)
+                    .foregroundStyle(.secondary)
+                    .frame(width: 28, height: 28)
+                    .contentShape(Rectangle())
             }
         }
         .padding(.vertical, 4)

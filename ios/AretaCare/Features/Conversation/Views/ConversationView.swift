@@ -11,13 +11,9 @@ struct ConversationView: View {
 
     @State private var messageText = ""
     @State private var showingSessionSwitcher = false
-    @State private var showScrollToBottomButton = false
-    @State private var messageCountWhenScrolledAway = 0
+    @State private var isNearBottom = true
     @State private var editingMessage: MessageResponse?
     @State private var editText = ""
-    @State private var showResetConfirmation = false
-    @State private var resetMessage: MessageResponse?
-
     // Haptic feedback
     @State private var showCopiedToast = false
     @State private var copyHapticTrigger = 0
@@ -86,21 +82,6 @@ struct ConversationView: View {
                 handlePhotoSelection: handlePhotoSelection,
                 handleFileImport: handleFileImport
             ))
-            .confirmationDialog("Reset Conversation", isPresented: $showResetConfirmation, titleVisibility: .visible) {
-                Button("Reset", role: .destructive) {
-                    if let msg = resetMessage, let sessionId = currentSessionId {
-                        resetHapticTrigger += 1
-                        Task {
-                            await conversationVM.resetConversation(messageId: msg.id, sessionId: sessionId)
-                        }
-                    }
-                }
-                Button("Cancel", role: .cancel) {
-                    resetMessage = nil
-                }
-            } message: {
-                Text("All messages after this point will be permanently deleted. This cannot be undone.")
-            }
             .task {
                 if let sessionId = currentSessionId {
                     await conversationVM.fetchHistory(sessionId: sessionId)
@@ -109,7 +90,7 @@ struct ConversationView: View {
             .onChange(of: sessionVM.currentSession?.id) { _, newId in
                 guard let newId else { return }
                 conversationVM.clearMessages()
-                showScrollToBottomButton = false
+                isNearBottom = true
                 Task {
                     await conversationVM.fetchHistory(sessionId: newId)
                 }
@@ -319,8 +300,11 @@ struct ConversationView: View {
                                             copyHapticTrigger += 1
                                         },
                                         onReset: { msg in
-                                            resetMessage = msg
-                                            showResetConfirmation = true
+                                            resetHapticTrigger += 1
+                                            guard let sessionId = currentSessionId else { return }
+                                            Task {
+                                                await conversationVM.resetConversation(messageId: msg.id, sessionId: sessionId)
+                                            }
                                         },
                                         onRetry: { msg in
                                             guard let sessionId = currentSessionId else { return }
@@ -364,14 +348,10 @@ struct ConversationView: View {
                         // Bottom anchor
                         Color.clear.frame(height: 1)
                             .id("bottom")
-                            .onAppear {
-                                showScrollToBottomButton = false
-                                messageCountWhenScrolledAway = 0
-                            }
+                            .onAppear { isNearBottom = true }
                             .onDisappear {
                                 guard !conversationVM.messages.isEmpty else { return }
-                                showScrollToBottomButton = true
-                                messageCountWhenScrolledAway = conversationVM.messages.count
+                                isNearBottom = false
                             }
                     }
                     .padding(.vertical, 8)
@@ -380,53 +360,18 @@ struct ConversationView: View {
                 .scrollDismissesKeyboard(.immediately)
                 // Scroll to bottom when a new message arrives (last message ID changes)
                 .onChange(of: conversationVM.messages.last?.id) { _, newId in
-                    guard newId != nil, !showScrollToBottomButton else { return }
+                    guard newId != nil, isNearBottom else { return }
                     withAnimation(.easeOut(duration: 0.2)) {
                         proxy.scrollTo("bottom", anchor: .bottom)
                     }
                 }
                 // Scroll to bottom when AI starts responding (typing indicator)
                 .onChange(of: conversationVM.isSending) { _, isSending in
-                    if isSending && !showScrollToBottomButton {
+                    if isSending && isNearBottom {
                         withAnimation(.easeOut(duration: 0.2)) {
                             proxy.scrollTo("bottom", anchor: .bottom)
                         }
                     }
-                }
-                .overlay(alignment: .bottomTrailing) {
-                    Group {
-                        if showScrollToBottomButton {
-                            let newMessageCount = max(conversationVM.messages.count - messageCountWhenScrolledAway, 0)
-
-                            Button {
-                                withAnimation(.easeOut(duration: 0.2)) {
-                                    proxy.scrollTo("bottom", anchor: .bottom)
-                                }
-                            } label: {
-                                Image(systemName: "arrow.down")
-                                    .font(.body.weight(.semibold))
-                                    .foregroundStyle(.white)
-                                    .frame(width: 36, height: 36)
-                                    .background(Circle().fill(Color.accentColor))
-                                    .shadow(color: .black.opacity(0.15), radius: 6, y: 3)
-                                    .overlay(alignment: .topTrailing) {
-                                        if newMessageCount > 0 {
-                                            Text("\(newMessageCount)")
-                                                .font(.caption2.weight(.bold))
-                                                .foregroundStyle(.white)
-                                                .frame(minWidth: 18, minHeight: 18)
-                                                .background(Circle().fill(.red))
-                                                .offset(x: 6, y: -6)
-                                        }
-                                    }
-                            }
-                            .accessibilityLabel("Scroll to latest message\(newMessageCount > 0 ? ", \(newMessageCount) new" : "")")
-                            .padding(.trailing, 12)
-                            .padding(.bottom, 8)
-                            .transition(.scale.combined(with: .opacity))
-                        }
-                    }
-                    .animation(.spring(duration: 0.3), value: showScrollToBottomButton)
                 }
             }
         }
@@ -439,8 +384,7 @@ struct ConversationView: View {
         let attachment = pendingAttachment
         pendingAttachment = nil
         sendHapticTrigger += 1
-        showScrollToBottomButton = false
-        messageCountWhenScrolledAway = 0
+        isNearBottom = true
         // Clear text on next run loop — by then MessageInputView.performSend()
         // has dismissed focus, so the TextField binding syncs correctly.
         Task { @MainActor in

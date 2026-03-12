@@ -6,10 +6,6 @@ struct CollaborationView: View {
     @State private var viewModel = CollaborationViewModel()
     @State private var email = ""
     @State private var sharingConsent = false
-    @State private var showingRevokeConfirm = false
-    @State private var revokeTarget: CollaboratorInfo?
-    @State private var showingTransferConfirm = false
-    @State private var transferTarget: CollaboratorInfo?
     @State private var showingLeaveConfirm = false
     @State private var shareHapticTrigger = 0
     @State private var showingInviteConfirm = false
@@ -43,25 +39,12 @@ struct CollaborationView: View {
                         .foregroundStyle(.secondary)
                 } else {
                     ForEach(viewModel.collaborators) { collaborator in
-                        CollaboratorRow(collaborator: collaborator)
-                            .swipeActions(edge: .trailing) {
-                                if isOwner {
-                                    Button(role: .destructive) {
-                                        revokeTarget = collaborator
-                                        showingRevokeConfirm = true
-                                    } label: {
-                                        Label("Revoke", systemImage: "person.badge.minus")
-                                    }
-
-                                    Button {
-                                        transferTarget = collaborator
-                                        showingTransferConfirm = true
-                                    } label: {
-                                        Label("Transfer", systemImage: "arrow.right.arrow.left")
-                                    }
-                                    .tint(.orange)
-                                }
-                            }
+                        CollaboratorRow(
+                            collaborator: collaborator,
+                            isOwner: isOwner,
+                            session: session,
+                            viewModel: viewModel
+                        )
                     }
                 }
             }
@@ -156,24 +139,6 @@ struct CollaborationView: View {
         }
         .listStyle(.insetGrouped)
         .navigationTitle("Collaboration")
-        .confirmationDialog("Revoke Access", isPresented: $showingRevokeConfirm, titleVisibility: .visible) {
-            Button("Revoke", role: .destructive) {
-                if let target = revokeTarget {
-                    Task { await viewModel.revokeAccess(sessionId: session.id, userId: target.userId) }
-                }
-            }
-        } message: {
-            Text("Remove \(revokeTarget?.name ?? "this collaborator") from the session? They will lose access to all session data.")
-        }
-        .confirmationDialog("Transfer Ownership", isPresented: $showingTransferConfirm, titleVisibility: .visible) {
-            Button("Transfer") {
-                if let target = transferTarget {
-                    Task { await viewModel.transferOwnership(sessionId: session.id, userId: target.userId) }
-                }
-            }
-        } message: {
-            Text("Transfer ownership to \(transferTarget?.name ?? "this person")? You will become a collaborator.")
-        }
         .confirmationDialog("Leave Session", isPresented: $showingLeaveConfirm, titleVisibility: .visible) {
             Button("Leave", role: .destructive) {
                 Task {
@@ -232,6 +197,12 @@ struct CollaborationView: View {
 
 private struct CollaboratorRow: View {
     let collaborator: CollaboratorInfo
+    var isOwner: Bool = false
+    let session: SessionResponse
+    let viewModel: CollaborationViewModel
+
+    @State private var showingRevokeConfirm = false
+    @State private var showingTransferConfirm = false
 
     var body: some View {
         HStack(spacing: 12) {
@@ -249,11 +220,59 @@ private struct CollaboratorRow: View {
 
             Spacer()
 
-            Text("Joined \(collaborator.addedAt.shortDateString)")
-                .font(.caption2)
-                .foregroundStyle(.tertiary)
+            if isOwner {
+                Menu {
+                    Button { showingTransferConfirm = true } label: {
+                        Label("Transfer Ownership", systemImage: "arrow.right.arrow.left")
+                    }
+                    Divider()
+                    Button(role: .destructive) { showingRevokeConfirm = true } label: {
+                        Label("Revoke Access", systemImage: "person.badge.minus")
+                    }
+                } label: {
+                    Image(systemName: "ellipsis")
+                        .font(.body)
+                        .foregroundStyle(.secondary)
+                        .frame(width: 28, height: 28)
+                        .contentShape(Rectangle())
+                }
+            } else {
+                Text("Joined \(collaborator.addedAt.shortDateString)")
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
+            }
         }
         .padding(.vertical, 2)
+        .swipeActions(edge: .trailing) {
+            if isOwner {
+                Button {
+                    showingRevokeConfirm = true
+                } label: {
+                    Label("Revoke", systemImage: "person.badge.minus")
+                }
+                .tint(.red)
+                Button {
+                    showingTransferConfirm = true
+                } label: {
+                    Label("Transfer", systemImage: "arrow.right.arrow.left")
+                }
+                .tint(.orange)
+            }
+        }
+        .confirmationDialog("Revoke Access", isPresented: $showingRevokeConfirm, titleVisibility: .visible) {
+            Button("Revoke", role: .destructive) {
+                Task { await viewModel.revokeAccess(sessionId: session.id, userId: collaborator.userId) }
+            }
+        } message: {
+            Text("Remove \(collaborator.name) from the session? They will lose access to all session data.")
+        }
+        .confirmationDialog("Transfer Ownership", isPresented: $showingTransferConfirm, titleVisibility: .visible) {
+            Button("Transfer") {
+                Task { await viewModel.transferOwnership(sessionId: session.id, userId: collaborator.userId) }
+            }
+        } message: {
+            Text("Transfer ownership to \(collaborator.name)? You will become a collaborator.")
+        }
     }
 }
 
