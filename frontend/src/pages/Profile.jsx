@@ -382,7 +382,39 @@ const Profile = () => {
   // Handle edit mode for a specific section
   const handleEditSection = (section) => {
     setEditingSection(section);
-    setEditedData(JSON.parse(JSON.stringify(profile?.profile_data || {})));
+    const data = JSON.parse(JSON.stringify(profile?.profile_data || {}));
+
+    // Sort lists to match display order
+    if (data.conditions) {
+      const statusOrder = { active: 0, monitoring: 1, resolved: 2 };
+      data.conditions.sort((a, b) => {
+        const sA = statusOrder[a.status] ?? 1;
+        const sB = statusOrder[b.status] ?? 1;
+        if (sA !== sB) return sA - sB;
+        const dA = a.diagnosis_date ? new Date(a.diagnosis_date) : new Date(0);
+        const dB = b.diagnosis_date ? new Date(b.diagnosis_date) : new Date(0);
+        return dB - dA;
+      });
+    }
+    if (data.medications) {
+      const catOrder = Object.fromEntries(MEDICATION_CATEGORY_ORDER.map((k, i) => [k, i]));
+      const statusOrder = { active: 0, paused: 1, discontinued: 2 };
+      data.medications.sort((a, b) => {
+        const cA = catOrder[a.category || 'other'] ?? 99;
+        const cB = catOrder[b.category || 'other'] ?? 99;
+        if (cA !== cB) return cA - cB;
+        return (statusOrder[a.status] ?? 0) - (statusOrder[b.status] ?? 0);
+      });
+    }
+    if (data.events) {
+      data.events.sort((a, b) => {
+        const dA = a.date ? new Date(a.date) : new Date(0);
+        const dB = b.date ? new Date(b.date) : new Date(0);
+        return dB - dA;
+      });
+    }
+
+    setEditedData(data);
   };
 
   const handleCancelEdit = () => {

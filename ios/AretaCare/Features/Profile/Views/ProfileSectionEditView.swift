@@ -84,10 +84,36 @@ struct ProfileSectionEditView: View {
         }
         caregivers = profileData.caregivers ?? []
         providers = profileData.providers ?? []
-        conditions = profileData.conditions ?? []
-        medications = profileData.medications ?? []
+
+        // Sort to match display order in ProfileView
+        let statusOrder = ["active": 0, "monitoring": 1, "resolved": 2]
+        conditions = (profileData.conditions ?? []).sorted { (a: ConditionInfo, b: ConditionInfo) in
+            let statA = statusOrder[(a.status ?? "").lowercased()] ?? 1
+            let statB = statusOrder[(b.status ?? "").lowercased()] ?? 1
+            if statA != statB { return statA < statB }
+            return (a.diagnosisDate ?? "") > (b.diagnosisDate ?? "")
+        }
+
+        let categoryOrder: [String: Int] = [
+            "multiple": 0, "pain_management": 1, "cardiovascular": 2, "diabetes": 3,
+            "mental_health": 4, "antibiotics": 5, "respiratory": 6, "gastrointestinal": 7,
+            "neurological": 8, "endocrine": 9, "oncology": 10, "immunosuppressant": 11,
+            "vitamins_supplements": 12, "other": 13
+        ]
+        let medStatusOrder = ["active": 0, "paused": 1, "discontinued": 2]
+        medications = (profileData.medications ?? []).sorted { (a: MedicationInfo, b: MedicationInfo) in
+            let catA = categoryOrder[(a.category ?? "other").lowercased()] ?? 13
+            let catB = categoryOrder[(b.category ?? "other").lowercased()] ?? 13
+            if catA != catB { return catA < catB }
+            let statA = medStatusOrder[(a.status ?? "active").lowercased()] ?? 0
+            let statB = medStatusOrder[(b.status ?? "active").lowercased()] ?? 0
+            return statA < statB
+        }
+
         allergies = profileData.allergies ?? []
-        events = profileData.events ?? []
+        events = (profileData.events ?? []).sorted { (a: EventInfo, b: EventInfo) in
+            (a.date ?? "") > (b.date ?? "")
+        }
         if let prefs = profileData.preferences {
             emergencyInstructions = prefs.emergencyInstructions ?? ""
             additionalNotes = prefs.additionalNotes ?? ""
