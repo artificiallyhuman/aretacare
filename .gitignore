@@ -115,7 +115,7 @@ alembic/versions/*.pyc
 # =========================
 # iOS / Xcode
 # =========================
-ios/AretaCare.xcodeproj/
+ios/AretaCare.xcodeproj/**/xcuserdata/
 ios/*.xcworkspace/xcuserdata/
 ios/build/
 ios/DerivedData/
