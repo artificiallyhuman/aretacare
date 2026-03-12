@@ -717,61 +717,75 @@ const Profile = () => {
 
   // Helper to update a list item in editedData
   const updateListItem = (section, index, field, value) => {
-    const newData = JSON.parse(JSON.stringify(editedData));
-    if (!newData[section]) newData[section] = [];
-    if (!newData[section][index]) newData[section][index] = {};
-    newData[section][index][field] = value;
-    setEditedData(newData);
+    setEditedData(prev => {
+      const newData = JSON.parse(JSON.stringify(prev));
+      if (!newData[section]) newData[section] = [];
+      if (!newData[section][index]) newData[section][index] = {};
+      newData[section][index][field] = value;
+      return newData;
+    });
   };
 
   // Helper to add a new item to a list
   const addListItem = (section, template) => {
-    const newData = JSON.parse(JSON.stringify(editedData));
-    if (!newData[section]) newData[section] = [];
-    newData[section].push({ ...template, id: `new_${Date.now()}` });
-    setEditedData(newData);
+    setEditedData(prev => {
+      const newData = JSON.parse(JSON.stringify(prev));
+      if (!newData[section]) newData[section] = [];
+      newData[section].push({ ...template, id: `new_${Date.now()}` });
+      return newData;
+    });
   };
 
   // Helper to delete an item from a list
   const deleteListItem = (section, index) => {
-    const newData = JSON.parse(JSON.stringify(editedData));
-    if (newData[section]) {
-      newData[section].splice(index, 1);
-      setEditedData(newData);
-    }
+    setEditedData(prev => {
+      const newData = JSON.parse(JSON.stringify(prev));
+      if (newData[section]) {
+        newData[section].splice(index, 1);
+      }
+      return newData;
+    });
   };
 
   // Helper to update nested preference items
   const updatePreferenceItem = (prefSection, index, field, value) => {
-    const newData = JSON.parse(JSON.stringify(editedData));
-    if (!newData.preferences) newData.preferences = {};
-    if (!newData.preferences[prefSection]) newData.preferences[prefSection] = [];
-    if (!newData.preferences[prefSection][index]) newData.preferences[prefSection][index] = {};
-    newData.preferences[prefSection][index][field] = value;
-    setEditedData(newData);
+    setEditedData(prev => {
+      const newData = JSON.parse(JSON.stringify(prev));
+      if (!newData.preferences) newData.preferences = {};
+      if (!newData.preferences[prefSection]) newData.preferences[prefSection] = [];
+      if (!newData.preferences[prefSection][index]) newData.preferences[prefSection][index] = {};
+      newData.preferences[prefSection][index][field] = value;
+      return newData;
+    });
   };
 
   const addPreferenceItem = (prefSection, template) => {
-    const newData = JSON.parse(JSON.stringify(editedData));
-    if (!newData.preferences) newData.preferences = {};
-    if (!newData.preferences[prefSection]) newData.preferences[prefSection] = [];
-    newData.preferences[prefSection].push({ ...template, id: `new_${Date.now()}` });
-    setEditedData(newData);
+    setEditedData(prev => {
+      const newData = JSON.parse(JSON.stringify(prev));
+      if (!newData.preferences) newData.preferences = {};
+      if (!newData.preferences[prefSection]) newData.preferences[prefSection] = [];
+      newData.preferences[prefSection].push({ ...template, id: `new_${Date.now()}` });
+      return newData;
+    });
   };
 
   const deletePreferenceItem = (prefSection, index) => {
-    const newData = JSON.parse(JSON.stringify(editedData));
-    if (newData.preferences?.[prefSection]) {
-      newData.preferences[prefSection].splice(index, 1);
-      setEditedData(newData);
-    }
+    setEditedData(prev => {
+      const newData = JSON.parse(JSON.stringify(prev));
+      if (newData.preferences?.[prefSection]) {
+        newData.preferences[prefSection].splice(index, 1);
+      }
+      return newData;
+    });
   };
 
   const updatePreferenceField = (field, value) => {
-    const newData = JSON.parse(JSON.stringify(editedData));
-    if (!newData.preferences) newData.preferences = {};
-    newData.preferences[field] = value;
-    setEditedData(newData);
+    setEditedData(prev => {
+      const newData = JSON.parse(JSON.stringify(prev));
+      if (!newData.preferences) newData.preferences = {};
+      newData.preferences[field] = value;
+      return newData;
+    });
   };
 
   // Render section header with expand/collapse, icon, and edit controls

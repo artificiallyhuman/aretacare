@@ -294,7 +294,14 @@ struct ProfileSectionEditView: View {
     private var eventsForm: some View {
         ForEach($events) { $event in
             Section {
-                ProfileEditRow("Type", text: Binding(get: { event.eventType ?? "" }, set: { event.eventType = $0.isEmpty ? nil : $0 }))
+                Picker("Type", selection: Binding(get: { event.eventType ?? "other" }, set: { event.eventType = $0 })) {
+                    Text("Hospitalization").tag("hospitalization")
+                    Text("Surgery").tag("surgery")
+                    Text("ER Visit").tag("er_visit")
+                    Text("Major Diagnosis").tag("major_diagnosis")
+                    Text("Procedure").tag("procedure")
+                    Text("Other").tag("other")
+                }
                 ProfileEditRow("Description", text: Binding(get: { event.description ?? "" }, set: { event.description = $0.isEmpty ? nil : $0 }))
                 ProfileDatePickerRow("Date", dateString: Binding(get: { event.date ?? "" }, set: { event.date = $0.isEmpty ? nil : $0 }))
                 ProfileEditRow("Details", text: Binding(get: { event.details ?? "" }, set: { event.details = $0.isEmpty ? nil : $0 }))
@@ -311,7 +318,7 @@ struct ProfileSectionEditView: View {
         }
         Section {
             ProfileAddItemButton("Add Event") {
-                events.append(EventInfo(id: UUID().uuidString))
+                events.append(EventInfo(id: UUID().uuidString, eventType: "other"))
             }
         }
     }
