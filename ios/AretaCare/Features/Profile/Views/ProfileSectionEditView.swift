@@ -360,36 +360,50 @@ struct ProfileSectionEditView: View {
         }
 
         Section("Communication Preferences") {
-            ForEach($communicationPreferences) { $pref in
-                VStack(alignment: .leading, spacing: 6) {
-                    HStack {
-                        Text(pref.preference ?? "Preference")
-                            .font(.subheadline.weight(.medium))
-                        Spacer()
-                        Button("Remove", role: .destructive) {
-                            communicationPreferences.removeAll { $0.id == pref.id }
-                        }
-                        .font(.caption)
-                    }
-                    ProfileEditRow("Preference", text: Binding(get: { pref.preference ?? "" }, set: { pref.preference = $0.isEmpty ? nil : $0 }))
-                    ProfileEditRow("Category", text: Binding(get: { pref.category ?? "" }, set: { pref.category = $0.isEmpty ? nil : $0 }))
-                    ProfileEditRow("Details", text: Binding(get: { pref.details ?? "" }, set: { pref.details = $0.isEmpty ? nil : $0 }))
-                }
-            }
             ProfileAddItemButton("Add Preference") {
-                communicationPreferences.append(CommunicationPreference(id: UUID().uuidString))
+                communicationPreferences.append(CommunicationPreference(id: UUID().uuidString, category: "medical_discussions"))
+            }
+        }
+        ForEach($communicationPreferences) { $pref in
+            Section {
+                ProfileEditRow("Preference", text: Binding(get: { pref.preference ?? "" }, set: { pref.preference = $0.isEmpty ? nil : $0 }))
+                Picker("Category", selection: Binding(get: { pref.category ?? "medical_discussions" }, set: { pref.category = $0 })) {
+                    Text("Medical Discussions").tag("medical_discussions")
+                    Text("Daily Care").tag("daily_care")
+                    Text("Emotional Support").tag("emotional_support")
+                    Text("Appointments").tag("appointments")
+                    Text("Updates").tag("updates")
+                }
+                ProfileEditRow("Details", text: Binding(get: { pref.details ?? "" }, set: { pref.details = $0.isEmpty ? nil : $0 }))
+            } header: {
+                HStack {
+                    Text(pref.preference ?? "Preference")
+                    Spacer()
+                    Button("Remove", role: .destructive) {
+                        communicationPreferences.removeAll { $0.id == pref.id }
+                    }
+                    .font(.caption)
+                }
             }
         }
 
         Section("Caregiving Guidelines") {
             ProfileAddItemButton("Add Guideline") {
-                caregivingGuidelines.append(CaregivingGuideline(id: UUID().uuidString, importance: "preferred"))
+                caregivingGuidelines.append(CaregivingGuideline(id: UUID().uuidString, category: "daily_routine", importance: "preferred"))
             }
         }
         ForEach($caregivingGuidelines) { $guide in
             Section {
                 ProfileEditRow("Guideline", text: Binding(get: { guide.guideline ?? "" }, set: { guide.guideline = $0.isEmpty ? nil : $0 }))
-                ProfileEditRow("Category", text: Binding(get: { guide.category ?? "" }, set: { guide.category = $0.isEmpty ? nil : $0 }))
+                Picker("Category", selection: Binding(get: { guide.category ?? "daily_routine" }, set: { guide.category = $0 })) {
+                    Text("Daily Routine").tag("daily_routine")
+                    Text("Medical Care").tag("medical_care")
+                    Text("Nutrition").tag("nutrition")
+                    Text("Mobility").tag("mobility")
+                    Text("Safety").tag("safety")
+                    Text("Comfort").tag("comfort")
+                    Text("Sleep").tag("sleep")
+                }
                 Picker("Importance", selection: Binding(get: { guide.importance ?? "preferred" }, set: { guide.importance = $0 })) {
                     Text("Critical").tag("critical")
                     Text("Important").tag("important")
@@ -409,24 +423,32 @@ struct ProfileSectionEditView: View {
         }
 
         Section("Important Context") {
-            ForEach($importantContext) { $ctx in
-                VStack(alignment: .leading, spacing: 6) {
-                    HStack {
-                        Text(ctx.context ?? "Context")
-                            .font(.subheadline.weight(.medium))
-                        Spacer()
-                        Button("Remove", role: .destructive) {
-                            importantContext.removeAll { $0.id == ctx.id }
-                        }
-                        .font(.caption)
-                    }
-                    ProfileEditRow("Context", text: Binding(get: { ctx.context ?? "" }, set: { ctx.context = $0.isEmpty ? nil : $0 }))
-                    ProfileEditRow("Category", text: Binding(get: { ctx.category ?? "" }, set: { ctx.category = $0.isEmpty ? nil : $0 }))
-                    ProfileEditRow("Details", text: Binding(get: { ctx.details ?? "" }, set: { ctx.details = $0.isEmpty ? nil : $0 }))
-                }
-            }
             ProfileAddItemButton("Add Context") {
-                importantContext.append(ImportantContext(id: UUID().uuidString))
+                importantContext.append(ImportantContext(id: UUID().uuidString, category: "personality"))
+            }
+        }
+        ForEach($importantContext) { $ctx in
+            Section {
+                ProfileEditRow("Context", text: Binding(get: { ctx.context ?? "" }, set: { ctx.context = $0.isEmpty ? nil : $0 }))
+                Picker("Category", selection: Binding(get: { ctx.category ?? "personality" }, set: { ctx.category = $0 })) {
+                    Text("Personality").tag("personality")
+                    Text("History").tag("history")
+                    Text("Cultural").tag("cultural")
+                    Text("Religious").tag("religious")
+                    Text("Social").tag("social")
+                    Text("Interests").tag("interests")
+                    Text("Fears").tag("fears")
+                }
+                ProfileEditRow("Details", text: Binding(get: { ctx.details ?? "" }, set: { ctx.details = $0.isEmpty ? nil : $0 }))
+            } header: {
+                HStack {
+                    Text(ctx.context ?? "Context")
+                    Spacer()
+                    Button("Remove", role: .destructive) {
+                        importantContext.removeAll { $0.id == ctx.id }
+                    }
+                    .font(.caption)
+                }
             }
         }
 

@@ -1831,14 +1831,23 @@ const Profile = () => {
                         {(editedData?.preferences?.communication_preferences || []).map((pref, index) => (
                           <div key={pref.id || index} className="relative p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
                             <DeleteItemButton onClick={() => deletePreferenceItem('communication_preferences', index)} />
-                            <div className="grid grid-cols-1 gap-2 pr-6">
-                              <InlineField label="Preference" value={pref.preference} onChange={(v) => updatePreferenceItem('communication_preferences', index, 'preference', v)} />
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-2 pr-6">
+                              <div className="md:col-span-2">
+                                <InlineField label="Preference" value={pref.preference} onChange={(v) => updatePreferenceItem('communication_preferences', index, 'preference', v)} />
+                              </div>
+                              <InlineField label="Category" value={pref.category} onChange={(v) => updatePreferenceItem('communication_preferences', index, 'category', v)} options={[
+                                { value: 'medical_discussions', label: 'Medical Discussions' },
+                                { value: 'daily_care', label: 'Daily Care' },
+                                { value: 'emotional_support', label: 'Emotional Support' },
+                                { value: 'appointments', label: 'Appointments' },
+                                { value: 'updates', label: 'Updates' }
+                              ]} />
                               <InlineField label="Details" value={pref.details} onChange={(v) => updatePreferenceItem('communication_preferences', index, 'details', v)} />
                             </div>
                           </div>
                         ))}
                       </div>
-                      <AddItemButton onClick={() => addPreferenceItem('communication_preferences', { preference: '', details: '' })} label="Add preference" />
+                      <AddItemButton onClick={() => addPreferenceItem('communication_preferences', { preference: '', category: 'medical_discussions', details: '' })} label="Add preference" />
                     </div>
 
                     {/* Caregiving Guidelines */}
@@ -1852,6 +1861,15 @@ const Profile = () => {
                               <div className="md:col-span-2">
                                 <InlineField label="Guideline" value={guide.guideline} onChange={(v) => updatePreferenceItem('caregiving_guidelines', index, 'guideline', v)} />
                               </div>
+                              <InlineField label="Category" value={guide.category} onChange={(v) => updatePreferenceItem('caregiving_guidelines', index, 'category', v)} options={[
+                                { value: 'daily_routine', label: 'Daily Routine' },
+                                { value: 'medical_care', label: 'Medical Care' },
+                                { value: 'nutrition', label: 'Nutrition' },
+                                { value: 'mobility', label: 'Mobility' },
+                                { value: 'safety', label: 'Safety' },
+                                { value: 'comfort', label: 'Comfort' },
+                                { value: 'sleep', label: 'Sleep' }
+                              ]} />
                               <InlineField label="Importance" value={guide.importance} onChange={(v) => updatePreferenceItem('caregiving_guidelines', index, 'importance', v)} options={[
                                 { value: 'critical', label: 'Critical' },
                                 { value: 'important', label: 'Important' },
@@ -1862,7 +1880,7 @@ const Profile = () => {
                           </div>
                         ))}
                       </div>
-                      <AddItemButton onClick={() => addPreferenceItem('caregiving_guidelines', { guideline: '', importance: '', details: '' })} label="Add guideline" />
+                      <AddItemButton onClick={() => addPreferenceItem('caregiving_guidelines', { guideline: '', category: 'daily_routine', importance: 'preferred', details: '' })} label="Add guideline" />
                     </div>
 
                     {/* Important Context */}
@@ -1872,14 +1890,25 @@ const Profile = () => {
                         {(editedData?.preferences?.important_context || []).map((ctx, index) => (
                           <div key={ctx.id || index} className="relative p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
                             <DeleteItemButton onClick={() => deletePreferenceItem('important_context', index)} />
-                            <div className="grid grid-cols-1 gap-2 pr-6">
-                              <InlineField label="Context" value={ctx.context} onChange={(v) => updatePreferenceItem('important_context', index, 'context', v)} />
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-2 pr-6">
+                              <div className="md:col-span-2">
+                                <InlineField label="Context" value={ctx.context} onChange={(v) => updatePreferenceItem('important_context', index, 'context', v)} />
+                              </div>
+                              <InlineField label="Category" value={ctx.category} onChange={(v) => updatePreferenceItem('important_context', index, 'category', v)} options={[
+                                { value: 'personality', label: 'Personality' },
+                                { value: 'history', label: 'History' },
+                                { value: 'cultural', label: 'Cultural' },
+                                { value: 'religious', label: 'Religious' },
+                                { value: 'social', label: 'Social' },
+                                { value: 'interests', label: 'Interests' },
+                                { value: 'fears', label: 'Fears' }
+                              ]} />
                               <InlineField label="Details" value={ctx.details} onChange={(v) => updatePreferenceItem('important_context', index, 'details', v)} />
                             </div>
                           </div>
                         ))}
                       </div>
-                      <AddItemButton onClick={() => addPreferenceItem('important_context', { context: '', details: '' })} label="Add context" />
+                      <AddItemButton onClick={() => addPreferenceItem('important_context', { context: '', category: 'personality', details: '' })} label="Add context" />
                     </div>
 
                     {/* Additional Notes */}
