@@ -3,8 +3,10 @@
 User-agent: *
 Allow: /
 Allow: /about
+Allow: /contact
 Allow: /login
 Allow: /register
+Allow: /waitlist
 Allow: /terms
 Allow: /privacy
 
@@ -13,12 +15,17 @@ Disallow: /settings
 Disallow: /collaboration
 Disallow: /journal
 Disallow: /daily-digest
+Disallow: /daily-plan
 Disallow: /audio-recordings
 Disallow: /tools/
+Disallow: /profile
+Disallow: /mfa-setup
 Disallow: /admin/
-Disallow: /password-reset
-
-# Disallow API
 Disallow: /api/
+
+# Disallow auth flow pages
+Disallow: /password-reset
+Disallow: /verify-email
+Disallow: /verify-email-change
 
 Sitemap: https://www.aretacare.com/sitemap.xml

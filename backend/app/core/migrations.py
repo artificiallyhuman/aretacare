@@ -2183,12 +2183,12 @@ def run_migrations():
                 conn.execute(text("CREATE EXTENSION IF NOT EXISTS pg_trgm"))
                 conn.commit()
                 conn.execute(text(
-                    "CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_audio_summary_trgm "
+                    "CREATE INDEX IF NOT EXISTS idx_audio_summary_trgm "
                     "ON audio_recordings USING gin (ai_summary gin_trgm_ops)"
                 ))
                 conn.commit()
                 conn.execute(text(
-                    "CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_audio_text_trgm "
+                    "CREATE INDEX IF NOT EXISTS idx_audio_text_trgm "
                     "ON audio_recordings USING gin (transcribed_text gin_trgm_ops)"
                 ))
                 conn.commit()

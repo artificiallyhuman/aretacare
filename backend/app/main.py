@@ -1,6 +1,6 @@
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, PlainTextResponse
 from starlette.middleware.gzip import GZipMiddleware
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
@@ -349,6 +349,14 @@ async def root():
         "version": "1.0.0",
         "docs": "/docs"
     }
+
+
+@app.get("/robots.txt", response_class=PlainTextResponse)
+async def robots_txt():
+    return (
+        "User-agent: *\n"
+        "Disallow: /\n"
+    )
 
 
 @app.api_route("/health", methods=["GET", "HEAD"])
