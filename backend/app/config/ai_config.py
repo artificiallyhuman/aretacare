@@ -913,7 +913,7 @@ If there are no concerns, set has_concerns to false and provide an empty concern
 # ============================================================================
 
 # Maximum number of conversation messages to include in context
-MAX_CONVERSATION_CONTEXT = 15  # Reduced from 30 to focus on recent exchanges
+MAX_CONVERSATION_CONTEXT = 30
 
 # Maximum number of messages for medical summary context
 MAX_SUMMARY_CONTEXT = 50

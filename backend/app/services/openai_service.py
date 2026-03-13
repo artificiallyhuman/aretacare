@@ -227,7 +227,7 @@ async def log_api_call(
 # - Relevant journal context: up to 10,000 tokens (semantic retrieval)
 # - Health profile: up to 25,000 tokens
 # - Buffer: ~3,500 tokens
-MAX_CONVERSATION_TOKENS = 20000
+MAX_CONVERSATION_TOKENS = 30000
 MAX_CURRENT_MESSAGE_TOKENS = 50000  # Includes document/audio if attached
 MAX_JOURNAL_TOKENS = 50000  # Configured in ai_config.py
 MAX_PROFILE_TOKENS = 25000  # Health profile context
