@@ -119,27 +119,6 @@ struct DailyDigestView: View {
         .sheet(isPresented: $showingEditor) {
             digestEditor
         }
-        .confirmationDialog("Delete Digest", isPresented: $showDeleteConfirmation, titleVisibility: .visible) {
-            Button("Delete", role: .destructive) {
-                guard let digest = selectedDigest else { return }
-                guard !viewModel.isLoading && !viewModel.isGenerating else { return }
-                deleteHapticTrigger += 1
-                Task { await deleteDigest(digest) }
-            }
-            Button("Cancel", role: .cancel) {}
-        } message: {
-            Text("Are you sure you want to delete this digest? This cannot be undone.")
-        }
-        .confirmationDialog("Regenerate Digest", isPresented: $showRegenerateConfirmation, titleVisibility: .visible) {
-            Button("Regenerate", role: .destructive) {
-                guard let digest = selectedDigest else { return }
-                guard !viewModel.isLoading && !viewModel.isGenerating else { return }
-                Task { await regenerateDigest(replacing: digest) }
-            }
-            Button("Cancel", role: .cancel) {}
-        } message: {
-            Text("This will delete the current digest and generate a new one. Any edits will be lost.")
-        }
         .sensoryFeedback(.success, trigger: copyHapticTrigger)
         .sensoryFeedback(.success, trigger: saveHapticTrigger)
         .sensoryFeedback(.impact(flexibility: .rigid), trigger: deleteHapticTrigger)
@@ -440,6 +419,27 @@ struct DailyDigestView: View {
             } label: {
                 Label("Delete", systemImage: "trash")
             }
+        }
+        .confirmationDialog("Delete Digest", isPresented: $showDeleteConfirmation, titleVisibility: .visible) {
+            Button("Delete", role: .destructive) {
+                guard let digest = selectedDigest else { return }
+                guard !viewModel.isLoading && !viewModel.isGenerating else { return }
+                deleteHapticTrigger += 1
+                Task { await deleteDigest(digest) }
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Are you sure you want to delete this digest? This cannot be undone.")
+        }
+        .confirmationDialog("Regenerate Digest", isPresented: $showRegenerateConfirmation, titleVisibility: .visible) {
+            Button("Regenerate", role: .destructive) {
+                guard let digest = selectedDigest else { return }
+                guard !viewModel.isLoading && !viewModel.isGenerating else { return }
+                Task { await regenerateDigest(replacing: digest) }
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("This will delete the current digest and generate a new one. Any edits will be lost.")
         }
     }
 

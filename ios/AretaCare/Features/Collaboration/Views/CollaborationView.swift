@@ -114,6 +114,16 @@ struct CollaborationView: View {
                         Label("Leave Session", systemImage: "rectangle.portrait.and.arrow.right")
                             .frame(maxWidth: .infinity)
                     }
+                    .confirmationDialog("Leave Session", isPresented: $showingLeaveConfirm, titleVisibility: .visible) {
+                        Button("Leave", role: .destructive) {
+                            Task {
+                                let left = await viewModel.leaveSession(sessionId: session.id)
+                                if left { dismiss() }
+                            }
+                        }
+                    } message: {
+                        Text("You will lose access to all data in this session.")
+                    }
                 }
             }
 
@@ -139,16 +149,6 @@ struct CollaborationView: View {
         }
         .listStyle(.insetGrouped)
         .navigationTitle("Collaboration")
-        .confirmationDialog("Leave Session", isPresented: $showingLeaveConfirm, titleVisibility: .visible) {
-            Button("Leave", role: .destructive) {
-                Task {
-                    let left = await viewModel.leaveSession(sessionId: session.id)
-                    if left { dismiss() }
-                }
-            }
-        } message: {
-            Text("You will lose access to all data in this session.")
-        }
         .alert("Send Invitation?", isPresented: $showingInviteConfirm) {
             Button("Send Invitation") {
                 Task { await sendInvitation() }

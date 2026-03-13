@@ -40,17 +40,6 @@ struct SettingsView: View {
         .sheet(isPresented: $showChangePassword) {
             ChangePasswordView(viewModel: viewModel)
         }
-        .confirmationDialog("Log Out Everywhere", isPresented: $showLogoutEverywhereConfirmation, titleVisibility: .visible) {
-            Button("Log Out All Devices", role: .destructive) {
-                Task {
-                    guard !viewModel.isLoading else { return }
-                    await viewModel.logoutEverywhere()
-                }
-            }
-            Button("Cancel", role: .cancel) {}
-        } message: {
-            Text("This will log you out of all devices and sessions, including this one.")
-        }
         .sheet(isPresented: $showDeleteAccountSheet) {
             deleteAccountSheet
         }
@@ -172,6 +161,17 @@ struct SettingsView: View {
                 }
             }
             .tint(.primary)
+            .confirmationDialog("Log Out Everywhere", isPresented: $showLogoutEverywhereConfirmation, titleVisibility: .visible) {
+                Button("Log Out All Devices", role: .destructive) {
+                    Task {
+                        guard !viewModel.isLoading else { return }
+                        await viewModel.logoutEverywhere()
+                    }
+                }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("This will log you out of all devices and sessions, including this one.")
+            }
         }
     }
 

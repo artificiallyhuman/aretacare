@@ -86,6 +86,16 @@ struct ProfileView: View {
                 }
             }
         }
+        .confirmationDialog("Regenerate Profile", isPresented: $showingRegenConfirm, titleVisibility: .visible) {
+            Button("Regenerate", role: .destructive) {
+                Task {
+                    guard !viewModel.isLoading && !viewModel.isRegenerating else { return }
+                    await viewModel.regenerateProfile(sessionId: sessionId)
+                }
+            }
+        } message: {
+            Text("This will regenerate your entire health profile from your conversations. Any manual edits will be preserved as pending changes.")
+        }
         .overlay {
             if viewModel.hasPendingChanges {
                 VStack {
@@ -130,16 +140,6 @@ struct ProfileView: View {
                     .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16))
                 }
             }
-        }
-        .confirmationDialog("Regenerate Profile", isPresented: $showingRegenConfirm, titleVisibility: .visible) {
-            Button("Regenerate", role: .destructive) {
-                Task {
-                    guard !viewModel.isLoading && !viewModel.isRegenerating else { return }
-                    await viewModel.regenerateProfile(sessionId: sessionId)
-                }
-            }
-        } message: {
-            Text("This will regenerate your entire health profile from your conversations. Any manual edits will be preserved as pending changes.")
         }
         .sheet(isPresented: $showingShareSheet) {
             if let exportURL {
