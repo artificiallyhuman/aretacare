@@ -564,6 +564,14 @@ async def reset_to_message(
 
         journal_count = len(deleted_journal_ids)
 
+        # Flush journal deletes before removing documents/audio, because
+        # documents and audio have ondelete=CASCADE on the journal FK.
+        # Without this flush, the cascade removes the row first, and then
+        # SQLAlchemy's pending db.delete() finds 0 rows, triggering a
+        # SAWarning about mismatched row counts.
+        if deleted_journal_ids:
+            db.flush()
+
         # Delete S3 files for documents (non-fatal)
         if document_ids:
             documents = db.query(Document).filter(Document.id.in_(document_ids)).all()
