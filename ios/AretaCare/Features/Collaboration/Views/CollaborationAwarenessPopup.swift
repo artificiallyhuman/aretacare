@@ -50,6 +50,7 @@ struct CollaborationAwarenessPopup: View {
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
+            .frame(maxHeight: 200)
             .padding()
             .background(Color(.systemGray6))
             .clipShape(RoundedRectangle(cornerRadius: 10))
