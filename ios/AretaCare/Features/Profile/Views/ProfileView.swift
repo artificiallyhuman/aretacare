@@ -802,110 +802,132 @@ struct ProfileView: View {
 
     private func copyProfileToClipboard() {
         guard let data = viewModel.profileData else { return }
-        var lines: [String] = ["Health Profile", ""]
+        var text = "# Health Profile\n\n"
 
         if let p = data.patient {
-            lines.append("Patient Information")
-            if let v = p.fullName { lines.append("  Name: \(v)") }
-            if let v = p.preferredName { lines.append("  Preferred Name: \(v)") }
-            if let v = p.dateOfBirth { lines.append("  Date of Birth: \(v)") }
-            if let v = p.age { lines.append("  Age: \(v)") }
-            if let v = p.contactInfo { lines.append("  Contact: \(v)") }
-            if let v = p.location { lines.append("  Location: \(v)") }
-            lines.append("")
+            text += "## Patient Information\n"
+            if let v = p.fullName { text += "- **Name:** \(v)\n" }
+            if let v = p.preferredName { text += "- **Preferred Name:** \(v)\n" }
+            if let v = p.dateOfBirth { text += "- **Date of Birth:** \(v)\n" }
+            if let v = p.age { text += "- **Age:** \(v)\n" }
+            if let v = p.contactInfo { text += "- **Contact:** \(v)\n" }
+            if let v = p.location { text += "- **Location:** \(v)\n" }
+            text += "\n"
         }
         if let items = data.caregivers, !items.isEmpty {
-            lines.append("Caregivers")
+            text += "## Caregivers\n"
             for item in items {
-                lines.append("  \(item.name ?? "Unknown")")
-                if let v = item.relationship { lines.append("    Relationship: \(v)") }
-                if let v = item.role { lines.append("    Role: \(v)") }
-                if let v = item.contactInfo { lines.append("    Contact: \(v)") }
-                if let v = item.location { lines.append("    Location: \(v)") }
+                text += "- **\(item.name ?? "Unknown")**"
+                if let v = item.relationship { text += " (\(v))" }
+                if let v = item.role { text += " - \(v)" }
+                text += "\n"
             }
-            lines.append("")
+            text += "\n"
         }
         if let items = data.providers, !items.isEmpty {
-            lines.append("Healthcare Providers")
+            text += "## Healthcare Providers\n"
             for item in items {
-                lines.append("  \(item.name ?? "Unknown")")
-                if let v = item.specialty { lines.append("    Specialty: \(v)") }
-                if let v = item.organization { lines.append("    Organization: \(v)") }
-                if let v = item.contactInfo { lines.append("    Contact: \(v)") }
+                text += "- **\(item.name ?? "Unknown")**"
+                if let v = item.specialty { text += ", \(v)" }
+                if let v = item.organization { text += " at \(v)" }
+                text += "\n"
             }
-            lines.append("")
+            text += "\n"
         }
         if let items = data.conditions, !items.isEmpty {
-            lines.append("Conditions")
+            text += "## Conditions & Diagnoses\n"
             for item in sortedConditions(items) {
-                lines.append("  \(item.clinicalTerm ?? item.description ?? "Unknown") (\(item.status ?? "unknown"))")
-                if let v = item.diagnosisDate { lines.append("    Diagnosed: \(v)") }
-                if let v = item.details { lines.append("    \(v)") }
+                text += "- **\(item.clinicalTerm ?? "Unknown")**"
+                if let v = item.status { text += " [\(v.uppercased())]" }
+                if let v = item.description { text += ": \(v)" }
+                text += "\n"
             }
-            lines.append("")
+            text += "\n"
         }
         if let items = data.medications, !items.isEmpty {
-            lines.append("Medications")
-            for item in sortedMedications(items) {
-                var desc = item.name ?? "Unknown"
-                if let dose = item.dose { desc += " - \(dose)" }
-                if let freq = item.frequency { desc += " (\(freq))" }
-                if let status = item.status { desc += " [\(status.uppercased())]" }
-                lines.append("  \(desc)")
-                if let v = item.description, !v.isEmpty { lines.append("    \(v)") }
-                if let v = item.category, let label = profileMedicationCategoryLabel(v) { lines.append("    Category: \(label)") }
-                if let v = item.prescriber { lines.append("    Prescriber: \(v)") }
-                if let v = item.startDate { lines.append("    Started: \(v)") }
-                if let v = item.notes { lines.append("    \(v)") }
+            text += "## Medications\n\n"
+            for group in medicationsGroupedByCategory(items) {
+                text += "### \(group.label)\n"
+                for item in group.medications {
+                    text += "- **\(item.name ?? "Unknown")**"
+                    if let v = item.dose { text += " \(v)" }
+                    if let v = item.frequency { text += ", \(v)" }
+                    if let v = item.description, !v.isEmpty { text += " - \(v)" }
+                    text += "\n"
+                }
+                text += "\n"
             }
-            lines.append("")
-        }
-        if let items = data.allergies, !items.isEmpty {
-            lines.append("Allergies")
-            for item in items {
-                var desc = item.substance ?? "Unknown"
-                if let sev = item.severity { desc += " [\(sev)]" }
-                lines.append("  \(desc)")
-                if let v = item.reaction { lines.append("    Reaction: \(v)") }
-            }
-            lines.append("")
         }
         if let items = data.events, !items.isEmpty {
-            lines.append("Key Events")
+            text += "## Medical History & Events\n"
             for item in sortedEvents(items) {
-                var desc = item.description ?? item.eventType ?? "Event"
-                if let type = item.eventType { desc += " [\(profileEventTypeLabel(type))]" }
-                if let date = item.date { desc += " (\(date))" }
-                lines.append("  \(desc)")
-                if let v = item.details { lines.append("    \(v)") }
+                text += "- **\(profileEventTypeLabel(item.eventType ?? "Event"))**"
+                if let v = item.date { text += " (\(v))" }
+                if let v = item.description { text += ": \(v)" }
+                text += "\n"
             }
-            lines.append("")
+            text += "\n"
+        }
+        if let items = data.allergies, !items.isEmpty {
+            text += "## Allergies & Sensitivities\n"
+            for item in items {
+                text += "- **\(item.substance ?? "Unknown")**"
+                if let v = item.severity { text += " [\(v.uppercased())]" }
+                if let v = item.reaction { text += ": \(v)" }
+                text += "\n"
+            }
+            text += "\n"
         }
         if let prefs = data.preferences {
-            lines.append("Preferences")
-            if let v = prefs.emergencyInstructions { lines.append("  Emergency: \(v)") }
-            if let items = prefs.communicationPreferences {
-                for item in items {
-                    let catLabel = item.category.map { profileCommCategoryLabel($0) } ?? "Pref"
-                    if let v = item.preference { lines.append("  \(catLabel): \(v)") }
-                }
+            text += "## Preferences & Guidelines\n\n"
+            if let v = prefs.emergencyInstructions {
+                text += "### Emergency Instructions\n"
+                text += "\(v)\n\n"
             }
-            if let items = prefs.caregivingGuidelines {
+            if let items = prefs.communicationPreferences, !items.isEmpty {
+                text += "### Communication Preferences\n"
                 for item in items {
-                    let catLabel = item.category.map { profileGuideCategoryLabel($0) } ?? "Guideline"
-                    if let v = item.guideline { lines.append("  \(catLabel): \(v)") }
+                    if let v = item.preference {
+                        text += "- \(v)"
+                        if let cat = item.category { text += " *(\(profileCommCategoryLabel(cat)))*" }
+                        text += "\n"
+                        if let d = item.details { text += "  - \(d)\n" }
+                    }
                 }
+                text += "\n"
             }
-            if let items = prefs.importantContext {
+            if let items = prefs.caregivingGuidelines, !items.isEmpty {
+                text += "### Caregiving Guidelines\n"
                 for item in items {
-                    let catLabel = item.category.map { profileContextCategoryLabel($0) } ?? "Context"
-                    if let v = item.context { lines.append("  \(catLabel): \(v)") }
+                    if let v = item.guideline {
+                        text += "- \(v)"
+                        if let imp = item.importance { text += " **[\(imp.uppercased())]**" }
+                        if let cat = item.category { text += " *(\(profileGuideCategoryLabel(cat)))*" }
+                        text += "\n"
+                        if let d = item.details { text += "  - \(d)\n" }
+                    }
                 }
+                text += "\n"
             }
-            if let v = prefs.additionalNotes { lines.append("  Notes: \(v)") }
+            if let items = prefs.importantContext, !items.isEmpty {
+                text += "### Important Context\n"
+                for item in items {
+                    if let v = item.context {
+                        text += "- \(v)"
+                        if let cat = item.category { text += " *(\(profileContextCategoryLabel(cat)))*" }
+                        text += "\n"
+                        if let d = item.details { text += "  - \(d)\n" }
+                    }
+                }
+                text += "\n"
+            }
+            if let v = prefs.additionalNotes {
+                text += "### Additional Notes\n"
+                text += "\(v)\n"
+            }
         }
 
-        UIPasteboard.general.string = lines.joined(separator: "\n")
+        ClipboardHelper.copyFormatted(text)
     }
 
     private func exportProfile(format: String) {
