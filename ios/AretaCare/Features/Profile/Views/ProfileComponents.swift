@@ -349,6 +349,43 @@ func profileMedicationCategoryLabel(_ category: String) -> String? {
     return labels[category.lowercased()]
 }
 
+func profileCommCategoryLabel(_ category: String) -> String {
+    let labels: [String: String] = [
+        "medical_discussions": "Medical Discussions",
+        "daily_care": "Daily Care",
+        "emotional_support": "Emotional Support",
+        "appointments": "Appointments",
+        "updates": "Updates"
+    ]
+    return labels[category.lowercased()] ?? category.replacingOccurrences(of: "_", with: " ").capitalized
+}
+
+func profileGuideCategoryLabel(_ category: String) -> String {
+    let labels: [String: String] = [
+        "daily_routine": "Daily Routine",
+        "medical_care": "Medical Care",
+        "nutrition": "Nutrition",
+        "mobility": "Mobility",
+        "safety": "Safety",
+        "comfort": "Comfort",
+        "sleep": "Sleep"
+    ]
+    return labels[category.lowercased()] ?? category.replacingOccurrences(of: "_", with: " ").capitalized
+}
+
+func profileContextCategoryLabel(_ category: String) -> String {
+    let labels: [String: String] = [
+        "personality": "Personality",
+        "history": "History",
+        "cultural": "Cultural",
+        "religious": "Religious",
+        "social": "Social",
+        "interests": "Interests",
+        "fears": "Fears"
+    ]
+    return labels[category.lowercased()] ?? category.replacingOccurrences(of: "_", with: " ").capitalized
+}
+
 func profileEventTypeLabel(_ type: String) -> String {
     let labels: [String: String] = [
         "hospitalization": "Hospitalization",

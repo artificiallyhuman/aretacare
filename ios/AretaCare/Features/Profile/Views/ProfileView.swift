@@ -496,8 +496,8 @@ struct ProfileView: View {
                                     ForEach(commPrefs) { pref in
                                         if let value = pref.preference, !value.isEmpty {
                                             AccentCard(color: .indigo) {
-                                                if let cat = pref.category {
-                                                    Text(cat)
+                                                if let cat = pref.category, !cat.isEmpty {
+                                                    Text(profileCommCategoryLabel(cat))
                                                         .font(.caption2.weight(.semibold))
                                                         .foregroundStyle(.indigo)
                                                 }
@@ -515,6 +515,11 @@ struct ProfileView: View {
                                     ForEach(guidelines) { guideline in
                                         if let value = guideline.guideline, !value.isEmpty {
                                             AccentCard(color: profileImportanceColor(guideline.importance ?? "")) {
+                                                if let cat = guideline.category, !cat.isEmpty {
+                                                    Text(profileGuideCategoryLabel(cat))
+                                                        .font(.caption2.weight(.semibold))
+                                                        .foregroundStyle(profileImportanceColor(guideline.importance ?? ""))
+                                                }
                                                 HStack {
                                                     Text(value)
                                                         .font(.caption)
@@ -537,8 +542,8 @@ struct ProfileView: View {
                                     ForEach(contexts) { ctx in
                                         if let value = ctx.context, !value.isEmpty {
                                             AccentCard(color: .indigo) {
-                                                if let cat = ctx.category {
-                                                    Text(cat)
+                                                if let cat = ctx.category, !cat.isEmpty {
+                                                    Text(profileContextCategoryLabel(cat))
                                                         .font(.caption2.weight(.semibold))
                                                         .foregroundStyle(.indigo)
                                                 }
@@ -881,7 +886,20 @@ struct ProfileView: View {
             if let v = prefs.emergencyInstructions { lines.append("  Emergency: \(v)") }
             if let items = prefs.communicationPreferences {
                 for item in items {
-                    if let v = item.preference { lines.append("  \(item.category ?? "Pref"): \(v)") }
+                    let catLabel = item.category.map { profileCommCategoryLabel($0) } ?? "Pref"
+                    if let v = item.preference { lines.append("  \(catLabel): \(v)") }
+                }
+            }
+            if let items = prefs.caregivingGuidelines {
+                for item in items {
+                    let catLabel = item.category.map { profileGuideCategoryLabel($0) } ?? "Guideline"
+                    if let v = item.guideline { lines.append("  \(catLabel): \(v)") }
+                }
+            }
+            if let items = prefs.importantContext {
+                for item in items {
+                    let catLabel = item.category.map { profileContextCategoryLabel($0) } ?? "Context"
+                    if let v = item.context { lines.append("  \(catLabel): \(v)") }
                 }
             }
             if let v = prefs.additionalNotes { lines.append("  Notes: \(v)") }
