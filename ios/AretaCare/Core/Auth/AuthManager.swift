@@ -171,11 +171,17 @@ final class AuthManager {
         // Unregister push token before clearing auth
         await NotificationManager.shared.unregisterToken()
 
-        // Clear tokens immediately
+        // Signal logout immediately to dismount views and prevent stale requests.
+        // Must happen BEFORE clearing tokens — otherwise views can fire requests
+        // with no auth during the gap between token clearing and isAuthenticated
+        // becoming false (causes spurious 401/403 errors in server logs).
+        handleLogout()
+
+        // Now safe to clear tokens — views are dismounting
         await AuthInterceptor.shared.clearAccessToken()
         KeychainManager.shared.clearAll()
 
-        // Best-effort server call
+        // Best-effort server call (no auth required for /logout)
         do {
             try await APIClient.shared.post(APIEndpoints.Auth.logout)
         } catch {
@@ -185,17 +191,16 @@ final class AuthManager {
         }
 
         await SubscriptionManager.shared.logout()
-        handleLogout()
     }
 
     /// Force-clear local auth state without server call.
     /// Used by APIClient when token refresh fails or 403 requires logout,
     /// to avoid recursive API calls during logout.
     func forceLogout() async {
+        handleLogout()
         await AuthInterceptor.shared.clearAccessToken()
         KeychainManager.shared.clearAll()
         await SubscriptionManager.shared.logout()
-        handleLogout()
     }
 
     private func handleLogout() {
