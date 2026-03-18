@@ -328,7 +328,7 @@ const ConversationCoach = () => {
         </div>
       </div>
 
-      {coaching && (
+      {coaching && (<>
         <div className="card">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white">
@@ -384,7 +384,7 @@ const ConversationCoach = () => {
         <p className="mt-3 text-xs text-gray-500 dark:text-gray-400">
           Sources are AI-generated and may not link to the exact page. Verify information with your healthcare provider.
         </p>
-      )}
+      </>)}
     </div>
   );
 };

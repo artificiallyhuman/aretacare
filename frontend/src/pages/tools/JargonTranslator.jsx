@@ -169,7 +169,7 @@ const JargonTranslator = () => {
         </button>
       </div>
 
-      {translation && (
+      {translation && (<>
         <div className="card">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">
@@ -234,7 +234,7 @@ const JargonTranslator = () => {
         <p className="mt-3 text-xs text-gray-500 dark:text-gray-400">
           Sources are AI-generated and may not link to the exact page. Verify information with your healthcare provider.
         </p>
-      )}
+      </>)}
     </div>
   );
 };
