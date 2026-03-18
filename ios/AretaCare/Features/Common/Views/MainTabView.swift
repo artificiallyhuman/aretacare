@@ -90,6 +90,18 @@ struct MainTabView: View {
                 await digestBadgeVM.markViewed(planId: latest.id)
             }
         }
+        .task(id: currentSessionId) {
+            // Auto-check for new digest every 30 minutes, regardless of active tab.
+            guard !currentSessionId.isEmpty else { return }
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(1800))
+                guard !Task.isCancelled else { break }
+                await digestBadgeVM.checkShouldGenerate(sessionId: currentSessionId)
+                if digestBadgeVM.shouldGenerate {
+                    await digestBadgeVM.generate(sessionId: currentSessionId)
+                }
+            }
+        }
         .onChange(of: activeTab) { oldTab, newTab in
             if newTab == 1, digestBadgeVM.hasUnviewedDigest,
                let latest = digestBadgeVM.sortedDigests.first {
@@ -106,7 +118,12 @@ struct MainTabView: View {
                let session = sessionVM.sessions.first(where: { $0.id == sessionId }) {
                 sessionVM.switchSession(to: session)
             }
-            activeTab = 0
+            // Route to appropriate tab based on notification type
+            if notificationRouter.pendingNotificationType == "daily_digest_ready" {
+                activeTab = 1
+            } else {
+                activeTab = 0
+            }
             notificationRouter.clearPendingRoute()
         }
         .onReceive(NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)) { _ in
@@ -115,6 +132,13 @@ struct MainTabView: View {
         }
         .onReceive(NotificationCenter.default.publisher(for: .sessionsDidChange)) { _ in
             Task { await sessionVM.fetchSessions() }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .pushNotificationReceived)) { notification in
+            // Refresh digest badge when a push arrives while app is in foreground
+            let notificationType = notification.userInfo?["notification_type"] as? String
+            if notificationType == "daily_digest_ready", !currentSessionId.isEmpty {
+                Task { await digestBadgeVM.fetchAll(sessionId: currentSessionId) }
+            }
         }
     }
 }

@@ -101,18 +101,6 @@ struct DailyDigestView: View {
         .refreshable {
             await loadData(forceRefresh: true)
         }
-        .task(id: sessionId) {
-            // Periodic check every 30 minutes (matches web behavior)
-            while !Task.isCancelled {
-                try? await Task.sleep(for: .seconds(1800))
-                guard !Task.isCancelled else { break }
-                await viewModel.checkShouldGenerate(sessionId: sessionId)
-                if viewModel.shouldGenerate {
-                    await viewModel.generate(sessionId: sessionId)
-                    selectedDigest = viewModel.latestDigest
-                }
-            }
-        }
         .sheet(isPresented: $showingCalendar) {
             calendarSheet
         }

@@ -282,4 +282,6 @@ extension Notification.Name {
     static let userDidLogout = Notification.Name("userDidLogout")
     /// Posted when sessions are created or deleted outside of SessionViewModel.
     static let sessionsDidChange = Notification.Name("sessionsDidChange")
+    /// Posted when a push notification is received while the app is in the foreground.
+    static let pushNotificationReceived = Notification.Name("pushNotificationReceived")
 }

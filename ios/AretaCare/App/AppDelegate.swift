@@ -32,6 +32,10 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
         withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
     ) {
         completionHandler([.banner, .sound, .badge])
+
+        // Notify in-app observers so they can refresh state (e.g. digest badge).
+        let userInfo = notification.request.content.userInfo
+        NotificationCenter.default.post(name: .pushNotificationReceived, object: nil, userInfo: userInfo)
     }
 
     /// Handle notification tap — route to the relevant session/tab.
