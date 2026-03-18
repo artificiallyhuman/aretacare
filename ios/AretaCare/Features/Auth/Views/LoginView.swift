@@ -133,41 +133,20 @@ struct LoginView: View {
                 .padding(.top, 10)
             }
 
-            Link("Learn more", destination: AppConstants.aboutURL)
-                .font(.body)
-                .padding(.top, 8)
-
-            // Free AI Tools
-            HStack {
-                Rectangle().fill(Color(.separator)).frame(height: 1)
-                Text("Try our free AI tools")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .fixedSize()
-                Rectangle().fill(Color(.separator)).frame(height: 1)
-            }
-            .padding(.top, 16)
-
-            HStack(spacing: 12) {
-                NavigationLink {
+            // Links row
+            HStack(spacing: 4) {
+                Link("Learn more", destination: AppConstants.aboutURL)
+                Text("\u{00B7}").foregroundStyle(.secondary)
+                NavigationLink("Jargon Translator") {
                     JargonTranslatorView(sessionId: "")
-                } label: {
-                    Label("Jargon Translator", systemImage: "character.book.closed")
-                        .frame(maxWidth: .infinity)
                 }
-                .buttonStyle(.bordered)
-                .controlSize(.regular)
-
-                NavigationLink {
+                Text("\u{00B7}").foregroundStyle(.secondary)
+                NavigationLink("Conversation Coach") {
                     ConversationCoachView(sessionId: "", isGuestMode: true)
-                } label: {
-                    Label("Conversation Coach", systemImage: "bubble.left.and.text.bubble.right")
-                        .frame(maxWidth: .infinity)
                 }
-                .buttonStyle(.bordered)
-                .controlSize(.regular)
             }
-            .padding(.top, 10)
+            .font(.footnote)
+            .padding(.top, 8)
 
             // Footer
             HStack(spacing: 4) {

@@ -360,29 +360,13 @@ function Login() {
               </Link>
             </div>
 
-            {/* Free AI Tools */}
-            <div className="relative mt-6">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-gray-200 dark:border-gray-600"></div>
-              </div>
-              <div className="relative flex justify-center text-xs">
-                <span className="bg-white dark:bg-gray-800 px-3 text-gray-500 dark:text-gray-400">
-                  Try our free AI tools
-                </span>
-              </div>
-            </div>
-
-            <div className="mt-4 flex gap-3">
-              <Link
-                to="/tools/jargon"
-                className="flex-1 text-center py-2.5 text-sm font-medium text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-              >
+            {/* Free AI Tools - inline links */}
+            <div className="mt-4 flex justify-center gap-3 text-xs text-gray-500 dark:text-gray-400">
+              <Link to="/tools/jargon" className="hover:text-gray-700 dark:hover:text-gray-300 underline">
                 Jargon Translator
               </Link>
-              <Link
-                to="/tools/coach"
-                className="flex-1 text-center py-2.5 text-sm font-medium text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-              >
+              <span>·</span>
+              <Link to="/tools/coach" className="hover:text-gray-700 dark:hover:text-gray-300 underline">
                 Conversation Coach
               </Link>
             </div>
