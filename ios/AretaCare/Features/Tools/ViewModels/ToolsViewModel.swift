@@ -22,7 +22,7 @@ final class ToolsViewModel {
         defer { isTranslating = false }
 
         do {
-            let request = JargonTranslationRequest(medicalTerm: term, context: context, sessionId: sessionId)
+            let request = JargonTranslationRequest(medicalTerm: term, context: context, sessionId: sessionId?.isEmpty == false ? sessionId : nil)
             let response: JargonTranslationResponse = try await APIClient.shared.post(
                 APIEndpoints.Tools.jargonTranslator,
                 body: request
@@ -42,7 +42,7 @@ final class ToolsViewModel {
         defer { isCoaching = false }
 
         do {
-            let request = ConversationCoachRequest(situation: situation, sessionId: sessionId)
+            let request = ConversationCoachRequest(situation: situation, sessionId: sessionId?.isEmpty == false ? sessionId : nil)
             let response: ConversationCoachResponse = try await APIClient.shared.post(
                 APIEndpoints.Tools.conversationCoach,
                 body: request

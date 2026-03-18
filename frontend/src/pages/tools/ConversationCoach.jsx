@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
 import { toolsAPI, conversationAPI } from '../../services/api';
 import { useSessionContext } from '../../contexts/SessionContext';
@@ -9,7 +10,7 @@ import AudioWaveform from '../../components/AudioWaveform';
 const MAX_RECORDING_SECONDS = 900; // 15 minutes (corresponds to ~50MB at typical WebM bitrate)
 
 const ConversationCoach = () => {
-  const { activeSessionId: sessionId } = useSessionContext();
+  const { activeSessionId: sessionId, user } = useSessionContext();
   const [situation, setSituation] = useState('');
   const [coaching, setCoaching] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -173,6 +174,17 @@ const ConversationCoach = () => {
 
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 lg:py-12">
+      {!user && (
+        <div className="mb-4 flex items-center justify-between">
+          <Link to="/login" className="text-sm text-primary-600 dark:text-primary-400 hover:underline flex items-center gap-1">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
+            Back to login
+          </Link>
+        </div>
+      )}
+
       <div className="mb-6 sm:mb-8">
         <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">
           Conversation Coach
@@ -197,6 +209,14 @@ const ConversationCoach = () => {
         </div>
       </div>
 
+      {!user && (
+        <div className="mb-6 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+          <p className="text-sm text-blue-800 dark:text-blue-300">
+            <Link to="/login" className="font-medium underline hover:no-underline">Sign in</Link> to get personalized coaching based on your health journal and to use voice input.
+          </p>
+        </div>
+      )}
+
       <div className="card mb-4 sm:mb-6">
         <h2 className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white mb-4">
           Prepare for Healthcare Conversations
@@ -207,8 +227,8 @@ const ConversationCoach = () => {
             Describe the Upcoming Conversation or Appointment
           </label>
 
-          {/* Recording/Transcribing status */}
-          {isRecording && (
+          {/* Recording/Transcribing status (authenticated only) */}
+          {user && isRecording && (
             <div className="mb-3 p-3 bg-red-100 dark:bg-red-900/40 rounded-lg border-2 border-red-300 dark:border-red-700 shadow-sm space-y-2">
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-2">
@@ -233,7 +253,7 @@ const ConversationCoach = () => {
               )}
             </div>
           )}
-          {isTranscribing && (
+          {user && isTranscribing && (
             <div className="mb-3 flex items-center space-x-2 p-3 bg-blue-100 dark:bg-blue-900/40 rounded-lg border-2 border-blue-300 dark:border-blue-700 shadow-sm">
               <svg className="w-5 h-5 text-blue-700 dark:text-blue-400 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
@@ -260,8 +280,8 @@ const ConversationCoach = () => {
         )}
 
         <div className="flex items-center gap-3">
-          {/* Microphone button */}
-          {!isRecording && (
+          {/* Microphone button (authenticated only) */}
+          {user && !isRecording && (
             <button
               type="button"
               onClick={startRecording}
@@ -282,8 +302,8 @@ const ConversationCoach = () => {
             </button>
           )}
 
-          {/* Stop recording button */}
-          {isRecording && (
+          {/* Stop recording button (authenticated only) */}
+          {user && isRecording && (
             <button
               type="button"
               onClick={stopRecording}

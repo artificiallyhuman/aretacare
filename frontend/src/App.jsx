@@ -263,22 +263,14 @@ function AppContent() {
               </ProtectedRoute>
             }
           />
-          {/* Tools Routes */}
+          {/* Tools Routes (accessible without login for App Store compliance) */}
           <Route
             path="/tools/jargon"
-            element={
-              <ProtectedRoute>
-                <JargonTranslator />
-              </ProtectedRoute>
-            }
+            element={<JargonTranslator />}
           />
           <Route
             path="/tools/coach"
-            element={
-              <ProtectedRoute>
-                <ConversationCoach />
-              </ProtectedRoute>
-            }
+            element={<ConversationCoach />}
           />
           <Route
             path="/tools/documents"

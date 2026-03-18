@@ -3,6 +3,7 @@ import SwiftUI
 struct ConversationCoachView: View {
     let sessionId: String
     var sessionName: String = ""
+    var isGuestMode: Bool = false
 
     @State private var viewModel = ToolsViewModel()
     @State private var situation = ""
@@ -55,7 +56,7 @@ struct ConversationCoachView: View {
                             Text("Situation")
                                 .font(.subheadline.weight(.medium))
                             Spacer()
-                            if isTranscribing {
+                            if !isGuestMode && isTranscribing {
                                 HStack(spacing: 4) {
                                     ProgressView()
                                         .controlSize(.small)
@@ -86,8 +87,8 @@ struct ConversationCoachView: View {
                             .disabled(isTranscribing)
                     }
 
-                    // Audio recording for voice input
-                    if isRecordingAudio {
+                    // Audio recording for voice input (hidden in guest mode)
+                    if !isGuestMode && isRecordingAudio {
                         HStack(spacing: 12) {
                             Circle()
                                 .fill(Color.red)
@@ -135,7 +136,7 @@ struct ConversationCoachView: View {
                     }
 
                     HStack(spacing: 12) {
-                        if !isRecordingAudio {
+                        if !isGuestMode && !isRecordingAudio {
                             Button {
                                 startRecording()
                             } label: {

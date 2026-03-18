@@ -137,6 +137,38 @@ struct LoginView: View {
                 .font(.body)
                 .padding(.top, 8)
 
+            // Free AI Tools
+            HStack {
+                Rectangle().fill(Color(.separator)).frame(height: 1)
+                Text("Try our free AI tools")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize()
+                Rectangle().fill(Color(.separator)).frame(height: 1)
+            }
+            .padding(.top, 16)
+
+            HStack(spacing: 12) {
+                NavigationLink {
+                    JargonTranslatorView(sessionId: "")
+                } label: {
+                    Label("Jargon Translator", systemImage: "character.book.closed")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.regular)
+
+                NavigationLink {
+                    ConversationCoachView(sessionId: "", isGuestMode: true)
+                } label: {
+                    Label("Conversation Coach", systemImage: "bubble.left.and.text.bubble.right")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.regular)
+            }
+            .padding(.top, 10)
+
             // Footer
             HStack(spacing: 4) {
                 Link("Terms", destination: AppConstants.termsURL)

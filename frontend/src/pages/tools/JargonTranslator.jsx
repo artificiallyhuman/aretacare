@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
 import { toolsAPI } from '../../services/api';
 import { useSessionContext } from '../../contexts/SessionContext';
 import { markdownToHtml } from '../../utils/markdownUtils';
 
 const JargonTranslator = () => {
-  const { activeSessionId: sessionId } = useSessionContext();
+  const { activeSessionId: sessionId, user } = useSessionContext();
   const [medicalTerm, setMedicalTerm] = useState('');
   const [context, setContext] = useState('');
   const [translation, setTranslation] = useState(null);
@@ -77,6 +78,17 @@ const JargonTranslator = () => {
 
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 lg:py-12">
+      {!user && (
+        <div className="mb-4 flex items-center justify-between">
+          <Link to="/login" className="text-sm text-primary-600 dark:text-primary-400 hover:underline flex items-center gap-1">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
+            Back to login
+          </Link>
+        </div>
+      )}
+
       <div className="mb-6 sm:mb-8">
         <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">
           Medical Jargon Translator
@@ -100,6 +112,14 @@ const JargonTranslator = () => {
           </div>
         </div>
       </div>
+
+      {!user && (
+        <div className="mb-6 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+          <p className="text-sm text-blue-800 dark:text-blue-300">
+            <Link to="/login" className="font-medium underline hover:no-underline">Sign in</Link> to get personalized results based on your health journal.
+          </p>
+        </div>
+      )}
 
       <div className="card mb-4 sm:mb-6">
         <h2 className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white mb-4">

@@ -118,6 +118,7 @@ class RateLimits:
     # AI/LLM endpoints (expensive)
     AI_CHAT = "30/minute"           # 30 chat requests per minute per user
     AI_SYNTHESIS = "20/minute"      # 20 synthesis requests per minute per user
+    AI_TOOLS = "10/minute"          # 10 tool requests per minute per IP (publicly accessible)
 
     # Admin endpoints (protection against compromised tokens)
     ADMIN_DESTRUCTIVE = "5/hour"    # 5 destructive actions per hour per IP (delete user, delete session, S3 cleanup)
