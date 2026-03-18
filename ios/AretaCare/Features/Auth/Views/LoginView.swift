@@ -133,10 +133,8 @@ struct LoginView: View {
                 .padding(.top, 10)
             }
 
-            // Links row
+            // Free AI Tools
             HStack(spacing: 4) {
-                Link("Learn more", destination: AppConstants.aboutURL)
-                Text("\u{00B7}").foregroundStyle(.secondary)
                 NavigationLink("Jargon Translator") {
                     JargonTranslatorView(sessionId: "")
                 }
@@ -155,6 +153,8 @@ struct LoginView: View {
                 Link("Privacy", destination: AppConstants.privacyURL)
                 Text("\u{00B7}")
                 Link("Contact", destination: AppConstants.contactURL)
+                Text("\u{00B7}")
+                Link("About", destination: AppConstants.aboutURL)
             }
             .font(.caption)
             .foregroundStyle(.secondary)
