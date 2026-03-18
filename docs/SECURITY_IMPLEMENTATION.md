@@ -121,6 +121,7 @@ Implemented via `slowapi`. See `backend/app/core/rate_limit.py`.
 | MFA Verification | 3/minute |
 | File Upload | 10/minute (docs), 5/minute (audio) |
 | AI Chat | 30/minute |
+| AI Tools | 10/minute (Jargon Translator, Conversation Coach — publicly accessible, no auth required) |
 | Feedback | 3/hour |
 | Admin Destructive | 5/hour (delete user, delete session, S3 cleanup) |
 | Admin Sensitive | 10/hour (reset password, reset MFA, transfer) |

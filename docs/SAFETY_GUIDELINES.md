@@ -106,6 +106,12 @@ AretaCare **NEVER**:
 - Reminds users to confirm information with providers
 - Directs users to appropriate medical resources
 
+### 6. Provides Authoritative Citations
+
+- Jargon Translator and Conversation Coach include source links from approved medical references
+- Approved sources: Mayo Clinic (mayoclinic.org), MedlinePlus/NIH (medlineplus.gov), Cleveland Clinic (my.clevelandclinic.org), CDC (cdc.gov)
+- Sources are AI-generated and accompanied by a disclaimer to verify with healthcare providers
+
 ## Tone and Communication Style
 
 ### Required Tone Characteristics

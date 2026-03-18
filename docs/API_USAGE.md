@@ -303,12 +303,16 @@ GET    /api/profile/{session_id}/pdf       # Export as PDF
 
 ## Tools
 
+Both tools are **publicly accessible** (no authentication required). When authenticated with a `session_id`, responses are personalized with journal context. Rate limited to 10/minute per IP.
+
+Responses include citations from approved sources: Mayo Clinic, MedlinePlus/NIH, Cleveland Clinic, CDC.
+
 ### Jargon Translator
 ```bash
 POST /api/tools/jargon-translator
 ```
 ```json
-{"session_id": "uuid", "medical_text": "The patient presents with tachycardia"}
+{"medical_term": "tachycardia", "context": "optional context", "session_id": null}
 ```
 
 ### Conversation Coach
@@ -316,7 +320,7 @@ POST /api/tools/jargon-translator
 POST /api/tools/conversation-coach
 ```
 ```json
-{"session_id": "uuid", "situation": "Meeting with cardiologist"}
+{"situation": "Meeting with cardiologist", "session_id": null}
 ```
 
 ---
@@ -418,6 +422,7 @@ Error format: `{"detail": "Error message"}`
 | MFA Verification | 3/minute |
 | File Upload | 10/minute (docs), 5/minute (audio) |
 | AI Chat | 30/minute |
+| AI Tools | 10/minute (Jargon Translator, Conversation Coach — public) |
 | Feedback | 3/hour |
 | Waitlist | 5/hour |
 | Admin Destructive | 5/hour (delete user, delete session, S3 cleanup) |

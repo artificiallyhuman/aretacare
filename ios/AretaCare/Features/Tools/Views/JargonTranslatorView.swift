@@ -125,6 +125,10 @@ struct JargonTranslatorView: View {
                     }
                     .background(Color(.secondarySystemGroupedBackground))
                     .clipShape(RoundedRectangle(cornerRadius: 12))
+
+                    Text("Sources are AI-generated and may not link to the exact page. Verify information with your healthcare provider.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                 }
 
                 // Error

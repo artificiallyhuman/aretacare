@@ -230,6 +230,10 @@ const JargonTranslator = () => {
             </div>
           )}
         </div>
+
+        <p className="mt-3 text-xs text-gray-500 dark:text-gray-400">
+          Sources are AI-generated and may not link to the exact page. Verify information with your healthcare provider.
+        </p>
       )}
     </div>
   );

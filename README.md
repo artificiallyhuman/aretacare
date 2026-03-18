@@ -34,11 +34,11 @@ AretaCare was built from this experience—sitting beside a loved one, trying to
 
 **Documents & Audio** — Upload PDFs, images, and text files (up to 30MB). Record audio directly in the app. Everything is automatically categorized and transcribed so you can find it later. Scanned PDFs are processed with OCR to extract text. Duplicate filenames are detected before upload with an option to proceed or cancel. Multi-part documents (e.g., a long report split across several PDFs) are automatically detected and cross-referenced in the journal.
 
-### Tools
+### Tools (Free — No Account Required)
 
-**Jargon Translator** — Paste confusing medical language and get clear explanations in plain terms.
+**Jargon Translator** — Paste confusing medical language and get clear explanations in plain terms, with citations to authoritative sources (Mayo Clinic, MedlinePlus, Cleveland Clinic, CDC).
 
-**Conversation Coach** — Preparing for an appointment? Get help forming the right questions to ask your care team.
+**Conversation Coach** — Preparing for an appointment? Get help forming the right questions to ask your care team, with links to relevant medical resources. Sign in to use voice input and get personalized results from your journal.
 
 ### Security
 
@@ -99,7 +99,7 @@ Generate secret: `python -c "import secrets; print(secrets.token_urlsafe(32))"`
 docker compose up --build
 ```
 
-Open http://localhost:3001, create account, verify email, log in.
+Open http://localhost:3001. The Jargon Translator and Conversation Coach are available without login. Create an account to access the full platform.
 
 ### Stop
 ```bash

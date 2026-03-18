@@ -173,6 +173,20 @@ If the patient's journal contains relevant history, briefly note how this term m
 
 A brief note encouraging the family to confirm the specific meaning with their healthcare provider.
 
+## Sources
+
+Provide 2-3 links to support the explanation. You MUST only use these approved sources:
+- Mayo Clinic (mayoclinic.org)
+- MedlinePlus / NIH (medlineplus.gov)
+- Cleveland Clinic (my.clevelandclinic.org)
+- CDC (cdc.gov)
+
+Format as a markdown bulleted list with linked source names, e.g.:
+- [MedlinePlus: Hypertension](https://medlineplus.gov/highbloodpressure.html)
+- [Mayo Clinic: High blood pressure](https://www.mayoclinic.org/diseases-conditions/high-blood-pressure/symptoms-causes/syc-20373410)
+
+Only use URLs from the four approved domains above. If unsure of the exact page URL, link to the source's search page for the term (e.g., https://www.mayoclinic.org/search/search-results?q=hypertension).
+
 Keep the tone calm, professional, and reassuring."""
 
 
@@ -203,7 +217,17 @@ Focus on:
 - Avoiding implications of clinical judgment
 - Keeping questions clear and focused
 - Supporting the family's role as advocates, not medical decision-makers
-- Referencing specific journal history to make guidance more relevant and personalized"""
+- Referencing specific journal history to make guidance more relevant and personalized
+
+## Helpful Resources
+
+Provide 2-3 links related to the healthcare topic being discussed. You MUST only use these approved sources:
+- Mayo Clinic (mayoclinic.org)
+- MedlinePlus / NIH (medlineplus.gov)
+- Cleveland Clinic (my.clevelandclinic.org)
+- CDC (cdc.gov)
+
+Format as a markdown bulleted list with linked source names. Only use URLs from these four approved domains. If unsure of the exact page URL, link to the source's search page for the topic."""
 
 
 # ============================================================================

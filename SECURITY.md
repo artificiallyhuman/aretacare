@@ -136,6 +136,7 @@ AretaCare implements comprehensive security measures:
 - **Password Reset**: 3 requests per hour
 - **API General**: 100 requests per minute per user
 - **File Uploads**: 10 per minute (documents), 5 per minute (audio)
+- **AI Tools**: 10 per minute per IP (Jargon Translator, Conversation Coach — publicly accessible)
 - **Admin Actions**: 5/hour destructive, 10/hour sensitive, 20/hour email
 
 ### Data Protection
