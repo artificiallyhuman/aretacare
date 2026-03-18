@@ -11,6 +11,7 @@ import NetworkStatusBanner from './components/NetworkStatusBanner';
 import FeedbackTab from './components/FeedbackTab';
 import IdleTimeout from './components/IdleTimeout';
 import CollaborationAwarenessPopup from './components/CollaborationAwarenessPopup';
+import AIDataSharingConsentModal from './components/AIDataSharingConsentModal';
 
 // Eagerly load critical pages (login flow and main conversation)
 import Login from './pages/Login';
@@ -132,7 +133,7 @@ function AdminRoute({ children }) {
 }
 
 function AppContent() {
-  const { user, logout } = useSessionContext();
+  const { user, setUser, logout } = useSessionContext();
   const location = useLocation();
 
   const handleLogout = async () => {
@@ -149,6 +150,7 @@ function AppContent() {
       {user && <Header onLogout={handleLogout} user={user} />}
       {user && <FeedbackTab />}
       {user && <CollaborationAwarenessPopup />}
+      <AIDataSharingConsentModal user={user} setUser={setUser} />
       <IdleTimeout />
       <main className="flex-1 overflow-auto">
       <Suspense fallback={<PageLoadingFallback />}>

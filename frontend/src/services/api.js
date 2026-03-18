@@ -204,6 +204,8 @@ export const authAPI = {
 
   getMe: () => api.get('/auth/me'),
 
+  acceptAIDataSharing: () => api.post('/auth/consent/ai-data-sharing'),
+
   updateName: (name, currentPassword) =>
     api.put('/auth/name', { name, current_password: currentPassword }),
 

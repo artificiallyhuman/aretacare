@@ -401,7 +401,7 @@ function Register() {
                       <Link to="/privacy" className="text-primary-600 dark:text-primary-400 hover:underline" target="_blank">
                         Privacy Policy
                       </Link>
-                      , including processing by AI systems to help organize, summarize, and interpret content.
+                      , including processing by OpenAI's AI systems to help organize, summarize, and interpret content.
                     </label>
                   </div>
 

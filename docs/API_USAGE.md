@@ -62,6 +62,7 @@ Supported methods: `totp`, `passkey`, `backup_code`.
 | `/auth/password/reset` | POST | Complete password reset |
 | `/auth/email` | PUT | Request email change (requires MFA if enabled) |
 | `/auth/email/verify?token=` | POST | Complete email change |
+| `/auth/consent/ai-data-sharing` | POST | Record AI data sharing consent (one-time, returns `{status: "consented"}`) |
 
 **Token Usage:** Include `Authorization: Bearer <token>` header on all authenticated requests.
 

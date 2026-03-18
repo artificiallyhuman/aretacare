@@ -219,6 +219,18 @@ def get_optional_user(
         return None
 
 
+def _build_user_response(user: User, db: DBSession) -> UserResponse:
+    """Build UserResponse with computed fields like AI data sharing consent."""
+    has_consent = db.query(ConsentRecord.id).filter(
+        ConsentRecord.user_id == user.id,
+        ConsentRecord.consent_type == ConsentType.AI_DATA_SHARING
+    ).first() is not None
+
+    response = UserResponse.model_validate(user)
+    response.has_ai_data_sharing_consent = has_consent
+    return response
+
+
 @router.post("/register", response_model=RegistrationResponse, status_code=status.HTTP_201_CREATED)
 @limiter.limit(RateLimits.REGISTER)
 def register(request: Request, response: Response, user_data: UserRegister, db: DBSession = Depends(get_db)):
@@ -639,7 +651,7 @@ def login(
 
     return LoginResponse(
         access_token=access_token,
-        user=UserResponse.model_validate(user),
+        user=_build_user_response(user, db),
         refresh_token=refresh_token if is_ios else None,
     )
 
@@ -776,7 +788,7 @@ def verify_mfa_login(
 
     return LoginResponse(
         access_token=access_token,
-        user=UserResponse.model_validate(user),
+        user=_build_user_response(user, db),
         refresh_token=refresh_token if is_ios else None,
         trusted_device_token=trusted_device_token_value,
     )
@@ -937,9 +949,46 @@ def resend_verification(
 
 
 @router.get("/me", response_model=UserResponse)
-def get_me(current_user: User = Depends(get_current_user)):
+def get_me(current_user: User = Depends(get_current_user), db: DBSession = Depends(get_db)):
     """Get current user information."""
-    return UserResponse.model_validate(current_user)
+    return _build_user_response(current_user, db)
+
+
+@router.post("/consent/ai-data-sharing")
+def accept_ai_data_sharing(
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    db: DBSession = Depends(get_db)
+):
+    """Record user's explicit consent to AI data sharing with OpenAI."""
+    existing = db.query(ConsentRecord.id).filter(
+        ConsentRecord.user_id == current_user.id,
+        ConsentRecord.consent_type == ConsentType.AI_DATA_SHARING
+    ).first()
+
+    if existing:
+        return {"status": "already_consented"}
+
+    consent_info = CONSENT_VERSIONS[ConsentType.AI_DATA_SHARING]
+    client_ip = (
+        request.headers.get("CF-Connecting-IP")
+        or request.headers.get("X-Forwarded-For", "").split(",")[0].strip()
+        or (request.client.host if request.client else None)
+    )
+    user_agent = request.headers.get("User-Agent", "")[:500]
+
+    record = ConsentRecord(
+        user_id=current_user.id,
+        consent_type=ConsentType.AI_DATA_SHARING,
+        consent_version=consent_info["version"],
+        consent_text=consent_info["text"],
+        ip_address=client_ip,
+        user_agent=user_agent
+    )
+    db.add(record)
+    db.commit()
+
+    return {"status": "consented"}
 
 
 @router.put("/name", response_model=UserResponse)
@@ -961,7 +1010,7 @@ def update_name(
     db.commit()
     db.refresh(current_user)
 
-    return UserResponse.model_validate(current_user)
+    return _build_user_response(current_user, db)
 
 
 @router.put("/email")
@@ -1389,7 +1438,7 @@ def refresh_access_token(
 
     return TokenResponse(
         access_token=access_token,
-        user=UserResponse.model_validate(user),
+        user=_build_user_response(user, db),
         refresh_token=new_refresh_token if is_ios else None,
     )
 

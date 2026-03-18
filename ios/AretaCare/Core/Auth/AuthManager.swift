@@ -10,6 +10,7 @@ final class AuthManager {
     private(set) var isLoading = true
     private(set) var mfaToken: String?
     private(set) var mfaMethods: [String] = []
+    private(set) var hasAcceptedAIDataSharing = false
 
     // Idle timeout
     private var lastActivityDate = Date()
@@ -84,6 +85,7 @@ final class AuthManager {
             KeychainManager.shared.refreshToken = refreshToken
         }
         currentUser = user
+        hasAcceptedAIDataSharing = user.hasAiDataSharingConsent ?? false
         isAuthenticated = true
         startIdleTimer()
         NotificationManager.shared.requestAuthorization()
@@ -127,6 +129,7 @@ final class AuthManager {
             KeychainManager.shared.trustedDeviceToken = trustedDeviceToken
         }
         currentUser = response.user
+        hasAcceptedAIDataSharing = response.user.hasAiDataSharingConsent ?? false
         isAuthenticated = true
         self.mfaToken = nil
         startIdleTimer()
@@ -163,6 +166,13 @@ final class AuthManager {
                 invitationToken: invitationToken
             )
         )
+    }
+
+    // MARK: - AI Data Sharing Consent
+
+    func acceptAIDataSharing() async throws {
+        let _: EmptyResponse = try await APIClient.shared.post(APIEndpoints.Auth.consentAIDataSharing)
+        hasAcceptedAIDataSharing = true
     }
 
     // MARK: - Logout
@@ -208,6 +218,7 @@ final class AuthManager {
         currentUser = nil
         mfaToken = nil
         mfaMethods = []
+        hasAcceptedAIDataSharing = false
         stopIdleTimer()
         BiometricManager.shared.clearLock()
         UserDefaults.standard.removeObject(forKey: "biometricLockEnabled")
@@ -225,6 +236,7 @@ final class AuthManager {
     func fetchCurrentUser() async throws {
         let user: UserResponse = try await APIClient.shared.get(APIEndpoints.Auth.me)
         currentUser = user
+        hasAcceptedAIDataSharing = user.hasAiDataSharingConsent ?? false
     }
 
     // MARK: - Idle Timeout

@@ -10,6 +10,7 @@ struct UserResponse: Codable, Identifiable, Sendable {
     let createdAt: Date?
     let lastActiveSessionId: String?
     let pendingEmail: String?
+    let hasAiDataSharingConsent: Bool?
 }
 
 // MARK: - Login

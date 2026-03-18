@@ -23,6 +23,9 @@ struct ContentView: View {
                     }
                     .transition(.identity)
                 }
+            } else if !authManager.hasAcceptedAIDataSharing {
+                AIDataSharingConsentView()
+                    .transition(.identity)
             } else if subscriptionManager.isCheckingEntitlement {
                 loadingView
                     .transition(.identity)

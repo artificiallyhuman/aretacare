@@ -23,6 +23,7 @@ enum APIEndpoints {
         static let sessionValid = "/auth/session-valid"
         static let loginMFAVerify = "/auth/login/mfa-verify"
         static let loginMFAPasskeyOptions = "/auth/login/mfa-passkey-options"
+        static let consentAIDataSharing = "/auth/consent/ai-data-sharing"
     }
 
     // MARK: - Sessions

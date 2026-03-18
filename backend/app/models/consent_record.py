@@ -17,6 +17,7 @@ class ConsentType(str, enum.Enum):
     TERMS_PRIVACY = "terms_privacy"  # Agrees to Terms of Service and Privacy Policy
     AGE_USE = "age_use"  # Confirms 18+, US residency, and lawful use
     SHARING_AUTHORIZATION = "sharing_authorization"  # Confirms right to share session with collaborator
+    AI_DATA_SHARING = "ai_data_sharing"  # Explicit consent for third-party AI data sharing (OpenAI)
 
 
 # Consent text versions - update version when text changes
@@ -30,8 +31,8 @@ CONSENT_VERSIONS = {
         "text": "I understand that AretaCare is a consumer tool, not a HIPAA-covered service, and is not a medical record system. I will not rely on it as my sole repository for critical health information."
     },
     ConsentType.DATA_PROCESSING: {
-        "version": "1.0",
-        "text": "I consent to the collection, storage, and processing of my information as described in the Privacy Policy, including processing by AI systems to help organize, summarize, and interpret content."
+        "version": "1.1",
+        "text": "I consent to the collection, storage, and processing of my information as described in the Privacy Policy, including processing by OpenAI's AI systems to help organize, summarize, and interpret content."
     },
     ConsentType.TERMS_PRIVACY: {
         "version": "1.0",
@@ -44,6 +45,10 @@ CONSENT_VERSIONS = {
     ConsentType.SHARING_AUTHORIZATION: {
         "version": "1.0",
         "text": "I confirm I have the right to share the information in this session with the collaborator I'm adding. If I'm the patient, this is my consent. If I'm a caregiver, I have the patient's permission to share it."
+    },
+    ConsentType.AI_DATA_SHARING: {
+        "version": "1.0",
+        "text": "I understand and consent to the following: To provide AI-powered features, AretaCare sends data I provide — including conversations, health profile information, journal entries, documents, and audio recordings — to OpenAI for processing. OpenAI processes this data according to its API data usage policy and does not use it to train its models. For more details, see AretaCare's Privacy Policy and OpenAI's API Data Privacy page."
     }
 }
 

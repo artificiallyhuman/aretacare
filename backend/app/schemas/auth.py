@@ -30,6 +30,7 @@ class UserResponse(BaseModel):
     created_at: datetime
     last_active_session_id: str | None = None
     pending_email: str | None = None
+    has_ai_data_sharing_consent: bool = False
 
     class Config:
         from_attributes = True

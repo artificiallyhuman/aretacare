@@ -288,7 +288,7 @@ struct RegisterView: View {
 
                 LinkedConsentCheckbox(
                     isChecked: $viewModel.consentDataProcessing,
-                    markdown: "I consent to the collection, storage, and processing of my information as described in the [Privacy Policy](\(AppConstants.privacyURL)), including processing by AI systems to help organize, summarize, and interpret content."
+                    markdown: "I consent to the collection, storage, and processing of my information as described in the [Privacy Policy](\(AppConstants.privacyURL)), including processing by OpenAI's AI systems to help organize, summarize, and interpret content."
                 )
 
                 LinkedConsentCheckbox(
