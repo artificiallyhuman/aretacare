@@ -18,6 +18,14 @@ from ..config import ai_config
 
 logger = logging.getLogger(__name__)
 
+# Preferences sub-fields that are nested arrays (vs scalar fields like emergency_instructions)
+PREFERENCES_ARRAY_FIELDS = {"communication_preferences", "caregiving_guidelines", "important_context"}
+PREFERENCES_ID_PREFIXES = {
+    "communication_preferences": "comm",
+    "caregiving_guidelines": "guide",
+    "important_context": "ctx",
+}
+
 # Initialize OpenAI client
 client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
 
@@ -681,6 +689,11 @@ class ProfileService:
         """Apply a single change to the profile"""
         profile_data = profile.profile_data or {}
 
+        # For preferences, determine the sub-field from field_path
+        pref_sub_field = None
+        if section == "preferences" and field_path:
+            pref_sub_field = field_path.split(".")[-1]
+
         if change_type == "add":
             # Add a new item to a section
             if section == "patient":
@@ -691,10 +704,35 @@ class ProfileService:
             elif section == "preferences":
                 if not profile_data.get("preferences"):
                     profile_data["preferences"] = {}
-                if isinstance(new_value, dict):
-                    profile_data["preferences"].update(new_value)
+
+                # Determine which sub-field we're adding to
+                sub_field = pref_sub_field
+                # If field_path was auto-generated as "preferences.new_item", infer from new_value
+                if sub_field not in PREFERENCES_ARRAY_FIELDS and isinstance(new_value, dict):
+                    if "preference" in new_value:
+                        sub_field = "communication_preferences"
+                    elif "guideline" in new_value:
+                        sub_field = "caregiving_guidelines"
+                    elif "context" in new_value:
+                        sub_field = "important_context"
+
+                if sub_field in PREFERENCES_ARRAY_FIELDS:
+                    # Add item to a nested array within preferences
+                    if sub_field not in profile_data["preferences"]:
+                        profile_data["preferences"][sub_field] = []
+                    if isinstance(new_value, dict):
+                        if "id" not in new_value:
+                            prefix = PREFERENCES_ID_PREFIXES.get(sub_field, "pref")
+                            new_value["id"] = f"{prefix}_{uuid.uuid4().hex[:6]}"
+                        profile_data["preferences"][sub_field].append(new_value)
+                else:
+                    # Scalar field (emergency_instructions, additional_notes)
+                    if isinstance(new_value, dict):
+                        profile_data["preferences"].update(new_value)
+                    elif pref_sub_field:
+                        profile_data["preferences"][pref_sub_field] = new_value
             else:
-                # Add to a list section
+                # Add to a top-level list section
                 if section not in profile_data:
                     profile_data[section] = []
                 if isinstance(new_value, dict):
@@ -704,15 +742,27 @@ class ProfileService:
                     profile_data[section].append(new_value)
 
         elif change_type == "delete":
-            if section in ["patient", "preferences"]:
-                # Delete a field from single object sections
-                if profile_data.get(section):
-                    # Extract field name from path
+            if section == "patient":
+                # Delete a field from patient object
+                if profile_data.get("patient"):
                     field_name = field_path.split(".")[-1]
-                    if field_name in profile_data[section]:
-                        del profile_data[section][field_name]
+                    if field_name in profile_data["patient"]:
+                        del profile_data["patient"][field_name]
+            elif section == "preferences":
+                if profile_data.get("preferences"):
+                    sub_field = pref_sub_field
+                    if sub_field in PREFERENCES_ARRAY_FIELDS and item_id:
+                        # Delete a specific item from a nested array by item_id
+                        if sub_field in profile_data["preferences"]:
+                            profile_data["preferences"][sub_field] = [
+                                item for item in profile_data["preferences"][sub_field]
+                                if item.get("id") != item_id
+                            ]
+                    elif sub_field and sub_field in profile_data["preferences"]:
+                        # Delete a scalar field (emergency_instructions, additional_notes)
+                        del profile_data["preferences"][sub_field]
             else:
-                # Delete an item from a list section
+                # Delete an item from a top-level list section
                 if profile_data.get(section):
                     profile_data[section] = [
                         item for item in profile_data[section]
@@ -720,19 +770,44 @@ class ProfileService:
                     ]
 
         elif change_type == "edit":
-            if section in ["patient", "preferences"]:
-                # Edit a field in single object sections
-                if not profile_data.get(section):
-                    profile_data[section] = {}
+            if section == "patient":
+                # Edit a field in patient object
+                if not profile_data.get("patient"):
+                    profile_data["patient"] = {}
                 if isinstance(new_value, dict):
-                    # Update entire object
-                    profile_data[section].update(new_value)
+                    profile_data["patient"].update(new_value)
                 else:
-                    # Update single field
                     field_name = field_path.split(".")[-1]
-                    profile_data[section][field_name] = new_value
+                    profile_data["patient"][field_name] = new_value
+            elif section == "preferences":
+                if not profile_data.get("preferences"):
+                    profile_data["preferences"] = {}
+
+                sub_field = pref_sub_field
+                if sub_field in PREFERENCES_ARRAY_FIELDS and item_id:
+                    # Edit a specific item in a nested array by item_id
+                    if sub_field in profile_data["preferences"]:
+                        for item in profile_data["preferences"][sub_field]:
+                            if item.get("id") == item_id:
+                                if isinstance(new_value, dict):
+                                    original_id = item.get("id")
+                                    for key, value in new_value.items():
+                                        if key != "id":
+                                            item[key] = value
+                                    if original_id:
+                                        item["id"] = original_id
+                                else:
+                                    field_name = field_path.split(".")[-1]
+                                    item[field_name] = new_value
+                                break
+                else:
+                    # Edit a scalar field (emergency_instructions, additional_notes)
+                    if isinstance(new_value, dict):
+                        profile_data["preferences"].update(new_value)
+                    elif pref_sub_field:
+                        profile_data["preferences"][pref_sub_field] = new_value
             else:
-                # Edit a field in a list item
+                # Edit a field in a top-level list item
                 if profile_data.get(section):
                     for item in profile_data[section]:
                         if item.get("id") == item_id:
