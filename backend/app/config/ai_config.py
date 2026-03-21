@@ -744,6 +744,33 @@ RESPONSE FORMAT (JSON only):
       "old_value": "Call surgeon immediately if fever exceeds 101°F",
       "new_value": null,
       "reasoning": "Post-surgery recovery complete, emergency instructions no longer needed"
+    }},
+    {{
+      "change_type": "add",
+      "section": "preferences",
+      "item_id": null,
+      "field_path": "preferences.communication_preferences",
+      "new_value": {{"category": "medical_discussions", "preference": "Use simple, non-technical language when explaining diagnoses", "details": null}},
+      "old_value": null,
+      "reasoning": "Family expressed preference for simpler medical explanations"
+    }},
+    {{
+      "change_type": "edit",
+      "section": "preferences",
+      "item_id": "guide_abc123",
+      "field_path": "preferences.caregiving_guidelines",
+      "old_value": {{"id": "guide_abc123", "category": "nutrition", "guideline": "Low sodium diet", "importance": "important"}},
+      "new_value": {{"id": "guide_abc123", "category": "nutrition", "guideline": "Low sodium diet (max 1500mg/day)", "importance": "critical", "details": "Per cardiologist recommendation"}},
+      "reasoning": "Updated dietary restriction with specific sodium limit from cardiology appointment"
+    }},
+    {{
+      "change_type": "delete",
+      "section": "preferences",
+      "item_id": "ctx_abc123",
+      "field_path": "preferences.important_context",
+      "old_value": {{"id": "ctx_abc123", "category": "fears", "context": "Anxious about upcoming surgery"}},
+      "new_value": null,
+      "reasoning": "Surgery completed successfully, context no longer relevant"
     }}
   ]
 }}
@@ -761,6 +788,8 @@ FIELD NAMES - Use these exact field names for each section:
 - preferences.important_context: category, context, details
 - preferences.emergency_instructions: string
 - preferences.additional_notes: string
+
+NOTE: For preferences sub-arrays (communication_preferences, caregiving_guidelines, important_context), always use section="preferences" and set field_path to identify which sub-array (e.g., "preferences.communication_preferences"). The new_value should be the individual item object, NOT wrapped in the array key.
 
 RULES:
 - Return empty changes array if nothing relevant in new activity

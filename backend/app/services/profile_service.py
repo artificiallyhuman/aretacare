@@ -503,9 +503,24 @@ class ProfileService:
                 if not change.get("id"):
                     change["id"] = str(uuid.uuid4())[:8]
 
-                # Ensure field_path is set
+                # Normalize preferences sub-array changes
                 section = change.get("section", "")
                 item_id = change.get("item_id")
+
+                if section in PREFERENCES_ARRAY_FIELDS:
+                    # AI used sub-array name as section — normalize
+                    change["field_path"] = f"preferences.{section}"
+                    change["section"] = "preferences"
+                    section = "preferences"
+                elif section.startswith("preferences."):
+                    # AI used "preferences.communication_preferences" as section
+                    sub = section.split(".", 1)[1]
+                    if sub in PREFERENCES_ARRAY_FIELDS:
+                        change["field_path"] = section
+                        change["section"] = "preferences"
+                        section = "preferences"
+
+                # Ensure field_path is set
                 if not change.get("field_path"):
                     if item_id:
                         change["field_path"] = f"{section}.{item_id}"
@@ -678,6 +693,69 @@ class ProfileService:
             raise
 
     @staticmethod
+    def _apply_list_change(
+        items: list,
+        change_type: str,
+        item_id: Optional[str],
+        field_path: str,
+        new_value: Any,
+        id_prefix: str
+    ):
+        """Apply add/edit/delete to a list of items. Shared by top-level lists and preferences sub-arrays."""
+        if change_type == "add":
+            if isinstance(new_value, dict):
+                if "id" not in new_value:
+                    new_value["id"] = f"{id_prefix}_{uuid.uuid4().hex[:6]}"
+                items.append(new_value)
+        elif change_type == "delete":
+            items[:] = [item for item in items if item.get("id") != item_id]
+        elif change_type == "edit":
+            for item in items:
+                if item.get("id") == item_id:
+                    if isinstance(new_value, dict):
+                        original_id = item.get("id")
+                        for key, value in new_value.items():
+                            if key != "id":
+                                item[key] = value
+                        if original_id:
+                            item["id"] = original_id
+                    else:
+                        field_name = field_path.split(".")[-1]
+                        item[field_name] = new_value
+                    break
+
+    @staticmethod
+    def _resolve_preferences_sub_array(section, field_path, change_type, new_value):
+        """
+        Determine if a change targets a preferences sub-array.
+        Returns the sub-array name if so, None otherwise.
+        """
+        # Already using the sub-array name as section (AI variant format)
+        if section in PREFERENCES_ARRAY_FIELDS:
+            return section
+
+        # Section is "preferences" — check field_path for sub-array name
+        if section == "preferences" and field_path:
+            sub = field_path.split(".")[-1]
+            if sub in PREFERENCES_ARRAY_FIELDS:
+                return sub
+
+        # Section is "preferences" with no useful field_path — infer from new_value
+        if section == "preferences" and change_type in ("add", "edit") and isinstance(new_value, dict):
+            if "preference" in new_value:
+                return "communication_preferences"
+            if "guideline" in new_value:
+                return "caregiving_guidelines"
+            if "context" in new_value:
+                return "important_context"
+            # Handle wrapped format: {"communication_preferences": [{...}]}
+            for key in PREFERENCES_ARRAY_FIELDS:
+                if key in new_value and isinstance(new_value[key], list):
+                    return key
+
+        return None
+
+    @staticmethod
     def _apply_change(
         profile: Profile,
         change_type: str,
@@ -689,141 +767,52 @@ class ProfileService:
         """Apply a single change to the profile"""
         profile_data = profile.profile_data or {}
 
-        # For preferences, determine the sub-field from field_path
-        pref_sub_field = None
-        if section == "preferences" and field_path:
-            pref_sub_field = field_path.split(".")[-1]
+        # Check if this targets a preferences sub-array
+        sub_array = ProfileService._resolve_preferences_sub_array(
+            section, field_path, change_type, new_value
+        )
 
-        if change_type == "add":
-            # Add a new item to a section
-            if section == "patient":
-                if not profile_data.get("patient"):
-                    profile_data["patient"] = {}
+        if sub_array:
+            # Preferences sub-array — route through shared list logic
+            if not profile_data.get("preferences"):
+                profile_data["preferences"] = {}
+            if sub_array not in profile_data["preferences"]:
+                profile_data["preferences"][sub_array] = []
+
+            # Unwrap if AI wrapped new_value in the array key
+            if isinstance(new_value, dict) and sub_array in new_value and isinstance(new_value[sub_array], list):
+                new_value = new_value[sub_array][0] if new_value[sub_array] else new_value
+
+            prefix = PREFERENCES_ID_PREFIXES.get(sub_array, "pref")
+            ProfileService._apply_list_change(
+                profile_data["preferences"][sub_array],
+                change_type, item_id, field_path, new_value, prefix
+            )
+
+        elif section in ("patient", "preferences"):
+            # Single-object section (patient fields or preferences scalars)
+            if not profile_data.get(section):
+                profile_data[section] = {}
+            if change_type in ("add", "edit"):
                 if isinstance(new_value, dict):
-                    profile_data["patient"].update(new_value)
-            elif section == "preferences":
-                if not profile_data.get("preferences"):
-                    profile_data["preferences"] = {}
-
-                # Determine which sub-field we're adding to
-                sub_field = pref_sub_field
-                # If field_path was auto-generated as "preferences.new_item", infer from new_value
-                if sub_field not in PREFERENCES_ARRAY_FIELDS and isinstance(new_value, dict):
-                    if "preference" in new_value:
-                        sub_field = "communication_preferences"
-                    elif "guideline" in new_value:
-                        sub_field = "caregiving_guidelines"
-                    elif "context" in new_value:
-                        sub_field = "important_context"
-
-                if sub_field in PREFERENCES_ARRAY_FIELDS:
-                    # Add item to a nested array within preferences
-                    if sub_field not in profile_data["preferences"]:
-                        profile_data["preferences"][sub_field] = []
-                    if isinstance(new_value, dict):
-                        if "id" not in new_value:
-                            prefix = PREFERENCES_ID_PREFIXES.get(sub_field, "pref")
-                            new_value["id"] = f"{prefix}_{uuid.uuid4().hex[:6]}"
-                        profile_data["preferences"][sub_field].append(new_value)
+                    profile_data[section].update(new_value)
                 else:
-                    # Scalar field (emergency_instructions, additional_notes)
-                    if isinstance(new_value, dict):
-                        profile_data["preferences"].update(new_value)
-                    elif pref_sub_field:
-                        profile_data["preferences"][pref_sub_field] = new_value
-            else:
-                # Add to a top-level list section
-                if section not in profile_data:
-                    profile_data[section] = []
-                if isinstance(new_value, dict):
-                    # Ensure the new item has an ID
-                    if "id" not in new_value:
-                        new_value["id"] = f"{section[:3]}_{uuid.uuid4().hex[:6]}"
-                    profile_data[section].append(new_value)
+                    field_name = field_path.split(".")[-1] if field_path else section
+                    profile_data[section][field_name] = new_value
+            elif change_type == "delete":
+                field_name = field_path.split(".")[-1] if field_path else None
+                if field_name and field_name in profile_data[section]:
+                    del profile_data[section][field_name]
 
-        elif change_type == "delete":
-            if section == "patient":
-                # Delete a field from patient object
-                if profile_data.get("patient"):
-                    field_name = field_path.split(".")[-1]
-                    if field_name in profile_data["patient"]:
-                        del profile_data["patient"][field_name]
-            elif section == "preferences":
-                if profile_data.get("preferences"):
-                    sub_field = pref_sub_field
-                    if sub_field in PREFERENCES_ARRAY_FIELDS and item_id:
-                        # Delete a specific item from a nested array by item_id
-                        if sub_field in profile_data["preferences"]:
-                            profile_data["preferences"][sub_field] = [
-                                item for item in profile_data["preferences"][sub_field]
-                                if item.get("id") != item_id
-                            ]
-                    elif sub_field and sub_field in profile_data["preferences"]:
-                        # Delete a scalar field (emergency_instructions, additional_notes)
-                        del profile_data["preferences"][sub_field]
-            else:
-                # Delete an item from a top-level list section
-                if profile_data.get(section):
-                    profile_data[section] = [
-                        item for item in profile_data[section]
-                        if item.get("id") != item_id
-                    ]
-
-        elif change_type == "edit":
-            if section == "patient":
-                # Edit a field in patient object
-                if not profile_data.get("patient"):
-                    profile_data["patient"] = {}
-                if isinstance(new_value, dict):
-                    profile_data["patient"].update(new_value)
-                else:
-                    field_name = field_path.split(".")[-1]
-                    profile_data["patient"][field_name] = new_value
-            elif section == "preferences":
-                if not profile_data.get("preferences"):
-                    profile_data["preferences"] = {}
-
-                sub_field = pref_sub_field
-                if sub_field in PREFERENCES_ARRAY_FIELDS and item_id:
-                    # Edit a specific item in a nested array by item_id
-                    if sub_field in profile_data["preferences"]:
-                        for item in profile_data["preferences"][sub_field]:
-                            if item.get("id") == item_id:
-                                if isinstance(new_value, dict):
-                                    original_id = item.get("id")
-                                    for key, value in new_value.items():
-                                        if key != "id":
-                                            item[key] = value
-                                    if original_id:
-                                        item["id"] = original_id
-                                else:
-                                    field_name = field_path.split(".")[-1]
-                                    item[field_name] = new_value
-                                break
-                else:
-                    # Edit a scalar field (emergency_instructions, additional_notes)
-                    if isinstance(new_value, dict):
-                        profile_data["preferences"].update(new_value)
-                    elif pref_sub_field:
-                        profile_data["preferences"][pref_sub_field] = new_value
-            else:
-                # Edit a field in a top-level list item
-                if profile_data.get(section):
-                    for item in profile_data[section]:
-                        if item.get("id") == item_id:
-                            if isinstance(new_value, dict):
-                                # Update entire item (preserving ID)
-                                original_id = item.get("id")
-                                for key, value in new_value.items():
-                                    if key != "id":
-                                        item[key] = value
-                                if original_id:
-                                    item["id"] = original_id
-                            else:
-                                # Update single field
-                                field_name = field_path.split(".")[-1]
-                                item[field_name] = new_value
-                            break
+        else:
+            # Top-level list section (caregivers, medications, etc.)
+            if section not in profile_data:
+                profile_data[section] = []
+            ProfileService._apply_list_change(
+                profile_data[section],
+                change_type, item_id, field_path, new_value,
+                section[:3]
+            )
 
         profile.profile_data = profile_data
 
