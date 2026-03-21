@@ -290,13 +290,16 @@ DELETE /api/daily-plans/{id}                    # Delete
 ## Profile
 
 ```bash
-GET    /api/profile/{session_id}           # Get profile
-PUT    /api/profile/{session_id}           # Update profile
-POST   /api/profile/{session_id}/save      # Save pending changes
-PUT    /api/profile/{session_id}/pending   # Accept/reject pending
-POST   /api/profile/{session_id}/regenerate # Full regeneration
-DELETE /api/profile/{session_id}           # Delete profile
-GET    /api/profile/{session_id}/pdf       # Export as PDF
+GET    /api/profile/{session_id}                        # Get profile
+GET    /api/profile/{session_id}/check                  # Check if AI update available
+POST   /api/profile/{session_id}/update                 # Trigger AI profile update
+PUT    /api/profile/{session_id}                        # Manual full profile update
+PATCH  /api/profile/{session_id}/section                # Update a single section
+GET    /api/profile/{session_id}/pending-changes        # Get pending AI-suggested changes
+POST   /api/profile/{session_id}/pending-changes/review # Accept/reject pending changes
+POST   /api/profile/{session_id}/regenerate             # Regenerate from scratch
+DELETE /api/profile/{session_id}                        # Delete profile
+GET    /api/profile/{session_id}/export                 # Export as JSON or PDF
 ```
 
 ---
