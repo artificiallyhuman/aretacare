@@ -114,13 +114,19 @@ async def submit_feedback(
     # Get client IP for hCaptcha verification
     client_ip = get_client_ip(request)
 
-    # Verify hCaptcha
-    is_valid = await verify_hcaptcha(feedback.captcha_token, client_ip)
-    if not is_valid:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Captcha verification failed. Please try again."
-        )
+    # Verify hCaptcha (skip for authenticated users — they've already proven they're human)
+    if not current_user:
+        if not feedback.captcha_token:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Captcha verification is required."
+            )
+        is_valid = await verify_hcaptcha(feedback.captcha_token, client_ip)
+        if not is_valid:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Captcha verification failed. Please try again."
+            )
 
     # Sanitize inputs to prevent XSS
     sanitized_name = sanitize_input(feedback.name)

@@ -7,7 +7,7 @@ class WaitlistJoinRequest(BaseModel):
     """Schema for joining the waitlist."""
     email: EmailStr
     message: Optional[str] = None  # "Anything you want us to know"
-    captcha_token: str  # hCaptcha token
+    captcha_token: str | None = None  # hCaptcha token (required for web, skipped for iOS)
 
 
 class WaitlistJoinResponse(BaseModel):

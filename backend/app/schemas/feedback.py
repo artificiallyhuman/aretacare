@@ -17,7 +17,7 @@ class FeedbackSubmit(BaseModel):
     email: EmailStr = Field(..., description="User's email address")
     feedback_types: List[FeedbackType] = Field(..., min_length=1, description="Types of feedback (at least one required)")
     message: str = Field(..., min_length=10, max_length=5000, description="Feedback message")
-    captcha_token: str = Field(..., description="hCaptcha token for verification")
+    captcha_token: str | None = Field(None, description="hCaptcha token for verification (required for unauthenticated submissions)")
 
     # Optional metadata for diagnostics (privacy-conscious)
     user_agent: str | None = Field(None, max_length=500, description="Browser user agent")

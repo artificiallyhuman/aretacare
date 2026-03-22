@@ -46,6 +46,11 @@ async def join_waitlist(
     # Skip hCaptcha for iOS native clients (rate limit provides anti-spam protection)
     is_ios = request.headers.get("X-Client-Type") == "ios"
     if not is_ios:
+        if not data.captcha_token:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Captcha verification is required."
+            )
         client_ip = get_client_ip(request)
         is_valid = await verify_hcaptcha(data.captcha_token, client_ip)
         if not is_valid:
