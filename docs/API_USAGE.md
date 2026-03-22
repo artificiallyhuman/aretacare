@@ -353,7 +353,7 @@ GET  /api/waitlist/signup-mode  # Check if waitlist mode active
 POST /api/waitlist/join         # Join waitlist: {"email": "...", "captcha_token": "..."}
 ```
 
-iOS clients (with `X-Client-Type: ios` header) skip hCaptcha verification — the existing rate limit provides anti-spam protection.
+`captcha_token` is optional. iOS clients (with `X-Client-Type: ios` header) skip hCaptcha verification — the existing rate limit provides anti-spam protection. Web clients must provide the token.
 
 ---
 
@@ -371,7 +371,7 @@ POST /api/feedback/submit
   "captcha_token": "hcaptcha_token"
 }
 ```
-Types: `bug`, `improvement`, `feature`, `other`. Authentication optional. Rate limited: 3/hour per IP.
+Types: `bug`, `improvement`, `feature`, `other`. Authentication optional. Rate limited: 3/hour per IP. `captcha_token` is optional — skipped for authenticated users (e.g., iOS); required for unauthenticated web submissions.
 
 ---
 

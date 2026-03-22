@@ -8,7 +8,7 @@ User feedback collection with hCaptcha spam prevention and email notifications.
 - **Desktop**: Floating tab on right side of screen
 - **Mobile**: "Send Feedback" link in menu
 - **Types**: Bug report, improvement, feature request, other
-- **Security**: hCaptcha, rate limiting (3/hour), input sanitization
+- **Security**: hCaptcha (web only, skipped for authenticated users), rate limiting (3/hour), input sanitization
 
 ## Configuration
 
@@ -50,6 +50,8 @@ Authorization: Bearer <token>
   "page_url": "/conversation"
 }
 ```
+
+`captcha_token` is optional — skipped for authenticated users (e.g., iOS native app); required for unauthenticated web submissions.
 
 Rate limit: 3/hour per IP
 
