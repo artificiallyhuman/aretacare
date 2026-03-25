@@ -48,13 +48,24 @@ struct ContentView: View {
     // MARK: - Subscription Gate
 
     private var subscriptionGateView: some View {
-        PaywallView()
-            .onPurchaseCompleted { customerInfo in
-                subscriptionManager.updateEntitlements(from: customerInfo)
+        VStack(spacing: 0) {
+            PaywallView()
+                .onPurchaseCompleted { customerInfo in
+                    subscriptionManager.updateEntitlements(from: customerInfo)
+                }
+                .onRestoreCompleted { customerInfo in
+                    subscriptionManager.updateEntitlements(from: customerInfo)
+                }
+
+            HStack(spacing: 4) {
+                Link("Terms of Service", destination: AppConstants.termsURL)
+                Text("·")
+                Link("Privacy Policy", destination: AppConstants.privacyURL)
             }
-            .onRestoreCompleted { customerInfo in
-                subscriptionManager.updateEntitlements(from: customerInfo)
-            }
+            .font(.caption2)
+            .foregroundStyle(.secondary)
+            .padding(.vertical, 8)
+        }
     }
 
     private var loadingView: some View {
