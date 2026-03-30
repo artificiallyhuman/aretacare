@@ -1,18 +1,22 @@
 {
   "fill" : {
-    "solid" : "display-p3:0.98977,0.98977,0.98977,1.00000"
+    "solid" : "srgb:0.00000,0.32852,0.57488,1.00000"
   },
   "groups" : [
     {
       "layers" : [
         {
+          "blend-mode" : "normal",
+          "glass" : true,
+          "hidden" : false,
           "image-name" : "large_logo.png",
           "name" : "large_logo",
+          "opacity" : 1,
           "position" : {
             "scale" : 0.85,
             "translation-in-points" : [
-              -3.449999999999932,
-              -47.4921875
+              -4.449999999999932,
+              -44.4921875
             ]
           }
         }
