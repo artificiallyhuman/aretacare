@@ -51,6 +51,8 @@ targets:
     info:
       path: AretaCare/Info.plist
       properties:
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         CFBundleDisplayName: AretaCare
         UIApplicationSceneManifest:
           UIApplicationSupportsMultipleScenes: false
