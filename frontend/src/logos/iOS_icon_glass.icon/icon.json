@@ -1,0 +1,36 @@
+{
+  "fill" : {
+    "solid" : "display-p3:0.98977,0.98977,0.98977,1.00000"
+  },
+  "groups" : [
+    {
+      "layers" : [
+        {
+          "image-name" : "large_logo.png",
+          "name" : "large_logo",
+          "position" : {
+            "scale" : 0.85,
+            "translation-in-points" : [
+              -3.449999999999932,
+              -47.4921875
+            ]
+          }
+        }
+      ],
+      "shadow" : {
+        "kind" : "neutral",
+        "opacity" : 0.5
+      },
+      "translucency" : {
+        "enabled" : true,
+        "value" : 0.5
+      }
+    }
+  ],
+  "supported-platforms" : {
+    "circles" : [
+      "watchOS"
+    ],
+    "squares" : "shared"
+  }
+}
