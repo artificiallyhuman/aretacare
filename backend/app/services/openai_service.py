@@ -146,6 +146,7 @@ FILE_PROCESSING_ERROR_PATTERNS = [
     # Size/resource issues
     "file too large",
     "resource limit",
+    "context_length_exceeded",
 ]
 
 

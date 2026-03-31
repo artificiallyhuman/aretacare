@@ -127,11 +127,14 @@ class JournalService:
     ) -> JournalSynthesisResult:
         """Synthesize comprehensive journal entry from uploaded medical document using native file support"""
         try:
-            # Detect if document text is too long for complete analysis
+            # Truncate document text if too long for complete analysis
             text_truncated = False
             if extracted_text and len(extracted_text) > self.MAX_SYNTHESIS_CHARS:
                 text_truncated = True
-                logger.info(f"Document text ({len(extracted_text)} chars) exceeds max synthesis limit ({self.MAX_SYNTHESIS_CHARS} chars)")
+                original_len = len(extracted_text)
+                logger.info(f"Document text ({original_len} chars) exceeds max synthesis limit ({self.MAX_SYNTHESIS_CHARS} chars), truncating")
+                extracted_text = extracted_text[:self.MAX_SYNTHESIS_CHARS]
+                extracted_text += f"\n\n[Document text truncated due to length — original was {original_len} characters]"
 
             recent_entries = self._get_recent_entries(session_id, days=7)
             recent_context = self._format_recent_journal_brief(recent_entries)
@@ -285,8 +288,16 @@ IMPORTANT: Respond with ONLY a valid JSON object in this exact format, with no a
                     logger.warning(f"OpenAI file processing failed for journal synthesis: {api_error}. Falling back to extracted text.")
                     used_fallback = True
 
+                    # For context length errors, apply more aggressive truncation for fallback
+                    fallback_text = extracted_text
+                    if "context_length_exceeded" in str(api_error).lower():
+                        reduced_limit = self.MAX_SYNTHESIS_CHARS // 2
+                        if len(fallback_text) > reduced_limit:
+                            fallback_text = fallback_text[:reduced_limit]
+                            fallback_text += "\n\n[Document text further truncated for processing]"
+
                     # Rebuild messages with extracted text instead of file URL
-                    fallback_prompt = prompt + f"\n\n--- Document Content (OCR/Extracted) ---\n{extracted_text}\n--- End Document ---"
+                    fallback_prompt = prompt + f"\n\n--- Document Content (OCR/Extracted) ---\n{fallback_text}\n--- End Document ---"
                     fallback_messages = [
                         {"role": "system", "content": ai_config.DOCUMENT_JOURNAL_SYNTHESIS_PROMPT},
                         {"role": "user", "content": fallback_prompt}
@@ -308,7 +319,13 @@ IMPORTANT: Respond with ONLY a valid JSON object in this exact format, with no a
             # If response is None but we have extracted text for a PDF, try fallback
             if response is None and use_file_url and extracted_text and content_type == "application/pdf" and not used_fallback:
                 logger.warning("OpenAI returned no response with file URL for journal synthesis. Falling back to extracted text.")
-                fallback_prompt = prompt + f"\n\n--- Document Content (OCR/Extracted) ---\n{extracted_text}\n--- End Document ---"
+                # Apply reduced limit in case size contributed to the null response
+                fallback_text = extracted_text
+                reduced_limit = self.MAX_SYNTHESIS_CHARS // 2
+                if len(fallback_text) > reduced_limit:
+                    fallback_text = fallback_text[:reduced_limit]
+                    fallback_text += "\n\n[Document text further truncated for processing]"
+                fallback_prompt = prompt + f"\n\n--- Document Content (OCR/Extracted) ---\n{fallback_text}\n--- End Document ---"
                 fallback_messages = [
                     {"role": "system", "content": ai_config.DOCUMENT_JOURNAL_SYNTHESIS_PROMPT},
                     {"role": "user", "content": fallback_prompt}

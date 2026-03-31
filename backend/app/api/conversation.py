@@ -216,18 +216,40 @@ async def send_message(
         if document_id:
             # Get document details for comprehensive synthesis
             doc = db.query(Document).filter(Document.id == document_id).first()
-            synthesis_result = await journal_service.synthesize_from_document(
-                filename=doc.filename if doc else "Unknown document",
-                ai_description=doc.ai_description if (doc and doc.ai_description) else "",
-                session_id=session_id,
-                document_url=generated_media_url,  # Use presigned URL for native file support
-                content_type=doc.content_type if doc else None,
-                extracted_text=extracted_text or "",  # Fallback only if URL unavailable
-                entry_date=user_date,
-                document_id=document_id,
-                user_id=current_user.id,
-                auto_commit=False
-            )
+            try:
+                synthesis_result = await journal_service.synthesize_from_document(
+                    filename=doc.filename if doc else "Unknown document",
+                    ai_description=doc.ai_description if (doc and doc.ai_description) else "",
+                    session_id=session_id,
+                    document_url=generated_media_url,  # Use presigned URL for native file support
+                    content_type=doc.content_type if doc else None,
+                    extracted_text=extracted_text or "",  # Fallback only if URL unavailable
+                    entry_date=user_date,
+                    document_id=document_id,
+                    user_id=current_user.id,
+                    auto_commit=False
+                )
+            except Exception as synth_err:
+                logger.error(f"Document synthesis failed, continuing without journal entries: {synth_err}", exc_info=True)
+                try:
+                    from app.services.error_logger import log_database_error
+                    log_database_error(
+                        db=db,
+                        source="api.conversation.send_message.document_synthesis",
+                        error=synth_err,
+                        user_id=current_user.id,
+                        session_id=session_id,
+                        details={"document_id": document_id}
+                    )
+                except Exception:
+                    pass
+                from app.schemas.journal import JournalSynthesisResult
+                synthesis_result = JournalSynthesisResult(
+                    should_create=False,
+                    reasoning="Synthesis temporarily unavailable",
+                    suggested_entries=[],
+                    warning="The document could not be fully analyzed for journal entries. Your AI response has been saved. You can re-upload the document to retry."
+                )
         else:
             # Regular conversational synthesis
             synthesis_result = await journal_service.assess_and_synthesize(
