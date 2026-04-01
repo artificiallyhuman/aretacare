@@ -111,7 +111,19 @@ final class DocumentsViewModel {
         isUploading = true
         isPreparingUpload = false
         errorMessage = nil
-        defer { isUploading = false }
+
+        // Request background execution time so the upload survives screen lock / app backgrounding
+        var backgroundTaskId: UIBackgroundTaskIdentifier = .invalid
+        backgroundTaskId = UIApplication.shared.beginBackgroundTask {
+            UIApplication.shared.endBackgroundTask(backgroundTaskId)
+            backgroundTaskId = .invalid
+        }
+        defer {
+            isUploading = false
+            if backgroundTaskId != .invalid {
+                UIApplication.shared.endBackgroundTask(backgroundTaskId)
+            }
+        }
 
         do {
             var multipart = MultipartFormData()

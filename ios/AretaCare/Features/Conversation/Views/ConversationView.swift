@@ -135,6 +135,26 @@ struct ConversationView: View {
 
             messageList
 
+            // Upload indicator — outside messageList so it shows even in empty sessions
+            if documentsVM.isUploading {
+                HStack {
+                    HStack(spacing: 8) {
+                        ProgressView()
+                            .controlSize(.small)
+                        Text("Uploading...")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 10)
+                    .background(Color(.systemGray6))
+                    .clipShape(RoundedRectangle(cornerRadius: 18))
+                    Spacer()
+                }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 4)
+            }
+
             if isRecordingAudio {
                 ConversationAudioRecorderView(
                     recorder: audioRecorder,
@@ -323,26 +343,6 @@ struct ConversationView: View {
                             TypingBubbleView()
                                 .padding(.horizontal, 12)
                                 .padding(.bottom, 4)
-                        }
-
-                        // Upload indicator
-                        if documentsVM.isUploading {
-                            HStack {
-                                HStack(spacing: 8) {
-                                    ProgressView()
-                                        .controlSize(.small)
-                                    Text("Uploading...")
-                                        .font(.subheadline)
-                                        .foregroundStyle(.secondary)
-                                }
-                                .padding(.horizontal, 14)
-                                .padding(.vertical, 10)
-                                .background(Color(.systemGray6))
-                                .clipShape(RoundedRectangle(cornerRadius: 18))
-                                Spacer()
-                            }
-                            .padding(.horizontal, 12)
-                            .padding(.bottom, 4)
                         }
 
                         // Bottom anchor
