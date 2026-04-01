@@ -1,4 +1,5 @@
 import Foundation
+import UIKit
 import Observation
 
 @Observable @MainActor
@@ -231,6 +232,13 @@ final class ConversationViewModel {
         errorMessage = nil
         invalidateCache(for: sessionId)
 
+        // Request background execution time so the upload survives screen lock / app backgrounding
+        var backgroundTaskId: UIBackgroundTaskIdentifier = .invalid
+        backgroundTaskId = UIApplication.shared.beginBackgroundTask {
+            UIApplication.shared.endBackgroundTask(backgroundTaskId)
+            backgroundTaskId = .invalid
+        }
+
         let df = DateFormatter()
         df.dateFormat = "yyyy-MM-dd_h-mma"
         df.locale = Locale(identifier: "en_US_POSIX")
@@ -256,6 +264,9 @@ final class ConversationViewModel {
             if let transcribedText = response.transcribedText, !transcribedText.isEmpty {
                 // Reset isSending before calling sendMessage, which has its own guard on isSending
                 isSending = false
+                if backgroundTaskId != .invalid {
+                    UIApplication.shared.endBackgroundTask(backgroundTaskId)
+                }
                 await sendMessage(
                     text: transcribedText,
                     sessionId: sessionId,
@@ -268,6 +279,9 @@ final class ConversationViewModel {
         }
 
         isSending = false
+        if backgroundTaskId != .invalid {
+            UIApplication.shared.endBackgroundTask(backgroundTaskId)
+        }
     }
 
     // MARK: - Send Document/Image Message
