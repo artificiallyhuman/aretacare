@@ -142,8 +142,15 @@ struct SettingsView: View {
             }
 
             if BiometricManager.shared.isAvailable {
-                Toggle(isOn: $biometricLockEnabled) {
-                    Label(biometricLockLabel, systemImage: biometricLockIcon)
+                VStack(alignment: .leading, spacing: 4) {
+                    Toggle(isOn: $biometricLockEnabled) {
+                        Label(biometricLockLabel, systemImage: biometricLockIcon)
+                    }
+                    if biometricLockEnabled {
+                        Text("You won't be automatically logged out after periods of inactivity.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
                 }
             }
 

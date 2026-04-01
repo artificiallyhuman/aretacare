@@ -251,8 +251,11 @@ final class AuthManager {
         idleTimer = Timer.scheduledTimer(withTimeInterval: 15, repeats: true) { [weak self] _ in
             guard let self else { return }
             Task { @MainActor in
-                // Pause idle timeout while biometric lock is active
-                guard !BiometricManager.shared.isLocked else {
+                // Skip idle timeout entirely when biometric lock is enabled
+                // (biometric re-auth + 7-day token expiry provide sufficient security)
+                // Also pause while biometric lock screen is actively showing
+                guard !BiometricManager.shared.isBiometricLockEnabled,
+                      !BiometricManager.shared.isLocked else {
                     self.lastActivityDate = Date()
                     return
                 }

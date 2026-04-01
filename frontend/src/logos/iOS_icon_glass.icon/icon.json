@@ -4,6 +4,7 @@
   },
   "groups" : [
     {
+      "hidden" : false,
       "layers" : [
         {
           "blend-mode" : "normal",
