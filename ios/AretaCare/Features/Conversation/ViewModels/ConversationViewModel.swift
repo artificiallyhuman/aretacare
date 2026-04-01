@@ -181,11 +181,17 @@ final class ConversationViewModel {
                 await silentReconcile(sessionId: sid)
             }
         } catch {
-            // Keep the optimistic message but mark it as failed for retry
-            failedMessageIds.insert(tempUserMessage.id)
-            failedMessageContent[tempUserMessage.id] = trimmed
-            errorMessage = error.localizedDescription
             isSending = false
+            // The server may have processed the message despite the connection
+            // dropping (e.g. phone slept during AI response). Reconcile first.
+            await silentReconcile(sessionId: sessionId)
+            if messages.last?.role == .assistant {
+                errorMessage = nil
+            } else {
+                failedMessageIds.insert(tempUserMessage.id)
+                failedMessageContent[tempUserMessage.id] = trimmed
+                errorMessage = error.localizedDescription
+            }
         }
     }
 
@@ -358,8 +364,17 @@ final class ConversationViewModel {
                 await silentReconcile(sessionId: sid)
             }
         } catch {
-            errorMessage = error.localizedDescription
             isSending = false
+            // The server may have processed the message despite the connection
+            // dropping (e.g. phone slept during AI response). Reconcile to check
+            // before showing an error.
+            await silentReconcile(sessionId: sessionId)
+            if messages.last?.role == .assistant {
+                // Reconcile found the response — no error to show
+                errorMessage = nil
+            } else {
+                errorMessage = error.localizedDescription
+            }
         }
     }
 
