@@ -1,7 +1,7 @@
 {
   "images" : [
     {
-      "filename" : "iOS_icon_glass-iOS-Default-1024x1024@1x.png",
+      "filename" : "iOS_icon_flat-iOS-Default-1024x1024@1x.png",
       "idiom" : "universal",
       "platform" : "ios",
       "size" : "1024x1024"
@@ -13,7 +13,7 @@
           "value" : "dark"
         }
       ],
-      "filename" : "iOS_icon_glass-iOS-Dark-1024x1024@1x.png",
+      "filename" : "iOS_icon_flat-iOS-Dark-1024x1024@1x.png",
       "idiom" : "universal",
       "platform" : "ios",
       "size" : "1024x1024"
@@ -25,7 +25,7 @@
           "value" : "tinted"
         }
       ],
-      "filename" : "iOS_icon_glass-iOS-ClearLight-1024x1024@1x.png",
+      "filename" : "iOS_icon_flat-iOS-ClearDark-1024x1024@1x.png",
       "idiom" : "universal",
       "platform" : "ios",
       "size" : "1024x1024"
