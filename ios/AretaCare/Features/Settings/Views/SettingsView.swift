@@ -147,9 +147,10 @@ struct SettingsView: View {
                         Label(biometricLockLabel, systemImage: biometricLockIcon)
                     }
                     if biometricLockEnabled {
-                        Text("You won't be automatically logged out after periods of inactivity.")
+                        Text("Disables automatic logout after inactivity.")
                             .font(.caption)
                             .foregroundStyle(.secondary)
+                            .padding(.leading, 36)
                     }
                 }
             }
