@@ -25,7 +25,7 @@ Technical documentation of AretaCare's security measures.
 
 ### Session Security
 
-- **Idle timeout**: 30 minutes inactivity triggers logout with 1-minute warning
+- **Idle timeout**: 30 minutes inactivity triggers logout with 1-minute warning (disabled on iOS when biometric lock is enabled; token expiry provides session safeguard)
 - **Cross-tab sync**: Logout in one tab immediately logs out all tabs via `storage` event
 - **Dedicated logout**: `/logout` endpoint clears cookie and revokes token
 
@@ -314,7 +314,7 @@ base-uri 'self'
 
 **Session & Lifecycle Security:**
 - **Biometric re-auth**: Opt-in Face ID/Touch ID lock (Settings > Security) on foreground return after 5 min background. Uses `.deviceOwnerAuthentication` (passcode fallback). Preference cleared on logout. Idle timer pauses while lock screen active. Opaque lock screen hides health data.
-- **Idle timeout**: 30 min with 1-min warning; `@MainActor`-safe timer callbacks
+- **Idle timeout**: 30 min with 1-min warning; disabled when biometric lock is enabled (7-day token expiry serves as session safeguard); `@MainActor`-safe timer callbacks
 - **APNs entitlements**: `aps-environment: development` (Debug) / `production` (Release) via per-config entitlements
 - **Push token lifecycle**: Token unregistered (awaited) before auth tokens cleared during logout
 - **Privacy permissions**: Camera, microphone, photo library, Face ID usage descriptions in Info.plist
