@@ -10,6 +10,8 @@ struct DocumentDetailView: View {
     @State private var isLoadingUrl = false
     @State private var showingDeleteConfirmation = false
     @State private var showingShareSheet = false
+    @State private var shareFileUrl: URL?
+    @State private var isLoadingShare = false
     @State private var showingEditSheet = false
     @State private var quickLookURL: URL?
     @State private var showingQuickLook = false
@@ -41,11 +43,11 @@ struct DocumentDetailView: View {
                     }
 
                     Button {
-                        Task { await loadDownloadUrl() }
-                        showingShareSheet = true
+                        openShareSheet()
                     } label: {
                         Label("Share", systemImage: "square.and.arrow.up")
                     }
+                    .disabled(isLoadingShare)
 
                     Button(role: .destructive) {
                         showingDeleteConfirmation = true
@@ -69,7 +71,7 @@ struct DocumentDetailView: View {
             Text("Are you sure you want to delete \"\(document.filename)\"? This cannot be undone.")
         }
         .sheet(isPresented: $showingShareSheet) {
-            if let url = downloadUrl {
+            if let url = shareFileUrl {
                 ShareSheet(activityItems: [url])
             }
         }
@@ -253,18 +255,36 @@ struct DocumentDetailView: View {
     private var actionsSection: some View {
         VStack(spacing: 12) {
             Button {
-                Task { await loadDownloadUrl() }
-                showingShareSheet = true
+                openShareSheet()
             } label: {
-                Label("Download / Share", systemImage: "square.and.arrow.down")
-                    .frame(maxWidth: .infinity)
+                if isLoadingShare {
+                    ProgressView()
+                        .frame(maxWidth: .infinity)
+                } else {
+                    Label("Download / Share", systemImage: "square.and.arrow.down")
+                        .frame(maxWidth: .infinity)
+                }
             }
             .buttonStyle(.borderedProminent)
-            .disabled(isLoadingUrl)
+            .disabled(isLoadingShare)
         }
     }
 
     // MARK: - Helpers
+
+    private func openShareSheet() {
+        guard !isLoadingShare else { return }
+        isLoadingShare = true
+        Task {
+            shareFileUrl = await viewModel.downloadToTempFile(
+                id: document.id, filename: document.filename
+            )
+            isLoadingShare = false
+            if shareFileUrl != nil {
+                showingShareSheet = true
+            }
+        }
+    }
 
     private func loadDownloadUrl() async {
         guard downloadUrl == nil else { return }

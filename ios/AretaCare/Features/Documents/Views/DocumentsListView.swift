@@ -25,8 +25,9 @@ struct DocumentsListView: View {
     @State private var oversizedFilenames: [String] = []
     @State private var showBatchResultToast = false
     @State private var batchResultMessage = ""
-    @State private var shareDocumentUrl: URL?
+    @State private var shareFileUrl: URL?
     @State private var showingDocumentShareSheet = false
+    @State private var isLoadingShare = false
     @State private var showCopiedToast = false
 
     private let currentUserId = AuthManager.shared.currentUser?.id ?? ""
@@ -176,7 +177,7 @@ struct DocumentsListView: View {
             )
         }
         .sheet(isPresented: $showingDocumentShareSheet) {
-            if let url = shareDocumentUrl {
+            if let url = shareFileUrl {
                 ShareSheet(activityItems: [url])
             }
         }
@@ -463,9 +464,14 @@ struct DocumentsListView: View {
     }
 
     private func shareDocument(_ document: DocumentResponse) {
+        guard !isLoadingShare else { return }
+        isLoadingShare = true
         Task {
-            if let url = await viewModel.getDownloadUrl(id: document.id) {
-                shareDocumentUrl = url
+            shareFileUrl = await viewModel.downloadToTempFile(
+                id: document.id, filename: document.filename
+            )
+            isLoadingShare = false
+            if shareFileUrl != nil {
                 showingDocumentShareSheet = true
             }
         }
