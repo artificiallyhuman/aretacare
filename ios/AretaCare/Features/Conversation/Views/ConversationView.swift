@@ -394,6 +394,18 @@ struct ConversationView: View {
 
         if let attachment {
             Task {
+                // Background task covers the full flow: upload + send message
+                var backgroundTaskId: UIBackgroundTaskIdentifier = .invalid
+                backgroundTaskId = UIApplication.shared.beginBackgroundTask {
+                    UIApplication.shared.endBackgroundTask(backgroundTaskId)
+                    backgroundTaskId = .invalid
+                }
+                defer {
+                    if backgroundTaskId != .invalid {
+                        UIApplication.shared.endBackgroundTask(backgroundTaskId)
+                    }
+                }
+
                 if let response = await documentsVM.uploadDocument(
                     sessionId: sessionId,
                     fileData: attachment.data,
