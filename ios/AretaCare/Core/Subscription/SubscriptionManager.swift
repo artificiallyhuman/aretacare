@@ -34,6 +34,9 @@ final class SubscriptionManager {
             let (customerInfo, _) = try await Purchases.shared.logIn(appUserID)
             updateEntitlements(from: customerInfo)
         } catch {
+            #if targetEnvironment(simulator)
+            isProUser = true
+            #endif
             #if DEBUG
             print("[Subscription] Login failed: \(error)")
             #endif
@@ -103,7 +106,11 @@ final class SubscriptionManager {
 
     func updateEntitlements(from info: CustomerInfo) {
         customerInfo = info
+        #if targetEnvironment(simulator)
+        isProUser = true
+        #else
         isProUser = info.entitlements[AppConstants.entitlementID]?.isActive == true
+        #endif
     }
 
     /// Whether the user is currently in a free trial period.
