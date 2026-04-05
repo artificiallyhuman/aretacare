@@ -14,7 +14,7 @@ struct CollaborationView: View {
     @Environment(\.dismiss) private var dismiss
 
     private var isOwner: Bool { session.isOwner }
-    private var totalPeople: Int { session.collaborators.count + 1 } // owner + collaborators
+    private var totalPeople: Int { viewModel.collaborators.count + 1 } // owner + collaborators
     private var canAddMore: Bool { totalPeople < AppConstants.maxCollaboratorsPerSession }
 
     private var isEmailFormatValid: Bool {

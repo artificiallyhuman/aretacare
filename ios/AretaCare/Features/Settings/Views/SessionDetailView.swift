@@ -152,6 +152,11 @@ struct SessionDetailView: View {
                         }
                 }
             }
+            .onChange(of: showCollaboration) { _, isShowing in
+                if !isShowing {
+                    Task { await viewModel.fetchSessions() }
+                }
+            }
             .sensoryFeedback(.success, trigger: saveHapticTrigger)
         }
     }

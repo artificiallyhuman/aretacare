@@ -66,6 +66,7 @@ final class CollaborationViewModel {
             successMessage = response.message
             if let collaborator = response.collaborator {
                 collaborators.append(collaborator)
+                NotificationCenter.default.post(name: .sessionsDidChange, object: nil)
             }
         } catch {
             errorMessage = error.localizedDescription
@@ -124,6 +125,7 @@ final class CollaborationViewModel {
                 APIEndpoints.Sessions.revokeAccess(sessionId, userId: userId)
             )
             collaborators.removeAll { $0.userId == userId }
+            NotificationCenter.default.post(name: .sessionsDidChange, object: nil)
         } catch {
             errorMessage = error.localizedDescription
         }
@@ -139,6 +141,7 @@ final class CollaborationViewModel {
                 APIEndpoints.Sessions.cancelInvitation(sessionId, invitationId: invitationId)
             )
             pendingInvitations.removeAll { $0.id == invitationId }
+            NotificationCenter.default.post(name: .sessionsDidChange, object: nil)
         } catch {
             errorMessage = error.localizedDescription
         }
