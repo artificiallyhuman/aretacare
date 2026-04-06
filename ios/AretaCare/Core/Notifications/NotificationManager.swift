@@ -7,6 +7,9 @@ final class NotificationManager {
 
     private(set) var isAuthorized = false
     private var currentToken: String?
+    private var retryTask: Task<Void, Never>?
+
+    private static let pendingTokenKey = "pendingPushToken"
 
     private init() {}
 
@@ -81,27 +84,51 @@ final class NotificationManager {
 
     // MARK: - Private
 
+    /// Retry registering any pending token that failed previously.
+    /// Call on app foreground to recover from transient failures.
+    func retryPendingRegistration() {
+        guard let pending = UserDefaults.standard.string(forKey: Self.pendingTokenKey) else { return }
+        registerTokenWithServer(pending)
+    }
+
     private func registerTokenWithServer(_ token: String) {
-        struct RegisterTokenRequest: Encodable {
-            let token: String
-            let platform: String
-            let appVersion: String?
-        }
+        // Persist token so we can retry on failure or app relaunch
+        UserDefaults.standard.set(token, forKey: Self.pendingTokenKey)
 
-        let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String
-        let request = RegisterTokenRequest(token: token, platform: "ios", appVersion: version)
+        retryTask?.cancel()
+        retryTask = Task {
+            let delays: [UInt64] = [0, 5, 15, 45, 120, 300] // seconds
+            for (attempt, delay) in delays.enumerated() {
+                if attempt > 0 {
+                    do {
+                        try await Task.sleep(for: .seconds(delay))
+                    } catch { return } // cancelled
+                }
+                guard !Task.isCancelled else { return }
 
-        Task {
-            do {
-                try await APIClient.shared.post(APIEndpoints.Notifications.registerToken, body: request)
-                #if DEBUG
-                print("[Push] Token registered with server")
-                #endif
-            } catch {
-                #if DEBUG
-                print("[Push] Failed to register token: \(error)")
-                #endif
+                do {
+                    struct RegisterTokenRequest: Encodable {
+                        let token: String
+                        let platform: String
+                        let appVersion: String?
+                    }
+                    let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String
+                    let request = RegisterTokenRequest(token: token, platform: "ios", appVersion: version)
+
+                    try await APIClient.shared.post(APIEndpoints.Notifications.registerToken, body: request)
+                    // Success — clear pending token
+                    UserDefaults.standard.removeObject(forKey: Self.pendingTokenKey)
+                    #if DEBUG
+                    print("[Push] Token registered with server (attempt \(attempt + 1))")
+                    #endif
+                    return
+                } catch {
+                    #if DEBUG
+                    print("[Push] Registration attempt \(attempt + 1) failed: \(error)")
+                    #endif
+                }
             }
+            // All retries exhausted — pending token remains in UserDefaults for next foreground retry
         }
     }
 }

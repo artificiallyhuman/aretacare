@@ -153,6 +153,7 @@ function AppContent() {
       <AIDataSharingConsentModal user={user} setUser={setUser} />
       <IdleTimeout />
       <main className="flex-1 overflow-auto">
+      <ErrorBoundary>
       <Suspense fallback={<PageLoadingFallback />}>
         <Routes>
           {/* Public Routes */}
@@ -398,6 +399,7 @@ function AppContent() {
           />
         </Routes>
       </Suspense>
+      </ErrorBoundary>
       </main>
 
       {showFooter && <Footer />}

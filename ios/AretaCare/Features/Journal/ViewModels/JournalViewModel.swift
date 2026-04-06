@@ -11,10 +11,13 @@ final class JournalViewModel {
     var selectedEntryTypes: Set<EntryType> = []
 
     // Date navigation
-    private(set) var allDates: [JournalDateInfo] = []
+    private(set) var allDates: [JournalDateInfo] = [] {
+        didSet { _sortedDatesCache = allDates.sorted { $0.date > $1.date } }
+    }
     private(set) var selectedDateString: String?
 
     private var oldestDate: String?
+    private static let maxLoadedDateGroups = 90
 
     private struct CachedJournal {
         let entriesByDate: [(date: String, entries: [JournalEntryResponse])]
@@ -37,10 +40,9 @@ final class JournalViewModel {
         entriesByDate.reduce(0) { $0 + $1.entries.count }
     }
 
-    /// All dates sorted most-recent-first.
-    var sortedDates: [JournalDateInfo] {
-        allDates.sorted { $0.date > $1.date }
-    }
+    /// All dates sorted most-recent-first (cached, updated when allDates changes).
+    private var _sortedDatesCache: [JournalDateInfo] = []
+    var sortedDates: [JournalDateInfo] { _sortedDatesCache }
 
     /// Next newer date (step forward in time).
     func nextDate(after current: String) -> JournalDateInfo? {
@@ -121,8 +123,11 @@ final class JournalViewModel {
             oldestDate = response.oldestDate ?? sorted.last?.date
 
             if endDate != nil {
-                // Appending older entries
+                // Appending older entries — cap total date groups to prevent unbounded growth
                 entriesByDate.append(contentsOf: sorted)
+                if entriesByDate.count > Self.maxLoadedDateGroups {
+                    entriesByDate = Array(entriesByDate.prefix(Self.maxLoadedDateGroups))
+                }
             } else {
                 entriesByDate = sorted
                 // Cache initial page

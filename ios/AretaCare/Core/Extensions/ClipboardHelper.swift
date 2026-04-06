@@ -16,7 +16,10 @@ enum ClipboardHelper {
         UIPasteboard.general.setItems([[
             UTType.html.identifier: htmlData,
             UTType.utf8PlainText.identifier: Data(markdown.utf8)
-        ]])
+        ]], options: [
+            .localOnly: true,
+            .expirationDate: Date().addingTimeInterval(60)
+        ])
     }
 
     // MARK: - Markdown to HTML

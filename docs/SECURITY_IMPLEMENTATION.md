@@ -58,7 +58,7 @@ Technical documentation of AretaCare's security measures.
 | TOTP Replay Protection | `last_used_counter` prevents code reuse within same time window |
 | Backup Codes | bcrypt hashed, never stored plaintext |
 | Trusted Devices | 30-day duration, SHA-256 hashed tokens, max 10 (FIFO cleanup) |
-| MFA Challenges | 5-minute expiration |
+| MFA Challenges | 5-minute expiration, `SELECT FOR UPDATE` prevents concurrent verification race |
 | Action Tokens | Single-use, 5-minute expiry for sensitive actions |
 
 ### Sensitive Action Protection
@@ -120,6 +120,7 @@ Implemented via `slowapi`. See `backend/app/core/rate_limit.py`.
 | Password Reset | 3/hour |
 | MFA Verification | 3/minute |
 | File Upload | 10/minute (docs), 5/minute (audio) |
+| Presigned URL | 30/minute (document download, thumbnail, audio playback URLs) |
 | AI Chat | 30/minute |
 | AI Tools | 10/minute (Jargon Translator, Conversation Coach — publicly accessible, no auth required) |
 | Feedback | 3/hour |

@@ -1,6 +1,7 @@
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.orm import Session
 from app.core.database import get_db
+from app.core.rate_limit import limiter, RateLimits
 from app.models import User, Session as SessionModel, AudioRecording
 from app.schemas.audio_recording import AudioRecordingResponse, AudioRecordingListResponse, AudioRecordingUpdate
 from app.services.s3_service import s3_service
@@ -340,7 +341,9 @@ async def delete_audio_recording(
 
 
 @router.get("/{session_id}/{recording_id}/url")
+@limiter.limit(RateLimits.PRESIGNED_URL)
 async def get_audio_url(
+    request: Request,
     session_id: str,
     recording_id: int,
     current_user: User = Depends(get_current_user),

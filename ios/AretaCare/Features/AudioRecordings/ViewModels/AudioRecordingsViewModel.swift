@@ -15,15 +15,16 @@ final class AudioRecordingsViewModel {
     private(set) var total = 0
     private(set) var errorMessage: String?
 
-    private(set) var allDates: [JournalDateInfo] = []
+    private(set) var allDates: [JournalDateInfo] = [] {
+        didSet { _sortedDatesCache = allDates.sorted { $0.date > $1.date } }
+    }
     private(set) var selectedDateString: String?
     private(set) var isJumpedToDate = false
 
     // MARK: - Date Navigation
 
-    var sortedDates: [JournalDateInfo] {
-        allDates.sorted { $0.date > $1.date }
-    }
+    private var _sortedDatesCache: [JournalDateInfo] = []
+    var sortedDates: [JournalDateInfo] { _sortedDatesCache }
 
     func nextDate(after current: String) -> JournalDateInfo? {
         let sorted = sortedDates

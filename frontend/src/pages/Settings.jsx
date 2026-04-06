@@ -78,7 +78,7 @@ export default function Settings() {
   // Fetch all session statistics on mount
   useEffect(() => {
     const fetchAllStatistics = async () => {
-      for (const session of sessions) {
+      await Promise.all(sessions.map(async (session) => {
         setLoadingStats((prev) => ({ ...prev, [session.id]: true }));
         try {
           const response = await sessionAPI.getStatistics(session.id);
@@ -88,7 +88,7 @@ export default function Settings() {
         } finally {
           setLoadingStats((prev) => ({ ...prev, [session.id]: false }));
         }
-      }
+      }));
     };
 
     if (sessions.length > 0) {

@@ -358,8 +358,8 @@ async def send_message(
                     "has_document": document_id is not None
                 }
             )
-        except Exception:
-            pass  # Don't let error logging crash the app
+        except Exception as log_error:
+            logger.error(f"Failed to log error to database: {log_error}")
 
         raise HTTPException(status_code=500, detail="Error processing message. Please try again.")
 
@@ -369,6 +369,7 @@ async def get_conversation_history(
     session_id: str,
     limit: int = Query(50, ge=1, le=100),
     offset: int = Query(0, ge=0, le=10000),
+    before_id: int = Query(None, description="Cursor: return messages with id < this value (preferred over offset for deep pagination)"),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
@@ -384,11 +385,15 @@ async def get_conversation_history(
         Conversation.session_id == session_id
     ).count()
 
-    # Get messages - order by created_at descending to get newest first
-    # offset=0 means get the newest messages, offset=50 means skip 50 newest and get the next batch
-    messages = db.query(Conversation).filter(
-        Conversation.session_id == session_id
-    ).order_by(Conversation.created_at.desc()).offset(offset).limit(limit).all()
+    # Build query — use cursor (before_id) when provided for O(1) pagination,
+    # fall back to OFFSET for backward compatibility
+    query = db.query(Conversation).filter(Conversation.session_id == session_id)
+    if before_id is not None:
+        query = query.filter(Conversation.id < before_id)
+    query = query.order_by(Conversation.id.desc()).limit(limit)
+    if before_id is None:
+        query = query.offset(offset)
+    messages = query.all()
     # Reverse to get chronological order for display
     messages = list(reversed(messages))
 
@@ -451,8 +456,19 @@ async def get_conversation_history(
         }
         message_responses.append(MessageResponse(**msg_dict))
 
-    # Calculate if there are more messages to load
-    has_more = (offset + limit) < total_count
+    # Calculate if there are more (older) messages to load
+    if before_id is not None:
+        # Cursor mode: check if there are messages with IDs lower than our oldest result
+        if messages:
+            oldest_returned_id = messages[0].id
+            has_more = db.query(Conversation).filter(
+                Conversation.session_id == session_id,
+                Conversation.id < oldest_returned_id
+            ).limit(1).count() > 0
+        else:
+            has_more = False
+    else:
+        has_more = (offset + limit) < total_count
 
     return {"messages": message_responses, "total_count": total_count, "has_more": has_more}
 
@@ -1002,7 +1018,7 @@ async def transcribe_audio(
                 session_id=session_id,
                 details={"filename": audio.filename}
             )
-        except Exception:
-            pass  # Don't let error logging crash the app
+        except Exception as log_error:
+            logger.error(f"Failed to log error to database: {log_error}")
 
         raise HTTPException(status_code=500, detail="Error transcribing audio. Please try again.")

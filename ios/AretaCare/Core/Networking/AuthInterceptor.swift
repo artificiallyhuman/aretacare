@@ -98,7 +98,15 @@ actor AuthInterceptor {
         let body = ["refresh_token": refreshToken]
         request.httpBody = try JSONEncoder().encode(body)
 
-        let (data, response) = try await pinnedSession.data(for: request)
+        let data: Data
+        let response: URLResponse
+        do {
+            (data, response) = try await pinnedSession.data(for: request)
+        } catch {
+            // Network error (timeout, DNS, connectivity) — don't clear the token.
+            // The caller will retry later when connectivity is restored.
+            return nil
+        }
 
         guard let httpResponse = response as? HTTPURLResponse else {
             return nil
@@ -116,8 +124,11 @@ actor AuthInterceptor {
             return refreshResponse.access_token
         }
 
-        // Refresh failed - clear stored tokens
-        KeychainManager.shared.refreshToken = nil
+        // Server explicitly rejected the token — clear it and force re-login
+        if httpResponse.statusCode == 401 || httpResponse.statusCode == 403 {
+            KeychainManager.shared.refreshToken = nil
+        }
+        // For 5xx or other transient server errors, don't clear the token
         return nil
     }
 

@@ -32,6 +32,7 @@ struct AretaCareApp: App {
                         BiometricManager.shared.appDidEnterBackground()
                     case .active:
                         BiometricManager.shared.appWillEnterForeground()
+                        NotificationManager.shared.retryPendingRegistration()
                     default:
                         break
                     }

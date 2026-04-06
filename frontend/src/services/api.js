@@ -346,8 +346,11 @@ export const documentAPI = {
 export const conversationAPI = {
   sendMessage: (data, config = {}) =>
     api.post('/conversation/message', data, config),
-  getHistory: (sessionId, limit = 50, offset = 0) =>
-    api.get(`/conversation/${sessionId}/history`, { params: { limit, offset } }),
+  getHistory: (sessionId, limit = 50, offset = 0, beforeId = null) => {
+    const params = { limit, offset };
+    if (beforeId !== null) params.before_id = beforeId;
+    return api.get(`/conversation/${sessionId}/history`, { params });
+  },
   transcribeAudio: (audioFile, sessionId, skipJournalSynthesis = false, config = {}) => {
     const formData = new FormData();
     formData.append('audio', audioFile);

@@ -20,9 +20,14 @@ final class ConversationViewModel {
     /// Content of failed messages keyed by their temp ID, used for retry.
     private var failedMessageContent: [Int: String] = [:]
 
+    /// When true, newer messages were trimmed during "load more" to stay within the memory cap.
+    /// The view should reload the latest page when the user scrolls back to the bottom.
+    private(set) var hasNewerTrimmed = false
+
     private var totalCount = 0
     private var retryCount: [Int: Int] = [:]
     private static let maxRetries = 3
+    private static let maxLoadedMessages = 500
     private static let historyCache = ResponseCache<ConversationHistory>(ttl: 120) // 2 min
 
     /// Monotonically decreasing counter for temp message IDs (avoids random collisions).
@@ -70,11 +75,14 @@ final class ConversationViewModel {
         }
         errorMessage = nil
 
-        let offset = loadMore ? messages.count : 0
-        let queryItems = [
+        var queryItems = [
             URLQueryItem(name: "limit", value: "\(AppConstants.defaultPageSize)"),
-            URLQueryItem(name: "offset", value: "\(offset)")
+            URLQueryItem(name: "offset", value: "0")
         ]
+        // Use cursor pagination (before_id) for load-more — O(1) vs O(offset) with OFFSET
+        if loadMore, let oldestId = messages.first?.id, oldestId > 0 {
+            queryItems.append(URLQueryItem(name: "before_id", value: "\(oldestId)"))
+        }
 
         do {
             let history: ConversationHistory = try await APIClient.shared.get(
@@ -87,6 +95,11 @@ final class ConversationViewModel {
                 let existingIds = Set(messages.map(\.id))
                 let newMessages = history.messages.filter { !existingIds.contains($0.id) }
                 messages.insert(contentsOf: newMessages, at: 0)
+                // Trim newest (off-screen) messages if we exceed the memory cap
+                if messages.count > Self.maxLoadedMessages {
+                    messages.removeLast(messages.count - Self.maxLoadedMessages)
+                    hasNewerTrimmed = true
+                }
             } else {
                 messages = history.messages
                 // Cache initial page only
@@ -105,6 +118,14 @@ final class ConversationViewModel {
         } else {
             isLoading = false
         }
+    }
+
+    /// Reloads the latest page of messages when the user scrolls back to the bottom
+    /// after older messages caused the newest to be trimmed.
+    func reloadLatestIfNeeded(sessionId: String) async {
+        guard hasNewerTrimmed else { return }
+        hasNewerTrimmed = false
+        await fetchHistory(sessionId: sessionId, forceRefresh: true)
     }
 
     // MARK: - Send Message
@@ -442,6 +463,7 @@ final class ConversationViewModel {
         sendTask = nil
         messages = []
         hasMore = false
+        hasNewerTrimmed = false
         totalCount = 0
         errorMessage = nil
         failedMessageIds.removeAll()

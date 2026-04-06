@@ -236,9 +236,11 @@ Returns both `user_message` and `assistant_message`. In shared sessions, also se
 
 ### History & Edit
 ```bash
-GET   /api/conversation/{session_id}/history?limit=50&offset=0  # Get messages (paginated)
-PATCH /api/conversation/{message_id}                             # Edit message: {"content": "..."}
+GET   /api/conversation/{session_id}/history?limit=50&offset=0              # Get messages (offset pagination)
+GET   /api/conversation/{session_id}/history?limit=50&before_id=1234        # Get messages older than ID 1234 (cursor pagination, preferred for "load more")
+PATCH /api/conversation/{message_id}                                         # Edit message: {"content": "..."}
 ```
+The `before_id` parameter enables O(1) keyset pagination — use it instead of high `offset` values for deep pagination. When `before_id` is provided, the API returns messages with `id < before_id`.
 
 ### Reset to Message
 ```bash
@@ -424,6 +426,7 @@ Error format: `{"detail": "Error message"}`
 | Password Reset | 3/hour |
 | MFA Verification | 3/minute |
 | File Upload | 10/minute (docs), 5/minute (audio) |
+| Presigned URL | 30/minute (document download, thumbnail, audio playback URLs) |
 | AI Chat | 30/minute |
 | AI Tools | 10/minute (Jargon Translator, Conversation Coach — public) |
 | Feedback | 3/hour |

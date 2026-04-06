@@ -348,7 +348,13 @@ struct ConversationView: View {
                         // Bottom anchor
                         Color.clear.frame(height: 1)
                             .id("bottom")
-                            .onAppear { isNearBottom = true }
+                            .onAppear {
+                                isNearBottom = true
+                                // Reload latest messages if older-message loading trimmed the newest
+                                if conversationVM.hasNewerTrimmed, let sid = currentSessionId {
+                                    Task { await conversationVM.reloadLatestIfNeeded(sessionId: sid) }
+                                }
+                            }
                             .onDisappear {
                                 guard !conversationVM.messages.isEmpty else { return }
                                 isNearBottom = false

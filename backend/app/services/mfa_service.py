@@ -799,10 +799,19 @@ class MFAService:
 
     @staticmethod
     def delete_login_challenge(db: Session, mfa_token: str) -> None:
-        """Delete an MFA login challenge after successful verification."""
-        db.query(MFAChallenge).filter(
+        """Delete an MFA login challenge after successful verification.
+        Uses SELECT FOR UPDATE to prevent a race condition where two concurrent
+        requests could both verify the same challenge before either deletes it."""
+        challenge = db.query(MFAChallenge).filter(
             MFAChallenge.id == mfa_token
-        ).delete()
+        ).with_for_update().first()
+        if not challenge:
+            from fastapi import HTTPException, status
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid or expired MFA token."
+            )
+        db.delete(challenge)
         db.commit()
 
     # ==========================================

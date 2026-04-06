@@ -30,7 +30,7 @@ async def verify_hcaptcha(token: str, remote_ip: str) -> bool:
         bool: True if verification successful, False otherwise
     """
     if not settings.HCAPTCHA_SECRET_KEY:
-        logger.warning("HCAPTCHA_SECRET_KEY not configured. Skipping verification in development mode.")
+        logger.critical("HCAPTCHA_SECRET_KEY not configured — captcha verification bypassed. Set this in production!")
         return True  # Allow in development when not configured
 
     try:

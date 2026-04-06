@@ -184,6 +184,7 @@ async def global_exception_handler(request: Request, exc: Exception):
     logger.error(traceback.format_exc())
 
     # Try to log to database error_log table
+    db = None
     try:
         from app.models.error_log import ErrorLog
         from app.services.security_service import security_service
@@ -200,9 +201,11 @@ async def global_exception_handler(request: Request, exc: Exception):
         )
         db.add(error_log)
         db.commit()
-        db.close()
     except Exception as log_error:
         logger.error(f"Failed to log error to database: {log_error}")
+    finally:
+        if db:
+            db.close()
 
     # Return generic error - never expose internal details
     return JSONResponse(
@@ -217,7 +220,15 @@ async def global_exception_handler(request: Request, exc: Exception):
 # Data Retention: Clean up old logs on startup (after models are initialized)
 @app.on_event("startup")
 async def startup_cleanup():
-    """Run data retention cleanup on startup using a single database session"""
+    """Run data retention cleanup on startup using a single database session.
+    Wrapped with a 60-second timeout to prevent indefinite startup hangs."""
+    try:
+        await asyncio.wait_for(_run_startup_cleanup(), timeout=60)
+    except asyncio.TimeoutError:
+        logger.warning("Startup cleanup timed out after 60s — continuing with startup")
+
+
+async def _run_startup_cleanup():
     from datetime import datetime, timedelta
     from sqlalchemy import or_
     from app.models.error_log import ErrorLog

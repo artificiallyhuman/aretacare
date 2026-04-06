@@ -35,7 +35,6 @@ const Conversation = () => {
   const [showScrollTopButton, setShowScrollTopButton] = useState(false);
   const [hasMoreMessages, setHasMoreMessages] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
-  const [currentOffset, setCurrentOffset] = useState(0);
   const messagesEndRef = useRef(null);
   const messagesContainerRef = useRef(null);
   const isNearBottomRef = useRef(true);
@@ -312,18 +311,15 @@ const Conversation = () => {
     }
     // Intentionally excluding checkForNewMessages from deps - re-create interval on session/messages change
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeSessionId, messages]);
+  }, [activeSessionId, messages.length]);
 
-  const loadConversationHistory = async (sessionId = activeSessionId, resetPagination = true) => {
+  const loadConversationHistory = async (sessionId = activeSessionId) => {
     if (!sessionId) return;
     try {
       const response = await conversationAPI.getHistory(sessionId, MESSAGE_PAGE_SIZE, 0);
       const loadedMessages = response.data.messages || [];
       setMessages(loadedMessages);
       setHasMoreMessages(response.data.has_more || false);
-      if (resetPagination) {
-        setCurrentOffset(MESSAGE_PAGE_SIZE);
-      }
       setHistoryLoaded(true);
       // Scroll to bottom is handled by the sessionSwitchScrollPending useEffect
       // which properly waits for images to load after React re-renders
@@ -342,13 +338,14 @@ const Conversation = () => {
       const container = messagesContainerRef.current;
       const previousScrollHeight = container?.scrollHeight || 0;
 
-      const response = await conversationAPI.getHistory(activeSessionId, MESSAGE_PAGE_SIZE, currentOffset);
+      // Use cursor pagination (before_id) for efficient deep pagination
+      const oldestId = messages.length > 0 ? messages[0].id : null;
+      const response = await conversationAPI.getHistory(activeSessionId, MESSAGE_PAGE_SIZE, 0, oldestId);
       const olderMessages = response.data.messages || [];
 
       // Prepend older messages to the beginning
       setMessages(prevMessages => [...olderMessages, ...prevMessages]);
       setHasMoreMessages(response.data.has_more || false);
-      setCurrentOffset(prev => prev + MESSAGE_PAGE_SIZE);
 
       // Restore scroll position after messages are added
       requestAnimationFrame(() => {

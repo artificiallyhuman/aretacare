@@ -125,6 +125,9 @@ class RateLimits:
     ADMIN_SENSITIVE = "10/hour"     # 10 sensitive actions per hour per IP (reset password, reset MFA, transfer)
     ADMIN_EMAIL = "20/hour"         # 20 email-sending actions per hour per IP (invitations, notifications)
 
+    # File download / presigned URL endpoints (prevent bulk exfiltration)
+    PRESIGNED_URL = "30/minute"     # 30 presigned URL generations per minute per user
+
     # Feedback submission (spam prevention)
     FEEDBACK_SUBMIT = "3/hour"      # 3 feedback submissions per hour per IP
 

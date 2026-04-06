@@ -18,7 +18,9 @@ final class DocumentsViewModel {
 
     var selectedCategory: DocumentCategory?
 
-    private(set) var allDates: [JournalDateInfo] = []
+    private(set) var allDates: [JournalDateInfo] = [] {
+        didSet { _sortedDatesCache = allDates.sorted { $0.date > $1.date } }
+    }
     private(set) var selectedDateString: String?
     private(set) var isJumpedToDate = false
 
@@ -41,9 +43,8 @@ final class DocumentsViewModel {
 
     // MARK: - Date Navigation
 
-    var sortedDates: [JournalDateInfo] {
-        allDates.sorted { $0.date > $1.date }
-    }
+    private var _sortedDatesCache: [JournalDateInfo] = []
+    var sortedDates: [JournalDateInfo] { _sortedDatesCache }
 
     func nextDate(after current: String) -> JournalDateInfo? {
         let sorted = sortedDates

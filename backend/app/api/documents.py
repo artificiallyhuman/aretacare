@@ -908,7 +908,9 @@ async def delete_document(
 
 
 @router.get("/{document_id}/download-url")
+@limiter.limit(RateLimits.PRESIGNED_URL)
 async def get_document_download_url(
+    request: Request,
     document_id: int,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
@@ -934,7 +936,9 @@ async def get_document_download_url(
 
 
 @router.get("/{document_id}/thumbnail-url")
+@limiter.limit(RateLimits.PRESIGNED_URL)
 async def get_document_thumbnail_url(
+    request: Request,
     document_id: int,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
