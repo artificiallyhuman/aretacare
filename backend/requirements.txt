@@ -6,10 +6,10 @@ alembic==1.12.1
 pydantic==2.5.0
 pydantic-settings==2.1.0
 email-validator==2.1.0
-python-multipart==0.0.22
+python-multipart==0.0.26
 boto3==1.29.7
 openai>=1.56.0
-python-dotenv==1.0.0
+python-dotenv==1.2.2
 python-jose[cryptography]==3.5.0
 passlib[bcrypt]==1.7.4
 bcrypt==4.2.1
