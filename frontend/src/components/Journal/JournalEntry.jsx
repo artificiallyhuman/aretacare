@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { journalAPI } from '../../services/api';
+import { markdownToHtml } from '../../utils/markdownUtils';
 import SourceTag from '../SourceTag';
 
 const JournalEntry = ({ entry, colors, onEdit, onDelete, hasCollaborators, currentUserId }) => {
@@ -8,7 +9,33 @@ const JournalEntry = ({ entry, colors, onEdit, onDelete, hasCollaborators, curre
   const [deleting, setDeleting] = useState(false);
   const [isClamped, setIsClamped] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [copied, setCopied] = useState(false);
   const contentRef = React.useRef(null);
+
+  const handleCopy = async () => {
+    try {
+      const html = markdownToHtml(entry.content);
+      const blob = new Blob([html], { type: 'text/html' });
+      const textBlob = new Blob([entry.content], { type: 'text/plain' });
+      await navigator.clipboard.write([
+        new ClipboardItem({
+          'text/html': blob,
+          'text/plain': textBlob
+        })
+      ]);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy:', err);
+      try {
+        await navigator.clipboard.writeText(entry.content);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      } catch (fallbackErr) {
+        console.error('Fallback copy also failed:', fallbackErr);
+      }
+    }
+  };
 
   // Check if content is clamped after render
   React.useEffect(() => {
@@ -70,6 +97,21 @@ const JournalEntry = ({ entry, colors, onEdit, onDelete, hasCollaborators, curre
 
         {/* Actions */}
         <div className="flex items-center space-x-1 ml-2">
+          <button
+            onClick={handleCopy}
+            className="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-400 p-1"
+            title={copied ? 'Copied!' : 'Copy entry'}
+          >
+            {copied ? (
+              <svg className="w-4 h-4 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+            ) : (
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+              </svg>
+            )}
+          </button>
           <button
             onClick={onEdit}
             className="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-400 p-1"

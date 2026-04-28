@@ -52,6 +52,8 @@ const AudioRecordings = () => {
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
   const [audioUrls, setAudioUrls] = useState({});
   const [expandedTranscripts, setExpandedTranscripts] = useState({});
+  const [copiedTranscriptId, setCopiedTranscriptId] = useState(null);
+  const [copiedSummaryId, setCopiedSummaryId] = useState(null);
   const [editingSummary, setEditingSummary] = useState({});
   const [editedSummaries, setEditedSummaries] = useState({});
   const [editedCategories, setEditedCategories] = useState({});
@@ -155,6 +157,26 @@ const AudioRecordings = () => {
       ...prev,
       [recordingId]: !prev[recordingId]
     }));
+  };
+
+  const handleCopyTranscript = async (recording) => {
+    try {
+      await navigator.clipboard.writeText(recording.transcribed_text);
+      setCopiedTranscriptId(recording.id);
+      setTimeout(() => setCopiedTranscriptId(null), 2000);
+    } catch (err) {
+      console.error('Failed to copy transcript:', err);
+    }
+  };
+
+  const handleCopySummary = async (recording) => {
+    try {
+      await navigator.clipboard.writeText(recording.ai_summary);
+      setCopiedSummaryId(recording.id);
+      setTimeout(() => setCopiedSummaryId(null), 2000);
+    } catch (err) {
+      console.error('Failed to copy summary:', err);
+    }
   };
 
   const handleEditSummary = (recordingId, currentSummary, currentCategory) => {
@@ -957,7 +979,30 @@ const AudioRecordings = () => {
                                   </div>
                                 </div>
                               ) : (
-                                <p className="text-sm text-gray-900 dark:text-white font-semibold">{recording.ai_summary}</p>
+                                <div className="flex items-start justify-between gap-2">
+                                  <p className="text-sm text-gray-900 dark:text-white font-semibold flex-1">{recording.ai_summary}</p>
+                                  <button
+                                    onClick={() => handleCopySummary(recording)}
+                                    className="text-xs text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 flex items-center gap-1 flex-shrink-0 mt-0.5"
+                                    title="Copy summary"
+                                  >
+                                    {copiedSummaryId === recording.id ? (
+                                      <>
+                                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                        </svg>
+                                        <span>Copied!</span>
+                                      </>
+                                    ) : (
+                                      <>
+                                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                                        </svg>
+                                        <span>Copy</span>
+                                      </>
+                                    )}
+                                  </button>
+                                </div>
                               )}
                             </div>
                           )}
@@ -967,28 +1012,51 @@ const AudioRecordings = () => {
                             <div className="bg-gray-50 dark:bg-gray-700 p-3 rounded mb-3">
                               <div className="flex items-center justify-between mb-2">
                                 <p className="text-xs font-medium text-gray-700 dark:text-gray-300">Transcription:</p>
-                                {shouldShowExpandButton(recording.transcribed_text) && (
+                                <div className="flex items-center gap-3">
+                                  {shouldShowExpandButton(recording.transcribed_text) && (
+                                    <button
+                                      onClick={() => toggleTranscript(recording.id)}
+                                      className="text-xs text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 flex items-center gap-1"
+                                    >
+                                      {expandedTranscripts[recording.id] ? (
+                                        <>
+                                          <span>Show less</span>
+                                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                                          </svg>
+                                        </>
+                                      ) : (
+                                        <>
+                                          <span>Show more</span>
+                                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                          </svg>
+                                        </>
+                                      )}
+                                    </button>
+                                  )}
                                   <button
-                                    onClick={() => toggleTranscript(recording.id)}
-                                    className="text-xs text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 flex items-center gap-1"
+                                    onClick={() => handleCopyTranscript(recording)}
+                                    className="text-xs text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 flex items-center gap-1"
+                                    title="Copy transcript"
                                   >
-                                    {expandedTranscripts[recording.id] ? (
+                                    {copiedTranscriptId === recording.id ? (
                                       <>
-                                        <span>Show less</span>
                                         <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                                         </svg>
+                                        <span>Copied!</span>
                                       </>
                                     ) : (
                                       <>
-                                        <span>Show more</span>
                                         <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
                                         </svg>
+                                        <span>Copy</span>
                                       </>
                                     )}
                                   </button>
-                                )}
+                                </div>
                               </div>
                               <p className="text-xs text-gray-600 dark:text-gray-400 whitespace-pre-wrap">
                                 {expandedTranscripts[recording.id]

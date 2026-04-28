@@ -531,6 +531,8 @@ private struct AudioRecordingDetailView: View {
     @State private var isSaving = false
     @State private var showSavedToast = false
     @State private var saveHapticTrigger = 0
+    @State private var showCopiedToast = false
+    @State private var copyHapticTrigger = 0
 
     var body: some View {
         ScrollView {
@@ -593,8 +595,22 @@ private struct AudioRecordingDetailView: View {
 
                 // AI Summary (editable)
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("AI Summary")
-                        .font(.headline)
+                    HStack {
+                        Text("AI Summary")
+                            .font(.headline)
+                        Spacer()
+                        if !isEditing, let summary = recording.aiSummary, !summary.isEmpty {
+                            Button {
+                                UIPasteboard.general.string = summary
+                                showCopiedToast = true
+                                copyHapticTrigger += 1
+                            } label: {
+                                Image(systemName: "doc.on.doc")
+                                    .font(.subheadline)
+                            }
+                            .accessibilityLabel("Copy summary")
+                        }
+                    }
 
                     if isEditing {
                         TextEditor(text: $editingSummary)
@@ -606,6 +622,16 @@ private struct AudioRecordingDetailView: View {
                         Text(summary)
                             .font(.body)
                             .foregroundStyle(.secondary)
+                            .textSelection(.enabled)
+                            .contextMenu {
+                                Button {
+                                    UIPasteboard.general.string = summary
+                                    showCopiedToast = true
+                                    copyHapticTrigger += 1
+                                } label: {
+                                    Label("Copy", systemImage: "doc.on.doc")
+                                }
+                            }
                     } else {
                         Text("No summary available.")
                             .font(.body)
@@ -646,11 +672,33 @@ private struct AudioRecordingDetailView: View {
                 // Transcription
                 if let transcript = recording.transcribedText, !transcript.isEmpty {
                     VStack(alignment: .leading, spacing: 8) {
-                        Text("Transcription")
-                            .font(.headline)
+                        HStack {
+                            Text("Transcription")
+                                .font(.headline)
+                            Spacer()
+                            Button {
+                                UIPasteboard.general.string = transcript
+                                showCopiedToast = true
+                                copyHapticTrigger += 1
+                            } label: {
+                                Image(systemName: "doc.on.doc")
+                                    .font(.subheadline)
+                            }
+                            .accessibilityLabel("Copy transcript")
+                        }
                         Text(transcript)
                             .font(.body)
                             .foregroundStyle(.secondary)
+                            .textSelection(.enabled)
+                            .contextMenu {
+                                Button {
+                                    UIPasteboard.general.string = transcript
+                                    showCopiedToast = true
+                                    copyHapticTrigger += 1
+                                } label: {
+                                    Label("Copy", systemImage: "doc.on.doc")
+                                }
+                            }
                     }
                     .padding()
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -676,8 +724,11 @@ private struct AudioRecordingDetailView: View {
             }
         }
         .sensoryFeedback(.success, trigger: saveHapticTrigger)
+        .sensoryFeedback(.success, trigger: copyHapticTrigger)
         .toast("Saved", icon: "checkmark", isPresented: $showSavedToast)
+        .toast("Copied", icon: "doc.on.doc", isPresented: $showCopiedToast)
         .animation(.spring(duration: 0.3), value: showSavedToast)
+        .animation(.spring(duration: 0.3), value: showCopiedToast)
         .confirmationDialog("Delete Recording", isPresented: $showingDeleteConfirm, titleVisibility: .visible) {
             Button("Delete", role: .destructive) {
                 Task {
