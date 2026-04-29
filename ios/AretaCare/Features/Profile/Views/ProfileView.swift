@@ -821,6 +821,8 @@ struct ProfileView: View {
                 if let v = item.relationship { text += " (\(v))" }
                 if let v = item.role { text += " - \(v)" }
                 text += "\n"
+                if let v = item.contactInfo { text += "  - Contact: \(v)\n" }
+                if let v = item.location { text += "  - Location: \(v)\n" }
             }
             text += "\n"
         }
@@ -831,6 +833,7 @@ struct ProfileView: View {
                 if let v = item.specialty { text += ", \(v)" }
                 if let v = item.organization { text += " at \(v)" }
                 text += "\n"
+                if let v = item.contactInfo { text += "  - Contact: \(v)\n" }
             }
             text += "\n"
         }
@@ -841,6 +844,8 @@ struct ProfileView: View {
                 if let v = item.status { text += " [\(v.uppercased())]" }
                 if let v = item.description { text += ": \(v)" }
                 text += "\n"
+                if let v = item.diagnosisDate { text += "  - Diagnosed: \(v)\n" }
+                if let v = item.details { text += "  - \(v)\n" }
             }
             text += "\n"
         }
@@ -852,8 +857,12 @@ struct ProfileView: View {
                     text += "- **\(item.name ?? "Unknown")**"
                     if let v = item.dose { text += " \(v)" }
                     if let v = item.frequency { text += ", \(v)" }
+                    if let v = item.status { text += " [\(v.uppercased())]" }
                     if let v = item.description, !v.isEmpty { text += " - \(v)" }
                     text += "\n"
+                    if let v = item.prescriber { text += "  - Prescribed by: \(v)\n" }
+                    if let v = item.startDate { text += "  - Started: \(v)\n" }
+                    if let v = item.notes { text += "  - Note: \(v)\n" }
                 }
                 text += "\n"
             }
@@ -865,6 +874,7 @@ struct ProfileView: View {
                 if let v = item.date { text += " (\(v))" }
                 if let v = item.description { text += ": \(v)" }
                 text += "\n"
+                if let v = item.details { text += "  - \(v)\n" }
             }
             text += "\n"
         }

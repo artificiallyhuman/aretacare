@@ -559,6 +559,8 @@ const Profile = () => {
         if (cg.relationship) text += ` (${cg.relationship})`;
         if (cg.role) text += ` - ${cg.role}`;
         text += '\n';
+        if (cg.contact_info) text += `  - Contact: ${cg.contact_info}\n`;
+        if (cg.location) text += `  - Location: ${cg.location}\n`;
       });
       text += '\n';
     }
@@ -570,6 +572,7 @@ const Profile = () => {
         if (p.specialty) text += `, ${p.specialty}`;
         if (p.organization) text += ` at ${p.organization}`;
         text += '\n';
+        if (p.contact_info) text += `  - Contact: ${p.contact_info}\n`;
       });
       text += '\n';
     }
@@ -581,6 +584,8 @@ const Profile = () => {
         if (c.status) text += ` [${c.status.toUpperCase()}]`;
         if (c.description) text += `: ${c.description}`;
         text += '\n';
+        if (c.diagnosis_date) text += `  - Diagnosed: ${c.diagnosis_date}\n`;
+        if (c.details) text += `  - ${c.details}\n`;
       });
       text += '\n';
     }
@@ -603,8 +608,12 @@ const Profile = () => {
             text += `- **${m.name || 'Unknown'}**`;
             if (m.dose) text += ` ${m.dose}`;
             if (m.frequency) text += `, ${m.frequency}`;
+            if (m.status) text += ` [${m.status.toUpperCase()}]`;
             if (m.description) text += ` - ${m.description}`;
             text += '\n';
+            if (m.prescriber) text += `  - Prescribed by: ${m.prescriber}\n`;
+            if (m.start_date) text += `  - Started: ${m.start_date}\n`;
+            if (m.notes) text += `  - Note: ${m.notes}\n`;
           });
           text += '\n';
         }
@@ -618,6 +627,7 @@ const Profile = () => {
         if (e.date) text += ` (${e.date})`;
         if (e.description) text += `: ${e.description}`;
         text += '\n';
+        if (e.details) text += `  - ${e.details}\n`;
       });
       text += '\n';
     }
