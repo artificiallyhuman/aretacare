@@ -149,6 +149,16 @@ struct CollaborationView: View {
         }
         .listStyle(.insetGrouped)
         .navigationTitle("Collaboration")
+        .toolbar {
+            ToolbarItem(placement: .cancellationAction) {
+                Button {
+                    dismiss()
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .foregroundStyle(.secondary)
+                }
+            }
+        }
         .alert("Send Invitation?", isPresented: $showingInviteConfirm) {
             Button("Send Invitation") {
                 Task { await sendInvitation() }

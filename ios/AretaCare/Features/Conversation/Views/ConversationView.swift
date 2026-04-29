@@ -11,6 +11,7 @@ struct ConversationView: View {
 
     @State private var messageText = ""
     @State private var showingSessionSwitcher = false
+    @State private var showingCollaboration = false
     @State private var isNearBottom = true
     @State private var editingMessage: MessageResponse?
     @State private var editText = ""
@@ -67,9 +68,25 @@ struct ConversationView: View {
                         Image(systemName: "list.bullet")
                     }
                 }
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        showingCollaboration = true
+                    } label: {
+                        Image(systemName: "person.2")
+                    }
+                    .disabled(sessionVM.currentSession == nil)
+                    .accessibilityLabel("Collaborators")
+                }
             }
             .sheet(isPresented: $showingSessionSwitcher) {
                 SessionSwitcherView(sessionVM: sessionVM)
+            }
+            .sheet(isPresented: $showingCollaboration) {
+                if let session = sessionVM.currentSession {
+                    NavigationStack {
+                        CollaborationView(session: session)
+                    }
+                }
             }
             .modifier(ConversationSheetsModifier(
                 showingCamera: $showingCamera,

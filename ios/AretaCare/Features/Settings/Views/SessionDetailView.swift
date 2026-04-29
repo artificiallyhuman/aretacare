@@ -140,16 +140,6 @@ struct SessionDetailView: View {
             .sheet(isPresented: $showCollaboration) {
                 NavigationStack {
                     CollaborationView(session: session)
-                        .toolbar {
-                            ToolbarItem(placement: .cancellationAction) {
-                                Button {
-                                    showCollaboration = false
-                                } label: {
-                                    Image(systemName: "xmark.circle.fill")
-                                        .foregroundStyle(.secondary)
-                                }
-                            }
-                        }
                 }
             }
             .onChange(of: showCollaboration) { _, isShowing in
