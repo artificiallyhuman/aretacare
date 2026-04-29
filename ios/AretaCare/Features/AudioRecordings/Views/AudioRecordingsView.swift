@@ -21,7 +21,6 @@ struct AudioRecordingsView: View {
     @State private var oversizedFilenames: [String] = []
     @State private var showBatchResultToast = false
     @State private var batchResultMessage = ""
-    @State private var showCopiedToast = false
 
     private let currentUserId = AuthManager.shared.currentUser?.id ?? ""
 
@@ -167,7 +166,6 @@ struct AudioRecordingsView: View {
             }
         }
         .toast(batchResultMessage, icon: "checkmark", isPresented: $showBatchResultToast)
-        .toast("Copied", icon: "doc.on.doc", isPresented: $showCopiedToast)
         .sensoryFeedback(.impact(flexibility: .rigid), trigger: deleteHapticTrigger)
         .onChange(of: searchText) { _, newValue in
             searchDebounceTask?.cancel()
@@ -330,7 +328,6 @@ struct AudioRecordingsView: View {
                                 viewModel: viewModel,
                                 currentUserId: currentUserId,
                                 onSelect: { selectedRecording = recording },
-                                onCopy: { showCopiedToast = true },
                                 onDelete: {
                                     deleteHapticTrigger += 1
                                     Task { await viewModel.deleteRecording(sessionId: sessionId, recordingId: recording.id) }
@@ -362,7 +359,6 @@ private struct AudioListRow: View {
     let viewModel: AudioRecordingsViewModel
     let currentUserId: String
     var onSelect: (() -> Void)?
-    var onCopy: (() -> Void)?
     var onDelete: (() -> Void)?
 
     @State private var showDeleteConfirmation = false
@@ -374,12 +370,6 @@ private struct AudioListRow: View {
                 sessionId: sessionId,
                 viewModel: viewModel,
                 currentUserId: currentUserId,
-                onCopySummary: {
-                    if let summary = recording.aiSummary {
-                        UIPasteboard.general.string = summary
-                        onCopy?()
-                    }
-                },
                 onDelete: { showDeleteConfirmation = true }
             )
         }
@@ -393,16 +383,6 @@ private struct AudioListRow: View {
             .disabled(viewModel.isLoading)
         }
         .contextMenu {
-            if recording.aiSummary != nil {
-                Button {
-                    if let summary = recording.aiSummary {
-                        UIPasteboard.general.string = summary
-                        onCopy?()
-                    }
-                } label: {
-                    Label("Copy Summary", systemImage: "doc.on.doc")
-                }
-            }
             Button { onSelect?() } label: {
                 Label("View Details", systemImage: "info.circle")
             }
@@ -427,7 +407,6 @@ private struct AudioRecordingRowView: View {
     let sessionId: String
     let viewModel: AudioRecordingsViewModel
     let currentUserId: String
-    var onCopySummary: (() -> Void)?
     var onDelete: (() -> Void)?
 
     var body: some View {
@@ -481,12 +460,6 @@ private struct AudioRecordingRowView: View {
             }
 
             Menu {
-                if recording.aiSummary != nil {
-                    Button { onCopySummary?() } label: {
-                        Label("Copy Summary", systemImage: "doc.on.doc")
-                    }
-                }
-                Divider()
                 Button(role: .destructive) { onDelete?() } label: {
                     Label("Delete", systemImage: "trash")
                 }
@@ -599,17 +572,6 @@ private struct AudioRecordingDetailView: View {
                         Text("AI Summary")
                             .font(.headline)
                         Spacer()
-                        if !isEditing, let summary = recording.aiSummary, !summary.isEmpty {
-                            Button {
-                                UIPasteboard.general.string = summary
-                                showCopiedToast = true
-                                copyHapticTrigger += 1
-                            } label: {
-                                Image(systemName: "doc.on.doc")
-                                    .font(.subheadline)
-                            }
-                            .accessibilityLabel("Copy summary")
-                        }
                     }
 
                     if isEditing {
@@ -623,15 +585,6 @@ private struct AudioRecordingDetailView: View {
                             .font(.body)
                             .foregroundStyle(.secondary)
                             .textSelection(.enabled)
-                            .contextMenu {
-                                Button {
-                                    UIPasteboard.general.string = summary
-                                    showCopiedToast = true
-                                    copyHapticTrigger += 1
-                                } label: {
-                                    Label("Copy", systemImage: "doc.on.doc")
-                                }
-                            }
                     } else {
                         Text("No summary available.")
                             .font(.body)
