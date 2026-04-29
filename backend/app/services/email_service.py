@@ -810,13 +810,13 @@ The AretaCare Team
             text_content = f"""
 Hello {owner_name},
 
-A collaborator was recently added to your AretaCare session "{session_name}".
+A collaborator was recently added to your AretaCare care session "{session_name}".
 
 Collaborator Details:
 - Name: {collaborator_name}
 - Email: {collaborator_email}
 
-This collaborator now has full access to the session data.
+This collaborator now has full access to the care session data.
 
 If you made this change, no further action is needed.
 
@@ -855,7 +855,7 @@ The AretaCare Team
                                 Hello {owner_name},
                             </p>
                             <p style="margin: 0 0 16px; color: #374151; font-size: 16px; line-height: 24px;">
-                                A collaborator was recently added to your AretaCare session <strong>"{session_name}"</strong>.
+                                A collaborator was recently added to your AretaCare care session <strong>"{session_name}"</strong>.
                             </p>
 
                             <!-- Collaborator Details -->
@@ -870,7 +870,7 @@ The AretaCare Team
                             </div>
 
                             <p style="margin: 0 0 16px; color: #374151; font-size: 16px; line-height: 24px;">
-                                This collaborator now has full access to the session data.
+                                This collaborator now has full access to the care session data.
                             </p>
                             <p style="margin: 0 0 16px; color: #374151; font-size: 16px; line-height: 24px;">
                                 If you made this change, no further action is needed.
@@ -952,7 +952,7 @@ The AretaCare Team
 
             # Create message
             message = MIMEMultipart("alternative")
-            message["Subject"] = f"You've Been Added to a Session - AretaCare"
+            message["Subject"] = f"You've Been Added to a Care Session - AretaCare"
             message["From"] = f"{settings.SMTP_FROM_NAME} <{settings.SMTP_FROM_EMAIL}>"
             message["To"] = collaborator_email
             EmailService._add_deliverability_headers(message)
@@ -961,14 +961,14 @@ The AretaCare Team
             text_content = f"""
 Hello {collaborator_name},
 
-{owner_name} has added you as a collaborator to their AretaCare session "{session_name}".
+{owner_name} has added you as a collaborator to their AretaCare care session "{session_name}".
 
-You now have full access to this session's data, including documents, conversations, journal entries, and audio recordings.
+You now have full access to this care session's data, including documents, conversations, journal entries, and audio recordings.
 
 If you don't know {owner_name} or believe this was done in error, you can remove this connection by:
 1. Logging into your AretaCare account
 2. Going to the Collaboration page
-3. Leaving the shared session
+3. Leaving the shared care session
 
 You can access the Collaboration page here: {settings.FRONTEND_URL}/collaboration
 
@@ -1005,10 +1005,10 @@ The AretaCare Team
                                 Hello {collaborator_name},
                             </p>
                             <p style="margin: 0 0 16px; color: #374151; font-size: 16px; line-height: 24px;">
-                                <strong>{owner_name}</strong> has added you as a collaborator to their AretaCare session <strong>"{session_name}"</strong>.
+                                <strong>{owner_name}</strong> has added you as a collaborator to their AretaCare care session <strong>"{session_name}"</strong>.
                             </p>
                             <p style="margin: 0 0 16px; color: #374151; font-size: 16px; line-height: 24px;">
-                                You now have full access to this session's data, including documents, conversations, journal entries, and audio recordings.
+                                You now have full access to this care session's data, including documents, conversations, journal entries, and audio recordings.
                             </p>
                         </td>
                     </tr>
@@ -1026,7 +1026,7 @@ The AretaCare Team
                                 <ol style="margin: 8px 0 0 20px; padding: 0; color: #065f46; font-size: 14px; line-height: 20px;">
                                     <li style="margin: 4px 0;">Logging into your AretaCare account</li>
                                     <li style="margin: 4px 0;">Going to the Collaboration page</li>
-                                    <li style="margin: 4px 0;">Leaving the shared session</li>
+                                    <li style="margin: 4px 0;">Leaving the shared care session</li>
                                 </ol>
                             </div>
                         </td>
@@ -1109,7 +1109,7 @@ The AretaCare Team
         try:
             # Create message
             message = MIMEMultipart("alternative")
-            message["Subject"] = f"Removed from Session - AretaCare"
+            message["Subject"] = f"Removed from Care Session - AretaCare"
             message["From"] = f"{settings.SMTP_FROM_NAME} <{settings.SMTP_FROM_EMAIL}>"
             message["To"] = collaborator_email
             EmailService._add_deliverability_headers(message)
@@ -1118,9 +1118,9 @@ The AretaCare Team
             text_content = f"""
 Hello {collaborator_name},
 
-You have been removed from the AretaCare session "{session_name}" by {owner_name}.
+You have been removed from the AretaCare care session "{session_name}" by {owner_name}.
 
-You no longer have access to this session's data.
+You no longer have access to this care session's data.
 
 If you believe you were removed in error, please contact {owner_name} directly at {owner_email}.
 
@@ -1152,15 +1152,15 @@ The AretaCare Team
                     <!-- Content -->
                     <tr>
                         <td style="padding: 20px 40px;">
-                            <h2 style="margin: 0 0 16px; color: #111827; font-size: 24px;">Removed from Session</h2>
+                            <h2 style="margin: 0 0 16px; color: #111827; font-size: 24px;">Removed from Care Session</h2>
                             <p style="margin: 0 0 16px; color: #374151; font-size: 16px; line-height: 24px;">
                                 Hello {collaborator_name},
                             </p>
                             <p style="margin: 0 0 16px; color: #374151; font-size: 16px; line-height: 24px;">
-                                You have been removed from the AretaCare session <strong>"{session_name}"</strong> by <strong>{owner_name}</strong>.
+                                You have been removed from the AretaCare care session <strong>"{session_name}"</strong> by <strong>{owner_name}</strong>.
                             </p>
                             <p style="margin: 0 0 16px; color: #374151; font-size: 16px; line-height: 24px;">
-                                You no longer have access to this session's data.
+                                You no longer have access to this care session's data.
                             </p>
                         </td>
                     </tr>
@@ -1345,16 +1345,16 @@ This is an automated message from AretaCare.
             text_content = f"""
 Hello {new_owner_name},
 
-{old_owner_name} has transferred ownership of the AretaCare session "{session_name}" to you.
+{old_owner_name} has transferred ownership of the AretaCare care session "{session_name}" to you.
 
-You are now the session owner with full control, including:
+You are now the care session owner with full control, including:
 - Managing collaborators (add/remove/transfer ownership)
-- Renaming the session
-- Deleting the session
+- Renaming the care session
+- Deleting the care session
 
-{old_owner_name} has been added as a collaborator and can still access all session data.
+{old_owner_name} has been added as a collaborator and can still access all care session data.
 
-You can manage this session on the Collaboration page: {collaboration_url}
+You can manage this care session on the Collaboration page: {collaboration_url}
 
 Best regards,
 The AretaCare Team
@@ -1384,12 +1384,12 @@ The AretaCare Team
                     <!-- Content -->
                     <tr>
                         <td style="padding: 20px 40px;">
-                            <h2 style="margin: 0 0 16px; color: #111827; font-size: 24px;">Session Ownership Transferred</h2>
+                            <h2 style="margin: 0 0 16px; color: #111827; font-size: 24px;">Care Session Ownership Transferred</h2>
                             <p style="margin: 0 0 16px; color: #374151; font-size: 16px; line-height: 24px;">
                                 Hello {new_owner_name},
                             </p>
                             <p style="margin: 0 0 16px; color: #374151; font-size: 16px; line-height: 24px;">
-                                <strong>{old_owner_name}</strong> has transferred ownership of the AretaCare session <strong>"{session_name}"</strong> to you.
+                                <strong>{old_owner_name}</strong> has transferred ownership of the AretaCare care session <strong>"{session_name}"</strong> to you.
                             </p>
                         </td>
                     </tr>
@@ -1402,15 +1402,15 @@ The AretaCare Team
                                     As the New Owner
                                 </p>
                                 <p style="margin: 0; color: #065f46; font-size: 14px; line-height: 20px;">
-                                    You now have full control of this session:
+                                    You now have full control of this care session:
                                 </p>
                                 <ul style="margin: 8px 0 0 20px; padding: 0; color: #065f46; font-size: 14px; line-height: 20px;">
                                     <li style="margin: 4px 0;">Manage collaborators (add/remove/transfer)</li>
-                                    <li style="margin: 4px 0;">Rename the session</li>
-                                    <li style="margin: 4px 0;">Delete the session</li>
+                                    <li style="margin: 4px 0;">Rename the care session</li>
+                                    <li style="margin: 4px 0;">Delete the care session</li>
                                 </ul>
                                 <p style="margin: 8px 0 0; color: #065f46; font-size: 14px; line-height: 20px;">
-                                    <strong>{old_owner_name}</strong> has been added as a collaborator and can still access all session data.
+                                    <strong>{old_owner_name}</strong> has been added as a collaborator and can still access all care session data.
                                 </p>
                             </div>
                         </td>
@@ -1500,15 +1500,15 @@ The AretaCare Team
             text_content = f"""
 Hello,
 
-{inviter_name} has invited you to join AretaCare to collaborate on their session "{session_name}".
+{inviter_name} has invited you to join AretaCare to collaborate on their care session "{session_name}".
 
-AretaCare helps you make sense of complicated medical information, stay organized through stressful moments, and have confident conversations with your care team. Once you create a free account, you'll have access to the shared session.
+AretaCare helps you make sense of complicated medical information, stay organized through stressful moments, and have confident conversations with your care team. Once you create a free account, you'll have access to the shared care session.
 
 To accept this invitation and create your account, visit:
 
 {registration_url}
 
-Your email address will be pre-filled on the registration page. After you complete the registration, you'll automatically have access to the shared session.
+Your email address will be pre-filled on the registration page. After you complete the registration, you'll automatically have access to the shared care session.
 
 IMPORTANT: This invitation will expire in 30 days. After that, {inviter_name} will need to send you a new invitation.
 
@@ -1547,7 +1547,7 @@ The AretaCare Team
                                 Hello,
                             </p>
                             <p style="margin: 0 0 16px; color: #374151; font-size: 16px; line-height: 24px;">
-                                <strong>{inviter_name}</strong> has invited you to join AretaCare to collaborate on their session <strong>"{session_name}"</strong>.
+                                <strong>{inviter_name}</strong> has invited you to join AretaCare to collaborate on their care session <strong>"{session_name}"</strong>.
                             </p>
                         </td>
                     </tr>
@@ -1560,7 +1560,7 @@ The AretaCare Team
                                     What is AretaCare?
                                 </p>
                                 <p style="margin: 0; color: #065f46; font-size: 14px; line-height: 20px;">
-                                    AretaCare helps you make sense of complicated medical information, stay organized through stressful moments, and have confident conversations with your care team. Once you create a free account, you'll have access to the shared session.
+                                    AretaCare helps you make sense of complicated medical information, stay organized through stressful moments, and have confident conversations with your care team. Once you create a free account, you'll have access to the shared care session.
                                 </p>
                             </div>
                         </td>
@@ -1593,7 +1593,7 @@ The AretaCare Team
                         <td style="padding: 0 40px 20px;">
                             <div style="background-color: #f0f9ff; border-left: 4px solid #3b82f6; padding: 16px; border-radius: 4px;">
                                 <p style="margin: 0; color: #1e40af; font-size: 14px; line-height: 20px;">
-                                    <strong>Note:</strong> Your email address will be pre-filled on the registration page. After you complete the registration, you'll automatically have access to the shared session.
+                                    <strong>Note:</strong> Your email address will be pre-filled on the registration page. After you complete the registration, you'll automatically have access to the shared care session.
                                 </p>
                             </div>
                         </td>
@@ -1690,7 +1690,7 @@ Hello {owner_name},
 
 Great news: {new_user_name} ({new_user_email}) has accepted your invitation and created an AretaCare account.
 
-They now have full access to your session "{session_name}" and can view and edit all session data, including conversations, journal entries, documents, and audio recordings.
+They now have full access to your care session "{session_name}" and can view and edit all care session data, including conversations, journal entries, documents, and audio recordings.
 
 You can manage your collaborators at any time on the Collaboration page: {collaboration_url}
 
@@ -1740,7 +1740,7 @@ The AretaCare Team
                                     {new_user_name} now has access to:
                                 </p>
                                 <ul style="margin: 8px 0 0 20px; padding: 0; color: #065f46; font-size: 14px; line-height: 20px;">
-                                    <li style="margin: 4px 0;">Your session: <strong>"{session_name}"</strong></li>
+                                    <li style="margin: 4px 0;">Your care session: <strong>"{session_name}"</strong></li>
                                     <li style="margin: 4px 0;">All conversations and messages</li>
                                     <li style="margin: 4px 0;">Journal entries</li>
                                     <li style="margin: 4px 0;">Uploaded documents</li>
@@ -2144,7 +2144,7 @@ The AretaCare Team
 
             # Create message
             message = MIMEMultipart("alternative")
-            message["Subject"] = f"Ownership Transferred for \"{session_name}\" - AretaCare"
+            message["Subject"] = f"Care Session Ownership Transferred for \"{session_name}\" - AretaCare"
             message["From"] = f"{settings.SMTP_FROM_NAME} <{settings.SMTP_FROM_EMAIL}>"
             message["To"] = old_owner_email
             EmailService._add_deliverability_headers(message)
@@ -2153,16 +2153,16 @@ The AretaCare Team
             text_content = f"""
 Hello {old_owner_name},
 
-You have successfully transferred ownership of the AretaCare session "{session_name}" to {new_owner_name}.
+You have successfully transferred ownership of the AretaCare care session "{session_name}" to {new_owner_name}.
 
-{new_owner_name} is now the session owner and can:
+{new_owner_name} is now the care session owner and can:
 - Manage collaborators (add/remove/transfer ownership)
-- Rename the session
-- Delete the session
+- Rename the care session
+- Delete the care session
 
-You have been added as a collaborator and can still access all session data. However, you can no longer manage the session or its collaborators.
+You have been added as a collaborator and can still access all care session data. However, you can no longer manage the care session or its collaborators.
 
-If you want to leave this session, you can do so on the Collaboration page: {collaboration_url}
+If you want to leave this care session, you can do so on the Collaboration page: {collaboration_url}
 
 Best regards,
 The AretaCare Team
@@ -2197,7 +2197,7 @@ The AretaCare Team
                                 Hello {old_owner_name},
                             </p>
                             <p style="margin: 0 0 16px; color: #374151; font-size: 16px; line-height: 24px;">
-                                You have successfully transferred ownership of the AretaCare session <strong>"{session_name}"</strong> to <strong>{new_owner_name}</strong>.
+                                You have successfully transferred ownership of the AretaCare care session <strong>"{session_name}"</strong> to <strong>{new_owner_name}</strong>.
                             </p>
                         </td>
                     </tr>
@@ -2210,15 +2210,15 @@ The AretaCare Team
                                     What This Means
                                 </p>
                                 <p style="margin: 0; color: #1e40af; font-size: 14px; line-height: 20px;">
-                                    <strong>{new_owner_name}</strong> is now the session owner and can:
+                                    <strong>{new_owner_name}</strong> is now the care session owner and can:
                                 </p>
                                 <ul style="margin: 8px 0 0 20px; padding: 0; color: #1e40af; font-size: 14px; line-height: 20px;">
                                     <li style="margin: 4px 0;">Manage collaborators (add/remove/transfer)</li>
-                                    <li style="margin: 4px 0;">Rename the session</li>
-                                    <li style="margin: 4px 0;">Delete the session</li>
+                                    <li style="margin: 4px 0;">Rename the care session</li>
+                                    <li style="margin: 4px 0;">Delete the care session</li>
                                 </ul>
                                 <p style="margin: 8px 0 0; color: #1e40af; font-size: 14px; line-height: 20px;">
-                                    You have been added as a collaborator and can still access all session data. However, you can no longer manage the session or its collaborators.
+                                    You have been added as a collaborator and can still access all care session data. However, you can no longer manage the care session or its collaborators.
                                 </p>
                             </div>
                         </td>
@@ -2453,7 +2453,7 @@ Hello {to_name},
 
 Good news! {new_user_name} ({new_user_email}) has joined AretaCare.
 
-You previously tried to add them as a collaborator on "{session_name}". Now that they have an account, you can add them as a collaborator.
+You previously tried to add them as a collaborator on the care session "{session_name}". Now that they have an account, you can add them as a collaborator.
 
 Visit your Collaboration page to add them:
 {collaboration_url}
@@ -2493,7 +2493,7 @@ The AretaCare Team
                                 Good news! <strong>{new_user_name}</strong> ({new_user_email}) has joined AretaCare.
                             </p>
                             <p style="margin: 0 0 16px; color: #374151; font-size: 16px; line-height: 24px;">
-                                You previously tried to add them as a collaborator on "<strong>{session_name}</strong>". Now that they have an account, you can add them as a collaborator.
+                                You previously tried to add them as a collaborator on the care session "<strong>{session_name}</strong>". Now that they have an account, you can add them as a collaborator.
                             </p>
 
                             <!-- Button -->

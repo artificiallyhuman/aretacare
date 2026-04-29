@@ -158,9 +158,9 @@ struct DocumentsListView: View {
             }
         } message: {
             if duplicateMatches.count == 1 {
-                Text("A document named \"\(duplicateMatches.first?.filename ?? "")\" already exists in this session.")
+                Text("A document named \"\(duplicateMatches.first?.filename ?? "")\" already exists in this care session.")
             } else {
-                Text("\(duplicateMatches.count) documents with matching filenames already exist in this session.")
+                Text("\(duplicateMatches.count) documents with matching filenames already exist in this care session.")
             }
         }
         .sheet(isPresented: $showingDatePicker) {

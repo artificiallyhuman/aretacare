@@ -205,10 +205,10 @@ const PrivacyPolicy = () => {
                   <li><strong>Email Verification:</strong> Verification link to confirm your email address during registration</li>
                   <li><strong>Password Changes:</strong> Notification when your password is changed (either through account settings or password reset)</li>
                   <li><strong>Email Changes:</strong> Notification sent to your old email address when your account email is updated</li>
-                  <li><strong>Collaborator Added (Owner):</strong> Notification when you add someone as a collaborator to one of your sessions</li>
-                  <li><strong>Added as Collaborator:</strong> Notification when someone adds you as a collaborator to their session</li>
+                  <li><strong>Collaborator Added (Owner):</strong> Notification when you add someone as a collaborator to one of your care sessions</li>
+                  <li><strong>Added as Collaborator:</strong> Notification when someone adds you as a collaborator to their care session</li>
                   <li><strong>Collaboration Invitation:</strong> Invitation email when someone invites you to collaborate (if you don't yet have an account)</li>
-                  <li><strong>Removed as Collaborator:</strong> Notification when you are removed from a shared session</li>
+                  <li><strong>Removed as Collaborator:</strong> Notification when you are removed from a shared care session</li>
                   <li><strong>Waitlist Invitation:</strong> Invitation to create an account when approved from the waitlist</li>
                   <li><strong>Password Reset:</strong> Password reset link when requested</li>
                   <li><strong>MFA Changes:</strong> Notification when multi-factor authentication methods are enabled or disabled</li>
@@ -251,7 +251,7 @@ const PrivacyPolicy = () => {
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">Email Content and Security</h3>
                 <ul className="list-disc list-inside space-y-2 text-gray-700 dark:text-gray-300 pl-4">
                   <li>Emails contain minimal personal information (your name and email address)</li>
-                  <li>Emails do not contain sensitive medical information from your sessions</li>
+                  <li>Emails do not contain sensitive medical information from your care sessions</li>
                   <li>Security-related emails include instructions for contacting support if the change was unauthorized</li>
                   <li>All emails are sent from AretaCare's designated sending address</li>
                 </ul>
@@ -259,32 +259,32 @@ const PrivacyPolicy = () => {
             </div>
           </section>
 
-          {/* Section 5 - Session Sharing */}
+          {/* Section 5 - Care Session Sharing */}
           <section>
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4 pb-2 border-b-2 border-primary-200 dark:border-primary-800">5. Session Sharing</h2>
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4 pb-2 border-b-2 border-primary-200 dark:border-primary-800">5. Care Session Sharing</h2>
             <div className="space-y-4">
               <p className="text-gray-700 dark:text-gray-300 leading-relaxed text-base">
-                AretaCare allows you to share sessions with other registered users (up to 10 people per session, including yourself). When you share a session:
+                AretaCare allows you to share care sessions with other registered users (up to 10 people per care session, including yourself). When you share a care session:
               </p>
               <ul className="list-disc list-inside space-y-2 text-gray-700 dark:text-gray-300 pl-4">
-                <li>Collaborators have full access to all session data including conversations, journal entries, documents, audio recordings, and daily digests</li>
-                <li>Collaborators can add, edit, and delete content within the shared session</li>
-                <li>Only the session owner can share with additional users or revoke access</li>
-                <li>Collaborators can leave a shared session at any time</li>
+                <li>Collaborators have full access to all care session data including conversations, journal entries, documents, audio recordings, and daily digests</li>
+                <li>Collaborators can add, edit, and delete content within the shared care session</li>
+                <li>Only the care session owner can share with additional users or revoke access</li>
+                <li>Collaborators can leave a shared care session at any time</li>
               </ul>
 
               <div>
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">Consent Requirement</h3>
                 <p className="text-gray-700 dark:text-gray-300 leading-relaxed text-base mb-3">
-                  Before adding a collaborator, session owners must confirm they have the right to share the session's information. This consent acknowledgment states:
+                  Before adding a collaborator, care session owners must confirm they have the right to share the care session's information. This consent acknowledgment states:
                 </p>
                 <div className="bg-blue-50 dark:bg-blue-900/30 border-l-4 border-blue-500 dark:border-blue-600 p-4 rounded-r-lg mb-3">
                   <p className="text-sm text-blue-800 dark:text-blue-300 italic leading-relaxed">
-                    "I confirm I have the right to share the information in this session with the collaborator I'm adding. If I'm the patient, this is my consent. If I'm a caregiver, I have the patient's permission to share it."
+                    "I confirm I have the right to share the information in this care session with the collaborator I'm adding. If I'm the patient, this is my consent. If I'm a caregiver, I have the patient's permission to share it."
                   </p>
                 </div>
                 <p className="text-gray-700 dark:text-gray-300 leading-relaxed text-base">
-                  This ensures that patient information is only shared with proper authorization, whether the session owner is the patient themselves or a caregiver acting on their behalf.
+                  This ensures that patient information is only shared with proper authorization, whether the care session owner is the patient themselves or a caregiver acting on their behalf.
                 </p>
               </div>
 
@@ -296,7 +296,7 @@ const PrivacyPolicy = () => {
                   <div className="flex-1">
                     <h3 className="text-sm font-semibold text-amber-800 dark:text-amber-400 mb-1">Important</h3>
                     <p className="text-sm text-amber-800 dark:text-amber-300 leading-relaxed">
-                      Only share sessions with people you trust. Once shared, collaborators can view all existing content in that session. Session owners are responsible for obtaining proper consent before sharing patient information.
+                      Only share care sessions with people you trust. Once shared, collaborators can view all existing content in that care session. Care session owners are responsible for obtaining proper consent before sharing patient information.
                     </p>
                   </div>
                 </div>
@@ -418,16 +418,16 @@ const PrivacyPolicy = () => {
               </div>
 
               <div>
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">Session Deletion</h3>
-                <p className="text-gray-700 dark:text-gray-300 leading-relaxed text-base mb-3">When you delete a session:</p>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">Care Session Deletion</h3>
+                <p className="text-gray-700 dark:text-gray-300 leading-relaxed text-base mb-3">When you delete a care session:</p>
                 <ul className="list-disc list-inside space-y-2 text-gray-700 dark:text-gray-300 pl-4">
-                  <li>All conversations in the session are permanently deleted from the database</li>
+                  <li>All conversations in the care session are permanently deleted from the database</li>
                   <li>All journal entries are permanently deleted from the database</li>
                   <li>All uploaded documents and audio files are permanently deleted from S3 storage</li>
                   <li>Document thumbnails and audio transcriptions are permanently deleted</li>
                   <li>All daily digests are permanently deleted from the database</li>
-                  <li>Session collaborator access is removed</li>
-                  <li>Your user account remains active with any other sessions intact</li>
+                  <li>Care session collaborator access is removed</li>
+                  <li>Your user account remains active with any other care sessions intact</li>
                 </ul>
               </div>
 
@@ -438,9 +438,9 @@ const PrivacyPolicy = () => {
                 </p>
                 <ul className="list-disc list-inside space-y-2 text-gray-700 dark:text-gray-300 pl-4">
                   <li>Your account and profile information (name, email, credentials)</li>
-                  <li>All sessions you own and their complete data (conversations, journal, daily digests)</li>
+                  <li>All care sessions you own and their complete data (conversations, journal, daily digests)</li>
                   <li>All documents, audio recordings, thumbnails, and associated files in S3 storage</li>
-                  <li>Your access to any sessions shared with you (the shared sessions remain for other collaborators)</li>
+                  <li>Your access to any care sessions shared with you (the shared care sessions remain for other collaborators)</li>
                   <li>Your push notification device tokens (iOS app)</li>
                 </ul>
                 <p className="text-gray-700 dark:text-gray-300 leading-relaxed text-base mt-3">
@@ -528,7 +528,7 @@ const PrivacyPolicy = () => {
                   <li>View all your data within the application</li>
                   <li>Edit your chat messages, journal entries, daily digests, and health profiles</li>
                   <li>Delete documents, audio recordings, and journal entries</li>
-                  <li>Delete individual sessions or your entire account from Settings</li>
+                  <li>Delete individual care sessions or your entire account from Settings</li>
                 </ul>
               </div>
 

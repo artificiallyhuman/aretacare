@@ -149,7 +149,7 @@ AretaCare implements comprehensive security measures:
 - **XSS Prevention**: ReactMarkdown (web) and MarkdownUI (iOS) for safe content rendering
 - **Input Validation**: Pydantic schemas for all API inputs; iOS validates deep link token format before routing
 - **Client-Side File Validation (iOS)**: File size checked against 30MB limit before upload; photo format detected via UTType
-- **Session Name Validation**: Character restrictions (alphanumeric, spaces, hyphens, underscores, apostrophes only)
+- **Care Session Name Validation**: Character restrictions (alphanumeric, spaces, hyphens, underscores, apostrophes only)
 - **Security Headers**: X-Content-Type-Options, X-Frame-Options, X-XSS-Protection, Referrer-Policy, Permissions-Policy, CSP
 - **Device Integrity (iOS)**: Runtime jailbreak detection (suspicious files, sandbox escape, debugger attachment); logs warnings on compromised devices
 - **Logout Data Cleanup (iOS)**: All in-memory caches, image cache, and UserDefaults preferences cleared on logout to prevent data leakage on shared devices
@@ -159,7 +159,7 @@ AretaCare implements comprehensive security measures:
 - **Feature-gated**: Disabled by default (`PUSH_NOTIFICATIONS_ENABLED=False`); APNs credentials validated at startup
 - **Fire-and-forget**: Push sends run in daemon threads and never block API responses
 - **Auto-cleanup**: Invalid/expired device tokens automatically removed when APNs reports them
-- **Scope**: Notifications for shared session messages, session sharing, and daily digests only
+- **Scope**: Notifications for shared care session messages, care session sharing, and daily digests only
 
 ### File Upload Security
 - **Content-Disposition Headers**: Forces download instead of browser execution
@@ -168,7 +168,7 @@ AretaCare implements comprehensive security measures:
 - **Image Validation**: PIL verification for image uploads
 
 ### Access Control
-- **Session-Based Authorization**: Owner and collaborator access validation
+- **Care Session Authorization**: Owner and collaborator access validation
 - **Admin Role Verification**: Email-based admin list
 - **Presigned URLs**: 15-minute default expiration for S3 file access
 

@@ -38,7 +38,7 @@ async def get_profile(
     session = db.query(UserSession).filter(UserSession.id == session_id).first()
 
     if not session:
-        raise HTTPException(status_code=404, detail="Session not found")
+        raise HTTPException(status_code=404, detail="Care session not found")
 
     check_session_access(session, current_user.id, db)
 
@@ -59,7 +59,7 @@ async def check_profile_status(
     session = db.query(UserSession).filter(UserSession.id == session_id).first()
 
     if not session:
-        raise HTTPException(status_code=404, detail="Session not found")
+        raise HTTPException(status_code=404, detail="Care session not found")
 
     check_session_access(session, current_user.id, db)
 
@@ -83,7 +83,7 @@ async def update_profile_from_activity(
     session = db.query(UserSession).filter(UserSession.id == session_id).first()
 
     if not session:
-        raise HTTPException(status_code=404, detail="Session not found")
+        raise HTTPException(status_code=404, detail="Care session not found")
 
     check_session_access(session, current_user.id, db)
 
@@ -110,7 +110,7 @@ async def update_profile_manually(
     session = db.query(UserSession).filter(UserSession.id == session_id).first()
 
     if not session:
-        raise HTTPException(status_code=404, detail="Session not found")
+        raise HTTPException(status_code=404, detail="Care session not found")
 
     check_session_access(session, current_user.id, db)
 
@@ -144,7 +144,7 @@ async def update_profile_section(
     session = db.query(UserSession).filter(UserSession.id == session_id).first()
 
     if not session:
-        raise HTTPException(status_code=404, detail="Session not found")
+        raise HTTPException(status_code=404, detail="Care session not found")
 
     check_session_access(session, current_user.id, db)
 
@@ -174,7 +174,7 @@ async def get_pending_changes(
     session = db.query(UserSession).filter(UserSession.id == session_id).first()
 
     if not session:
-        raise HTTPException(status_code=404, detail="Session not found")
+        raise HTTPException(status_code=404, detail="Care session not found")
 
     check_session_access(session, current_user.id, db)
 
@@ -210,7 +210,7 @@ async def review_pending_changes(
     session = db.query(UserSession).filter(UserSession.id == session_id).first()
 
     if not session:
-        raise HTTPException(status_code=404, detail="Session not found")
+        raise HTTPException(status_code=404, detail="Care session not found")
 
     check_session_access(session, current_user.id, db)
 
@@ -241,7 +241,7 @@ async def regenerate_profile(
     session = db.query(UserSession).filter(UserSession.id == session_id).first()
 
     if not session:
-        raise HTTPException(status_code=404, detail="Session not found")
+        raise HTTPException(status_code=404, detail="Care session not found")
 
     check_session_access(session, current_user.id, db)
 
@@ -269,7 +269,7 @@ async def delete_profile(
     session = db.query(UserSession).filter(UserSession.id == session_id).first()
 
     if not session:
-        raise HTTPException(status_code=404, detail="Session not found")
+        raise HTTPException(status_code=404, detail="Care session not found")
 
     check_session_access(session, current_user.id, db)
 
@@ -301,7 +301,7 @@ async def export_profile(
     session = db.query(UserSession).filter(UserSession.id == session_id).first()
 
     if not session:
-        raise HTTPException(status_code=404, detail="Session not found")
+        raise HTTPException(status_code=404, detail="Care session not found")
 
     check_session_access(session, current_user.id, db)
 

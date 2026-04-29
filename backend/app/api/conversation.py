@@ -115,7 +115,7 @@ async def send_message(
     # Verify user has access to session (owner or collaborator)
     session = db.query(SessionModel).filter(SessionModel.id == session_id).first()
     if not session:
-        raise HTTPException(status_code=404, detail="Session not found")
+        raise HTTPException(status_code=404, detail="Care session not found")
     check_session_access(session, current_user.id, db)
 
     try:
@@ -377,7 +377,7 @@ async def get_conversation_history(
     # Verify user has access to session (owner or collaborator)
     session = db.query(SessionModel).filter(SessionModel.id == session_id).first()
     if not session:
-        raise HTTPException(status_code=404, detail="Session not found")
+        raise HTTPException(status_code=404, detail="Care session not found")
     check_session_access(session, current_user.id, db)
 
     # Get total message count for pagination
@@ -493,7 +493,7 @@ async def update_message(
     # Verify user has access to session (owner or collaborator)
     session = db.query(SessionModel).filter(SessionModel.id == message.session_id).first()
     if not session:
-        raise HTTPException(status_code=404, detail="Session not found")
+        raise HTTPException(status_code=404, detail="Care session not found")
     check_session_access(session, current_user.id, db)
 
     # Update message content
@@ -535,7 +535,7 @@ async def reset_to_message(
     # Verify user has access to session
     session = db.query(SessionModel).filter(SessionModel.id == message.session_id).first()
     if not session:
-        raise HTTPException(status_code=404, detail="Session not found")
+        raise HTTPException(status_code=404, detail="Care session not found")
     check_session_access(session, current_user.id, db)
 
     session_id = message.session_id
@@ -705,7 +705,7 @@ async def transcribe_audio(
     # Verify user has access to session (owner or collaborator)
     session = db.query(SessionModel).filter(SessionModel.id == session_id).first()
     if not session:
-        raise HTTPException(status_code=404, detail="Session not found")
+        raise HTTPException(status_code=404, detail="Care session not found")
     check_session_access(session, current_user.id, db)
 
     try:

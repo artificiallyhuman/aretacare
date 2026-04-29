@@ -36,7 +36,7 @@ async def get_journal_entries(
     # Verify session belongs to current user
     session = db.query(SessionModel).filter(SessionModel.id == session_id).first()
     if not session:
-        raise HTTPException(status_code=404, detail="Session not found")
+        raise HTTPException(status_code=404, detail="Care session not found")
     check_session_access(session, current_user.id, db)
 
     # Parse dates
@@ -115,7 +115,7 @@ async def get_entries_for_date(
     # Verify session belongs to current user
     session = db.query(SessionModel).filter(SessionModel.id == session_id).first()
     if not session:
-        raise HTTPException(status_code=404, detail="Session not found")
+        raise HTTPException(status_code=404, detail="Care session not found")
     check_session_access(session, current_user.id, db)
 
     # Parse date
@@ -184,7 +184,7 @@ async def get_journal_dates(
 
     session = db.query(SessionModel).filter(SessionModel.id == session_id).first()
     if not session:
-        raise HTTPException(status_code=404, detail="Session not found")
+        raise HTTPException(status_code=404, detail="Care session not found")
     check_session_access(session, current_user.id, db)
 
     rows = (
@@ -217,7 +217,7 @@ async def create_journal_entry(
     # Verify session belongs to current user
     session = db.query(SessionModel).filter(SessionModel.id == session_id).first()
     if not session:
-        raise HTTPException(status_code=404, detail="Session not found")
+        raise HTTPException(status_code=404, detail="Care session not found")
     check_session_access(session, current_user.id, db)
 
     # Create entry

@@ -31,7 +31,7 @@ def check_session_access(session: SessionModel, user_id: str, db: Session, requi
     ).first() is not None
 
     if require_owner and not is_owner:
-        raise HTTPException(status_code=403, detail="Only the session owner can perform this action")
+        raise HTTPException(status_code=403, detail="Only the care session owner can perform this action")
 
     if not (is_owner or is_collaborator):
         raise HTTPException(

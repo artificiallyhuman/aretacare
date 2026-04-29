@@ -124,7 +124,7 @@ Implemented via `slowapi`. See `backend/app/core/rate_limit.py`.
 | AI Chat | 30/minute |
 | AI Tools | 10/minute (Jargon Translator, Conversation Coach — publicly accessible, no auth required) |
 | Feedback | 3/hour |
-| Admin Destructive | 5/hour (delete user, delete session, S3 cleanup) |
+| Admin Destructive | 5/hour (delete user, delete care session, S3 cleanup) |
 | Admin Sensitive | 10/hour (reset password, reset MFA, transfer) |
 | Admin Email | 20/hour (invitations, notifications) |
 | General API | 100/minute |
@@ -134,7 +134,7 @@ Implemented via `slowapi`. See `backend/app/core/rate_limit.py`.
 ## Input Validation
 
 - **Pydantic schemas**: All API inputs validated (type, length, format)
-- **Session names**: Alphanumeric + spaces, hyphens, underscores, apostrophes only (`^[a-zA-Z0-9\s\-_']+$`)
+- **Care session names**: Alphanumeric + spaces, hyphens, underscores, apostrophes only (`^[a-zA-Z0-9\s\-_']+$`)
 - **Feedback form**: HTML-escaped via `html.escape()`
 
 ---
@@ -155,11 +155,11 @@ Supported types: PDF, PNG, JPG, TXT (documents); MP3, M4A, WAV, WebM, OGG (audio
 
 ## Authorization & Access Control
 
-### Session Access
+### Care Session Access
 
 `check_session_access()` in `backend/app/api/permissions.py` validates:
-1. User is session owner, OR
-2. User is session collaborator
+1. User is care session owner, OR
+2. User is care session collaborator
 
 Unauthorized access attempts are logged.
 
@@ -169,7 +169,7 @@ Email must be in `ADMIN_EMAILS` env var. Frontend always verifies with server (n
 
 **User Management Capabilities:**
 - Search users by email
-- View user details (sessions, MFA status, active tokens)
+- View user details (care sessions, MFA status, active tokens)
 - Reset user password (sends reset email)
 - Reset user MFA (disables MFA, removes all methods, notifies user via email)
 - Revoke user sessions (logout from all devices)
@@ -191,7 +191,7 @@ All admin actions are logged to the audit log.
 
 ### Complete Data Deletion
 
-User/session deletion removes all database records (cascading) + S3 files (documents, thumbnails, audio).
+User/care session deletion removes all database records (cascading) + S3 files (documents, thumbnails, audio).
 
 ### Consent Recording
 
@@ -205,12 +205,12 @@ All user consents are recorded in `consent_records` table for compliance verific
 | `ip_address` | Client IP at time of consent |
 | `user_agent` | Browser/device info |
 | `created_at` | Timestamp |
-| `session_id` | For sharing consents: which session |
+| `session_id` | For sharing consents: which care session |
 | `shared_with_email` | For sharing consents: who received access |
 
 **Consent Types:**
 - Registration: `MEDICAL_ADVICE`, `HIPAA`, `DATA_PROCESSING`, `TERMS_PRIVACY`, `AGE_USE`
-- Sharing: `SHARING_AUTHORIZATION` (recorded when owner shares session or sends invitation)
+- Sharing: `SHARING_AUTHORIZATION` (recorded when owner shares care session or sends invitation)
 
 **Key Files:** `backend/app/models/consent_record.py` (includes `CONSENT_VERSIONS` dict)
 

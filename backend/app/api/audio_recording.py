@@ -31,7 +31,7 @@ async def get_audio_recordings(
     # Verify session belongs to current user
     session = db.query(SessionModel).filter(SessionModel.id == session_id).first()
     if not session:
-        raise HTTPException(status_code=404, detail="Session not found")
+        raise HTTPException(status_code=404, detail="Care session not found")
     check_session_access(session, current_user.id, db)
 
     # Build query with filters
@@ -139,7 +139,7 @@ async def get_audio_recording_dates(
 
     session = db.query(SessionModel).filter(SessionModel.id == session_id).first()
     if not session:
-        raise HTTPException(status_code=404, detail="Session not found")
+        raise HTTPException(status_code=404, detail="Care session not found")
     check_session_access(session, current_user.id, db)
 
     date_col = cast(AudioRecording.created_at, SQLDate)
@@ -173,7 +173,7 @@ async def get_audio_recording(
     # Verify session belongs to current user
     session = db.query(SessionModel).filter(SessionModel.id == session_id).first()
     if not session:
-        raise HTTPException(status_code=404, detail="Session not found")
+        raise HTTPException(status_code=404, detail="Care session not found")
     check_session_access(session, current_user.id, db)
 
     # Get the recording
@@ -233,7 +233,7 @@ async def update_audio_recording(
     # Verify session belongs to current user
     session = db.query(SessionModel).filter(SessionModel.id == session_id).first()
     if not session:
-        raise HTTPException(status_code=404, detail="Session not found")
+        raise HTTPException(status_code=404, detail="Care session not found")
     check_session_access(session, current_user.id, db)
 
     # Get the recording
@@ -310,7 +310,7 @@ async def delete_audio_recording(
     # Verify session belongs to current user
     session = db.query(SessionModel).filter(SessionModel.id == session_id).first()
     if not session:
-        raise HTTPException(status_code=404, detail="Session not found")
+        raise HTTPException(status_code=404, detail="Care session not found")
     check_session_access(session, current_user.id, db)
 
     # Get the recording
@@ -353,7 +353,7 @@ async def get_audio_url(
     # Verify session belongs to current user
     session = db.query(SessionModel).filter(SessionModel.id == session_id).first()
     if not session:
-        raise HTTPException(status_code=404, detail="Session not found")
+        raise HTTPException(status_code=404, detail="Care session not found")
     check_session_access(session, current_user.id, db)
 
     # Get the recording

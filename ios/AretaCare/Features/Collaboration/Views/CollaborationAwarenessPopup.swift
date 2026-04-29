@@ -10,10 +10,10 @@ struct CollaborationAwarenessPopup: View {
                 .font(.system(size: 48))
                 .foregroundStyle(Color.accentColor)
 
-            Text("Shared Session")
+            Text("Shared Care Session")
                 .font(.title3.weight(.bold))
 
-            Text("Your current session \"\(session.name)\" is shared with other people. Information you add will be visible to all collaborators.")
+            Text("Your current care session \"\(session.name)\" is shared with other people. Information you add will be visible to all collaborators.")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)

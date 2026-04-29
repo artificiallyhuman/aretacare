@@ -96,11 +96,11 @@ struct SessionDetailView: View {
                         showDeleteConfirmation = true
                     } label: {
                         HStack {
-                            Label("Delete Session", systemImage: "trash")
+                            Label("Delete Care Session", systemImage: "trash")
                             Spacer()
                         }
                     }
-                    .confirmationDialog("Delete Session", isPresented: $showDeleteConfirmation, titleVisibility: .visible) {
+                    .confirmationDialog("Delete Care Session", isPresented: $showDeleteConfirmation, titleVisibility: .visible) {
                         Button("Delete", role: .destructive) {
                             Task {
                                 await viewModel.deleteSession(id: sessionId)
@@ -109,10 +109,10 @@ struct SessionDetailView: View {
                         }
                         Button("Cancel", role: .cancel) {}
                     } message: {
-                        Text("Delete \"\(session.name)\"? All conversations, journal entries, documents, and recordings in this session will be permanently deleted.")
+                        Text("Delete \"\(session.name)\"? All conversations, journal entries, documents, and recordings in this care session will be permanently deleted.")
                     }
                 } footer: {
-                    Text("Permanently deletes all conversations, journal entries, documents, and recordings in this session.")
+                    Text("Permanently deletes all conversations, journal entries, documents, and recordings in this care session.")
                 }
             }
             .navigationTitle(session.name)
@@ -122,8 +122,8 @@ struct SessionDetailView: View {
                     await viewModel.fetchStatistics(sessionId: sessionId)
                 }
             }
-            .alert("Rename Session", isPresented: $showRenameAlert) {
-                TextField("Session name", text: $renameText)
+            .alert("Rename Care Session", isPresented: $showRenameAlert) {
+                TextField("Care session name", text: $renameText)
                 Button("Rename") {
                     Task {
                         await viewModel.renameSession(id: sessionId, name: renameText)

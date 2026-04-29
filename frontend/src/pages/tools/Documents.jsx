@@ -1216,8 +1216,8 @@ const Documents = () => {
                 <div className="flex-1">
                   <p className="text-sm text-gray-600 dark:text-gray-400">
                     {duplicateWarning.duplicates.length === 1
-                      ? 'A document with the same name already exists in this session:'
-                      : 'Documents with the same names already exist in this session:'}
+                      ? 'A document with the same name already exists in this care session:'
+                      : 'Documents with the same names already exist in this care session:'}
                   </p>
                 </div>
               </div>
@@ -1300,7 +1300,7 @@ const Documents = () => {
                     Delete "{documentToDelete.filename}"?
                   </h3>
                   <p className="text-sm text-gray-600 dark:text-gray-400">
-                    This document will be permanently removed from your session
+                    This document will be permanently removed from your care session
                   </p>
                 </div>
               </div>

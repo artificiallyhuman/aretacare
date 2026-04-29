@@ -155,7 +155,7 @@ New journal entries are automatically embedded on creation. The backfill is only
 3. Upload document
 4. Record audio
 5. Generate daily digest
-6. Share session with collaborator
+6. Share care session with collaborator
 7. Enable MFA (Settings → Control Access)
 8. Check admin console (if admin email configured)
 9. Verify semantic retrieval (ask about a past journal topic, check AI references it)
@@ -163,14 +163,14 @@ New journal entries are automatically embedded on creation. The backfill is only
 ### iOS
 1. Login with existing account
 2. Conversation: send message, verify markdown rendering, test edit/copy/reset context menu
-3. Conversation (shared session): verify collaborator messages appear within ~10s via polling
+3. Conversation (shared care session): verify collaborator messages appear within ~10s via polling
 4. Attachments: take photo, choose photo, choose file — verify upload and document message
 5. Journal: verify entries render with markdown, search, filter by type, expand/collapse
 6. Documents: upload, search, edit category/description, preview PDF/image
 7. Audio: record, verify transcription, play back from message bubble
 8. Audio recordings: upload from Audio tab, verify journal synthesis triggers, edit category/summary
 9. Daily digest: open Digest tab, verify markdown rendering, verify periodic auto-generation check
-10. Settings: rename session, change color, session statistics display, collaboration (share/revoke/invite)
+10. Settings: rename care session, change color, care session statistics display, collaboration (share/revoke/invite)
 11. Logout: verify push token unregistered before auth cleared (check backend logs)
 12. Release build: verify `aps-environment: production` in entitlements, verify crash without `API_BASE_URL`
 

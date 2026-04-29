@@ -114,7 +114,7 @@ export default function Collaboration() {
 
     try {
       await sessionAPI.share(selectedSession.id, email, consentGiven);
-      setSuccess('Session shared successfully.');
+      setSuccess('Care session shared successfully.');
       await refreshSessions();
       setTimeout(() => {
         setStep('view');
@@ -124,7 +124,7 @@ export default function Collaboration() {
         setSuccess(null);
       }, 1500);
     } catch (err) {
-      setError(err.response?.data?.detail || 'Failed to share session');
+      setError(err.response?.data?.detail || 'Failed to share care session');
     } finally {
       setLoading(false);
     }
@@ -167,7 +167,7 @@ export default function Collaboration() {
 
     try {
       await sessionAPI.leave(selectedSession.id);
-      setSuccess('Left session successfully.');
+      setSuccess('Left care session successfully.');
       await refreshSessions();
       setTimeout(() => {
         setExpandedSessionId(null);
@@ -176,7 +176,7 @@ export default function Collaboration() {
         setSuccess(null);
       }, 1500);
     } catch (err) {
-      setError(err.response?.data?.detail || 'Failed to leave session');
+      setError(err.response?.data?.detail || 'Failed to leave care session');
     } finally {
       setLoading(false);
     }
@@ -351,7 +351,7 @@ export default function Collaboration() {
             {/* No Collaborators Message */}
             {collaborators.length === 0 && isOwner && (
               <div className="text-sm text-gray-500 dark:text-gray-400 text-center py-4">
-                No collaborators yet. Add someone to share this session.
+                No collaborators yet. Add someone to share this care session.
               </div>
             )}
 
@@ -422,7 +422,7 @@ export default function Collaboration() {
                   disabled={loading}
                   className="flex-1 px-4 py-2 bg-red-600 dark:bg-red-700 text-white rounded hover:bg-red-700 dark:hover:bg-red-600 disabled:opacity-50 text-sm font-medium"
                 >
-                  {loading ? 'Leaving...' : 'Leave Session'}
+                  {loading ? 'Leaving...' : 'Leave Care Session'}
                 </button>
               )}
             </div>
@@ -489,7 +489,7 @@ export default function Collaboration() {
               <ul className="text-xs text-amber-700 dark:text-amber-300 space-y-1 list-disc list-inside">
                 <li>All data for "{session.name}" will be viewable and editable by {userToAdd.name}</li>
                 <li>This includes conversations, journal entries, documents, and audio recordings</li>
-                <li>They will be able to add, edit, and delete content in this session</li>
+                <li>They will be able to add, edit, and delete content in this care session</li>
                 <li>You can revoke their access at any time</li>
               </ul>
             </div>
@@ -502,7 +502,7 @@ export default function Collaboration() {
                 className="mt-0.5 h-4 w-4 rounded border-gray-300 dark:border-gray-600 text-primary-600 focus:ring-primary-500"
               />
               <span className="text-sm text-gray-700 dark:text-gray-300">
-                I confirm I have the right to share the information in this session with the collaborator I'm adding. If I'm the patient, this is my consent. If I'm a caregiver, I have the patient's permission to share it.
+                I confirm I have the right to share the information in this care session with the collaborator I'm adding. If I'm the patient, this is my consent. If I'm a caregiver, I have the patient's permission to share it.
               </span>
             </label>
 
@@ -545,7 +545,7 @@ export default function Collaboration() {
                 Send an invitation?
               </p>
               <p className="text-sm text-amber-800 dark:text-amber-300">
-                We can send an email invitation to {email}. They'll receive a link to create a free AretaCare account, and once they register, they'll automatically have access to this session.
+                We can send an email invitation to {email}. They'll receive a link to create a free AretaCare account, and once they register, they'll automatically have access to this care session.
               </p>
             </div>
 
@@ -556,7 +556,7 @@ export default function Collaboration() {
               <ul className="text-xs text-amber-700 dark:text-amber-300 space-y-1 list-disc list-inside">
                 <li>All data for "{session.name}" will be viewable and editable by {email}</li>
                 <li>This includes conversations, journal entries, documents, and audio recordings</li>
-                <li>They will be able to add, edit, and delete content in this session</li>
+                <li>They will be able to add, edit, and delete content in this care session</li>
                 <li>You can revoke their access at any time</li>
               </ul>
             </div>
@@ -569,7 +569,7 @@ export default function Collaboration() {
                 className="mt-0.5 h-4 w-4 rounded border-gray-300 dark:border-gray-600 text-primary-600 focus:ring-primary-500"
               />
               <span className="text-sm text-gray-700 dark:text-gray-300">
-                I confirm I have the right to share the information in this session with the collaborator I'm adding. If I'm the patient, this is my consent. If I'm a caregiver, I have the patient's permission to share it.
+                I confirm I have the right to share the information in this care session with the collaborator I'm adding. If I'm the patient, this is my consent. If I'm a caregiver, I have the patient's permission to share it.
               </span>
             </label>
 
@@ -602,7 +602,7 @@ export default function Collaboration() {
                 Transfer ownership to {userToTransfer.userName}?
               </h4>
               <p className="text-sm text-gray-600 dark:text-gray-400">
-                Session: {session.name}
+                Care Session: {session.name}
               </p>
             </div>
 
@@ -611,10 +611,10 @@ export default function Collaboration() {
                 This action will:
               </p>
               <ul className="text-sm text-orange-800 dark:text-orange-300 space-y-1.5 list-disc list-inside">
-                <li>Make {userToTransfer.userName} the new session owner</li>
+                <li>Make {userToTransfer.userName} the new care session owner</li>
                 <li>Give them full control (manage collaborators, rename, delete)</li>
                 <li>Convert you to a collaborator (you can still access all data)</li>
-                <li>You will no longer be able to manage the session</li>
+                <li>You will no longer be able to manage the care session</li>
               </ul>
             </div>
 
@@ -653,16 +653,16 @@ export default function Collaboration() {
                 Cannot Transfer Ownership
               </h4>
               <p className="text-sm text-gray-600 dark:text-gray-400">
-                {userToWarn.userName} has reached the session limit
+                {userToWarn.userName} has reached the care session limit
               </p>
             </div>
 
             <div className="bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded px-4 py-3">
               <p className="text-sm text-orange-900 dark:text-orange-200 mb-2 font-medium">
-                {userToWarn.userName} already has 5 owned sessions.
+                {userToWarn.userName} already has 5 owned care sessions.
               </p>
               <p className="text-sm text-orange-800 dark:text-orange-300">
-                Each user can only own up to 5 sessions at a time. To transfer ownership to {userToWarn.userName}, they must first delete one of their existing owned sessions.
+                Each user can only own up to 5 care sessions at a time. To transfer ownership to {userToWarn.userName}, they must first delete one of their existing owned care sessions.
               </p>
             </div>
 
@@ -688,7 +688,7 @@ export default function Collaboration() {
                 Remove {userToRemove.userName}?
               </h4>
               <p className="text-sm text-gray-600 dark:text-gray-400">
-                They will immediately lose access to this session
+                They will immediately lose access to this care session
               </p>
             </div>
 
@@ -734,7 +734,7 @@ export default function Collaboration() {
                 Leave {session.name}?
               </h4>
               <p className="text-sm text-gray-600 dark:text-gray-400">
-                You will lose access to all data in this session
+                You will lose access to all data in this care session
               </p>
             </div>
 
@@ -753,7 +753,7 @@ export default function Collaboration() {
 
             <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded px-4 py-3">
               <p className="text-sm text-amber-900 dark:text-amber-200">
-                To regain access, the session owner must invite you again.
+                To regain access, the care session owner must invite you again.
               </p>
             </div>
 
@@ -772,7 +772,7 @@ export default function Collaboration() {
                 disabled={loading}
                 className="flex-1 px-4 py-2 bg-orange-600 dark:bg-orange-700 text-white rounded hover:bg-orange-700 dark:hover:bg-orange-600 disabled:opacity-50 text-sm font-medium"
               >
-                {loading ? 'Leaving...' : 'Leave Session'}
+                {loading ? 'Leaving...' : 'Leave Care Session'}
               </button>
             </div>
           </div>
@@ -791,7 +791,7 @@ export default function Collaboration() {
 
             <div className="bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded px-4 py-3">
               <p className="text-sm text-orange-900 dark:text-orange-200">
-                This will delete the invitation email link. If they try to use it, they won't be able to access this session.
+                This will delete the invitation email link. If they try to use it, they won't be able to access this care session.
               </p>
             </div>
 
@@ -826,7 +826,7 @@ export default function Collaboration() {
         <div className="mb-6 sm:mb-8">
           <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">Collaboration</h1>
           <p className="mt-2 text-sm sm:text-base text-gray-600 dark:text-gray-400">
-            Manage collaborators for your sessions
+            Manage collaborators for your care sessions
           </p>
         </div>
 
@@ -835,7 +835,7 @@ export default function Collaboration() {
           {ownedSessions.length > 0 && (
             <div>
               <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-                Your Sessions ({ownedSessions.length})
+                Your Care Sessions ({ownedSessions.length})
               </h2>
               <div className="space-y-3">
                 {ownedSessions.map((session) => (
@@ -988,7 +988,7 @@ export default function Collaboration() {
                               disabled={loading}
                               className="w-full px-4 py-2 bg-red-600 dark:bg-red-700 text-white rounded hover:bg-red-700 dark:hover:bg-red-600 disabled:opacity-50 text-sm font-medium"
                             >
-                              {loading ? 'Leaving...' : 'Leave Session'}
+                              {loading ? 'Leaving...' : 'Leave Care Session'}
                             </button>
                           </>
                         ) : step === 'confirmLeave' ? (
@@ -998,7 +998,7 @@ export default function Collaboration() {
                                 Leave {session.name}?
                               </h4>
                               <p className="text-sm text-gray-600 dark:text-gray-400">
-                                You will lose access to all data in this session
+                                You will lose access to all data in this care session
                               </p>
                             </div>
 
@@ -1017,7 +1017,7 @@ export default function Collaboration() {
 
                             <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded px-4 py-3">
                               <p className="text-sm text-amber-900 dark:text-amber-200">
-                                To regain access, the session owner must invite you again.
+                                To regain access, the care session owner must invite you again.
                               </p>
                             </div>
 
@@ -1036,7 +1036,7 @@ export default function Collaboration() {
                                 disabled={loading}
                                 className="flex-1 px-4 py-2 bg-orange-600 dark:bg-orange-700 text-white rounded hover:bg-orange-700 dark:hover:bg-orange-600 disabled:opacity-50 text-sm font-medium"
                               >
-                                {loading ? 'Leaving...' : 'Leave Session'}
+                                {loading ? 'Leaving...' : 'Leave Care Session'}
                               </button>
                             </div>
                           </div>
@@ -1053,7 +1053,7 @@ export default function Collaboration() {
           {ownedSessions.length === 0 && sharedSessions.length === 0 && (
             <div className="text-center py-12">
               <p className="text-gray-500 dark:text-gray-400">
-                You don't have any sessions yet. Create a session from the main menu.
+                You don't have any care sessions yet. Create a care session from the main menu.
               </p>
             </div>
           )}

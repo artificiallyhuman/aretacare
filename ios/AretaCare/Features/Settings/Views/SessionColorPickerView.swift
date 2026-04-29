@@ -68,7 +68,7 @@ struct SessionColorPickerView: View {
                 Spacer()
             }
             .padding(.top)
-            .navigationTitle("Session Color")
+            .navigationTitle("Care Session Color")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {

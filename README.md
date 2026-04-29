@@ -28,9 +28,9 @@ AretaCare was built from this experience—sitting beside a loved one, trying to
 
 ### Organization
 
-**Multiple Sessions** — Managing care for different people, or want to keep situations separate? Create up to 5 sessions, each with its own conversations, documents, journal, and profile. When you have multiple sessions, each gets a distinct background color so you always know which one you're in.
+**Multiple Care Sessions** — Managing care for different people, or want to keep situations separate? Create up to 5 care sessions, each with its own conversations, documents, journal, and profile. When you have multiple care sessions, each gets a distinct background color so you always know which one you're in.
 
-**Session Sharing** — Invite up to 9 other people to collaborate on a session. Everyone sees the same information and can contribute to conversations. At login, a reminder popup alerts you when your current session has collaborators.
+**Care Session Sharing** — Invite up to 9 other people to collaborate on a care session. Everyone sees the same information and can contribute to conversations. Manage collaborators directly from the chat view via the people icon in the top bar. At login, a reminder popup alerts you when your current care session has collaborators.
 
 **Documents & Audio** — Upload PDFs, images, and text files (up to 30MB). Record audio directly in the app. Everything is automatically categorized and transcribed so you can find it later. Scanned PDFs are processed with OCR to extract text. Duplicate filenames are detected before upload with an option to proceed or cancel. Multi-part documents (e.g., a long report split across several PDFs) are automatically detected and cross-referenced in the journal.
 
@@ -122,7 +122,7 @@ docker compose down -v   # Stop and reset database
 
 **Key Patterns:**
 - 160K context window with prioritized loading (messages + tiered journal + semantic journal retrieval + health profile)
-- Cascade deletes (user/session deletion removes all data + S3 files)
+- Cascade deletes (user/care session deletion removes all data + S3 files)
 - Auto-migrations on startup
 - Centralized AI config in `backend/app/config/ai_config.py`
 

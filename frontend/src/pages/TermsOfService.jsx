@@ -218,7 +218,7 @@ const TermsOfService = () => {
                 <li>Ensuring the accuracy of information you provide</li>
                 <li>Making your own independent medical decisions with qualified healthcare providers</li>
                 <li>Backing up any important information stored in the application</li>
-                <li>Obtaining proper consent before sharing session data with collaborators (see Section 10)</li>
+                <li>Obtaining proper consent before sharing care session data with collaborators (see Section 10)</li>
                 <li>On iOS: keeping your device software up to date and not circumventing device security measures (jailbreaking)</li>
                 <li>On iOS: logging out before transferring, selling, or disposing of your device to prevent unauthorized access to your account</li>
               </ul>
@@ -227,28 +227,28 @@ const TermsOfService = () => {
 
           {/* Section 10 - Session Sharing Consent */}
           <section>
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4 pb-2 border-b-2 border-primary-200 dark:border-primary-800">10. Session Sharing and Consent</h2>
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4 pb-2 border-b-2 border-primary-200 dark:border-primary-800">10. Care Session Sharing and Consent</h2>
             <div className="space-y-4">
               <p className="text-gray-700 dark:text-gray-300 leading-relaxed text-base">
-                AretaCare allows you to share sessions with other users. When adding a collaborator, you must confirm that you have the right to share the information in that session.
+                AretaCare allows you to share care sessions with other users. When adding a collaborator, you must confirm that you have the right to share the information in that care session.
               </p>
               <div className="bg-blue-50 dark:bg-blue-900/30 border-l-4 border-blue-500 dark:border-blue-600 p-5 rounded-r-lg">
                 <p className="text-blue-900 dark:text-blue-200 font-semibold mb-3">Consent Requirement</p>
                 <p className="text-blue-800 dark:text-blue-300 text-sm leading-relaxed">
-                  Before sharing a session, you must acknowledge: "I confirm I have the right to share the information in this session with the collaborator I'm adding. If I'm the patient, this is my consent. If I'm a caregiver, I have the patient's permission to share it."
+                  Before sharing a care session, you must acknowledge: "I confirm I have the right to share the information in this care session with the collaborator I'm adding. If I'm the patient, this is my consent. If I'm a caregiver, I have the patient's permission to share it."
                 </p>
               </div>
               <p className="text-gray-700 dark:text-gray-300 leading-relaxed text-base">
-                By sharing a session, you represent and warrant that:
+                By sharing a care session, you represent and warrant that:
               </p>
               <ul className="list-disc list-inside space-y-2 text-gray-700 dark:text-gray-300 pl-4">
-                <li>If you are the patient whose information is in the session, you consent to sharing it with the specified collaborator</li>
+                <li>If you are the patient whose information is in the care session, you consent to sharing it with the specified collaborator</li>
                 <li>If you are a caregiver or family member, you have obtained explicit permission from the patient to share their information</li>
-                <li>You understand that collaborators will have full access to all data in the shared session, including conversations, journal entries, documents, and audio recordings</li>
+                <li>You understand that collaborators will have full access to all data in the shared care session, including conversations, journal entries, documents, and audio recordings</li>
                 <li>You accept responsibility for ensuring the collaborator is an appropriate recipient of this information</li>
               </ul>
               <p className="text-gray-700 dark:text-gray-300 leading-relaxed text-base font-semibold">
-                AretaCare is not responsible for unauthorized sharing of patient information. Session owners are solely responsible for obtaining proper consent before adding collaborators.
+                AretaCare is not responsible for unauthorized sharing of patient information. Care session owners are solely responsible for obtaining proper consent before adding collaborators.
               </p>
             </div>
           </section>
@@ -273,7 +273,7 @@ const TermsOfService = () => {
                   </li>
                   <li className="flex items-start">
                     <span className="text-primary-600 mr-2 mt-1">•</span>
-                    <span><strong>Session collaboration:</strong> Notifications when collaborators are added or removed from sessions</span>
+                    <span><strong>Care session collaboration:</strong> Notifications when collaborators are added or removed from care sessions</span>
                   </li>
                   <li className="flex items-start">
                     <span className="text-primary-600 mr-2 mt-1">•</span>
@@ -293,7 +293,7 @@ const TermsOfService = () => {
                 Security-related email notifications (password changes, email changes, MFA changes) cannot be disabled as they help protect your account.
               </p>
               <p className="text-gray-700 dark:text-gray-300 leading-relaxed text-base">
-                Emails do not contain sensitive medical information from your sessions. They contain only basic account information necessary for security notifications.
+                Emails do not contain sensitive medical information from your care sessions. They contain only basic account information necessary for security notifications.
               </p>
             </div>
           </section>

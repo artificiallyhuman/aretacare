@@ -304,7 +304,7 @@ def register(request: Request, response: Response, user_data: UserRegister, db: 
             if days_old >= 30:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="Invitation has expired. Please ask the session owner to send a new invitation."
+                    detail="Invitation has expired. Please ask the care session owner to send a new invitation."
                 )
 
         # Validate waitlist invitation expiration if applicable

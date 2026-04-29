@@ -244,7 +244,7 @@ async def upload_document(
     if session_id:
         session = db.query(SessionModel).filter(SessionModel.id == session_id).first()
         if not session:
-            raise HTTPException(status_code=404, detail="Session not found")
+            raise HTTPException(status_code=404, detail="Care session not found")
         # Verify session belongs to current user
         check_session_access(session, current_user.id, db)
     else:
@@ -586,7 +586,7 @@ async def check_duplicate(
     """Check if documents with the same filenames already exist in a session."""
     session = db.query(SessionModel).filter(SessionModel.id == body.session_id).first()
     if not session:
-        raise HTTPException(status_code=404, detail="Session not found")
+        raise HTTPException(status_code=404, detail="Care session not found")
     check_session_access(session, current_user.id, db)
 
     matches = db.query(DocumentModel).filter(
@@ -622,7 +622,7 @@ async def get_session_documents(
     session = db.query(SessionModel).filter(SessionModel.id == session_id).first()
 
     if not session:
-        raise HTTPException(status_code=404, detail="Session not found")
+        raise HTTPException(status_code=404, detail="Care session not found")
 
     # Verify user has access to session (owner or collaborator)
     check_session_access(session, current_user.id, db)
@@ -728,7 +728,7 @@ async def get_document_dates(
 
     session = db.query(SessionModel).filter(SessionModel.id == session_id).first()
     if not session:
-        raise HTTPException(status_code=404, detail="Session not found")
+        raise HTTPException(status_code=404, detail="Care session not found")
     check_session_access(session, current_user.id, db)
 
     date_col = cast(DocumentModel.uploaded_at, SQLDate)
@@ -766,7 +766,7 @@ async def get_document(
     # Verify document belongs to current user
     session = db.query(SessionModel).filter(SessionModel.id == document.session_id).first()
     if not session:
-        raise HTTPException(status_code=404, detail="Session not found")
+        raise HTTPException(status_code=404, detail="Care session not found")
     check_session_access(session, current_user.id, db)
 
     has_collaborators = session_has_collaborators(document.session_id, db)
@@ -817,7 +817,7 @@ async def update_document(
     # Verify document belongs to current user
     session = db.query(SessionModel).filter(SessionModel.id == document.session_id).first()
     if not session:
-        raise HTTPException(status_code=404, detail="Session not found")
+        raise HTTPException(status_code=404, detail="Care session not found")
     check_session_access(session, current_user.id, db)
 
     # Update AI description
@@ -887,7 +887,7 @@ async def delete_document(
     # Verify document belongs to current user
     session = db.query(SessionModel).filter(SessionModel.id == document.session_id).first()
     if not session:
-        raise HTTPException(status_code=404, detail="Session not found")
+        raise HTTPException(status_code=404, detail="Care session not found")
     check_session_access(session, current_user.id, db)
 
     # Delete from S3
@@ -924,7 +924,7 @@ async def get_document_download_url(
     # Verify document belongs to current user
     session = db.query(SessionModel).filter(SessionModel.id == document.session_id).first()
     if not session:
-        raise HTTPException(status_code=404, detail="Session not found")
+        raise HTTPException(status_code=404, detail="Care session not found")
     check_session_access(session, current_user.id, db)
 
     url = s3_service.generate_presigned_url(document.s3_key)
@@ -952,7 +952,7 @@ async def get_document_thumbnail_url(
     # Verify document belongs to current user
     session = db.query(SessionModel).filter(SessionModel.id == document.session_id).first()
     if not session:
-        raise HTTPException(status_code=404, detail="Session not found")
+        raise HTTPException(status_code=404, detail="Care session not found")
     check_session_access(session, current_user.id, db)
 
     if not document.thumbnail_s3_key:

@@ -37,10 +37,10 @@ struct ConversationOnboardingView: View {
                             .font(.system(size: 44))
                             .foregroundStyle(Color.accentColor)
 
-                        Text("Start a Conversation")
+                        Text("Start a Care Session")
                             .font(.title2.weight(.semibold))
 
-                        Text("Tell us what's happening and how we can help")
+                        Text("Share a bit about the patient, their history, and the current situation. Don’t worry about being perfect—just type what’s on your mind.")
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
                             .multilineTextAlignment(.center)
@@ -72,10 +72,11 @@ struct ConversationOnboardingView: View {
 
                         if showGoodToKnow {
                             VStack(alignment: .leading, spacing: 10) {
-                                infoRow(icon: "list.bullet", text: "Create and switch between sessions using the chat menu")
+                                infoRow(icon: "list.bullet", text: "Create and switch between care sessions using the chat menu")
                                 infoRow(icon: "doc.text.magnifyingglass", text: "AI generates your daily digest automatically")
                                 infoRow(icon: "wrench.and.screwdriver", text: "View care journal, documents, recordings, and health profile in Tools")
-                                infoRow(icon: "gear", text: "Add collaborators, rename, and delete sessions in Settings")
+                                infoRow(icon: "person.2", text: "Manage collaborators using the people icon at the top right of chat")
+                                infoRow(icon: "gear", text: "Rename or delete care sessions in Settings")
                             }
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .padding(.top, 10)

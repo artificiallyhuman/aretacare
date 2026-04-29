@@ -65,13 +65,13 @@ export default function CollaborationModal({ session, onClose, onSuccess }) {
 
     try {
       await sessionAPI.share(session.id, email);
-      setSuccess('Session shared successfully!');
+      setSuccess('Care session shared successfully!');
       setTimeout(() => {
         onSuccess();
         onClose();
       }, 1500);
     } catch (err) {
-      setError(err.response?.data?.detail || 'Failed to share session');
+      setError(err.response?.data?.detail || 'Failed to share care session');
     } finally {
       setLoading(false);
     }
@@ -113,13 +113,13 @@ export default function CollaborationModal({ session, onClose, onSuccess }) {
 
     try {
       await sessionAPI.leave(session.id);
-      setSuccess('Left session successfully!');
+      setSuccess('Left care session successfully!');
       setTimeout(() => {
         onSuccess();
         onClose();
       }, 1500);
     } catch (err) {
-      setError(err.response?.data?.detail || 'Failed to leave session');
+      setError(err.response?.data?.detail || 'Failed to leave care session');
     } finally {
       setLoading(false);
     }
@@ -207,13 +207,13 @@ export default function CollaborationModal({ session, onClose, onSuccess }) {
           <div className="flex items-center justify-between">
             <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
               {step === 'view' && 'Manage Collaborators'}
-              {step === 'enterEmail' && 'Share Session'}
+              {step === 'enterEmail' && 'Share Care Session'}
               {step === 'confirm' && 'Confirm Sharing'}
               {step === 'confirmInvitation' && 'Send Invitation'}
               {step === 'confirmTransfer' && 'Transfer Ownership'}
               {step === 'warningMaxSessions' && 'Cannot Transfer'}
               {step === 'confirmRemove' && 'Remove Collaborator'}
-              {step === 'confirmLeave' && 'Leave Session'}
+              {step === 'confirmLeave' && 'Leave Care Session'}
               {step === 'confirmCancelInvitation' && 'Cancel Invitation'}
             </h2>
             <button
@@ -246,7 +246,7 @@ export default function CollaborationModal({ session, onClose, onSuccess }) {
                   Session: {session.name}
                 </h3>
                 <p className="text-sm text-gray-600 dark:text-gray-400">
-                  {isOwner ? 'You are the owner of this session.' : 'You are a collaborator on this session.'}
+                  {isOwner ? 'You are the owner of this care session.' : 'You are a collaborator on this care session.'}
                 </p>
               </div>
 
@@ -354,7 +354,7 @@ export default function CollaborationModal({ session, onClose, onSuccess }) {
                     disabled={loading}
                     className="flex-1 px-4 py-2 bg-red-600 dark:bg-red-700 text-white rounded hover:bg-red-700 dark:hover:bg-red-600 disabled:opacity-50"
                   >
-                    {loading ? 'Leaving...' : 'Leave Session'}
+                    {loading ? 'Leaving...' : 'Leave Care Session'}
                   </button>
                 )}
                 <button
@@ -388,7 +388,7 @@ export default function CollaborationModal({ session, onClose, onSuccess }) {
 
               <div className="bg-blue-50 dark:bg-blue-900/50 border border-blue-200 dark:border-blue-800 rounded px-3 py-2">
                 <p className="text-xs text-blue-800 dark:text-blue-300">
-                  <strong>Note:</strong> There's no limit to how many collaborations someone can join. The 5-session limit only applies to owned sessions.
+                  <strong>Note:</strong> There's no limit to how many collaborations someone can join. The 5-care-session limit only applies to owned care sessions.
                 </p>
               </div>
 
@@ -433,16 +433,16 @@ export default function CollaborationModal({ session, onClose, onSuccess }) {
                 <ul className="text-xs text-amber-700 dark:text-amber-300 space-y-1 list-disc list-inside">
                   <li>All data for "{session.name}" will be viewable and editable by {userToAdd.name}</li>
                   <li>This includes conversations, journal entries, documents, and audio recordings</li>
-                  <li>They will be able to add, edit, and delete content in this session</li>
-                  <li>Your other sessions will remain private</li>
-                  <li>Only the session owner (you) can delete the session</li>
+                  <li>They will be able to add, edit, and delete content in this care session</li>
+                  <li>Your other care sessions will remain private</li>
+                  <li>Only the care session owner (you) can delete the care session</li>
                   <li>You can revoke their access at any time</li>
                 </ul>
               </div>
 
               <div className="bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded px-3 py-2">
                 <p className="text-xs text-gray-700 dark:text-gray-300">
-                  Only share this session if you know and trust {userToAdd.name} with sensitive medical information.
+                  Only share this care session if you know and trust {userToAdd.name} with sensitive medical information.
                 </p>
               </div>
 
@@ -491,10 +491,10 @@ export default function CollaborationModal({ session, onClose, onSuccess }) {
                   This action will:
                 </p>
                 <ul className="text-sm text-orange-800 dark:text-orange-300 space-y-1.5 list-disc list-inside">
-                  <li>Make {userToTransfer.userName} the new session owner</li>
+                  <li>Make {userToTransfer.userName} the new care session owner</li>
                   <li>Give them full control (manage collaborators, rename, delete)</li>
                   <li>Convert you to a collaborator (you can still access all data)</li>
-                  <li>You will no longer be able to manage the session</li>
+                  <li>You will no longer be able to manage the care session</li>
                 </ul>
               </div>
 
@@ -539,17 +539,17 @@ export default function CollaborationModal({ session, onClose, onSuccess }) {
                     Cannot Transfer Ownership
                   </h3>
                   <p className="text-sm text-gray-600 dark:text-gray-400">
-                    {userToWarn.userName} has reached the session limit
+                    {userToWarn.userName} has reached the care session limit
                   </p>
                 </div>
               </div>
 
               <div className="bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded px-4 py-3">
                 <p className="text-sm text-orange-900 dark:text-orange-200 mb-2 font-medium">
-                  {userToWarn.userName} already has 5 owned sessions.
+                  {userToWarn.userName} already has 5 owned care sessions.
                 </p>
                 <p className="text-sm text-orange-800 dark:text-orange-300">
-                  Each user can only own up to 5 sessions at a time. To transfer ownership to {userToWarn.userName}, they must first delete one of their existing owned sessions.
+                  Each user can only own up to 5 care sessions at a time. To transfer ownership to {userToWarn.userName}, they must first delete one of their existing owned care sessions.
                 </p>
               </div>
 
@@ -581,7 +581,7 @@ export default function CollaborationModal({ session, onClose, onSuccess }) {
                     Remove {userToRemove.userName}?
                   </h3>
                   <p className="text-sm text-gray-600 dark:text-gray-400">
-                    They will immediately lose access to this session
+                    They will immediately lose access to this care session
                   </p>
                 </div>
               </div>
@@ -634,7 +634,7 @@ export default function CollaborationModal({ session, onClose, onSuccess }) {
                     Leave {session.name}?
                   </h3>
                   <p className="text-sm text-gray-600 dark:text-gray-400">
-                    You will lose access to all data in this session
+                    You will lose access to all data in this care session
                   </p>
                 </div>
               </div>
@@ -654,7 +654,7 @@ export default function CollaborationModal({ session, onClose, onSuccess }) {
 
               <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded px-4 py-3">
                 <p className="text-sm text-amber-900 dark:text-amber-200">
-                  To regain access, the session owner must invite you again.
+                  To regain access, the care session owner must invite you again.
                 </p>
               </div>
 
@@ -673,7 +673,7 @@ export default function CollaborationModal({ session, onClose, onSuccess }) {
                   disabled={loading}
                   className="flex-1 px-4 py-2 bg-orange-600 dark:bg-orange-700 text-white rounded hover:bg-orange-700 dark:hover:bg-orange-600 disabled:opacity-50 font-medium"
                 >
-                  {loading ? 'Leaving...' : 'Leave Session'}
+                  {loading ? 'Leaving...' : 'Leave Care Session'}
                 </button>
               </div>
             </div>
@@ -702,7 +702,7 @@ export default function CollaborationModal({ session, onClose, onSuccess }) {
                   Send an invitation?
                 </p>
                 <p className="text-sm text-amber-800 dark:text-amber-300">
-                  We can send an email invitation to {email}. They'll receive a link to create a free AretaCare account, and once they register, they'll automatically have access to this session.
+                  We can send an email invitation to {email}. They'll receive a link to create a free AretaCare account, and once they register, they'll automatically have access to this care session.
                 </p>
               </div>
 
@@ -713,7 +713,7 @@ export default function CollaborationModal({ session, onClose, onSuccess }) {
                 <ul className="text-xs text-amber-700 dark:text-amber-300 space-y-1 list-disc list-inside">
                   <li>All data for "{session.name}"</li>
                   <li>Conversations, journal entries, documents, and audio recordings</li>
-                  <li>They will be able to add, edit, and delete content in this session</li>
+                  <li>They will be able to add, edit, and delete content in this care session</li>
                   <li>You can revoke their access at any time after they join</li>
                 </ul>
               </div>
@@ -759,7 +759,7 @@ export default function CollaborationModal({ session, onClose, onSuccess }) {
 
               <div className="bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded px-4 py-3">
                 <p className="text-sm text-orange-900 dark:text-orange-200">
-                  This will delete the invitation email link. If they try to use it, they won't be able to access this session.
+                  This will delete the invitation email link. If they try to use it, they won't be able to access this care session.
                 </p>
               </div>
 

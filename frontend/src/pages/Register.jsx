@@ -158,7 +158,7 @@ function Register() {
               <div className="flex-1">
                 <h3 className="text-xs font-semibold text-blue-800 dark:text-blue-400 mb-1.5">You've Been Invited</h3>
                 <p className="text-xs text-blue-800 dark:text-blue-300 leading-relaxed">
-                  Someone has invited you to collaborate on their AretaCare session. Complete your registration below to accept the invitation and gain access to the shared session.
+                  Someone has invited you to collaborate on their AretaCare care session. Complete your registration below to accept the invitation and gain access to the shared care session.
                 </p>
               </div>
             </div>

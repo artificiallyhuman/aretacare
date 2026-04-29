@@ -27,7 +27,7 @@ struct CollaborationView: View {
         List {
             // Session Info
             Section {
-                LabeledContent("Session", value: session.name)
+                LabeledContent("Care Session", value: session.name)
                 LabeledContent("Owner", value: session.ownerName)
                 LabeledContent("People", value: "\(totalPeople) / \(AppConstants.maxCollaboratorsPerSession)")
             }
@@ -51,7 +51,7 @@ struct CollaborationView: View {
 
             // Add Collaborator (owner only)
             if isOwner && canAddMore {
-                Section("Share Session") {
+                Section("Share Care Session") {
                     HStack {
                         TextField("Email address", text: $email)
                             .keyboardType(.emailAddress)
@@ -66,7 +66,7 @@ struct CollaborationView: View {
                     }
 
                     Toggle(isOn: $sharingConsent) {
-                        Text("I confirm I have the right to share the information in this session with the collaborator I\u{2019}m adding. If I\u{2019}m the patient, this is my consent. If I\u{2019}m a caregiver, I have the patient\u{2019}s permission to share it.")
+                        Text("I confirm I have the right to share the information in this care session with the collaborator I\u{2019}m adding. If I\u{2019}m the patient, this is my consent. If I\u{2019}m a caregiver, I have the patient\u{2019}s permission to share it.")
                             .font(.caption)
                     }
                     .toggleStyle(.checkbox)
@@ -78,7 +78,7 @@ struct CollaborationView: View {
                             ProgressView()
                                 .frame(maxWidth: .infinity)
                         } else {
-                            Text("Share Session")
+                            Text("Share Care Session")
                                 .frame(maxWidth: .infinity)
                         }
                     }
@@ -111,10 +111,10 @@ struct CollaborationView: View {
                     Button(role: .destructive) {
                         showingLeaveConfirm = true
                     } label: {
-                        Label("Leave Session", systemImage: "rectangle.portrait.and.arrow.right")
+                        Label("Leave Care Session", systemImage: "rectangle.portrait.and.arrow.right")
                             .frame(maxWidth: .infinity)
                     }
-                    .confirmationDialog("Leave Session", isPresented: $showingLeaveConfirm, titleVisibility: .visible) {
+                    .confirmationDialog("Leave Care Session", isPresented: $showingLeaveConfirm, titleVisibility: .visible) {
                         Button("Leave", role: .destructive) {
                             Task {
                                 let left = await viewModel.leaveSession(sessionId: session.id)
@@ -122,7 +122,7 @@ struct CollaborationView: View {
                             }
                         }
                     } message: {
-                        Text("You will lose access to all data in this session.")
+                        Text("You will lose access to all data in this care session.")
                     }
                 }
             }
@@ -165,7 +165,7 @@ struct CollaborationView: View {
             }
             Button("Cancel", role: .cancel) {}
         } message: {
-            Text("\(email) doesn\u{2019}t have an AretaCare account yet. Send them an email invitation to join this session?")
+            Text("\(email) doesn\u{2019}t have an AretaCare account yet. Send them an email invitation to join this care session?")
         }
         .sensoryFeedback(.success, trigger: shareHapticTrigger)
         .task {
@@ -274,7 +274,7 @@ private struct CollaboratorRow: View {
                 Task { await viewModel.revokeAccess(sessionId: session.id, userId: collaborator.userId) }
             }
         } message: {
-            Text("Remove \(collaborator.name) from the session? They will lose access to all session data.")
+            Text("Remove \(collaborator.name) from the care session? They will lose access to all care session data.")
         }
         .confirmationDialog("Transfer Ownership", isPresented: $showingTransferConfirm, titleVisibility: .visible) {
             Button("Transfer") {

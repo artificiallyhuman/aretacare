@@ -205,7 +205,7 @@ struct SettingsView: View {
         Group {
             Section {
                 if viewModel.sessions.filter(\.isOwner).isEmpty {
-                    Text("No sessions")
+                    Text("No care sessions")
                         .foregroundStyle(.secondary)
                 } else {
                     ForEach(viewModel.sessions.filter(\.isOwner)) { session in
@@ -213,7 +213,7 @@ struct SettingsView: View {
                     }
                 }
             } header: {
-                Text("Your Sessions (\(viewModel.sessions.filter(\.isOwner).count) of \(AppConstants.maxOwnedSessions))")
+                Text("Your Care Sessions (\(viewModel.sessions.filter(\.isOwner).count) of \(AppConstants.maxOwnedSessions))")
             }
 
             if !viewModel.sessions.filter({ !$0.isOwner }).isEmpty {

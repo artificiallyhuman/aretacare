@@ -212,7 +212,7 @@ async def create_session(
     if owned_session_count >= 5:
         raise HTTPException(
             status_code=400,
-            detail="Maximum of 5 owned sessions allowed. Please delete a session in Settings → Manage Sessions before creating a new one."
+            detail="Maximum of 5 owned care sessions allowed. Please delete a care session in Settings → Manage Care Sessions before creating a new one."
         )
 
     # Generate default name if not provided
@@ -276,7 +276,7 @@ async def get_session(
     session = db.query(SessionModel).filter(SessionModel.id == session_id).first()
 
     if not session:
-        raise HTTPException(status_code=404, detail="Session not found")
+        raise HTTPException(status_code=404, detail="Care session not found")
 
     # Verify user has access (owner or collaborator)
     is_owner = session.owner_id == current_user.id
@@ -336,7 +336,7 @@ async def rename_session(
     session = db.query(SessionModel).filter(SessionModel.id == session_id).first()
 
     if not session:
-        raise HTTPException(status_code=404, detail="Session not found")
+        raise HTTPException(status_code=404, detail="Care session not found")
 
     # Only owner can rename
     check_session_access(session, current_user.id, db, require_owner=True)
@@ -351,7 +351,7 @@ async def rename_session(
     if existing_session:
         raise HTTPException(
             status_code=400,
-            detail=f"You already have a session named \"{rename_data.name}\". Please choose a different name."
+            detail=f"You already have a care session named \"{rename_data.name}\". Please choose a different name."
         )
 
     session.name = rename_data.name
@@ -394,7 +394,7 @@ async def get_session_statistics(
     session = db.query(SessionModel).filter(SessionModel.id == session_id).first()
 
     if not session:
-        raise HTTPException(status_code=404, detail="Session not found")
+        raise HTTPException(status_code=404, detail="Care session not found")
 
     # Verify user has access (owner or collaborator)
     check_session_access(session, current_user.id, db)
@@ -438,7 +438,7 @@ async def delete_session(
     session = db.query(SessionModel).filter(SessionModel.id == session_id).first()
 
     if not session:
-        raise HTTPException(status_code=404, detail="Session not found")
+        raise HTTPException(status_code=404, detail="Care session not found")
 
     # Only owner can delete
     check_session_access(session, current_user.id, db, require_owner=True)
@@ -491,7 +491,7 @@ async def cleanup_session(
     session = db.query(SessionModel).filter(SessionModel.id == session_id).first()
 
     if not session:
-        raise HTTPException(status_code=404, detail="Session not found")
+        raise HTTPException(status_code=404, detail="Care session not found")
 
     # Only owner can cleanup session
     check_session_access(session, current_user.id, db, require_owner=True)
@@ -513,7 +513,7 @@ async def check_user_exists(
     session = db.query(SessionModel).filter(SessionModel.id == session_id).first()
 
     if not session:
-        raise HTTPException(status_code=404, detail="Session not found")
+        raise HTTPException(status_code=404, detail="Care session not found")
 
     # Only owner can share
     check_session_access(session, current_user.id, db, require_owner=True)
@@ -543,7 +543,7 @@ async def check_user_exists(
     if existing_collab:
         return UserExistsResponse(
             exists=False,
-            message=f"{target_user.name} is already a collaborator on this session."
+            message=f"{target_user.name} is already a collaborator on this care session."
         )
 
     # No session limit check needed - users can be collaborators on unlimited sessions
@@ -569,13 +569,13 @@ async def share_session(
     if not share_data.confirm_sharing_consent:
         raise HTTPException(
             status_code=400,
-            detail="You must confirm you have the right to share this session"
+            detail="You must confirm you have the right to share this care session"
         )
 
     session = db.query(SessionModel).filter(SessionModel.id == session_id).first()
 
     if not session:
-        raise HTTPException(status_code=404, detail="Session not found")
+        raise HTTPException(status_code=404, detail="Care session not found")
 
     # Only owner can share
     check_session_access(session, current_user.id, db, require_owner=True)
@@ -595,7 +595,7 @@ async def share_session(
     if total_count >= 9:
         raise HTTPException(
             status_code=400,
-            detail="Maximum of 10 people (including owner) can collaborate on a session. Please remove a collaborator or cancel a pending invitation first."
+            detail="Maximum of 10 people (including owner) can collaborate on a care session. Please remove a collaborator or cancel a pending invitation first."
         )
 
     # Look up user by email
@@ -702,7 +702,7 @@ async def share_session(
 
     return SessionShareResponse(
         success=True,
-        message=f"Session shared with {target_user.name}",
+        message=f"Care session shared with {target_user.name}",
         collaborator=collaborator_info
     )
 
@@ -718,7 +718,7 @@ async def revoke_access(
     session = db.query(SessionModel).filter(SessionModel.id == session_id).first()
 
     if not session:
-        raise HTTPException(status_code=404, detail="Session not found")
+        raise HTTPException(status_code=404, detail="Care session not found")
 
     # Only owner can revoke access
     check_session_access(session, current_user.id, db, require_owner=True)
@@ -764,13 +764,13 @@ async def leave_session(
     session = db.query(SessionModel).filter(SessionModel.id == session_id).first()
 
     if not session:
-        raise HTTPException(status_code=404, detail="Session not found")
+        raise HTTPException(status_code=404, detail="Care session not found")
 
     # Check if user is the owner
     if session.owner_id == current_user.id:
         raise HTTPException(
             status_code=400,
-            detail="Session owners cannot leave. You must delete the session instead."
+            detail="Care session owners cannot leave. You must delete the care session instead."
         )
 
     # Find and delete collaboration
@@ -780,7 +780,7 @@ async def leave_session(
     ).first()
 
     if not collab:
-        raise HTTPException(status_code=404, detail="You are not a collaborator on this session")
+        raise HTTPException(status_code=404, detail="You are not a collaborator on this care session")
 
     db.delete(collab)
     db.commit()
@@ -799,7 +799,7 @@ async def transfer_ownership(
     session = db.query(SessionModel).filter(SessionModel.id == session_id).first()
 
     if not session:
-        raise HTTPException(status_code=404, detail="Session not found")
+        raise HTTPException(status_code=404, detail="Care session not found")
 
     # Only owner can transfer ownership
     check_session_access(session, current_user.id, db, require_owner=True)
@@ -813,7 +813,7 @@ async def transfer_ownership(
     if not new_owner_collab:
         raise HTTPException(
             status_code=400,
-            detail="New owner must be an existing collaborator on this session"
+            detail="New owner must be an existing collaborator on this care session"
         )
 
     # Get the new owner user
@@ -829,7 +829,7 @@ async def transfer_ownership(
     if new_owner_session_count >= 5:
         raise HTTPException(
             status_code=400,
-            detail=f"{new_owner.name} already has 5 owned sessions. They must delete a session before accepting ownership."
+            detail=f"{new_owner.name} already has 5 owned care sessions. They must delete a care session before accepting ownership."
         )
 
     # Check for name conflict with new owner's existing sessions and auto-rename if needed
@@ -914,7 +914,7 @@ async def send_invitation(
     if not invitation_data.confirm_sharing_consent:
         raise HTTPException(
             status_code=400,
-            detail="You must confirm you have the right to share this session"
+            detail="You must confirm you have the right to share this care session"
         )
 
     from app.services.email_service import EmailService
@@ -922,7 +922,7 @@ async def send_invitation(
     session = db.query(SessionModel).filter(SessionModel.id == session_id).first()
 
     if not session:
-        raise HTTPException(status_code=404, detail="Session not found")
+        raise HTTPException(status_code=404, detail="Care session not found")
 
     # Only owner can send invitations
     check_session_access(session, current_user.id, db, require_owner=True)
@@ -967,7 +967,7 @@ async def send_invitation(
         if total_count >= 9:
             raise HTTPException(
                 status_code=400,
-                detail="Maximum of 10 people (including owner) can collaborate on a session. Please remove a collaborator or cancel a pending invitation first."
+                detail="Maximum of 10 people (including owner) can collaborate on a care session. Please remove a collaborator or cancel a pending invitation first."
             )
 
         # Create new invitation
@@ -1040,7 +1040,7 @@ async def get_pending_invitations(
     session = db.query(SessionModel).filter(SessionModel.id == session_id).first()
 
     if not session:
-        raise HTTPException(status_code=404, detail="Session not found")
+        raise HTTPException(status_code=404, detail="Care session not found")
 
     # Only owner can view pending invitations
     check_session_access(session, current_user.id, db, require_owner=True)
@@ -1099,7 +1099,7 @@ async def cancel_invitation(
     session = db.query(SessionModel).filter(SessionModel.id == session_id).first()
 
     if not session:
-        raise HTTPException(status_code=404, detail="Session not found")
+        raise HTTPException(status_code=404, detail="Care session not found")
 
     # Only owner can cancel invitations
     check_session_access(session, current_user.id, db, require_owner=True)
@@ -1129,7 +1129,7 @@ async def set_session_color(
     session = db.query(SessionModel).filter(SessionModel.id == session_id).first()
 
     if not session:
-        raise HTTPException(status_code=404, detail="Session not found")
+        raise HTTPException(status_code=404, detail="Care session not found")
 
     # Verify user has access (owner or collaborator)
     check_session_access(session, current_user.id, db)
@@ -1165,7 +1165,7 @@ async def set_session_color(
             SessionModel.id == color_data.swap_with_session_id
         ).first()
         if not swap_session:
-            raise HTTPException(status_code=404, detail="Swap session not found")
+            raise HTTPException(status_code=404, detail="Swap care session not found")
 
         # Get current color of the target session
         target_color_record = db.query(UserSessionColor).filter(

@@ -41,11 +41,11 @@ const FAQ_DATA = [
   },
   {
     id: 'session-limit',
-    title: 'Why can I only have five owned sessions?',
+    title: 'Why can I only have five owned care sessions?',
     icon: 'M7 20l4-16m2 16l4-16M6 9h14M4 15h14',
     content: (
       <>
-        Sessions are designed as focused workspaces, not permanent archives. Sessions where you're a collaborator don't count toward your owned session limit. You can delete sessions you no longer need in <strong>Settings → Manage Sessions</strong>, or transfer ownership to another collaborator using <strong>Collaboration → Make Owner</strong> to free up space for new sessions.
+        Care sessions are designed as focused workspaces, not permanent archives. Care sessions where you're a collaborator don't count toward your owned care session limit. You can delete care sessions you no longer need in <strong>Settings → Manage Care Sessions</strong>, or transfer ownership to another collaborator using <strong>Collaboration → Make Owner</strong> to free up space for new care sessions.
       </>
     ),
   },
@@ -86,7 +86,7 @@ const FAQ_DATA = [
     title: 'Who can see my information?',
     icon: 'M15 12a3 3 0 11-6 0 3 3 0 016 0z',
     iconSecondary: 'M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z',
-    content: 'Only you and the people you invite to collaborate on a session. AretaCare never sells your personal data or shares it with hospitals, insurers, advertisers, or data brokers.',
+    content: 'Only you and the people you invite to collaborate on a care session. AretaCare never sells your personal data or shares it with hospitals, insurers, advertisers, or data brokers.',
   },
   {
     id: 'data-sharing',
@@ -313,11 +313,11 @@ const About = () => {
         <ul className="text-gray-600 dark:text-gray-400 space-y-2 leading-relaxed">
           <li className="flex items-start">
             <span className="text-gray-600 dark:text-gray-400 mr-2">•</span>
-            <span>Each session keeps conversations, journal, documents, and audio recordings separate</span>
+            <span>Each care session keeps conversations, journal, documents, and audio recordings separate</span>
           </li>
           <li className="flex items-start">
             <span className="text-gray-600 dark:text-gray-400 mr-2">•</span>
-            <span>Delete individual sessions or your entire account anytime from Settings</span>
+            <span>Delete individual care sessions or your entire account anytime from Settings</span>
           </li>
           <li className="flex items-start">
             <span className="text-gray-600 dark:text-gray-400 mr-2">•</span>
@@ -325,7 +325,7 @@ const About = () => {
           </li>
           <li className="flex items-start">
             <span className="text-gray-600 dark:text-gray-400 mr-2">•</span>
-            <span>You control who has access to your sessions through collaboration settings</span>
+            <span>You control who has access to your care sessions through collaboration settings</span>
           </li>
         </ul>
       </div>
@@ -399,7 +399,7 @@ const About = () => {
           <ul className="text-gray-600 dark:text-gray-400 space-y-2 leading-relaxed">
             <li className="flex items-start">
               <span className="text-emerald-600 dark:text-emerald-400 mr-2">•</span>
-              <span>Up to 10 people can collaborate on each AretaCare session</span>
+              <span>Up to 10 people can collaborate on each care session</span>
             </li>
             <li className="flex items-start">
               <span className="text-emerald-600 dark:text-emerald-400 mr-2">•</span>
@@ -407,7 +407,7 @@ const About = () => {
             </li>
             <li className="flex items-start">
               <span className="text-emerald-600 dark:text-emerald-400 mr-2">•</span>
-              <span>Invite family members and caregivers to join your sessions</span>
+              <span>Invite family members and caregivers to join your care sessions</span>
             </li>
           </ul>
         </div>
@@ -894,13 +894,13 @@ const About = () => {
               <div>
                 <h5 className="font-semibold text-gray-900 dark:text-white mb-2">Session-Based Permissions</h5>
                 <p className="leading-relaxed">
-                  Your sessions and content are only accessible to you and people you explicitly invite as collaborators. Every request is checked on the server to verify you own the session or have been invited to collaborate. Sessions you create remain private unless you choose to share them.
+                  Your care sessions and content are only accessible to you and people you explicitly invite as collaborators. Every request is checked on the server to verify you own the care session or have been invited to collaborate. Care sessions you create remain private unless you choose to share them.
                 </p>
               </div>
               <div>
                 <h5 className="font-semibold text-gray-900 dark:text-white mb-2">Unauthorized Access Protection</h5>
                 <p className="leading-relaxed">
-                  If someone tries to access a session without permission, the request is immediately blocked and the attempt is logged with details like IP address, timestamp, and what they tried to access. This helps identify suspicious activity and potential security issues.
+                  If someone tries to access a care session without permission, the request is immediately blocked and the attempt is logged with details like IP address, timestamp, and what they tried to access. This helps identify suspicious activity and potential security issues.
                 </p>
               </div>
               <div>

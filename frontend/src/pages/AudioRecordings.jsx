@@ -1075,7 +1075,7 @@ const AudioRecordings = () => {
                     Delete this audio recording?
                   </h3>
                   <p className="text-sm text-gray-600 dark:text-gray-400">
-                    This recording will be permanently removed from your session
+                    This recording will be permanently removed from your care session
                   </p>
                 </div>
               </div>

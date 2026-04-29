@@ -798,9 +798,9 @@ export default function Settings() {
               className="w-full px-4 sm:px-6 py-4 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
             >
               <div className="text-left">
-                <h2 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white">Manage Sessions</h2>
+                <h2 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white">Manage Care Sessions</h2>
                 <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
-                  Rename, customize, and delete sessions
+                  Rename, customize, and delete care sessions
                 </p>
               </div>
               <svg
@@ -828,7 +828,7 @@ export default function Settings() {
                   {sessions.filter(s => s.is_owner).length > 0 && (
                     <div className="space-y-3">
                       <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
-                        Your Sessions ({sessions.filter(s => s.is_owner).length} of 5)
+                        Your Care Sessions ({sessions.filter(s => s.is_owner).length} of 5)
                       </h3>
                       {sessions.filter(s => s.is_owner).map((session) => (
                         <div key={session.id} className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
@@ -871,7 +871,7 @@ export default function Settings() {
                                   {/* Rename */}
                                   {session.is_owner && (
                                     <div className="pb-4">
-                                      <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider block mb-1.5">Session Name</label>
+                                      <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider block mb-1.5">Care Session Name</label>
                                       {editingSessionId === session.id ? (
                                         <div className="space-y-1">
                                           <div className="flex items-start space-x-2">
@@ -882,7 +882,7 @@ export default function Settings() {
                                                 onChange={(e) => setEditingSessionName(e.target.value)}
                                                 className="input text-sm w-full"
                                                 maxLength={15}
-                                                placeholder="Session name"
+                                                placeholder="Care session name"
                                               />
                                               <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                                                 {editingSessionName.length}/15 characters
@@ -937,7 +937,7 @@ export default function Settings() {
                                   {/* Session Color Picker (only when 2+ sessions) */}
                                   {sessions.length >= 2 && (
                                     <div className="py-4">
-                                      <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider block mb-2">Session Color</label>
+                                      <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider block mb-2">Care Session Color</label>
                                       <div className="flex flex-wrap gap-2">
                                         {SESSION_COLORS.map(color => (
                                           <button
@@ -963,7 +963,7 @@ export default function Settings() {
 
                                   {/* Statistics */}
                                   <div className="py-4">
-                                    <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider block mb-1.5">Session Data</label>
+                                    <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider block mb-1.5">Care Session Data</label>
                                     <div className="space-y-1 text-sm">
                                       <div className="flex items-center justify-between">
                                         <span className="text-gray-600 dark:text-gray-400">Conversations</span>
@@ -1000,7 +1000,7 @@ export default function Settings() {
                                       disabled={loading[`session-${session.id}`]}
                                       className="text-xs text-red-500 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 transition-colors disabled:opacity-50"
                                     >
-                                      {loading[`session-${session.id}`] ? 'Deleting...' : 'Delete this session...'}
+                                      {loading[`session-${session.id}`] ? 'Deleting...' : 'Delete this care session...'}
                                     </button>
                                   </div>
                                 </div>
@@ -1030,7 +1030,7 @@ export default function Settings() {
                               </div>
                             </div>
                             <div className="mt-2">
-                              <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider block mb-2">Session Color</label>
+                              <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider block mb-2">Care Session Color</label>
                               <div className="flex flex-wrap gap-2">
                                 {SESSION_COLORS.map(color => (
                                   <button
@@ -1215,7 +1215,7 @@ export default function Settings() {
                           Warning: Permanent Account & Data Deletion
                         </p>
                         <p className="text-sm text-red-800 dark:text-red-300">
-                          This action is permanent and cannot be undone. Your account AND all data from your owned sessions will be permanently deleted. Sessions shared with you by others will remain accessible to the owners.
+                          This action is permanent and cannot be undone. Your account AND all data from your owned care sessions will be permanently deleted. Care sessions shared with you by others will remain accessible to the owners.
                         </p>
                         <p className="text-sm text-red-900 dark:text-red-200 font-bold mt-2">
                           You will need to create a new account to use AretaCare again.
@@ -1320,7 +1320,7 @@ export default function Settings() {
                     Delete "{sessionToDelete.session.name}"?
                   </h3>
                   <p className="text-sm text-gray-600 dark:text-gray-400">
-                    This will permanently delete all data in this session
+                    This will permanently delete all data in this care session
                   </p>
                 </div>
               </div>
@@ -1447,7 +1447,7 @@ export default function Settings() {
                 </p>
                 <ul className="text-sm text-red-800 dark:text-red-300 space-y-1.5">
                   <li>• Your user account</li>
-                  <li>• All your owned sessions ({sessions.filter(s => s.is_owner).length})</li>
+                  <li>• All your owned care sessions ({sessions.filter(s => s.is_owner).length})</li>
                   <li>• All conversations ({sessions.filter(s => s.is_owner).reduce((sum, s) => sum + (sessionStatistics[s.id]?.conversations || 0), 0)})</li>
                   <li>• All journal entries ({sessions.filter(s => s.is_owner).reduce((sum, s) => sum + (sessionStatistics[s.id]?.journal_entries || 0), 0)})</li>
                   <li>• All documents ({sessions.filter(s => s.is_owner).reduce((sum, s) => sum + (sessionStatistics[s.id]?.documents || 0), 0)})</li>
@@ -1459,7 +1459,7 @@ export default function Settings() {
 
               <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded px-4 py-3">
                 <p className="text-sm text-amber-900 dark:text-amber-200 font-medium">
-                  <strong>Note:</strong> Sessions shared with you by others will remain intact and accessible to the owners. Only your owned sessions will be deleted.
+                  <strong>Note:</strong> Care sessions shared with you by others will remain intact and accessible to the owners. Only your owned care sessions will be deleted.
                 </p>
               </div>
 

@@ -138,11 +138,11 @@ AretaCare **NEVER**:
 
 ### Data Handling
 
-1. **User-Controlled Storage**: Users can delete their sessions at any time
+1. **User-Controlled Storage**: Users can delete their care sessions at any time
 2. **No Personal Identifiers**: Warn users not to share unnecessary personal information
 3. **No Data References**: Don't reference past conversations as if stored
-4. **Clear Deletion**: Users can clear sessions at any time
-5. **Shared Session Visibility**: When sessions are shared with collaborators, all session data (conversations, documents, journal entries, daily plans, audio recordings) is visible to all collaborators
+4. **Clear Deletion**: Users can clear care sessions at any time
+5. **Shared Care Session Visibility**: When care sessions are shared with collaborators, all care session data (conversations, documents, journal entries, daily plans, audio recordings) is visible to all collaborators
 
 ### User Warnings
 

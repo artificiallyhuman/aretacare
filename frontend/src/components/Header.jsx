@@ -191,7 +191,7 @@ const Header = ({ onLogout, user }) => {
                   onClick={() => setUserDropdownOpen(!userDropdownOpen)}
                   aria-expanded={userDropdownOpen}
                   aria-haspopup="menu"
-                  aria-label="User menu and session switcher"
+                  aria-label="User menu and care session switcher"
                   className="flex items-center space-x-2 pl-2 px-3 py-2 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
                 >
                   <div className="w-8 h-8 bg-primary-100 dark:bg-primary-900 rounded-full flex items-center justify-center">
@@ -215,7 +215,7 @@ const Header = ({ onLogout, user }) => {
                     {/* Owned Sessions Section */}
                     <div className="px-3 py-2 border-b border-gray-200 dark:border-gray-700">
                       <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">
-                        Your Sessions ({sessions.filter(s => s.is_owner).length})
+                        Your Care Sessions ({sessions.filter(s => s.is_owner).length})
                       </p>
                     </div>
 
@@ -246,7 +246,7 @@ const Header = ({ onLogout, user }) => {
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                       </svg>
-                      <span>{creatingSession ? 'Creating...' : 'New Session'}</span>
+                      <span>{creatingSession ? 'Creating...' : 'New Care Session'}</span>
                     </button>
 
                     {/* Collaboration Sessions Section */}
@@ -382,8 +382,8 @@ const Header = ({ onLogout, user }) => {
                   className="w-full flex items-center justify-between px-3 py-2 hover:bg-white dark:hover:bg-gray-600 transition-colors"
                 >
                   <div className="flex flex-col items-start">
-                    <span className="text-xs text-gray-500 dark:text-gray-400">Active Session</span>
-                    <span className="text-sm font-medium text-gray-900 dark:text-white">{activeSession?.name || 'No Session'}</span>
+                    <span className="text-xs text-gray-500 dark:text-gray-400">Active Care Session</span>
+                    <span className="text-sm font-medium text-gray-900 dark:text-white">{activeSession?.name || 'No Care Session'}</span>
                   </div>
                   <svg
                     className={`w-4 h-4 text-gray-500 dark:text-gray-400 transition-transform ${mobileSessionsOpen ? 'rotate-180' : ''}`}
@@ -401,7 +401,7 @@ const Header = ({ onLogout, user }) => {
                     {/* Owned Sessions */}
                     <div className="px-3 pb-2">
                       <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                        Your Sessions ({sessions.filter(s => s.is_owner).length})
+                        Your Care Sessions ({sessions.filter(s => s.is_owner).length})
                       </p>
                     </div>
 
@@ -436,7 +436,7 @@ const Header = ({ onLogout, user }) => {
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                         </svg>
-                        <span>{creatingSession ? 'Creating...' : 'New Session'}</span>
+                        <span>{creatingSession ? 'Creating...' : 'New Care Session'}</span>
                       </button>
                     </div>
 
@@ -633,7 +633,7 @@ const Header = ({ onLogout, user }) => {
         <div className="fixed inset-0 bg-black bg-opacity-50 dark:bg-opacity-70 flex items-center justify-center p-4 z-50">
           <div className="bg-white dark:bg-gray-800 rounded-lg max-w-lg w-full">
             <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
-              <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Cannot Create Session</h2>
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Cannot Create Care Session</h2>
             </div>
 
             <div className="p-6 space-y-4">
@@ -646,10 +646,10 @@ const Header = ({ onLogout, user }) => {
                   </div>
                   <div className="flex-1">
                     <p className="text-sm text-orange-900 dark:text-orange-200 mb-2 font-medium">
-                      You've reached the limit of 5 owned sessions.
+                      You've reached the limit of 5 owned care sessions.
                     </p>
                     <p className="text-sm text-orange-800 dark:text-orange-300">
-                      To create a new session, go to <strong>Settings → Manage Sessions</strong> and delete one of your existing owned sessions first.
+                      To create a new care session, go to <strong>Settings → Manage Care Sessions</strong> and delete one of your existing owned care sessions first.
                     </p>
                   </div>
                 </div>

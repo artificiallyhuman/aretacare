@@ -35,7 +35,7 @@ async def get_all_daily_plans(
     session = db.query(UserSession).filter(UserSession.id == session_id).first()
 
     if not session:
-        raise HTTPException(status_code=404, detail="Session not found")
+        raise HTTPException(status_code=404, detail="Care session not found")
 
     check_session_access(session, current_user.id, db)
 
@@ -78,7 +78,7 @@ async def get_latest_daily_plan(
     session = db.query(UserSession).filter(UserSession.id == session_id).first()
 
     if not session:
-        raise HTTPException(status_code=404, detail="Session not found")
+        raise HTTPException(status_code=404, detail="Care session not found")
 
     check_session_access(session, current_user.id, db)
 
@@ -111,7 +111,7 @@ async def check_daily_plan_status(
     session = db.query(UserSession).filter(UserSession.id == session_id).first()
 
     if not session:
-        raise HTTPException(status_code=404, detail="Session not found")
+        raise HTTPException(status_code=404, detail="Care session not found")
 
     check_session_access(session, current_user.id, db)
 
@@ -151,7 +151,7 @@ async def generate_daily_plan(
     session = db.query(UserSession).filter(UserSession.id == session_id).first()
 
     if not session:
-        raise HTTPException(status_code=404, detail="Session not found")
+        raise HTTPException(status_code=404, detail="Care session not found")
 
     check_session_access(session, current_user.id, db)
 
@@ -205,7 +205,7 @@ async def update_daily_plan(
     session = db.query(UserSession).filter(UserSession.id == plan.session_id).first()
 
     if not session:
-        raise HTTPException(status_code=404, detail="Session not found")
+        raise HTTPException(status_code=404, detail="Care session not found")
 
     check_session_access(session, current_user.id, db)
 
@@ -237,7 +237,7 @@ async def mark_plan_viewed(
     session = db.query(UserSession).filter(UserSession.id == plan.session_id).first()
 
     if not session:
-        raise HTTPException(status_code=404, detail="Session not found")
+        raise HTTPException(status_code=404, detail="Care session not found")
 
     check_session_access(session, current_user.id, db)
 
@@ -287,7 +287,7 @@ async def delete_daily_plan(
     session = db.query(UserSession).filter(UserSession.id == plan.session_id).first()
 
     if not session:
-        raise HTTPException(status_code=404, detail="Session not found")
+        raise HTTPException(status_code=404, detail="Care session not found")
 
     check_session_access(session, current_user.id, db)
 

@@ -14,7 +14,7 @@ struct MainTabView: View {
     var body: some View {
         Group {
             if sessionVM.isLoading && sessionVM.currentSession == nil {
-                LoadingView(message: "Loading sessions...")
+                LoadingView(message: "Loading care sessions...")
             } else {
                 TabView(selection: $activeTab) {
                     NavigationStack {

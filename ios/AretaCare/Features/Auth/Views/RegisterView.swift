@@ -84,7 +84,7 @@ struct RegisterView: View {
                 .foregroundStyle(.blue)
                 .font(.body)
 
-            Text("You've been invited to join a session on AretaCare. Create your account to get started.")
+            Text("You've been invited to join a care session on AretaCare. Create your account to get started.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)

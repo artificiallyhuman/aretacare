@@ -15,11 +15,11 @@ struct ToolsMenuView: View {
         Form {
             if sessionId.isEmpty {
                 Section {
-                    Text("Select a session to access tools.")
+                    Text("Select a care session to access tools.")
                         .foregroundStyle(.secondary)
                 }
             } else {
-                Section("Session Tools") {
+                Section("Care Session Tools") {
                     NavigationLink {
                         JournalView(sessionId: sessionId, sessionName: sessionName)
                     } label: {

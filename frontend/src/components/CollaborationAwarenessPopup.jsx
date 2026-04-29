@@ -47,7 +47,7 @@ export default function CollaborationAwarenessPopup() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
                 </svg>
               </div>
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Caution: Shared Session</h2>
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Caution: Shared Care Session</h2>
             </div>
             <button
               onClick={() => setShow(false)}
@@ -63,7 +63,7 @@ export default function CollaborationAwarenessPopup() {
         <div className="px-6 py-4 space-y-4">
           <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded px-4 py-3">
             <p className="text-sm text-amber-900 dark:text-amber-200">
-              Your current session <strong>"{activeSession.name}"</strong> is shared with{' '}
+              Your current care session <strong>"{activeSession.name}"</strong> is shared with{' '}
               <strong>{otherPeopleCount} other {peopleWord}</strong>.
               Anything you enter (e.g., messages, documents) can be viewed by collaborators.
             </p>
@@ -102,7 +102,7 @@ export default function CollaborationAwarenessPopup() {
           {/* Show option to switch if user has other sessions */}
           {sessions.length > 1 && (
             <p className="text-xs text-gray-500 dark:text-gray-400">
-              You can switch to a different session using the session menu in the header.
+              You can switch to a different care session using the care session menu in the header.
             </p>
           )}
         </div>

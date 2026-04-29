@@ -18,9 +18,9 @@ struct SessionSwitcherView: View {
                         sessionRow(session)
                     }
                 } header: {
-                    Text("Your Sessions")
+                    Text("Your Care Sessions")
                 } footer: {
-                    Text("Rename, share, and delete sessions in Settings.")
+                    Text("Rename, share, and delete care sessions in Settings.")
                 }
 
                 if !sessionVM.sessions.filter({ !$0.isOwner }).isEmpty {
@@ -39,7 +39,7 @@ struct SessionSwitcherView: View {
                             showingSessionLimit = true
                         }
                     } label: {
-                        Label("New Session", systemImage: "plus.circle")
+                        Label("New Care Session", systemImage: "plus.circle")
                     }
                 }
 
@@ -57,15 +57,15 @@ struct SessionSwitcherView: View {
                     Text("Logout from this device only.")
                 }
             }
-            .navigationTitle("Sessions")
+            .navigationTitle("Care Sessions")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("Done") { dismiss() }
                 }
             }
-            .alert("New Session", isPresented: $showingNewSession) {
-                TextField("Session name", text: $newSessionName)
+            .alert("New Care Session", isPresented: $showingNewSession) {
+                TextField("Care session name", text: $newSessionName)
                 Button("Cancel", role: .cancel) { newSessionName = "" }
                 Button("Create") {
                     let name = newSessionName.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -77,12 +77,12 @@ struct SessionSwitcherView: View {
                     }
                 }
             } message: {
-                Text("Enter a name for your new session (max \(AppConstants.sessionNameMaxLength) characters).")
+                Text("Enter a name for your new care session (max \(AppConstants.sessionNameMaxLength) characters).")
             }
-            .alert("Session Limit", isPresented: $showingSessionLimit) {
+            .alert("Care Session Limit", isPresented: $showingSessionLimit) {
                 Button("OK", role: .cancel) {}
             } message: {
-                Text("You've reached the maximum number of owned sessions (\(AppConstants.maxOwnedSessions)). Delete a session to create a new one.")
+                Text("You've reached the maximum number of owned care sessions (\(AppConstants.maxOwnedSessions)). Delete a care session to create a new one.")
             }
             .alert("Logout", isPresented: $showLogoutConfirmation) {
                 Button("Logout", role: .destructive) {

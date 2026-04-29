@@ -14,11 +14,11 @@ AretaCare sends automated emails for:
 - **Password changed** — Security notification after update
 
 **Collaboration:**
-- **Collaborator added (to owner)** — Notification to session owner
+- **Collaborator added (to owner)** — Notification to care session owner
 - **Collaborator invitation (existing user)** — Notification when added as a collaborator
 - **Collaborator invitation (new user)** — Registration link for non-members (bypasses waitlist)
 - **Invitation accepted** — Notification to owner when invitee registers and verifies
-- **Collaborator removed** — Notification when removed from a session
+- **Collaborator removed** — Notification when removed from a care session
 - **Ownership transferred** — Notifications to both old and new owner
 
 **MFA & Security:**
@@ -142,7 +142,7 @@ Once `SMTP_PASSWORD` is set:
    - Check OLD email inbox for change notification
 
 4. **Collaborator Notifications**
-   - Share a session with another user
+   - Share a care session with another user
    - Both owner and collaborator receive email notifications
 
 ## Email Templates

@@ -648,7 +648,7 @@ async def transfer_session_ownership(
     """
     session = db.query(SessionModel).filter(SessionModel.id == session_id).first()
     if not session:
-        raise HTTPException(status_code=404, detail="Session not found")
+        raise HTTPException(status_code=404, detail="Care session not found")
 
     # Find new owner by email
     new_owner = db.query(User).filter(User.email == transfer_data.new_owner_email).first()
@@ -687,7 +687,7 @@ async def transfer_session_ownership(
     )
 
     return SessionTransferResponse(
-        message=f"Session transferred to {new_owner.email}",
+        message=f"Care session transferred to {new_owner.email}",
         session_id=session_id,
         new_owner_id=str(new_owner.id),
         new_owner_email=new_owner.email
@@ -711,7 +711,7 @@ async def admin_delete_session(
     """
     session = db.query(SessionModel).filter(SessionModel.id == session_id).first()
     if not session:
-        raise HTTPException(status_code=404, detail="Session not found")
+        raise HTTPException(status_code=404, detail="Care session not found")
 
     session_name = session.name
     owner_id = session.owner_id

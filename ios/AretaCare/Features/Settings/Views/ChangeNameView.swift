@@ -23,7 +23,7 @@ struct ChangeNameView: View {
                         .textInputAutocapitalization(.words)
                         .autocorrectionDisabled()
                 } footer: {
-                    Text("Your name as displayed in the app and to session collaborators.")
+                    Text("Your name as displayed in the app and to care session collaborators.")
                 }
 
                 Section {

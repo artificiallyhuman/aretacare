@@ -25,7 +25,7 @@ POST /api/auth/register
   "invitation_token": null
 }
 ```
-Requires email verification before login. `invitation_token` is optional (for users invited as session collaborators — bypasses waitlist).
+Requires email verification before login. `invitation_token` is optional (for users invited as care session collaborators — bypasses waitlist).
 
 ### Login
 ```bash
@@ -126,18 +126,18 @@ Returns `action_token` — include as `X-MFA-Action-Token` header when performin
 
 ---
 
-## Sessions
+## Care Sessions
 
-### List/Create Sessions
+### List/Create Care Sessions
 ```bash
 GET  /api/sessions/          # List all (owned + shared)
-POST /api/sessions/          # Create new session
-POST /api/sessions/primary   # Get or create primary session
+POST /api/sessions/          # Create new care session
+POST /api/sessions/primary   # Get or create primary care session
 ```
 
-### Session Management
+### Care Session Management
 ```bash
-GET    /api/sessions/{id}           # Get session details
+GET    /api/sessions/{id}           # Get care session details
 PUT    /api/sessions/{id}           # Rename: {"name": "New Name"}
 DELETE /api/sessions/{id}           # Delete (owner only, removes all data + S3)
 ```
@@ -147,7 +147,7 @@ DELETE /api/sessions/{id}           # Delete (owner only, removes all data + S3)
 POST   /api/sessions/{id}/check-user                   # Check if user can be added
 POST   /api/sessions/{id}/share                        # Add existing user as collaborator
 DELETE /api/sessions/{id}/collaborators/{user_id}      # Remove collaborator
-POST   /api/sessions/{id}/leave                        # Leave shared session
+POST   /api/sessions/{id}/leave                        # Leave shared care session
 POST   /api/sessions/{id}/send-invitation              # Invite non-user (sends registration email, bypasses waitlist)
 GET    /api/sessions/{id}/pending-invitations          # List pending invitations
 DELETE /api/sessions/{id}/pending-invitations/{id}     # Cancel invitation
@@ -174,7 +174,7 @@ POST /api/documents/check-duplicate
 ```json
 {"session_id": "uuid", "filenames": ["lab_results.pdf", "scan.png"]}
 ```
-Returns matching documents within the session:
+Returns matching documents within the care session:
 ```json
 {"duplicates": [{"id": 42, "filename": "lab_results.pdf", "uploaded_at": "...", "category": "lab_results"}]}
 ```
