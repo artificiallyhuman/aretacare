@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct TypingBubbleView: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var animating = false
 
     var body: some View {
@@ -13,9 +14,11 @@ struct TypingBubbleView: View {
                         .scaleEffect(animating ? 1.0 : 0.5)
                         .opacity(animating ? 1.0 : 0.4)
                         .animation(
-                            .easeInOut(duration: 0.6)
-                            .repeatForever(autoreverses: true)
-                            .delay(Double(index) * 0.2),
+                            reduceMotion
+                                ? nil
+                                : .easeInOut(duration: 0.6)
+                                    .repeatForever(autoreverses: true)
+                                    .delay(Double(index) * 0.2),
                             value: animating
                         )
                 }
@@ -27,6 +30,8 @@ struct TypingBubbleView: View {
 
             Spacer()
         }
-        .onAppear { animating = true }
+        .onAppear { animating = !reduceMotion }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("AretaCare is typing")
     }
 }

@@ -11,6 +11,8 @@ struct MarkdownTextView: View {
         Markdown(content)
             .markdownTheme(isUserBubble ? .userBubble : .aretaCare)
             .textSelection(.enabled)
+            .accessibilityElement(children: .contain)
+            .accessibilityLabel(content)
     }
 }
 

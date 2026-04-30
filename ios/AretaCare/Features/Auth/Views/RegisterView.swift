@@ -107,7 +107,8 @@ struct RegisterView: View {
     private var waitlistMessage: some View {
         VStack(spacing: 16) {
             Image(systemName: "clock.badge.checkmark")
-                .font(.system(size: 48))
+                .font(.largeTitle)
+                .imageScale(.large)
                 .foregroundStyle(.blue)
                 .padding(.top, 16)
 
@@ -137,7 +138,8 @@ struct RegisterView: View {
     private var successMessage: some View {
         VStack(spacing: 16) {
             Image(systemName: "envelope.badge.shield.half.filled")
-                .font(.system(size: 48))
+                .font(.largeTitle)
+                .imageScale(.large)
                 .foregroundStyle(.green)
                 .padding(.top, 16)
 
@@ -365,10 +367,17 @@ struct LinkedConsentCheckbox: View {
 
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
-            Image(systemName: isChecked ? "checkmark.square.fill" : "square")
-                .foregroundStyle(isChecked ? .blue : .secondary)
-                .font(.title3)
-                .onTapGesture { isChecked.toggle() }
+            Button {
+                isChecked.toggle()
+            } label: {
+                Image(systemName: isChecked ? "checkmark.square.fill" : "square")
+                    .foregroundStyle(isChecked ? .blue : .secondary)
+                    .font(.title3)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(isChecked ? "Checked" : "Unchecked")
+            .accessibilityAddTraits(isChecked ? [.isSelected] : [])
+            .accessibilityHint("Double tap to toggle agreement")
 
             Group {
                 if let attributed = try? AttributedString(markdown: markdown) {

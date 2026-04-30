@@ -26,8 +26,10 @@ struct BiometricLockView: View {
                 }
 
                 Image(systemName: lockIcon)
-                    .font(.system(size: 48))
+                    .font(.largeTitle)
+                    .imageScale(.large)
                     .foregroundStyle(Color.accentColor)
+                    .accessibilityHidden(true)
 
                 Text("App Locked")
                     .font(.title3.weight(.semibold))

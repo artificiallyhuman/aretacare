@@ -8,8 +8,8 @@ struct PrimaryButtonStyle: ButtonStyle {
             .fontWeight(.semibold)
             .frame(maxWidth: .infinity)
             .padding(.vertical, 14)
-            .background(Color.accentColor.opacity(isEnabled ? 1 : 0.5))
-            .foregroundStyle(.white)
+            .background(isEnabled ? Color.accentColor : Color(.systemGray3))
+            .foregroundStyle(isEnabled ? Color.white : Color(.label))
             .clipShape(RoundedRectangle(cornerRadius: 12))
             .opacity(configuration.isPressed ? 0.85 : 1)
     }
@@ -24,7 +24,7 @@ struct SecondaryButtonStyle: ButtonStyle {
             .frame(maxWidth: .infinity)
             .padding(.vertical, 14)
             .background(Color(.tertiarySystemFill))
-            .foregroundStyle(isEnabled ? Color.accentColor : .secondary)
+            .foregroundStyle(isEnabled ? Color.accentColor : Color(.secondaryLabel))
             .clipShape(RoundedRectangle(cornerRadius: 12))
             .opacity(configuration.isPressed ? 0.85 : 1)
     }
@@ -38,8 +38,8 @@ struct DestructiveButtonStyle: ButtonStyle {
             .fontWeight(.semibold)
             .frame(maxWidth: .infinity)
             .padding(.vertical, 14)
-            .background(Color.red.opacity(isEnabled ? 1 : 0.5))
-            .foregroundStyle(.white)
+            .background(isEnabled ? Color.red : Color(.systemGray3))
+            .foregroundStyle(isEnabled ? Color.white : Color(.label))
             .clipShape(RoundedRectangle(cornerRadius: 12))
             .opacity(configuration.isPressed ? 0.85 : 1)
     }

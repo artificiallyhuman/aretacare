@@ -34,8 +34,10 @@ struct ConversationOnboardingView: View {
                     // Header
                     VStack(spacing: 12) {
                         Image(systemName: "ellipsis.message")
-                            .font(.system(size: 44))
+                            .font(.largeTitle)
+                            .imageScale(.large)
                             .foregroundStyle(Color.accentColor)
+                            .accessibilityHidden(true)
 
                         Text("Start a Care Session")
                             .font(.title2.weight(.semibold))

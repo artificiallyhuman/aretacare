@@ -67,6 +67,7 @@ struct ConversationView: View {
                     } label: {
                         Image(systemName: "list.bullet")
                     }
+                    .accessibilityLabel("Switch care session")
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {

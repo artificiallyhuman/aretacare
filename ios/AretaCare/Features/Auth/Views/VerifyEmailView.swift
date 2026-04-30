@@ -26,7 +26,8 @@ struct VerifyEmailView: View {
             case .success:
                 VStack(spacing: 16) {
                     Image(systemName: "checkmark.circle.fill")
-                        .font(.system(size: 56))
+                        .font(.largeTitle)
+                        .imageScale(.large)
                         .foregroundStyle(.green)
 
                     Text("Email Verified")
@@ -53,7 +54,8 @@ struct VerifyEmailView: View {
             case .failed(let message):
                 VStack(spacing: 16) {
                     Image(systemName: "xmark.circle.fill")
-                        .font(.system(size: 56))
+                        .font(.largeTitle)
+                        .imageScale(.large)
                         .foregroundStyle(.red)
 
                     Text("Verification Failed")

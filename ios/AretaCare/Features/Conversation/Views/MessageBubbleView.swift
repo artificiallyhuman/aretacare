@@ -11,6 +11,7 @@ struct MessageBubbleView: View {
     var onRetry: ((MessageResponse) -> Void)?
 
     @Environment(\.horizontalSizeClass) private var sizeClass
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var showTimestamp = false
     @State private var showResetConfirmation = false
     @State private var audioPlayer: AVPlayer?
@@ -75,17 +76,20 @@ struct MessageBubbleView: View {
                     Text(message.createdAt.timeString)
                         .font(.caption2)
                         .foregroundStyle(.secondary)
-                        .transition(.opacity.combined(with: .scale(scale: 0.9)))
+                        .transition(reduceMotion ? .opacity : .opacity.combined(with: .scale(scale: 0.9)))
                 }
             }
             .onTapGesture {
                 if isFailed {
                     onRetry?(message)
                 } else {
-                    withAnimation(.easeInOut(duration: 0.2)) {
+                    withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.2)) {
                         showTimestamp.toggle()
                     }
                 }
+            }
+            .accessibilityAction(named: showTimestamp ? "Hide timestamp" : "Show timestamp") {
+                showTimestamp.toggle()
             }
             .contextMenu {
                 Button {

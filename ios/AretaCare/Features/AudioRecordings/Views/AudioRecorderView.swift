@@ -29,8 +29,10 @@ struct AudioRecorderView: View {
 
                 // Timer
                 Text(recorder.formattedDuration)
-                    .font(.system(size: 48, weight: .light, design: .monospaced))
+                    .font(.system(.largeTitle, design: .monospaced).weight(.light))
                     .foregroundStyle(recorder.isRecording ? .primary : .secondary)
+                    .minimumScaleFactor(0.6)
+                    .lineLimit(1)
                     .accessibilityLabel("Recording time: \(recorder.formattedDuration)")
 
                 // Max duration warning

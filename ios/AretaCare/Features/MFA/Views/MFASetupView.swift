@@ -423,8 +423,10 @@ private struct PasskeySetupSheet: View {
         ScrollView {
             VStack(spacing: 24) {
                 Image(systemName: "person.badge.key.fill")
-                    .font(.system(size: 48))
+                    .font(.largeTitle)
+                    .imageScale(.large)
                     .foregroundStyle(.blue)
+                    .accessibilityHidden(true)
 
                 Text("Register a passkey to use Face ID or Touch ID for two-factor authentication.")
                     .font(.subheadline)

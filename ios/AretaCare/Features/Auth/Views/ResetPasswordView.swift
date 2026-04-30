@@ -34,7 +34,8 @@ struct ResetPasswordView: View {
                     // Success State
                     VStack(spacing: 16) {
                         Image(systemName: "checkmark.circle.fill")
-                            .font(.system(size: 48))
+                            .font(.largeTitle)
+                            .imageScale(.large)
                             .foregroundStyle(.green)
 
                         Text("Password Reset Successfully")

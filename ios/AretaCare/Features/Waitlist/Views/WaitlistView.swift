@@ -39,7 +39,8 @@ struct WaitlistView: View {
                 case .success(let msg):
                     VStack(spacing: 12) {
                         Image(systemName: "checkmark.circle.fill")
-                            .font(.system(size: 48))
+                            .font(.largeTitle)
+                            .imageScale(.large)
                             .foregroundStyle(.green)
                         Text("You are on the list!")
                             .font(.title3.weight(.semibold))
@@ -53,7 +54,8 @@ struct WaitlistView: View {
                 case .alreadyOnList(let msg):
                     VStack(spacing: 12) {
                         Image(systemName: "info.circle.fill")
-                            .font(.system(size: 48))
+                            .font(.largeTitle)
+                            .imageScale(.large)
                             .foregroundStyle(.blue)
                         Text("Already on the list")
                             .font(.title3.weight(.semibold))

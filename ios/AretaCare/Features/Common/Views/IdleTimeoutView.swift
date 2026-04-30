@@ -14,8 +14,10 @@ struct IdleTimeoutView: View {
 
             VStack(spacing: 20) {
                 Image(systemName: "clock.badge.exclamationmark")
-                    .font(.system(size: 40))
+                    .font(.largeTitle)
+                    .imageScale(.large)
                     .foregroundStyle(.orange)
+                    .accessibilityHidden(true)
 
                 Text("Session Timeout Warning")
                     .font(.title3.weight(.bold))

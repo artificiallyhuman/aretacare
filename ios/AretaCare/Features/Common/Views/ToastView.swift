@@ -1,6 +1,8 @@
 import SwiftUI
+import UIKit
 
 struct ToastModifier: ViewModifier {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Binding var isPresented: Bool
     let message: String
     let icon: String?
@@ -13,6 +15,7 @@ struct ToastModifier: ViewModifier {
                         if let icon {
                             Image(systemName: icon)
                                 .font(.subheadline.weight(.medium))
+                                .accessibilityHidden(true)
                         }
                         Text(message)
                             .font(.subheadline.weight(.medium))
@@ -21,9 +24,12 @@ struct ToastModifier: ViewModifier {
                     .padding(.horizontal, 16)
                     .padding(.vertical, 8)
                     .background(Capsule().fill(.black.opacity(0.75)))
-                    .transition(.move(edge: .top).combined(with: .opacity))
+                    .transition(reduceMotion ? .opacity : .move(edge: .top).combined(with: .opacity))
                     .padding(.top, 8)
+                    .accessibilityElement(children: .combine)
+                    .accessibilityLabel(message)
                     .onAppear {
+                        UIAccessibility.post(notification: .announcement, argument: message)
                         Task {
                             try? await Task.sleep(for: .seconds(1.5))
                             withAnimation(.easeOut(duration: 0.3)) {

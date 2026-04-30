@@ -58,8 +58,10 @@ struct MFAVerifyView: View {
                 // Header
                 VStack(spacing: 8) {
                     Image(systemName: "lock.shield")
-                        .font(.system(size: 48))
+                        .font(.largeTitle)
+                        .imageScale(.large)
                         .foregroundStyle(.blue)
+                        .accessibilityHidden(true)
 
                     Text("Two-Factor Authentication")
                         .font(.title2)
@@ -193,8 +195,10 @@ struct MFAVerifyView: View {
     private var passkeyInput: some View {
         VStack(spacing: 16) {
             Image(systemName: "person.badge.key.fill")
-                .font(.system(size: 40))
+                .font(.largeTitle)
+                .imageScale(.large)
                 .foregroundStyle(.blue)
+                .accessibilityHidden(true)
 
             if viewModel.isLoading {
                 ProgressView()

@@ -40,7 +40,7 @@ struct DailyDigestView: View {
                         }
                     }
                 )
-                .frame(width: 375)
+                .frame(minWidth: 280, idealWidth: 375, maxWidth: 480)
                 Divider()
             }
 
@@ -189,8 +189,10 @@ struct DailyDigestView: View {
     private var initialEmptyState: some View {
         VStack(spacing: 20) {
             Image(systemName: "list.clipboard")
-                .font(.system(size: 48))
+                .font(.largeTitle)
+                .imageScale(.large)
                 .foregroundStyle(Color.accentColor)
+                .accessibilityHidden(true)
 
             Text("No Daily Digests Yet")
                 .font(.title3.weight(.semibold))

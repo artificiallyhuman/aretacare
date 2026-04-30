@@ -1,6 +1,8 @@
 import SwiftUI
+import UIKit
 
 struct ErrorBannerView: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let message: String
     var autoDismissAfter: TimeInterval? = 8
     var onDismiss: (() -> Void)?
@@ -35,9 +37,13 @@ struct ErrorBannerView: View {
         .background(Color.red.opacity(0.9))
         .clipShape(RoundedRectangle(cornerRadius: 10))
         .padding(.horizontal)
-        .transition(.move(edge: .top).combined(with: .opacity))
+        .transition(reduceMotion ? .opacity : .move(edge: .top).combined(with: .opacity))
         .accessibilityElement(children: .combine)
         .accessibilityLabel("Error: \(message)")
+        .accessibilityAddTraits(.isHeader)
+        .onAppear {
+            UIAccessibility.post(notification: .announcement, argument: "Error: \(message)")
+        }
         .task(id: message) {
             guard let seconds = autoDismissAfter else { return }
             try? await Task.sleep(for: .seconds(seconds))

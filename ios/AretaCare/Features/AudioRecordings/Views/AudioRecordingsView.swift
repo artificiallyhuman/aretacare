@@ -54,7 +54,7 @@ struct AudioRecordingsView: View {
                         Task { await viewModel.jumpToLatest(sessionId: sessionId) }
                     }
                 )
-                .frame(width: 375)
+                .frame(minWidth: 280, idealWidth: 375, maxWidth: 480)
                 Divider()
             }
 

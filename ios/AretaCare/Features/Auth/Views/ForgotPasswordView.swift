@@ -26,8 +26,10 @@ struct ForgotPasswordView: View {
                     // Success State
                     VStack(spacing: 16) {
                         Image(systemName: "envelope.circle.fill")
-                            .font(.system(size: 48))
+                            .font(.largeTitle)
+                            .imageScale(.large)
                             .foregroundStyle(.green)
+                            .accessibilityHidden(true)
 
                         Text("If an account exists with that email, we've sent a password reset link.")
                             .font(.subheadline)

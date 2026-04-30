@@ -21,10 +21,11 @@ struct ConversationCoachView: View {
                 // Hero header
                 VStack(spacing: 12) {
                     Image(systemName: "bubble.left.and.text.bubble.right")
-                        .font(.system(size: 28))
+                        .font(.title)
                         .foregroundStyle(.white)
                         .frame(width: 60, height: 60)
                         .background(Circle().fill(Color.accentColor.gradient))
+                        .accessibilityHidden(true)
 
                     Text("Prepare for healthcare conversations with personalized coaching tips.")
                         .font(.subheadline)

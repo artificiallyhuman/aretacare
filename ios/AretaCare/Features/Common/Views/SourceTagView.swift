@@ -16,8 +16,9 @@ struct SourceTagView: View {
                     .font(.caption2.weight(.semibold))
                     .foregroundStyle(.white)
                     .frame(width: 22, height: 22)
-                    .background(Circle().fill(Color.accentColor.opacity(0.8)))
+                    .background(Circle().fill(Color.accentColor.opacity(0.85)))
             }
+            .dynamicTypeSize(...DynamicTypeSize.accessibility1)
             .popover(isPresented: $showingName) {
                 Text(sourceTag.name)
                     .font(.footnote)

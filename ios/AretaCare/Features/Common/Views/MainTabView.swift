@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct MainTabView: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var sessionVM = SessionViewModel()
     @State private var digestBadgeVM = DailyDigestViewModel()
     @AppStorage("activeTab") private var activeTab = 0
@@ -68,12 +69,12 @@ struct MainTabView: View {
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 8)
                             .background(Color.red.opacity(0.9))
-                            .transition(.move(edge: .top).combined(with: .opacity))
+                            .transition(reduceMotion ? .opacity : .move(edge: .top).combined(with: .opacity))
                             .accessibilityElement(children: .combine)
                             .accessibilityLabel("No internet connection")
                         }
                     }
-                    .animation(.spring(duration: 0.35), value: networkMonitor.isConnected)
+                    .animation(reduceMotion ? nil : .spring(duration: 0.35), value: networkMonitor.isConnected)
                 }
                 .collaborationAwareness(session: sessionVM.currentSession)
             }

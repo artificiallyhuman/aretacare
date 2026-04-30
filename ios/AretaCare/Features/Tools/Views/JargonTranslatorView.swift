@@ -15,10 +15,11 @@ struct JargonTranslatorView: View {
                 // Hero header
                 VStack(spacing: 12) {
                     Image(systemName: "character.book.closed")
-                        .font(.system(size: 28))
+                        .font(.title)
                         .foregroundStyle(.white)
                         .frame(width: 60, height: 60)
                         .background(Circle().fill(Color.accentColor.gradient))
+                        .accessibilityHidden(true)
 
                     Text("Translate complex medical terms into plain, easy-to-understand language.")
                         .font(.subheadline)

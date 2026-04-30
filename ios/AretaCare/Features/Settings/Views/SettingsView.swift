@@ -65,33 +65,37 @@ struct SettingsView: View {
     private var accountSection: some View {
         Section("Account") {
             // Name
-            HStack {
-                Label("Name", systemImage: "person")
-                Spacer()
-                Text(viewModel.user?.name ?? "")
-                    .foregroundStyle(.secondary)
-                Image(systemName: "chevron.right")
-                    .font(.caption)
-                    .foregroundStyle(.tertiary)
-                    .accessibilityHidden(true)
+            Button { showChangeName = true } label: {
+                HStack {
+                    Label("Name", systemImage: "person")
+                    Spacer()
+                    Text(viewModel.user?.name ?? "")
+                        .foregroundStyle(.secondary)
+                    Image(systemName: "chevron.right")
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
+                        .accessibilityHidden(true)
+                }
             }
-            .contentShape(Rectangle())
-            .onTapGesture { showChangeName = true }
+            .buttonStyle(.plain)
+            .accessibilityHint("Opens screen to change your name")
 
             // Email
-            HStack {
-                Label("Email", systemImage: "envelope")
-                Spacer()
-                Text(viewModel.user?.email ?? "")
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-                Image(systemName: "chevron.right")
-                    .font(.caption)
-                    .foregroundStyle(.tertiary)
-                    .accessibilityHidden(true)
+            Button { showChangeEmail = true } label: {
+                HStack {
+                    Label("Email", systemImage: "envelope")
+                    Spacer()
+                    Text(viewModel.user?.email ?? "")
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                    Image(systemName: "chevron.right")
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
+                        .accessibilityHidden(true)
+                }
             }
-            .contentShape(Rectangle())
-            .onTapGesture { showChangeEmail = true }
+            .buttonStyle(.plain)
+            .accessibilityHint("Opens screen to change your email address")
 
             // Pending email change
             if let pendingEmail = viewModel.user?.pendingEmail {
@@ -106,16 +110,18 @@ struct SettingsView: View {
             }
 
             // Password
-            HStack {
-                Label("Password", systemImage: "lock")
-                Spacer()
-                Image(systemName: "chevron.right")
-                    .font(.caption)
-                    .foregroundStyle(.tertiary)
-                    .accessibilityHidden(true)
+            Button { showChangePassword = true } label: {
+                HStack {
+                    Label("Password", systemImage: "lock")
+                    Spacer()
+                    Image(systemName: "chevron.right")
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
+                        .accessibilityHidden(true)
+                }
             }
-            .contentShape(Rectangle())
-            .onTapGesture { showChangePassword = true }
+            .buttonStyle(.plain)
+            .accessibilityHint("Opens screen to change your password")
 
             // Subscription
             NavigationLink {
@@ -296,26 +302,35 @@ struct SettingsView: View {
 
     private var supportSection: some View {
         Section("Support") {
-            HStack {
-                Image(systemName: "info.circle")
-                    .foregroundStyle(Color.accentColor)
-                Text("About AretaCare")
+            Button { openURL(AppConstants.aboutURL) } label: {
+                HStack {
+                    Image(systemName: "info.circle")
+                        .foregroundStyle(Color.accentColor)
+                    Text("About AretaCare")
+                }
             }
-            .onTapGesture { openURL(AppConstants.aboutURL) }
+            .buttonStyle(.plain)
+            .accessibilityHint("Opens AretaCare website")
 
-            HStack {
-                Image(systemName: "doc.text")
-                    .foregroundStyle(Color.accentColor)
-                Text("Terms of Service")
+            Button { openURL(AppConstants.termsURL) } label: {
+                HStack {
+                    Image(systemName: "doc.text")
+                        .foregroundStyle(Color.accentColor)
+                    Text("Terms of Service")
+                }
             }
-            .onTapGesture { openURL(AppConstants.termsURL) }
+            .buttonStyle(.plain)
+            .accessibilityHint("Opens Terms of Service in your browser")
 
-            HStack {
-                Image(systemName: "hand.raised")
-                    .foregroundStyle(Color.accentColor)
-                Text("Privacy Policy")
+            Button { openURL(AppConstants.privacyURL) } label: {
+                HStack {
+                    Image(systemName: "hand.raised")
+                        .foregroundStyle(Color.accentColor)
+                    Text("Privacy Policy")
+                }
             }
-            .onTapGesture { openURL(AppConstants.privacyURL) }
+            .buttonStyle(.plain)
+            .accessibilityHint("Opens Privacy Policy in your browser")
 
             NavigationLink {
                 FeedbackView()
@@ -341,8 +356,10 @@ struct SettingsView: View {
                 // Warning header
                 VStack(spacing: 12) {
                     Image(systemName: "exclamationmark.triangle.fill")
-                        .font(.system(size: 40))
+                        .font(.largeTitle)
+                        .imageScale(.large)
                         .foregroundStyle(.red)
+                        .accessibilityHidden(true)
 
                     Text("Delete Account")
                         .font(.title2.weight(.bold))

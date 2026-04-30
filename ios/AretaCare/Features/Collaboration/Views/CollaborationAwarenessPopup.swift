@@ -7,8 +7,10 @@ struct CollaborationAwarenessPopup: View {
     var body: some View {
         VStack(spacing: 20) {
             Image(systemName: "person.2.circle.fill")
-                .font(.system(size: 48))
+                .font(.largeTitle)
+                .imageScale(.large)
                 .foregroundStyle(Color.accentColor)
+                .accessibilityHidden(true)
 
             Text("Shared Care Session")
                 .font(.title3.weight(.bold))

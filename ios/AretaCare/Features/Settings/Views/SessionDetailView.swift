@@ -23,35 +23,40 @@ struct SessionDetailView: View {
             Form {
                 // Session info
                 Section {
-                    HStack {
-                        Label("Name", systemImage: "textformat")
-                        Spacer()
-                        Text(session.name)
-                            .foregroundStyle(.secondary)
-                        Image(systemName: "chevron.right")
-                            .font(.caption)
-                            .foregroundStyle(.tertiary)
-                    }
-                    .contentShape(Rectangle())
-                    .onTapGesture {
+                    Button {
                         renameText = session.name
                         showRenameAlert = true
+                    } label: {
+                        HStack {
+                            Label("Name", systemImage: "textformat")
+                            Spacer()
+                            Text(session.name)
+                                .foregroundStyle(.secondary)
+                            Image(systemName: "chevron.right")
+                                .font(.caption)
+                                .foregroundStyle(.tertiary)
+                                .accessibilityHidden(true)
+                        }
                     }
+                    .buttonStyle(.plain)
+                    .accessibilityHint("Rename this care session")
 
-                    HStack {
-                        Label("Color", systemImage: "paintpalette")
-                        Spacer()
-                        Circle()
-                            .fill(swatchColor(for: session))
-                            .frame(width: 20, height: 20)
-                        Image(systemName: "chevron.right")
-                            .font(.caption)
-                            .foregroundStyle(.tertiary)
+                    Button { showColorPicker = true } label: {
+                        HStack {
+                            Label("Color", systemImage: "paintpalette")
+                            Spacer()
+                            Circle()
+                                .fill(swatchColor(for: session))
+                                .frame(width: 20, height: 20)
+                                .accessibilityHidden(true)
+                            Image(systemName: "chevron.right")
+                                .font(.caption)
+                                .foregroundStyle(.tertiary)
+                                .accessibilityHidden(true)
+                        }
                     }
-                    .contentShape(Rectangle())
-                    .onTapGesture {
-                        showColorPicker = true
-                    }
+                    .buttonStyle(.plain)
+                    .accessibilityHint("Change the color for this care session")
 
                     HStack {
                         Label("Created", systemImage: "calendar")

@@ -3,27 +3,31 @@ import SwiftUI
 // MARK: - Shimmer Modifier
 
 struct ShimmerModifier: ViewModifier {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var phase: CGFloat = 0
 
     func body(content: Content) -> some View {
         content
             .overlay {
-                GeometryReader { geometry in
-                    LinearGradient(
-                        colors: [
-                            .clear,
-                            .white.opacity(0.4),
-                            .clear
-                        ],
-                        startPoint: .leading,
-                        endPoint: .trailing
-                    )
-                    .frame(width: geometry.size.width * 0.6)
-                    .offset(x: phase * geometry.size.width * 1.6 - geometry.size.width * 0.3)
+                if !reduceMotion {
+                    GeometryReader { geometry in
+                        LinearGradient(
+                            colors: [
+                                .clear,
+                                .white.opacity(0.4),
+                                .clear
+                            ],
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
+                        .frame(width: geometry.size.width * 0.6)
+                        .offset(x: phase * geometry.size.width * 1.6 - geometry.size.width * 0.3)
+                    }
+                    .clipped()
                 }
-                .clipped()
             }
             .onAppear {
+                guard !reduceMotion else { return }
                 withAnimation(
                     .linear(duration: 1.5)
                     .repeatForever(autoreverses: false)
@@ -31,6 +35,8 @@ struct ShimmerModifier: ViewModifier {
                     phase = 1
                 }
             }
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel("Loading")
     }
 }
 

@@ -63,7 +63,7 @@ struct AudioPlayerView: View {
                         } label: {
                             Image(systemName: isPlaying ? "pause.circle.fill" : "play.circle.fill")
                                 .contentTransition(.symbolEffect(.replace))
-                                .font(.system(size: 44))
+                                .font(.largeTitle)
                                 .foregroundStyle(Color.accentColor)
                         }
                         .accessibilityLabel(isPlaying ? "Pause" : "Play")
