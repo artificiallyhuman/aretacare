@@ -46,6 +46,10 @@ AretaCare was built from this experience—sitting beside a loved one, trying to
 
 **Controlled Access** — New signups require an invitation from an administrator, keeping the platform secure and manageable.
 
+### Accessibility
+
+AretaCare is built to work for everyone. Full **VoiceOver**, **Voice Control**, and **Switch Control** support across both web and iOS. **Dynamic Type** scales body content (messages, journal entries, profile cards) through all 12 sizes; navigation chrome adapts gracefully at the largest sizes. **Reduce Motion** is respected by loading skeletons, typing indicators, and banner transitions. Disabled controls meet **WCAG AA contrast**.
+
 ---
 
 ## Safety Boundaries
