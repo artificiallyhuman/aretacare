@@ -434,12 +434,14 @@ private struct AudioRecordingRowView: View {
                         Text(formatDuration(duration))
                             .font(.caption2)
                             .foregroundStyle(.tertiary)
+                            .lineLimit(1)
                     }
 
                     if let category = recording.category,
                        let cat = AudioCategory(rawValue: category) {
                         Text(cat.displayName)
                             .font(.caption2)
+                            .lineLimit(1)
                             .padding(.horizontal, 6)
                             .padding(.vertical, 2)
                             .background(Color.accentColor.opacity(0.1))
@@ -450,10 +452,12 @@ private struct AudioRecordingRowView: View {
                     Text(recording.createdAt.shortDateString)
                         .font(.caption2)
                         .foregroundStyle(.tertiary)
+                        .lineLimit(1)
                 }
+                .dynamicTypeSize(...DynamicTypeSize.accessibility1)
             }
 
-            Spacer()
+            Spacer(minLength: 4)
 
             if let sourceTag = recording.lastEditedBy ?? recording.createdBy {
                 SourceTagView(sourceTag: sourceTag, currentUserId: currentUserId)
@@ -470,6 +474,7 @@ private struct AudioRecordingRowView: View {
                     .frame(width: 28, height: 28)
                     .contentShape(Rectangle())
             }
+            .dynamicTypeSize(...DynamicTypeSize.accessibility1)
         }
         .padding(.vertical, 4)
     }

@@ -602,6 +602,7 @@ private struct DocumentRowView: View {
                        let cat = DocumentCategory(rawValue: category) {
                         Text(cat.displayName)
                             .font(.caption2)
+                            .lineLimit(1)
                             .padding(.horizontal, 6)
                             .padding(.vertical, 2)
                             .background(Color.accentColor.opacity(0.1))
@@ -612,10 +613,12 @@ private struct DocumentRowView: View {
                     Text(document.uploadedAt.shortDateString)
                         .font(.caption2)
                         .foregroundStyle(.tertiary)
+                        .lineLimit(1)
                 }
+                .dynamicTypeSize(...DynamicTypeSize.accessibility1)
             }
 
-            Spacer()
+            Spacer(minLength: 4)
 
             if let sourceTag = document.lastEditedBy ?? document.uploadedBy {
                 SourceTagView(sourceTag: sourceTag, currentUserId: currentUserId)
@@ -639,6 +642,7 @@ private struct DocumentRowView: View {
                     .frame(width: 28, height: 28)
                     .contentShape(Rectangle())
             }
+            .dynamicTypeSize(...DynamicTypeSize.accessibility1)
         }
         .padding(.vertical, 4)
     }

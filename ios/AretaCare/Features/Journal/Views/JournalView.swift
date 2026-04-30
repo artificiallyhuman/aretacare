@@ -353,19 +353,25 @@ struct JournalView: View {
         HStack {
             if let date = Date.fromAPIDateString(dateString) {
                 Text(date.mediumDateString)
-                    .font(.headline)
+                    .font(.subheadline.weight(.semibold))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
             } else {
                 Text(dateString)
-                    .font(.headline)
+                    .font(.subheadline.weight(.semibold))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
             }
-            Spacer()
+            Spacer(minLength: 8)
             Text("\(count) \(count == 1 ? "entry" : "entries")")
                 .font(.caption)
                 .foregroundStyle(.secondary)
+                .lineLimit(1)
         }
         .padding(.horizontal)
         .padding(.vertical, 10)
         .background(.bar)
+        .dynamicTypeSize(...DynamicTypeSize.accessibility2)
     }
 }
 
@@ -449,71 +455,18 @@ private struct JournalEntryRow: View {
                     .font(.body.weight(.medium))
                     .foregroundStyle(.primary)
                     .multilineTextAlignment(.leading)
-                    .lineLimit(2)
+                    .lineLimit(3)
 
-                // Content preview (markdown, height-constrained)
-                MarkdownTextView(content: entry.content)
+                // Content preview (plain text, line-limited so it scales cleanly with Dynamic Type)
+                Text(entry.content.plainTextPreview())
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
-                    .frame(maxHeight: 44, alignment: .top)
-                    .clipped()
+                    .lineLimit(3)
+                    .multilineTextAlignment(.leading)
 
-                // Metadata row
-                HStack(spacing: 8) {
-                    // Entry type pill
-                    HStack(spacing: 4) {
-                        Image(systemName: entry.entryType.systemImage)
-                            .font(.caption2)
-                        Text(entry.entryType.displayName)
-                            .font(.caption2.weight(.medium))
-                    }
-                    .foregroundStyle(entry.entryType.themeColor)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .background(
-                        Capsule().fill(entry.entryType.themeColor.opacity(0.1))
-                    )
-
-                    // AI badge
-                    if let sourceIds = entry.sourceMessageIds, !sourceIds.isEmpty {
-                        Text("AI")
-                            .font(.caption2.weight(.bold))
-                            .foregroundStyle(.white)
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 3)
-                            .background(Capsule().fill(.purple))
-                            .accessibilityLabel("AI generated")
-                    }
-
-                    // Source tag
-                    if let sourceTag = entry.lastEditedBy ?? entry.createdByInfo {
-                        SourceTagView(sourceTag: sourceTag, currentUserId: currentUserId)
-                    }
-
-                    Spacer()
-
-                    // Action buttons
-                    HStack(spacing: 12) {
-                        Button { onCopy?() } label: {
-                            Image(systemName: "doc.on.doc")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                        .accessibilityLabel("Copy content")
-
-                        Button { onDelete?() } label: {
-                            Image(systemName: "trash")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                        .accessibilityLabel("Delete entry")
-                    }
-
-                    // Timestamp
-                    Text(entry.createdAt.timeString)
-                        .font(.caption2)
-                        .foregroundStyle(.tertiary)
-                }
+                // Metadata row — capped to keep buttons reachable at any text size
+                metadataRow
+                    .dynamicTypeSize(...DynamicTypeSize.accessibility1)
             }
             .padding(14)
         }
@@ -524,6 +477,91 @@ private struct JournalEntryRow: View {
         .padding(.horizontal)
         .padding(.vertical, 4)
         .contentShape(Rectangle())
+    }
+
+    private var metadataRow: some View {
+        HStack(spacing: 8) {
+            // Entry type pill
+            HStack(spacing: 4) {
+                Image(systemName: entry.entryType.systemImage)
+                    .font(.caption2)
+                Text(entry.entryType.displayName)
+                    .font(.caption2.weight(.medium))
+                    .lineLimit(1)
+            }
+            .foregroundStyle(entry.entryType.themeColor)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
+            .background(Capsule().fill(entry.entryType.themeColor.opacity(0.1)))
+
+            // AI badge
+            if let sourceIds = entry.sourceMessageIds, !sourceIds.isEmpty {
+                Text("AI")
+                    .font(.caption2.weight(.bold))
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 3)
+                    .background(Capsule().fill(.purple))
+                    .accessibilityLabel("AI generated")
+            }
+
+            // Source tag
+            if let sourceTag = entry.lastEditedBy ?? entry.createdByInfo {
+                SourceTagView(sourceTag: sourceTag, currentUserId: currentUserId)
+            }
+
+            Spacer(minLength: 4)
+
+            // Action buttons
+            Button { onCopy?() } label: {
+                Image(systemName: "doc.on.doc")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .frame(width: 28, height: 28)
+                    .contentShape(Rectangle())
+            }
+            .accessibilityLabel("Copy content")
+
+            Button { onDelete?() } label: {
+                Image(systemName: "trash")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .frame(width: 28, height: 28)
+                    .contentShape(Rectangle())
+            }
+            .accessibilityLabel("Delete entry")
+
+            // Timestamp
+            Text(entry.createdAt.timeString)
+                .font(.caption2)
+                .foregroundStyle(.tertiary)
+                .lineLimit(1)
+                .layoutPriority(-1)
+        }
+    }
+}
+
+private extension String {
+    /// Returns a plain-text preview of markdown content suitable for list rows:
+    /// strips headings, list markers, code fences, links, and emphasis markers.
+    func plainTextPreview(maxLength: Int = 240) -> String {
+        var text = self
+        // Drop fenced code blocks
+        text = text.replacingOccurrences(of: #"```[\s\S]*?```"#, with: " ", options: .regularExpression)
+        // Drop heading hashes / blockquote markers / list markers at line starts
+        text = text.replacingOccurrences(of: #"(?m)^\s*(#{1,6}\s+|>\s+|[-*+]\s+|\d+\.\s+)"#, with: "", options: .regularExpression)
+        // Replace markdown links [label](url) with their label
+        text = text.replacingOccurrences(of: #"\[([^\]]+)\]\([^\)]+\)"#, with: "$1", options: .regularExpression)
+        // Strip inline code, bold, italic markers
+        text = text.replacingOccurrences(of: #"[`*_~]"#, with: "", options: .regularExpression)
+        // Collapse whitespace
+        text = text.replacingOccurrences(of: #"\s+"#, with: " ", options: .regularExpression)
+        text = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        if text.count > maxLength {
+            let endIndex = text.index(text.startIndex, offsetBy: maxLength)
+            text = String(text[..<endIndex]) + "…"
+        }
+        return text
     }
 }
 
