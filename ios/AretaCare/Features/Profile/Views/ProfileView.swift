@@ -36,6 +36,7 @@ struct ProfileView: View {
                             .foregroundStyle(.secondary)
                     }
                 }
+                .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
             }
         }
         .toolbar {

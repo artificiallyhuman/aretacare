@@ -65,6 +65,7 @@ struct JournalView: View {
             }
         }
         .navigationBarTitleDisplayMode(.inline)
+        .dynamicTypeSize(...DynamicTypeSize.accessibility2)
         .searchable(text: $searchText, prompt: "Search journal entries...")
         .toolbar {
             ToolbarItem(placement: .principal) {
@@ -77,6 +78,7 @@ struct JournalView: View {
                             .foregroundStyle(.secondary)
                     }
                 }
+                .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
             }
             ToolbarItem(placement: .topBarLeading) {
                 if sizeClass != .regular, !viewModel.allDates.isEmpty {

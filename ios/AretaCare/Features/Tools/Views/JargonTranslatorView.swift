@@ -154,6 +154,7 @@ struct JargonTranslatorView: View {
                             .foregroundStyle(.secondary)
                     }
                 }
+                .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
             }
         }
     }

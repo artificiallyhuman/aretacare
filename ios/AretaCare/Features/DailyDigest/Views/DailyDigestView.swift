@@ -78,6 +78,7 @@ struct DailyDigestView: View {
                             .foregroundStyle(.secondary)
                     }
                 }
+                .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
             }
             ToolbarItem(placement: .topBarLeading) {
                 if sizeClass != .regular, !viewModel.allDigests.isEmpty {

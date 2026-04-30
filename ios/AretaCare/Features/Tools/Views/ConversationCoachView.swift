@@ -237,6 +237,7 @@ struct ConversationCoachView: View {
                             .foregroundStyle(.secondary)
                     }
                 }
+                .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
             }
         }
     }

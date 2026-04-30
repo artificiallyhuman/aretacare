@@ -72,6 +72,7 @@ struct ToolsMenuView: View {
                             .foregroundStyle(.secondary)
                     }
                 }
+                .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
             }
         }
     }

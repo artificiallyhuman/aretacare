@@ -104,6 +104,7 @@ struct DocumentsListView: View {
             }
         }
         .navigationBarTitleDisplayMode(.inline)
+        .dynamicTypeSize(...DynamicTypeSize.accessibility2)
         .searchable(text: $searchText, prompt: "Search documents...")
         .toolbar {
             ToolbarItem(placement: .principal) {
@@ -116,6 +117,7 @@ struct DocumentsListView: View {
                             .foregroundStyle(.secondary)
                     }
                 }
+                .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
             }
             ToolbarItem(placement: .topBarLeading) {
                 if sizeClass != .regular, !viewModel.allDates.isEmpty {

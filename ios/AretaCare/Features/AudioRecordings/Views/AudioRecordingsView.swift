@@ -80,6 +80,7 @@ struct AudioRecordingsView: View {
             }
         }
         .navigationBarTitleDisplayMode(.inline)
+        .dynamicTypeSize(...DynamicTypeSize.accessibility2)
         .searchable(text: $searchText, prompt: "Search recordings...")
         .toolbar {
             ToolbarItem(placement: .principal) {
@@ -92,6 +93,7 @@ struct AudioRecordingsView: View {
                             .foregroundStyle(.secondary)
                     }
                 }
+                .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
             }
             ToolbarItem(placement: .topBarLeading) {
                 if sizeClass != .regular, !viewModel.allDates.isEmpty {
