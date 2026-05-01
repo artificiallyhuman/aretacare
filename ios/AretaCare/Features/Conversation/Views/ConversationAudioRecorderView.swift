@@ -50,23 +50,6 @@ struct ConversationAudioRecorderView: View {
 
                 Spacer()
 
-                if recorder.isRecording || recorder.isPaused {
-                    // Pause / Resume
-                    Button {
-                        if recorder.isPaused {
-                            recorder.resume()
-                        } else {
-                            recorder.pause()
-                        }
-                    } label: {
-                        Image(systemName: recorder.isPaused ? "play.circle.fill" : "pause.circle.fill")
-                            .contentTransition(.symbolEffect(.replace))
-                            .font(.title2)
-                            .foregroundStyle(Color.accentColor)
-                    }
-                    .accessibilityLabel(recorder.isPaused ? "Resume recording" : "Pause recording")
-                }
-
                 // Stop and send
                 Button {
                     stopAndSend()
