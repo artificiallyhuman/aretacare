@@ -129,7 +129,7 @@ async def send_message(
             if doc:
                 extracted_text = doc.extracted_text
                 doc_content_type = doc.content_type
-                # Generate presigned URL for documents and images (for native GPT-5.2 file support)
+                # Generate presigned URL for documents and images (for native GPT-5.5 file support)
                 generated_media_url = s3_service.generate_presigned_url(doc.s3_key)  # 15 minutes (default)
 
         # Create user message

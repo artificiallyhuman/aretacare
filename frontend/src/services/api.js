@@ -498,7 +498,7 @@ export const adminAPI = {
   backfillEmbeddings: (batchSize = 200) =>
     api.post('/admin/embeddings/backfill', null, { params: { batch_size: batchSize } }),
 
-  // API logs (GPT-5.2 request monitoring)
+  // API logs (GPT-5.5 request monitoring)
   getApiLogs: (params = {}) => api.get('/admin/api-logs', { params }),
 
   // Token management

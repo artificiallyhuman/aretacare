@@ -1021,7 +1021,7 @@ async def cleanup_error_logs(
 
 
 # ==========================================
-# API Logs (GPT-5.2 Request Monitoring)
+# API Logs (GPT-5.5 Request Monitoring)
 # ==========================================
 
 @router.get("/api-logs", response_model=ApiLogResponse)
@@ -1033,7 +1033,7 @@ async def get_api_logs(
     admin: User = Depends(get_admin_user)
 ):
     """
-    Get GPT-5.2 API request logs from the specified time range.
+    Get GPT-5.5 API request logs from the specified time range.
 
     Returns summary metrics and individual log entries in reverse chronological order.
     No sensitive user data is disclosed - only user IDs for reference.

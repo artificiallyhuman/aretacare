@@ -132,7 +132,7 @@ class DailyPlanService:
                     detail="Insufficient data to generate daily plan. Please add journal entries or have conversations first."
                 )
 
-            # 5. Generate plan using GPT-5.2
+            # 5. Generate plan using GPT-5.5
             logger.info(f"Generating plan content via OpenAI")
             plan_content = await DailyPlanService._generate_plan_content(context, user_id=user_id)
             logger.info(f"Plan content generated successfully, length: {len(plan_content)}")
@@ -294,7 +294,7 @@ class DailyPlanService:
     @staticmethod
     async def _generate_plan_content(context: Dict, user_id: str = None) -> str:
         """
-        Use GPT-5.2 to generate the daily plan content.
+        Use GPT-5.5 to generate the daily plan content.
 
         Args:
             context: Dictionary containing all gathered context

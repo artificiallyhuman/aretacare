@@ -10,7 +10,7 @@ Modify this file to change AI behavior, models, or prompt wording.
 # ============================================================================
 
 # Main conversational AI model
-CHAT_MODEL = "gpt-5.2"
+CHAT_MODEL = "gpt-5.5"
 
 # Audio transcription model
 TRANSCRIPTION_MODEL = "gpt-4o-transcribe"
