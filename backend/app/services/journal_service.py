@@ -897,6 +897,17 @@ IMPORTANT: Respond with ONLY a valid JSON object in this exact format, with no a
             context = "# Health Profile (Long-Term Memory)\n\n"
             context += "_This is the HEALTH PROFILE - long-term, structured information about the patient, caregivers, providers, and care details. This complements the journal's day-to-day updates._\n\n"
 
+            last_refreshed = max(
+                (ts for ts in (profile.last_ai_update, profile.last_user_update, profile.created_at) if ts is not None),
+                default=None,
+            )
+            if last_refreshed is not None:
+                context += (
+                    f"_Last refreshed: {last_refreshed.strftime('%Y-%m-%d')}. "
+                    "Any changes the user mentions in this conversation that are newer than this date are NOT yet reflected below — "
+                    "they remain pending until the user clicks \"Update\" on the Health Profile page and reviews the suggested edits._\n\n"
+                )
+
             total_tokens = self._estimate_tokens(context)
 
             # Helper to add section if under token limit
