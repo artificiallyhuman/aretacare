@@ -408,3 +408,58 @@ func profileEventTypeColor(_ type: String?) -> Color {
     default: return .blue
     }
 }
+
+// MARK: - Contact info parser (legacy contact_info string → structured fields)
+
+struct ParsedContact {
+    var phone: String?
+    var email: String?
+    var address: String?
+}
+
+func parseContactInfo(_ raw: String?) -> ParsedContact {
+    var result = ParsedContact()
+    guard let raw = raw, !raw.isEmpty else { return result }
+
+    let labelRE = try? NSRegularExpression(pattern: #"^(phone|tel|telephone|email|e-mail|address|addr)\s*:\s*"#, options: .caseInsensitive)
+    let phoneRE = try? NSRegularExpression(pattern: #"\+?\d[\d\s().\-]{6,}\d"#)
+    let emailRE = try? NSRegularExpression(pattern: #"[^\s,;|]+@[^\s,;|]+\.[^\s,;|]+"#)
+
+    func stripLabel(_ s: String) -> String {
+        guard let labelRE = labelRE else { return s }
+        let range = NSRange(s.startIndex..., in: s)
+        return labelRE.stringByReplacingMatches(in: s, range: range, withTemplate: "")
+            .trimmingCharacters(in: .whitespaces)
+    }
+    func firstMatch(_ re: NSRegularExpression?, in s: String) -> String? {
+        guard let re = re else { return nil }
+        let range = NSRange(s.startIndex..., in: s)
+        guard let m = re.firstMatch(in: s, range: range), let r = Range(m.range, in: s) else { return nil }
+        return String(s[r])
+    }
+
+    let pieces = raw.split(whereSeparator: { "\n;|".contains($0) })
+        .map { $0.trimmingCharacters(in: .whitespaces) }
+        .filter { !$0.isEmpty }
+
+    if pieces.count > 1 {
+        for piece in pieces {
+            let cleaned = stripLabel(piece)
+            if cleaned.isEmpty { continue }
+            if result.email == nil, let m = firstMatch(emailRE, in: cleaned) { result.email = m; continue }
+            if result.phone == nil, let m = firstMatch(phoneRE, in: cleaned), m.filter(\.isNumber).count >= 7 { result.phone = m.trimmingCharacters(in: .whitespaces); continue }
+            if result.address == nil { result.address = cleaned }
+        }
+        return result
+    }
+
+    if let m = firstMatch(emailRE, in: raw) { result.email = m }
+    var remaining = result.email.map { raw.replacingOccurrences(of: $0, with: "") } ?? raw
+    if let m = firstMatch(phoneRE, in: remaining), m.filter(\.isNumber).count >= 7 {
+        result.phone = m.trimmingCharacters(in: .whitespaces)
+        remaining = remaining.replacingOccurrences(of: m, with: "")
+    }
+    remaining = stripLabel(remaining).replacingOccurrences(of: ",", with: " ").trimmingCharacters(in: .whitespaces)
+    if !remaining.isEmpty { result.address = remaining }
+    return result
+}

@@ -25,6 +25,9 @@ struct ProviderInfo: Codable, Identifiable {
     var name: String?
     var specialty: String?
     var organization: String?
+    var phone: String?
+    var email: String?
+    var address: String?
     var contactInfo: String?
 }
 

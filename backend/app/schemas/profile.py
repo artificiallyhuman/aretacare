@@ -37,7 +37,10 @@ class ProviderInfo(BaseModel):
     name: Optional[str] = None
     specialty: Optional[str] = None
     organization: Optional[str] = None
-    contact_info: Optional[str] = None
+    phone: Optional[str] = None
+    email: Optional[str] = None
+    address: Optional[str] = None
+    contact_info: Optional[str] = None  # Legacy free-form field; new entries should prefer phone/email/address
 
     class Config:
         extra = "allow"

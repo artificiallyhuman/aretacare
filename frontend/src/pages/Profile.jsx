@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { useSessionContext } from '../contexts/SessionContext';
 import { profileAPI } from '../services/api';
 import { markdownToHtml } from '../utils/markdownUtils';
+import { parseContactInfo } from '../utils/parseContactInfo';
 
 // Editable field component - defined outside to prevent re-creation on each render
 const EditableField = ({ label, value, path, multiline = false, editedData, setEditedData }) => {
@@ -1364,44 +1365,80 @@ const Profile = () => {
                             <InlineField label="Name" value={p.name} onChange={(v) => updateListItem('providers', index, 'name', v)} />
                             <InlineField label="Specialty" value={p.specialty} onChange={(v) => updateListItem('providers', index, 'specialty', v)} />
                             <InlineField label="Organization" value={p.organization} onChange={(v) => updateListItem('providers', index, 'organization', v)} />
-                            <InlineField label="Contact Info" value={p.contact_info} onChange={(v) => updateListItem('providers', index, 'contact_info', v)} />
+                            <InlineField label="Phone" value={p.phone} onChange={(v) => updateListItem('providers', index, 'phone', v)} />
+                            <InlineField label="Email" value={p.email} onChange={(v) => updateListItem('providers', index, 'email', v)} />
+                            <InlineField label="Address" value={p.address} onChange={(v) => updateListItem('providers', index, 'address', v)} />
+                            <InlineField label="Other contact details" value={p.contact_info} onChange={(v) => updateListItem('providers', index, 'contact_info', v)} />
                           </div>
                         </div>
                       ))}
                     </div>
-                    <AddItemButton onClick={() => addListItem('providers', { name: '', specialty: '', organization: '', contact_info: '' })} label="Add provider" />
+                    <AddItemButton onClick={() => addListItem('providers', { name: '', specialty: '', organization: '', phone: '', email: '', address: '', contact_info: '' })} label="Add provider" />
                   </>
                 ) : profileData?.providers?.length > 0 ? (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {profileData.providers.map((p, index) => (
-                      <div
-                        key={p.id || index}
-                        className="p-4 rounded-lg shadow-sm transition-all hover:shadow-md border-l-4 border-teal-500 bg-gradient-to-r from-teal-50 to-cyan-50 dark:from-teal-900/20 dark:to-cyan-900/20"
-                      >
-                        <div className="flex items-start justify-between mb-2">
-                          <div className="flex-1">
-                            <h4 className="font-bold text-gray-900 dark:text-white text-base mb-1">
-                              {p.name || 'Unknown'}
-                            </h4>
-                            {p.specialty && (
-                              <span className="inline-block px-2 py-0.5 text-xs font-semibold rounded-full bg-teal-100 dark:bg-teal-900/50 text-teal-700 dark:text-teal-300">
-                                {p.specialty}
-                              </span>
-                            )}
+                    {profileData.providers.map((p, index) => {
+                      const hasStructured = !!(p.phone || p.email || p.address);
+                      const parsed = hasStructured ? null : parseContactInfo(p.contact_info);
+                      const phone = p.phone || parsed?.phone;
+                      const email = p.email || parsed?.email;
+                      const address = p.address || parsed?.address;
+                      const telHref = phone ? `tel:${phone.replace(/[^\d+]/g, '')}` : null;
+                      return (
+                        <div
+                          key={p.id || index}
+                          className="p-4 rounded-lg shadow-sm transition-all hover:shadow-md border-l-4 border-teal-500 bg-gradient-to-r from-teal-50 to-cyan-50 dark:from-teal-900/20 dark:to-cyan-900/20"
+                        >
+                          <div className="flex items-start justify-between mb-2">
+                            <div className="flex-1">
+                              <h4 className="font-bold text-gray-900 dark:text-white text-base mb-1">
+                                {p.name || 'Unknown'}
+                              </h4>
+                              {p.specialty && (
+                                <span className="inline-block px-2 py-0.5 text-xs font-semibold rounded-full bg-teal-100 dark:bg-teal-900/50 text-teal-700 dark:text-teal-300">
+                                  {p.specialty}
+                                </span>
+                              )}
+                            </div>
                           </div>
+                          {p.organization && (
+                            <p className="text-sm text-gray-700 dark:text-gray-300 mt-2 font-medium">
+                              🏥 {p.organization}
+                            </p>
+                          )}
+                          {phone && (
+                            <p className="text-sm text-gray-700 dark:text-gray-300 mt-2 flex items-center gap-2">
+                              <svg className="w-4 h-4 text-teal-600 dark:text-teal-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                              </svg>
+                              <a href={telHref} className="hover:underline">{phone}</a>
+                            </p>
+                          )}
+                          {email && (
+                            <p className="text-sm text-gray-700 dark:text-gray-300 mt-1 flex items-center gap-2">
+                              <svg className="w-4 h-4 text-teal-600 dark:text-teal-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                              </svg>
+                              <a href={`mailto:${email}`} className="hover:underline break-all">{email}</a>
+                            </p>
+                          )}
+                          {address && (
+                            <p className="text-sm text-gray-700 dark:text-gray-300 mt-1 flex items-start gap-2">
+                              <svg className="w-4 h-4 text-teal-600 dark:text-teal-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                              </svg>
+                              <span>{address}</span>
+                            </p>
+                          )}
+                          {hasStructured && p.contact_info && (
+                            <p className="text-xs text-gray-600 dark:text-gray-400 mt-2">
+                              {p.contact_info}
+                            </p>
+                          )}
                         </div>
-                        {p.organization && (
-                          <p className="text-sm text-gray-700 dark:text-gray-300 mt-2 font-medium">
-                            🏥 {p.organization}
-                          </p>
-                        )}
-                        {p.contact_info && (
-                          <p className="text-xs text-gray-600 dark:text-gray-400 mt-2">
-                            {p.contact_info}
-                          </p>
-                        )}
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 ) : (
                   <p className="text-gray-500 dark:text-gray-400 italic">No providers added yet</p>

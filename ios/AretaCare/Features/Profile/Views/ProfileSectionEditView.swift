@@ -179,7 +179,10 @@ struct ProfileSectionEditView: View {
                 ProfileEditRow("Name", text: Binding(get: { provider.name ?? "" }, set: { provider.name = $0.isEmpty ? nil : $0 }))
                 ProfileEditRow("Specialty", text: Binding(get: { provider.specialty ?? "" }, set: { provider.specialty = $0.isEmpty ? nil : $0 }))
                 ProfileEditRow("Organization", text: Binding(get: { provider.organization ?? "" }, set: { provider.organization = $0.isEmpty ? nil : $0 }))
-                ProfileEditRow("Contact Info", text: Binding(get: { provider.contactInfo ?? "" }, set: { provider.contactInfo = $0.isEmpty ? nil : $0 }))
+                ProfileEditRow("Phone", text: Binding(get: { provider.phone ?? "" }, set: { provider.phone = $0.isEmpty ? nil : $0 }))
+                ProfileEditRow("Email", text: Binding(get: { provider.email ?? "" }, set: { provider.email = $0.isEmpty ? nil : $0 }))
+                ProfileEditRow("Address", text: Binding(get: { provider.address ?? "" }, set: { provider.address = $0.isEmpty ? nil : $0 }))
+                ProfileEditRow("Other contact details", text: Binding(get: { provider.contactInfo ?? "" }, set: { provider.contactInfo = $0.isEmpty ? nil : $0 }))
             } header: {
                 HStack {
                     Text(provider.name ?? "Provider")

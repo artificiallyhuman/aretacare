@@ -635,7 +635,7 @@ CRITICAL RULES:
 PROFILE SECTIONS:
 - patient: Full name, preferred name, date of birth, age, contact info, location
 - caregivers: Name, relationship to patient, role in caregiving, contact info, location (can be multiple)
-- providers: Name, specialty, organization, contact info (can be multiple)
+- providers: Name, specialty, organization, phone, email, address (can be multiple). Use the structured phone/email/address fields whenever you know the value; only use the legacy contact_info string for free-form notes that don't fit those three fields.
 - conditions: Clinical term, non-jargon description, status (active/resolved/monitoring), diagnosis date, important details
 - medications: Name, non-jargon description, dose, frequency, start date, prescriber, notes (side effects, adherence), status (active/paused/discontinued), category (REQUIRED - must be set based on medication's primary purpose)
 - allergies: Substance, reaction, severity (mild/moderate/severe)
@@ -740,7 +740,7 @@ RESPONSE FORMAT (JSON only):
       "section": "providers",
       "item_id": "pro_abc123",
       "old_value": {{"id": "pro_abc123", "name": "Dr. Kremen", "specialty": null}},
-      "new_value": {{"id": "pro_abc123", "name": "Thomas Kremen, MD", "specialty": "Orthopaedic Surgery", "organization": "UCLA Health", "contact_info": "(424) 259-9856"}},
+      "new_value": {{"id": "pro_abc123", "name": "Thomas Kremen, MD", "specialty": "Orthopaedic Surgery", "organization": "UCLA Health", "phone": "(424) 259-9856", "email": null, "address": null}},
       "reasoning": "Updated provider details from discharge instructions"
     }},
     {{
@@ -785,7 +785,7 @@ RESPONSE FORMAT (JSON only):
 FIELD NAMES - Use these exact field names for each section:
 - patient: full_name, preferred_name, date_of_birth, age, contact_info, location
 - caregivers: name, relationship, role, contact_info, location
-- providers: name, specialty, organization, contact_info
+- providers: name, specialty, organization, phone, email, address (prefer these structured fields; legacy contact_info is accepted but should only be used for free-form notes that don't fit phone/email/address)
 - conditions: clinical_term, description, status (active/resolved/monitoring), diagnosis_date, details
 - medications: name, description, dose, frequency, start_date, prescriber, notes, status (active/paused/discontinued), category
 - allergies: substance, reaction, severity (mild/moderate/severe)
@@ -838,7 +838,9 @@ RESPONSE FORMAT (JSON only, no other text):
       "name": "string",
       "specialty": "string or null",
       "organization": "string or null",
-      "contact_info": "string or null"
+      "phone": "string or null",
+      "email": "string or null",
+      "address": "string or null"
     }}
   ],
   "conditions": [

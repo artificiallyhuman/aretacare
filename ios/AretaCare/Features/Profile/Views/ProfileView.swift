@@ -271,25 +271,7 @@ struct ProfileView: View {
                             onEdit: { editingSection = .init("providers") }
                         ) {
                             ForEach(providers) { provider in
-                                AccentCard(color: .teal) {
-                                    Text(provider.name ?? "Unknown")
-                                        .font(.subheadline.weight(.semibold))
-                                    if let specialty = provider.specialty {
-                                        Text(specialty)
-                                            .font(.caption)
-                                            .foregroundStyle(.secondary)
-                                    }
-                                    if let org = provider.organization {
-                                        Text(org)
-                                            .font(.caption)
-                                            .foregroundStyle(.tertiary)
-                                    }
-                                    if let contact = provider.contactInfo {
-                                        Text(contact)
-                                            .font(.caption)
-                                            .foregroundStyle(.tertiary)
-                                    }
-                                }
+                                ProviderRowView(provider: provider)
                             }
                         }
                     }
@@ -952,6 +934,71 @@ struct ProfileView: View {
             } catch {
                 isExporting = false
                 viewModel.setError("Export failed: \(error.localizedDescription)")
+            }
+        }
+    }
+}
+
+// MARK: - Provider Row
+
+private struct ProviderRowView: View {
+    let provider: ProviderInfo
+
+    var body: some View {
+        let hasStructured = provider.phone != nil || provider.email != nil || provider.address != nil
+        let parsed = hasStructured ? ParsedContact() : parseContactInfo(provider.contactInfo)
+        let phone = provider.phone ?? parsed.phone
+        let email = provider.email ?? parsed.email
+        let address = provider.address ?? parsed.address
+
+        return AccentCard(color: .teal) {
+            Text(provider.name ?? "Unknown")
+                .font(.subheadline.weight(.semibold))
+            if let specialty = provider.specialty {
+                Text(specialty)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            if let org = provider.organization {
+                Text(org)
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
+            }
+            if let phone = phone {
+                if let url = URL(string: "tel:\(phone.filter { $0.isNumber || $0 == "+" })") {
+                    Link(destination: url) {
+                        Label(phone, systemImage: "phone.fill")
+                            .font(.caption)
+                            .foregroundStyle(.teal)
+                    }
+                } else {
+                    Label(phone, systemImage: "phone.fill")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            if let email = email {
+                if let url = URL(string: "mailto:\(email)") {
+                    Link(destination: url) {
+                        Label(email, systemImage: "envelope.fill")
+                            .font(.caption)
+                            .foregroundStyle(.teal)
+                    }
+                } else {
+                    Label(email, systemImage: "envelope.fill")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            if let address = address {
+                Label(address, systemImage: "mappin.and.ellipse")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            if hasStructured, let contact = provider.contactInfo, !contact.isEmpty {
+                Text(contact)
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
             }
         }
     }
