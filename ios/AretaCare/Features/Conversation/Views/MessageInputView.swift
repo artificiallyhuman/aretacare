@@ -70,6 +70,8 @@ struct MessageInputView: View {
                     Button("Choose Photo") { onChoosePhoto() }
                     Button("Choose File") { onChooseFile() }
                     Button("Cancel", role: .cancel) {}
+                } message: {
+                    Text("One file per message. To upload multiple, use Tools → Document Manager.")
                 }
 
                 // Text field

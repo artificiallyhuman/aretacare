@@ -76,7 +76,7 @@ struct ConversationOnboardingView: View {
                             VStack(alignment: .leading, spacing: 10) {
                                 infoRow(icon: "list.bullet", text: "Create and switch between care sessions using the chat menu")
                                 infoRow(icon: "doc.text.magnifyingglass", text: "AI generates your daily digest automatically")
-                                infoRow(icon: "wrench.and.screwdriver", text: "View care journal, documents, recordings, and health profile in Tools")
+                                infoRow(icon: "wrench.and.screwdriver", text: "View care journal, documents (upload multiple at once), recordings, and health profile in Tools")
                                 infoRow(icon: "person.2", text: "Manage collaborators using the people icon at the top right of chat")
                                 infoRow(icon: "gear", text: "Rename or delete care sessions in Settings")
                             }
