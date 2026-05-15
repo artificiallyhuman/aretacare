@@ -63,22 +63,23 @@ struct ConversationOnboardingView: View {
                                 Image(systemName: "info.circle")
                                     .foregroundStyle(Color.accentColor)
                                 Text("Good to know")
-                                    .font(.subheadline.weight(.medium))
+                                    .font(.subheadline.weight(.semibold))
                                     .foregroundStyle(.primary)
                                 Text("· \(showGoodToKnow ? "hide" : "show")")
                                     .font(.subheadline)
                                     .foregroundStyle(.secondary)
                             }
+                            .frame(maxWidth: .infinity)
                             .padding(.horizontal, 4)
                         }
 
                         if showGoodToKnow {
                             VStack(alignment: .leading, spacing: 10) {
-                                infoRow(icon: "list.bullet", text: "Create and switch between care sessions using the chat menu")
-                                infoRow(icon: "doc.text.magnifyingglass", text: "AI generates your daily digest automatically")
-                                infoRow(icon: "wrench.and.screwdriver", text: "View care journal, documents (upload multiple at once), recordings, and health profile in Tools")
-                                infoRow(icon: "person.2", text: "Manage collaborators using the people icon at the top right of chat")
-                                infoRow(icon: "gear", text: "Rename or delete care sessions in Settings")
+                                infoRow(icon: "person.2", text: "Bring others into a care session via the people icon at the top right of chat")
+                                infoRow(icon: "gearshape", text: "Rename, recolor, or delete care sessions in Settings → Your Care Sessions")
+                                infoRow(icon: "bolt.fill", text: "AI generates your Daily Digest and Care Journal automatically")
+                                infoRow(icon: "folder", text: "View files in Document Manager and Audio Recordings (upload multiple at once)")
+                                infoRow(icon: "book", text: "Learn more about AretaCare in Settings → Support → About AretaCare")
                             }
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .padding(.top, 10)
@@ -121,7 +122,7 @@ struct ConversationOnboardingView: View {
                 .frame(width: 20)
             Text(text)
                 .font(.footnote)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(.primary)
         }
     }
 }
