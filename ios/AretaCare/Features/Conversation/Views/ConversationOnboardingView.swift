@@ -116,11 +116,11 @@ struct ConversationOnboardingView: View {
     private func infoRow(icon: String, text: String) -> some View {
         HStack(alignment: .top, spacing: 10) {
             Image(systemName: icon)
-                .font(.caption)
+                .font(.footnote)
                 .foregroundStyle(Color.accentColor)
                 .frame(width: 20)
             Text(text)
-                .font(.caption)
+                .font(.footnote)
                 .foregroundStyle(.secondary)
         }
     }

@@ -763,10 +763,10 @@ const Conversation = () => {
             onScroll={handleScroll}
             role="region"
             aria-label="Conversation messages"
-            className={`flex-1 p-2 md:p-4 space-y-2 overscroll-contain ${messages.length === 0 && historyLoaded ? 'overflow-hidden' : 'overflow-y-auto'}`}
+            className="flex-1 p-2 md:p-4 space-y-2 overscroll-contain overflow-y-auto"
           >
             {messages.length === 0 && historyLoaded ? (
-              <div className="flex flex-col items-center justify-center h-full">
+              <div className="flex flex-col items-center justify-center min-h-full">
                 <div className="max-w-2xl mx-auto px-4 md:px-6">
                   {/* Important Banner */}
                   <div className="mb-4 bg-amber-50 dark:bg-amber-900/20 border-l-4 border-amber-500 dark:border-amber-600 p-3 rounded-r-lg">
@@ -813,7 +813,7 @@ const Conversation = () => {
                       </button>
 
                       {showHowItWorks && (
-                        <div className="mt-3 space-y-2 text-xs md:text-sm text-gray-700 dark:text-gray-300 animate-fadeIn">
+                        <div className="mt-3 space-y-2 text-sm md:text-base text-gray-700 dark:text-gray-300 animate-fadeIn">
                           {/* Bullet points */}
                           <div className="space-y-2 pl-3">
                             <p className="flex items-start">
