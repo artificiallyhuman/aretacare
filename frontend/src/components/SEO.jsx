@@ -1,4 +1,4 @@
-import { Helmet } from '@dr.pogodin/react-helmet';
+import { Helmet } from 'react-helmet-async';
 import PropTypes from 'prop-types';
 import {
   SITE_URL,
