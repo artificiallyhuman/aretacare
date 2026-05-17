@@ -1,10 +1,12 @@
-// Per-route SEO metadata. Single source of truth read by the prerender
-// postProcess hook in vite.config.js so the static HTML ships with correct
-// <title>, <meta>, canonical, OG/Twitter, and JSON-LD tags. The runtime
-// <SEO /> component (Helmet) still handles head updates for client-side
-// navigation after hydration — that part works fine in a real browser; it
-// only fails under Puppeteer's HTML capture because Helmet's DOM mutations
-// happen via requestAnimationFrame which doesn't flush deterministically.
+// Per-route SEO metadata. Single source of truth read by:
+//   1. The prerender postProcess hook in vite.config.js — injects the
+//      correct <title>, <meta>, canonical, OG/Twitter, JSON-LD into each
+//      prerendered HTML file at build time.
+//   2. The runtime <SEO /> component (src/components/SEO.jsx) — updates
+//      document.head via direct DOM mutation in a useEffect for client-side
+//      route changes after hydration.
+// Both consumers read the same map, so the static head and the runtime head
+// never drift.
 import {
   SITE_URL,
   SITE_NAME,

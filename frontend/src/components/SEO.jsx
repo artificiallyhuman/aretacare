@@ -1,11 +1,63 @@
-import { Helmet } from 'react-helmet-async';
+import { useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import PropTypes from 'prop-types';
 import { ROUTE_SEO, SEO_DEFAULTS } from '../constants/seoRoutes';
 
-// Reads per-route metadata from ROUTE_SEO based on the current pathname.
-// Same data is consumed by the prerender postProcess hook in vite.config.js,
-// so the static HTML and the client-side head stay in sync.
+// SEO contributes nothing to the React tree (returns null) so it can't cause
+// any hydration mismatch. Head updates happen post-mount via direct DOM
+// mutation. The initial render's head is already correct because the prerender
+// postProcess in vite.config.js injects the right tags at build time.
+
+function setMetaTag(selector, attrName, attrValue, content) {
+  let el = document.head.querySelector(selector);
+  if (!el) {
+    el = document.createElement('meta');
+    el.setAttribute(attrName, attrValue);
+    document.head.appendChild(el);
+  }
+  el.setAttribute('content', content);
+}
+
+function setCanonical(href) {
+  let el = document.head.querySelector('link[rel="canonical"]');
+  if (!el) {
+    el = document.createElement('link');
+    el.setAttribute('rel', 'canonical');
+    document.head.appendChild(el);
+  }
+  el.setAttribute('href', href);
+}
+
+function setRobotsNoindex(noindex) {
+  const existing = document.head.querySelector('meta[name="robots"]');
+  if (noindex) {
+    if (existing) {
+      existing.setAttribute('content', 'noindex, nofollow');
+    } else {
+      const el = document.createElement('meta');
+      el.setAttribute('name', 'robots');
+      el.setAttribute('content', 'noindex, nofollow');
+      document.head.appendChild(el);
+    }
+  } else if (existing) {
+    existing.remove();
+  }
+}
+
+function syncJsonLd(scripts) {
+  // Replace any existing JSON-LD blocks tagged as ours so we don't accumulate.
+  document.head
+    .querySelectorAll('script[type="application/ld+json"][data-seo="route"]')
+    .forEach((s) => s.remove());
+  for (const obj of scripts) {
+    const el = document.createElement('script');
+    el.type = 'application/ld+json';
+    el.setAttribute('data-seo', 'route');
+    el.text = JSON.stringify(obj);
+    document.head.appendChild(el);
+  }
+}
+
 function SEO({ title: titleOverride, description: descriptionOverride, noindex = false }) {
   const location = useLocation();
   const path = location.pathname;
@@ -20,33 +72,24 @@ function SEO({ title: titleOverride, description: descriptionOverride, noindex =
   const canonical = `${SEO_DEFAULTS.SITE_URL}${path}`;
   const ogImage = SEO_DEFAULTS.DEFAULT_OG_IMAGE;
   const jsonLd = route?.jsonLd || [];
+  const jsonLdKey = JSON.stringify(jsonLd);
 
-  return (
-    <Helmet>
-      <title>{title}</title>
-      <meta name="description" content={description} />
-      <link rel="canonical" href={canonical} />
-      {noindex && <meta name="robots" content="noindex, nofollow" />}
+  useEffect(() => {
+    document.title = title;
+    setMetaTag('meta[name="description"]', 'name', 'description', description);
+    setCanonical(canonical);
+    setRobotsNoindex(noindex);
+    setMetaTag('meta[property="og:title"]', 'property', 'og:title', title);
+    setMetaTag('meta[property="og:description"]', 'property', 'og:description', description);
+    setMetaTag('meta[property="og:url"]', 'property', 'og:url', canonical);
+    setMetaTag('meta[property="og:image"]', 'property', 'og:image', ogImage);
+    setMetaTag('meta[name="twitter:title"]', 'name', 'twitter:title', title);
+    setMetaTag('meta[name="twitter:description"]', 'name', 'twitter:description', description);
+    setMetaTag('meta[name="twitter:image"]', 'name', 'twitter:image', ogImage);
+    syncJsonLd(jsonLd);
+  }, [title, description, canonical, ogImage, noindex, jsonLdKey, jsonLd]);
 
-      <meta property="og:type" content="website" />
-      <meta property="og:site_name" content={SEO_DEFAULTS.SITE_NAME} />
-      <meta property="og:title" content={title} />
-      <meta property="og:description" content={description} />
-      <meta property="og:url" content={canonical} />
-      <meta property="og:image" content={ogImage} />
-
-      <meta name="twitter:card" content="summary_large_image" />
-      <meta name="twitter:title" content={title} />
-      <meta name="twitter:description" content={description} />
-      <meta name="twitter:image" content={ogImage} />
-
-      {jsonLd.map((schema, i) => (
-        <script key={i} type="application/ld+json">
-          {JSON.stringify(schema)}
-        </script>
-      ))}
-    </Helmet>
-  );
+  return null;
 }
 
 SEO.propTypes = {
