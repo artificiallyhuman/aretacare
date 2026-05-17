@@ -184,11 +184,11 @@ function Landing() {
                 AretaCare coaches you through complex medical information, helps you prepare for doctor visits, and keeps everything organized in one place.
               </p>
               <div className="mt-8 flex flex-wrap justify-center gap-3">
-                <Link to="/register" className={primaryBtn}>
-                  Create free account
-                </Link>
-                <Link to="/login" className={secondaryBtn}>
+                <Link to="/login" className={primaryBtn}>
                   Sign in
+                </Link>
+                <Link to="/register" className={secondaryBtn}>
+                  Create free account
                 </Link>
               </div>
               <p className="mt-6 text-sm text-gray-500 dark:text-gray-400">
