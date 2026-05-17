@@ -16,7 +16,7 @@ import {
 } from './seo';
 
 const DEFAULT_DESCRIPTION =
-  'AretaCare is an AI healthcare coach and organizer that helps patients and caregivers make sense of medical information, prepare for doctor visits, and keep care organized.';
+  'AretaCare is a healthcare coach and organizer that helps patients and caregivers make sense of medical information, prepare for doctor visits, and keep care organized.';
 
 // FAQs surfaced as structured data on /about. Kept in sync with the
 // FAQ_DATA array in pages/About.jsx — only the questions and plain-text
@@ -53,13 +53,13 @@ const ABOUT_FAQ_JSON_LD = {
 
 export const ROUTE_SEO = {
   '/': {
-    title: 'AI Healthcare Coach & Organizer for Patients & Families',
-    description: 'AretaCare is an AI healthcare coach and organizer that helps patients and caregivers make sense of medical information, prepare for doctor visits, and keep care organized across family members.',
+    title: 'Healthcare Coach & Organizer for Patients & Families',
+    description: 'AretaCare is a healthcare coach and organizer that helps patients and caregivers make sense of medical information, prepare for doctor visits, and keep care organized across family members.',
     jsonLd: [ORGANIZATION_JSON_LD, WEBSITE_JSON_LD],
   },
   '/about': {
-    title: 'About AretaCare — AI Healthcare Coach & Organizer',
-    description: 'AretaCare is an AI healthcare coach and organizer that helps patients and caregivers make sense of medical information, prepare for doctor visits, and keep care organized.',
+    title: 'About AretaCare — Healthcare Coach & Organizer',
+    description: 'AretaCare is a healthcare coach and organizer that helps patients and caregivers make sense of medical information, prepare for doctor visits, and keep care organized.',
     jsonLd: [ABOUT_FAQ_JSON_LD],
   },
   '/waitlist': {

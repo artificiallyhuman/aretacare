@@ -13,7 +13,7 @@ export const ORGANIZATION_JSON_LD = {
   url: SITE_URL,
   logo: ORG_LOGO,
   description:
-    'AretaCare is an AI healthcare coach and organizer that helps patients and caregivers make sense of medical information, prepare for doctor visits, and keep care organized.',
+    'AretaCare is a healthcare coach and organizer that helps patients and caregivers make sense of medical information, prepare for doctor visits, and keep care organized.',
   sameAs: ['https://github.com/artificiallyhuman/aretacare'],
 };
 

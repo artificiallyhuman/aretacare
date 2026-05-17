@@ -70,7 +70,7 @@ const CoachIcon = (
 const VALUE_PROPS = [
   {
     icon: TeamIcon,
-    title: 'Work together as a care team',
+    title: 'Work together in a care session',
     body: 'Invite up to nine family members or trusted caregivers into a care session. Everyone sees the same notes, files, and updates, and source tags show who added what so nothing falls through the cracks.',
   },
   {
@@ -85,7 +85,7 @@ const VALUE_PROPS = [
   },
   {
     icon: ClockIcon,
-    title: 'AI support around the clock',
+    title: 'Support around the clock',
     body: 'Ask AretaCare anything, any time. Get help understanding a confusing term at midnight, walking through a discharge summary on a Sunday, or making sense of what your doctor told you last week.',
   },
 ];
@@ -116,11 +116,11 @@ const TRUST_CARDS = [
 const FAQ_HIGHLIGHTS = [
   {
     q: 'Is AretaCare free?',
-    a: "The web app is completely free. The iOS app requires a subscription after a 7-day free trial to help cover the additional cost of building a native mobile experience.",
+    a: "The web app is completely free. The iOS app requires a subscription after a seven-day free trial to help cover the additional cost of building a native mobile experience.",
   },
   {
     q: 'Does AretaCare give medical advice?',
-    a: "No. AretaCare helps you understand information and stay organized, but it does not diagnose conditions, recommend treatments, or serve as medical advice.",
+    a: "No. AretaCare helps you understand information and stay organized, but it does not provide medical advice, diagnosis, or treatment.",
   },
   {
     q: 'Is my data secure?',
@@ -342,7 +342,7 @@ function Landing() {
               Ready to get organized?
             </h2>
             <p className="text-lg text-gray-600 dark:text-gray-300 mb-8 max-w-xl mx-auto">
-              Sign in to your account, or create one in a minute to start coaching and organizing your care.
+              Create a free account in a minute to start coaching and organizing your care — or sign in to your existing one.
             </p>
             <div className="flex flex-wrap justify-center gap-3">
               <Link to="/register" className={primaryBtn}>
