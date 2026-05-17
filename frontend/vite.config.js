@@ -18,8 +18,11 @@ const htmlEscape = (s) =>
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
 
+// data-seo="route" matches the selector in src/components/SEO.jsx so the runtime
+// useEffect can replace these on client-side navigation (and so we never end up
+// with both the prerendered script and a runtime-added duplicate on the same page).
 const jsonLdScript = (obj) =>
-  `<script type="application/ld+json">${JSON.stringify(obj).replace(/</g, '\\u003c')}</script>`
+  `<script type="application/ld+json" data-seo="route">${JSON.stringify(obj).replace(/</g, '\\u003c')}</script>`
 
 // Build the per-route head fragment that replaces the default head in the
 // prerendered HTML. Returns string suitable for injecting into <head>.
