@@ -44,57 +44,82 @@ function injectSeoTags(html, route) {
   if (!seo) return html
 
   let out = html
+  // Each replacement must actually find its target tag. If a regex stops
+  // matching (e.g. someone reformats index.html, reorders attributes, or
+  // drops a tag), we'd silently ship the default head on every prerendered
+  // page. We test for the match explicitly because for the `/` route the
+  // replacement is often byte-identical to the source — checking
+  // before !== after would false-positive that as a miss.
+  const missed = []
+  const applyReplace = (label, pattern, replacement) => {
+    if (!pattern.test(out)) {
+      missed.push(label)
+      return
+    }
+    out = out.replace(pattern, replacement)
+  }
 
-  // <title>
-  out = out.replace(/<title>[^<]*<\/title>/i, `<title>${seo.title}</title>`)
+  applyReplace('<title>', /<title>[^<]*<\/title>/i, `<title>${seo.title}</title>`)
 
-  // Description (name="description")
-  out = out.replace(
+  applyReplace(
+    'meta[name="description"]',
     /<meta\s+name="description"\s+content="[^"]*"\s*\/?>/i,
     `<meta name="description" content="${seo.description}">`
   )
 
-  // Canonical
-  out = out.replace(
+  applyReplace(
+    'link[rel="canonical"]',
     /<link\s+rel="canonical"\s+href="[^"]*"\s*\/?>/i,
     `<link rel="canonical" href="${htmlEscape(seo.canonical)}">`
   )
 
-  // Open Graph
-  out = out.replace(
+  applyReplace(
+    'meta[property="og:title"]',
     /<meta\s+property="og:title"\s+content="[^"]*"\s*\/?>/i,
     `<meta property="og:title" content="${seo.title}">`
   )
-  out = out.replace(
+  applyReplace(
+    'meta[property="og:description"]',
     /<meta\s+property="og:description"\s+content="[^"]*"\s*\/?>/i,
     `<meta property="og:description" content="${seo.description}">`
   )
-  out = out.replace(
+  applyReplace(
+    'meta[property="og:url"]',
     /<meta\s+property="og:url"\s+content="[^"]*"\s*\/?>/i,
     `<meta property="og:url" content="${htmlEscape(seo.canonical)}">`
   )
-  out = out.replace(
+  applyReplace(
+    'meta[property="og:image"]',
     /<meta\s+property="og:image"\s+content="[^"]*"\s*\/?>/i,
     `<meta property="og:image" content="${htmlEscape(seo.ogImage)}">`
   )
 
-  // Twitter
-  out = out.replace(
+  applyReplace(
+    'meta[name="twitter:title"]',
     /<meta\s+name="twitter:title"\s+content="[^"]*"\s*\/?>/i,
     `<meta name="twitter:title" content="${seo.title}">`
   )
-  out = out.replace(
+  applyReplace(
+    'meta[name="twitter:description"]',
     /<meta\s+name="twitter:description"\s+content="[^"]*"\s*\/?>/i,
     `<meta name="twitter:description" content="${seo.description}">`
   )
-  out = out.replace(
+  applyReplace(
+    'meta[name="twitter:image"]',
     /<meta\s+name="twitter:image"\s+content="[^"]*"\s*\/?>/i,
     `<meta name="twitter:image" content="${htmlEscape(seo.ogImage)}">`
   )
 
-  // JSON-LD: insert just before </head>
+  // JSON-LD: insert just before </head>.
   if (seo.ld) {
-    out = out.replace('</head>', `${seo.ld}</head>`)
+    applyReplace('</head>', /<\/head>/i, `${seo.ld}</head>`)
+  }
+
+  if (missed.length > 0) {
+    throw new Error(
+      `[prerender] SEO injection failed for route "${route}": no match for ${missed.join(', ')}. ` +
+      `Check index.html — a tag was renamed, reformatted, or removed.`
+    )
   }
 
   return out

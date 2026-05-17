@@ -4,8 +4,6 @@ export const SITE_NAME = 'AretaCare';
 export const DEFAULT_OG_IMAGE = `${SITE_URL}/favicon/og-image.png`;
 // Square logo for schema.org/Organization (Google Knowledge Panel expects square).
 const ORG_LOGO = `${SITE_URL}/favicon/web-app-manifest-512x512.png`;
-export const DEFAULT_DESCRIPTION =
-  'AretaCare is an AI healthcare coach and organizer that helps patients and caregivers make sense of medical information, prepare for doctor visits, and keep care organized.';
 
 export const ORGANIZATION_JSON_LD = {
   '@context': 'https://schema.org',
@@ -14,7 +12,8 @@ export const ORGANIZATION_JSON_LD = {
   legalName: 'AretaCare LLC',
   url: SITE_URL,
   logo: ORG_LOGO,
-  description: DEFAULT_DESCRIPTION,
+  description:
+    'AretaCare is an AI healthcare coach and organizer that helps patients and caregivers make sense of medical information, prepare for doctor visits, and keep care organized.',
   sameAs: ['https://github.com/artificiallyhuman/aretacare'],
 };
 
