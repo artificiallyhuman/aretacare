@@ -1,12 +1,46 @@
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, field_validator
 from datetime import datetime
+import re
+
+# Display-name validator. Allows Unicode letters/digits, whitespace, and a small
+# set of common punctuation (apostrophes, hyphens, dots, commas, parentheses).
+# Rejects: HTML-special characters (<, >, &, "), control characters, newlines,
+# carriage returns, semicolons, and anything else that could be weaponised as:
+#   - XSS in email templates and admin UIs (BI-1)
+#   - CRLF injection in email Subject / Reply-To headers (BI-2)
+# Capped at 80 chars instead of 255 — long names are almost always abuse.
+_DISPLAY_NAME_RE = re.compile(r"^[\w\s\-'.,()]{1,80}$", re.UNICODE)
+
+
+def _validate_display_name(value: str) -> str:
+    """Reject display names with HTML/CRLF/control characters."""
+    if value is None:
+        return value
+    stripped = value.strip()
+    if not stripped:
+        raise ValueError("Name cannot be empty or whitespace only.")
+    # Reject control characters / line breaks explicitly (defense in depth — these
+    # would also fail the regex, but a clear error message helps debugging).
+    if any(ord(c) < 0x20 or ord(c) == 0x7F for c in stripped):
+        raise ValueError("Name contains control characters.")
+    if not _DISPLAY_NAME_RE.fullmatch(stripped):
+        raise ValueError(
+            "Name may only contain letters, digits, spaces, and the punctuation "
+            "characters - ' . , ( ). HTML and special characters are not allowed."
+        )
+    return stripped
 
 
 class UserRegister(BaseModel):
     """Schema for user registration."""
-    name: str = Field(..., min_length=1, max_length=255)
+    name: str = Field(..., min_length=1, max_length=80)
     email: EmailStr
     password: str = Field(..., min_length=8, max_length=72)
+
+    @field_validator("name")
+    @classmethod
+    def _name_validator(cls, v: str) -> str:
+        return _validate_display_name(v)
     acknowledge_not_medical_advice: bool = Field(..., description="User acknowledges AretaCare is not medical advice")
     acknowledge_hipaa: bool = Field(..., description="User acknowledges HIPAA limitations")
     acknowledge_ai_processing: bool = Field(..., description="User acknowledges AI processing of their information")
@@ -61,8 +95,13 @@ class RefreshTokenRequest(BaseModel):
 
 class UpdateName(BaseModel):
     """Schema for updating user name."""
-    name: str = Field(..., min_length=1, max_length=255)
+    name: str = Field(..., min_length=1, max_length=80)
     current_password: str
+
+    @field_validator("name")
+    @classmethod
+    def _name_validator(cls, v: str) -> str:
+        return _validate_display_name(v)
 
 
 class UpdateEmail(BaseModel):

@@ -99,7 +99,7 @@ struct JargonTranslatorView: View {
                                 Button {
                                     let text = "**\(result.term)**\n\n\(result.explanation)" +
                                         (result.contextNote.isEmpty ? "" : "\n\n*\(result.contextNote)*")
-                                    UIPasteboard.general.string = text
+                                    ClipboardHelper.copyPlain(text)
                                     copyTrigger += 1
                                 } label: {
                                     Image(systemName: "doc.on.doc")

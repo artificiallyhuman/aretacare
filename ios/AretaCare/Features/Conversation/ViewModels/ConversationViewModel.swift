@@ -131,6 +131,18 @@ final class ConversationViewModel {
     // MARK: - Send Message
 
     func sendMessage(text: String, sessionId: String, audioRecordingId: Int? = nil) async {
+        // Cancel any prior in-flight send and install ourselves into sendTask so
+        // clearMessages() (called on care-session switch) cancels this work cooperatively.
+        sendTask?.cancel()
+        let task: Task<Void, Never> = Task { @MainActor [weak self] in
+            guard let self = self else { return }
+            await self._performSendMessage(text: text, sessionId: sessionId, audioRecordingId: audioRecordingId)
+        }
+        sendTask = task
+        await task.value
+    }
+
+    private func _performSendMessage(text: String, sessionId: String, audioRecordingId: Int?) async {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty, !isSending else { return }
 
@@ -175,6 +187,13 @@ final class ConversationViewModel {
                 body: request
             )
 
+            // Session was switched mid-send — drop the response rather than appending
+            // it to a different session's message list.
+            if Task.isCancelled {
+                isSending = false
+                return
+            }
+
             // Append assistant response directly — avoids full array replacement
             // which causes LazyVStack to lose scroll position and "disappear" messages.
             let assistantMessage = MessageResponse(
@@ -201,8 +220,12 @@ final class ConversationViewModel {
                 try? await Task.sleep(for: .seconds(2))
                 await silentReconcile(sessionId: sid)
             }
+        } catch is CancellationError {
+            // Session switch cancelled this send — silently abandon.
+            isSending = false
         } catch {
             isSending = false
+            if Task.isCancelled { return }
             // The server may have processed the message despite the connection
             // dropping (e.g. phone slept during AI response). Reconcile first.
             await silentReconcile(sessionId: sessionId)
@@ -255,6 +278,16 @@ final class ConversationViewModel {
     // MARK: - Upload Audio for Transcription
 
     func uploadAudioMessage(data: Data, sessionId: String) async {
+        sendTask?.cancel()
+        let task: Task<Void, Never> = Task { @MainActor [weak self] in
+            guard let self = self else { return }
+            await self._performUploadAudioMessage(data: data, sessionId: sessionId)
+        }
+        sendTask = task
+        await task.value
+    }
+
+    private func _performUploadAudioMessage(data: Data, sessionId: String) async {
         isSending = true
         errorMessage = nil
         invalidateCache(for: sessionId)
@@ -287,22 +320,39 @@ final class ConversationViewModel {
                 multipart: multipart
             )
 
-            // Send the transcribed text as a conversation message so AI responds
-            if let transcribedText = response.transcribedText, !transcribedText.isEmpty {
-                // Reset isSending before calling sendMessage, which has its own guard on isSending
+            if Task.isCancelled {
                 isSending = false
                 if backgroundTaskId != .invalid {
                     UIApplication.shared.endBackgroundTask(backgroundTaskId)
                 }
-                await sendMessage(
+                return
+            }
+
+            // Send the transcribed text as a conversation message so AI responds.
+            // Note: we don't call sendMessage() here (which would reset sendTask and
+            // cancel ourselves). We inline the same logic against this task.
+            if let transcribedText = response.transcribedText, !transcribedText.isEmpty {
+                isSending = false
+                if backgroundTaskId != .invalid {
+                    UIApplication.shared.endBackgroundTask(backgroundTaskId)
+                }
+                await _performSendMessage(
                     text: transcribedText,
                     sessionId: sessionId,
                     audioRecordingId: response.recordingId
                 )
-                return // sendMessage already set isSending = false
+                return
             }
+        } catch is CancellationError {
+            isSending = false
+            if backgroundTaskId != .invalid {
+                UIApplication.shared.endBackgroundTask(backgroundTaskId)
+            }
+            return
         } catch {
-            errorMessage = error.localizedDescription
+            if !Task.isCancelled {
+                errorMessage = error.localizedDescription
+            }
         }
 
         isSending = false
@@ -314,6 +364,24 @@ final class ConversationViewModel {
     // MARK: - Send Document/Image Message
 
     func sendDocumentMessage(sessionId: String, documentId: Int, filename: String, messageType: String, mediaUrl: String? = nil, thumbnailUrl: String? = nil, content: String? = nil) async {
+        sendTask?.cancel()
+        let task: Task<Void, Never> = Task { @MainActor [weak self] in
+            guard let self = self else { return }
+            await self._performSendDocumentMessage(
+                sessionId: sessionId,
+                documentId: documentId,
+                filename: filename,
+                messageType: messageType,
+                mediaUrl: mediaUrl,
+                thumbnailUrl: thumbnailUrl,
+                content: content
+            )
+        }
+        sendTask = task
+        await task.value
+    }
+
+    private func _performSendDocumentMessage(sessionId: String, documentId: Int, filename: String, messageType: String, mediaUrl: String?, thumbnailUrl: String?, content: String?) async {
         isSending = true
         errorMessage = nil
         invalidateCache(for: sessionId)
@@ -359,6 +427,11 @@ final class ConversationViewModel {
                 body: request
             )
 
+            if Task.isCancelled {
+                isSending = false
+                return
+            }
+
             // Append assistant response directly — avoids full array replacement
             let assistantMessage = MessageResponse(
                 id: response.message.id,
@@ -384,8 +457,11 @@ final class ConversationViewModel {
                 try? await Task.sleep(for: .seconds(2))
                 await silentReconcile(sessionId: sid)
             }
+        } catch is CancellationError {
+            isSending = false
         } catch {
             isSending = false
+            if Task.isCancelled { return }
             // The server may have processed the message despite the connection
             // dropping (e.g. phone slept during AI response). Reconcile to check
             // before showing an error.

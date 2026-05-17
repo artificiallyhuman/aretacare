@@ -956,7 +956,7 @@ const Profile = () => {
           <div className="flex-1">
             <h3 className="text-sm font-semibold text-amber-800 dark:text-amber-400 mb-1.5">Important</h3>
             <p className="text-sm text-amber-800 dark:text-amber-300 leading-relaxed">
-              This summary is generated from your conversations and journal entries. It does not update automatically — click "Update Profile" when new activity is available to incorporate recent information. It may be incomplete or contain errors, so please review and edit it before sharing with healthcare providers or others.
+              Your profile is built from your conversations and journal entries, and won't update on its own. Click "Update Profile" to pull in new activity, then review and edit before sharing with providers or family.
             </p>
           </div>
         </div>
@@ -968,7 +968,7 @@ const Profile = () => {
           <div className="flex-1">
             <h1 className="text-3xl sm:text-4xl font-extrabold text-gray-900 dark:text-white tracking-tight">Health Profile</h1>
             <p className="mt-3 text-sm sm:text-base text-gray-600 dark:text-gray-400 leading-relaxed">
-              A living summary of patient, caregiver, provider, and care details. You stay in control at all times, with full ability to edit, copy, download, or reset it, and nothing is changed without your approval.
+              A shareable summary of the patient, their caregivers, providers, and care details. Bring it to appointments, hand it to a new provider, or send it to family helping with care. You stay in control: edit, copy, download, or reset anytime, and nothing changes without your approval.
             </p>
             {profile?.last_ai_update && (
               <p className="mt-2 text-xs text-gray-500 dark:text-gray-500">

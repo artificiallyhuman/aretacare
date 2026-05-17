@@ -402,7 +402,7 @@ private struct JournalListRow: View {
                 entry: entry,
                 currentUserId: currentUserId,
                 onCopy: {
-                    UIPasteboard.general.string = entry.content
+                    ClipboardHelper.copyPlain(entry.content)
                     onCopy?()
                 },
                 onDelete: { showDeleteConfirmation = true }
@@ -419,7 +419,7 @@ private struct JournalListRow: View {
         }
         .contextMenu {
             Button {
-                UIPasteboard.general.string = entry.content
+                ClipboardHelper.copyPlain(entry.content)
                 onCopy?()
             } label: {
                 Label("Copy Content", systemImage: "doc.on.doc")

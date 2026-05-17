@@ -182,7 +182,7 @@ struct ConversationCoachView: View {
                                     .font(.headline)
                                 Spacer()
                                 Button {
-                                    UIPasteboard.general.string = result
+                                    ClipboardHelper.copyPlain(result)
                                     copyTrigger += 1
                                 } label: {
                                     Image(systemName: "doc.on.doc")

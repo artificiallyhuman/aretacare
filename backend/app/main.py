@@ -1,4 +1,5 @@
 from fastapi import FastAPI, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, PlainTextResponse
 from starlette.middleware.gzip import GZipMiddleware
@@ -142,6 +143,36 @@ app = FastAPI(
 # Configure rate limiting
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, rate_limit_exceeded_handler)
+
+
+# Pydantic / FastAPI validation errors default to HTTP 422 with `detail` as a list
+# of error objects. The web and iOS clients display `detail` as a string in most
+# error paths and would crash (React: "Objects are not valid as a React child")
+# if handed an array. This handler flattens validation errors into a single
+# human-readable string and returns HTTP 400 — matching the shape every other
+# error handler in this app uses.
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    errors = exc.errors()
+    if errors:
+        # Combine field-name + message into "name: Name may only contain letters…"
+        parts = []
+        for err in errors:
+            loc = err.get("loc", [])
+            field = loc[-1] if loc else "field"
+            msg = err.get("msg", "Invalid input")
+            # Strip the Pydantic "Value error, " / "String should..." prefix noise
+            if msg.startswith("Value error, "):
+                msg = msg[len("Value error, "):]
+            parts.append(f"{field}: {msg}" if field else msg)
+        detail = "; ".join(parts)
+    else:
+        detail = "Invalid request payload."
+
+    return JSONResponse(
+        status_code=400,
+        content={"detail": detail},
+    )
 
 # Configure GZip compression for responses (30-50% size reduction)
 # minimum_size: Only compress responses larger than 1000 bytes

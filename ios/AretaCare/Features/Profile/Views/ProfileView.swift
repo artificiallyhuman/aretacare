@@ -185,7 +185,7 @@ struct ProfileView: View {
                     Image(systemName: "info.circle")
                         .foregroundStyle(.orange)
                         .font(.caption)
-                    Text("This summary is generated from your conversations and journal entries. Review and edit before sharing with healthcare providers.")
+                    Text("A shareable summary for caregivers and providers, built from your conversations and journal entries. Review and edit before sharing.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -629,7 +629,7 @@ struct ProfileView: View {
     private var emptyProfileState: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
-                Text("A living summary of patient, caregiver, provider, and care details. You stay in control at all times, with full ability to edit, copy, download, or reset it, and nothing is changed without your approval.")
+                Text("A shareable summary of the patient, caregivers, providers, and care details. You stay in control: edit, copy, download, or reset anytime, and nothing changes without your approval.")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
 

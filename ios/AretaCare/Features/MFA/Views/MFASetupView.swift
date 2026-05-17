@@ -521,7 +521,7 @@ private struct BackupCodesSheet: View {
                 .padding(.horizontal)
 
                 Button {
-                    UIPasteboard.general.string = codes.joined(separator: "\n")
+                    ClipboardHelper.copyPlain(codes.joined(separator: "\n"))
                     withAnimation { showCopiedToast = true }
                 } label: {
                     Label(

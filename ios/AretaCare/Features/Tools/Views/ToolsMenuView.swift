@@ -41,7 +41,7 @@ struct ToolsMenuView: View {
                     NavigationLink {
                         ProfileView(sessionId: sessionId, sessionName: sessionName)
                     } label: {
-                        toolRow(icon: "heart.text.clipboard", title: "Health Profile", subtitle: "View your AI-generated health summary")
+                        toolRow(icon: "heart.text.clipboard", title: "Health Profile", subtitle: "Share with caregivers and providers")
                     }
                 }
 

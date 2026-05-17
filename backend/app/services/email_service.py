@@ -1,3 +1,5 @@
+import html
+import re
 import smtplib
 from datetime import datetime
 from email.mime.text import MIMEText
@@ -9,6 +11,48 @@ import logging
 import time
 
 logger = logging.getLogger(__name__)
+
+
+def _h(value) -> str:
+    """HTML-escape a value for safe interpolation into email HTML bodies.
+
+    Email templates in this module are built with f-strings and interpolate
+    user-controlled fields (display names, care-session names, document
+    filenames, attacker-supplied User-Agent headers, etc.). Without escaping,
+    a hostile value can inject HTML/CSS/links into the rendered email — and
+    in the case of security-alert emails, target AretaCare's own security team.
+
+    Returns "" for None / empty inputs so the existing
+    "{value or '<placeholder>'}" patterns continue to work — call _h_or_none()
+    if you need to distinguish None from empty.
+    """
+    if value is None:
+        return ""
+    return html.escape(str(value), quote=True)
+
+
+# Header injection (CRLF) prevention. Email headers are delimited by CRLF, so any
+# unstripped \r or \n in a Subject / Reply-To / From value lets an attacker inject
+# additional headers (Bcc, X-…, etc.). Python's email.message will not strip these
+# automatically.
+_HEADER_FORBIDDEN_CHARS = re.compile(r"[\r\n\x00]")
+
+
+def _safe_header(value, max_len: int = 200) -> str:
+    """Sanitize a string for use in an email header value.
+
+    Strips CR/LF/NUL (which would split the header and inject new ones — see
+    BI-2 in the May 2026 audit) and truncates to ``max_len`` to bound the
+    blast radius of overlong-name DoS attempts on mail relays.
+    """
+    if value is None:
+        return ""
+    s = str(value)
+    s = _HEADER_FORBIDDEN_CHARS.sub("", s)
+    # Collapse any remaining runs of whitespace into single spaces — defends
+    # against tab-injection tricks some mail clients mishandle.
+    s = re.sub(r"\s+", " ", s).strip()
+    return s[:max_len]
 
 # Email retry configuration
 EMAIL_MAX_RETRIES = 3
@@ -102,7 +146,7 @@ class EmailService:
 
         message["Message-ID"] = make_msgid(domain=domain)
         message["Date"] = formatdate(localtime=True)
-        message["Reply-To"] = settings.SMTP_FROM_EMAIL  # Explicit sender for deliverability
+        message["Reply-To"] = _safe_header(settings.SMTP_FROM_EMAIL)  # Explicit sender for deliverability
         message["X-Mailer"] = "AretaCare Notifications"
         message["X-Priority"] = "3"  # Normal priority
 
@@ -125,8 +169,8 @@ class EmailService:
             # Create message
             message = MIMEMultipart("alternative")
             message["Subject"] = "Password Reset - AretaCare"
-            message["From"] = f"{settings.SMTP_FROM_NAME} <{settings.SMTP_FROM_EMAIL}>"
-            message["To"] = to_email
+            message["From"] = _safe_header(f"{settings.SMTP_FROM_NAME} <{settings.SMTP_FROM_EMAIL}>")
+            message["To"] = _safe_header(to_email)
             EmailService._add_deliverability_headers(message)
 
             # Plain text version
@@ -262,8 +306,8 @@ The AretaCare Team
             # Create message
             message = MIMEMultipart("alternative")
             message["Subject"] = "Password Changed - AretaCare"
-            message["From"] = f"{settings.SMTP_FROM_NAME} <{settings.SMTP_FROM_EMAIL}>"
-            message["To"] = to_email
+            message["From"] = _safe_header(f"{settings.SMTP_FROM_NAME} <{settings.SMTP_FROM_EMAIL}>")
+            message["To"] = _safe_header(to_email)
             EmailService._add_deliverability_headers(message)
 
             # Plain text version
@@ -383,8 +427,8 @@ The AretaCare Team
             # Create message
             message = MIMEMultipart("alternative")
             message["Subject"] = "Email Address Changed - AretaCare"
-            message["From"] = f"{settings.SMTP_FROM_NAME} <{settings.SMTP_FROM_EMAIL}>"
-            message["To"] = old_email
+            message["From"] = _safe_header(f"{settings.SMTP_FROM_NAME} <{settings.SMTP_FROM_EMAIL}>")
+            message["To"] = _safe_header(old_email)
             EmailService._add_deliverability_headers(message)
 
             # Plain text version
@@ -507,8 +551,8 @@ The AretaCare Team
             # Create message
             message = MIMEMultipart("alternative")
             message["Subject"] = "Verify Your New Email Address - AretaCare"
-            message["From"] = f"{settings.SMTP_FROM_NAME} <{settings.SMTP_FROM_EMAIL}>"
-            message["To"] = to_email
+            message["From"] = _safe_header(f"{settings.SMTP_FROM_NAME} <{settings.SMTP_FROM_EMAIL}>")
+            message["To"] = _safe_header(to_email)
             EmailService._add_deliverability_headers(message)
 
             # Plain text version
@@ -651,8 +695,8 @@ The AretaCare Team
             # Create message
             message = MIMEMultipart("alternative")
             message["Subject"] = "Verify Your Email - AretaCare"
-            message["From"] = f"{settings.SMTP_FROM_NAME} <{settings.SMTP_FROM_EMAIL}>"
-            message["To"] = to_email
+            message["From"] = _safe_header(f"{settings.SMTP_FROM_NAME} <{settings.SMTP_FROM_EMAIL}>")
+            message["To"] = _safe_header(to_email)
             EmailService._add_deliverability_headers(message)
 
             # Plain text version
@@ -801,9 +845,9 @@ The AretaCare Team
         try:
             # Create message
             message = MIMEMultipart("alternative")
-            message["Subject"] = f"Collaborator Added to {session_name} - AretaCare"
-            message["From"] = f"{settings.SMTP_FROM_NAME} <{settings.SMTP_FROM_EMAIL}>"
-            message["To"] = owner_email
+            message["Subject"] = _safe_header(f"Collaborator Added to {session_name} - AretaCare")
+            message["From"] = _safe_header(f"{settings.SMTP_FROM_NAME} <{settings.SMTP_FROM_EMAIL}>")
+            message["To"] = _safe_header(owner_email)
             EmailService._add_deliverability_headers(message)
 
             # Plain text version
@@ -953,8 +997,8 @@ The AretaCare Team
             # Create message
             message = MIMEMultipart("alternative")
             message["Subject"] = f"You've Been Added to a Care Session - AretaCare"
-            message["From"] = f"{settings.SMTP_FROM_NAME} <{settings.SMTP_FROM_EMAIL}>"
-            message["To"] = collaborator_email
+            message["From"] = _safe_header(f"{settings.SMTP_FROM_NAME} <{settings.SMTP_FROM_EMAIL}>")
+            message["To"] = _safe_header(collaborator_email)
             EmailService._add_deliverability_headers(message)
 
             # Plain text version
@@ -1110,8 +1154,8 @@ The AretaCare Team
             # Create message
             message = MIMEMultipart("alternative")
             message["Subject"] = f"Removed from Care Session - AretaCare"
-            message["From"] = f"{settings.SMTP_FROM_NAME} <{settings.SMTP_FROM_EMAIL}>"
-            message["To"] = collaborator_email
+            message["From"] = _safe_header(f"{settings.SMTP_FROM_NAME} <{settings.SMTP_FROM_EMAIL}>")
+            message["To"] = _safe_header(collaborator_email)
             EmailService._add_deliverability_headers(message)
 
             # Plain text version
@@ -1219,8 +1263,8 @@ The AretaCare Team
         try:
             message = MIMEMultipart("alternative")
             message["Subject"] = "AretaCare - Account Inactivity Notice"
-            message["From"] = f"{settings.SMTP_FROM_NAME} <{settings.SMTP_FROM_EMAIL}>"
-            message["To"] = user_email
+            message["From"] = _safe_header(f"{settings.SMTP_FROM_NAME} <{settings.SMTP_FROM_EMAIL}>")
+            message["To"] = _safe_header(user_email)
             EmailService._add_deliverability_headers(message)
 
             # Plain text version
@@ -1336,9 +1380,9 @@ This is an automated message from AretaCare.
 
             # Create message
             message = MIMEMultipart("alternative")
-            message["Subject"] = f"You're Now the Owner of \"{session_name}\" - AretaCare"
-            message["From"] = f"{settings.SMTP_FROM_NAME} <{settings.SMTP_FROM_EMAIL}>"
-            message["To"] = new_owner_email
+            message["Subject"] = _safe_header(f"You're Now the Owner of \"{session_name}\" - AretaCare")
+            message["From"] = _safe_header(f"{settings.SMTP_FROM_NAME} <{settings.SMTP_FROM_EMAIL}>")
+            message["To"] = _safe_header(new_owner_email)
             EmailService._add_deliverability_headers(message)
 
             # Plain text version
@@ -1491,9 +1535,9 @@ The AretaCare Team
         try:
             # Create message
             message = MIMEMultipart("alternative")
-            message["Subject"] = f"{inviter_name} Invited You to Join AretaCare"
-            message["From"] = f"{settings.SMTP_FROM_NAME} <{settings.SMTP_FROM_EMAIL}>"
-            message["To"] = to_email
+            message["Subject"] = _safe_header(f"{inviter_name} Invited You to Join AretaCare")
+            message["From"] = _safe_header(f"{settings.SMTP_FROM_NAME} <{settings.SMTP_FROM_EMAIL}>")
+            message["To"] = _safe_header(to_email)
             EmailService._add_deliverability_headers(message)
 
             # Plain text version
@@ -1679,9 +1723,9 @@ The AretaCare Team
 
             # Create message
             message = MIMEMultipart("alternative")
-            message["Subject"] = f"{new_user_name} Accepted Your AretaCare Invitation"
-            message["From"] = f"{settings.SMTP_FROM_NAME} <{settings.SMTP_FROM_EMAIL}>"
-            message["To"] = owner_email
+            message["Subject"] = _safe_header(f"{new_user_name} Accepted Your AretaCare Invitation")
+            message["From"] = _safe_header(f"{settings.SMTP_FROM_NAME} <{settings.SMTP_FROM_EMAIL}>")
+            message["To"] = _safe_header(owner_email)
             EmailService._add_deliverability_headers(message)
 
             # Plain text version
@@ -1843,12 +1887,12 @@ The AretaCare Team
 
             # Create message
             email_message = MIMEMultipart("alternative")
-            email_message["Subject"] = f"[{feedback_type_display}] Feedback from {user_name}"
-            email_message["From"] = f"{settings.SMTP_FROM_NAME} <{settings.SMTP_FROM_EMAIL}>"
-            email_message["To"] = settings.FEEDBACK_EMAIL
+            email_message["Subject"] = _safe_header(f"[{feedback_type_display}] Feedback from {user_name}")
+            email_message["From"] = _safe_header(f"{settings.SMTP_FROM_NAME} <{settings.SMTP_FROM_EMAIL}>")
+            email_message["To"] = _safe_header(settings.FEEDBACK_EMAIL)
             EmailService._add_deliverability_headers(email_message)
             del email_message["Reply-To"]  # Remove default Reply-To before override
-            email_message["Reply-To"] = user_email  # Set to reply to user
+            email_message["Reply-To"] = _safe_header(user_email)  # Set to reply to user
 
             # Plain text version
             text_content = f"""
@@ -2001,12 +2045,12 @@ Client IP: {metadata.get('client_ip', 'N/A')}
 
             # Create message
             email_message = MIMEMultipart("alternative")
-            email_message["Subject"] = f"Thank you for your feedback - AretaCare"
-            email_message["From"] = f"{settings.SMTP_FROM_NAME} <{settings.SMTP_FROM_EMAIL}>"
-            email_message["To"] = user_email
+            email_message["Subject"] = _safe_header(f"Thank you for your feedback - AretaCare")
+            email_message["From"] = _safe_header(f"{settings.SMTP_FROM_NAME} <{settings.SMTP_FROM_EMAIL}>")
+            email_message["To"] = _safe_header(user_email)
             EmailService._add_deliverability_headers(email_message)
             del email_message["Reply-To"]  # Remove default Reply-To before override
-            email_message["Reply-To"] = settings.FEEDBACK_EMAIL  # Allow user to continue conversation
+            email_message["Reply-To"] = _safe_header(settings.FEEDBACK_EMAIL)  # Allow user to continue conversation
 
             # Plain text version
             text_content = f"""
@@ -2144,9 +2188,9 @@ The AretaCare Team
 
             # Create message
             message = MIMEMultipart("alternative")
-            message["Subject"] = f"Care Session Ownership Transferred for \"{session_name}\" - AretaCare"
-            message["From"] = f"{settings.SMTP_FROM_NAME} <{settings.SMTP_FROM_EMAIL}>"
-            message["To"] = old_owner_email
+            message["Subject"] = _safe_header(f"Care Session Ownership Transferred for \"{session_name}\" - AretaCare")
+            message["From"] = _safe_header(f"{settings.SMTP_FROM_NAME} <{settings.SMTP_FROM_EMAIL}>")
+            message["To"] = _safe_header(old_owner_email)
             EmailService._add_deliverability_headers(message)
 
             # Plain text version
@@ -2294,8 +2338,8 @@ The AretaCare Team
 
             message = MIMEMultipart("alternative")
             message["Subject"] = "You're Invited to Join AretaCare!"
-            message["From"] = f"{settings.SMTP_FROM_NAME} <{settings.SMTP_FROM_EMAIL}>"
-            message["To"] = to_email
+            message["From"] = _safe_header(f"{settings.SMTP_FROM_NAME} <{settings.SMTP_FROM_EMAIL}>")
+            message["To"] = _safe_header(to_email)
             EmailService._add_deliverability_headers(message)
 
             text_content = f"""
@@ -2443,9 +2487,9 @@ The AretaCare Team
             collaboration_url = f"{settings.FRONTEND_URL}/collaboration"
 
             message = MIMEMultipart("alternative")
-            message["Subject"] = f"{new_user_name} Has Joined AretaCare!"
-            message["From"] = f"{settings.SMTP_FROM_NAME} <{settings.SMTP_FROM_EMAIL}>"
-            message["To"] = to_email
+            message["Subject"] = _safe_header(f"{new_user_name} Has Joined AretaCare!")
+            message["From"] = _safe_header(f"{settings.SMTP_FROM_NAME} <{settings.SMTP_FROM_EMAIL}>")
+            message["To"] = _safe_header(to_email)
             EmailService._add_deliverability_headers(message)
 
             text_content = f"""
@@ -2564,8 +2608,8 @@ The AretaCare Team
 
             message = MIMEMultipart("alternative")
             message["Subject"] = "Two-Factor Authentication Enabled - AretaCare"
-            message["From"] = f"{settings.SMTP_FROM_NAME} <{settings.SMTP_FROM_EMAIL}>"
-            message["To"] = to_email
+            message["From"] = _safe_header(f"{settings.SMTP_FROM_NAME} <{settings.SMTP_FROM_EMAIL}>")
+            message["To"] = _safe_header(to_email)
             EmailService._add_deliverability_headers(message)
 
             text_content = f"""
@@ -2682,8 +2726,8 @@ The AretaCare Team
         try:
             message = MIMEMultipart("alternative")
             message["Subject"] = "⚠️ Two-Factor Authentication Disabled - AretaCare"
-            message["From"] = f"{settings.SMTP_FROM_NAME} <{settings.SMTP_FROM_EMAIL}>"
-            message["To"] = to_email
+            message["From"] = _safe_header(f"{settings.SMTP_FROM_NAME} <{settings.SMTP_FROM_EMAIL}>")
+            message["To"] = _safe_header(to_email)
             EmailService._add_deliverability_headers(message)
 
             text_content = f"""
@@ -2807,8 +2851,8 @@ The AretaCare Team
         try:
             message = MIMEMultipart("alternative")
             message["Subject"] = "🔓 Two-Factor Authentication Reset - AretaCare"
-            message["From"] = f"{settings.SMTP_FROM_NAME} <{settings.SMTP_FROM_EMAIL}>"
-            message["To"] = to_email
+            message["From"] = _safe_header(f"{settings.SMTP_FROM_NAME} <{settings.SMTP_FROM_EMAIL}>")
+            message["To"] = _safe_header(to_email)
             EmailService._add_deliverability_headers(message)
 
             text_content = f"""
@@ -2928,8 +2972,8 @@ The AretaCare Team
         try:
             message = MIMEMultipart("alternative")
             message["Subject"] = "New Passkey Added - AretaCare"
-            message["From"] = f"{settings.SMTP_FROM_NAME} <{settings.SMTP_FROM_EMAIL}>"
-            message["To"] = to_email
+            message["From"] = _safe_header(f"{settings.SMTP_FROM_NAME} <{settings.SMTP_FROM_EMAIL}>")
+            message["To"] = _safe_header(to_email)
             EmailService._add_deliverability_headers(message)
 
             text_content = f"""
@@ -3050,8 +3094,8 @@ The AretaCare Team
         try:
             message = MIMEMultipart("alternative")
             message["Subject"] = "New Trusted Device - AretaCare"
-            message["From"] = f"{settings.SMTP_FROM_NAME} <{settings.SMTP_FROM_EMAIL}>"
-            message["To"] = to_email
+            message["From"] = _safe_header(f"{settings.SMTP_FROM_NAME} <{settings.SMTP_FROM_EMAIL}>")
+            message["To"] = _safe_header(to_email)
             EmailService._add_deliverability_headers(message)
 
             text_content = f"""
@@ -3214,13 +3258,28 @@ The AretaCare Team
             # Truncate user agent for display
             display_user_agent = user_agent[:100] + "..." if user_agent and len(user_agent) > 100 else user_agent
 
+            # HTML-escape every attacker-influenced field before HTML interpolation
+            # below. email/user_id/ip_address come from request inputs; user_agent
+            # is fully attacker-controlled via the HTTP header; details often
+            # contains attacker-supplied filenames or content_types; endpoint is
+            # under our control but escape uniformly for consistency. Empty values
+            # are replaced with a fixed N/A placeholder so HTML interpolation
+            # doesn't reach a None/falsy injection point.
+            email_safe = _h(email) if email else '<span style="color: #9ca3af;">N/A</span>'
+            user_id_safe = _h(user_id) if user_id else '<span style="color: #9ca3af;">N/A</span>'
+            ip_address_safe = _h(ip_address) if ip_address else '<span style="color: #9ca3af;">Unknown</span>'
+            user_agent_safe = _h(display_user_agent) if display_user_agent else '<span style="color: #9ca3af;">N/A</span>'
+            endpoint_safe = _h(endpoint) if endpoint else '<span style="color: #9ca3af;">N/A</span>'
+            details_safe = _h(details) if details else '<span style="color: #9ca3af;">None</span>'
+            event_label_safe = _h(event_label)
+
             # Admin console URL
             admin_url = f"{settings.FRONTEND_URL}/admin/security-logs"
 
             message = MIMEMultipart("alternative")
-            message["Subject"] = f"[SECURITY ALERT] {event_label} - AretaCare"
-            message["From"] = f"{settings.SMTP_FROM_NAME} <{settings.SMTP_FROM_EMAIL}>"
-            message["To"] = settings.SECURITY_ALERT_EMAIL
+            message["Subject"] = _safe_header(f"[SECURITY ALERT] {event_label} - AretaCare")
+            message["From"] = _safe_header(f"{settings.SMTP_FROM_NAME} <{settings.SMTP_FROM_EMAIL}>")
+            message["To"] = _safe_header(settings.SECURITY_ALERT_EMAIL)
             EmailService._add_deliverability_headers(message)
 
             text_content = f"""
@@ -3266,7 +3325,7 @@ This is an automated security alert from AretaCare.
                     <tr>
                         <td style="padding: 20px 40px 0;">
                             <div style="background-color: #fef2f2; border: 1px solid #fecaca; border-radius: 6px; padding: 12px 16px; text-align: center;">
-                                <span style="color: #dc2626; font-weight: 600; font-size: 18px;">{event_label}</span>
+                                <span style="color: #dc2626; font-weight: 600; font-size: 18px;">{event_label_safe}</span>
                             </div>
                         </td>
                     </tr>
@@ -3281,27 +3340,27 @@ This is an automated security alert from AretaCare.
                                 </tr>
                                 <tr>
                                     <td style="padding: 8px 0; color: #6b7280; font-size: 14px; border-bottom: 1px solid #e5e7eb;">User Email</td>
-                                    <td style="padding: 8px 0; color: #111827; font-size: 14px; border-bottom: 1px solid #e5e7eb;">{email or '<span style="color: #9ca3af;">N/A</span>'}</td>
+                                    <td style="padding: 8px 0; color: #111827; font-size: 14px; border-bottom: 1px solid #e5e7eb;">{email_safe}</td>
                                 </tr>
                                 <tr>
                                     <td style="padding: 8px 0; color: #6b7280; font-size: 14px; border-bottom: 1px solid #e5e7eb;">User ID</td>
-                                    <td style="padding: 8px 0; color: #111827; font-size: 14px; font-family: monospace; border-bottom: 1px solid #e5e7eb;">{user_id or '<span style="color: #9ca3af;">N/A</span>'}</td>
+                                    <td style="padding: 8px 0; color: #111827; font-size: 14px; font-family: monospace; border-bottom: 1px solid #e5e7eb;">{user_id_safe}</td>
                                 </tr>
                                 <tr>
                                     <td style="padding: 8px 0; color: #6b7280; font-size: 14px; border-bottom: 1px solid #e5e7eb;">IP Address</td>
-                                    <td style="padding: 8px 0; color: #111827; font-size: 14px; font-family: monospace; border-bottom: 1px solid #e5e7eb;">{ip_address or '<span style="color: #9ca3af;">Unknown</span>'}</td>
+                                    <td style="padding: 8px 0; color: #111827; font-size: 14px; font-family: monospace; border-bottom: 1px solid #e5e7eb;">{ip_address_safe}</td>
                                 </tr>
                                 <tr>
                                     <td style="padding: 8px 0; color: #6b7280; font-size: 14px; border-bottom: 1px solid #e5e7eb;">User Agent</td>
-                                    <td style="padding: 8px 0; color: #111827; font-size: 12px; border-bottom: 1px solid #e5e7eb; word-break: break-all;">{display_user_agent or '<span style="color: #9ca3af;">N/A</span>'}</td>
+                                    <td style="padding: 8px 0; color: #111827; font-size: 12px; border-bottom: 1px solid #e5e7eb; word-break: break-all;">{user_agent_safe}</td>
                                 </tr>
                                 <tr>
                                     <td style="padding: 8px 0; color: #6b7280; font-size: 14px; border-bottom: 1px solid #e5e7eb;">Endpoint</td>
-                                    <td style="padding: 8px 0; color: #111827; font-size: 14px; font-family: monospace; border-bottom: 1px solid #e5e7eb;">{endpoint or '<span style="color: #9ca3af;">N/A</span>'}</td>
+                                    <td style="padding: 8px 0; color: #111827; font-size: 14px; font-family: monospace; border-bottom: 1px solid #e5e7eb;">{endpoint_safe}</td>
                                 </tr>
                                 <tr>
                                     <td style="padding: 8px 0; color: #6b7280; font-size: 14px;">Details</td>
-                                    <td style="padding: 8px 0; color: #111827; font-size: 14px;">{details or '<span style="color: #9ca3af;">None</span>'}</td>
+                                    <td style="padding: 8px 0; color: #111827; font-size: 14px;">{details_safe}</td>
                                 </tr>
                             </table>
                         </td>

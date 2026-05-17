@@ -2,6 +2,7 @@ from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, UploadFi
 from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.core.rate_limit import limiter, RateLimits
+from app.core.upload import read_upload_with_limit
 from app.models import Document as DocumentModel, DocumentCategory, Session as SessionModel, User
 from app.schemas import DocumentUploadResponse, DocumentResponse, DocumentUpdate, DocumentListResponse, DuplicateCheckRequest, DuplicateCheckResponse
 from app.services import s3_service, document_processor
@@ -313,16 +314,18 @@ async def upload_document(
             detail=f"File type {file.content_type} not allowed. Allowed types: PDF, PNG, JPG, TXT"
         )
 
-    # Read file content
-    file_content = await file.read()
+    # Determine the size limit BEFORE buffering the body. Different limits apply
+    # for conversation-inline uploads vs document-manager uploads.
+    is_conversation_upload = skip_journal_synthesis.lower() == "true"
+    max_size = MAX_CONVERSATION_FILE_SIZE if is_conversation_upload else MAX_FILE_SIZE
 
+    # Stream-read with size enforcement. Aborts with HTTP 413 once the running
+    # byte count exceeds max_size — prevents a multi-GB POST from OOMing the
+    # worker before the application-level limit check fires.
     try:
-        # Validate file size (different limits for conversation vs document manager)
-        is_conversation_upload = skip_journal_synthesis.lower() == "true"
-        max_size = MAX_CONVERSATION_FILE_SIZE if is_conversation_upload else MAX_FILE_SIZE
-
-        if len(file_content) > max_size:
-            # Log upload failure for monitoring
+        file_content = await read_upload_with_limit(file, max_size)
+    except HTTPException as e:
+        if e.status_code == 400:
             security_service.log_event(
                 db=db,
                 event_type="upload_failure",
@@ -331,12 +334,11 @@ async def upload_document(
                 ip_address=security_service.get_client_ip(request),
                 user_agent=security_service.get_user_agent(request),
                 endpoint="/api/documents/upload",
-                details=f"File size exceeds limit: {len(file_content)} bytes, filename: {file.filename}"
+                details=f"File size exceeds limit (>{max_size} bytes), filename: {file.filename}"
             )
-            raise HTTPException(
-                status_code=400,
-                detail=f"File size exceeds maximum allowed size of {int(MAX_FILE_SIZE / 1024 / 1024)}MB"
-            )
+        raise
+
+    try:
 
         # Validate and process image content if this is an image file
         # This also handles MPO to JPEG conversion for stereoscopic images

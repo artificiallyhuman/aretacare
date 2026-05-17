@@ -502,7 +502,7 @@ private struct DocumentListRow: View {
                 currentUserId: currentUserId,
                 previewUrl: viewModel.previewUrls[document.id],
                 onCopyName: {
-                    UIPasteboard.general.string = document.filename
+                    ClipboardHelper.copyPlain(document.filename)
                     onCopy?()
                 },
                 onShare: { onShare?() },
@@ -526,7 +526,7 @@ private struct DocumentListRow: View {
         }
         .contextMenu {
             Button {
-                UIPasteboard.general.string = document.filename
+                ClipboardHelper.copyPlain(document.filename)
                 onCopy?()
             } label: {
                 Label("Copy Name", systemImage: "doc.on.doc")

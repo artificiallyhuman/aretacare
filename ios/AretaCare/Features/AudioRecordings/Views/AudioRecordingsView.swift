@@ -637,7 +637,7 @@ private struct AudioRecordingDetailView: View {
                                 .font(.headline)
                             Spacer()
                             Button {
-                                UIPasteboard.general.string = transcript
+                                ClipboardHelper.copyPlain(transcript)
                                 showCopiedToast = true
                                 copyHapticTrigger += 1
                             } label: {
@@ -652,7 +652,7 @@ private struct AudioRecordingDetailView: View {
                             .textSelection(.enabled)
                             .contextMenu {
                                 Button {
-                                    UIPasteboard.general.string = transcript
+                                    ClipboardHelper.copyPlain(transcript)
                                     showCopiedToast = true
                                     copyHapticTrigger += 1
                                 } label: {

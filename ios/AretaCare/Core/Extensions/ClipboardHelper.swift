@@ -6,16 +6,33 @@ import UniformTypeIdentifiers
 enum ClipboardHelper {
 
     /// Copies markdown content to the pasteboard with both HTML and plain text representations.
+    /// Sets .localOnly (no Universal Clipboard sync) and a 60s expiration to limit PHI exposure.
     static func copyFormatted(_ markdown: String) {
         let html = markdownToHTML(markdown)
         guard let htmlData = html.data(using: .utf8) else {
-            UIPasteboard.general.string = markdown
+            // HTML conversion failed — fall back to plain text but keep the same
+            // .localOnly + expiration protections.
+            copyPlain(markdown)
             return
         }
 
         UIPasteboard.general.setItems([[
             UTType.html.identifier: htmlData,
             UTType.utf8PlainText.identifier: Data(markdown.utf8)
+        ]], options: [
+            .localOnly: true,
+            .expirationDate: Date().addingTimeInterval(60)
+        ])
+    }
+
+    /// Copies plain-text content to the pasteboard with the same protections as
+    /// `copyFormatted`: .localOnly (no Universal Clipboard / Handoff sync to paired
+    /// devices) and a 60s expiration. Use this for any sensitive text — MFA backup
+    /// codes, audio transcripts, journal entries, profile data — instead of writing
+    /// `UIPasteboard.general.string = …` directly, which has neither protection.
+    static func copyPlain(_ text: String) {
+        UIPasteboard.general.setItems([[
+            UTType.utf8PlainText.identifier: Data(text.utf8)
         ]], options: [
             .localOnly: true,
             .expirationDate: Date().addingTimeInterval(60)

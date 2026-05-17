@@ -782,7 +782,12 @@ class MFAService:
     @staticmethod
     def verify_login_challenge(db: Session, mfa_token: str) -> Optional[str]:
         """
-        Verify an MFA login challenge token.
+        Read-only lookup of an MFA login challenge.
+
+        Use this only for endpoints that need to retrieve associated state (e.g. fetching
+        passkey authentication options) without consuming the challenge. For the actual
+        login verification flow, use claim_login_challenge() instead — it atomically
+        deletes the challenge to prevent concurrent re-use.
 
         Returns:
             The user_id if valid, None otherwise
@@ -798,21 +803,34 @@ class MFAService:
         return challenge.user_id
 
     @staticmethod
-    def delete_login_challenge(db: Session, mfa_token: str) -> None:
-        """Delete an MFA login challenge after successful verification.
-        Uses SELECT FOR UPDATE to prevent a race condition where two concurrent
-        requests could both verify the same challenge before either deletes it."""
+    def claim_login_challenge(db: Session, mfa_token: str) -> Optional[str]:
+        """Atomically consume an MFA login challenge.
+
+        Takes a row-level lock (SELECT FOR UPDATE) on the challenge, validates it, and
+        deletes it within the same transaction before returning the user_id. After this
+        call returns, the challenge no longer exists — concurrent verify attempts with
+        the same token will fail to claim and return None. This closes the race window
+        where the prior verify-then-delete pattern allowed two concurrent requests to
+        both verify the same valid factor before either deleted the challenge.
+
+        If the caller's subsequent MFA factor check fails, the challenge is gone and
+        the user must re-authenticate from the login screen (single-shot semantics).
+
+        Returns user_id on successful claim, None if the token is invalid, expired, or
+        already consumed.
+        """
         challenge = db.query(MFAChallenge).filter(
-            MFAChallenge.id == mfa_token
+            MFAChallenge.id == mfa_token,
+            MFAChallenge.challenge_type == 'login'
         ).with_for_update().first()
-        if not challenge:
-            from fastapi import HTTPException, status
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid or expired MFA token."
-            )
+
+        if not challenge or not challenge.is_valid():
+            return None
+
+        user_id = challenge.user_id
         db.delete(challenge)
         db.commit()
+        return user_id
 
     # ==========================================
     # Action Token Methods (for sensitive actions)

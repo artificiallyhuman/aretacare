@@ -4,6 +4,7 @@ from sqlalchemy import func, cast, Integer
 from sqlalchemy.dialects.postgresql import ARRAY as PG_ARRAY
 from app.core.database import get_db
 from app.core.rate_limit import limiter, RateLimits
+from app.core.upload import read_upload_with_limit
 from app.models import User, Session as SessionModel, Conversation, Document, AudioRecording
 from app.models.conversation import MessageRole, MessageType
 from app.models.journal import JournalEntry
@@ -749,26 +750,24 @@ async def transcribe_audio(
                 detail=f"Invalid audio format. Supported formats: MP3, M4A, WAV, WebM, OGG"
             )
 
-        # Read audio file content
-        audio_content = await audio.read()
-
-        # Validate file size
-        if len(audio_content) > MAX_AUDIO_FILE_SIZE:
-            # Log upload failure
-            security_service.log_event(
-                db=db,
-                event_type="upload_failure",
-                email=current_user.email,
-                user_id=current_user.id,
-                ip_address=security_service.get_client_ip(request),
-                user_agent=security_service.get_user_agent(request),
-                endpoint="/api/conversation/transcribe",
-                details=f"Audio file size exceeds limit: {len(audio_content)} bytes, filename: {audio.filename}"
-            )
-            raise HTTPException(
-                status_code=400,
-                detail=f"Audio file size exceeds maximum allowed size of {MAX_AUDIO_FILE_SIZE / 1024 / 1024}MB"
-            )
+        # Stream-read with size enforcement BEFORE buffering. Aborts with HTTP 413
+        # once running byte count exceeds the limit — prevents a multi-GB POST from
+        # OOMing the worker before the application-level size check fires.
+        try:
+            audio_content = await read_upload_with_limit(audio, MAX_AUDIO_FILE_SIZE)
+        except HTTPException as e:
+            if e.status_code == 400:
+                security_service.log_event(
+                    db=db,
+                    event_type="upload_failure",
+                    email=current_user.email,
+                    user_id=current_user.id,
+                    ip_address=security_service.get_client_ip(request),
+                    user_agent=security_service.get_user_agent(request),
+                    endpoint="/api/conversation/transcribe",
+                    details=f"Audio file size exceeds limit (>{MAX_AUDIO_FILE_SIZE} bytes), filename: {audio.filename}"
+                )
+            raise
 
         # Convert audio to mp3 for OpenAI using temporary files
         audio_temp_path = None

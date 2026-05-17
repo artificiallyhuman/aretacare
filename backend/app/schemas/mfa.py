@@ -3,9 +3,10 @@ MFA (Multi-Factor Authentication) Pydantic Schemas
 
 These schemas define the request/response models for MFA API endpoints.
 """
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from typing import Optional, List, Dict, Any
 from datetime import datetime
+from app.schemas.auth import _validate_display_name
 
 
 # ==========================================
@@ -83,7 +84,15 @@ class PasskeyRegistrationOptionsResponse(BaseModel):
 class PasskeyRegistrationVerifyRequest(BaseModel):
     """Request for POST /mfa/passkey/register/verify"""
     credential: Dict[str, Any] = Field(..., description="WebAuthn credential response")
-    device_name: str = Field(..., min_length=1, max_length=100, description="Name for this passkey")
+    device_name: str = Field(..., min_length=1, max_length=80, description="Name for this passkey")
+
+    @field_validator("device_name")
+    @classmethod
+    def _device_name_validator(cls, v: str) -> str:
+        # Apply same character validation as user display names. device_name is
+        # rendered raw into MFA-change notification emails, so HTML/CRLF injection
+        # via a malicious passkey label would target the user's own inbox.
+        return _validate_display_name(v)
 
 
 class PasskeyRegistrationVerifyResponse(BaseModel):

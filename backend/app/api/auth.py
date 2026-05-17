@@ -673,8 +673,11 @@ def verify_mfa_login(
     ip_address = security_service.get_client_ip(request)
     user_agent = security_service.get_user_agent(request)
 
-    # Verify the MFA token
-    user_id = MFAService.verify_login_challenge(db, data.mfa_token)
+    # Atomically claim the MFA challenge. claim_login_challenge() takes SELECT FOR UPDATE
+    # and deletes the row before returning the user_id — a concurrent request with the
+    # same token cannot both pass this gate. If the user's subsequent factor check fails,
+    # they must re-login (the challenge is now gone).
+    user_id = MFAService.claim_login_challenge(db, data.mfa_token)
     if not user_id:
         security_service.log_event(
             db=db,
@@ -743,11 +746,11 @@ def verify_mfa_login(
 
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="MFA verification failed. Please try again."
+            detail="MFA verification failed. Please log in again."
         )
 
-    # MFA verified successfully - delete the challenge
-    MFAService.delete_login_challenge(db, data.mfa_token)
+    # MFA verified successfully. The challenge was already consumed by
+    # claim_login_challenge() above, so no further cleanup is needed.
 
     # Detect iOS client
     is_ios = request.headers.get("X-Client-Type") == "ios"
