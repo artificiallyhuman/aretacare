@@ -301,7 +301,7 @@ GET    /api/profile/{session_id}/pending-changes        # Get pending AI-suggest
 POST   /api/profile/{session_id}/pending-changes/review # Accept/reject pending changes
 POST   /api/profile/{session_id}/regenerate             # Regenerate from scratch
 DELETE /api/profile/{session_id}                        # Delete profile
-GET    /api/profile/{session_id}/export                 # Export as JSON or PDF
+GET    /api/profile/{session_id}/export                 # Export as JSON or PDF (PDF carries a disclaimer)
 ```
 
 ---

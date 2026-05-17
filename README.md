@@ -24,7 +24,7 @@ AretaCare was built from this experience—sitting beside a loved one, trying to
 
 **Daily Digest** — Each day, get a summary of what's happening: recent changes, upcoming reminders, and suggested questions for your care team. Fully editable if you want to add your own notes.
 
-**Health Profile** — A living summary of everything AretaCare knows about your care situation: patient details, caregivers, providers, conditions, medications, allergies, and key events. You review and approve all changes before they're saved.
+**Health Profile** — A shareable summary you can take to providers, caregivers, or family helping with care. Covers patient details, caregivers, providers, conditions, medications, allergies, and key events. You review and approve all changes before they're saved, and shared copies (PDF or clipboard) carry a built-in disclaimer.
 
 ### Organization
 
