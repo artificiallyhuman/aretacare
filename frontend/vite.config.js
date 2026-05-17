@@ -38,13 +38,12 @@ export default defineConfig(({ mode, command }) => ({
       routes: PRERENDER_ROUTES,
       renderer: '@prerenderer/renderer-puppeteer',
       rendererOptions: {
-        // Wait until react-helmet-async has applied the per-route head tags
-        // and the SessionContext has resolved to "no user" (no refresh-token
-        // cookie in the headless browser so initAuth() returns false fast).
-        renderAfterDocumentEvent: 'render-event',
+        // 2s gives react-helmet-async time to apply per-route head tags and
+        // lets SessionContext resolve to "no user" (no refresh-token cookie in
+        // the headless browser so initAuth() returns false quickly).
         renderAfterTime: 2000,
         maxConcurrentRoutes: 4,
-        headless: 'new',
+        headless: true,
       },
       postProcess(renderedRoute) {
         // Strip any stray <script> that tried to talk to the API during render
