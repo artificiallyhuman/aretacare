@@ -4,10 +4,19 @@
       {
         "appIDs": ["95N89VR7T6.com.aretacare.ios"],
         "paths": [
+          "/",
+          "/about",
+          "/login",
+          "/register*",
+          "/waitlist",
+          "/contact",
+          "/terms",
+          "/privacy",
+          "/tools/jargon",
+          "/tools/coach",
           "/verify-email*",
           "/verify-email-change*",
           "/password-reset*",
-          "/register*",
           "/collaboration",
           "/settings"
         ]
