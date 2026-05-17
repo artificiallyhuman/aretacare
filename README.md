@@ -2,8 +2,6 @@
 
 **Calm | Clarity | Confidence**
 
-Live at [https://www.aretacare.com](https://www.aretacare.com).
-
 A secure platform for patients and caregivers to organize information, understand complex concepts, and prepare for clearer conversations with care teams.
 
 ---
