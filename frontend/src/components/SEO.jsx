@@ -75,6 +75,13 @@ function SEO({ title: titleOverride, description: descriptionOverride, noindex =
   const jsonLdKey = JSON.stringify(jsonLd);
 
   useEffect(() => {
+    // Skip head mutation while running under the prerender's headless browser.
+    // postProcess in vite.config.js injects the correct head at build time;
+    // running this effect inside Puppeteer would duplicate the JSON-LD scripts
+    // and double-write the meta tags.
+    if (typeof navigator !== 'undefined' && /HeadlessChrome/i.test(navigator.userAgent)) {
+      return;
+    }
     document.title = title;
     setMetaTag('meta[name="description"]', 'name', 'description', description);
     setCanonical(canonical);
