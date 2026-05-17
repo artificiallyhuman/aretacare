@@ -101,6 +101,39 @@ services:
     buildCommand: cd frontend && npm install && npm run build
     staticPublishPath: ./frontend/dist
     routes:
+      # Serve the prerendered HTML for each public route. These must come
+      # before the wildcard fallback so they win the match. Without them,
+      # `/about` gets rewritten to `/index.html` (the Landing prerender)
+      # instead of `/about/index.html` (the About prerender).
+      - type: rewrite
+        source: /about
+        destination: /about/index.html
+      - type: rewrite
+        source: /waitlist
+        destination: /waitlist/index.html
+      - type: rewrite
+        source: /login
+        destination: /login/index.html
+      - type: rewrite
+        source: /register
+        destination: /register/index.html
+      - type: rewrite
+        source: /tools/jargon
+        destination: /tools/jargon/index.html
+      - type: rewrite
+        source: /tools/coach
+        destination: /tools/coach/index.html
+      - type: rewrite
+        source: /contact
+        destination: /contact/index.html
+      - type: rewrite
+        source: /terms
+        destination: /terms/index.html
+      - type: rewrite
+        source: /privacy
+        destination: /privacy/index.html
+      # SPA fallback for auth-gated routes (/settings, /journal, etc.) and
+      # unknown paths — they get the root index.html and React Router takes over.
       - type: rewrite
         source: /*
         destination: /index.html
