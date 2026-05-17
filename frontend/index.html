@@ -35,6 +35,19 @@
     <link rel="apple-touch-icon" sizes="180x180" href="/favicon/apple-touch-icon.png?v=2" />
     <link rel="shortcut icon" href="/favicon/favicon.ico?v=2" />
     <link rel="manifest" href="/favicon/site.webmanifest?v=2" />
+    <script>
+      // Apply persisted theme synchronously before React mounts so hydration
+      // sees the same .dark class state as the prerendered HTML (which has
+      // none, since Puppeteer's localStorage is empty). Without this, dark-mode
+      // users hit a hydration mismatch on the theme-aware UI.
+      (function () {
+        try {
+          if (localStorage.getItem('theme') === 'dark') {
+            document.documentElement.classList.add('dark');
+          }
+        } catch (e) { /* localStorage may be blocked; safe to ignore */ }
+      })();
+    </script>
     <style>
       /* Inline first-paint skeleton — replaced as soon as React hydrates the prerendered HTML. */
       #root:empty::before {

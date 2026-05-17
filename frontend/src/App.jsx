@@ -13,30 +13,36 @@ import IdleTimeout from './components/IdleTimeout';
 import CollaborationAwarenessPopup from './components/CollaborationAwarenessPopup';
 import AIDataSharingConsentModal from './components/AIDataSharingConsentModal';
 
-// Eagerly load critical pages (landing, login flow and main conversation)
+// Eagerly load all prerendered public routes (matches PRERENDER_ROUTES in
+// vite.config.js). React.lazy + prerendered HTML causes a hydration mismatch
+// because the chunk hasn't resolved when hydration begins, so React falls back
+// to a full client re-render — destroying the prerender's first-paint benefit.
 import Landing from './pages/Landing';
 import Login from './pages/Login';
 import Register from './pages/Register';
+import Waitlist from './pages/Waitlist';
+import About from './pages/About';
+import Contact from './pages/Contact';
+import TermsOfService from './pages/TermsOfService';
+import PrivacyPolicy from './pages/PrivacyPolicy';
+import JargonTranslator from './pages/tools/JargonTranslator';
+import ConversationCoach from './pages/tools/ConversationCoach';
+
+// Eagerly load main conversation (always shown to signed-in users at /)
 import Conversation from './pages/Conversation';
 
-// Lazy load less frequently accessed pages for code splitting (40-60% faster initial load)
-const About = lazy(() => import('./pages/About'));
+// Lazy load auth-gated and admin pages — these never render via prerender and
+// only load after the user has authenticated, so the chunk-load cost is fine.
 const JournalView = lazy(() => import('./pages/JournalView'));
 const DailyPlan = lazy(() => import('./pages/DailyPlan'));
 const AudioRecordings = lazy(() => import('./pages/AudioRecordings'));
 const Collaboration = lazy(() => import('./pages/Collaboration'));
 const Settings = lazy(() => import('./pages/Settings'));
-const JargonTranslator = lazy(() => import('./pages/tools/JargonTranslator'));
-const ConversationCoach = lazy(() => import('./pages/tools/ConversationCoach'));
 const Documents = lazy(() => import('./pages/tools/Documents'));
 const PasswordReset = lazy(() => import('./pages/PasswordReset'));
 const VerifyEmail = lazy(() => import('./pages/VerifyEmail'));
 const VerifyEmailChange = lazy(() => import('./pages/VerifyEmailChange'));
-const TermsOfService = lazy(() => import('./pages/TermsOfService'));
-const PrivacyPolicy = lazy(() => import('./pages/PrivacyPolicy'));
-const Contact = lazy(() => import('./pages/Contact'));
 const Profile = lazy(() => import('./pages/Profile'));
-const Waitlist = lazy(() => import('./pages/Waitlist'));
 const MFASetup = lazy(() => import('./pages/MFASetup'));
 
 // Admin pages

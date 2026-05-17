@@ -12,12 +12,20 @@ export const useNetworkStatus = () => {
 };
 
 export const NetworkProvider = ({ children }) => {
-  const [isOnline, setIsOnline] = useState(navigator.onLine);
+  // Default to online for hydration stability — the actual navigator.onLine
+  // is checked in the effect below. Prerendered HTML and the first client
+  // render both start at "online"; any offline state arrives after mount.
+  const [isOnline, setIsOnline] = useState(true);
   const [error, setError] = useState(null);
   const [showError, setShowError] = useState(false);
 
   // Handle online/offline events
   useEffect(() => {
+    // Sync to the real value after mount (was deferred for hydration safety).
+    if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+      setIsOnline(false);
+    }
+
     const handleOnline = () => {
       setIsOnline(true);
       // Clear error when back online

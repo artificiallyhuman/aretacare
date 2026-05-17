@@ -2,15 +2,19 @@ import { createContext, useContext, useEffect, useState } from 'react';
 
 const ThemeContext = createContext();
 
+// The inline script in index.html applies the .dark class on <html> from
+// localStorage before React mounts, so reading classList here gives a
+// hydration-safe initial value (prerender = no class = false; client = whatever
+// the inline script set).
+const readInitialIsDark = () => {
+  if (typeof document === 'undefined') return false;
+  return document.documentElement.classList.contains('dark');
+};
+
 export function ThemeProvider({ children }) {
-  // Default to light mode
-  const [isDark, setIsDark] = useState(() => {
-    const saved = localStorage.getItem('theme');
-    return saved === 'dark';
-  });
+  const [isDark, setIsDark] = useState(readInitialIsDark);
 
   useEffect(() => {
-    // Update document class and localStorage
     if (isDark) {
       document.documentElement.classList.add('dark');
       localStorage.setItem('theme', 'dark');
