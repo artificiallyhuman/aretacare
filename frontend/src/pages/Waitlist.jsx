@@ -48,11 +48,7 @@ function Waitlist() {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex flex-col justify-center py-6 sm:py-12 px-4 sm:px-6 lg:px-8 transition-colors duration-200">
-      <SEO
-        title="Join the Waitlist"
-        description="AretaCare is opening to new users in phases. Join the waitlist to be invited as space becomes available."
-        path="/waitlist"
-      />
+      <SEO />
       {/* Theme Toggle Button */}
       <button
         onClick={toggleTheme}

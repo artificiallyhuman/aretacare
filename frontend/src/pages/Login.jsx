@@ -133,11 +133,7 @@ function Login() {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex flex-col justify-center py-6 sm:py-12 px-4 sm:px-6 lg:px-8 transition-colors duration-200">
-      <SEO
-        title="Sign in"
-        description="Sign in to AretaCare to organize medical information, share care sessions with family, and prepare for healthcare conversations."
-        path="/login"
-      />
+      <SEO />
       {/* MFA Challenge Modal */}
       {mfaRequired && (
         <MFAChallenge

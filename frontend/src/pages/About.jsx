@@ -5,14 +5,6 @@ import logo from '../logos/large_logo.png';
 import jasonSignature from '../logos/jason_signature.png';
 import robSignature from '../logos/rob_signature.png';
 
-function plainTextOf(node) {
-  if (node == null || typeof node === 'boolean') return '';
-  if (typeof node === 'string' || typeof node === 'number') return String(node);
-  if (Array.isArray(node)) return node.map(plainTextOf).join(' ');
-  if (node?.props?.children !== undefined) return plainTextOf(node.props.children);
-  return '';
-}
-
 // FAQ data organized by category
 const FAQ_DATA = [
   // GETTING STARTED
@@ -210,31 +202,13 @@ const FaqItem = ({ faq, isExpanded, onToggle }) => (
   </div>
 );
 
-const FAQ_JSON_LD = {
-  '@context': 'https://schema.org',
-  '@type': 'FAQPage',
-  mainEntity: FAQ_DATA.map((faq) => ({
-    '@type': 'Question',
-    name: faq.title,
-    acceptedAnswer: {
-      '@type': 'Answer',
-      text: plainTextOf(faq.content),
-    },
-  })),
-};
-
 const About = () => {
   const [activeTab, setActiveTab] = useState('story');
   const [expandedFaq, setExpandedFaq] = useState(null);
 
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 lg:py-12">
-      <SEO
-        title="About AretaCare — AI Healthcare Coach & Organizer"
-        description="AretaCare is an AI healthcare coach and organizer that helps patients and caregivers make sense of medical information, prepare for doctor visits, and keep care organized."
-        path="/about"
-        jsonLd={FAQ_JSON_LD}
-      />
+      <SEO />
       <Link
         to="/"
         className="inline-flex items-center text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 mb-6 font-medium transition-colors group"

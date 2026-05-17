@@ -175,11 +175,7 @@ const ConversationCoach = () => {
 
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 lg:py-12">
-      <SEO
-        title="Doctor Visit Prep — Free Conversation Coach"
-        description="Free coaching to prepare for doctor visits, specialist appointments, and family care conversations. Describe the situation and get questions and talking points to bring along."
-        path="/tools/coach"
-      />
+      <SEO />
       {!user && (
         <div className="mb-4 flex items-center justify-between">
           <Link to="/" className="text-sm text-primary-600 dark:text-primary-400 hover:underline flex items-center gap-1 group">

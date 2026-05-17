@@ -131,11 +131,7 @@ function Register() {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex flex-col justify-center py-6 sm:py-12 px-4 sm:px-6 lg:px-8 transition-colors duration-200">
-      <SEO
-        title="Create your account"
-        description="Create a free AretaCare account to organize medical information, collaborate with family, and prepare for care team conversations."
-        path="/register"
-      />
+      <SEO />
       {/* Theme Toggle Button */}
       <button
         onClick={toggleTheme}

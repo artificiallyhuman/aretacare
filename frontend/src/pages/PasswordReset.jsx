@@ -86,7 +86,7 @@ export default function PasswordReset() {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex flex-col justify-center py-6 sm:py-12 px-4 sm:px-6 lg:px-8 transition-colors duration-200">
-      <SEO title="Reset Password" path="/password-reset" noindex />
+      <SEO title="Reset Password" noindex />
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
         {/* Logo */}
         <div className="flex justify-center">

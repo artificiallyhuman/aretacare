@@ -3,7 +3,6 @@ import { Link } from 'react-router-dom';
 import SEO from '../components/SEO';
 import Footer from '../components/Footer';
 import { useTheme } from '../contexts/ThemeContext';
-import { ORGANIZATION_JSON_LD, WEBSITE_JSON_LD } from '../constants/seo';
 import logo from '../logos/large_logo.png';
 
 const VALUE_PROPS = [
@@ -68,12 +67,7 @@ function Landing() {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-200 flex flex-col">
-      <SEO
-        title="AI Healthcare Coach & Organizer for Patients & Families"
-        description="AretaCare is an AI healthcare coach and organizer that helps patients and caregivers make sense of medical information, prepare for doctor visits, and keep care organized across family members."
-        path="/"
-        jsonLd={[ORGANIZATION_JSON_LD, WEBSITE_JSON_LD]}
-      />
+      <SEO />
 
       <header className="max-w-5xl mx-auto w-full px-4 sm:px-6 lg:px-8 pt-8 sm:pt-12 pb-2">
         <nav className="flex items-center justify-between gap-3" aria-label="Primary">

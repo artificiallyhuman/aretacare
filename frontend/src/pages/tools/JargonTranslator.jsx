@@ -79,11 +79,7 @@ const JargonTranslator = () => {
 
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 lg:py-12">
-      <SEO
-        title="Medical Jargon Translator — Free Plain-English Definitions"
-        description="Free medical jargon translator. Paste any medical term, abbreviation, lab value, or diagnosis and get a plain-English explanation written for patients and caregivers."
-        path="/tools/jargon"
-      />
+      <SEO />
       {!user && (
         <div className="mb-4 flex items-center justify-between">
           <Link to="/" className="text-sm text-primary-600 dark:text-primary-400 hover:underline flex items-center gap-1 group">

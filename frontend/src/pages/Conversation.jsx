@@ -667,7 +667,7 @@ const Conversation = () => {
 
   return (
     <div className="flex flex-col h-full overscroll-none">
-      <SEO title="Care Session" path="/" noindex />
+      <SEO title="Care Session" noindex />
       {/* Main content area */}
       <div className="flex flex-1 overflow-hidden">
         {/* Daily Plan Panel (collapsible sidebar) */}
