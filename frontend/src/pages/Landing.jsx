@@ -79,8 +79,6 @@ function Landing() {
             </div>
           </Link>
           <div className="flex items-center gap-3 sm:gap-5 text-sm">
-            <Link to="/about" className="hidden sm:inline text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white">About</Link>
-            <Link to="/register" className="hidden sm:inline text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white">Create account</Link>
             <button
               onClick={toggleTheme}
               className="p-2 bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 rounded-lg border border-gray-200 dark:border-gray-700 transition-colors"
