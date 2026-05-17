@@ -4,8 +4,27 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="theme-color" content="#0284c7" />
-    <title>AretaCare</title>
-    <meta name="description" content="AI-powered care advocate helping families understand complex medical information with clarity and compassion." />
+    <title>AretaCare — AI Healthcare Coach & Organizer for Patients & Families</title>
+    <meta name="description" content="AretaCare is an AI healthcare coach and organizer that helps patients and caregivers make sense of medical information, prepare for doctor visits, and keep care organized." />
+    <link rel="canonical" href="https://www.aretacare.com/" />
+
+    <!-- Open Graph (defaults; overridden per route by react-helmet-async) -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="AretaCare" />
+    <meta property="og:title" content="AretaCare — AI Healthcare Coach & Organizer for Patients & Families" />
+    <meta property="og:description" content="AretaCare is an AI healthcare coach and organizer that helps patients and caregivers make sense of medical information, prepare for doctor visits, and keep care organized." />
+    <meta property="og:url" content="https://www.aretacare.com/" />
+    <meta property="og:image" content="https://www.aretacare.com/favicon/og-image.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="AretaCare — Calm | Clarity | Confidence" />
+
+    <!-- Twitter Card (defaults) -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="AretaCare — AI Healthcare Coach & Organizer for Patients & Families" />
+    <meta name="twitter:description" content="AretaCare is an AI healthcare coach and organizer that helps patients and caregivers make sense of medical information, prepare for doctor visits, and keep care organized." />
+    <meta name="twitter:image" content="https://www.aretacare.com/favicon/og-image.png" />
+    <meta name="twitter:image:alt" content="AretaCare — Calm | Clarity | Confidence" />
 
     <!-- Apple Smart App Banner (iOS Safari only) -->
     <meta name="apple-itunes-app" content="app-id=6759615710" />
@@ -16,6 +35,20 @@
     <link rel="apple-touch-icon" sizes="180x180" href="/favicon/apple-touch-icon.png?v=2" />
     <link rel="shortcut icon" href="/favicon/favicon.ico?v=2" />
     <link rel="manifest" href="/favicon/site.webmanifest?v=2" />
+    <style>
+      /* Inline first-paint skeleton — replaced as soon as React hydrates the prerendered HTML. */
+      #root:empty::before {
+        content: '';
+        display: block;
+        min-height: 100vh;
+        background: linear-gradient(180deg, #f9fafb 0%, #eff6ff 100%);
+      }
+      @media (prefers-color-scheme: dark) {
+        #root:empty::before {
+          background: linear-gradient(180deg, #111827 0%, #1f2937 100%);
+        }
+      }
+    </style>
   </head>
   <body>
     <div id="root"></div>

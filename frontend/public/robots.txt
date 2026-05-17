@@ -9,6 +9,8 @@ Allow: /register
 Allow: /waitlist
 Allow: /terms
 Allow: /privacy
+Allow: /tools/jargon
+Allow: /tools/coach
 
 # Disallow authenticated/private pages
 Disallow: /settings
@@ -17,13 +19,13 @@ Disallow: /journal
 Disallow: /daily-digest
 Disallow: /daily-plan
 Disallow: /audio-recordings
-Disallow: /tools/
+Disallow: /tools/documents
 Disallow: /profile
 Disallow: /mfa-setup
 Disallow: /admin/
 Disallow: /api/
 
-# Disallow auth flow pages
+# Disallow auth flow pages (transactional URLs with tokens)
 Disallow: /password-reset
 Disallow: /verify-email
 Disallow: /verify-email-change

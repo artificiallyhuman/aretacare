@@ -13,7 +13,8 @@ import IdleTimeout from './components/IdleTimeout';
 import CollaborationAwarenessPopup from './components/CollaborationAwarenessPopup';
 import AIDataSharingConsentModal from './components/AIDataSharingConsentModal';
 
-// Eagerly load critical pages (login flow and main conversation)
+// Eagerly load critical pages (landing, login flow and main conversation)
+import Landing from './pages/Landing';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import Conversation from './pages/Conversation';
@@ -83,26 +84,32 @@ function ProtectedRoute({ children }) {
   return children;
 }
 
-// Public Route Component (redirects to home if already logged in)
+// Public Route Component (redirects to home if already logged in).
+// While the auth check is in flight we render the public content optimistically
+// so crawlers and prerendering see real markup instead of a spinner. If auth
+// resolves to a logged-in user, the Navigate below kicks in.
 function PublicRoute({ children }) {
   const { user, loading } = useSessionContext();
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="spinner"></div>
-          <p className="mt-4 text-gray-600">Loading...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (user) {
+  if (!loading && user) {
     return <Navigate to="/" replace />;
   }
 
   return children;
+}
+
+// Auth Switch Route - renders different content for authenticated vs unauthenticated users.
+// Used for `/` so logged-in users see the chat app and visitors see the marketing landing page.
+// During the auth-check window we render the unauthenticated page so the prerendered
+// snapshot and first paint contain the marketing markup.
+function AuthSwitchRoute({ authenticated, unauthenticated }) {
+  const { user, loading } = useSessionContext();
+
+  if (!loading && user) {
+    return authenticated;
+  }
+
+  return unauthenticated;
 }
 
 // Admin Route Component (requires admin access)
@@ -210,13 +217,14 @@ function AppContent() {
             }
           />
 
-          {/* Protected Routes */}
+          {/* Root: public landing page when unauthenticated, conversation when signed in */}
           <Route
             path="/"
             element={
-              <ProtectedRoute>
-                <Conversation />
-              </ProtectedRoute>
+              <AuthSwitchRoute
+                authenticated={<Conversation />}
+                unauthenticated={<Landing />}
+              />
             }
           />
           <Route

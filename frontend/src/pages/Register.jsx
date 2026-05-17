@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { authAPI, waitlistAPI } from '../services/api';
 import { useTheme } from '../contexts/ThemeContext';
+import SEO from '../components/SEO';
 import logo from '../logos/large_logo.png';
 
 function Register() {
@@ -130,6 +131,11 @@ function Register() {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex flex-col justify-center py-6 sm:py-12 px-4 sm:px-6 lg:px-8 transition-colors duration-200">
+      <SEO
+        title="Create your account"
+        description="Create a free AretaCare account to organize medical information, collaborate with family, and prepare for care team conversations."
+        path="/register"
+      />
       {/* Theme Toggle Button */}
       <button
         onClick={toggleTheme}
@@ -167,19 +173,22 @@ function Register() {
       )}
 
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
-        {/* Logo */}
+        {/* Logo — links back to the homepage */}
         <div className="flex justify-center">
-          <div className="flex items-center space-x-4">
+          <Link to="/" aria-label="AretaCare home" className="flex items-center space-x-4 group">
             <img
               src={logo}
               alt="AretaCare Logo"
+              width={64}
+              height={64}
+              decoding="async"
               className="w-16 h-16 object-contain"
             />
             <div>
-              <h1 className="text-3xl font-bold text-gray-900 dark:text-white">AretaCare<span className="font-normal">™</span></h1>
+              <p className="text-3xl font-bold text-gray-900 dark:text-white group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors">AretaCare<span className="font-normal">™</span></p>
               <p className="text-sm text-gray-500 dark:text-gray-400">Calm | Clarity | Confidence</p>
             </div>
-          </div>
+          </Link>
         </div>
 
       </div>
@@ -223,9 +232,9 @@ function Register() {
           ) : (
             /* Registration Form */
             <>
-              <h2 className="text-center text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">
+              <h1 className="text-center text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">
                 Create your account
-              </h2>
+              </h1>
               <p className="mt-2 mb-6 text-center text-sm text-gray-600 dark:text-gray-400">
                 Join AretaCare to get started
               </p>

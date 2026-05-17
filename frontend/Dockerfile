@@ -2,6 +2,11 @@ FROM node:18-alpine
 
 WORKDIR /app
 
+# Skip Puppeteer's bundled Chromium download.
+# Prerendering only runs during production `vite build`, not `vite dev`, and
+# Puppeteer's Chromium isn't compatible with Alpine's musl libc anyway.
+ENV PUPPETEER_SKIP_DOWNLOAD=true
+
 COPY package*.json ./
 
 RUN npm install

@@ -4,6 +4,7 @@ import ReactMarkdown from 'react-markdown';
 import { toolsAPI } from '../../services/api';
 import { useSessionContext } from '../../contexts/SessionContext';
 import { markdownToHtml } from '../../utils/markdownUtils';
+import SEO from '../../components/SEO';
 
 const JargonTranslator = () => {
   const { activeSessionId: sessionId, user } = useSessionContext();
@@ -78,6 +79,11 @@ const JargonTranslator = () => {
 
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 lg:py-12">
+      <SEO
+        title="Medical Jargon Translator — Free Plain-English Definitions"
+        description="Free medical jargon translator. Paste any medical term, abbreviation, lab value, or diagnosis and get a plain-English explanation written for patients and caregivers."
+        path="/tools/jargon"
+      />
       {!user && (
         <div className="mb-4 flex items-center justify-between">
           <Link to="/login" className="text-sm text-primary-600 dark:text-primary-400 hover:underline flex items-center gap-1">
@@ -96,6 +102,14 @@ const JargonTranslator = () => {
         <p className="mt-2 text-sm sm:text-base text-gray-600 dark:text-gray-400">
           Get plain-language explanations of medical terms
         </p>
+        <div className="mt-4 space-y-3 text-sm sm:text-base text-gray-700 dark:text-gray-300 max-w-3xl">
+          <p>
+            Doctor visits, discharge summaries, and lab reports are full of words most patients never learned in school. This free tool turns medical jargon into plain English so you and your family can actually understand what's being said.
+          </p>
+          <p>
+            Paste a term, an abbreviation, a lab value, a drug name, or a diagnosis — for example <em>hypertension</em>, <em>CBC with differential</em>, <em>BNP</em>, <em>NPO after midnight</em>, or <em>tachycardia</em>. You'll get a short, clear explanation along with what it usually means in everyday care and which questions are worth asking your clinician.
+          </p>
+        </div>
       </div>
 
       {/* Important Banner */}

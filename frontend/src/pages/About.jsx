@@ -1,7 +1,16 @@
 import React, { useState } from 'react';
+import SEO from '../components/SEO';
 import logo from '../logos/large_logo.png';
 import jasonSignature from '../logos/jason_signature.png';
 import robSignature from '../logos/rob_signature.png';
+
+function plainTextOf(node) {
+  if (node == null || typeof node === 'boolean') return '';
+  if (typeof node === 'string' || typeof node === 'number') return String(node);
+  if (Array.isArray(node)) return node.map(plainTextOf).join(' ');
+  if (node?.props?.children !== undefined) return plainTextOf(node.props.children);
+  return '';
+}
 
 // FAQ data organized by category
 const FAQ_DATA = [
@@ -200,21 +209,43 @@ const FaqItem = ({ faq, isExpanded, onToggle }) => (
   </div>
 );
 
+const FAQ_JSON_LD = {
+  '@context': 'https://schema.org',
+  '@type': 'FAQPage',
+  mainEntity: FAQ_DATA.map((faq) => ({
+    '@type': 'Question',
+    name: faq.title,
+    acceptedAnswer: {
+      '@type': 'Answer',
+      text: plainTextOf(faq.content),
+    },
+  })),
+};
+
 const About = () => {
   const [activeTab, setActiveTab] = useState('story');
   const [expandedFaq, setExpandedFaq] = useState(null);
 
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 lg:py-12">
+      <SEO
+        title="About AretaCare — AI Healthcare Coach & Organizer"
+        description="AretaCare is an AI healthcare coach and organizer that helps patients and caregivers make sense of medical information, prepare for doctor visits, and keep care organized."
+        path="/about"
+        jsonLd={FAQ_JSON_LD}
+      />
       <div className="text-center mb-8">
         <div className="flex items-center justify-center mx-auto mb-4">
           <img
             src={logo}
             alt="AretaCare Logo"
+            width={80}
+            height={80}
+            decoding="async"
             className="w-20 h-20 object-contain"
           />
         </div>
-        <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Welcome to AretaCare<span className="font-normal">™</span></h2>
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Welcome to AretaCare<span className="font-normal">™</span></h1>
         <p className="text-lg text-gray-600 dark:text-gray-400">Calm | Clarity | Confidence</p>
       </div>
 
@@ -467,6 +498,10 @@ const About = () => {
                 <img
                   src={jasonSignature}
                   alt="Jason Whiteman"
+                  width={160}
+                  height={64}
+                  loading="lazy"
+                  decoding="async"
                   className="h-16 w-auto invert-0 dark:invert dark:brightness-200"
                 />
               </div>
@@ -536,6 +571,10 @@ const About = () => {
                 <img
                   src={robSignature}
                   alt="Rob Whiteman"
+                  width={160}
+                  height={64}
+                  loading="lazy"
+                  decoding="async"
                   className="h-16 w-auto invert-0 dark:invert dark:brightness-200"
                 />
               </div>

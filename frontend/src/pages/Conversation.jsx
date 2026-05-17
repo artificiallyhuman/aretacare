@@ -8,6 +8,7 @@ import MessageBubble from '../components/MessageBubble';
 import MessageInput from '../components/MessageInput';
 import DailyPlanPanel from '../components/DailyPlan/DailyPlanPanel';
 import TypingIndicator from '../components/TypingIndicator';
+import SEO from '../components/SEO';
 import { getColorClasses } from '../constants/sessionColors';
 
 const MESSAGE_PAGE_SIZE = 25;
@@ -666,6 +667,7 @@ const Conversation = () => {
 
   return (
     <div className="flex flex-col h-full overscroll-none">
+      <SEO title="Care Session" path="/" noindex />
       {/* Main content area */}
       <div className="flex flex-1 overflow-hidden">
         {/* Daily Plan Panel (collapsible sidebar) */}

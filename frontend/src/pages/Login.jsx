@@ -3,6 +3,7 @@ import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { authAPI, waitlistAPI, setAccessToken } from '../services/api';
 import { useTheme } from '../contexts/ThemeContext';
 import MFAChallenge from '../components/mfa/MFAChallenge';
+import SEO from '../components/SEO';
 import logo from '../logos/large_logo.png';
 
 function Login() {
@@ -132,6 +133,11 @@ function Login() {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex flex-col justify-center py-6 sm:py-12 px-4 sm:px-6 lg:px-8 transition-colors duration-200">
+      <SEO
+        title="Sign in"
+        description="Sign in to AretaCare to organize medical information, share care sessions with family, and prepare for healthcare conversations."
+        path="/login"
+      />
       {/* MFA Challenge Modal */}
       {mfaRequired && (
         <MFAChallenge
@@ -159,37 +165,33 @@ function Login() {
         )}
       </button>
 
-      {/* Important Notice - First thing user sees */}
+      {/* Important Notice — short reminder. Full disclosure lives on the landing page. */}
       <div className="sm:mx-auto sm:w-full sm:max-w-md px-4 sm:px-0 mb-6">
-        <div className="bg-amber-50 dark:bg-amber-900/20 border-l-4 border-amber-500 dark:border-amber-600 p-4 rounded-r-lg">
-          <div className="flex items-start">
-            <svg className="w-5 h-5 text-amber-600 dark:text-amber-500 mt-0.5 mr-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-            </svg>
-            <div className="flex-1">
-              <h3 className="text-xs font-semibold text-amber-800 dark:text-amber-400 mb-1.5">Important</h3>
-              <p className="text-xs text-amber-800 dark:text-amber-300 leading-relaxed">
-                AretaCare is an AI assistant and does not provide medical advice, diagnosis, or treatment. Consult qualified healthcare professionals for medical decisions. This is a consumer tool, not a HIPAA-covered service or medical record system.
-              </p>
-            </div>
-          </div>
+        <div className="bg-amber-50 dark:bg-amber-900/20 border-l-4 border-amber-500 dark:border-amber-600 p-3 rounded-r-lg">
+          <p className="text-xs text-amber-800 dark:text-amber-300 leading-relaxed">
+            AretaCare is not medical advice. Always consult your care team for medical decisions.
+          </p>
         </div>
       </div>
 
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
-        {/* Logo */}
+        <h1 className="sr-only">Sign in to AretaCare</h1>
+        {/* Logo — links back to the homepage */}
         <div className="flex justify-center">
-          <div className="flex items-center space-x-4">
+          <Link to="/" aria-label="AretaCare home" className="flex items-center space-x-4 group">
             <img
               src={logo}
               alt="AretaCare Logo"
+              width={64}
+              height={64}
+              decoding="async"
               className="w-16 h-16 object-contain"
             />
             <div>
-              <h1 className="text-3xl font-bold text-gray-900 dark:text-white">AretaCare<span className="font-normal">™</span></h1>
+              <p className="text-3xl font-bold text-gray-900 dark:text-white group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors">AretaCare<span className="font-normal">™</span></p>
               <p className="text-sm text-gray-500 dark:text-gray-400">Calm | Clarity | Confidence</p>
             </div>
-          </div>
+          </Link>
         </div>
         <p className="mt-2 text-center text-sm text-gray-500 dark:text-gray-400 text-balance">
           A platform for patients and caregivers navigating the healthcare system.

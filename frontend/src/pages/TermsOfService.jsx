@@ -1,9 +1,15 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import SEO from '../components/SEO';
 
 const TermsOfService = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50 dark:from-gray-900 dark:to-gray-800 py-8 sm:py-12 px-4 sm:px-6 lg:px-8 transition-colors duration-200">
+      <SEO
+        title="Terms of Service"
+        description="AretaCare Terms of Service. AretaCare is a consumer tool, not a medical service, and does not provide medical advice, diagnosis, or treatment."
+        path="/terms"
+      />
       <div className="max-w-4xl mx-auto">
         {/* Header */}
         <div className="mb-8">

@@ -4,6 +4,7 @@ import { useSessionContext } from '../contexts/SessionContext';
 import { useTheme } from '../contexts/ThemeContext';
 import HCaptcha from '@hcaptcha/react-hcaptcha';
 import api from '../services/api';
+import SEO from '../components/SEO';
 
 function Contact() {
   const { user } = useSessionContext();
@@ -182,6 +183,11 @@ function Contact() {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 px-4 py-8 sm:py-12">
+      <SEO
+        title="Contact AretaCare"
+        description="Share feedback, report bugs, or request features. We'd love to hear from you as we build AretaCare for patients and caregivers."
+        path="/contact"
+      />
       <div className="max-w-2xl mx-auto">
         {/* Header */}
         <div className="mb-8">

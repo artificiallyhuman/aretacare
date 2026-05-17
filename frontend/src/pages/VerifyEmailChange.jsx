@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { authAPI } from '../services/api';
 import { useSessionContext } from '../contexts/SessionContext';
+import SEO from '../components/SEO';
 import logo from '../logos/large_logo.png';
 
 export default function VerifyEmailChange() {
@@ -62,6 +63,7 @@ export default function VerifyEmailChange() {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex flex-col justify-center py-6 sm:py-12 px-4 sm:px-6 lg:px-8 transition-colors duration-200">
+      <SEO title="Verify Email Change" path="/verify-email-change" noindex />
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
         {/* Logo */}
         <div className="flex justify-center">

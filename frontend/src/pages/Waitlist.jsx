@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import HCaptcha from '@hcaptcha/react-hcaptcha';
 import { waitlistAPI } from '../services/api';
 import { useTheme } from '../contexts/ThemeContext';
+import SEO from '../components/SEO';
 import logo from '../logos/large_logo.png';
 import jasonSignature from '../logos/jason_signature.png';
 import robSignature from '../logos/rob_signature.png';
@@ -47,6 +48,11 @@ function Waitlist() {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex flex-col justify-center py-6 sm:py-12 px-4 sm:px-6 lg:px-8 transition-colors duration-200">
+      <SEO
+        title="Join the Waitlist"
+        description="AretaCare is opening to new users in phases. Join the waitlist to be invited as space becomes available."
+        path="/waitlist"
+      />
       {/* Theme Toggle Button */}
       <button
         onClick={toggleTheme}
@@ -65,17 +71,17 @@ function Waitlist() {
       </button>
 
       <div className="sm:mx-auto sm:w-full sm:max-w-lg">
-        {/* Logo and Title */}
+        {/* Logo and Title — links back to the homepage */}
         <div className="flex justify-center mb-8">
-          <div className="flex items-center space-x-4">
-            <img src={logo} alt="AretaCare Logo" className="w-16 h-16 object-contain" />
+          <Link to="/" aria-label="AretaCare home" className="flex items-center space-x-4 group">
+            <img src={logo} alt="AretaCare Logo" width={64} height={64} decoding="async" className="w-16 h-16 object-contain" />
             <div>
-              <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+              <p className="text-3xl font-bold text-gray-900 dark:text-white group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors">
                 AretaCare<span className="font-normal text-xl align-super">™</span>
-              </h1>
+              </p>
               <p className="text-sm text-gray-500 dark:text-gray-400 tracking-wide">Calm | Clarity | Confidence</p>
             </div>
-          </div>
+          </Link>
         </div>
 
         <div className="bg-white dark:bg-gray-800 py-8 px-6 shadow-md sm:rounded-xl sm:px-10 border border-gray-200 dark:border-gray-700">
@@ -110,9 +116,9 @@ function Waitlist() {
             </div>
           ) : (
             <>
-              <h2 className="text-2xl font-bold text-gray-900 dark:text-white text-center mb-4">
+              <h1 className="text-2xl font-bold text-gray-900 dark:text-white text-center mb-4">
                 Join the Waitlist
-              </h2>
+              </h1>
 
               <div className="mb-6 space-y-3">
                 <p className="text-sm text-gray-600 dark:text-gray-400">
@@ -126,10 +132,10 @@ function Waitlist() {
                 </p>
                 <div className="flex items-center justify-center gap-8 pt-2">
                   <div className="text-center">
-                    <img src={jasonSignature} alt="Jason" className="h-12 dark:invert dark:brightness-200" />
+                    <img src={jasonSignature} alt="Jason" width={120} height={48} loading="lazy" decoding="async" className="h-12 w-auto dark:invert dark:brightness-200" />
                   </div>
                   <div className="text-center">
-                    <img src={robSignature} alt="Rob" className="h-12 dark:invert dark:brightness-200" />
+                    <img src={robSignature} alt="Rob" width={120} height={48} loading="lazy" decoding="async" className="h-12 w-auto dark:invert dark:brightness-200" />
                   </div>
                 </div>
               </div>

@@ -1,10 +1,20 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
+import { HelmetProvider } from 'react-helmet-async';
 import App from './App';
 import './styles/index.css';
 
-ReactDOM.createRoot(document.getElementById('root')).render(
+const rootEl = document.getElementById('root');
+const tree = (
   <React.StrictMode>
-    <App />
+    <HelmetProvider>
+      <App />
+    </HelmetProvider>
   </React.StrictMode>
 );
+
+if (rootEl.hasChildNodes()) {
+  ReactDOM.hydrateRoot(rootEl, tree);
+} else {
+  ReactDOM.createRoot(rootEl).render(tree);
+}

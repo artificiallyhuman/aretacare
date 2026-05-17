@@ -6,6 +6,7 @@ import { useSessionContext } from '../../contexts/SessionContext';
 import { formatTime } from '../../utils/dateUtils';
 import { markdownToHtml } from '../../utils/markdownUtils';
 import AudioWaveform from '../../components/AudioWaveform';
+import SEO from '../../components/SEO';
 
 const MAX_RECORDING_SECONDS = 900; // 15 minutes (corresponds to ~50MB at typical WebM bitrate)
 
@@ -174,6 +175,11 @@ const ConversationCoach = () => {
 
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 lg:py-12">
+      <SEO
+        title="Doctor Visit Prep — Free Conversation Coach"
+        description="Free coaching to prepare for doctor visits, specialist appointments, and family care conversations. Describe the situation and get questions and talking points to bring along."
+        path="/tools/coach"
+      />
       {!user && (
         <div className="mb-4 flex items-center justify-between">
           <Link to="/login" className="text-sm text-primary-600 dark:text-primary-400 hover:underline flex items-center gap-1">
@@ -192,6 +198,14 @@ const ConversationCoach = () => {
         <p className="mt-2 text-sm sm:text-base text-gray-600 dark:text-gray-400">
           Draft questions and talking points to prepare for conversations with your care team
         </p>
+        <div className="mt-4 space-y-3 text-sm sm:text-base text-gray-700 dark:text-gray-300 max-w-3xl">
+          <p>
+            Doctor visits move fast. It's easy to walk out realizing you forgot the question that mattered most, or to feel unsure how to advocate for a parent, partner, or child. This free coach helps you go in prepared.
+          </p>
+          <p>
+            Describe the upcoming conversation — a follow-up with the cardiologist, a hospital discharge meeting, a hard talk about a treatment plan — and you'll get a tailored list of questions to ask, key points to raise, and ways to phrase difficult topics. Bring it with you, or share it with the family member going in your place.
+          </p>
+        </div>
       </div>
 
       {/* Important Banner */}
