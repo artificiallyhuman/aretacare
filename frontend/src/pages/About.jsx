@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
 import SEO from '../components/SEO';
 import logo from '../logos/large_logo.png';
 import jasonSignature from '../logos/jason_signature.png';
@@ -234,6 +235,15 @@ const About = () => {
         path="/about"
         jsonLd={FAQ_JSON_LD}
       />
+      <Link
+        to="/"
+        className="inline-flex items-center text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 mb-6 font-medium transition-colors group"
+      >
+        <svg className="w-5 h-5 mr-2 group-hover:-translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+        </svg>
+        Back to home
+      </Link>
       <div className="text-center mb-8">
         <div className="flex items-center justify-center mx-auto mb-4">
           <img
