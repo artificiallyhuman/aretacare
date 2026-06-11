@@ -131,9 +131,10 @@ AretaCare implements comprehensive security measures:
 - **Automatic Cleanup**: Expired challenges and trusted devices cleaned on server startup
 
 ### Rate Limiting
+- **Proxy-aware client IP**: Forwarded-IP headers are only trusted when the request demonstrably arrives through the CDN edge; otherwise the directly observed peer address is used, so rate limits and security logs can't be evaded with forged headers
 - **Login**: 6 attempts per minute per IP
 - **Registration**: 3 attempts per hour per IP
-- **Password Reset**: 3 requests per hour
+- **Password Reset**: 3 requests per hour per IP, plus a per-account limit so a single account can't be flooded with reset emails from many IPs
 - **API General**: 100 requests per minute per user
 - **File Uploads**: 10 per minute (documents), 5 per minute (audio)
 - **Presigned URLs**: 30 per minute (document download, thumbnail, audio playback)
@@ -146,8 +147,11 @@ AretaCare implements comprehensive security measures:
 - **Encryption at Rest**: S3 server-side encryption (AES-256)
 - **Keychain Security (iOS)**: Tokens stored with `.afterFirstUnlockThisDeviceOnly` (prevents Keychain restoration to other devices)
 - **SQL Injection Prevention**: SQLAlchemy ORM with parameterized queries
-- **XSS Prevention**: ReactMarkdown (web) and MarkdownUI (iOS) for safe content rendering
-- **Input Validation**: Pydantic schemas for all API inputs; iOS validates deep link token format before routing
+- **XSS Prevention**: ReactMarkdown (web) and MarkdownUI (iOS) for safe content rendering; markdown links restricted to safe URL protocols and opened with `noopener`/`noreferrer`
+- **No-cache for API responses**: API responses carry personal data and are marked `Cache-Control: no-store`; the iOS client additionally disables on-disk response caching
+- **At-rest protection for temporary files (iOS)**: Downloaded documents, exported profiles, and audio recordings are written with file protection and cleaned up after use
+- **App-switcher privacy (iOS)**: A privacy shield hides on-screen content from the app-switcher snapshot whenever the app is not active
+- **Input Validation**: Pydantic schemas for all API inputs; iOS validates deep link token format and push-notification payload fields before routing
 - **Client-Side File Validation (iOS)**: File size checked against 30MB limit before upload; photo format detected via UTType
 - **Care Session Name Validation**: Character restrictions (alphanumeric, spaces, hyphens, underscores, apostrophes only)
 - **Security Headers**: X-Content-Type-Options, X-Frame-Options, X-XSS-Protection, Referrer-Policy, Permissions-Policy, CSP

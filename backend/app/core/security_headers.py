@@ -23,6 +23,7 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
     - Referrer-Policy: Controls referrer information sent with requests
     - Permissions-Policy: Restricts browser features
     - Content-Security-Policy: Controls resource loading
+    - Cache-Control: no-store for API responses (user data must not be cached)
     """
 
     async def dispatch(self, request: Request, call_next) -> Response:
@@ -78,5 +79,12 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
             "form-action 'self'; "
             "base-uri 'self'"
         )
+
+        # API responses contain user data and must never be written to
+        # browser or intermediary caches. Endpoints can opt out by setting
+        # their own Cache-Control header.
+        if request.url.path.startswith("/api") and "Cache-Control" not in response.headers:
+            response.headers["Cache-Control"] = "no-store"
+            response.headers["Pragma"] = "no-cache"
 
         return response

@@ -17,6 +17,7 @@ struct AretaCareApp: App {
                     }
                 }
                 .task {
+                    TempFileCleanup.sweepAtLaunch()
                     SubscriptionManager.shared.configure()
                     await authManager.initAuth()
                 }
@@ -63,7 +64,7 @@ struct AretaCareApp: App {
     /// Rejects empty, excessively long, or tokens with unexpected characters to
     /// prevent injection attacks via crafted universal links.
     private func isValidDeepLinkToken(_ token: String) -> Bool {
-        guard !token.isEmpty, token.count <= 500 else { return false }
+        guard !token.isEmpty, token.count <= 256 else { return false }
         let allowedCharacters = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "-_"))
         return token.unicodeScalars.allSatisfy { allowedCharacters.contains($0) }
     }

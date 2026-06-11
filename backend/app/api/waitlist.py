@@ -16,7 +16,8 @@ from app.schemas.waitlist import (
     WaitlistJoinResponse,
     SignupModeResponse,
 )
-from app.api.feedback import verify_hcaptcha, get_client_ip
+from app.api.feedback import verify_hcaptcha
+from app.core.client_ip import get_client_ip
 
 router = APIRouter(prefix="/waitlist", tags=["waitlist"])
 

@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session as DBSession
 from fastapi import Request
 
 from app.models.security_log import SecurityLog
+from app.core.client_ip import get_client_ip
 from app.core.config import settings
 
 
@@ -188,35 +189,12 @@ class SecurityService:
         )
 
     def get_client_ip(self, request: Request) -> Optional[str]:
-        """Extract client IP address from request.
+        """Extract the client IP address from the request.
 
-        Checks headers in order of reliability:
-        1. CF-Connecting-IP (Cloudflare - most reliable when using CF)
-        2. X-Forwarded-For (standard proxy header, first IP is client)
-        3. X-Real-IP (nginx and other proxies)
-        4. Direct connection (request.client.host)
+        Delegates to the shared proxy-aware resolver in app.core.client_ip,
+        which only honors forwarding headers from trusted proxies.
         """
-        # Cloudflare sets this header with the actual client IP
-        cf_ip = request.headers.get("CF-Connecting-IP")
-        if cf_ip:
-            return cf_ip.strip()
-
-        # Standard proxy header (Render, nginx, etc.)
-        forwarded_for = request.headers.get("X-Forwarded-For")
-        if forwarded_for:
-            # X-Forwarded-For can contain multiple IPs, get the first one
-            return forwarded_for.split(",")[0].strip()
-
-        # Other common proxy header
-        real_ip = request.headers.get("X-Real-IP")
-        if real_ip:
-            return real_ip.strip()
-
-        # Fallback to direct client
-        if request.client:
-            return request.client.host
-
-        return None
+        return get_client_ip(request)
 
     def get_user_agent(self, request: Request) -> Optional[str]:
         """Extract user agent from request."""
@@ -234,6 +212,10 @@ class SecurityService:
     MFA_LOCKOUT_THRESHOLD = 10  # Number of failed MFA attempts before lockout
     MFA_LOCKOUT_WINDOW_MINUTES = 60  # Time window for MFA failures (1 hour)
     MFA_ALERT_THRESHOLD = 5  # Send email alert after this many failures
+
+    # Password reset request throttling (per account, complements per-IP rate limit)
+    RESET_REQUEST_LIMIT = 3  # Max reset emails per window per account
+    RESET_REQUEST_WINDOW_MINUTES = 60  # Time window for counting reset emails
 
     def check_mfa_lockout(
         self,
@@ -349,6 +331,47 @@ class SecurityService:
             user_agent=user_agent,
             endpoint="/api/auth/login",
             details=f"Account locked after {self.LOCKOUT_THRESHOLD} failed attempts"
+        )
+
+    def check_password_reset_throttle(self, db: DBSession, email: str) -> bool:
+        """
+        Check if this account has reached the reset-email limit for the window.
+
+        Counted against emails actually sent (logged events), not raw requests,
+        so requests rejected by the throttle don't extend the window and the
+        account owner regains reset ability as the window slides.
+
+        Returns:
+            bool: True if the limit has been reached (caller should skip sending)
+        """
+        cutoff_time = datetime.utcnow() - timedelta(minutes=self.RESET_REQUEST_WINDOW_MINUTES)
+
+        sent_count = db.query(SecurityLog).filter(
+            SecurityLog.created_at >= cutoff_time,
+            SecurityLog.event_type == "password_reset_requested",
+            SecurityLog.email == email
+        ).count()
+
+        return sent_count >= self.RESET_REQUEST_LIMIT
+
+    def log_password_reset_request(
+        self,
+        db: DBSession,
+        email: str,
+        user_id: Optional[str] = None,
+        ip_address: Optional[str] = None,
+        user_agent: Optional[str] = None
+    ):
+        """Log that a password reset email is being sent."""
+        self.log_event(
+            db=db,
+            event_type="password_reset_requested",
+            email=email,
+            user_id=user_id,
+            ip_address=ip_address,
+            user_agent=user_agent,
+            endpoint="/api/auth/password-reset/request",
+            details="Password reset email sent"
         )
 
     def check_repeated_upload_failures(

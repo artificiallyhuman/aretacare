@@ -1310,12 +1310,25 @@ def request_password_reset(request: Request, data: PasswordResetRequest, db: DBS
     if not user:
         return {"message": "If an account exists with this email, a password reset link has been sent."}
 
+    # Per-account throttle (the rate limit above is per IP). Respond identically
+    # so the throttle state isn't observable from outside.
+    if security_service.check_password_reset_throttle(db, user.email):
+        return {"message": "If an account exists with this email, a password reset link has been sent."}
+
     # Generate secure reset token
     reset_token = secrets.token_urlsafe(32)
     user.reset_token = reset_token
     user.reset_token_expires = datetime.utcnow() + timedelta(hours=1)  # 1 hour expiration
 
     db.commit()
+
+    security_service.log_password_reset_request(
+        db=db,
+        email=user.email,
+        user_id=str(user.id),
+        ip_address=security_service.get_client_ip(request),
+        user_agent=security_service.get_user_agent(request),
+    )
 
     # Send password reset email
     email_sent = email_service.send_password_reset_email(user.email, reset_token)

@@ -4,6 +4,8 @@ Base URL: `http://localhost:8000/api` (dev) or `https://your-backend.onrender.co
 
 Interactive docs: `/docs` (Swagger) or `/redoc` (ReDoc)
 
+> **Caching:** All `/api` responses are returned with `Cache-Control: no-store` because they carry personal data. Clients must not rely on HTTP caching of API responses; cache deliberately on the client side instead.
+
 ## Authentication
 
 JWT-based auth with access tokens (1 hour) + refresh tokens (7 days max, session cookie that expires on browser close). iOS clients receive tokens in the response body (stored in Keychain) via the `X-Client-Type: ios` header.

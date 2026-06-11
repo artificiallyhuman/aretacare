@@ -177,7 +177,8 @@ final class ProfileViewModel {
         let filename = "health_profile.\(ext)"
         let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent(filename)
 
-        try data.write(to: tempURL)
+        // Protect at rest: exported health profile is unreadable while locked.
+        try data.write(to: tempURL, options: [.atomic, .completeFileProtection])
         return tempURL
     }
 

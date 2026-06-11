@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import ReactMarkdown from 'react-markdown';
+import { MarkdownLink } from '../../utils/markdownComponents';
 import { journalAPI } from '../../services/api';
 import { markdownToHtml } from '../../utils/markdownUtils';
 import SourceTag from '../SourceTag';
@@ -141,6 +142,7 @@ const JournalEntry = ({ entry, colors, onEdit, onDelete, hasCollaborators, curre
       >
         <ReactMarkdown
           components={{
+            a: MarkdownLink,
             // Custom paragraph spacing
             p: ({node, ...props}) => <p className="mb-2 leading-relaxed" {...props} />,
             // Compact lists

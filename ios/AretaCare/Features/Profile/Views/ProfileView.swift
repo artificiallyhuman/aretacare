@@ -142,7 +142,12 @@ struct ProfileView: View {
                 }
             }
         }
-        .sheet(isPresented: $showingShareSheet) {
+        .sheet(isPresented: $showingShareSheet, onDismiss: {
+            if let exportURL {
+                try? FileManager.default.removeItem(at: exportURL)
+            }
+            exportURL = nil
+        }) {
             if let exportURL {
                 ShareSheet(activityItems: [exportURL])
             }

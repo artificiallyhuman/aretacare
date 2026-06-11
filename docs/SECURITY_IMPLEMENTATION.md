@@ -113,11 +113,15 @@ Registration returns identical responses regardless of whether an email already 
 
 Implemented via `slowapi`. See `backend/app/core/rate_limit.py`.
 
+**Client IP derivation** (`backend/app/core/client_ip.py`): a single proxy-aware resolver is used for both rate-limit keys and security logging. It honors `CF-Connecting-IP` only when the rightmost `X-Forwarded-For` hop (appended by the hosting proxy from the real TCP peer) is within Cloudflare's published ranges; otherwise it falls back to that peer address. This prevents forged forwarding headers — sent directly to the origin — from evading per-IP limits or poisoning security logs. If `CF-Connecting-IP` is present but the edge hop is unrecognized, a warning is logged (re-sync the Cloudflare ranges if it fires for legitimate traffic).
+
+Password reset has a second, per-account throttle (see Security Logging) layered on top of the per-IP limit below.
+
 | Endpoint | Limit |
 |----------|-------|
 | Login | 6/minute |
 | Registration | 3/hour |
-| Password Reset | 3/hour |
+| Password Reset | 3/hour per IP (+ 3/hour per account) |
 | MFA Verification | 3/minute |
 | File Upload | 10/minute (docs), 5/minute (audio) |
 | Presigned URL | 30/minute (document download, thumbnail, audio playback URLs) |
@@ -225,6 +229,9 @@ All user consents are recorded in `consent_records` table for compliance verific
 | `unauthorized_access` | 90 days |
 | `account_lockout` | 90 days |
 | `upload_failure` | 90 days |
+| `password_reset_requested` | 90 days |
+
+The `password_reset_requested` event also backs the per-account reset throttle: `SecurityService.check_password_reset_throttle()` counts sent events in the trailing hour and the endpoint silently skips sending (returning the same generic response) once the per-account limit is reached. Only sent emails are counted, so throttled attempts don't extend the window.
 
 Admin console includes AI-powered daily reports analyzing logs for security patterns.
 
@@ -258,6 +265,7 @@ Applied via `SecurityHeadersMiddleware` in `backend/app/core/security_headers.py
 | Referrer-Policy | `strict-origin-when-cross-origin` |
 | Permissions-Policy | Same as Cloudflare |
 | Content-Security-Policy | Same as Cloudflare |
+| Cache-Control | `no-store` (+ `Pragma: no-cache`) on all `/api` responses; endpoints can opt out by setting their own value |
 
 ### Content Security Policy Details
 
@@ -284,7 +292,8 @@ base-uri 'self'
 
 ### Web (React)
 - **Token storage**: Access token in localStorage (short-lived, 1 hour), refresh token in HttpOnly cookie only
-- **XSS prevention**: ReactMarkdown for content rendering, no `dangerouslySetInnerHTML`
+- **XSS prevention**: ReactMarkdown for content rendering, no `dangerouslySetInnerHTML`. A shared link renderer (`src/utils/markdownComponents.jsx`) restricts markdown links to safe protocols (`http`/`https`/`mailto`/relative) and opens them with `target="_blank" rel="noopener noreferrer"`; it is applied to every `ReactMarkdown` usage (chat, journal, daily digest, tools, admin reports)
+- **No-cache API responses**: backend marks `/api` responses `Cache-Control: no-store`, so personal data isn't retained in the browser cache
 - **Credentials**: `withCredentials: true` on axios for cookie transmission
 - **Send timeout**: 120-second AbortController timeout on message sends to handle slow AI responses gracefully
 
@@ -293,7 +302,7 @@ base-uri 'self'
 **Token & Auth Security:**
 - **Keychain storage**: Access/refresh tokens stored via KeychainAccess with `.afterFirstUnlockThisDeviceOnly` accessibility (prevents restoration to other devices); errors logged in DEBUG only
 - **Token refresh pinning**: `AuthInterceptor` uses a dedicated `URLSession` with `CertificatePinningDelegate` for refresh requests, ensuring refresh tokens are never sent over unpinned connections
-- **Passkey login (WebAuthn)**: `PasskeyAuthManager` wraps `ASAuthorizationController` for passkey assertion during MFA login. Credential data (authenticatorData, signature, clientDataJSON) is base64url-encoded and sent to backend for cryptographic verification. Requires `webcredentials` associated domain entitlement. Concurrency guard throws if a passkey operation is already in progress (prevents double-tap crashes).
+- **Passkey login (WebAuthn)**: `PasskeyAuthManager` wraps `ASAuthorizationController` for passkey assertion during MFA login. Credential data (authenticatorData, signature, clientDataJSON) is base64url-encoded and sent to backend for cryptographic verification. Requires `webcredentials` associated domain entitlement. Concurrency guard throws if a passkey operation is already in progress (prevents double-tap crashes). The backend-supplied relying-party identifier is validated against the configured frontend domain (`AppConstants.frontendBaseURL`) before use as defense-in-depth (`localhost` allowed in DEBUG).
 - **Logout data cleanup**: On logout, `AuthManager` clears all `ResponseCache` instances, `ImageCache`, UserDefaults keys (`lastSessionId`, `activeTab`, biometric preference), and push token before clearing Keychain — prevents data leakage on shared devices
 
 **Network Security:**
@@ -303,11 +312,12 @@ base-uri 'self'
 - **API base URL enforcement**: Release builds crash (`fatalError`) if `API_BASE_URL` is not configured; DEBUG falls back to localhost
 - **ATS**: `NSAppTransportSecurity` restricts to HTTPS in production; local networking allowed for development only
 - **Authenticated file downloads**: `APIClient.downloadData()` fetches raw data with JWT auth + token refresh for endpoints like profile PDF export, preventing unauthenticated access via Safari
-- **Image downloads**: `CachedAsyncImage` uses `URLSession.shared` (no pinning) for S3 presigned URLs — documented and intentional
-- **Temp file cleanup**: `DocumentsViewModel.cleanupTempFiles()` removes QuickLook temp directory after preview; `AudioRecorderManager.stop()` deletes temp recording files after use
+- **No on-disk response caching**: `APIClient`'s session sets `urlCache = nil` / `reloadIgnoringLocalCacheData` so health-data API responses aren't written to disk. S3 content (document bytes, thumbnails) is fetched via `UncachedURLSession` (no pinning — AWS chain — and no disk cache); intentional caching is in-memory only (`ResponseCache`, `ImageCache`)
+- **At-rest temp-file protection & cleanup**: Downloaded documents (`DocumentsViewModel.downloadToTempFile`) and exported profiles (`ProfileViewModel.exportProfile`) are written with `.completeFileProtection`; audio recordings use `.completeUnlessOpen` (recording continues under lock). `TempFileCleanup.sweepAtLaunch()` clears stray temp files at launch; QuickLook/share/export files are deleted on sheet dismissal, and finished recordings are removed after upload
 
 **Input Validation & Integrity:**
-- **Deep link token validation**: `AretaCareApp` validates token format (non-empty, length bounds, alphanumeric+hyphens) before routing universal links
+- **Deep link token validation**: `AretaCareApp` validates token format (non-empty, ≤256 chars, alphanumeric+hyphens/underscores) before routing universal links
+- **Push payload validation**: `NotificationRouter` only acts on known `notification_type` values and requires `session_id` (when present) to be a valid UUID before routing
 - **Client-side file size validation**: File size checked against `AppConstants.maxFileSizeBytes` (30MB) before upload in conversation and document views
 - **Photo format detection**: `PhotosPickerItem` content type inspected via `UTType` to determine actual format (JPEG/PNG/HEIC) instead of hardcoding `.jpg`
 - **Registration AutoFill**: Password fields use `.textContentType(.newPassword)` to trigger iOS strong password suggestions
@@ -315,6 +325,7 @@ base-uri 'self'
 
 **Session & Lifecycle Security:**
 - **Biometric re-auth**: Opt-in Face ID/Touch ID lock (Settings > Security) on foreground return after 5 min background. Uses `.deviceOwnerAuthentication` (passcode fallback). Preference cleared on logout. Idle timer pauses while lock screen active. Opaque lock screen hides health data.
+- **App-switcher privacy shield**: `ContentView` shows a branded shield whenever `scenePhase != .active`, so the app-switcher snapshot never exposes on-screen health data. Applies to all users regardless of auth state (login/MFA screens contain personal data); content is `accessibilityHidden` while biometric-locked.
 - **Idle timeout**: 30 min with 1-min warning; disabled when biometric lock is enabled (7-day token expiry serves as session safeguard); `@MainActor`-safe timer callbacks
 - **APNs entitlements**: `aps-environment: development` (Debug) / `production` (Release) via per-config entitlements
 - **Push token lifecycle**: Token unregistered (awaited) before auth tokens cleared during logout

@@ -6,31 +6,15 @@ Different limits are applied to different endpoint categories.
 """
 
 from slowapi import Limiter
-from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 from fastapi import Request
 from fastapi.responses import JSONResponse
 import logging
 import time
 
+from app.core.client_ip import get_client_ip
+
 logger = logging.getLogger(__name__)
-
-
-def get_client_ip(request: Request) -> str:
-    """
-    Get client IP address, checking proxy headers in order of reliability.
-    Supports Cloudflare, standard proxies (Render, nginx), and direct connections.
-    """
-    # Cloudflare sets this header with the actual client IP
-    cf_ip = request.headers.get("CF-Connecting-IP")
-    if cf_ip:
-        return cf_ip.strip()
-    # Standard proxy header (Render, nginx, etc.)
-    forwarded = request.headers.get("X-Forwarded-For")
-    if forwarded:
-        # X-Forwarded-For can contain multiple IPs; first is the original client
-        return forwarded.split(",")[0].strip()
-    return get_remote_address(request)
 
 
 # Initialize rate limiter with client IP as key
@@ -105,7 +89,7 @@ class RateLimits:
     MFA_VERIFY = "3/minute"         # 3 MFA verification attempts per minute per IP (brute-force protection)
     TOKEN_REFRESH = "20/minute"     # 20 token refreshes per minute per IP (higher due to page loads, tabs)
     REGISTER = "3/hour"             # 3 registrations per hour per IP
-    PASSWORD_RESET_REQUEST = "3/hour"  # 3 reset requests per hour per email
+    PASSWORD_RESET_REQUEST = "3/hour"  # 3 reset requests per hour per IP (plus per-account throttle in auth)
     PASSWORD_RESET = "5/hour"       # 5 password resets per hour per IP
 
     # File upload endpoints (resource-intensive)

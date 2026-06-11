@@ -306,12 +306,13 @@ final class DocumentsViewModel {
     func downloadToTempFile(id: Int, filename: String) async -> URL? {
         guard let downloadUrl = await getDownloadUrl(id: id) else { return nil }
         do {
-            let (data, _) = try await URLSession.shared.data(from: downloadUrl)
+            let (data, _) = try await UncachedURLSession.shared.data(from: downloadUrl)
             let tempDir = FileManager.default.temporaryDirectory
                 .appendingPathComponent("QuickLook", isDirectory: true)
             try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
             let fileURL = tempDir.appendingPathComponent(filename)
-            try data.write(to: fileURL)
+            // Protect at rest: file is unreadable while the device is locked.
+            try data.write(to: fileURL, options: [.atomic, .completeFileProtection])
             return fileURL
         } catch {
             errorMessage = error.localizedDescription
@@ -321,9 +322,7 @@ final class DocumentsViewModel {
 
     /// Cleans up temporary Quick Look files.
     func cleanupTempFiles() {
-        let tempDir = FileManager.default.temporaryDirectory
-            .appendingPathComponent("QuickLook", isDirectory: true)
-        try? FileManager.default.removeItem(at: tempDir)
+        TempFileCleanup.removeQuickLookDirectory()
     }
 
     // MARK: - Preview URLs

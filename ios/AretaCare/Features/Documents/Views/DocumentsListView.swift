@@ -178,7 +178,12 @@ struct DocumentsListView: View {
                 onDismiss: { showingDatePicker = false }
             )
         }
-        .sheet(isPresented: $showingDocumentShareSheet) {
+        .sheet(isPresented: $showingDocumentShareSheet, onDismiss: {
+            if let url = shareFileUrl {
+                try? FileManager.default.removeItem(at: url)
+            }
+            shareFileUrl = nil
+        }) {
             if let url = shareFileUrl {
                 ShareSheet(activityItems: [url])
             }

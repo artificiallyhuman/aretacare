@@ -50,14 +50,15 @@ struct CachedAsyncImage<Content: View, Placeholder: View, Failure: View>: View {
             return
         }
 
-        // Download using URLSession.shared intentionally. Image URLs are S3 presigned URLs
+        // Download via UncachedURLSession. Image URLs are S3 presigned URLs
         // pointing to AWS CloudFront/S3 infrastructure, which uses its own certificate chain
-        // that does not match the app's pinned certificates for aretacare.com. Using the
-        // pinned session here would cause all image downloads to fail.
+        // that does not match the app's pinned certificates for aretacare.com. The session
+        // also disables on-disk caching so health-data thumbnails aren't persisted there
+        // (intentional caching is handled by the in-memory ImageCache below).
         let maxAttempts = 3
         for attempt in 1...maxAttempts {
             do {
-                let (data, response) = try await URLSession.shared.data(from: url)
+                let (data, response) = try await UncachedURLSession.shared.data(from: url)
                 guard let httpResponse = response as? HTTPURLResponse,
                       (200...299).contains(httpResponse.statusCode),
                       let uiImage = UIImage(data: data) else {

@@ -52,6 +52,14 @@ final class AudioRecorderManager: NSObject, AVAudioRecorderDelegate {
         recorder.isMeteringEnabled = true
         recorder.record()
 
+        // Protect the recording at rest. Use completeUnlessOpen (not complete)
+        // so recording can continue if the device locks — the app has the audio
+        // background mode.
+        try? FileManager.default.setAttributes(
+            [.protectionKey: FileProtectionType.completeUnlessOpen],
+            ofItemAtPath: tempURL.path
+        )
+
         audioRecorder = recorder
         isRecording = true
         isPaused = false
@@ -119,6 +127,10 @@ final class AudioRecorderManager: NSObject, AVAudioRecorderDelegate {
         }
         audioRecorder = nil
         AudioSessionManager.shared.deactivate()
+
+        // The audio data has been read into memory; remove the temp recording
+        // so it doesn't linger on disk after upload.
+        try? FileManager.default.removeItem(at: fileURL)
 
         return result
     }

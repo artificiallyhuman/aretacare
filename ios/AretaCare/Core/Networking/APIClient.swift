@@ -13,6 +13,11 @@ final class APIClient: Sendable {
         config.timeoutIntervalForRequest = 120
         config.timeoutIntervalForResource = 600
         config.waitsForConnectivity = true
+        // API responses carry personal health data and must not be written to
+        // the on-disk URLCache. Intentional caching uses the in-memory
+        // ResponseCache instead.
+        config.urlCache = nil
+        config.requestCachePolicy = .reloadIgnoringLocalCacheData
         let pinningDelegate = CertificatePinningDelegate()
         self.session = URLSession(configuration: config, delegate: pinningDelegate, delegateQueue: nil)
 
@@ -324,7 +329,8 @@ final class APIClient: Sendable {
             if !(200...299).contains(http.statusCode) {
                 print("[API] URL: \(http.url?.absoluteString ?? "?")")
                 if let body = String(data: data, encoding: .utf8) {
-                    print("[API] Body: \(body)")
+                    let truncated = body.count > 300 ? body.prefix(300) + "…(truncated)" : body[...]
+                    print("[API] Body: \(truncated)")
                 }
             }
         }

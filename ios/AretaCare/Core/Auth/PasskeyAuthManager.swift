@@ -10,6 +10,22 @@ final class PasskeyAuthManager: NSObject, ASAuthorizationControllerDelegate, ASA
         super.init()
     }
 
+    /// Defense-in-depth: confirm the backend-supplied relying party identifier
+    /// belongs to our frontend domain before handing it to the platform. The
+    /// associated-domains entitlement is the primary control; this guards
+    /// against a relying party that doesn't match the configured environment.
+    private static func isExpectedRelyingParty(_ rpId: String) -> Bool {
+        #if DEBUG
+        if rpId == "localhost" { return true }
+        #endif
+        guard let host = URL(string: AppConstants.frontendBaseURL)?.host else {
+            return false
+        }
+        // The RP ID is typically the registrable domain (e.g. aretacare.com)
+        // while the frontend host may be a subdomain (e.g. www.aretacare.com).
+        return host == rpId || host.hasSuffix("." + rpId)
+    }
+
     /// Performs a passkey assertion using the backend-provided WebAuthn options.
     /// Returns a credential dictionary ready to send to the `/auth/login/mfa-verify` endpoint.
     func authenticate(options: [String: AnyCodableValue]) async throws -> [String: AnyCodableValue] {
@@ -27,6 +43,9 @@ final class PasskeyAuthManager: NSObject, ASAuthorizationControllerDelegate, ASA
             rpId = rp
         } else {
             throw PasskeyError.invalidOptions("Missing rpId")
+        }
+        guard Self.isExpectedRelyingParty(rpId) else {
+            throw PasskeyError.invalidOptions("Unexpected relying party")
         }
 
         let provider = ASAuthorizationPlatformPublicKeyCredentialProvider(relyingPartyIdentifier: rpId)
@@ -69,6 +88,9 @@ final class PasskeyAuthManager: NSObject, ASAuthorizationControllerDelegate, ASA
         guard let rp = options["rp"]?.dictionaryValue,
               let rpId = rp["id"]?.stringValue else {
             throw PasskeyError.invalidOptions("Missing rp.id")
+        }
+        guard Self.isExpectedRelyingParty(rpId) else {
+            throw PasskeyError.invalidOptions("Unexpected relying party")
         }
 
         guard let user = options["user"]?.dictionaryValue,

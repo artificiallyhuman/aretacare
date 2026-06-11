@@ -5,6 +5,7 @@ import logging
 import html
 
 from app.core.database import get_db
+from app.core.client_ip import get_client_ip
 from app.core.config import settings
 from app.core.rate_limit import limiter, RateLimits
 from app.api.auth import get_optional_user
@@ -77,19 +78,6 @@ def sanitize_input(text: str) -> str:
     text = ' '.join(text.split())
 
     return text
-
-
-def get_client_ip(request: Request) -> str:
-    """Get client IP address, checking proxy headers in order of reliability."""
-    # Cloudflare sets this header with the actual client IP
-    cf_ip = request.headers.get("CF-Connecting-IP")
-    if cf_ip:
-        return cf_ip.strip()
-    # Standard proxy header (Render, nginx, etc.)
-    forwarded = request.headers.get("X-Forwarded-For")
-    if forwarded:
-        return forwarded.split(",")[0].strip()
-    return request.client.host if request.client else "unknown"
 
 
 def get_user_agent(request: Request) -> str:

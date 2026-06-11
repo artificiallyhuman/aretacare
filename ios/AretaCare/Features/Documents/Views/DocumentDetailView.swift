@@ -70,7 +70,12 @@ struct DocumentDetailView: View {
         } message: {
             Text("Are you sure you want to delete \"\(document.filename)\"? This cannot be undone.")
         }
-        .sheet(isPresented: $showingShareSheet) {
+        .sheet(isPresented: $showingShareSheet, onDismiss: {
+            if let url = shareFileUrl {
+                try? FileManager.default.removeItem(at: url)
+            }
+            shareFileUrl = nil
+        }) {
             if let url = shareFileUrl {
                 ShareSheet(activityItems: [url])
             }
@@ -88,7 +93,10 @@ struct DocumentDetailView: View {
         .sensoryFeedback(.success, trigger: saveHapticTrigger)
         .toast("Saved", icon: "checkmark", isPresented: $showSavedToast)
         .animation(.spring(duration: 0.3), value: showSavedToast)
-        .fullScreenCover(isPresented: $showingQuickLook) {
+        .fullScreenCover(isPresented: $showingQuickLook, onDismiss: {
+            viewModel.cleanupTempFiles()
+            quickLookURL = nil
+        }) {
             if let url = quickLookURL {
                 QuickLookPreviewView(url: url)
                     .ignoresSafeArea()
