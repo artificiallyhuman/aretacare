@@ -29,8 +29,10 @@ PREFERENCES_ID_PREFIXES = {
 # Initialize OpenAI client
 client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
 
-# Token budget for profile generation (256K context window)
-MAX_PROFILE_TOKENS = 230000  # Leave ~26K buffer for response + overhead
+# Token budget for profile generation. gpt-5.6-sol's context window is 1.05M tokens,
+# but requests above 272K input tokens are billed at 2x input / 1.5x output —
+# keep this budget under that threshold.
+MAX_PROFILE_TOKENS = 230000  # Leave headroom for response + overhead below the 272K pricing tier
 ESTIMATED_EXISTING_PROFILE_TOKENS = 30000  # Reserve for existing profile JSON in updates
 ESTIMATED_SYSTEM_PROMPT_TOKENS = 10000  # Reserve for system + user prompt templates
 

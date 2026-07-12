@@ -66,7 +66,7 @@ BLOCKED_MIME_TYPES = [
 MAX_FILE_SIZE = 30 * 1024 * 1024  # 30MB (OpenAI file URL limit is 32MB)
 MAX_CONVERSATION_FILE_SIZE = 30 * 1024 * 1024  # 30MB for conversation uploads
 
-# Image formats supported by OpenAI GPT-5.5
+# Image formats supported by OpenAI GPT-5.6
 OPENAI_SUPPORTED_IMAGE_FORMATS = ['JPEG', 'PNG', 'GIF', 'WEBP']
 
 

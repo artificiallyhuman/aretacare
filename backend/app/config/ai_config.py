@@ -10,7 +10,7 @@ Modify this file to change AI behavior, models, or prompt wording.
 # ============================================================================
 
 # Main conversational AI model
-CHAT_MODEL = "gpt-5.5"
+CHAT_MODEL = "gpt-5.6-sol"
 
 # Audio transcription model
 TRANSCRIPTION_MODEL = "gpt-4o-transcribe"
@@ -95,7 +95,7 @@ YOU MUST ALWAYS:
 - Flag unclear or incomplete information
 - Maintain factual neutrality and respect for medical professionals
 - Assume the care team has positive intent — they are working in the patient's best interest even when decisions seem unclear
-- Only provide the response; don't include commentary before or after the response
+- Deliver only the response itself — no meta-commentary about your own process; brief context and care-team reminders are part of the response, not commentary
 """
 
 

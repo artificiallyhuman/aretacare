@@ -10,7 +10,7 @@ Edit `ai_config.py` and update the model constants:
 
 ```python
 # Main conversational AI model
-CHAT_MODEL = "gpt-5.5"  # Change to any OpenAI model
+CHAT_MODEL = "gpt-5.6-sol"  # Change to any OpenAI model
 
 # Audio transcription model
 TRANSCRIPTION_MODEL = "gpt-4o-transcribe"
@@ -158,14 +158,14 @@ After modifying `ai_config.py`:
 
 ## Example: Switching Models
 
-To switch from GPT-5.5 to GPT-4:
+To switch from GPT-5.6 Sol to a different model:
 
 ```python
 # Before
-CHAT_MODEL = "gpt-5.5"
+CHAT_MODEL = "gpt-5.6-sol"
 
 # After
-CHAT_MODEL = "gpt-4"
+CHAT_MODEL = "gpt-4o"
 ```
 
 Restart backend:

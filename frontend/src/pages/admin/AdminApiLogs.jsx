@@ -73,7 +73,7 @@ export default function AdminApiLogs() {
       <div className="space-y-6">
         <div>
           <h1 className="text-xl md:text-2xl font-bold text-gray-900 dark:text-white">API Logs</h1>
-          <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">GPT-5.5 API requests ({getDaysLabel()})</p>
+          <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">GPT-5.6 API requests ({getDaysLabel()})</p>
         </div>
 
         {/* Summary Cards */}
