@@ -43,7 +43,9 @@ async def detailed_health_check():
         checks["database"] = {"status": "healthy", "latency_ms": latency}
     except Exception as e:
         logger.error(f"Health check - Database error: {e}")
-        checks["database"] = {"status": "unhealthy", "error": str(e)[:100]}
+        # Expose only the exception class — full message may contain internal
+        # hostnames/credentials and this endpoint is unauthenticated
+        checks["database"] = {"status": "unhealthy", "error": type(e).__name__}
         overall_healthy = False
 
     # Check S3 connectivity (list bucket to verify credentials and access)
@@ -55,7 +57,7 @@ async def detailed_health_check():
         checks["s3"] = {"status": "healthy", "latency_ms": latency}
     except Exception as e:
         logger.error(f"Health check - S3 error: {e}")
-        checks["s3"] = {"status": "unhealthy", "error": str(e)[:100]}
+        checks["s3"] = {"status": "unhealthy", "error": type(e).__name__}
         overall_healthy = False
 
     # Check OpenAI circuit breaker status
