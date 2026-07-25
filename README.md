@@ -124,7 +124,7 @@ docker compose down -v   # Stop and reset database
 | Backend | FastAPI, SQLAlchemy, PostgreSQL + pgvector (28 tables) |
 | AI | OpenAI GPT-5.6 Sol, GPT-4o-transcribe, text-embedding-3-small |
 | Storage | AWS S3 |
-| Monitoring | Sentry (errors/crashes, strict PII scrubbing — optional, disabled without a DSN) |
+| Monitoring | Sentry (errors/crashes, strict PII scrubbing, disabled without a DSN) |
 | Deployment | Docker Compose, Render |
 
 **Key Patterns:**
