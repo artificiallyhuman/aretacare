@@ -115,6 +115,7 @@
 		D90B66B74EAD89B4EA55DB2C /* SubscriptionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 85E727C996706D0910E6F131 /* SubscriptionManager.swift */; };
 		DB55540BF4BF8C0DA74E894A /* AuthViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = CFCD0463132415F7E945F2F5 /* AuthViewModel.swift */; };
 		DB7229CE03CAB2E4FC38DB23 /* JournalEntryEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6709D00E357CFA34A8244E64 /* JournalEntryEditorView.swift */; };
+		DC1AA8157EC6CC71B190245D /* Sentry in Frameworks */ = {isa = PBXBuildFile; productRef = 85F138E87BD46A00549F1D1F /* Sentry */; };
 		DDCB7B64E9AC08CC9129F3B9 /* MainTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2F62BDE47324A5E1CF08DD2D /* MainTabView.swift */; };
 		DE73898155CBEBC2F8ACE9E7 /* AuthManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = F2EB55F843AB03357E658A8F /* AuthManager.swift */; };
 		E03A106617595B27AAE6432F /* MFASetupView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9655DEB3E6447354DA79FAA2 /* MFASetupView.swift */; };
@@ -278,6 +279,7 @@
 				193888597F6AC15A51D3B748 /* MarkdownUI in Frameworks */,
 				6C1B57F196BC0D781BEE0E08 /* RevenueCat in Frameworks */,
 				7B350A4FC95B00242B3CDF6D /* RevenueCatUI in Frameworks */,
+				DC1AA8157EC6CC71B190245D /* Sentry in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -931,6 +933,7 @@
 				A12B84FD6D4628CCACCDA971 /* MarkdownUI */,
 				7DDECEAE92D0E4D4BBD4B3D6 /* RevenueCat */,
 				74A889D2FFCAEE40632E67CF /* RevenueCatUI */,
+				85F138E87BD46A00549F1D1F /* Sentry */,
 			);
 			productName = AretaCare;
 			productReference = B7372FFAF6C5672066447A29 /* AretaCare.app */;
@@ -964,6 +967,7 @@
 				5297F61191E6C6E3DF070B61 /* XCRemoteSwiftPackageReference "KeychainAccess" */,
 				22FFB1EEE4CA592BBDE12849 /* XCRemoteSwiftPackageReference "swift-markdown-ui" */,
 				47CBA0CAD397F18E9BEA379D /* XCRemoteSwiftPackageReference "purchases-ios-spm" */,
+				EBEEE289598A71D8C0A61E04 /* XCRemoteSwiftPackageReference "sentry-cocoa" */,
 			);
 			preferredProjectObjectVersion = 77;
 			projectDirPath = "";
@@ -1334,6 +1338,14 @@
 				minimumVersion = 4.2.2;
 			};
 		};
+		EBEEE289598A71D8C0A61E04 /* XCRemoteSwiftPackageReference "sentry-cocoa" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/getsentry/sentry-cocoa";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 9.23.0;
+			};
+		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -1346,6 +1358,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 47CBA0CAD397F18E9BEA379D /* XCRemoteSwiftPackageReference "purchases-ios-spm" */;
 			productName = RevenueCat;
+		};
+		85F138E87BD46A00549F1D1F /* Sentry */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = EBEEE289598A71D8C0A61E04 /* XCRemoteSwiftPackageReference "sentry-cocoa" */;
+			productName = Sentry;
 		};
 		A12B84FD6D4628CCACCDA971 /* MarkdownUI */ = {
 			isa = XCSwiftPackageProductDependency;

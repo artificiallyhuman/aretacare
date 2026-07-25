@@ -22,6 +22,7 @@ aiofiles==23.2.1
 httpx<0.28.0
 pydub==0.25.1
 slowapi==0.1.9
+sentry-sdk[fastapi]==2.66.1
 reportlab==4.0.7
 pyotp==2.9.0
 webauthn==2.2.0

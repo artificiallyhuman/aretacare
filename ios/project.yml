@@ -24,6 +24,9 @@ packages:
   RevenueCat:
     url: https://github.com/RevenueCat/purchases-ios-spm.git
     from: "5.27.1"
+  Sentry:
+    url: https://github.com/getsentry/sentry-cocoa
+    from: "9.23.0"
 
 targets:
   AretaCare:
@@ -75,6 +78,8 @@ targets:
         NSFaceIDUsageDescription: "AretaCare uses Face ID to protect your health information."
         NSPhotoLibraryUsageDescription: "AretaCare needs photo library access to upload medical document images."
         REVENUECAT_API_KEY: $(REVENUECAT_API_KEY)
+        SENTRY_DSN: $(SENTRY_DSN)
+        SENTRY_ENVIRONMENT: $(SENTRY_ENVIRONMENT)
         ITSAppUsesNonExemptEncryption: false
         UIBackgroundModes:
           - remote-notification
@@ -86,3 +91,5 @@ targets:
         product: RevenueCat
       - package: RevenueCat
         product: RevenueCatUI
+      - package: Sentry
+        product: Sentry

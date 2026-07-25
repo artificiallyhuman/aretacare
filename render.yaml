@@ -93,6 +93,12 @@ services:
         value: "FALSE"  # TRUE for TestFlight/debug, FALSE for App Store builds
       - key: APNS_KEY_PATH
         sync: false  # Path to .p8 key file on server (e.g., /etc/secrets/AuthKey.p8)
+      - key: SENTRY_DSN
+        sync: false  # From sentry.io backend project settings; leave unset to disable
+      - key: SENTRY_ENVIRONMENT
+        value: production
+      - key: SENTRY_TRACES_SAMPLE_RATE
+        value: "0.1"
 
   # Frontend
   - type: web
@@ -142,3 +148,11 @@ services:
         sync: false  # Your backend URL, e.g., https://your-backend.onrender.com/api
       - key: VITE_HCAPTCHA_SITE_KEY
         sync: false  # Optional: Get from https://www.hcaptcha.com/
+      - key: VITE_SENTRY_DSN
+        sync: false  # From sentry.io frontend project settings; leave unset to disable
+      - key: SENTRY_AUTH_TOKEN
+        sync: false  # Org auth token for source map upload at build time
+      - key: SENTRY_ORG
+        sync: false  # Sentry org slug
+      - key: SENTRY_PROJECT
+        value: aretacare-frontend

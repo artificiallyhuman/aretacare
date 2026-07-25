@@ -3,6 +3,7 @@ import react from '@vitejs/plugin-react'
 import compression from 'vite-plugin-compression'
 import prerender from '@prerenderer/rollup-plugin'
 import { visualizer } from 'rollup-plugin-visualizer'
+import { sentryVitePlugin } from '@sentry/vite-plugin'
 import { ROUTE_SEO, fullTitleFor, SEO_DEFAULTS } from './src/constants/seoRoutes.js'
 
 // Public routes prerendered at build time so crawlers and social-preview bots
@@ -152,6 +153,18 @@ export default defineConfig(({ mode, command }) => ({
         return renderedRoute
       },
     }),
+    // Uploads hidden source maps to Sentry then deletes them from dist so
+    // they never ship to the static site. Skipped when SENTRY_AUTH_TOKEN is
+    // unset (local builds). Must stay last so it sees all emitted assets.
+    process.env.SENTRY_AUTH_TOKEN && sentryVitePlugin({
+      org: process.env.SENTRY_ORG,
+      project: process.env.SENTRY_PROJECT,
+      authToken: process.env.SENTRY_AUTH_TOKEN,
+      telemetry: false,
+      sourcemaps: {
+        filesToDeleteAfterUpload: ['./dist/**/*.js.map'],
+      },
+    }),
   ].filter(Boolean),
   server: {
     port: 3000,
@@ -172,7 +185,12 @@ export default defineConfig(({ mode, command }) => ({
         }
       }
     },
-    sourcemap: false,
+    // 'hidden' emits .js.map files without sourceMappingURL comments; the
+    // Sentry plugin uploads then deletes them, so none reach the deploy.
+    // Only generated when the plugin will actually run — otherwise a build
+    // without the token would leave .map files in dist for the static site
+    // to serve.
+    sourcemap: process.env.SENTRY_AUTH_TOKEN ? 'hidden' : false,
     target: 'ES2020',
   },
   esbuild: {

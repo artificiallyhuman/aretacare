@@ -1,5 +1,6 @@
 import { Component } from 'react';
 import PropTypes from 'prop-types';
+import * as Sentry from '@sentry/react';
 
 /**
  * Error Boundary component that catches JavaScript errors anywhere in the
@@ -29,8 +30,10 @@ class ErrorBoundary extends Component {
       errorInfo,
     });
 
-    // You could also log to an error reporting service here
-    // Example: logErrorToService(error, errorInfo);
+    // No-op when Sentry isn't initialized (no DSN / prerender)
+    Sentry.captureException(error, {
+      contexts: { react: { componentStack: errorInfo.componentStack } },
+    });
   }
 
   handleRefresh = () => {

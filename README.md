@@ -4,6 +4,8 @@
 
 A secure platform for patients and caregivers to organize information, understand complex concepts, and prepare for clearer conversations with care teams.
 
+Available as a **free web app** and a **native iOS app** (subscription with a 7-day free trial).
+
 ---
 
 ## The Problem
@@ -118,10 +120,11 @@ docker compose down -v   # Stop and reset database
 | Layer | Technology |
 |-------|------------|
 | Frontend | React 18, Vite, Tailwind CSS |
-| iOS App | SwiftUI (iOS 17+), `@Observable @MainActor` ViewModels, XcodeGen, KeychainAccess, MarkdownUI, iPad-optimized layouts |
+| iOS App | SwiftUI (iOS 17+), `@Observable @MainActor` ViewModels, XcodeGen, KeychainAccess, MarkdownUI, RevenueCat (subscriptions), iPad-optimized layouts |
 | Backend | FastAPI, SQLAlchemy, PostgreSQL + pgvector (28 tables) |
 | AI | OpenAI GPT-5.6 Sol, GPT-4o-transcribe, text-embedding-3-small |
 | Storage | AWS S3 |
+| Monitoring | Sentry (errors/crashes, strict PII scrubbing — optional, disabled without a DSN) |
 | Deployment | Docker Compose, Render |
 
 **Key Patterns:**
@@ -180,7 +183,7 @@ Deploy to Render using `render.yaml`:
 
 1. Push to GitHub
 2. Connect in Render dashboard
-3. Set environment variables: `OPENAI_API_KEY`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `S3_BUCKET_NAME`, `ADMIN_EMAILS`
+3. Set environment variables: `OPENAI_API_KEY`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `S3_BUCKET_NAME`, `ADMIN_EMAILS` (optional: `SENTRY_DSN` for error monitoring)
 4. Deploy
 
 Database migrations run automatically on startup.

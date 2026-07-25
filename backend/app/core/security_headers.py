@@ -73,7 +73,7 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
             "style-src 'self' 'unsafe-inline'; "
             "img-src 'self' data: https:; "
             "font-src 'self' data:; "
-            "connect-src 'self' https://*.amazonaws.com https://api.openai.com https://hcaptcha.com https://*.hcaptcha.com; "
+            "connect-src 'self' https://*.amazonaws.com https://api.openai.com https://hcaptcha.com https://*.hcaptcha.com https://*.ingest.us.sentry.io; "
             "frame-src 'self' https://www.youtube.com https://newassets.hcaptcha.com https://*.hcaptcha.com; "
             "frame-ancestors 'self'; "
             "form-action 'self'; "

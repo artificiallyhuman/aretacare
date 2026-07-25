@@ -182,6 +182,7 @@ AretaCare implements comprehensive security measures:
 - **Audit Logging**: Admin actions tracked with retention policies
 - **Error Logging**: Application errors logged for debugging (30-day retention)
 - **API Logging**: OpenAI API calls tracked (30-day retention)
+- **Error Monitoring**: Crash/error reporting via Sentry on all platforms with strict PII controls — default PII collection disabled, request bodies never captured, query strings and auth headers stripped, server-side data scrubbing enabled, no session replay (see `docs/SECURITY_IMPLEMENTATION.md` for details)
 - **Email Notifications**: Users notified of security-relevant events (MFA enabled/disabled, new passkey, new trusted device)
 
 ### Data Deletion

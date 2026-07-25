@@ -99,6 +99,11 @@ class Settings(BaseSettings):
     # hCaptcha (for spam prevention)
     HCAPTCHA_SECRET_KEY: str = ""  # hCaptcha secret key
 
+    # Sentry error monitoring (empty DSN disables Sentry entirely)
+    SENTRY_DSN: str = ""
+    SENTRY_ENVIRONMENT: str = "production"
+    SENTRY_TRACES_SAMPLE_RATE: float = 0.1
+
     @property
     def cors_origins_list(self) -> List[str]:
         return [origin.strip() for origin in self.CORS_ORIGINS.split(",")]

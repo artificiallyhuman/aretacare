@@ -275,7 +275,7 @@ script-src 'self' 'unsafe-inline' https://js.hcaptcha.com https://newassets.hcap
 style-src 'self' 'unsafe-inline';
 img-src 'self' data: https:;
 font-src 'self' data:;
-connect-src 'self' https://api.aretacare.com https://*.amazonaws.com https://hcaptcha.com https://*.hcaptcha.com;
+connect-src 'self' https://api.aretacare.com https://*.amazonaws.com https://hcaptcha.com https://*.hcaptcha.com https://*.ingest.us.sentry.io;
 media-src 'self' https://*.amazonaws.com;
 object-src 'self' https://*.amazonaws.com;
 frame-src 'self' https://www.youtube.com https://*.amazonaws.com https://newassets.hcaptcha.com https://*.hcaptcha.com;
@@ -285,6 +285,22 @@ base-uri 'self'
 ```
 
 **Note:** `unsafe-inline` is required for `script-src` because Vite injects a bootstrap script. This is a common trade-off for React/Vite applications.
+
+---
+
+## Error Monitoring PII Controls
+
+Sentry is used for error/crash monitoring on all three platforms (backend, web, iOS), configured so that no health data or identifying information leaves the platform:
+
+- `send_default_pii` disabled everywhere — no user context, no IP addresses
+- Request bodies are never captured (`max_request_body_size="never"` on the backend; request data deleted in the web `beforeSend` hook)
+- Query strings are stripped from event URLs and network breadcrumbs (presigned S3 links and verification tokens travel in query params)
+- Auth-related headers (`Authorization`, `Cookie`, MFA/trusted-device headers) are removed before send
+- A recursive event scrubber redacts content-bearing field names (message, journal, transcript, email, tokens, etc.)
+- Backend log lines become breadcrumbs only, never standalone events (formatted log strings may embed user data)
+- iOS never attaches screenshots or view hierarchy; session replay is not used on any platform
+- Server-side data scrubbing and IP-storage prevention are additionally enabled in Sentry project settings as defense-in-depth
+- Sentry is disabled entirely when no DSN is configured (the local-development default)
 
 ---
 

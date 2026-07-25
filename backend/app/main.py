@@ -10,11 +10,13 @@ from app.core.database import engine, Base, SessionLocal
 from app.core.migrations import run_migrations
 from app.core.rate_limit import limiter, rate_limit_exceeded_handler, cleanup_rate_limit_storage
 from app.core.security_headers import SecurityHeadersMiddleware
+from app.core.sentry import init_sentry
 from app.api import api_router
 from app.services.admin_service import admin_service
 import asyncio
 import logging
 import os
+import sentry_sdk
 import traceback
 
 # Configure logging
@@ -28,6 +30,12 @@ logging.basicConfig(
 logging.getLogger("passlib.handlers.bcrypt").setLevel(logging.ERROR)
 
 logger = logging.getLogger(__name__)
+
+# Initialize Sentry before any database work so startup/migration crashes are
+# captured. No-op when SENTRY_DSN is unset. Runs at module import, which is
+# per-worker under uvicorn --workers N (same fork-safety reasoning as the
+# engine.dispose() below).
+init_sentry()
 
 # Database initialization
 reset_db = os.getenv("RESET_DB", "false").lower() == "true"
@@ -214,29 +222,30 @@ async def global_exception_handler(request: Request, exc: Exception):
     logger.error(f"Unhandled exception on {request.method} {request.url.path}: {exc}")
     logger.error(traceback.format_exc())
 
-    # Try to log to database error_log table
-    db = None
+    # A registered Exception handler suppresses the Sentry FastAPI
+    # integration's automatic capture, so capture explicitly. No-op when
+    # Sentry is disabled; the Dedupe integration prevents double-send if a
+    # future SDK version also auto-captures.
+    sentry_sdk.capture_exception(exc)
+
+    # Log to the error_logs table for the admin console
     try:
-        from app.models.error_log import ErrorLog
+        from app.services.error_logger import log_error_standalone
         from app.services.security_service import security_service
 
-        db = SessionLocal()
-        error_log = ErrorLog(
-            error_type=type(exc).__name__,
-            error_message=str(exc)[:1000],
-            stack_trace=traceback.format_exc()[:4000],
-            endpoint=str(request.url.path),
-            method=request.method,
-            ip_address=security_service.get_client_ip(request),
-            user_agent=security_service.get_user_agent(request)
+        log_error_standalone(
+            source=f"{request.method} {request.url.path}",
+            error=exc,
+            level="ERROR",
+            details={
+                "endpoint": str(request.url.path),
+                "method": request.method,
+                "ip_address": security_service.get_client_ip(request),
+                "user_agent": security_service.get_user_agent(request),
+            },
         )
-        db.add(error_log)
-        db.commit()
     except Exception as log_error:
         logger.error(f"Failed to log error to database: {log_error}")
-    finally:
-        if db:
-            db.close()
 
     # Return generic error - never expose internal details
     return JSONResponse(

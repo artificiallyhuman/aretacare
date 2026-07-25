@@ -1,7 +1,12 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
+import { initSentry } from './sentry';
 import './styles/index.css';
+
+// Init before first render so errors during mount are captured. No-op
+// without a DSN and during prerender.
+initSentry();
 
 const rootEl = document.getElementById('root');
 

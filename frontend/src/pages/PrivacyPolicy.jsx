@@ -17,7 +17,7 @@ const PrivacyPolicy = () => {
           </Link>
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-6 sm:p-8">
             <h1 className="text-4xl sm:text-5xl font-bold text-gray-900 dark:text-white mb-2">Privacy Policy</h1>
-            <p className="text-sm text-gray-500 dark:text-gray-400">Last Updated: February 22, 2026</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400">Last Updated: July 25, 2026</p>
           </div>
         </div>
 
@@ -173,6 +173,18 @@ const PrivacyPolicy = () => {
                   <li><strong>Response cache:</strong> Recent API responses are cached temporarily in device memory to improve performance. All caches are cleared on logout</li>
                   <li><strong>Preferences:</strong> Non-sensitive settings (active session, selected tab, biometric lock preference) are stored in app-local storage and cleared on logout</li>
                   <li><strong>Temporary files:</strong> Audio recordings and document previews may create temporary files that are automatically deleted after use</li>
+                </ul>
+              </div>
+
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">iOS App — Subscription Information</h3>
+                <p className="text-gray-700 dark:text-gray-300 leading-relaxed text-base mb-3">
+                  The iOS app requires a subscription, purchased through the Apple App Store:
+                </p>
+                <ul className="list-disc list-inside space-y-2 text-gray-700 dark:text-gray-300 pl-4">
+                  <li><strong>Payment processing:</strong> All payments are processed by Apple. AretaCare never receives or stores your payment card details</li>
+                  <li><strong>Subscription status:</strong> We receive your subscription status, product identifier, and purchase/renewal history from Apple via RevenueCat (our subscription management provider) to determine your access to the app</li>
+                  <li><strong>Account linkage:</strong> Your subscription is linked to your AretaCare account ID — not your name, email, or any health information</li>
                 </ul>
               </div>
             </div>
@@ -340,9 +352,26 @@ const PrivacyPolicy = () => {
                 <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-5 border border-gray-200 dark:border-gray-600">
                   <h3 className="font-semibold text-gray-900 dark:text-white mb-3">Apple (iOS App)</h3>
                   <ul className="text-sm text-gray-600 dark:text-gray-300 space-y-1.5">
+                    <li>• Processes App Store subscription payments (we never see payment card details)</li>
                     <li>• Delivers push notifications via Apple Push Notification service (APNs)</li>
                     <li>• Processes biometric authentication (Face ID/Touch ID) on-device</li>
                     <li>• Provides Keychain for secure token storage</li>
+                  </ul>
+                </div>
+                <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-5 border border-gray-200 dark:border-gray-600">
+                  <h3 className="font-semibold text-gray-900 dark:text-white mb-3">RevenueCat (iOS App)</h3>
+                  <ul className="text-sm text-gray-600 dark:text-gray-300 space-y-1.5">
+                    <li>• Manages iOS subscriptions and free-trial status</li>
+                    <li>• Receives your AretaCare account ID and purchase/transaction data from Apple</li>
+                    <li>• Never receives your name, email, payment card details, or health information</li>
+                  </ul>
+                </div>
+                <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-5 border border-gray-200 dark:border-gray-600">
+                  <h3 className="font-semibold text-gray-900 dark:text-white mb-3">Sentry (Error Monitoring)</h3>
+                  <ul className="text-sm text-gray-600 dark:text-gray-300 space-y-1.5">
+                    <li>• Receives error and crash reports so we can find and fix problems</li>
+                    <li>• Technical data only: error type, stack trace, app version, device and browser type</li>
+                    <li>• Configured to exclude your health information, message content, account identity, and IP address</li>
                   </ul>
                 </div>
               </div>

@@ -92,4 +92,24 @@ enum AppConstants {
     static let monthlyProductID = "monthly"
     static let yearlyProductID = "yearly"
 
+    // MARK: - Monitoring (Sentry)
+
+    /// Sentry DSN, set via xcconfig (SENTRY_DSN) in Secrets.xcconfig. Nil when
+    /// unset (e.g. simulator without Secrets.xcconfig) — crash reporting is
+    /// skipped gracefully, unlike revenueCatAPIKey there is no fatalError.
+    static var sentryDSN: String? {
+        guard let dsn = Bundle.main.infoDictionary?["SENTRY_DSN"] as? String, !dsn.isEmpty else {
+            return nil
+        }
+        return dsn
+    }
+
+    /// Sentry environment (production/staging/development), set per branch by
+    /// the Xcode Cloud CI script.
+    static var sentryEnvironment: String {
+        (Bundle.main.infoDictionary?["SENTRY_ENVIRONMENT"] as? String).flatMap {
+            $0.isEmpty ? nil : $0
+        } ?? "development"
+    }
+
 }
