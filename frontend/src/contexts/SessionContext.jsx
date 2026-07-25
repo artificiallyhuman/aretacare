@@ -25,6 +25,10 @@ export const SessionProvider = ({ children }) => {
         // Try to restore auth from HttpOnly refresh token cookie
         const isLoggedIn = await initAuth();
         if (!isLoggedIn) {
+          // Clear the returning-user hint so AuthSwitchRoute doesn't show the
+          // auth splash on future visits from a logged-out browser. The backend
+          // last_active_session_id remains the source of truth after re-login.
+          localStorage.removeItem('active_session_id');
           setLoading(false);
           return;
         }

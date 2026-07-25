@@ -12,6 +12,7 @@ import FeedbackTab from './components/FeedbackTab';
 import IdleTimeout from './components/IdleTimeout';
 import CollaborationAwarenessPopup from './components/CollaborationAwarenessPopup';
 import AIDataSharingConsentModal from './components/AIDataSharingConsentModal';
+import AuthSplash from './components/AuthSplash';
 
 // Eagerly load all prerendered public routes (matches PRERENDER_ROUTES in
 // vite.config.js). React.lazy + prerendered HTML causes a hydration mismatch
@@ -104,15 +105,36 @@ function PublicRoute({ children }) {
   return children;
 }
 
+// True when this browser has evidence of a signed-in user: a cached active
+// session (survives reloads, cleared on logout / definitive auth failure) or
+// the flag set just before the post-login reload. Storage access can throw in
+// some private-browsing modes — treat that as "no hint".
+function hasReturningUserHint() {
+  try {
+    return Boolean(
+      localStorage.getItem('active_session_id') ||
+      sessionStorage.getItem('just_logged_in')
+    );
+  } catch {
+    return false;
+  }
+}
+
 // Auth Switch Route - renders different content for authenticated vs unauthenticated users.
 // Used for `/` so logged-in users see the chat app and visitors see the marketing landing page.
-// During the auth-check window we render the unauthenticated page so the prerendered
-// snapshot and first paint contain the marketing markup.
+// During the auth-check window: returning users (storage hint present) get a branded
+// splash instead of a flash of the marketing page; first-time visitors and the
+// prerender crawler (empty storage) still get the unauthenticated page immediately,
+// so the prerendered snapshot and first paint keep the marketing markup.
 function AuthSwitchRoute({ authenticated, unauthenticated }) {
   const { user, loading } = useSessionContext();
 
   if (!loading && user) {
     return authenticated;
+  }
+
+  if (loading && hasReturningUserHint()) {
+    return <AuthSplash />;
   }
 
   return unauthenticated;
