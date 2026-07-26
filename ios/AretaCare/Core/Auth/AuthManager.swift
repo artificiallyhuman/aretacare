@@ -187,6 +187,12 @@ final class AuthManager {
         // becoming false (causes spurious 401/403 errors in server logs).
         handleLogout()
 
+        // Biometric lock preference is a per-user setting, so it is cleared on
+        // explicit logout only. It must survive handleLogout()'s other call
+        // sites (forceLogout, initAuth failure) — a transient network error
+        // must not silently disable the lock.
+        UserDefaults.standard.removeObject(forKey: "biometricLockEnabled")
+
         // Now safe to clear tokens — views are dismounting
         await AuthInterceptor.shared.clearAccessToken()
         KeychainManager.shared.clearAll()
@@ -221,7 +227,6 @@ final class AuthManager {
         hasAcceptedAIDataSharing = false
         stopIdleTimer()
         BiometricManager.shared.clearLock()
-        UserDefaults.standard.removeObject(forKey: "biometricLockEnabled")
         UserDefaults.standard.removeObject(forKey: "lastSessionId")
         UserDefaults.standard.removeObject(forKey: "activeTab")
 

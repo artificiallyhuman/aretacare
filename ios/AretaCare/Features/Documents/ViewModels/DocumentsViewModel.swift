@@ -222,6 +222,18 @@ final class DocumentsViewModel {
             await fetchDocuments(sessionId: sessionId, category: selectedCategory)
         }
 
+        // The batch overlay is torn down shortly after completion, so per-file
+        // failure reasons would otherwise vanish with it — surface them in the
+        // persistent error banner (same UX as single-file failures)
+        if failCount > 0 {
+            errorMessage = batchUploadProgress.compactMap { progress -> String? in
+                if case .error(let reason) = progress.status {
+                    return "\(progress.filename): \(reason)"
+                }
+                return nil
+            }.joined(separator: "\n")
+        }
+
         let cancelledCount = batchUploadProgress.filter {
             if case .cancelled = $0.status { return true }
             return false

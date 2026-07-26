@@ -30,6 +30,7 @@ const MessageInput = ({ onSendMessage, loading, hasMessages = false }) => {
   const { activeSessionId: sessionId } = useSessionContext();
   const [message, setMessage] = useState('');
   const [selectedFile, setSelectedFile] = useState(null);
+  const [fileError, setFileError] = useState(null);
   const [isRecording, setIsRecording] = useState(false);
   const [isTranscribing, setIsTranscribing] = useState(false);
   const [audioStream, setAudioStream] = useState(null);
@@ -175,9 +176,29 @@ const MessageInput = ({ onSendMessage, loading, hasMessages = false }) => {
 
   const handleFileSelect = (e) => {
     const file = e.target.files[0];
-    if (file) {
-      setSelectedFile(file);
+    if (!file) return;
+
+    // Same rules as Documents.jsx — reject client-side so the user gets an
+    // immediate error instead of an optimistic bubble that vanishes after the
+    // server rejects the upload
+    const allowedTypes = ['application/pdf', 'image/png', 'image/jpeg', 'image/jpg', 'text/plain'];
+    const allowedExtensions = ['.pdf', '.png', '.jpg', '.jpeg', '.txt'];
+    const maxSize = 30 * 1024 * 1024; // 30MB
+
+    const fileExt = '.' + file.name.split('.').pop().toLowerCase();
+    if (!allowedTypes.includes(file.type) && !allowedExtensions.includes(fileExt)) {
+      setFileError(`Invalid file type: ${file.name}. Please upload PDF, image (PNG, JPG), or text files only.`);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      return;
     }
+    if (file.size > maxSize) {
+      setFileError(`File exceeds 30MB limit: ${file.name}. Please choose a smaller file.`);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      return;
+    }
+
+    setFileError(null);
+    setSelectedFile(file);
   };
 
   const removeFile = () => {
@@ -396,6 +417,25 @@ const MessageInput = ({ onSendMessage, loading, hasMessages = false }) => {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
             </svg>
             <span className="text-sm font-medium">No audio detected. Please check your microphone and try again.</span>
+          </div>
+        </div>
+      )}
+
+      {/* File validation error */}
+      {fileError && (
+        <div className="mb-2 md:mb-3 bg-red-50 dark:bg-red-900/30 border-2 border-red-300 dark:border-red-700 text-red-900 dark:text-red-100 px-4 py-3 rounded-lg shadow-lg animate-fade-in">
+          <div className="flex items-center gap-3">
+            <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+            </svg>
+            <span className="text-sm font-medium w-0 flex-1">{fileError}</span>
+            <button
+              type="button"
+              onClick={() => setFileError(null)}
+              className="text-xs md:text-sm font-semibold shrink-0 hover:underline"
+            >
+              Dismiss
+            </button>
           </div>
         </div>
       )}

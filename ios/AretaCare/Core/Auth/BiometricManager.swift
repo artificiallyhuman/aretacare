@@ -12,6 +12,11 @@ final class BiometricManager {
 
     private var backgroundDate: Date?
 
+    /// Persisted copy of `backgroundDate` so a cold relaunch (iOS jetsams the
+    /// suspended process) can still honor the re-auth window instead of
+    /// bypassing the lock entirely.
+    private static let backgroundDateKey = "biometricBackgroundDate"
+
     enum BiometricType {
         case none
         case faceID
@@ -75,20 +80,39 @@ final class BiometricManager {
     /// Called when the app enters the background.
     func appDidEnterBackground() {
         guard isBiometricLockEnabled else { return }
-        backgroundDate = Date()
+        let now = Date()
+        backgroundDate = now
+        UserDefaults.standard.set(now.timeIntervalSince1970, forKey: Self.backgroundDateKey)
     }
 
     /// Called when the app returns to the foreground.
     /// If backgrounded for >= biometricReauthSeconds, engages the lock.
     func appWillEnterForeground() {
+        defer {
+            backgroundDate = nil
+            UserDefaults.standard.removeObject(forKey: Self.backgroundDateKey)
+        }
         guard isBiometricLockEnabled,
               let backgroundDate,
               Date().timeIntervalSince(backgroundDate) >= AppConstants.biometricReauthSeconds
-        else {
-            self.backgroundDate = nil
+        else { return }
+        isLocked = true
+    }
+
+    /// Called once at app launch, before auth state resolves. The in-memory
+    /// lock state dies with the process, so without this a cold relaunch would
+    /// skip the biometric challenge entirely and land on the last open screen.
+    /// Locks unless the persisted background timestamp proves the app left the
+    /// foreground less than the re-auth window ago; crashes and unknown states
+    /// fail locked.
+    func lockOnColdLaunchIfNeeded() {
+        guard isBiometricLockEnabled else { return }
+        defer { UserDefaults.standard.removeObject(forKey: Self.backgroundDateKey) }
+        let persisted = UserDefaults.standard.double(forKey: Self.backgroundDateKey)
+        if persisted > 0,
+           Date().timeIntervalSince(Date(timeIntervalSince1970: persisted)) < AppConstants.biometricReauthSeconds {
             return
         }
-        self.backgroundDate = nil
         isLocked = true
     }
 
@@ -118,5 +142,6 @@ final class BiometricManager {
     func clearLock() {
         isLocked = false
         backgroundDate = nil
+        UserDefaults.standard.removeObject(forKey: Self.backgroundDateKey)
     }
 }

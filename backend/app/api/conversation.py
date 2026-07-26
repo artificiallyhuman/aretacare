@@ -23,21 +23,79 @@ import logging
 import io
 import tempfile
 import os
+import shutil
+import subprocess
 import asyncio
-from pydub import AudioSegment
 
 logger = logging.getLogger(__name__)
 
 
-# Helper functions for CPU-intensive audio operations (to run in thread pool)
-def _load_audio_segment(audio_path: str) -> AudioSegment:
-    """Load audio file into AudioSegment (CPU-intensive)"""
-    return AudioSegment.from_file(audio_path)
+# Audio processing helpers. These shell out to ffmpeg/ffprobe working on temp
+# files, so peak memory stays flat regardless of recording length. (The
+# previous pydub pipeline decoded the entire file to raw PCM in RAM — 1-2 GB
+# for a multi-hour recording — which OOM-killed the container.) All are
+# blocking and must run via asyncio.to_thread.
+def _probe_audio_duration(audio_path: str) -> Optional[float]:
+    """Duration in seconds from container metadata, without decoding.
+
+    Returns None when the container doesn't report one (e.g. streamed
+    MediaRecorder webm) or the file is unreadable — callers fall back to
+    probing the transcoded MP3, which always has a duration.
+    """
+    try:
+        result = subprocess.run(
+            [
+                "ffprobe", "-v", "error",
+                "-show_entries", "format=duration",
+                "-of", "default=noprint_wrappers=1:nokey=1",
+                audio_path,
+            ],
+            capture_output=True, text=True, timeout=60,
+        )
+        if result.returncode != 0:
+            return None
+        return float(result.stdout.strip())
+    except (subprocess.TimeoutExpired, ValueError):
+        return None
 
 
-def _export_audio_segment(audio_segment: AudioSegment, output_path: str, format: str = "mp3"):
-    """Export audio segment to file (CPU-intensive)"""
-    audio_segment.export(output_path, format=format)
+def _transcode_to_mp3(input_path: str, output_path: str):
+    """Transcode any supported audio container to 128 kbps MP3 on disk."""
+    result = subprocess.run(
+        [
+            "ffmpeg", "-y", "-v", "error", "-i", input_path,
+            "-vn", "-acodec", "libmp3lame", "-b:a", "128k",
+            output_path,
+        ],
+        capture_output=True, text=True, timeout=900,
+    )
+    if result.returncode != 0:
+        raise ValueError(f"ffmpeg transcode failed: {result.stderr.strip()[:500]}")
+
+
+def _segment_mp3(input_path: str, output_dir: str, segment_seconds: int) -> list:
+    """Split an MP3 into ~segment_seconds pieces without re-encoding.
+
+    Uses the ffmpeg segment muxer with stream copy — MP3 frames are
+    independently decodable, so cutting at frame boundaries is safe and the
+    pass is I/O-bound.
+    """
+    pattern = os.path.join(output_dir, "chunk_%04d.mp3")
+    result = subprocess.run(
+        [
+            "ffmpeg", "-y", "-v", "error", "-i", input_path,
+            "-f", "segment", "-segment_time", str(segment_seconds),
+            "-c", "copy", pattern,
+        ],
+        capture_output=True, text=True, timeout=300,
+    )
+    if result.returncode != 0:
+        raise ValueError(f"ffmpeg segmentation failed: {result.stderr.strip()[:500]}")
+    return sorted(
+        os.path.join(output_dir, name)
+        for name in os.listdir(output_dir)
+        if name.startswith("chunk_") and name.endswith(".mp3")
+    )
 
 
 def _calculate_usage_patterns(db: Session, session_id: str) -> dict:
@@ -679,6 +737,26 @@ async def reset_to_message(
 
 MAX_AUDIO_FILE_SIZE = 100 * 1024 * 1024  # 100MB for audio transcription
 
+# Byte size is a poor proxy for processing cost — 100MB of low-bitrate audio
+# can be many hours long. The duration cap bounds transcription time/cost and
+# temp-file disk usage.
+MAX_AUDIO_DURATION_SECONDS = 4 * 60 * 60  # 4 hours
+
+# OpenAI's transcription API rejects requests over ~1400 seconds of audio
+MAX_CHUNK_DURATION_SECONDS = 1200  # 20 minutes (safely under the limit)
+
+
+def _audio_too_long_error(duration_seconds: float) -> HTTPException:
+    hours = duration_seconds / 3600
+    max_hours = MAX_AUDIO_DURATION_SECONDS / 3600
+    return HTTPException(
+        status_code=400,
+        detail=(
+            f"Audio recording is too long ({hours:.1f} hours). "
+            f"Maximum supported duration is {max_hours:.0f} hours."
+        ),
+    )
+
 # Blocked audio file types for security
 BLOCKED_AUDIO_EXTENSIONS = [
     # Executable files disguised as audio
@@ -769,151 +847,174 @@ async def transcribe_audio(
                 )
             raise
 
-        # Convert audio to mp3 for OpenAI using temporary files
+        # Process the audio with ffmpeg subprocesses working on temp files —
+        # nothing is decoded into Python memory, so peak RAM stays flat
+        # regardless of recording length
         audio_temp_path = None
         mp3_temp_path = None
+        chunk_dir = None
+        s3_object_pending_row = None
         try:
-            # Determine file extension from original filename for format detection
-            file_ext = '.' + audio.filename.split('.')[-1].lower() if '.' in audio.filename else '.webm'
+            try:
+                # Determine file extension from original filename for format detection
+                file_ext = '.' + audio.filename.split('.')[-1].lower() if '.' in audio.filename else '.webm'
 
-            # Write audio content to temporary file with correct extension
-            with tempfile.NamedTemporaryFile(delete=False, suffix=file_ext, mode='wb') as audio_temp:
-                audio_temp.write(audio_content)
-                audio_temp.flush()  # Ensure data is written to disk
-                os.fsync(audio_temp.fileno())  # Force write to disk
-                audio_temp_path = audio_temp.name
+                # Write audio content to temporary file with correct extension
+                with tempfile.NamedTemporaryFile(delete=False, suffix=file_ext, mode='wb') as audio_temp:
+                    audio_temp.write(audio_content)
+                    audio_temp.flush()  # Ensure data is written to disk
+                    os.fsync(audio_temp.fileno())  # Force write to disk
+                    audio_temp_path = audio_temp.name
 
-            # Create temporary file for mp3 output
-            mp3_temp_fd, mp3_temp_path = tempfile.mkstemp(suffix='.mp3')
-            os.close(mp3_temp_fd)  # Close file descriptor, pydub will open it
+                # The bytes now live on disk; drop the in-memory copy
+                del audio_content
 
-            # Convert to mp3 (auto-detect input format) - runs in thread pool
-            audio_segment = await asyncio.to_thread(_load_audio_segment, audio_temp_path)
-            duration_seconds = len(audio_segment) / 1000.0  # pydub returns milliseconds
+                # Fast-path duration cap for containers that report a duration.
+                # Streamed uploads (e.g. MediaRecorder webm) may not include
+                # one; those are re-checked against the transcoded MP3 below.
+                probed_duration = await asyncio.to_thread(_probe_audio_duration, audio_temp_path)
+                if probed_duration is not None and probed_duration > MAX_AUDIO_DURATION_SECONDS:
+                    raise _audio_too_long_error(probed_duration)
 
-            # OpenAI Whisper has a 1400 second limit per request
-            # For longer files, we'll split into chunks
-            MAX_CHUNK_DURATION_SECONDS = 1200  # 20 minutes (safely under 23 minute limit)
+                # Transcode once to MP3 on disk — used for OpenAI transcription
+                # and stored for browser playback compatibility
+                mp3_temp_fd, mp3_temp_path = tempfile.mkstemp(suffix='.mp3')
+                os.close(mp3_temp_fd)
+                await asyncio.to_thread(_transcode_to_mp3, audio_temp_path, mp3_temp_path)
 
-            if duration_seconds > MAX_CHUNK_DURATION_SECONDS:
-                logger.info(f"Audio duration {duration_seconds:.1f}s exceeds chunk limit. Splitting into chunks...")
+                duration_seconds = await asyncio.to_thread(_probe_audio_duration, mp3_temp_path)
+                if duration_seconds is None:
+                    raise ValueError("Unable to determine audio duration after transcoding")
+                if duration_seconds > MAX_AUDIO_DURATION_SECONDS:
+                    raise _audio_too_long_error(duration_seconds)
 
-                # Calculate number of chunks needed
-                chunk_duration_ms = MAX_CHUNK_DURATION_SECONDS * 1000  # pydub uses milliseconds
-                num_chunks = int(duration_seconds / MAX_CHUNK_DURATION_SECONDS) + 1
+                # Persist BEFORE the slow transcription stage: upload the MP3
+                # and create the DB row first, so a worker death or client
+                # timeout mid-transcription leaves a playable recording
+                # instead of losing the upload entirely
+                timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
+                unique_id = str(uuid.uuid4())[:8]
+                original_name = audio.filename.rsplit('.', 1)[0] if '.' in audio.filename else audio.filename
+                s3_key = s3_service.get_prefixed_key(f"audio/{session_id}/{timestamp}_{unique_id}_{original_name}.mp3")
+                mp3_filename = f"{original_name}.mp3"
 
-                logger.info(f"Splitting into {num_chunks} chunks of {MAX_CHUNK_DURATION_SECONDS}s each")
-
-                # Transcribe each chunk and combine results
-                transcribed_parts = []
-                for i in range(num_chunks):
-                    start_ms = i * chunk_duration_ms
-                    end_ms = min((i + 1) * chunk_duration_ms, len(audio_segment))
-
-                    chunk = audio_segment[start_ms:end_ms]
-                    chunk_duration = len(chunk) / 1000.0
-
-                    logger.info(f"Processing chunk {i+1}/{num_chunks} (duration: {chunk_duration:.1f}s)")
-
-                    # Export chunk to temporary mp3
-                    chunk_temp_fd, chunk_temp_path = tempfile.mkstemp(suffix='.mp3')
-                    os.close(chunk_temp_fd)
-
-                    try:
-                        await asyncio.to_thread(_export_audio_segment, chunk, chunk_temp_path, "mp3")
-
-                        # Read chunk into BytesIO for OpenAI
-                        with open(chunk_temp_path, 'rb') as chunk_file:
-                            chunk_buffer = io.BytesIO(chunk_file.read())
-                            chunk_buffer.seek(0)
-
-                        # Transcribe chunk
-                        chunk_filename = f"{audio.filename.rsplit('.', 1)[0]}_chunk_{i+1}.mp3"
-                        chunk_text = await openai_service.transcribe_audio(chunk_buffer, chunk_filename)
-
-                        if chunk_text:
-                            transcribed_parts.append(chunk_text)
-                            logger.info(f"Chunk {i+1}/{num_chunks} transcribed successfully")
-                    finally:
-                        # Clean up chunk temp file
-                        if os.path.exists(chunk_temp_path):
-                            os.unlink(chunk_temp_path)
-
-                # Combine all transcribed parts
-                transcribed_text = ' '.join(transcribed_parts)
-                logger.info(f"Combined {len(transcribed_parts)} chunks into final transcription")
-            else:
-                # File is short enough to transcribe in one go (runs in thread pool)
-                await asyncio.to_thread(_export_audio_segment, audio_segment, mp3_temp_path, "mp3")
-
-                # Read mp3 file for both transcription and storage
+                # Upload MP3 to S3 (with Content-Disposition header for security)
                 with open(mp3_temp_path, 'rb') as mp3_file:
                     mp3_content = mp3_file.read()
+                uploaded = await s3_service.upload_file(mp3_content, s3_key, 'audio/mpeg', mp3_filename)
+                del mp3_content
+                if not uploaded:
+                    raise ValueError("S3 upload failed")
+                s3_object_pending_row = s3_key
+                logger.info(f"Uploaded converted MP3 to S3: {s3_key}")
 
-                # Prepare mp3 for transcription
-                mp3_buffer = io.BytesIO(mp3_content)
-                mp3_buffer.seek(0)
-
-                # Use mp3 filename for transcription
-                mp3_filename = audio.filename.rsplit('.', 1)[0] + '.mp3'
-                transcribed_text = await openai_service.transcribe_audio(mp3_buffer, mp3_filename)
-
-            # Upload MP3 version to S3 (for browser playback compatibility)
-            # This is done after transcription to ensure we have the full MP3 content
-            timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
-            unique_id = str(uuid.uuid4())[:8]
-            mp3_filename_base = audio.filename.rsplit('.', 1)[0] if '.' in audio.filename else audio.filename
-            s3_key = s3_service.get_prefixed_key(f"audio/{session_id}/{timestamp}_{unique_id}_{mp3_filename_base}.mp3")
-
-            # For chunked files, we need to export the full audio as MP3
-            if duration_seconds > MAX_CHUNK_DURATION_SECONDS:
-                # Export full audio as MP3 for storage (runs in thread pool)
-                full_mp3_fd, full_mp3_path = tempfile.mkstemp(suffix='.mp3')
-                os.close(full_mp3_fd)
-                try:
-                    await asyncio.to_thread(_export_audio_segment, audio_segment, full_mp3_path, "mp3")
-                    with open(full_mp3_path, 'rb') as full_mp3_file:
-                        mp3_content = full_mp3_file.read()
-                finally:
-                    if os.path.exists(full_mp3_path):
-                        os.unlink(full_mp3_path)
-
-            # Upload MP3 to S3 (with Content-Disposition header for security)
-            # Use original filename with .mp3 extension for Content-Disposition
-            original_name = audio.filename.rsplit('.', 1)[0] if '.' in audio.filename else audio.filename
-            mp3_filename = f"{original_name}.mp3"
-            await s3_service.upload_file(mp3_content, s3_key, 'audio/mpeg', mp3_filename)
-            logger.info(f"Uploaded converted MP3 to S3: {s3_key}")
-        except HTTPException:
-            # Re-raise HTTPException (like duration validation)
-            raise
-        except Exception as e:
-            logger.error(f"Error converting audio to mp3: {str(e)}", exc_info=True)
-
-            # Log to database for admin visibility
-            try:
-                from app.services.error_logger import log_database_error
-                log_database_error(
-                    db=db,
-                    source="api.conversation.transcribe_audio.convert_mp3",
-                    error=e,
-                    user_id=current_user.id,
+                audio_recording = AudioRecording(
                     session_id=session_id,
-                    details={"filename": audio.filename}
+                    filename=mp3_filename,
+                    s3_key=s3_key,
+                    duration=duration_seconds,
+                    transcribed_text=None,  # filled in after transcription completes
+                    category=None,
+                    ai_summary=None,
+                    created_by_user_id=current_user.id  # Track creator for collaborative sessions
                 )
-            except Exception:
-                pass  # Don't let error logging crash the app
+                db.add(audio_recording)
+                db.commit()
+                db.refresh(audio_recording)
+                s3_object_pending_row = None
+                logger.info(f"Saved audio recording metadata to database: ID {audio_recording.id}")
 
-            raise HTTPException(status_code=500, detail="Error processing audio file. Please try again.")
+                # OpenAI rejects requests over ~1400s of audio — split longer
+                # files into chunks on disk (stream copy, no re-encode)
+                if duration_seconds > MAX_CHUNK_DURATION_SECONDS:
+                    chunk_dir = tempfile.mkdtemp(prefix='audio_chunks_')
+                    chunk_paths = await asyncio.to_thread(
+                        _segment_mp3, mp3_temp_path, chunk_dir, MAX_CHUNK_DURATION_SECONDS
+                    )
+                    logger.info(f"Split audio into {len(chunk_paths)} chunks of up to {MAX_CHUNK_DURATION_SECONDS}s each")
+                else:
+                    chunk_paths = [mp3_temp_path]
+            except HTTPException:
+                raise
+            except Exception as e:
+                logger.error(f"Error converting audio to mp3: {str(e)}", exc_info=True)
+
+                # Don't leave an orphaned S3 object if the DB row was never created
+                if s3_object_pending_row:
+                    await s3_service.delete_file(s3_object_pending_row)
+
+                # Log to database for admin visibility
+                try:
+                    from app.services.error_logger import log_database_error
+                    log_database_error(
+                        db=db,
+                        source="api.conversation.transcribe_audio.convert_mp3",
+                        error=e,
+                        user_id=current_user.id,
+                        session_id=session_id,
+                        details={"filename": audio.filename}
+                    )
+                except Exception:
+                    pass  # Don't let error logging crash the app
+
+                raise HTTPException(status_code=500, detail="Error processing audio file. Please try again.")
+
+            # Transcribe each chunk in sequence. The recording is already
+            # persisted, so a failure here degrades to "saved without
+            # transcript" rather than a lost upload
+            try:
+                transcribed_parts = []
+                for i, chunk_path in enumerate(chunk_paths):
+                    logger.info(f"Transcribing chunk {i+1}/{len(chunk_paths)}")
+                    with open(chunk_path, 'rb') as chunk_file:
+                        chunk_buffer = io.BytesIO(chunk_file.read())
+                    chunk_filename = f"{original_name}_chunk_{i+1}.mp3" if len(chunk_paths) > 1 else mp3_filename
+                    chunk_text = await openai_service.transcribe_audio(chunk_buffer, chunk_filename)
+
+                    if chunk_text:
+                        transcribed_parts.append(chunk_text)
+                        logger.info(f"Chunk {i+1}/{len(chunk_paths)} transcribed successfully")
+
+                    # Chunk files are only needed once — free the disk early
+                    if chunk_dir is not None:
+                        os.unlink(chunk_path)
+
+                transcribed_text = ' '.join(transcribed_parts)
+            except Exception as e:
+                logger.error(f"Error transcribing audio: {str(e)}", exc_info=True)
+
+                # Log to database for admin visibility
+                try:
+                    from app.services.error_logger import log_database_error
+                    log_database_error(
+                        db=db,
+                        source="api.conversation.transcribe_audio.transcribe",
+                        error=e,
+                        user_id=current_user.id,
+                        session_id=session_id,
+                        details={"filename": audio.filename, "recording_id": audio_recording.id}
+                    )
+                except Exception:
+                    pass  # Don't let error logging crash the app
+
+                raise HTTPException(
+                    status_code=500,
+                    detail="Transcription failed, but the recording was saved and can be played back from Audio Recordings."
+                )
         finally:
             # Clean up temporary files
             if audio_temp_path and os.path.exists(audio_temp_path):
                 os.unlink(audio_temp_path)
             if mp3_temp_path and os.path.exists(mp3_temp_path):
                 os.unlink(mp3_temp_path)
+            if chunk_dir is not None:
+                shutil.rmtree(chunk_dir, ignore_errors=True)
 
         if not transcribed_text:
-            raise HTTPException(status_code=500, detail="Failed to transcribe audio")
+            raise HTTPException(
+                status_code=500,
+                detail="Failed to transcribe audio. The recording was saved and can be played back from Audio Recordings."
+            )
 
         logger.info(f"Successfully transcribed audio for session {session_id}")
 
@@ -938,25 +1039,14 @@ async def transcribe_audio(
             logger.warning(f"AI categorization failed for audio recording: {e}. Recording will save without category.")
             # Leave recording_category and ai_summary as None for backward compatibility
 
-        # Save audio recording metadata to database with AI metadata (or None if AI failed)
-        # Use MP3 filename since we're storing the converted version
-        mp3_filename_for_db = (audio.filename.rsplit('.', 1)[0] if '.' in audio.filename else audio.filename) + '.mp3'
-
-        audio_recording = AudioRecording(
-            session_id=session_id,
-            filename=mp3_filename_for_db,
-            s3_key=s3_key,
-            duration=duration_seconds,
-            transcribed_text=transcribed_text,
-            category=recording_category,
-            ai_summary=ai_summary,
-            created_by_user_id=current_user.id  # Track creator for collaborative sessions
-        )
-        db.add(audio_recording)
+        # Fill in the transcription + AI metadata on the already-persisted row
+        audio_recording.transcribed_text = transcribed_text
+        audio_recording.category = recording_category
+        audio_recording.ai_summary = ai_summary
         db.commit()
         db.refresh(audio_recording)
 
-        logger.info(f"Saved audio recording metadata to database: ID {audio_recording.id}")
+        logger.info(f"Updated audio recording {audio_recording.id} with transcription")
 
         # Create journal entry from audio transcription (only for management page uploads)
         # Conversation recordings skip this and synthesize when the transcribed text is sent as a message

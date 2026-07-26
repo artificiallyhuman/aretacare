@@ -21,8 +21,9 @@ async def read_upload_with_limit(
 
     Compared to ``await file.read()`` (which buffers the whole body before any
     application code runs), this raises HTTP 400 as soon as the running byte
-    count exceeds the limit — bounding peak memory to roughly ``max_size +
-    chunk_size`` bytes per upload regardless of the actual request body length.
+    count exceeds the limit — bounding peak memory to roughly ``2 * max_size``
+    bytes per upload regardless of the actual request body length (the chunk
+    list and the final joined buffer briefly coexist).
 
     Args:
         file: FastAPI ``UploadFile`` (Starlette UploadFile under the hood).

@@ -8,6 +8,13 @@ struct AretaCareApp: App {
     @State private var deepLinkRoute: DeepLinkRoute?
     @Environment(\.scenePhase) private var scenePhase
 
+    init() {
+        // Must run before the first scenePhase transition: the in-memory lock
+        // state dies with the process, so cold launches would otherwise skip
+        // the biometric challenge entirely.
+        BiometricManager.shared.lockOnColdLaunchIfNeeded()
+    }
+
     var body: some Scene {
         WindowGroup {
             ContentView()

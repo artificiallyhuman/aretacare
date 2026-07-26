@@ -378,28 +378,18 @@ struct DocumentsListView: View {
             var oversized: [String] = []
 
             for (index, item) in items.enumerated() {
-                guard let data = try? await item.loadTransferable(type: Data.self) else { continue }
+                // Re-encodes HEIC/TIFF/etc. to JPEG — the backend only accepts JPEG/PNG
+                guard let image = await item.loadUploadableImage() else { continue }
 
-                let ext: String
-                let contentType: String
-                if let type = item.supportedContentTypes.first,
-                   let detectedExt = type.preferredFilenameExtension,
-                   let detectedMime = type.preferredMIMEType {
-                    ext = detectedExt
-                    contentType = detectedMime
-                } else {
-                    ext = "jpg"
-                    contentType = "image/jpeg"
-                }
                 let filename = items.count == 1
-                    ? "photo_\(Date().apiDateString).\(ext)"
-                    : "photo_\(Date().apiDateString)_\(index + 1).\(ext)"
+                    ? "photo_\(Date().apiDateString).\(image.ext)"
+                    : "photo_\(Date().apiDateString)_\(index + 1).\(image.ext)"
 
-                if data.count > AppConstants.maxFileSizeBytes {
+                if image.data.count > AppConstants.maxFileSizeBytes {
                     oversized.append(filename)
                     continue
                 }
-                uploads.append(PendingUpload(data: data, filename: filename, contentType: contentType))
+                uploads.append(PendingUpload(data: image.data, filename: filename, contentType: image.contentType))
             }
 
             if !oversized.isEmpty {

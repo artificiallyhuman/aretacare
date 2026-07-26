@@ -203,7 +203,7 @@ Content-Type: multipart/form-data
 ```
 Parameters: `audio`, `session_id`
 
-Supported: MP3, M4A, WAV, WebM, OGG (100MB max). Auto-transcribes, categorizes, converts to MP3.
+Supported: MP3, M4A, WAV, WebM, OGG (100MB max, 4 hours max duration). Auto-transcribes, categorizes, converts to MP3. The MP3 and recording record are persisted before transcription — if transcription fails, the recording is still saved (playable, no transcript) and the response is a 500 explaining that.
 
 ### Manage
 ```bash

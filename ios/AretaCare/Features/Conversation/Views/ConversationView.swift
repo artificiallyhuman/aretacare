@@ -508,24 +508,14 @@ struct ConversationView: View {
         selectedPhotoItems = []
 
         Task {
-            if let data = try? await item.loadTransferable(type: Data.self) {
-                if data.count > AppConstants.maxFileSizeBytes {
+            // Re-encodes HEIC/TIFF/etc. to JPEG — the backend only accepts JPEG/PNG
+            if let image = await item.loadUploadableImage() {
+                if image.data.count > AppConstants.maxFileSizeBytes {
                     showFileSizeAlert = true
                     return
                 }
-                let ext: String
-                let contentType: String
-                if let type = item.supportedContentTypes.first,
-                   let detectedExt = type.preferredFilenameExtension,
-                   let detectedMime = type.preferredMIMEType {
-                    ext = detectedExt
-                    contentType = detectedMime
-                } else {
-                    ext = "jpg"
-                    contentType = "image/jpeg"
-                }
-                let filename = "photo_\(Date().apiDateString).\(ext)"
-                pendingAttachment = PendingAttachment(data: data, filename: filename, contentType: contentType)
+                let filename = "photo_\(Date().apiDateString).\(image.ext)"
+                pendingAttachment = PendingAttachment(data: image.data, filename: filename, contentType: image.contentType)
             }
         }
     }
