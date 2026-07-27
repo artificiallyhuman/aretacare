@@ -22,8 +22,13 @@ extension PhotosPickerItem {
             }
         }
 
-        guard let image = UIImage(data: data),
-              let jpegData = image.jpegData(compressionQuality: 0.85) else {
+        // autoreleasepool bounds the transient full-resolution bitmap: the
+        // Documents batch path calls this in a loop of up to 20 items, and
+        // without a drain each iteration's decode could accumulate.
+        guard let jpegData = autoreleasepool(invoking: { () -> Data? in
+            guard let image = UIImage(data: data) else { return nil }
+            return image.jpegData(compressionQuality: 0.85)
+        }) else {
             return nil
         }
         return (jpegData, "jpg", "image/jpeg")
