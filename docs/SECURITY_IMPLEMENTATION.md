@@ -149,7 +149,7 @@ Password reset has a second, per-account throttle (see Security Logging) layered
 |---------|----------------|
 | Content-Disposition | `attachment` header forces download, prevents browser execution |
 | File validation | MIME type + extension checking |
-| Size limit | 30MB documents, 100MB audio (OpenAI file URL limit is 32MB; audio is transcribed first) |
+| Size limit | 30MB documents, 100MB audio + 4-hour duration cap via ffprobe (OpenAI file URL limit is 32MB; audio is transcribed first) |
 | Image validation | PIL verification |
 | S3 encryption | AES-256 server-side |
 
@@ -319,7 +319,7 @@ Sentry is used for error/crash monitoring on all three platforms (backend, web, 
 - **Keychain storage**: Access/refresh tokens stored via KeychainAccess with `.afterFirstUnlockThisDeviceOnly` accessibility (prevents restoration to other devices); errors logged in DEBUG only
 - **Token refresh pinning**: `AuthInterceptor` uses a dedicated `URLSession` with `CertificatePinningDelegate` for refresh requests, ensuring refresh tokens are never sent over unpinned connections
 - **Passkey login (WebAuthn)**: `PasskeyAuthManager` wraps `ASAuthorizationController` for passkey assertion during MFA login. Credential data (authenticatorData, signature, clientDataJSON) is base64url-encoded and sent to backend for cryptographic verification. Requires `webcredentials` associated domain entitlement. Concurrency guard throws if a passkey operation is already in progress (prevents double-tap crashes). The backend-supplied relying-party identifier is validated against the configured frontend domain (`AppConstants.frontendBaseURL`) before use as defense-in-depth (`localhost` allowed in DEBUG).
-- **Logout data cleanup**: On logout, `AuthManager` clears all `ResponseCache` instances, `ImageCache`, UserDefaults keys (`lastSessionId`, `activeTab`, biometric preference), and push token before clearing Keychain — prevents data leakage on shared devices
+- **Logout data cleanup**: On logout, `AuthManager` clears all `ResponseCache` instances, `ImageCache`, UserDefaults keys (`lastSessionId`, `activeTab`), and push token before clearing Keychain — prevents data leakage on shared devices. The biometric lock preference is cleared on explicit user logout only, so transient auth failures can't silently disable the lock
 
 **Network Security:**
 - **SSL certificate pinning**: `CertificatePinningDelegate` validates SHA-256 SPKI (SubjectPublicKeyInfo) public key hashes against the server certificate chain on every request, with ASN.1 DER headers for RSA-2048/4096 and EC P-256 keys (matches `openssl` output format); localhost/127.0.0.1 bypassed in DEBUG only
@@ -340,7 +340,7 @@ Sentry is used for error/crash monitoring on all three platforms (backend, web, 
 - **Device integrity**: `DeviceIntegrityChecker` detects jailbreak indicators (suspicious files, sandbox escape, debugger attachment) on real devices; skips on simulator
 
 **Session & Lifecycle Security:**
-- **Biometric re-auth**: Opt-in Face ID/Touch ID lock (Settings > Security) on foreground return after 5 min background. Uses `.deviceOwnerAuthentication` (passcode fallback). Preference cleared on logout. Idle timer pauses while lock screen active. Opaque lock screen hides health data.
+- **Biometric re-auth**: Opt-in Face ID/Touch ID lock (Settings > Security) on foreground return after 5 min background. The background timestamp is persisted to UserDefaults and checked at launch (`lockOnColdLaunchIfNeeded()` in `AretaCareApp.init`), so cold relaunches after iOS terminates the app also lock — crashes and unknown states fail locked. Uses `.deviceOwnerAuthentication` (passcode fallback). Preference cleared on explicit user logout only (survives `forceLogout`/transient auth failures). Idle timer pauses while lock screen active. Opaque lock screen hides health data.
 - **App-switcher privacy shield**: `ContentView` shows a branded shield whenever `scenePhase != .active`, so the app-switcher snapshot never exposes on-screen health data. Applies to all users regardless of auth state (login/MFA screens contain personal data); content is `accessibilityHidden` while biometric-locked.
 - **Idle timeout**: 30 min with 1-min warning; disabled when biometric lock is enabled (7-day token expiry serves as session safeguard); `@MainActor`-safe timer callbacks
 - **APNs entitlements**: `aps-environment: development` (Debug) / `production` (Release) via per-config entitlements

@@ -118,7 +118,7 @@ AretaCare implements comprehensive security measures:
 - **MFA Lockout**: 5 failed MFA attempts triggers 15-minute lockout with security alert
 - **Account Enumeration Prevention**: Registration returns identical responses for existing and new emails
 - **Sign Out Everywhere**: Users can end all active sign-ins
-- **Biometric Re-Auth (iOS)**: Opt-in Face ID/Touch ID lock on foreground return after 5 min; passcode fallback; opaque lock screen hides health data
+- **Biometric Re-Auth (iOS)**: Opt-in Face ID/Touch ID lock on foreground return after 5 min, including app relaunch after iOS terminates the backgrounded app (unknown states fail locked); passcode fallback; opaque lock screen hides health data
 
 ### Multi-Factor Authentication (MFA)
 - **Passkeys (WebAuthn)**: Phishing-resistant authentication using biometrics or hardware keys; maximum 10 per account; supported for MFA login on both web (WebAuthn API) and iOS (ASAuthorizationController with Face ID/Touch ID)
@@ -168,7 +168,7 @@ AretaCare implements comprehensive security measures:
 ### File Upload Security
 - **Content-Disposition Headers**: Forces download instead of browser execution
 - **File Type Validation**: MIME type and extension checking (iOS uses UTType for photo format detection)
-- **File Size Limits**: 30MB documents, 100MB audio — enforced server-side and client-side (iOS validates before upload)
+- **File Size Limits**: 30MB documents, 100MB audio (max 4 hours duration) — enforced server-side and client-side (iOS validates before upload)
 - **Image Validation**: PIL verification for image uploads
 
 ### Access Control
