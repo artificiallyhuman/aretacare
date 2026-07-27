@@ -36,6 +36,8 @@
 		37558F30DB659423AE510EC2 /* CollaborationViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9BA46A0CD8F7A8123E61016F /* CollaborationViewModel.swift */; };
 		3B577606A6F91AEC1843EA74 /* ToolsViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 468CD248681253DD60869A58 /* ToolsViewModel.swift */; };
 		3B9747CB7436E2835339EA7B /* SessionViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 671E3C9F5D612BE9DC06C9C0 /* SessionViewModel.swift */; };
+		419CAE32B059E84E5974C129 /* PrivacyShieldWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8EC1A4B39FE1F23370462A28 /* PrivacyShieldWindow.swift */; };
+		41ECF1AEEF2E3C1B766BDBCD /* PrivacyShieldView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B154919795C4DD2F166821C4 /* PrivacyShieldView.swift */; };
 		4250BC11D2612039DAD78E67 /* DailyPlanModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = ECE7581ECB2A62C72CAF46AC /* DailyPlanModels.swift */; };
 		44DC732FB4121C961FA0A7AE /* MarkdownTextView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5B5DE9E230CFFF1B8F37770 /* MarkdownTextView.swift */; };
 		45F0308DD4F545BC4AAA8D0F /* MFAVerifyView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7096E6F01BE165BB0D4733BF /* MFAVerifyView.swift */; };
@@ -205,6 +207,7 @@
 		8A00E20E766BF9B9C168BD5E /* .gitkeep */ = {isa = PBXFileReference; path = .gitkeep; sourceTree = "<group>"; };
 		8A5B6EF3D1F83F95F3F1F6D4 /* LoadingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoadingView.swift; sourceTree = "<group>"; };
 		8E557A03A252D86D4D4434F3 /* JournalEntryDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JournalEntryDetailView.swift; sourceTree = "<group>"; };
+		8EC1A4B39FE1F23370462A28 /* PrivacyShieldWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrivacyShieldWindow.swift; sourceTree = "<group>"; };
 		90B14CC432718E8F685568F0 /* WaitlistView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WaitlistView.swift; sourceTree = "<group>"; };
 		915ED467C22B9A6552DA769F /* AudioRecordingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioRecordingsView.swift; sourceTree = "<group>"; };
 		92FFCCC1710415ACCD302F2A /* Debug.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Debug.xcconfig; sourceTree = "<group>"; };
@@ -223,6 +226,7 @@
 		AD4A86DD1D66763A5F6E3B04 /* DocumentModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DocumentModels.swift; sourceTree = "<group>"; };
 		AE479EC5465EAC768D022531 /* ProfilePendingChangesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfilePendingChangesView.swift; sourceTree = "<group>"; };
 		B0C40552C79AE7B2C37B34D4 /* CameraPickerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraPickerView.swift; sourceTree = "<group>"; };
+		B154919795C4DD2F166821C4 /* PrivacyShieldView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrivacyShieldView.swift; sourceTree = "<group>"; };
 		B1686B821C4BEADF4D132BD7 /* AuthHeaderView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthHeaderView.swift; sourceTree = "<group>"; };
 		B1BBB979E845ACDF7CD0EBCC /* MFAModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MFAModels.swift; sourceTree = "<group>"; };
 		B687F7347801DEB2AC2A469A /* NetworkMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkMonitor.swift; sourceTree = "<group>"; };
@@ -461,6 +465,7 @@
 			isa = PBXGroup;
 			children = (
 				35F5D4648738750D758C713F /* DeviceIntegrityChecker.swift */,
+				8EC1A4B39FE1F23370462A28 /* PrivacyShieldWindow.swift */,
 				AB4C47D683D1A2C54DCA978F /* TempFileCleanup.swift */,
 			);
 			path = Security;
@@ -869,6 +874,7 @@
 				2F62BDE47324A5E1CF08DD2D /* MainTabView.swift */,
 				E5B5DE9E230CFFF1B8F37770 /* MarkdownTextView.swift */,
 				2806A2EDE3883CAA07074772 /* MarkdownTheme+AretaCare.swift */,
+				B154919795C4DD2F166821C4 /* PrivacyShieldView.swift */,
 				B759C834B49BF710003B2B1C /* QuickLookPreviewView.swift */,
 				D7BD1DA3E2CEFF9EE26E2D27 /* ShareSheet.swift */,
 				BE0670B69E46027B276AC1E7 /* SkeletonView.swift */,
@@ -1082,6 +1088,8 @@
 				E04AC0715A92EEAD2A5F27DB /* NowPlayingManager.swift in Sources */,
 				015A922D623B453D1FB51C8C /* PasskeyAuthManager.swift in Sources */,
 				E513A4C0CB402F7D1C6E732F /* PhotosPickerItem+UploadableImage.swift in Sources */,
+				41ECF1AEEF2E3C1B766BDBCD /* PrivacyShieldView.swift in Sources */,
+				419CAE32B059E84E5974C129 /* PrivacyShieldWindow.swift in Sources */,
 				D8FF3BDF57EEE5797CBF22C5 /* ProfileComponents.swift in Sources */,
 				51326C09B0620E716452F9E5 /* ProfileModels.swift in Sources */,
 				E6E27D9B7CD44CF8BD655DF5 /* ProfilePendingChangesView.swift in Sources */,

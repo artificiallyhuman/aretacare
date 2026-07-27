@@ -45,6 +45,11 @@ struct AretaCareApp: App {
                         break
                     }
                 }
+                .onChange(of: scenePhase, initial: true) { _, newPhase in
+                    // Separate handler: initial: true must not re-run the
+                    // background/foreground transitions above at launch.
+                    PrivacyWindowManager.shared.update(phase: newPhase)
+                }
         }
     }
 

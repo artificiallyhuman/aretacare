@@ -5,7 +5,6 @@ struct ContentView: View {
     @State private var authManager = AuthManager.shared
     @State private var subscriptionManager = SubscriptionManager.shared
     private let biometricManager = BiometricManager.shared
-    @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {
         Group {
@@ -39,46 +38,9 @@ struct ContentView: View {
                     .transition(.identity)
             }
         }
+        // The biometric lock and privacy shield render in a dedicated window
+        // above all presented sheets (see Core/Security/PrivacyShieldWindow.swift).
         .accessibilityHidden(biometricManager.isLocked)
-        .overlay {
-            if authManager.isAuthenticated && biometricManager.isLocked {
-                BiometricLockView()
-            }
-        }
-        .overlay {
-            // Privacy shield: hide content from the app-switcher snapshot while
-            // the app is not active. Shown for all users regardless of auth
-            // state, since login/MFA screens also contain personal data.
-            if scenePhase != .active {
-                privacyShield
-                    .transition(.identity)
-            }
-        }
-    }
-
-    // MARK: - Privacy Shield
-
-    private var privacyShield: some View {
-        ZStack {
-            Color(.systemBackground)
-                .ignoresSafeArea()
-
-            VStack(spacing: 16) {
-                Image("large_logo")
-                    .resizable()
-                    .scaledToFit()
-                    .frame(width: 80, height: 80)
-
-                HStack(spacing: 0) {
-                    Text("AretaCare")
-                        .font(.title2)
-                        .fontWeight(.bold)
-                    Text("\u{2122}")
-                        .font(.callout)
-                        .foregroundStyle(.secondary)
-                }
-            }
-        }
     }
 
     // MARK: - Subscription Gate

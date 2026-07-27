@@ -202,7 +202,8 @@ final class PasskeyAuthManager: NSObject, ASAuthorizationControllerDelegate, ASA
 
     func presentationAnchor(for controller: ASAuthorizationController) -> ASPresentationAnchor {
         guard let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
-              let window = scene.windows.first else {
+              let window = scene.windows.first(where: \.isKeyWindow)
+                ?? scene.windows.first(where: { !($0 is PassthroughWindow) }) else {
             return ASPresentationAnchor()
         }
         return window
