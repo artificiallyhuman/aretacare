@@ -904,8 +904,7 @@ IMPORTANT: Respond with ONLY a valid JSON object in this exact format, with no a
             if last_refreshed is not None:
                 context += (
                     f"_Last refreshed: {last_refreshed.strftime('%Y-%m-%d')}. "
-                    "Any changes the user mentions in this conversation that are newer than this date are NOT yet reflected below — "
-                    "they remain pending until the user clicks \"Update\" on the Health Profile page and reviews the suggested edits._\n\n"
+                    "This is a snapshot, not a live record — anything the user mentions after this date is not reflected below._\n\n"
                 )
 
             total_tokens = self._estimate_tokens(context)
