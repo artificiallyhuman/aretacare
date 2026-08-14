@@ -10,6 +10,17 @@ final class SettingsViewModel {
     private(set) var errorMessage: String?
     private(set) var successMessage: String?
 
+    /// Set when the server refused a sensitive account change without a fresh MFA
+    /// proof. The presenting view opens `MFAStepUpSheet` and replays the call with
+    /// the resulting action token. Reactive rather than proactive: no second source
+    /// of truth for "is MFA on", and it self-heals an expired or already-used token.
+    private(set) var mfaStepUpRequired = false
+
+    /// Set when the server ended every session as part of the change the user just
+    /// made (`logout: true`). The view acknowledges it before signing out so the
+    /// transition isn't a silent bounce to the login screen.
+    private(set) var requiresReauthentication = false
+
     var user: UserResponse? {
         AuthManager.shared.currentUser
     }
@@ -72,55 +83,100 @@ final class SettingsViewModel {
         }
     }
 
-    func updateEmail(newEmail: String, password: String) async -> Bool {
+    func updateEmail(newEmail: String, password: String, actionToken: String? = nil) async -> Bool {
         errorMessage = nil
         successMessage = nil
+        mfaStepUpRequired = false
 
         do {
             let request = UpdateEmailRequest(email: newEmail, currentPassword: password)
-            let _: EmptyResponse = try await APIClient.shared.put(
+            let response: SensitiveChangeResponse = try await APIClient.shared.put(
                 APIEndpoints.Auth.email,
-                body: request
+                body: request,
+                headers: Self.actionTokenHeader(actionToken)
             )
-            try await AuthManager.shared.fetchCurrentUser()
+            requiresReauthentication = response.requiresLogout
+            // Refreshing the user surfaces the pending-email row in Settings. Skipped
+            // when the server has already ended the session: the view is about to sign
+            // out, and a throw here would report a successful change as a failure.
+            if !requiresReauthentication {
+                try await AuthManager.shared.fetchCurrentUser()
+            }
             successMessage = "Verification email sent to \(newEmail)."
             return true
         } catch {
-            errorMessage = error.localizedDescription
+            handleSensitiveActionFailure(error)
             return false
         }
     }
 
-    func updatePassword(currentPassword: String, newPassword: String) async -> Bool {
+    func updatePassword(currentPassword: String, newPassword: String, actionToken: String? = nil) async -> Bool {
         errorMessage = nil
         successMessage = nil
+        mfaStepUpRequired = false
 
         do {
             let request = UpdatePasswordRequest(currentPassword: currentPassword, newPassword: newPassword)
-            let _: EmptyResponse = try await APIClient.shared.put(
+            let response: SensitiveChangeResponse = try await APIClient.shared.put(
                 APIEndpoints.Auth.password,
-                body: request
+                body: request,
+                headers: Self.actionTokenHeader(actionToken)
             )
+            requiresReauthentication = response.requiresLogout
             successMessage = "Password updated successfully."
             return true
         } catch {
-            errorMessage = error.localizedDescription
+            handleSensitiveActionFailure(error)
             return false
         }
     }
 
-    func deleteAccount(password: String) async -> Bool {
+    func deleteAccount(password: String, actionToken: String? = nil) async -> Bool {
         errorMessage = nil
+        mfaStepUpRequired = false
 
         do {
             let request = DeleteAccountRequest(password: password)
-            try await APIClient.shared.delete(APIEndpoints.Auth.account, body: request)
+            try await APIClient.shared.delete(
+                APIEndpoints.Auth.account,
+                body: request,
+                headers: Self.actionTokenHeader(actionToken)
+            )
             await AuthManager.shared.logout()
             return true
         } catch {
-            errorMessage = error.localizedDescription
+            handleSensitiveActionFailure(error)
             return false
         }
+    }
+
+    /// Ends the session the server already invalidated. Called by the view once the
+    /// user has read the confirmation.
+    func completeReauthentication() async {
+        requiresReauthentication = false
+        await AuthManager.shared.logout()
+    }
+
+    func clearMFAStepUpRequirement() {
+        mfaStepUpRequired = false
+    }
+
+    private static func actionTokenHeader(_ token: String?) -> [String: String]? {
+        guard let token else { return nil }
+        return [AppConstants.mfaActionTokenHeader: token]
+    }
+
+    /// Routes a failed sensitive action: a step-up demand flags the view to open the
+    /// verification sheet, anything else (a wrong password, a taken email) goes to
+    /// the error message so the user sees what to fix. Mirrors
+    /// `MFAViewModel.handleSensitiveActionFailure`.
+    private func handleSensitiveActionFailure(_ error: Error) {
+        if case APIError.forbidden(let code) = error,
+           code == "MFA_REQUIRED" || code == "MFA_INVALID" {
+            mfaStepUpRequired = true
+            return
+        }
+        errorMessage = error.localizedDescription
     }
 
     func logoutEverywhere() async {
@@ -157,6 +213,26 @@ final class SettingsViewModel {
 
         do {
             try await APIClient.shared.delete(APIEndpoints.Sessions.delete(id))
+            sessions.removeAll { $0.id == id }
+            NotificationCenter.default.post(name: .sessionsDidChange, object: nil)
+            return true
+        } catch {
+            errorMessage = error.localizedDescription
+            return false
+        }
+    }
+
+    /// Remove the current user's access to a care session they collaborate on.
+    ///
+    /// Mirrors `deleteSession` rather than reusing `CollaborationViewModel.leaveSession`,
+    /// which is a bare POST: it neither prunes the local `sessions` array nor posts
+    /// `.sessionsDidChange`, so the Settings list would keep showing a session the user
+    /// just left.
+    func leaveSession(id: String) async -> Bool {
+        errorMessage = nil
+
+        do {
+            try await APIClient.shared.post(APIEndpoints.Sessions.leave(id))
             sessions.removeAll { $0.id == id }
             NotificationCenter.default.post(name: .sessionsDidChange, object: nil)
             return true

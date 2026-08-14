@@ -28,6 +28,10 @@ enum APIError: LocalizedError {
                 return "You no longer have access to this session."
             } else if code == "EMAIL_NOT_VERIFIED" {
                 return "Your email has not been verified yet. Please check your inbox for a verification link."
+            } else if code == "MFA_REQUIRED" {
+                return "This action needs a fresh identity check. Please verify with your passkey, authenticator app, or a backup code and try again."
+            } else if code == "MFA_INVALID" {
+                return "That verification has expired or was already used. Please verify your identity again."
             }
             return "You don't have permission to perform this action."
         case .mfaRequired:

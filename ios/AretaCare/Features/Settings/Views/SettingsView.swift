@@ -14,6 +14,12 @@ struct SettingsView: View {
     @State private var deleteConfirmationText = ""
     @State private var deletePassword = ""
     @State private var isDeletingAccount = false
+    @State private var deleteError: String?
+
+    /// Step-up state for the delete-account flow. The MFA view model is owned here so
+    /// `availableStepUpMethods` has a loaded status before the sheet appears.
+    @State private var mfaViewModel = MFAViewModel()
+    @State private var pendingDeleteStepUp: SensitiveMFAAction?
 
     // Session management (detail view handles rename/color/delete)
 
@@ -391,15 +397,15 @@ struct SettingsView: View {
                     }
                 }
 
+                if let deleteError {
+                    Text(deleteError)
+                        .font(.caption)
+                        .foregroundStyle(.red)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+
                 Button(role: .destructive) {
-                    Task {
-                        isDeletingAccount = true
-                        _ = await viewModel.deleteAccount(password: deletePassword)
-                        isDeletingAccount = false
-                        deleteConfirmationText = ""
-                        deletePassword = ""
-                        showDeleteAccountSheet = false
-                    }
+                    Task { await performDeleteAccount() }
                 } label: {
                     if isDeletingAccount {
                         ProgressView()
@@ -427,14 +433,58 @@ struct SettingsView: View {
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") {
-                        deleteConfirmationText = ""
-                        deletePassword = ""
+                        resetDeleteAccountForm()
                         showDeleteAccountSheet = false
+                    }
+                }
+            }
+            // Presented from inside the delete sheet so the confirmation the user
+            // just typed survives the detour and the replay can use it.
+            .sheet(item: $pendingDeleteStepUp) { action in
+                NavigationStack {
+                    MFAStepUpSheet(viewModel: mfaViewModel, action: action) { actionToken in
+                        Task { await performDeleteAccount(actionToken: actionToken) }
                     }
                 }
             }
         }
         .presentationDetents([.medium])
+    }
+
+    /// Deletion is terminal, so failures must leave the sheet open with the reason
+    /// visible: the error banner behind it is covered by the sheet itself. On success
+    /// `deleteAccount` has already signed the user out and `AuthManager` swaps the
+    /// auth root, so closing the sheet here just tidies up ahead of that teardown.
+    private func performDeleteAccount(actionToken: String? = nil) async {
+        isDeletingAccount = true
+        deleteError = nil
+        // Held through the status fetch below so the button keeps its spinner
+        // instead of looking tappable again mid-detour.
+        defer { isDeletingAccount = false }
+
+        let success = await viewModel.deleteAccount(password: deletePassword, actionToken: actionToken)
+
+        if success {
+            resetDeleteAccountForm()
+            showDeleteAccountSheet = false
+        } else if viewModel.mfaStepUpRequired {
+            viewModel.clearMFAStepUpRequirement()
+            // `availableStepUpMethods` is empty until the status is loaded, which
+            // would leave the sheet on its "no verification method" dead end.
+            if mfaViewModel.mfaStatus == nil {
+                await mfaViewModel.fetchStatus()
+            }
+            pendingDeleteStepUp = .deleteAccount
+        } else {
+            deleteError = viewModel.errorMessage
+            viewModel.dismissError()
+        }
+    }
+
+    private func resetDeleteAccountForm() {
+        deleteConfirmationText = ""
+        deletePassword = ""
+        deleteError = nil
     }
 
     // MARK: - Helpers

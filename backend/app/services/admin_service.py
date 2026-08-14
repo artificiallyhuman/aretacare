@@ -760,29 +760,27 @@ class AdminService:
         audio_keys = set(a.s3_key for a in db.query(AudioRecording.s3_key).all() if a.s3_key)
         all_valid_keys = doc_keys | thumb_keys | audio_keys
 
-        deleted = 0
-        failed = 0
-        failed_keys = []
+        # SECURITY CHECK: partition before deleting anything. Every key is still checked
+        # individually against the database, exactly as before — this only moves the check
+        # ahead of the deletion instead of interleaving it, so the batch call below can
+        # never receive a key that is still referenced.
+        allowed = []
+        blocked = []
 
         for key in keys:
-            # SECURITY CHECK: Verify key is not in database
             if key in all_valid_keys:
                 logger.warning(f"Blocked deletion of non-orphaned S3 file: {key}")
-                failed += 1
-                failed_keys.append(key)
-                continue
+                blocked.append(key)
+            else:
+                allowed.append(key)
 
-            try:
-                success = await s3_service.delete_file(key)
-                if success:
-                    deleted += 1
-                else:
-                    failed += 1
-                    failed_keys.append(key)
-            except Exception as e:
-                logger.error(f"Failed to delete S3 file {key}: {e}")
-                failed += 1
-                failed_keys.append(key)
+        # Batched delete: this endpoint can be handed every orphan in the bucket (the admin
+        # UI has a "Select All"), and one round trip per key could take long enough to time
+        # out the request. delete_files_detailed never raises and reports per-key failures.
+        deleted, batch_failed = await s3_service.delete_files_detailed(allowed)
+
+        failed_keys = blocked + batch_failed
+        failed = len(failed_keys)
 
         return deleted, failed, failed_keys
 

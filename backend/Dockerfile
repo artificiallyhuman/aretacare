@@ -32,5 +32,17 @@ USER appuser
 # Expose port
 EXPOSE 8000
 
-# Run the application with 4 workers for better concurrency
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "4"]
+# Run the application.
+#
+# Single worker, matching the root Dockerfile (which is what Render actually builds — no
+# dockerfilePath is set in render.yaml, so it defaults to the repo root). This file is the
+# one docker-compose builds, and compose overrides this CMD with --reload anyway.
+#
+# Do NOT raise the worker count here without first doing both of the following, or
+# production will fall over:
+#   1. Size the DB pool per cluster, not per process. core/database.py sets
+#      pool_size=20 + max_overflow=40 = 60 connections PER WORKER PROCESS. Four workers
+#      across five instances would be ~1,200 connections against a ~100-connection plan.
+#   2. Put an advisory lock around run_migrations(). It is called at module scope in
+#      main.py, so every worker process runs the migrations concurrently.
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

@@ -1292,35 +1292,35 @@ async def delete_account(
     # Only delete sessions where the user is the current owner
     user_sessions = db.query(Session).filter(Session.owner_id == current_user.id).all()
 
-    # Delete all S3 files for all owned sessions before deleting database records
-    for session in user_sessions:
-        # Delete all documents and their thumbnails from S3
-        documents = db.query(Document).filter(Document.session_id == session.id).all()
+    # Delete all S3 files for all owned sessions before deleting database records.
+    #
+    # Collected across every owned session and removed in batched calls rather than one
+    # request per object. This previously nested three loops (session -> document ->
+    # thumbnail, then session -> recording), each doing a separate round trip to S3, so
+    # deleting an account with real data took tens of seconds. Two queries scoped by
+    # session_id IN (...) also replace the per-session queries that were an N+1.
+    session_ids = [session.id for session in user_sessions]
+    s3_keys_to_delete = []
+
+    if session_ids:
+        documents = db.query(Document.s3_key, Document.thumbnail_s3_key).filter(
+            Document.session_id.in_(session_ids)
+        ).all()
         for doc in documents:
-            # Delete main document file
-            try:
-                await s3_service.delete_file(doc.s3_key)
-                logger.info(f"Deleted S3 file during account deletion: {doc.s3_key}")
-            except Exception as e:
-                logger.error(f"Failed to delete S3 file {doc.s3_key} during account deletion: {str(e)}")
-                # Continue deleting other files even if one fails
-
-            # Delete thumbnail file if it exists
+            s3_keys_to_delete.append(doc.s3_key)
             if doc.thumbnail_s3_key:
-                try:
-                    await s3_service.delete_file(doc.thumbnail_s3_key)
-                    logger.info(f"Deleted S3 thumbnail during account deletion: {doc.thumbnail_s3_key}")
-                except Exception as e:
-                    logger.error(f"Failed to delete S3 thumbnail {doc.thumbnail_s3_key} during account deletion: {str(e)}")
+                s3_keys_to_delete.append(doc.thumbnail_s3_key)
 
-        # Delete all audio recordings from S3
-        audio_recordings = db.query(AudioRecording).filter(AudioRecording.session_id == session.id).all()
+        audio_recordings = db.query(AudioRecording.s3_key).filter(
+            AudioRecording.session_id.in_(session_ids)
+        ).all()
         for audio in audio_recordings:
-            try:
-                await s3_service.delete_file(audio.s3_key)
-                logger.info(f"Deleted S3 audio file during account deletion: {audio.s3_key}")
-            except Exception as e:
-                logger.error(f"Failed to delete S3 audio file {audio.s3_key} during account deletion: {str(e)}")
+            s3_keys_to_delete.append(audio.s3_key)
+
+    if s3_keys_to_delete:
+        # Never raises; per-key failures are logged and those objects become orphans,
+        # which the admin S3 cleanup sweeps up.
+        await s3_service.delete_files(s3_keys_to_delete)
 
     # Manually delete owned sessions first (before deleting user)
     # This prevents CASCADE from deleting sessions where user was creator but transferred ownership

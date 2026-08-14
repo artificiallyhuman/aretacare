@@ -88,6 +88,17 @@ struct DeleteAccountRequest: Codable {
     let password: String
 }
 
+/// Reply to an email or password change. The backend revokes every refresh token
+/// on both and answers `logout: true`; the client has to end the session itself,
+/// otherwise the user keeps browsing on a still-valid access token and is thrown
+/// out without explanation whenever it expires.
+struct SensitiveChangeResponse: Decodable {
+    let message: String?
+    let logout: Bool?
+
+    var requiresLogout: Bool { logout ?? false }
+}
+
 // MARK: - Password Reset
 
 struct PasswordResetRequestBody: Codable {

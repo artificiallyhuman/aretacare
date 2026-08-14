@@ -69,8 +69,8 @@ final class APIClient: Sendable {
         return try await execute(request)
     }
 
-    func put<T: Decodable>(_ path: String, body: some Encodable) async throws -> T {
-        let request = try buildRequest(path: path, method: "PUT", body: body)
+    func put<T: Decodable>(_ path: String, body: some Encodable, headers: [String: String]? = nil) async throws -> T {
+        let request = try buildRequest(path: path, method: "PUT", body: body, headers: headers)
         return try await execute(request)
     }
 

@@ -12,8 +12,12 @@ struct SessionDetailView: View {
     @State private var showColorPicker = false
     @State private var showCollaboration = false
     @State private var showDeleteConfirmation = false
+    @State private var showLeaveConfirmation = false
     @State private var saveHapticTrigger = 0
-    @State private var isDeleting = false
+    // Covers both destructive paths — deleting (owner) and leaving (collaborator) — so
+    // there is one overlay and one disabled/dismiss rule rather than two parallel ones.
+    @State private var isProcessing = false
+    @State private var processingMessage = ""
 
     private var session: SessionResponse? {
         viewModel.sessions.first { $0.id == sessionId }
@@ -21,12 +25,12 @@ struct SessionDetailView: View {
 
     var body: some View {
         content
-            .disabled(isDeleting)
+            .disabled(isProcessing)
             .overlay {
-                if isDeleting {
+                if isProcessing {
                     UploadingOverlay(
-                        message: "Deleting care session…",
-                        accessibilityLabel: "Deleting care session"
+                        message: processingMessage,
+                        accessibilityLabel: processingMessage
                     )
                 }
             }
@@ -45,26 +49,40 @@ struct SessionDetailView: View {
     @ViewBuilder
     private var content: some View {
         if let session {
+            // Renaming and deleting are owner-only on the backend. Without this the screen
+            // offered a collaborator two actions that always fail with 403.
+            let isOwner = session.isOwner
+
             Form {
                 // Session info
                 Section {
-                    Button {
-                        renameText = session.name
-                        showRenameAlert = true
-                    } label: {
+                    if isOwner {
+                        Button {
+                            renameText = session.name
+                            showRenameAlert = true
+                        } label: {
+                            HStack {
+                                Label("Name", systemImage: "textformat")
+                                Spacer()
+                                Text(session.name)
+                                    .foregroundStyle(.secondary)
+                                Image(systemName: "chevron.right")
+                                    .font(.caption)
+                                    .foregroundStyle(.tertiary)
+                                    .accessibilityHidden(true)
+                            }
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityHint("Rename this care session")
+                    } else {
+                        // Read-only: the name is useful context, but only the owner can change it.
                         HStack {
                             Label("Name", systemImage: "textformat")
                             Spacer()
                             Text(session.name)
                                 .foregroundStyle(.secondary)
-                            Image(systemName: "chevron.right")
-                                .font(.caption)
-                                .foregroundStyle(.tertiary)
-                                .accessibilityHidden(true)
                         }
                     }
-                    .buttonStyle(.plain)
-                    .accessibilityHint("Rename this care session")
 
                     Button { showColorPicker = true } label: {
                         HStack {
@@ -120,35 +138,67 @@ struct SessionDetailView: View {
                     }
                 }
 
-                // Delete
+                // Delete (owner) / Leave (collaborator)
                 Section {
-                    Button(role: .destructive) {
-                        showDeleteConfirmation = true
-                    } label: {
-                        HStack {
-                            Label("Delete Care Session", systemImage: "trash")
-                            Spacer()
-                        }
-                    }
-                    .confirmationDialog("Delete Care Session", isPresented: $showDeleteConfirmation, titleVisibility: .visible) {
-                        Button("Delete", role: .destructive) {
-                            Task {
-                                isDeleting = true
-                                if await viewModel.deleteSession(id: sessionId) {
-                                    // Leave the overlay up through the pop so the
-                                    // empty state never shows.
-                                    dismiss()
-                                } else {
-                                    isDeleting = false
-                                }
+                    if isOwner {
+                        Button(role: .destructive) {
+                            showDeleteConfirmation = true
+                        } label: {
+                            HStack {
+                                Label("Delete Care Session", systemImage: "trash")
+                                Spacer()
                             }
                         }
-                        Button("Cancel", role: .cancel) {}
-                    } message: {
-                        Text("Delete \"\(session.name)\"? All conversations, journal entries, documents, and recordings in this care session will be permanently deleted.")
+                        .confirmationDialog("Delete Care Session", isPresented: $showDeleteConfirmation, titleVisibility: .visible) {
+                            Button("Delete", role: .destructive) {
+                                Task {
+                                    processingMessage = "Deleting care session…"
+                                    isProcessing = true
+                                    if await viewModel.deleteSession(id: sessionId) {
+                                        // Leave the overlay up through the pop so the
+                                        // empty state never shows.
+                                        dismiss()
+                                    } else {
+                                        isProcessing = false
+                                    }
+                                }
+                            }
+                            Button("Cancel", role: .cancel) {}
+                        } message: {
+                            Text("Delete \"\(session.name)\"? All conversations, journal entries, documents, and recordings in this care session will be permanently deleted.")
+                        }
+                    } else {
+                        // Collaborators can't delete someone else's care session, but they
+                        // can remove their own access. Same wording as the Collaboration sheet.
+                        Button(role: .destructive) {
+                            showLeaveConfirmation = true
+                        } label: {
+                            HStack {
+                                Label("Leave Care Session", systemImage: "rectangle.portrait.and.arrow.right")
+                                Spacer()
+                            }
+                        }
+                        .confirmationDialog("Leave Care Session", isPresented: $showLeaveConfirmation, titleVisibility: .visible) {
+                            Button("Leave", role: .destructive) {
+                                Task {
+                                    processingMessage = "Leaving care session…"
+                                    isProcessing = true
+                                    if await viewModel.leaveSession(id: sessionId) {
+                                        dismiss()
+                                    } else {
+                                        isProcessing = false
+                                    }
+                                }
+                            }
+                            Button("Cancel", role: .cancel) {}
+                        } message: {
+                            Text("You will lose access to all data in this care session.")
+                        }
                     }
                 } footer: {
-                    Text("Permanently deletes all conversations, journal entries, documents, and recordings in this care session.")
+                    Text(isOwner
+                         ? "Permanently deletes all conversations, journal entries, documents, and recordings in this care session."
+                         : "Removes your access to this care session. Only \(session.ownerName) can delete it.")
                 }
             }
             .navigationTitle(session.name)

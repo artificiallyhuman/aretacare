@@ -298,36 +298,49 @@ class S3Service:
 
         return failed
 
-    async def delete_files(self, keys: list) -> int:
-        """Delete many S3 objects in batched calls. Returns the number deleted.
+    async def delete_files_detailed(self, keys: list) -> tuple:
+        """Delete many S3 objects in batched calls.
+
+        Returns ``(deleted_count, failed_keys)``. Use this when the caller has to report
+        which keys failed (e.g. the admin orphan cleanup, whose response schema and audit
+        log both include the failed list); use :meth:`delete_files` when only a count is
+        needed.
 
         Deleting one key per request meant one round trip (and, because a fresh client was
         built each time, one TLS handshake) per file — so removing a care session cost
         2P + I + M sequential round trips. This collapses that to one call per 1000 keys.
 
-        Never raises: failures are logged and reported via the return count, because callers
+        Never raises: failures are logged and reported in the returned list, because callers
         delete the database rows first and orphaned objects are handled by admin cleanup.
         """
         if not keys:
-            return 0
+            return 0, []
 
         # Drop any None/empty keys defensively — a null thumbnail_s3_key would otherwise
         # fail the whole chunk.
         clean_keys = [k for k in keys if k]
         if not clean_keys:
-            return 0
+            return 0, []
 
         try:
             failed = await asyncio.to_thread(self._delete_objects_sync, clean_keys)
         except Exception as e:  # pragma: no cover - defensive; _delete_objects_sync catches
             logger.error(f"Unexpected error during S3 batch delete: {e}")
-            return 0
+            return 0, list(clean_keys)
 
         deleted = len(clean_keys) - len(failed)
         logger.info(
             f"S3 batch delete: {deleted}/{len(clean_keys)} object(s) deleted"
             + (f", {len(failed)} failed" if failed else "")
         )
+        return deleted, failed
+
+    async def delete_files(self, keys: list) -> int:
+        """Delete many S3 objects in batched calls. Returns the number deleted.
+
+        Thin wrapper over :meth:`delete_files_detailed` for callers that only need a count.
+        """
+        deleted, _ = await self.delete_files_detailed(keys)
         return deleted
 
     # Presigned URL expiration constants (seconds)

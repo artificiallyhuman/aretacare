@@ -11,6 +11,12 @@ struct ChangePasswordView: View {
     @State private var isSaving = false
     @State private var localError: String?
 
+    /// Owned here rather than shared with `MFASetupView` so `availableStepUpMethods`
+    /// has a loaded status by the time the step-up sheet appears.
+    @State private var mfaViewModel = MFAViewModel()
+    @State private var pendingStepUp: SensitiveMFAAction?
+    @State private var showReauthNotice = false
+
     private var passwordsMatch: Bool {
         !confirmPassword.isEmpty && newPassword == confirmPassword
     }
@@ -90,6 +96,22 @@ struct ChangePasswordView: View {
                 }
             }
             .disabled(isSaving)
+            // The server refuses this change without a fresh MFA proof. Verify, then
+            // replay the save with the action token it hands back.
+            .sheet(item: $pendingStepUp) { action in
+                NavigationStack {
+                    MFAStepUpSheet(viewModel: mfaViewModel, action: action) { actionToken in
+                        Task { await save(actionToken: actionToken) }
+                    }
+                }
+            }
+            .alert("Password Updated", isPresented: $showReauthNotice) {
+                Button("Sign In Again") {
+                    Task { await viewModel.completeReauthentication() }
+                }
+            } message: {
+                Text("For your security, all devices were signed out. Please sign in with your new password.")
+            }
         }
     }
 
@@ -104,22 +126,39 @@ struct ChangePasswordView: View {
         }
     }
 
-    private func save() async {
+    private func save(actionToken: String? = nil) async {
         isSaving = true
         localError = nil
         defer { isSaving = false }
 
         let success = await viewModel.updatePassword(
             currentPassword: currentPassword,
-            newPassword: newPassword
+            newPassword: newPassword,
+            actionToken: actionToken
         )
 
         if success {
-            dismiss()
+            if viewModel.requiresReauthentication {
+                showReauthNotice = true
+            } else {
+                dismiss()
+            }
+        } else if viewModel.mfaStepUpRequired {
+            viewModel.clearMFAStepUpRequirement()
+            await presentStepUp()
         } else {
             localError = viewModel.errorMessage
             viewModel.dismissError()
         }
+    }
+
+    /// `availableStepUpMethods` is empty until the status is loaded, which would
+    /// leave the sheet on its "no verification method" dead end.
+    private func presentStepUp() async {
+        if mfaViewModel.mfaStatus == nil {
+            await mfaViewModel.fetchStatus()
+        }
+        pendingStepUp = .changePassword
     }
 }
 

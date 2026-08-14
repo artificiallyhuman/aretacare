@@ -3,17 +3,25 @@ import Observation
 
 /// Actions the backend gates behind a fresh MFA verification (`X-MFA-Action-Token`).
 /// Removing a factor — or minting ten new backup codes — weakens the account, so a
-/// stolen access token alone must not be enough to do it.
+/// stolen access token alone must not be enough to do it. The same gate covers the
+/// account-level changes in Settings: taking over the login email, the password, or
+/// deleting everything.
 enum SensitiveMFAAction: Identifiable, Equatable {
     case removeAuthenticatorApp
     case removePasskey(id: String)
     case regenerateBackupCodes
+    case changeEmail
+    case changePassword
+    case deleteAccount
 
     var id: String {
         switch self {
         case .removeAuthenticatorApp: return "totp"
         case .removePasskey(let id): return "passkey-\(id)"
         case .regenerateBackupCodes: return "backup-codes"
+        case .changeEmail: return "change-email"
+        case .changePassword: return "change-password"
+        case .deleteAccount: return "delete-account"
         }
     }
 
@@ -23,6 +31,9 @@ enum SensitiveMFAAction: Identifiable, Equatable {
         case .removeAuthenticatorApp: return "remove your authenticator app"
         case .removePasskey: return "remove this passkey"
         case .regenerateBackupCodes: return "generate new backup codes"
+        case .changeEmail: return "change your email address"
+        case .changePassword: return "change your password"
+        case .deleteAccount: return "delete your account"
         }
     }
 }
@@ -362,6 +373,10 @@ final class MFAViewModel {
             await deletePasskey(id: id, actionToken: actionToken)
         case .regenerateBackupCodes:
             await generateBackupCodes(actionToken: actionToken)
+        case .changeEmail, .changePassword, .deleteAccount:
+            // Owned by Settings, which drives the sheet itself and replays via its
+            // own `onVerified` closure — this view model never sees those requests.
+            break
         }
     }
 
