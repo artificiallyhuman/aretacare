@@ -110,7 +110,10 @@ final class AudioRecordingsViewModel {
 
     // MARK: - Upload Recording (transcribe)
 
-    func uploadRecording(sessionId: String, audioData: Data, filename: String, mimeType: String = AppConstants.audioMimeType) async {
+    /// Returns true once the recording is persisted server-side — the caller
+    /// keeps its on-disk copy until then.
+    @discardableResult
+    func uploadRecording(sessionId: String, audioData: Data, filename: String, mimeType: String = AppConstants.audioMimeType) async -> Bool {
         isUploading = true
         errorMessage = nil
 
@@ -138,8 +141,10 @@ final class AudioRecordingsViewModel {
                 multipart: multipart
             )
             await fetchRecordings(sessionId: sessionId)
+            return true
         } catch {
             errorMessage = error.localizedDescription
+            return false
         }
     }
 

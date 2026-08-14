@@ -71,6 +71,30 @@ final class SessionViewModel {
         }
     }
 
+    // MARK: - Revoked Access
+
+    /// Recovers after the server reports the user no longer has access to a care
+    /// session. Re-fetches the list (the revoked session is gone server-side),
+    /// moves off it if it was current, and surfaces a non-fatal banner.
+    func handleSessionAccessRevoked() async {
+        let previousId = currentSession?.id
+
+        do {
+            let fetched: [SessionResponse] = try await APIClient.shared.get(APIEndpoints.Sessions.base)
+            sessions = fetched
+
+            if let previousId, !fetched.contains(where: { $0.id == previousId }) {
+                let candidates = fetched.filter(\.isActive).isEmpty ? fetched : fetched.filter(\.isActive)
+                currentSession = candidates.max(by: { $0.lastActivity < $1.lastActivity }) ?? candidates.first
+                errorMessage = "You no longer have access to that care session."
+            } else if let current = currentSession {
+                currentSession = fetched.first { $0.id == current.id } ?? currentSession
+            }
+        } catch {
+            errorMessage = "You no longer have access to that care session."
+        }
+    }
+
     // MARK: - Create Session
 
     func createSession(name: String?) async {

@@ -3,7 +3,12 @@ import { createPortal } from 'react-dom';
 import { useSessionContext } from '../../contexts/SessionContext';
 import { documentAPI } from '../../services/api';
 import { isToday, formatDateShort, formatLocalDate } from '../../utils/dateUtils';
+import { isAbortError } from '../../utils/requestUtils';
 import SourceTag from '../../components/SourceTag';
+
+// Presigned-URL endpoints are rate-limited at 30/min, so thumbnails are fetched
+// in small concurrent batches rather than one request per document at once.
+const PREVIEW_URL_CONCURRENCY = 5;
 
 // Document categories with labels and colors
 const CATEGORIES = [
@@ -71,13 +76,29 @@ const Documents = () => {
   const abortControllerRef = useRef(null);
   const uploadCancelledRef = useRef(false);
   const [duplicateWarning, setDuplicateWarning] = useState(null); // { files, duplicates }
+  // Mirrors sessionId so an in-flight load can verify its response still belongs
+  // to the care session on screen before touching state
+  const activeSessionIdRef = useRef(sessionId);
+  const loadAbortRef = useRef(null);
+
+  useEffect(() => {
+    activeSessionIdRef.current = sessionId;
+  }, [sessionId]);
+
+  // Preview URLs are keyed by document id and now fill in incrementally, so they
+  // are only reset on a care session change - clearing them per filter change
+  // would blank out thumbnails that are about to be re-fetched anyway
+  useEffect(() => {
+    setImageUrls({});
+    setThumbnailUrls({});
+  }, [sessionId]);
 
   // Restore focus to search input if it was focused before re-render
   useEffect(() => {
     if (isSearchFocused.current && searchInputRef.current && document.activeElement !== searchInputRef.current) {
       searchInputRef.current.focus();
     }
-  });
+  }, [documents]);
 
   // Debounce search query to avoid API calls on every keystroke
   useEffect(() => {
@@ -92,7 +113,72 @@ const Documents = () => {
     if (sessionId) {
       loadDocuments();
     }
+    // Drop the previous load so a slow response can't render under a different
+    // care session (or after this page unmounts)
+    return () => loadAbortRef.current?.abort();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessionId, selectedCategory, debouncedSearchQuery]);
+
+  // Fetch presigned preview URLs in bounded batches, publishing each batch as it
+  // resolves so the list paints before every URL is back. Returns the number of
+  // requests that failed so the caller can tell the user.
+  const loadPreviewUrlsInBatches = async (docs, sessionIdForLoad) => {
+    const jobs = docs.reduce((acc, doc) => {
+      if (doc.content_type?.includes('image')) {
+        acc.push({ id: doc.id, kind: 'image' });
+      } else if (doc.content_type === 'application/pdf') {
+        acc.push({ id: doc.id, kind: 'pdf' });
+      }
+      return acc;
+    }, []);
+
+    let failures = 0;
+
+    for (let i = 0; i < jobs.length; i += PREVIEW_URL_CONCURRENCY) {
+      if (sessionIdForLoad !== activeSessionIdRef.current) return failures;
+
+      const batch = jobs.slice(i, i + PREVIEW_URL_CONCURRENCY);
+      const results = await Promise.all(batch.map(async (job) => {
+        try {
+          const response = job.kind === 'image'
+            ? await documentAPI.getDownloadUrl(job.id)
+            : await documentAPI.getThumbnailUrl(job.id);
+          return {
+            ...job,
+            url: job.kind === 'image'
+              ? response.data.download_url
+              : response.data.thumbnail_url
+          };
+        } catch {
+          // Counted, then surfaced once for the whole load rather than per file
+          failures++;
+          return null;
+        }
+      }));
+
+      if (sessionIdForLoad !== activeSessionIdRef.current) return failures;
+
+      const imageBatch = {};
+      const thumbBatch = {};
+      results.forEach((result) => {
+        if (!result) return;
+        if (result.kind === 'image') {
+          imageBatch[result.id] = result.url;
+        } else {
+          thumbBatch[result.id] = result.url;
+        }
+      });
+
+      if (Object.keys(imageBatch).length > 0) {
+        setImageUrls(prev => ({ ...prev, ...imageBatch }));
+      }
+      if (Object.keys(thumbBatch).length > 0) {
+        setThumbnailUrls(prev => ({ ...prev, ...thumbBatch }));
+      }
+    }
+
+    return failures;
+  };
 
   const loadDocuments = async () => {
     // Use different loading states for initial load vs search/filter
@@ -102,54 +188,45 @@ const Documents = () => {
       setSearching(true);
     }
     setError(null);
+
+    loadAbortRef.current?.abort();
+    const controller = new AbortController();
+    loadAbortRef.current = controller;
+    const sessionIdForLoad = sessionId;
+
     try {
       const response = await documentAPI.getSessionDocuments(
-        sessionId,
+        sessionIdForLoad,
         selectedCategory === 'all' ? null : selectedCategory,
-        debouncedSearchQuery || null
+        debouncedSearchQuery || null,
+        { signal: controller.signal }
       );
+      if (sessionIdForLoad !== activeSessionIdRef.current) return;
       // Handle paginated response { documents: [...], has_more, total }
       const docs = response.data.documents || response.data;
       setDocuments(docs);
       hasLoadedRef.current = true;
 
-      // Load preview URLs for images and PDF thumbnails IN PARALLEL
-      const urls = {};
-      const thumbUrls = {};
-
-      // Separate documents by type for parallel loading
-      const imagePromises = docs
-        .filter(doc => doc.content_type?.includes('image'))
-        .map(async (doc) => {
-          try {
-            const urlResponse = await documentAPI.getDownloadUrl(doc.id);
-            urls[doc.id] = urlResponse.data.download_url;
-          } catch (err) {
-            console.error('Failed to load image preview:', err);
-          }
-        });
-
-      const pdfPromises = docs
-        .filter(doc => doc.content_type === 'application/pdf')
-        .map(async (doc) => {
-          try {
-            const thumbnailResponse = await documentAPI.getThumbnailUrl(doc.id);
-            thumbUrls[doc.id] = thumbnailResponse.data.thumbnail_url;
-          } catch (err) {
-            console.error('Failed to load PDF thumbnail:', err);
-          }
-        });
-
-      // Wait for all thumbnails to load in parallel
-      await Promise.all([...imagePromises, ...pdfPromises]);
-
-      setImageUrls(urls);
-      setThumbnailUrls(thumbUrls);
-    } catch (err) {
-      setError(err.response?.data?.detail || 'Failed to load documents. Please try again.');
-    } finally {
+      // Paint the list now - previews stream in behind it rather than holding
+      // the whole page on a spinner until every presigned URL is back
       setLoading(false);
       setSearching(false);
+
+      const failures = await loadPreviewUrlsInBatches(docs, sessionIdForLoad);
+      if (failures > 0 && sessionIdForLoad === activeSessionIdRef.current) {
+        setError(`${failures} preview${failures === 1 ? '' : 's'} could not be loaded. Reload the page to try again.`);
+      }
+    } catch (err) {
+      if (isAbortError(err)) return;
+      if (sessionIdForLoad !== activeSessionIdRef.current) return;
+      setError(err.response?.data?.detail || 'Failed to load documents. Please try again.');
+    } finally {
+      // Only the most recent load owns the spinner - a superseded one must not
+      // clear it out from under the load that replaced it
+      if (loadAbortRef.current === controller) {
+        setLoading(false);
+        setSearching(false);
+      }
     }
   };
 
@@ -190,11 +267,19 @@ const Documents = () => {
     }
   };
 
-  const handleDownload = async (document) => {
+  const handleDownload = async (doc) => {
     try {
-      const response = await documentAPI.getDownloadUrl(document.id);
+      const response = await documentAPI.getDownloadUrl(doc.id);
       const url = response.data.download_url;
-      window.open(url, '_blank');
+      // window.open() after an await is outside the user-gesture window and gets
+      // blocked silently in Safari/Firefox - use a synthetic anchor instead
+      const link = document.createElement('a');
+      link.href = url;
+      link.target = '_blank';
+      link.rel = 'noopener noreferrer';
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
     } catch (err) {
       setError(err.response?.data?.detail || 'Failed to download document. Please try again.');
     }

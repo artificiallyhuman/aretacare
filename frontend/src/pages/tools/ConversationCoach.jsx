@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
-import { MarkdownLink } from '../../utils/markdownComponents';
+import { MarkdownLink, MarkdownImage } from '../../utils/markdownComponents';
 import { toolsAPI, conversationAPI } from '../../services/api';
 import { useSessionContext } from '../../contexts/SessionContext';
 import { formatTime } from '../../utils/dateUtils';
@@ -371,6 +371,7 @@ const ConversationCoach = () => {
             <ReactMarkdown
               components={{
                 a: MarkdownLink,
+                img: MarkdownImage,
                 p: ({node, ...props}) => <p className="mb-2 leading-relaxed text-gray-800 dark:text-gray-200" {...props} />,
                 h1: ({node, ...props}) => <h1 className="text-xl font-bold mb-3 mt-4 text-gray-900 dark:text-white" {...props} />,
                 h2: ({node, ...props}) => <h2 className="text-lg font-semibold mb-2 mt-3 text-gray-900 dark:text-white" {...props} />,

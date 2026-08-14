@@ -1,6 +1,9 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from sqlalchemy import text
 from app.core.database import SessionLocal
+from app.models.user import User
+from app.api.auth import get_current_user
+from app.api.permissions import require_admin
 from app.services.s3_service import s3_service
 from app.services.openai_service import openai_circuit_breaker
 import logging
@@ -8,6 +11,17 @@ import logging
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/health", tags=["health"])
+
+
+def _require_admin_for_health(
+    current_user: User = Depends(get_current_user),
+) -> User:
+    """Admin gate for the detailed health check.
+
+    Defined here rather than reusing admin.get_admin_user to avoid importing the admin
+    router module (and its full dependency graph) from the health module.
+    """
+    return require_admin(current_user)
 
 
 @router.get("")
@@ -21,10 +35,17 @@ async def health_check():
 
 
 @router.get("/detailed")
-async def detailed_health_check():
+async def detailed_health_check(
+    _admin: User = Depends(_require_admin_for_health),
+):
     """
     Comprehensive health check that tests connectivity to all dependencies.
     Use this for monitoring systems that need to verify full system health.
+
+    Admin-only: the response reports dependency latencies and OpenAI circuit-breaker
+    state, which together give an unauthenticated observer a live oracle for
+    infrastructure health. The unauthenticated `GET /api/health` above remains public
+    for the platform load balancer (see `healthCheckPath` in render.yaml).
     """
     checks = {
         "database": {"status": "unknown", "latency_ms": None},

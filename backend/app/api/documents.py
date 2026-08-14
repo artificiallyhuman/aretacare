@@ -1,4 +1,5 @@
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, UploadFile, File, Request, Query
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.core.rate_limit import limiter, RateLimits
@@ -9,16 +10,24 @@ from app.services import s3_service, document_processor
 from app.services.openai_service import openai_service
 from app.services.journal_service import JournalService
 from app.services.security_service import SecurityService
-from app.api.auth import get_current_user
+from app.api.auth import get_current_user, require_ai_data_sharing_consent
 from app.api.permissions import check_session_access
 from app.api.source_tags import session_has_collaborators, build_source_tag_info, get_user_map
 from typing import List, Optional
 from PIL import Image
 from io import BytesIO
+import asyncio
+import os
 import uuid
 import logging
 
 logger = logging.getLogger(__name__)
+
+# Cap the pixel count Pillow will decode. Uploads are capped at 30MB, but a highly
+# compressible image (a "decompression bomb") can expand to hundreds of MB of RSS on a
+# 2GB instance. Pillow only warns at its own default and errors at 2x it; setting this
+# explicitly makes the limit deliberate and turns an over-large image into a clean 400.
+Image.MAX_IMAGE_PIXELS = 50_000_000
 
 router = APIRouter(prefix="/documents", tags=["documents"])
 
@@ -129,6 +138,11 @@ def process_and_validate_image(file_content: bytes, content_type: str) -> tuple[
         logger.warning(f"Image validation failed: {error_msg}")
 
         # Provide user-friendly error messages
+        if isinstance(e, Image.DecompressionBombError) or "pixels" in error_msg.lower():
+            return file_content, content_type, False, (
+                "This image is too large to process. Please upload an image under "
+                f"{Image.MAX_IMAGE_PIXELS // 1_000_000} megapixels."
+            )
         if "cannot identify image file" in error_msg.lower():
             return file_content, content_type, False, "The file appears to be corrupted or is not a valid image. Please try uploading a different file."
         elif "truncated" in error_msg.lower():
@@ -208,7 +222,7 @@ async def upload_document(
     session_id: str = None,
     skip_journal_synthesis: str = "false",  # "true" for conversation uploads, "false" for management uploads
     user_date: str = None,  # User's local date in YYYY-MM-DD format
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_ai_data_sharing_consent),
     db: Session = Depends(get_db)
 ):
     """Upload a medical document"""
@@ -249,7 +263,18 @@ async def upload_document(
         # Verify session belongs to current user
         check_session_access(session, current_user.id, db)
     else:
-        # Create new session if none provided
+        # Create new session if none provided. This path must honour the same 5-owned-session
+        # cap that POST /sessions enforces — otherwise repeated uploads without a session_id
+        # are an unbounded way around it.
+        owned_session_count = db.query(func.count(SessionModel.id)).filter(
+            SessionModel.user_id == current_user.id
+        ).scalar()
+        if owned_session_count >= 5:
+            raise HTTPException(
+                status_code=400,
+                detail="Maximum of 5 owned care sessions allowed. Please delete a care session in Settings → Manage Care Sessions before creating a new one."
+            )
+
         session = SessionModel(
             user_id=current_user.id,
             owner_id=current_user.id
@@ -259,8 +284,16 @@ async def upload_document(
         db.refresh(session)
         session_id = session.id
 
+    # Reduce the client-supplied filename to a bare basename before it is stored or used
+    # anywhere. It is persisted on the document row and later joined into a path by the iOS
+    # client, so a name like "../../Library/Caches/x.pdf" would escape the directory the
+    # client sweeps. Strip directory components (both separators) and leading dots.
+    safe_filename = os.path.basename((file.filename or "").replace("\\", "/")).lstrip(".")
+    if not safe_filename:
+        safe_filename = "upload"
+
     # Check for blocked file extensions
-    file_extension = ('.' + file.filename.split('.')[-1].lower()) if '.' in file.filename else ''
+    file_extension = ('.' + safe_filename.split('.')[-1].lower()) if '.' in safe_filename else ''
     if file_extension in BLOCKED_FILE_EXTENSIONS:
         # Log security event for blocked file type attempt
         security_service.log_event(
@@ -271,7 +304,7 @@ async def upload_document(
             ip_address=security_service.get_client_ip(request),
             user_agent=security_service.get_user_agent(request),
             endpoint="/api/documents/upload",
-            details=f"Blocked file extension: {file_extension}, filename: {file.filename}"
+            details=f"Blocked file extension: {file_extension}, filename: {safe_filename}"
         )
         raise HTTPException(
             status_code=400,
@@ -289,7 +322,7 @@ async def upload_document(
             ip_address=security_service.get_client_ip(request),
             user_agent=security_service.get_user_agent(request),
             endpoint="/api/documents/upload",
-            details=f"Blocked MIME type: {file.content_type}, filename: {file.filename}"
+            details=f"Blocked MIME type: {file.content_type}, filename: {safe_filename}"
         )
         raise HTTPException(
             status_code=400,
@@ -307,7 +340,7 @@ async def upload_document(
             ip_address=security_service.get_client_ip(request),
             user_agent=security_service.get_user_agent(request),
             endpoint="/api/documents/upload",
-            details=f"Invalid file type: {file.content_type}, filename: {file.filename}"
+            details=f"Invalid file type: {file.content_type}, filename: {safe_filename}"
         )
         raise HTTPException(
             status_code=400,
@@ -334,7 +367,7 @@ async def upload_document(
                 ip_address=security_service.get_client_ip(request),
                 user_agent=security_service.get_user_agent(request),
                 endpoint="/api/documents/upload",
-                details=f"File size exceeds limit (>{max_size} bytes), filename: {file.filename}"
+                details=f"File size exceeds limit (>{max_size} bytes), filename: {safe_filename}"
             )
         raise
 
@@ -344,7 +377,12 @@ async def upload_document(
         # This also handles MPO to JPEG conversion for stereoscopic images
         actual_content_type = file.content_type
         if file.content_type.startswith('image/'):
-            file_content, actual_content_type, is_valid, error_message = process_and_validate_image(file_content, file.content_type)
+            # PIL decode/re-encode is CPU-bound and can take seconds on a large image.
+            # There is one uvicorn worker per instance, so running it inline would stall
+            # every other in-flight request (including the platform health check).
+            file_content, actual_content_type, is_valid, error_message = await asyncio.to_thread(
+                process_and_validate_image, file_content, file.content_type
+            )
             if not is_valid:
                 # Log upload failure for monitoring
                 security_service.log_event(
@@ -355,7 +393,7 @@ async def upload_document(
                     ip_address=security_service.get_client_ip(request),
                     user_agent=security_service.get_user_agent(request),
                     endpoint="/api/documents/upload",
-                    details=f"Invalid image content: {error_message}, filename: {file.filename}"
+                    details=f"Invalid image content: {error_message}, filename: {safe_filename}"
                 )
                 raise HTTPException(
                     status_code=400,
@@ -365,7 +403,10 @@ async def upload_document(
         # Validate PDF content if this is a PDF file
         pdf_warning = None
         if file.content_type == "application/pdf":
-            is_valid, error_message, pdf_warning = validate_pdf_content(file_content)
+            # pypdf parsing is likewise CPU-bound — offload for the same reason.
+            is_valid, error_message, pdf_warning = await asyncio.to_thread(
+                validate_pdf_content, file_content
+            )
             if not is_valid:
                 security_service.log_event(
                     db=db,
@@ -375,7 +416,7 @@ async def upload_document(
                     ip_address=security_service.get_client_ip(request),
                     user_agent=security_service.get_user_agent(request),
                     endpoint="/api/documents/upload",
-                    details=f"Invalid PDF content: {error_message}, filename: {file.filename}"
+                    details=f"Invalid PDF content: {error_message}, filename: {safe_filename}"
                 )
                 raise HTTPException(
                     status_code=400,
@@ -389,11 +430,11 @@ async def upload_document(
         elif actual_content_type == 'image/png':
             file_extension = 'png'
         else:
-            file_extension = file.filename.split('.')[-1] if '.' in file.filename else 'bin'
+            file_extension = safe_filename.split('.')[-1] if '.' in safe_filename else 'bin'
         s3_key = s3_service.get_prefixed_key(f"documents/{session_id}/{uuid.uuid4()}.{file_extension}")
 
         # Upload to S3 (with Content-Disposition header for security)
-        upload_success = await s3_service.upload_file(file_content, s3_key, actual_content_type, file.filename)
+        upload_success = await s3_service.upload_file(file_content, s3_key, actual_content_type, safe_filename)
 
         if not upload_success:
             raise HTTPException(status_code=500, detail="Failed to upload file to storage")
@@ -418,7 +459,7 @@ async def upload_document(
                     "image/png"
                 )
                 if not thumbnail_upload_success:
-                    logger.warning(f"Failed to upload thumbnail for {file.filename}")
+                    logger.warning(f"Failed to upload thumbnail for {safe_filename}")
                     thumbnail_s3_key = None
 
         # Use AI to categorize document and generate description
@@ -430,7 +471,7 @@ async def upload_document(
             document_url = s3_service.generate_presigned_url(s3_key)
 
             categorization = await openai_service.categorize_document(
-                filename=file.filename,
+                filename=safe_filename,
                 content_type=actual_content_type,
                 document_url=document_url,
                 extracted_text=extracted_text or "",
@@ -443,13 +484,13 @@ async def upload_document(
                 doc_category = DocumentCategory.OTHER
             ai_description = categorization.get("description", "")
         except Exception as e:
-            logger.warning(f"AI categorization failed for {file.filename}: {e}. Document will upload without category.")
+            logger.warning(f"AI categorization failed for {safe_filename}: {e}. Document will upload without category.")
             # Leave doc_category and ai_description as None for backward compatibility
 
         # Create document record with AI metadata (or None if AI failed)
         document = DocumentModel(
             session_id=session_id,
-            filename=file.filename,
+            filename=safe_filename,
             s3_key=s3_key,
             thumbnail_s3_key=thumbnail_s3_key,
             content_type=actual_content_type,  # Store the actual content type (e.g., image/jpeg for converted MPO)
@@ -470,7 +511,7 @@ async def upload_document(
         if not skip_synthesis:
             # Defer journal synthesis to background so it doesn't block the upload response.
             # Uses a separate DB session since the request session closes after the response is sent.
-            _doc_filename = file.filename
+            _doc_filename = safe_filename
             _doc_id = document.id
             _doc_user_id = current_user.id
 
@@ -568,7 +609,7 @@ async def upload_document(
                 user_id=current_user.id,
                 session_id=session_id,
                 details={
-                    "filename": file.filename,
+                    "filename": safe_filename,
                     "content_type": file.content_type,
                     "file_size": len(file_content)
                 }

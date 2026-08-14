@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import { useSessionContext } from '../contexts/SessionContext';
 import { conversationAPI, documentAPI, dailyPlanAPI } from '../services/api';
 import { formatLocalDate } from '../utils/dateUtils';
+import { isAbortError } from '../utils/requestUtils';
 import MessageBubble from '../components/MessageBubble';
 import MessageInput from '../components/MessageInput';
 import DailyPlanPanel from '../components/DailyPlan/DailyPlanPanel';
@@ -12,6 +13,32 @@ import SEO from '../components/SEO';
 import { getColorClasses } from '../constants/sessionColors';
 
 const MESSAGE_PAGE_SIZE = 25;
+// Upper bound on messages held in memory. Mirrors the iOS sliding window so a
+// long-running conversation can't grow the DOM (and heap) without limit.
+const MAX_LOADED_MESSAGES = 500;
+// Minimum gap between daily-digest auto-generation attempts, coordinated across
+// tabs/devices via localStorage so a second tab doesn't kick off a duplicate.
+const DIGEST_GEN_COOLDOWN_MS = 10 * 60 * 1000;
+
+const digestGenKey = (sessionId) => `digest_gen_attempt_${sessionId}`;
+
+const digestGenAttemptedRecently = (sessionId) => {
+  try {
+    const last = Number(localStorage.getItem(digestGenKey(sessionId)));
+    return Number.isFinite(last) && last > 0 && Date.now() - last < DIGEST_GEN_COOLDOWN_MS;
+  } catch {
+    // Private-mode / disabled storage: fall back to attempting generation
+    return false;
+  }
+};
+
+const markDigestGenAttempt = (sessionId) => {
+  try {
+    localStorage.setItem(digestGenKey(sessionId), String(Date.now()));
+  } catch {
+    // Non-fatal - the guard is best effort
+  }
+};
 
 const Conversation = () => {
   const { activeSessionId, activeSession, sessions, user, loading: sessionLoading } = useSessionContext();
@@ -47,6 +74,15 @@ const Conversation = () => {
   const [pendingDuplicateUpload, setPendingDuplicateUpload] = useState(null); // { content, file, audioRecordingId, duplicates }
   const [pendingReset, setPendingReset] = useState(null); // message ID to reset to
   const [isResetting, setIsResetting] = useState(false);
+  // Mirrors activeSessionId so async loaders can verify their response still
+  // belongs to the session on screen before touching state (a slow response for
+  // care session A must never render under care session B).
+  const activeSessionIdRef = useRef(activeSessionId);
+  const historyAbortRef = useRef(null);
+
+  useEffect(() => {
+    activeSessionIdRef.current = activeSessionId;
+  }, [activeSessionId]);
 
   const scrollToBottom = (behavior = 'smooth') => {
     if (messagesContainerRef.current) {
@@ -220,7 +256,12 @@ const Conversation = () => {
         sessionSwitchScrollWindow.current = false;
       }, 2000);
 
-      return () => clearTimeout(windowTimer);
+      return () => {
+        clearTimeout(windowTimer);
+        // Drop the previous session's in-flight history request so it can't
+        // resolve into the new session's message list
+        historyAbortRef.current?.abort();
+      };
     }
     // Intentionally excluding loadConversationHistory and checkDailyPlan from deps
     // to prevent infinite re-renders - only trigger on session change
@@ -292,6 +333,9 @@ const Conversation = () => {
   useEffect(() => {
     if (activeSessionId) {
       const interval = setInterval(() => {
+        // Skip while the tab is hidden - avoids background polling and keeps a
+        // stack of open tabs from racing on digest auto-generation
+        if (document.visibilityState !== 'visible') return;
         checkDailyPlan();
       }, 30 * 60 * 1000); // 30 minutes
 
@@ -305,6 +349,8 @@ const Conversation = () => {
   useEffect(() => {
     if (activeSessionId && messages.length > 0) {
       const interval = setInterval(() => {
+        // Don't poll a hidden tab - the user sees nothing and it burns rate limit
+        if (document.visibilityState !== 'visible') return;
         checkForNewMessages();
       }, 10 * 1000); // 10 seconds
 
@@ -316,8 +362,17 @@ const Conversation = () => {
 
   const loadConversationHistory = async (sessionId = activeSessionId) => {
     if (!sessionId) return;
+
+    // Abort any earlier history load still in flight before starting a new one
+    historyAbortRef.current?.abort();
+    const controller = new AbortController();
+    historyAbortRef.current = controller;
+
     try {
-      const response = await conversationAPI.getHistory(sessionId, MESSAGE_PAGE_SIZE, 0);
+      const response = await conversationAPI.getHistory(
+        sessionId, MESSAGE_PAGE_SIZE, 0, null, { signal: controller.signal }
+      );
+      if (sessionId !== activeSessionIdRef.current) return;
       const loadedMessages = response.data.messages || [];
       setMessages(loadedMessages);
       setHasMoreMessages(response.data.has_more || false);
@@ -325,13 +380,44 @@ const Conversation = () => {
       // Scroll to bottom is handled by the sessionSwitchScrollPending useEffect
       // which properly waits for images to load after React re-renders
     } catch (err) {
+      if (isAbortError(err)) return;
       console.error('Error loading conversation history:', err);
+      if (sessionId !== activeSessionIdRef.current) return;
       setHistoryLoaded(true);
+    }
+  };
+
+  // Merge server-side messages newer than what we already hold, instead of
+  // replacing state with the newest page. A full reload after send/timeout would
+  // discard every older message the user paged in via "Load older messages".
+  const mergeLatestMessages = async (sessionId = activeSessionId) => {
+    if (!sessionId) return;
+    try {
+      const response = await conversationAPI.getHistory(sessionId, MESSAGE_PAGE_SIZE, 0);
+      if (sessionId !== activeSessionIdRef.current) return;
+      const latestMessages = response.data.messages || [];
+
+      setMessages(prevMessages => {
+        // Optimistic messages carry string ids ("temp-…"); the server copies replace them
+        const persisted = prevMessages.filter(msg => typeof msg.id === 'number');
+        const knownIds = new Set(persisted.map(msg => msg.id));
+        const additions = latestMessages.filter(msg => !knownIds.has(msg.id));
+        if (additions.length === 0 && persisted.length === prevMessages.length) {
+          return prevMessages;
+        }
+        return [...persisted, ...additions].slice(-MAX_LOADED_MESSAGES);
+      });
+      setHistoryLoaded(true);
+    } catch (err) {
+      if (isAbortError(err)) return;
+      console.error('Error refreshing conversation history:', err);
     }
   };
 
   const loadMoreMessages = async () => {
     if (!activeSessionId || loadingMore || !hasMoreMessages) return;
+    // At the window cap an older page would be trimmed straight back off
+    if (messages.length >= MAX_LOADED_MESSAGES) return;
 
     setLoadingMore(true);
     try {
@@ -341,11 +427,13 @@ const Conversation = () => {
 
       // Use cursor pagination (before_id) for efficient deep pagination
       const oldestId = messages.length > 0 ? messages[0].id : null;
-      const response = await conversationAPI.getHistory(activeSessionId, MESSAGE_PAGE_SIZE, 0, oldestId);
+      const sessionId = activeSessionId;
+      const response = await conversationAPI.getHistory(sessionId, MESSAGE_PAGE_SIZE, 0, oldestId);
+      if (sessionId !== activeSessionIdRef.current) return;
       const olderMessages = response.data.messages || [];
 
-      // Prepend older messages to the beginning
-      setMessages(prevMessages => [...olderMessages, ...prevMessages]);
+      // Prepend older messages, keeping the newest MAX_LOADED_MESSAGES in memory
+      setMessages(prevMessages => [...olderMessages, ...prevMessages].slice(-MAX_LOADED_MESSAGES));
       setHasMoreMessages(response.data.has_more || false);
 
       // Restore scroll position after messages are added
@@ -356,7 +444,9 @@ const Conversation = () => {
         }
       });
     } catch (err) {
-      console.error('Error loading more messages:', err);
+      if (!isAbortError(err)) {
+        console.error('Error loading more messages:', err);
+      }
     } finally {
       setLoadingMore(false);
     }
@@ -365,9 +455,11 @@ const Conversation = () => {
   const checkForNewMessages = async () => {
     if (!activeSessionId || messages.length === 0 || isAITyping) return;
 
+    const sessionId = activeSessionId;
     try {
       // Get the latest 10 messages to check for new ones
-      const response = await conversationAPI.getHistory(activeSessionId, 10, 0);
+      const response = await conversationAPI.getHistory(sessionId, 10, 0);
+      if (sessionId !== activeSessionIdRef.current) return;
       const latestMessages = response.data.messages || [];
 
       if (latestMessages.length === 0) return;
@@ -379,8 +471,8 @@ const Conversation = () => {
       const newMessages = latestMessages.filter(msg => msg.id > currentLatestId);
 
       if (newMessages.length > 0) {
-        // Append new messages to the end
-        setMessages(prevMessages => [...prevMessages, ...newMessages]);
+        // Append new messages to the end, keeping the window bounded
+        setMessages(prevMessages => [...prevMessages, ...newMessages].slice(-MAX_LOADED_MESSAGES));
 
         // Auto-scroll if user is near bottom
         if (isNearBottomRef.current) {
@@ -388,29 +480,36 @@ const Conversation = () => {
         }
       }
     } catch (err) {
+      if (isAbortError(err)) return;
       // Silently fail - don't disrupt the user experience
       console.error('Error checking for new messages:', err);
     }
   };
 
-  const checkDailyPlan = async () => {
+  const checkDailyPlan = async (sessionId = activeSessionId) => {
+    if (!sessionId) return;
     try {
-      const response = await dailyPlanAPI.check(activeSessionId);
+      const response = await dailyPlanAPI.check(sessionId);
+      if (sessionId !== activeSessionIdRef.current) return;
 
       // Auto-generate if it's after 2 AM and no plan exists for today
       const now = new Date();
       const currentHour = now.getHours();
       const isAfter2AM = currentHour >= 2;
 
-      if (response.data.should_generate && isAfter2AM) {
+      if (response.data.should_generate && isAfter2AM && !digestGenAttemptedRecently(sessionId)) {
         // Auto-generate if it's after 2 AM and no plan exists yet
         try {
+          // Record the attempt before firing so a second tab that polls during
+          // generation doesn't start a duplicate run
+          markDigestGenAttempt(sessionId);
           // Get today's date in user's local timezone (YYYY-MM-DD)
           const today = new Date();
           const userDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-          const generatedPlan = await dailyPlanAPI.generate(activeSessionId, userDate);
+          const generatedPlan = await dailyPlanAPI.generate(sessionId, userDate);
           // Only show banner if the plan hasn't been viewed
           // (generate returns existing plan if one already exists)
+          if (sessionId !== activeSessionIdRef.current) return;
           if (generatedPlan.data && !generatedPlan.data.viewed) {
             setHasNewDailyPlan(true);
             setShowBanner(true);
@@ -424,7 +523,8 @@ const Conversation = () => {
       } else {
         // Check if today's plan has been viewed (show banner if not)
         try {
-          const latestPlan = await dailyPlanAPI.getLatest(activeSessionId);
+          const latestPlan = await dailyPlanAPI.getLatest(sessionId);
+          if (sessionId !== activeSessionIdRef.current) return;
           // Only show banner if the plan is from today and hasn't been viewed
           if (latestPlan.data && !latestPlan.data.viewed) {
             // Check if the plan is from today
@@ -566,8 +666,9 @@ const Conversation = () => {
         throw sendErr;
       }
 
-      // Reload conversation history to get the real messages (user + AI response)
-      await loadConversationHistory(activeSessionId);
+      // Merge in the real messages (user + AI response) without discarding
+      // older messages the user already paged in
+      await mergeLatestMessages(activeSessionId);
     } catch (err) {
       console.error('Error sending message:', err);
       const isTimeout = err.name === 'CanceledError' || err.name === 'AbortError' || err.code === 'ERR_CANCELED';
@@ -578,8 +679,8 @@ const Conversation = () => {
       // Auto-clear error after 8 seconds
       setTimeout(() => setError(''), 8000);
       if (isTimeout) {
-        // On timeout, keep user message visible (it was saved server-side) and reload history
-        setTimeout(() => loadConversationHistory(activeSessionId), 3000);
+        // On timeout, keep user message visible (it was saved server-side) and merge in the result
+        setTimeout(() => mergeLatestMessages(activeSessionId), 3000);
       } else {
         // Remove the temporary message on non-timeout error
         setMessages(prevMessages => prevMessages.filter(msg => msg.id !== tempUserMessage.id));
@@ -641,10 +742,15 @@ const Conversation = () => {
     setIsResetting(true);
     try {
       await conversationAPI.resetToMessage(pendingReset);
+      // The backend deletes every message after the anchor, so drop those
+      // locally rather than reloading (a reload would throw away older messages
+      // the user paged in). The merge below picks up anything still on the server.
+      setMessages(prevMessages =>
+        prevMessages.filter(msg => typeof msg.id !== 'number' || msg.id <= pendingReset)
+      );
       setPendingReset(null);
-      // Reload conversation history
       if (activeSessionId) {
-        await loadConversationHistory(activeSessionId);
+        await mergeLatestMessages(activeSessionId);
       }
     } catch (err) {
       console.error('Failed to reset conversation:', err);
@@ -878,8 +984,9 @@ const Conversation = () => {
               </div>
             ) : (
               <>
-                {/* Load More button at top */}
-                {hasMoreMessages && (
+                {/* Load More button at top - hidden once the in-memory window is
+                    full, since further pages would just be trimmed again */}
+                {hasMoreMessages && messages.length < MAX_LOADED_MESSAGES && (
                   <div className="flex justify-center pb-4">
                     <button
                       onClick={loadMoreMessages}

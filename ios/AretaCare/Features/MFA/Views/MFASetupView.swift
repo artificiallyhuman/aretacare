@@ -121,12 +121,7 @@ struct MFASetupView: View {
                 }
 
                 Button {
-                    Task {
-                        await viewModel.generateBackupCodes()
-                        if !viewModel.backupCodes.isEmpty {
-                            showingBackupCodes = true
-                        }
-                    }
+                    Task { await viewModel.generateBackupCodes() }
                 } label: {
                     Text(viewModel.backupCodesRemaining > 0 ? "Regenerate Backup Codes" : "Generate Backup Codes")
                 }
@@ -191,6 +186,23 @@ struct MFASetupView: View {
         .sheet(isPresented: $showingPasskeySetup) {
             NavigationStack {
                 PasskeySetupSheet(viewModel: viewModel)
+            }
+        }
+        // MFA step-up: the server refuses factor removal and backup-code
+        // regeneration without a fresh verification. Verify, then replay.
+        .sheet(item: $viewModel.pendingStepUp) { action in
+            NavigationStack {
+                MFAStepUpSheet(viewModel: viewModel, action: action) { actionToken in
+                    Task { await viewModel.completeStepUp(action, actionToken: actionToken) }
+                }
+            }
+        }
+        // Backup codes can arrive either directly or after a step-up detour,
+        // so the sheet is driven by the codes themselves rather than by the
+        // call site.
+        .onChange(of: viewModel.backupCodes) { _, codes in
+            if !codes.isEmpty {
+                showingBackupCodes = true
             }
         }
         .task {

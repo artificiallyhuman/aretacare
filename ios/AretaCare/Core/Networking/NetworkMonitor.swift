@@ -2,14 +2,16 @@ import Foundation
 import Network
 import Observation
 
-@Observable
+@Observable @MainActor
 final class NetworkMonitor {
     static let shared = NetworkMonitor()
 
     private(set) var isConnected = true
     private(set) var connectionType: NWInterface.InterfaceType?
-    private let monitor = NWPathMonitor()
-    private let queue = DispatchQueue(label: "com.aretacare.networkmonitor")
+    // `nonisolated` so `deinit` can cancel the monitor. The value is only ever
+    // read, never reassigned, and NWPathMonitor is internally thread-safe.
+    private nonisolated let monitor = NWPathMonitor()
+    private nonisolated let queue = DispatchQueue(label: "com.aretacare.networkmonitor")
 
     private init() {
         monitor.pathUpdateHandler = { [weak self] path in

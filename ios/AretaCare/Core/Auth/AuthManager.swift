@@ -12,6 +12,11 @@ final class AuthManager {
     private(set) var mfaMethods: [String] = []
     private(set) var hasAcceptedAIDataSharing = false
 
+    /// Set when launch-time session restore failed for a transient reason. The
+    /// stored refresh token is still intact, so the login screen offers a retry
+    /// instead of pretending the user was signed out.
+    private(set) var startupErrorMessage: String?
+
     // Idle timeout
     private var lastActivityDate = Date()
     private var idleTimer: Timer?
@@ -26,15 +31,34 @@ final class AuthManager {
 
     func initAuth() async {
         isLoading = true
+        startupErrorMessage = nil
+
+        let outcome = (try? await AuthInterceptor.shared.refreshAccessToken()) ?? .transient
+
+        switch outcome {
+        case .rejected:
+            // No stored token, or the server rejected it — a real logged-out state.
+            KeychainManager.shared.clearAll()
+            handleLogout()
+            isLoading = false
+            return
+        case .transient:
+            // Couldn't reach the server (offline launch, backend 5xx). Keep the
+            // refresh token — wiping it here would destroy the trusted-device
+            // token and force a fresh MFA challenge for a temporary outage.
+            // Deliberately not `handleLogout()`: this isn't a logout, and that
+            // path clears the cold-launch biometric lock and the remembered
+            // care session. Nothing is authenticated yet, so there is no
+            // session state to tear down.
+            isAuthenticated = false
+            startupErrorMessage = APIError.sessionRefreshUnavailable.localizedDescription
+            isLoading = false
+            return
+        case .success(let newToken):
+            await AuthInterceptor.shared.setAccessToken(newToken)
+        }
 
         do {
-            guard let newToken = try await AuthInterceptor.shared.refreshAccessToken() else {
-                KeychainManager.shared.clearAll()
-                handleLogout()
-                isLoading = false
-                return
-            }
-            await AuthInterceptor.shared.setAccessToken(newToken)
             try await fetchCurrentUser()
             isAuthenticated = true
             isLoading = false
@@ -43,11 +67,34 @@ final class AuthManager {
             if let userId = currentUser?.id {
                 await SubscriptionManager.shared.login(appUserID: userId)
             }
-        } catch {
+        } catch let error as APIError where error.requiresLogout {
             KeychainManager.shared.clearAll()
             handleLogout()
             isLoading = false
+        } catch {
+            // The refresh succeeded, so the session is valid — only the profile
+            // fetch failed. Don't destroy credentials (or the cold-launch
+            // biometric lock) over it; offer the retry instead.
+            isAuthenticated = false
+            startupErrorMessage = error.localizedDescription
+            isLoading = false
         }
+    }
+
+    /// Retries the launch-time session restore after a transient failure.
+    func retryInitAuth() async {
+        await initAuth()
+    }
+
+    /// True when a refresh token is still on the device — the session may just
+    /// be unreachable rather than over.
+    var hasStoredSession: Bool {
+        KeychainManager.shared.refreshToken != nil
+    }
+
+    /// Dismisses the offline/retry state and falls through to the login screen.
+    func dismissStartupError() {
+        startupErrorMessage = nil
     }
 
     // MARK: - Login
@@ -65,6 +112,8 @@ final class AuthManager {
             let mfaToken: String?
             let mfaMethods: [String]?
         }
+
+        startupErrorMessage = nil
 
         let response: LoginResponse = try await APIClient.shared.post(
             APIEndpoints.Auth.login,
@@ -193,13 +242,27 @@ final class AuthManager {
         // must not silently disable the lock.
         UserDefaults.standard.removeObject(forKey: "biometricLockEnabled")
 
-        // Now safe to clear tokens — views are dismounting
+        // Now safe to clear tokens — views are dismounting.
+        startupErrorMessage = nil
         await AuthInterceptor.shared.clearAccessToken()
-        KeychainManager.shared.clearAll()
+
+        // The refresh token has to be read before the Keychain is wiped and
+        // handed to the server, otherwise it stays valid for its full 7-day
+        // life: iOS holds it in the Keychain and never sends the HttpOnly
+        // cookie the endpoint used to rely on. `defer` keeps the local wipe
+        // unconditional — a failed request must never leave the token behind.
+        let refreshToken = KeychainManager.shared.refreshToken
+        defer { KeychainManager.shared.clearAll() }
 
         // Best-effort server call (no auth required for /logout)
         do {
-            try await APIClient.shared.post(APIEndpoints.Auth.logout)
+            struct LogoutRequest: Encodable {
+                let refreshToken: String?
+            }
+            try await APIClient.shared.post(
+                APIEndpoints.Auth.logout,
+                body: LogoutRequest(refreshToken: refreshToken)
+            )
         } catch {
             #if DEBUG
             print("[Auth] Server logout failed: \(error)")
@@ -302,6 +365,9 @@ extension Notification.Name {
     static let userDidLogout = Notification.Name("userDidLogout")
     /// Posted when sessions are created or deleted outside of SessionViewModel.
     static let sessionsDidChange = Notification.Name("sessionsDidChange")
+    /// Posted when the server reports the user no longer has access to a care
+    /// session (owner revoked sharing). Not a logout — the session list reloads.
+    static let sessionAccessRevoked = Notification.Name("sessionAccessRevoked")
     /// Posted when a push notification is received while the app is in the foreground.
     static let pushNotificationReceived = Notification.Name("pushNotificationReceived")
 }

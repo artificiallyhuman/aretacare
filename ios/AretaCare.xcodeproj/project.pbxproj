@@ -12,6 +12,7 @@
 		03347DC70ECD74127C884B55 /* BiometricLockView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7F8AA6FDED83B7DF8A65C8B7 /* BiometricLockView.swift */; };
 		0540EF23CA9596E07142C28F /* ForgotPasswordView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB41D6AF72CECF6A6DD77021 /* ForgotPasswordView.swift */; };
 		067068C504F37E36870A4463 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 1B028A726A21B814D8863AAF /* Assets.xcassets */; };
+		0B66560DCE8F771413357CBD /* MFAStepUpSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4F6F725F3756E8A8933F0A3 /* MFAStepUpSheet.swift */; };
 		0C2172357DF29AF94A18F9DF /* SkeletonView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BE0670B69E46027B276AC1E7 /* SkeletonView.swift */; };
 		0F3E4528C7D3F3019768904F /* DailyDigestViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1B0C001CDE94FD6B39780099 /* DailyDigestViewModel.swift */; };
 		10321BE4941825E6643CBFF7 /* Date+Formatting.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6E4B5DBE48781DB7A771D1CB /* Date+Formatting.swift */; };
@@ -54,7 +55,6 @@
 		53F9F5B59229E143AAA8A357 /* SessionColors.swift in Sources */ = {isa = PBXBuildFile; fileRef = 73EA42C896608B033349566C /* SessionColors.swift */; };
 		54D09E40AC47D7C7D3F50787 /* WaveformBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3B98AA56D872032D01D5C59A /* WaveformBar.swift */; };
 		5720D3C58B7974ABFF89C7FA /* ChangeNameView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9CD10DC4C25801F0C24FA239 /* ChangeNameView.swift */; };
-		5EE4DF6B85CBF6911EC9D04C /* DeviceIntegrityChecker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 35F5D4648738750D758C713F /* DeviceIntegrityChecker.swift */; };
 		5F2DE8D4AABC315104A8F608 /* AudioPlayerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E94F49494F8448212D5B9E8C /* AudioPlayerView.swift */; };
 		63DE449C6DB96780205EA549 /* DateSidebarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 599922BF9E177CD6156FBCCB /* DateSidebarView.swift */; };
 		6644E25569A4D260CDF93110 /* MessageBubbleView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0AA4C8B411853EB70C48BFBF /* MessageBubbleView.swift */; };
@@ -173,7 +173,6 @@
 		2F62BDE47324A5E1CF08DD2D /* MainTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainTabView.swift; sourceTree = "<group>"; };
 		32C5485951A9D15B4DA42CD6 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		3521B7815641F919D6A188BD /* ConversationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConversationView.swift; sourceTree = "<group>"; };
-		35F5D4648738750D758C713F /* DeviceIntegrityChecker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceIntegrityChecker.swift; sourceTree = "<group>"; };
 		38F30F7C84AF3361031F8116 /* MFAViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MFAViewModel.swift; sourceTree = "<group>"; };
 		3B2B7ED3B9517F1E8292EB3F /* MultipartFormData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MultipartFormData.swift; sourceTree = "<group>"; };
 		3B98AA56D872032D01D5C59A /* WaveformBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WaveformBar.swift; sourceTree = "<group>"; };
@@ -240,6 +239,7 @@
 		C2083E82CCDFD8984697A1E9 /* View+Conditional.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "View+Conditional.swift"; sourceTree = "<group>"; };
 		C36C4C22CC93D8D231849DDF /* APIClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIClient.swift; sourceTree = "<group>"; };
 		C3AD35E625E0F4EED335D6F7 /* .gitkeep */ = {isa = PBXFileReference; path = .gitkeep; sourceTree = "<group>"; };
+		C4F6F725F3756E8A8933F0A3 /* MFAStepUpSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MFAStepUpSheet.swift; sourceTree = "<group>"; };
 		C5DCB06AF0A710D16D5338B1 /* .gitkeep */ = {isa = PBXFileReference; path = .gitkeep; sourceTree = "<group>"; };
 		C6A1A2CF990659EEFBAB94E8 /* MessageInputView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessageInputView.swift; sourceTree = "<group>"; };
 		C8E28433BABA744025D12DC8 /* SubscriptionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubscriptionView.swift; sourceTree = "<group>"; };
@@ -464,7 +464,6 @@
 		433366B44AC13533F32A15A2 /* Security */ = {
 			isa = PBXGroup;
 			children = (
-				35F5D4648738750D758C713F /* DeviceIntegrityChecker.swift */,
 				8EC1A4B39FE1F23370462A28 /* PrivacyShieldWindow.swift */,
 				AB4C47D683D1A2C54DCA978F /* TempFileCleanup.swift */,
 			);
@@ -578,6 +577,7 @@
 			isa = PBXGroup;
 			children = (
 				9655DEB3E6447354DA79FAA2 /* MFASetupView.swift */,
+				C4F6F725F3756E8A8933F0A3 /* MFAStepUpSheet.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -1052,7 +1052,6 @@
 				C1A43B5E8635795709959977 /* DateCalendarSheetView.swift in Sources */,
 				C1D31A2E8439623A42FE8048 /* DateNavigatorBar.swift in Sources */,
 				63DE449C6DB96780205EA549 /* DateSidebarView.swift in Sources */,
-				5EE4DF6B85CBF6911EC9D04C /* DeviceIntegrityChecker.swift in Sources */,
 				158DB74F3455A7A35352506C /* DocumentDetailView.swift in Sources */,
 				7AC43E9DA2B4C22F9AA745F8 /* DocumentModels.swift in Sources */,
 				BE3841DBFB226AB6B6467939 /* DocumentsListView.swift in Sources */,
@@ -1073,6 +1072,7 @@
 				4FCBF0874CAD29CC7F56B0F0 /* LoginView.swift in Sources */,
 				1D53F06CA0CAFA81E234BF4F /* MFAModels.swift in Sources */,
 				E03A106617595B27AAE6432F /* MFASetupView.swift in Sources */,
+				0B66560DCE8F771413357CBD /* MFAStepUpSheet.swift in Sources */,
 				45F0308DD4F545BC4AAA8D0F /* MFAVerifyView.swift in Sources */,
 				2F6FAE1DDB81BFD608B0E111 /* MFAViewModel.swift in Sources */,
 				DDCB7B64E9AC08CC9129F3B9 /* MainTabView.swift in Sources */,

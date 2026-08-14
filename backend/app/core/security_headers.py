@@ -39,8 +39,9 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         # Prevent MIME type sniffing
         response.headers["X-Content-Type-Options"] = "nosniff"
 
-        # Prevent clickjacking - allow framing only from same origin
-        response.headers["X-Frame-Options"] = "SAMEORIGIN"
+        # Prevent clickjacking. This is an API — nothing should ever frame it, so DENY
+        # rather than SAMEORIGIN (paired with frame-ancestors 'none' in the CSP below).
+        response.headers["X-Frame-Options"] = "DENY"
 
         # Legacy XSS protection for older browsers
         response.headers["X-XSS-Protection"] = "1; mode=block"
@@ -75,7 +76,7 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
             "font-src 'self' data:; "
             "connect-src 'self' https://*.amazonaws.com https://api.openai.com https://hcaptcha.com https://*.hcaptcha.com https://*.ingest.us.sentry.io; "
             "frame-src 'self' https://www.youtube.com https://newassets.hcaptcha.com https://*.hcaptcha.com; "
-            "frame-ancestors 'self'; "
+            "frame-ancestors 'none'; "
             "form-action 'self'; "
             "base-uri 'self'"
         )

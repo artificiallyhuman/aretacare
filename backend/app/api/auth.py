@@ -219,6 +219,43 @@ def get_optional_user(
         return None
 
 
+def require_ai_data_sharing_consent(
+    current_user: User = Depends(get_current_user),
+    db: DBSession = Depends(get_db),
+) -> User:
+    """Require a recorded AI_DATA_SHARING consent before sending data to OpenAI.
+
+    Both clients already refuse to proceed without this consent, but the check existed
+    only in their UI: the consent was recorded and reported, never enforced. Anything
+    calling the API directly could have its conversations, documents, audio, and health
+    profile forwarded to a third-party processor with no consent record — and the record
+    is the legal artifact, so it needs to gate the action, not just describe it.
+
+    Deliberately uses the same query as `_build_user_response`, so the server admits
+    exactly the users the clients already admit — this adds enforcement without changing
+    who is allowed through. Applied only to routes that actually send data to OpenAI;
+    reading, exporting, and deleting your own data must never require it.
+    """
+    has_consent = db.query(ConsentRecord.id).filter(
+        ConsentRecord.user_id == current_user.id,
+        ConsentRecord.consent_type == ConsentType.AI_DATA_SHARING,
+    ).first() is not None
+
+    if not has_consent:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={
+                "code": "AI_DATA_SHARING_CONSENT_REQUIRED",
+                "message": (
+                    "Please review and accept the AI data processing notice before "
+                    "using this feature."
+                ),
+            },
+        )
+
+    return current_user
+
+
 def _build_user_response(user: User, db: DBSession) -> UserResponse:
     """Build UserResponse with computed fields like AI data sharing consent."""
     has_consent = db.query(ConsentRecord.id).filter(
@@ -1449,36 +1486,59 @@ def refresh_access_token(
     # Note: refresh_token is NOT returned in body to prevent XSS attacks from stealing it
     set_refresh_token_cookie(response, new_refresh_token)
 
-    # For iOS clients, also include refresh_token in response body (stored in Keychain)
+    # Native clients (no cookie jar) need the rotated token in the body to store in the
+    # Keychain. Browsers must never receive it there — an HttpOnly cookie is only worth
+    # anything if the value can't also be read from JavaScript.
+    #
+    # Deciding this on the X-Client-Type header alone would let injected script on the web
+    # origin call this endpoint with `credentials: 'include'` and that header, and read the
+    # freshly rotated refresh token out of the JSON — turning a transient XSS into 7 days of
+    # re-rotatable account access. So require BOTH: the caller claims to be native AND the
+    # request carried no refresh cookie. A browser always sends the cookie here (same-site,
+    # path=/api/auth), so it can never satisfy the second condition.
     is_ios = request.headers.get("X-Client-Type") == "ios"
+    presented_cookie = refresh_token_cookie is not None
+    include_token_in_body = is_ios and not presented_cookie
+
+    if is_ios and presented_cookie:
+        logger.warning(
+            "Refresh request claimed X-Client-Type: ios but carried a refresh cookie; "
+            "withholding the token from the response body."
+        )
 
     return TokenResponse(
         access_token=access_token,
         user=_build_user_response(user, db),
-        refresh_token=new_refresh_token if is_ios else None,
+        refresh_token=new_refresh_token if include_token_in_body else None,
     )
 
 
 @router.post("/logout", status_code=status.HTTP_200_OK)
 def logout(
     response: Response,
+    data: Optional[RefreshTokenRequest] = None,
     refresh_token_cookie: Optional[str] = Cookie(None, alias=REFRESH_TOKEN_COOKIE_NAME),
     db: DBSession = Depends(get_db)
 ):
     """
-    Logout the current session by clearing the refresh token cookie.
+    Logout the current session, revoking the refresh token server-side.
 
-    This endpoint clears the HttpOnly refresh token cookie and optionally
-    revokes the token from the database if valid.
+    Accepts the refresh token from either the HttpOnly cookie (web) or the request
+    body (native clients, which hold the token in the Keychain and send no cookie).
     """
     # Clear the refresh token cookie
     clear_refresh_token_cookie(response)
 
-    # If a valid refresh token was provided, revoke it from the database
-    if refresh_token_cookie:
+    # Revoke whichever token the caller presented. Native clients send no cookie, so
+    # without the body fallback their refresh token stayed valid for its full 7-day
+    # lifetime after "log out" — meaning logout did not actually end the session, which
+    # is precisely the remedy a user reaches for after losing a device.
+    presented_token = refresh_token_cookie or (data.refresh_token if data else None)
+
+    if presented_token:
         from app.models.refresh_token import RefreshToken
         token_record = db.query(RefreshToken).filter(
-            RefreshToken.token == refresh_token_cookie,
+            RefreshToken.token == presented_token,
             RefreshToken.is_revoked == False
         ).first()
         if token_record:

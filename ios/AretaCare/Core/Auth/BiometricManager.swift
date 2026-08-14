@@ -2,7 +2,11 @@ import Foundation
 import LocalAuthentication
 import Observation
 
-@Observable
+/// `@MainActor` is load-bearing, not cosmetic: `isLocked` is read on the main
+/// actor by `PrivacyWindowManager.overlayContentVisible` to decide whether the
+/// PHI shield stays up, and `unlock()` writes it after an `await` on biometric
+/// evaluation. Without isolation those cross threads.
+@Observable @MainActor
 final class BiometricManager {
     static let shared = BiometricManager()
 
@@ -92,10 +96,11 @@ final class BiometricManager {
             backgroundDate = nil
             UserDefaults.standard.removeObject(forKey: Self.backgroundDateKey)
         }
-        guard isBiometricLockEnabled,
-              let backgroundDate,
-              Date().timeIntervalSince(backgroundDate) >= AppConstants.biometricReauthSeconds
-        else { return }
+        guard isBiometricLockEnabled, let backgroundDate else { return }
+        // A negative interval means the device clock moved while backgrounded —
+        // an unknown state, so fail locked rather than skipping the challenge.
+        let elapsed = Date().timeIntervalSince(backgroundDate)
+        guard elapsed < 0 || elapsed >= AppConstants.biometricReauthSeconds else { return }
         isLocked = true
     }
 
@@ -109,9 +114,14 @@ final class BiometricManager {
         guard isBiometricLockEnabled else { return }
         defer { UserDefaults.standard.removeObject(forKey: Self.backgroundDateKey) }
         let persisted = UserDefaults.standard.double(forKey: Self.backgroundDateKey)
-        if persisted > 0,
-           Date().timeIntervalSince(Date(timeIntervalSince1970: persisted)) < AppConstants.biometricReauthSeconds {
-            return
+        if persisted > 0 {
+            // Clamp at zero: a timestamp in the future (device clock moved
+            // backwards, or moved forwards and back) yields a negative interval,
+            // which would otherwise read as "just backgrounded" and skip the lock.
+            let elapsed = Date().timeIntervalSince(Date(timeIntervalSince1970: persisted))
+            if elapsed >= 0 && elapsed < AppConstants.biometricReauthSeconds {
+                return
+            }
         }
         isLocked = true
     }

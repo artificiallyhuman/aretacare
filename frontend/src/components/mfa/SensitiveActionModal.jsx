@@ -58,6 +58,12 @@ function SensitiveActionModal({ actionType, onSuccess, onCancel }) {
         return 'change your email';
       case 'account_delete':
         return 'delete your account';
+      case 'mfa_remove_totp':
+        return 'remove your authenticator app';
+      case 'mfa_remove_passkey':
+        return 'remove this passkey';
+      case 'mfa_regenerate_backup_codes':
+        return 'generate new backup codes';
       default:
         return 'complete this action';
     }
@@ -325,7 +331,14 @@ function SensitiveActionModal({ actionType, onSuccess, onCancel }) {
 }
 
 SensitiveActionModal.propTypes = {
-  actionType: PropTypes.oneOf(['password_change', 'email_change', 'account_delete']).isRequired,
+  actionType: PropTypes.oneOf([
+    'password_change',
+    'email_change',
+    'account_delete',
+    'mfa_remove_totp',
+    'mfa_remove_passkey',
+    'mfa_regenerate_backup_codes',
+  ]).isRequired,
   onSuccess: PropTypes.func.isRequired,
   onCancel: PropTypes.func.isRequired,
 };

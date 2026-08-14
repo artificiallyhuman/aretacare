@@ -3,7 +3,9 @@ import SwiftUI
 struct ConversationAudioRecorderView: View {
     let recorder: AudioRecorderManager
     var onCancel: () -> Void
-    var onStop: (Data) -> Void
+    /// Returns true once the recording is safely on the server. Until then the
+    /// on-disk copy is kept so a failed upload doesn't lose it.
+    var onStop: (Data) async -> Bool
 
     @State private var sendTrigger = 0
     @State private var showingCancelConfirmation = false
@@ -19,6 +21,7 @@ struct ConversationAudioRecorderView: View {
                         showingCancelConfirmation = true
                     } else {
                         recorder.stop()
+                        recorder.discardRecording()
                         onCancel()
                     }
                 } label: {
@@ -68,6 +71,7 @@ struct ConversationAudioRecorderView: View {
             .confirmationDialog("Discard Recording?", isPresented: $showingCancelConfirmation, titleVisibility: .visible) {
                 Button("Discard", role: .destructive) {
                     recorder.stop()
+                    recorder.discardRecording()
                     onCancel()
                 }
                 Button("Keep Recording", role: .cancel) {}
@@ -81,7 +85,9 @@ struct ConversationAudioRecorderView: View {
         Task {
             guard let audioData = await recorder.stopAsync() else { return }
             sendTrigger += 1
-            onStop(audioData)
+            if await onStop(audioData) {
+                recorder.discardRecording()
+            }
         }
     }
 }

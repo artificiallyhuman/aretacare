@@ -12,6 +12,9 @@ enum APIError: LocalizedError {
     case decodingError(underlying: Error)
     case offline
     case noData
+    /// The session couldn't be renewed for a transient reason (no connectivity,
+    /// server 5xx). Retryable — the stored refresh token is still valid.
+    case sessionRefreshUnavailable
     case unknown(statusCode: Int)
 
     var errorDescription: String? {
@@ -45,6 +48,8 @@ enum APIError: LocalizedError {
             return "Failed to process server response."
         case .noData:
             return "No data received from server."
+        case .sessionRefreshUnavailable:
+            return "Couldn't reach the server to renew your session. Please check your connection and try again."
         case .unknown(let statusCode):
             return "Unexpected error (HTTP \(statusCode))."
         }
@@ -53,7 +58,13 @@ enum APIError: LocalizedError {
     var requiresLogout: Bool {
         switch self {
         case .forbidden(let code):
-            return code == "INACTIVE_USER" || code == "SESSION_ACCESS_DENIED"
+            // SESSION_ACCESS_DENIED is deliberately absent: losing access to one
+            // shared care session (an owner revoking a collaborator) is not the
+            // end of the user's account. Routing it here ended the whole app
+            // session and wiped the Keychain, taking the 30-day trusted-device
+            // token with it. It is handled as a session-list change instead —
+            // see `.sessionAccessRevoked`.
+            return code == "INACTIVE_USER"
         case .unauthorized:
             return true
         default:

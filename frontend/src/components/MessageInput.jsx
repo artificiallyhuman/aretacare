@@ -52,6 +52,39 @@ const MessageInput = ({ onSendMessage, loading, hasMessages = false }) => {
   const maxAudioLevelRef = useRef(0);
   const silenceCheckIntervalRef = useRef(null);
   const recordingCancelledRef = useRef(false);
+  // Mirrors audioStream so the unmount cleanup below sees the live stream
+  // rather than the value captured when the effect was created
+  const audioStreamRef = useRef(null);
+
+  // Release the microphone if the component unmounts mid-recording. The
+  // MediaRecorder "stop" handler and cancelRecording() only run on user-initiated
+  // stops, so navigating away from the chat would otherwise leave the mic live
+  // with no UI left to turn it off.
+  useEffect(() => {
+    return () => {
+      if (silenceCheckIntervalRef.current) {
+        clearInterval(silenceCheckIntervalRef.current);
+        silenceCheckIntervalRef.current = null;
+      }
+      if (recordingTimerRef.current) {
+        clearInterval(recordingTimerRef.current);
+        recordingTimerRef.current = null;
+      }
+      if (audioContextRef.current) {
+        audioContextRef.current.close();
+        audioContextRef.current = null;
+      }
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+        // Skip the stop handler's transcribe path - there is no component left to update
+        recordingCancelledRef.current = true;
+        mediaRecorderRef.current.stop();
+      }
+      if (audioStreamRef.current) {
+        audioStreamRef.current.getTracks().forEach(track => track.stop());
+        audioStreamRef.current = null;
+      }
+    };
+  }, []);
 
   // Detect mobile screen size
   useEffect(() => {
@@ -215,6 +248,7 @@ const MessageInput = ({ onSendMessage, loading, hasMessages = false }) => {
 
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       setAudioStream(stream); // Save stream for waveform visualization
+      audioStreamRef.current = stream; // Kept in sync for the unmount cleanup
 
       // Set up audio analysis for silence detection
       const audioContext = new (window.AudioContext || window.webkitAudioContext)();
@@ -283,6 +317,7 @@ const MessageInput = ({ onSendMessage, loading, hasMessages = false }) => {
           setShowSilenceWarning(true);
           stream.getTracks().forEach(track => track.stop());
           setAudioStream(null);
+          audioStreamRef.current = null;
           return;
         }
 
@@ -293,6 +328,7 @@ const MessageInput = ({ onSendMessage, loading, hasMessages = false }) => {
         // Stop all tracks to release the microphone
         stream.getTracks().forEach(track => track.stop());
         setAudioStream(null); // Clear stream reference
+        audioStreamRef.current = null;
       });
 
       // Start recording with timeslice to ensure proper WebM container structure
@@ -340,6 +376,7 @@ const MessageInput = ({ onSendMessage, loading, hasMessages = false }) => {
       if (audioStream) {
         audioStream.getTracks().forEach(track => track.stop());
         setAudioStream(null);
+        audioStreamRef.current = null;
       }
 
       // Clear recording data

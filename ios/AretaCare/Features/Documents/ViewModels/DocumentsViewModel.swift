@@ -319,10 +319,17 @@ final class DocumentsViewModel {
         guard let downloadUrl = await getDownloadUrl(id: id) else { return nil }
         do {
             let (data, _) = try await UncachedURLSession.shared.data(from: downloadUrl)
-            let tempDir = FileManager.default.temporaryDirectory
+            let quickLookDir = FileManager.default.temporaryDirectory
                 .appendingPathComponent("QuickLook", isDirectory: true)
+            // One directory per document keeps the original filename (which
+            // Quick Look and the share sheet both display) without letting two
+            // documents collide.
+            let tempDir = quickLookDir.appendingPathComponent(String(id), isDirectory: true)
+            guard let fileURL = Self.tempFileURL(in: tempDir, filename: filename) else {
+                errorMessage = "Couldn't prepare the document for preview."
+                return nil
+            }
             try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
-            let fileURL = tempDir.appendingPathComponent(filename)
             // Protect at rest: file is unreadable while the device is locked.
             try data.write(to: fileURL, options: [.atomic, .completeFileProtection])
             return fileURL
@@ -330,6 +337,34 @@ final class DocumentsViewModel {
             errorMessage = error.localizedDescription
             return nil
         }
+    }
+
+    /// Builds the on-disk location for a downloaded document.
+    ///
+    /// `filename` is server-supplied and may have been chosen by a collaborator,
+    /// so it is never used as a path component directly — `../../Library/…` would
+    /// escape `tmp/QuickLook/`, putting health data somewhere `TempFileCleanup`
+    /// never sweeps. The name is reduced to its last component and stripped of
+    /// path separators; the containment check is the backstop.
+    private static func tempFileURL(in tempDir: URL, filename: String) -> URL? {
+        let base = (filename as NSString).lastPathComponent
+        var sanitized = base.replacingOccurrences(of: "/", with: "_")
+        sanitized = sanitized.replacingOccurrences(of: "\\", with: "_")
+        sanitized = sanitized.replacingOccurrences(of: ":", with: "_")
+        while sanitized.contains("..") {
+            sanitized = sanitized.replacingOccurrences(of: "..", with: "_")
+        }
+        if sanitized.isEmpty || sanitized.hasPrefix(".") {
+            sanitized = "document"
+        }
+
+        let fileURL = tempDir.appendingPathComponent(sanitized)
+        let dirPath = tempDir.standardizedFileURL.path
+        let filePath = fileURL.standardizedFileURL.path
+        guard filePath.hasPrefix(dirPath.hasSuffix("/") ? dirPath : dirPath + "/") else {
+            return nil
+        }
+        return fileURL
     }
 
     /// Cleans up temporary Quick Look files.

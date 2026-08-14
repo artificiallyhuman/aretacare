@@ -13,7 +13,7 @@ from app.services.openai_service import openai_service, ImageProcessingError
 from app.services.journal_service import JournalService
 from app.services.s3_service import s3_service
 from app.services.security_service import SecurityService
-from app.api.auth import get_current_user
+from app.api.auth import get_current_user, require_ai_data_sharing_consent
 from app.api.permissions import check_session_access
 from app.api.source_tags import session_has_collaborators, build_source_tag_info, get_user_map
 from typing import Optional
@@ -156,7 +156,7 @@ router = APIRouter(prefix="/conversation", tags=["conversation"])
 async def send_message(
     request: Request,
     message_request: MessageRequest,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_ai_data_sharing_consent),
     db: Session = Depends(get_db)
 ):
     """Send a message in the conversation (with optional rich media)"""
@@ -177,19 +177,39 @@ async def send_message(
         raise HTTPException(status_code=404, detail="Care session not found")
     check_session_access(session, current_user.id, db)
 
+    # Attached resource IDs come from the request body, so they must be scoped to the care
+    # session authorized above. Looking them up by ID alone would let any authenticated user
+    # attach — and thereby read — another session's document or recording by guessing its
+    # (sequential) ID. Validated before the try block so the 404 isn't swallowed by the
+    # broad `except Exception` that turns failures into a generic 500.
+    attached_doc = None
+    if document_id:
+        attached_doc = db.query(Document).filter(
+            Document.id == document_id,
+            Document.session_id == session_id,
+        ).first()
+        if not attached_doc:
+            raise HTTPException(status_code=404, detail="Document not found")
+
+    if audio_recording_id:
+        attached_recording = db.query(AudioRecording).filter(
+            AudioRecording.id == audio_recording_id,
+            AudioRecording.session_id == session_id,
+        ).first()
+        if not attached_recording:
+            raise HTTPException(status_code=404, detail="Audio recording not found")
+
     try:
         # Get extracted text, media URL, and content type if document/image message
         extracted_text = None
         generated_media_url = None
         doc_content_type = None
 
-        if document_id:
-            doc = db.query(Document).filter(Document.id == document_id).first()
-            if doc:
-                extracted_text = doc.extracted_text
-                doc_content_type = doc.content_type
-                # Generate presigned URL for documents and images (for native GPT-5.6 file support)
-                generated_media_url = s3_service.generate_presigned_url(doc.s3_key)  # 15 minutes (default)
+        if attached_doc:
+            extracted_text = attached_doc.extracted_text
+            doc_content_type = attached_doc.content_type
+            # Generate presigned URL for documents and images (for native GPT-5.6 file support)
+            generated_media_url = s3_service.generate_presigned_url(attached_doc.s3_key)  # 15 minutes (default)
 
         # Create user message
         user_message = Conversation(
@@ -616,13 +636,32 @@ async def reset_to_message(
 
         deleted_message_ids = [m.id for m in messages_to_delete]
 
-        # Collect linked document and audio IDs
-        document_ids = list(set(
+        # Collect linked document and audio IDs.
+        #
+        # These IDs are re-verified against this care session before use. A message row can
+        # only carry a foreign ID if one was ever persisted from a client-supplied body, so
+        # re-scoping here keeps the destructive cascade below from reaching another session's
+        # documents, recordings, S3 objects, or journal entries.
+        candidate_document_ids = set(
             m.document_id for m in messages_to_delete if m.document_id is not None
-        ))
-        audio_ids = list(set(
+        )
+        candidate_audio_ids = set(
             m.audio_recording_id for m in messages_to_delete if m.audio_recording_id is not None
-        ))
+        )
+
+        document_ids = [
+            row.id for row in db.query(Document.id).filter(
+                Document.id.in_(candidate_document_ids),
+                Document.session_id == session_id,
+            ).all()
+        ] if candidate_document_ids else []
+
+        audio_ids = [
+            row.id for row in db.query(AudioRecording.id).filter(
+                AudioRecording.id.in_(candidate_audio_ids),
+                AudioRecording.session_id == session_id,
+            ).all()
+        ] if candidate_audio_ids else []
 
         # Delete journal entries synthesized from deleted messages.
         # An entry can match multiple criteria (e.g. source_message_ids AND
@@ -642,6 +681,7 @@ async def reset_to_message(
         # Journal entries linked via source_document_id
         if document_ids:
             journal_from_docs = db.query(JournalEntry).filter(
+                JournalEntry.session_id == session_id,
                 JournalEntry.source_document_id.in_(document_ids),
                 ~JournalEntry.id.in_(deleted_journal_ids) if deleted_journal_ids else True
             ).all()
@@ -652,6 +692,7 @@ async def reset_to_message(
         # Journal entries linked via source_audio_id
         if audio_ids:
             journal_from_audio = db.query(JournalEntry).filter(
+                JournalEntry.session_id == session_id,
                 JournalEntry.source_audio_id.in_(audio_ids),
                 ~JournalEntry.id.in_(deleted_journal_ids) if deleted_journal_ids else True
             ).all()
@@ -669,9 +710,14 @@ async def reset_to_message(
         if deleted_journal_ids:
             db.flush()
 
-        # Delete S3 files for documents (non-fatal)
+        # Delete S3 files for documents (non-fatal). Every query below repeats the
+        # session predicate so a destructive statement can never widen past this session,
+        # even if the id list above is ever changed.
         if document_ids:
-            documents = db.query(Document).filter(Document.id.in_(document_ids)).all()
+            documents = db.query(Document).filter(
+                Document.id.in_(document_ids),
+                Document.session_id == session_id,
+            ).all()
             for doc in documents:
                 try:
                     await s3_service.delete_file(doc.s3_key)
@@ -681,11 +727,17 @@ async def reset_to_message(
                     logger.warning(f"Failed to delete S3 file for document {doc.id}: {e}")
 
             # Delete documents from DB
-            db.query(Document).filter(Document.id.in_(document_ids)).delete(synchronize_session=False)
+            db.query(Document).filter(
+                Document.id.in_(document_ids),
+                Document.session_id == session_id,
+            ).delete(synchronize_session=False)
 
         # Delete S3 files for audio recordings (non-fatal)
         if audio_ids:
-            recordings = db.query(AudioRecording).filter(AudioRecording.id.in_(audio_ids)).all()
+            recordings = db.query(AudioRecording).filter(
+                AudioRecording.id.in_(audio_ids),
+                AudioRecording.session_id == session_id,
+            ).all()
             for rec in recordings:
                 try:
                     await s3_service.delete_file(rec.s3_key)
@@ -693,11 +745,15 @@ async def reset_to_message(
                     logger.warning(f"Failed to delete S3 file for audio {rec.id}: {e}")
 
             # Delete audio recordings from DB
-            db.query(AudioRecording).filter(AudioRecording.id.in_(audio_ids)).delete(synchronize_session=False)
+            db.query(AudioRecording).filter(
+                AudioRecording.id.in_(audio_ids),
+                AudioRecording.session_id == session_id,
+            ).delete(synchronize_session=False)
 
         # Delete the conversation messages
         db.query(Conversation).filter(
-            Conversation.id.in_(deleted_message_ids)
+            Conversation.id.in_(deleted_message_ids),
+            Conversation.session_id == session_id,
         ).delete(synchronize_session=False)
 
         db.commit()
@@ -775,7 +831,7 @@ async def transcribe_audio(
     audio: UploadFile = File(...),
     session_id: str = Form(...),
     skip_journal_synthesis: str = Form("false"),  # "true" for conversation recordings, "false" for management uploads
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_ai_data_sharing_consent),
     db: Session = Depends(get_db)
 ):
     """Transcribe audio file to text using OpenAI's speech-to-text"""

@@ -7,6 +7,16 @@ databases:
 
 services:
 
+  # Redis — shared rate-limit counters.
+  # The backend autoscales to 5 instances; without shared storage each instance keeps
+  # its own counters, so configured limits are silently multiplied by the instance count
+  # and reset on every deploy. See backend/app/core/rate_limit.py.
+  - type: redis
+    name: aretacare-redis
+    plan: starter
+    maxmemoryPolicy: noeviction
+    ipAllowList: []  # private network only — not reachable from the internet
+
   # Backend API
   - type: web
     name: aretacare-backend
@@ -22,6 +32,11 @@ services:
       - key: DATABASE_URL
         fromDatabase:
           name: aretacare-db
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: aretacare-redis
           property: connectionString
       - key: OPENAI_API_KEY
         sync: false

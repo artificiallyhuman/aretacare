@@ -115,6 +115,7 @@ struct AudioRecorderView: View {
             .confirmationDialog("Discard Recording?", isPresented: $showingCancelConfirmation, titleVisibility: .visible) {
                 Button("Discard", role: .destructive) {
                     recorder.stop()
+                    recorder.discardRecording()
                     dismiss()
                 }
                 Button("Keep Recording", role: .cancel) {}
@@ -152,7 +153,11 @@ struct AudioRecorderView: View {
         Task {
             guard let audioData = await recorder.stopAsync() else { return }
             let filename = "recording_\(Date().apiDateString)_\(Int(Date().timeIntervalSince1970)).m4a"
-            await viewModel.uploadRecording(sessionId: sessionId, audioData: audioData, filename: filename)
+            // Hold the on-disk copy until the upload lands, so a suspended app
+            // doesn't take the recording with it.
+            if await viewModel.uploadRecording(sessionId: sessionId, audioData: audioData, filename: filename) {
+                recorder.discardRecording()
+            }
             dismiss()
         }
     }

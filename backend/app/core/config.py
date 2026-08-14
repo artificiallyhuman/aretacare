@@ -25,6 +25,12 @@ class Settings(BaseSettings):
     DEBUG: bool = False
     CORS_ORIGINS: str = "http://localhost:3000"
 
+    # Shared storage for rate limiting. Empty falls back to per-process memory, which is
+    # correct for local dev but wrong for any multi-instance deployment: counters would be
+    # per-instance, so the effective limit becomes (instances x configured limit) and every
+    # deploy resets them. Set this whenever more than one instance can serve traffic.
+    REDIS_URL: str = ""
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self._validate_secret_key()

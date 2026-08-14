@@ -50,19 +50,31 @@ from app.services.mfa_service import MFAService
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/admin", tags=["admin"])
-
-
 def get_admin_user(current_user: User = Depends(get_current_user)) -> User:
     """FastAPI dependency that requires admin access."""
     return require_admin(current_user)
+
+
+# Admin access is enforced at the router level so it is impossible to add an admin
+# endpoint that forgets the check — a missing check here would expose user management,
+# password/MFA resets, and S3 cleanup. Routes that must be reachable by any authenticated
+# user live on `public_router` below, which is the only place that exemption is granted.
+router = APIRouter(
+    prefix="/admin",
+    tags=["admin"],
+    dependencies=[Depends(get_admin_user)],
+)
+
+# Non-admin-gated admin-namespace routes. Deliberately kept to the single endpoint that
+# tells a signed-in user whether they are an admin; do not add to this without cause.
+public_router = APIRouter(prefix="/admin", tags=["admin"])
 
 
 # ==========================================
 # Admin Check
 # ==========================================
 
-@router.get("/check", response_model=AdminCheckResponse)
+@public_router.get("/check", response_model=AdminCheckResponse)
 async def check_admin_status(
     background_tasks: BackgroundTasks,
     user_date: str = None,

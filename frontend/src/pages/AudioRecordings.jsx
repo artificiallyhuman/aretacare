@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { useSessionContext } from '../contexts/SessionContext';
 import { audioRecordingsAPI, conversationAPI } from '../services/api';
 import { isToday, formatDateShort, formatLocalDate } from '../utils/dateUtils';
+import { isAbortError } from '../utils/requestUtils';
 import SourceTag from '../components/SourceTag';
 
 // Audio recording categories with labels and colors
@@ -67,13 +68,21 @@ const AudioRecordings = () => {
   const [recordingToDelete, setRecordingToDelete] = useState(null);
   const abortControllerRef = useRef(null);
   const uploadCancelledRef = useRef(false);
+  // Mirrors sessionId so an in-flight load can verify its response still belongs
+  // to the care session on screen before touching state
+  const activeSessionIdRef = useRef(sessionId);
+  const loadAbortRef = useRef(null);
+
+  useEffect(() => {
+    activeSessionIdRef.current = sessionId;
+  }, [sessionId]);
 
   // Restore focus to search input if it was focused before re-render
   useEffect(() => {
     if (isSearchFocused.current && searchInputRef.current && document.activeElement !== searchInputRef.current) {
       searchInputRef.current.focus();
     }
-  });
+  }, [recordings]);
 
   // Debounce search query to avoid API calls on every keystroke
   useEffect(() => {
@@ -88,6 +97,10 @@ const AudioRecordings = () => {
     if (sessionId) {
       loadRecordings();
     }
+    // Drop the previous load so a slow response can't render under a different
+    // care session (or after this page unmounts)
+    return () => loadAbortRef.current?.abort();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessionId, selectedCategory, debouncedSearchQuery]);
 
   const loadRecordings = async () => {
@@ -98,22 +111,36 @@ const AudioRecordings = () => {
       setSearching(true);
     }
     setError(null);
+
+    loadAbortRef.current?.abort();
+    const controller = new AbortController();
+    loadAbortRef.current = controller;
+    const sessionIdForLoad = sessionId;
+
     try {
       const response = await audioRecordingsAPI.getRecordings(
-        sessionId,
+        sessionIdForLoad,
         selectedCategory === 'all' ? null : selectedCategory,
-        debouncedSearchQuery || null
+        debouncedSearchQuery || null,
+        { signal: controller.signal }
       );
+      if (sessionIdForLoad !== activeSessionIdRef.current) return;
       // Handle both paginated response and legacy array response
       const recordingsData = response.data.recordings || response.data;
       setRecordings(recordingsData);
       hasLoadedRef.current = true;
     } catch (err) {
+      if (isAbortError(err)) return;
+      if (sessionIdForLoad !== activeSessionIdRef.current) return;
       console.error('Error loading recordings:', err);
       setError(err.response?.data?.detail || 'Failed to load recordings. Please try again.');
     } finally {
-      setLoading(false);
-      setSearching(false);
+      // Only the most recent load owns the spinner - a superseded one must not
+      // clear it out from under the load that replaced it
+      if (loadAbortRef.current === controller) {
+        setLoading(false);
+        setSearching(false);
+      }
     }
   };
 

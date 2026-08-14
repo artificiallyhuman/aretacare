@@ -14,7 +14,7 @@ from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.core.auth import verify_password
-from app.api.auth import get_current_user
+from app.api.auth import get_current_user, verify_mfa_for_sensitive_action
 from app.core.rate_limit import limiter
 from app.models.user import User
 from app.services.mfa_service import MFAService
@@ -102,6 +102,60 @@ def verify_totp_setup(
     raise HTTPException(status_code=400, detail="Invalid code. Please try again.")
 
 
+def _notify_mfa_factor_removed(
+    db: Session,
+    request: Request,
+    user: User,
+    factor: str,
+) -> None:
+    """Record a security event when an MFA factor is removed or rotated.
+
+    Enabling and disabling MFA already notify the user; changing an individual factor
+    was silent, which is the half an attacker with a stolen access token would use.
+    Best-effort — never let notification failure block the user's own action.
+    """
+    try:
+        security_service.log_event(
+            db=db,
+            event_type="mfa_factor_removed",
+            email=user.email,
+            user_id=user.id,
+            ip_address=security_service.get_client_ip(request),
+            user_agent=request.headers.get("User-Agent"),
+            details=f"MFA factor changed: {factor}",
+        )
+    except Exception as e:  # pragma: no cover - notification must never break the action
+        logger.error(f"Failed to log MFA factor removal for user {user.id}: {e}")
+
+
+def _guard_last_remaining_factor(db: Session, user: User, removing: str) -> None:
+    """Refuse to remove the only remaining factor while MFA is still enabled.
+
+    Stripping the last factor leaves `mfa_enabled` true with nothing to satisfy it, so
+    login returns `requires_mfa` with an empty method list and the user is locked out.
+    Users who genuinely want MFA off should go through /mfa/disable, which requires the
+    password and sends a notification.
+    """
+    if not user.mfa_enabled:
+        return
+
+    has_totp = MFAService.has_verified_totp(db, user.id)
+    passkey_count = MFAService.get_passkey_count(db, user.id)
+
+    # Count what would still be usable after this removal.
+    remaining_totp = has_totp and removing != "totp"
+    remaining_passkeys = passkey_count - 1 if removing == "passkey" else passkey_count
+
+    if not remaining_totp and remaining_passkeys <= 0:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "This is your only remaining two-factor method. Add another method first, "
+                "or turn off two-factor authentication in Security settings."
+            ),
+        )
+
+
 @router.delete("/totp", response_model=TOTPVerifyResponse)
 def delete_totp(
     request: Request,
@@ -109,7 +163,20 @@ def delete_totp(
     db: Session = Depends(get_db)
 ):
     """Remove TOTP authentication from the account."""
+    # Removing a factor weakens the account, so it needs the same step-up that
+    # /mfa/disable requires. Without it, a stolen 1-hour access token is enough to
+    # strip every factor off the account.
+    #
+    # TODO(M-5 re-enable after iOS ships): the enforcement below is temporarily disabled.
+    # The App Store build in users' hands does NOT send X-MFA-Action-Token on this route,
+    # so enabling it now would 403 MFA-enabled iOS users out of factor management until
+    # Apple approves the new build. Re-enable (uncomment both lines) once the iOS release
+    # that sends the action token is confirmed live. The web client already sends it.
+    # verify_mfa_for_sensitive_action(request, current_user, db)
+    # _guard_last_remaining_factor(db, current_user, removing="totp")
+
     if MFAService.delete_totp(db, current_user.id):
+        _notify_mfa_factor_removed(db, request, current_user, "authenticator app")
         return TOTPVerifyResponse(success=True, message="TOTP removed successfully")
 
     raise HTTPException(status_code=404, detail="No TOTP configuration found")
@@ -131,7 +198,17 @@ def generate_backup_codes(
     This invalidates any existing backup codes.
     Store these codes in a safe place - they are shown only once!
     """
+    # Regenerating returns 10 usable second factors in the response body, so it is at
+    # least as sensitive as removing one. Without step-up, a stolen access token buys a
+    # durable MFA bypass that outlives the token — and silently invalidates the codes the
+    # user actually has.
+    #
+    # TODO(M-5 re-enable after iOS ships): temporarily disabled — see delete_totp above.
+    # Old iOS builds don't send X-MFA-Action-Token here. Re-enable once the iOS release is live.
+    # verify_mfa_for_sensitive_action(request, current_user, db)
+
     codes = MFAService.generate_backup_codes(db, current_user.id)
+    _notify_mfa_factor_removed(db, request, current_user, "backup codes (regenerated)")
 
     return BackupCodesResponse(codes=codes, count=len(codes))
 
@@ -230,7 +307,15 @@ def delete_passkey(
     db: Session = Depends(get_db)
 ):
     """Delete a specific passkey."""
+    # Same reasoning as delete_totp: removing a factor is a sensitive action.
+    #
+    # TODO(M-5 re-enable after iOS ships): temporarily disabled — see delete_totp above.
+    # Old iOS builds don't send X-MFA-Action-Token here. Re-enable once the iOS release is live.
+    # verify_mfa_for_sensitive_action(request, current_user, db)
+    # _guard_last_remaining_factor(db, current_user, removing="passkey")
+
     if MFAService.delete_passkey(db, current_user.id, passkey_id):
+        _notify_mfa_factor_removed(db, request, current_user, "passkey")
         return {"success": True, "message": "Passkey removed successfully"}
 
     raise HTTPException(status_code=404, detail="Passkey not found")

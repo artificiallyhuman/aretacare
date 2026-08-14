@@ -155,7 +155,7 @@ AretaCare implements comprehensive security measures:
 - **Client-Side File Validation (iOS)**: File size checked against 30MB limit before upload; photo format detected via UTType
 - **Care Session Name Validation**: Character restrictions (alphanumeric, spaces, hyphens, underscores, apostrophes only)
 - **Security Headers**: X-Content-Type-Options, X-Frame-Options, X-XSS-Protection, Referrer-Policy, Permissions-Policy, CSP
-- **Device Integrity (iOS)**: Runtime jailbreak detection (suspicious files, sandbox escape, debugger attachment); logs warnings on compromised devices
+- **Data at rest (iOS)**: Tokens in the Keychain (`ThisDeviceOnly`, never synced to iCloud); downloaded documents and exported health profiles written with complete file protection; temporary files swept at launch
 - **Logout Data Cleanup (iOS)**: All in-memory caches, image cache, and UserDefaults preferences cleared on logout to prevent data leakage on shared devices
 - **Build Safety (iOS)**: Release builds crash if `API_BASE_URL` is not configured or if certificate pinning uses placeholder hashes
 

@@ -10,6 +10,7 @@ Handles:
 """
 import secrets
 import hashlib
+import hmac
 import json
 import base64
 import logging
@@ -192,24 +193,39 @@ class MFAService:
         secret = MFAService._decrypt_totp_secret(totp_record.secret_encrypted)
         totp = pyotp.TOTP(secret, digits=TOTP_DIGITS, interval=TOTP_INTERVAL)
 
-        if totp.verify(code, valid_window=TOTP_WINDOW):
-            # Replay protection: check if this time counter was already used
-            import time
-            current_counter = int(time.time()) // TOTP_INTERVAL
+        # Identify which time step the presented code actually belongs to, rather than
+        # assuming it is the current one.
+        #
+        # verify(valid_window=N) accepts codes from counters [now-N, now+N]. Recording the
+        # *wall-clock* counter as "used" therefore under-counts: a code the user legitimately
+        # consumed during step now-1 still satisfies `now > last_used_counter` when replayed
+        # during step now, leaving a phished code usable for up to another full interval —
+        # exactly the window a real-time phishing proxy operates in. Matching the code to its
+        # own counter and storing that closes it.
+        import time
 
-            if totp_record.last_used_counter is not None:
-                if current_counter <= totp_record.last_used_counter:
-                    # Code already used in this or a previous time window
-                    logger.warning(f"TOTP replay attempt detected for user {user_id}")
-                    return False
+        current_counter = int(time.time()) // TOTP_INTERVAL
+        matched_counter = None
+        # Check the current step first so the common case exits immediately.
+        for delta in [0] + [d for offset in range(1, TOTP_WINDOW + 1) for d in (-offset, offset)]:
+            candidate = current_counter + delta
+            if hmac.compare_digest(totp.generate_otp(candidate), code.strip()):
+                matched_counter = candidate
+                break
 
-            # Update the counter and timestamp
-            totp_record.last_used_counter = current_counter
-            totp_record.update_last_used()
-            db.commit()
-            return True
+        if matched_counter is None:
+            return False
 
-        return False
+        if totp_record.last_used_counter is not None and matched_counter <= totp_record.last_used_counter:
+            # This code's time step was already consumed.
+            logger.warning(f"TOTP replay attempt detected for user {user_id}")
+            return False
+
+        # Update the counter and timestamp
+        totp_record.last_used_counter = matched_counter
+        totp_record.update_last_used()
+        db.commit()
+        return True
 
     @staticmethod
     def delete_totp(db: Session, user_id: str) -> bool:

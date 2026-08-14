@@ -4,7 +4,7 @@ from typing import List, Optional
 from datetime import datetime, date
 
 from ..core.database import get_db
-from ..api.auth import get_current_user
+from ..api.auth import get_current_user, require_ai_data_sharing_consent
 from ..api.permissions import check_session_access
 from ..models.user import User
 from ..models.daily_plan import DailyPlan
@@ -139,7 +139,7 @@ async def generate_daily_plan(
     session_id: str,
     user_date: str = None,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(require_ai_data_sharing_consent)
 ):
     """Generate a new daily plan for today
 

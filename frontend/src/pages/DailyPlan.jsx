@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import ReactMarkdown from 'react-markdown';
-import { MarkdownLink } from '../utils/markdownComponents';
+import { MarkdownLink, MarkdownImage } from '../utils/markdownComponents';
 import { useSessionContext } from '../contexts/SessionContext';
 import { dailyPlanAPI } from '../services/api';
 import { markdownToHtml } from '../utils/markdownUtils';
@@ -498,6 +498,7 @@ const DailyPlan = () => {
                       <ReactMarkdown
                         components={{
                           a: MarkdownLink,
+                          img: MarkdownImage,
                           h1: ({node, ...props}) => <h1 className="text-2xl font-bold text-gray-900 dark:text-white mt-6 mb-4" {...props} />,
                           h2: ({node, ...props}) => <h2 className="text-xl font-bold text-gray-900 dark:text-white mt-6 mb-3" {...props} />,
                           h3: ({node, ...props}) => <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mt-4 mb-2" {...props} />,

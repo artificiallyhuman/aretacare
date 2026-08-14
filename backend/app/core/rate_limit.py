@@ -13,12 +13,46 @@ import logging
 import time
 
 from app.core.client_ip import get_client_ip
+from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
 
-# Initialize rate limiter with client IP as key
-limiter = Limiter(key_func=get_client_ip)
+def _build_limiter() -> Limiter:
+    """Create the limiter, backed by Redis when one is configured.
+
+    slowapi's default storage is an in-process dict. That is fine for a single instance,
+    but this service autoscales: with N instances behind the load balancer each keeps its
+    own counters, so a "6/minute" login limit really allows up to N x 6 per minute, and
+    every deploy or scale event resets all of them to zero. Sharing the counters in Redis
+    makes the configured numbers mean what they say.
+
+    Falls back to in-memory when REDIS_URL is unset so local development and tests need no
+    extra service.
+    """
+    if settings.REDIS_URL:
+        try:
+            instance = Limiter(key_func=get_client_ip, storage_uri=settings.REDIS_URL)
+            logger.info("Rate limiting backed by shared Redis storage")
+            return instance
+        except Exception as e:
+            # Never let a rate-limit backend problem stop the app from booting; degrade to
+            # in-memory (weaker, but still enforcing) and make the degradation loud.
+            logger.error(
+                "Failed to initialise Redis rate-limit storage (%s). Falling back to "
+                "per-process memory — limits will be weaker than configured.", e
+            )
+
+    if not settings.DEBUG:
+        logger.warning(
+            "REDIS_URL is not set: rate limiting is per-process. If more than one "
+            "instance serves traffic, effective limits are multiplied by the instance count."
+        )
+
+    return Limiter(key_func=get_client_ip)
+
+
+limiter = _build_limiter()
 
 
 def cleanup_rate_limit_storage():
@@ -28,6 +62,9 @@ def cleanup_rate_limit_storage():
     indefinitely (they're only checked on access). Over time with many unique IPs,
     this dict grows without bound. This function removes entries whose TTL has
     passed, and should be called periodically (e.g. every hour).
+
+    No-op when Redis-backed — Redis expires keys itself. The hasattr guard below
+    handles that case.
     """
     try:
         storage = limiter._storage

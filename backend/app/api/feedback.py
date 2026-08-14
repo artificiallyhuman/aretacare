@@ -31,8 +31,19 @@ async def verify_hcaptcha(token: str, remote_ip: str) -> bool:
         bool: True if verification successful, False otherwise
     """
     if not settings.HCAPTCHA_SECRET_KEY:
-        logger.critical("HCAPTCHA_SECRET_KEY not configured — captcha verification bypassed. Set this in production!")
-        return True  # Allow in development when not configured
+        if settings.DEBUG:
+            logger.warning(
+                "HCAPTCHA_SECRET_KEY not configured — captcha verification bypassed (DEBUG only)."
+            )
+            return True
+        # Fail closed outside development. Returning True here previously meant a missing
+        # key silently disabled captcha on the waitlist and feedback endpoints in
+        # production, with nothing but a log line to reveal it.
+        logger.critical(
+            "HCAPTCHA_SECRET_KEY not configured in a non-DEBUG environment — "
+            "rejecting captcha verification. Set HCAPTCHA_SECRET_KEY."
+        )
+        return False
 
     try:
         async with httpx.AsyncClient() as client:
@@ -116,6 +127,12 @@ async def submit_feedback(
                 detail="Captcha verification failed. Please try again."
             )
 
+    # The confirmation email goes to this address, so for a signed-in user it must be
+    # their own verified address rather than whatever the request body claims. Otherwise
+    # any authenticated account can have mail sent from the AretaCare domain to arbitrary
+    # third parties, with the (escaped) message body under the sender's control.
+    reply_to_email = current_user.email if current_user else feedback.email
+
     # Sanitize inputs to prevent XSS
     sanitized_name = sanitize_input(feedback.name)
     sanitized_message = sanitize_input(feedback.message)
@@ -128,7 +145,7 @@ async def submit_feedback(
     # Get additional metadata for diagnostics (privacy-conscious)
     metadata = {
         "user_id": current_user.id if current_user else None,
-        "user_email": feedback.email,
+        "user_email": reply_to_email,
         "user_name": sanitized_name,
         "feedback_types": feedback_types_str,
         "user_agent": sanitized_user_agent[:500],  # Truncate to prevent abuse
@@ -140,7 +157,7 @@ async def submit_feedback(
         # Send feedback email to AretaCare team
         feedback_sent = email_service.send_feedback_to_team(
             user_name=sanitized_name,
-            user_email=feedback.email,
+            user_email=reply_to_email,
             feedback_types=feedback_types_str,
             message=sanitized_message,
             metadata=metadata
@@ -152,7 +169,7 @@ async def submit_feedback(
 
         # Send confirmation email to user
         confirmation_sent = email_service.send_feedback_confirmation(
-            user_email=feedback.email,
+            user_email=reply_to_email,
             user_name=sanitized_name,
             feedback_types=feedback_types_str,
             message=sanitized_message

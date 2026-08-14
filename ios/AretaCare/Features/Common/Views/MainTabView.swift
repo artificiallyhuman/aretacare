@@ -76,6 +76,14 @@ struct MainTabView: View {
                     }
                     .animation(reduceMotion ? nil : .spring(duration: 0.35), value: networkMonitor.isConnected)
                 }
+                .overlay(alignment: .top) {
+                    if let error = sessionVM.errorMessage {
+                        ErrorBannerView(message: error) {
+                            sessionVM.dismissError()
+                        }
+                        .padding(.top, 4)
+                    }
+                }
                 .collaborationAwareness(session: sessionVM.currentSession)
             }
         }
@@ -133,6 +141,11 @@ struct MainTabView: View {
         }
         .onReceive(NotificationCenter.default.publisher(for: .sessionsDidChange)) { _ in
             Task { await sessionVM.fetchSessions() }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .sessionAccessRevoked)) { _ in
+            // An owner revoked sharing on a care session — drop it and move on.
+            // Deliberately not a logout.
+            Task { await sessionVM.handleSessionAccessRevoked() }
         }
         .onReceive(NotificationCenter.default.publisher(for: .pushNotificationReceived)) { notification in
             // Refresh digest badge when a push arrives while app is in foreground

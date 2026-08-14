@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useMemo, useCallback } from 'react';
 import { setGlobalErrorHandler } from '../services/api';
 
 const NetworkContext = createContext();
@@ -122,14 +122,14 @@ export const NetworkProvider = ({ children }) => {
     return () => setGlobalErrorHandler(null);
   }, [handleApiError]);
 
-  const value = {
+  const value = useMemo(() => ({
     isOnline,
     error,
     showError,
     showErrorMessage,
     clearError,
     handleApiError,
-  };
+  }), [isOnline, error, showError, showErrorMessage, clearError, handleApiError]);
 
   return (
     <NetworkContext.Provider value={value}>

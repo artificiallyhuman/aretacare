@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
-import { MarkdownLink } from '../../utils/markdownComponents';
+import { MarkdownLink, MarkdownImage } from '../../utils/markdownComponents';
 import { dailyPlanAPI } from '../../services/api';
 
 const DailyPlanPanel = ({ activeSessionId, isOpen, onToggle, onPlanViewed }) => {
@@ -193,6 +193,7 @@ const DailyPlanPanel = ({ activeSessionId, isOpen, onToggle, onPlanViewed }) => 
               <ReactMarkdown
                 components={{
                   a: MarkdownLink,
+                  img: MarkdownImage,
                   h1: ({node, ...props}) => <h1 className="text-lg font-bold text-gray-900 dark:text-gray-100 mt-4 mb-3" {...props} />,
                   h2: ({node, ...props}) => <h2 className="text-base font-bold text-gray-900 dark:text-gray-100 mt-4 mb-2" {...props} />,
                   h3: ({node, ...props}) => <h3 className="text-sm font-semibold text-gray-800 dark:text-gray-200 mt-3 mb-2" {...props} />,

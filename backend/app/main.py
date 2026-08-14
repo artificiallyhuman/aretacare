@@ -397,12 +397,16 @@ async def stop_periodic_tasks():
 @app.api_route("/", methods=["GET", "HEAD"])
 async def root():
     """Root endpoint (supports HEAD for health probes)"""
-    return {
+    payload = {
         "message": "Welcome to AretaCare API",
         "description": "Calm. Clarity. Confidence.",
         "version": "1.0.0",
-        "docs": "/docs"
     }
+    # Interactive docs are disabled unless DEBUG is set, so only advertise the path
+    # when it actually resolves.
+    if settings.DEBUG:
+        payload["docs"] = "/docs"
+    return payload
 
 
 @app.get("/robots.txt", response_class=PlainTextResponse)

@@ -1,7 +1,7 @@
 import Foundation
 import UIKit
 
-@Observable
+@Observable @MainActor
 final class NotificationManager {
     static let shared = NotificationManager()
 
@@ -24,7 +24,7 @@ final class NotificationManager {
                 #endif
                 return
             }
-            DispatchQueue.main.async {
+            Task { @MainActor in
                 self?.isAuthorized = granted
                 if granted {
                     UIApplication.shared.registerForRemoteNotifications()

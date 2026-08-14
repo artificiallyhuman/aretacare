@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
 import { adminAPI } from '../services/api';
 import { useSessionContext } from './SessionContext';
 
@@ -33,8 +33,10 @@ export function AdminProvider({ children }) {
     checkAdminStatus();
   }, [user]);
 
+  const value = useMemo(() => ({ isAdmin, loading }), [isAdmin, loading]);
+
   return (
-    <AdminContext.Provider value={{ isAdmin, loading }}>
+    <AdminContext.Provider value={value}>
       {children}
     </AdminContext.Provider>
   );

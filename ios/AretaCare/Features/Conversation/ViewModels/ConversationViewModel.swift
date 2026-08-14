@@ -36,6 +36,25 @@ final class ConversationViewModel {
     /// In-flight send task, cancelled on session switch.
     private var sendTask: Task<Void, Never>?
 
+    /// Deferred post-send reconciliation task. Stored so `clearMessages()` can
+    /// cancel it — an orphaned reconcile fired after a care-session switch would
+    /// append the previous session's messages into the newly rendered chat.
+    private var reconcileTask: Task<Void, Never>?
+
+    /// The care session whose messages are currently loaded. Every async path
+    /// re-checks this after awaiting so a switch mid-flight can't cross-write
+    /// one session's data into another's list.
+    private(set) var activeSessionId: String?
+
+    /// Reconcile passes each surviving temp (negative-ID) message has been
+    /// through. A temp the server rewrote never matches by signature, so it is
+    /// dropped after a grace pass rather than wedging the polling guard.
+    private var tempReconcilePasses: [Int: Int] = [:]
+
+    /// Result of the most recent `uploadAudioMessage` run. Held here rather than
+    /// returned from the inner task so `sendTask` stays cancellable.
+    private var audioUploadSucceeded = false
+
     // Cached formatters (ARCH-3: avoid creating new instances per call)
     private static let apiDateFormatter: DateFormatter = {
         let f = DateFormatter()
@@ -59,6 +78,7 @@ final class ConversationViewModel {
     // MARK: - Fetch History
 
     func fetchHistory(sessionId: String, loadMore: Bool = false, forceRefresh: Bool = false) async {
+        activeSessionId = sessionId
         if loadMore {
             guard !isLoadingMore else { return }
             isLoadingMore = true
@@ -89,6 +109,13 @@ final class ConversationViewModel {
                 APIEndpoints.Conversation.history(sessionId),
                 queryItems: queryItems
             )
+
+            // A care-session switch while the request was in flight must not
+            // paint the previous session's history into the new one.
+            guard sessionId == activeSessionId else {
+                if loadMore { isLoadingMore = false } else { isLoading = false }
+                return
+            }
 
             if loadMore {
                 // Older messages come first from API; prepend them
@@ -146,6 +173,7 @@ final class ConversationViewModel {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty, !isSending else { return }
 
+        activeSessionId = sessionId
         isSending = true
         errorMessage = nil
         invalidateCache(for: sessionId)
@@ -189,7 +217,7 @@ final class ConversationViewModel {
 
             // Session was switched mid-send — drop the response rather than appending
             // it to a different session's message list.
-            if Task.isCancelled {
+            if Task.isCancelled || sessionId != activeSessionId {
                 isSending = false
                 return
             }
@@ -215,17 +243,13 @@ final class ConversationViewModel {
             isSending = false
 
             // Background reconciliation to sync temp IDs with server state
-            let sid = sessionId
-            Task {
-                try? await Task.sleep(for: .seconds(2))
-                await silentReconcile(sessionId: sid)
-            }
+            scheduleReconcile(sessionId: sessionId)
         } catch is CancellationError {
             // Session switch cancelled this send — silently abandon.
             isSending = false
         } catch {
             isSending = false
-            if Task.isCancelled { return }
+            if Task.isCancelled || sessionId != activeSessionId { return }
             // The server may have processed the message despite the connection
             // dropping (e.g. phone slept during AI response). Reconcile first.
             await silentReconcile(sessionId: sessionId)
@@ -277,17 +301,23 @@ final class ConversationViewModel {
 
     // MARK: - Upload Audio for Transcription
 
-    func uploadAudioMessage(data: Data, sessionId: String) async {
+    /// Uploads a recording for transcription. Returns true once the recording is
+    /// safely on the server — the caller keeps its on-disk copy until then.
+    @discardableResult
+    func uploadAudioMessage(data: Data, sessionId: String) async -> Bool {
         sendTask?.cancel()
+        audioUploadSucceeded = false
         let task: Task<Void, Never> = Task { @MainActor [weak self] in
             guard let self = self else { return }
-            await self._performUploadAudioMessage(data: data, sessionId: sessionId)
+            self.audioUploadSucceeded = await self._performUploadAudioMessage(data: data, sessionId: sessionId)
         }
         sendTask = task
         await task.value
+        return audioUploadSucceeded
     }
 
-    private func _performUploadAudioMessage(data: Data, sessionId: String) async {
+    private func _performUploadAudioMessage(data: Data, sessionId: String) async -> Bool {
+        activeSessionId = sessionId
         isSending = true
         errorMessage = nil
         invalidateCache(for: sessionId)
@@ -320,12 +350,14 @@ final class ConversationViewModel {
                 multipart: multipart
             )
 
-            if Task.isCancelled {
+            // The recording is persisted server-side at this point, so the
+            // caller may drop its on-disk copy even if the follow-up send fails.
+            if Task.isCancelled || sessionId != activeSessionId {
                 isSending = false
                 if backgroundTaskId != .invalid {
                     UIApplication.shared.endBackgroundTask(backgroundTaskId)
                 }
-                return
+                return true
             }
 
             // Send the transcribed text as a conversation message so AI responds.
@@ -341,14 +373,20 @@ final class ConversationViewModel {
                     sessionId: sessionId,
                     audioRecordingId: response.recordingId
                 )
-                return
+                return true
             }
+
+            isSending = false
+            if backgroundTaskId != .invalid {
+                UIApplication.shared.endBackgroundTask(backgroundTaskId)
+            }
+            return true
         } catch is CancellationError {
             isSending = false
             if backgroundTaskId != .invalid {
                 UIApplication.shared.endBackgroundTask(backgroundTaskId)
             }
-            return
+            return false
         } catch {
             if !Task.isCancelled {
                 errorMessage = error.localizedDescription
@@ -359,6 +397,7 @@ final class ConversationViewModel {
         if backgroundTaskId != .invalid {
             UIApplication.shared.endBackgroundTask(backgroundTaskId)
         }
+        return false
     }
 
     // MARK: - Send Document/Image Message
@@ -382,6 +421,7 @@ final class ConversationViewModel {
     }
 
     private func _performSendDocumentMessage(sessionId: String, documentId: Int, filename: String, messageType: String, mediaUrl: String?, thumbnailUrl: String?, content: String?) async {
+        activeSessionId = sessionId
         isSending = true
         errorMessage = nil
         invalidateCache(for: sessionId)
@@ -427,7 +467,7 @@ final class ConversationViewModel {
                 body: request
             )
 
-            if Task.isCancelled {
+            if Task.isCancelled || sessionId != activeSessionId {
                 isSending = false
                 return
             }
@@ -452,16 +492,12 @@ final class ConversationViewModel {
             isSending = false
 
             // Background reconciliation to sync temp IDs with server state
-            let sid = sessionId
-            Task {
-                try? await Task.sleep(for: .seconds(2))
-                await silentReconcile(sessionId: sid)
-            }
+            scheduleReconcile(sessionId: sessionId)
         } catch is CancellationError {
             isSending = false
         } catch {
             isSending = false
-            if Task.isCancelled { return }
+            if Task.isCancelled || sessionId != activeSessionId { return }
             // The server may have processed the message despite the connection
             // dropping (e.g. phone slept during AI response). Reconcile to check
             // before showing an error.
@@ -537,6 +573,11 @@ final class ConversationViewModel {
     func clearMessages() {
         sendTask?.cancel()
         sendTask = nil
+        // A deferred reconcile left running across a care-session switch would
+        // append the previous session's messages into the new session's chat.
+        reconcileTask?.cancel()
+        reconcileTask = nil
+        activeSessionId = nil
         messages = []
         hasMore = false
         hasNewerTrimmed = false
@@ -545,6 +586,7 @@ final class ConversationViewModel {
         failedMessageIds.removeAll()
         failedMessageContent.removeAll()
         retryCount.removeAll()
+        tempReconcilePasses.removeAll()
         // Clear cache to ensure fresh data when switching sessions
         Self.historyCache.invalidateAll()
     }
@@ -554,11 +596,13 @@ final class ConversationViewModel {
     /// Polls for new messages from collaborators. Errors are silently ignored.
     func pollForNewMessages(sessionId: String) async {
         guard !isSending, !isLoading else { return }
+        guard sessionId == activeSessionId else { return }
         guard !messages.isEmpty else { return }
         // Skip if there are unreconciled temp messages — silentReconcile
         // hasn't replaced temp IDs yet, so the poll would see server messages
-        // as "new" and append duplicates.
-        guard !messages.contains(where: { $0.id < 0 }) else { return }
+        // as "new" and append duplicates. Failed sends keep their temp ID on
+        // purpose (for the retry affordance) and must not stall polling.
+        guard !messages.contains(where: { $0.id < 0 && !failedMessageIds.contains($0.id) }) else { return }
 
         do {
             let queryItems = [
@@ -583,11 +627,23 @@ final class ConversationViewModel {
 
     // MARK: - Silent Reconciliation
 
+    /// Schedules a deferred reconcile, replacing any previously scheduled one.
+    /// The task is retained so a care-session switch can cancel it.
+    private func scheduleReconcile(sessionId: String, delay: Duration = .seconds(2)) {
+        reconcileTask?.cancel()
+        reconcileTask = Task { @MainActor [weak self] in
+            try? await Task.sleep(for: delay)
+            guard !Task.isCancelled else { return }
+            await self?.silentReconcile(sessionId: sessionId)
+        }
+    }
+
     /// Fetches fresh history and reconciles in-place without full array replacement.
     /// Runs after send to sync temp message IDs with server truth.
     /// In-place updates preserve ForEach identity and prevent scroll position jumps.
     private func silentReconcile(sessionId: String) async {
         guard !isSending else { return }
+        guard sessionId == activeSessionId else { return }
 
         do {
             let queryItems = [
@@ -598,6 +654,11 @@ final class ConversationViewModel {
                 APIEndpoints.Conversation.history(sessionId),
                 queryItems: queryItems
             )
+
+            // The care session may have been switched while the request was in
+            // flight. Mutating `messages` now would splice this session's
+            // history — and its PHI — into the chat the user is looking at.
+            guard sessionId == activeSessionId else { return }
 
             // Build lookup of server messages by ID for updating existing messages
             let serverById = Dictionary(uniqueKeysWithValues: history.messages.map { ($0.id, $0) })
@@ -639,12 +700,49 @@ final class ConversationViewModel {
                 messages.append(contentsOf: newMessages)
             }
 
+            sweepUnmatchedTempMessages(sessionId: sessionId)
+
             totalCount = history.totalCount
             hasMore = history.hasMore
             Self.historyCache.set(history, for: sessionId)
             reconcileToken += 1
         } catch {
             // Silent failure — user already sees correct messages
+        }
+    }
+
+    /// Drops temp messages the reconcile could not match to a server row.
+    ///
+    /// Signature matching fails whenever the server stores different content
+    /// than the client optimistically rendered (the document path composes
+    /// `"Uploaded: <filename>"` locally). The unmatched temp then shows as a
+    /// duplicate next to the appended server copy, and its negative ID trips the
+    /// polling guard for good — collaborator messages stop arriving. One extra
+    /// reconcile pass is allowed as a grace window; after that the temp is
+    /// dropped. Failed sends are exempt: their temp row backs the retry UI.
+    private func sweepUnmatchedTempMessages(sessionId: String) {
+        let unmatched = messages
+            .filter { $0.id < 0 && !failedMessageIds.contains($0.id) }
+            .map(\.id)
+
+        // Forget bookkeeping for temps that have since been reconciled away.
+        tempReconcilePasses = tempReconcilePasses.filter { unmatched.contains($0.key) }
+
+        guard !unmatched.isEmpty else { return }
+
+        var stale = Set<Int>()
+        for id in unmatched {
+            let passes = (tempReconcilePasses[id] ?? 0) + 1
+            tempReconcilePasses[id] = passes
+            if passes > 1 { stale.insert(id) }
+        }
+
+        if !stale.isEmpty {
+            messages.removeAll { stale.contains($0.id) }
+            for id in stale { tempReconcilePasses.removeValue(forKey: id) }
+        } else {
+            // Give the server one more chance to catch up before dropping.
+            scheduleReconcile(sessionId: sessionId, delay: .seconds(3))
         }
     }
 

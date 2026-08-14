@@ -2,7 +2,6 @@ fastapi==0.104.1
 uvicorn[standard]==0.24.0
 sqlalchemy==2.0.23
 psycopg2-binary==2.9.9
-alembic==1.12.1
 pydantic==2.5.0
 pydantic-settings==2.1.0
 email-validator==2.1.0
@@ -21,6 +20,7 @@ pdf2image==1.16.3
 aiofiles==23.2.1
 httpx<0.28.0
 slowapi==0.1.9
+redis==5.2.1  # shared rate-limit storage backend for slowapi/limits (see core/rate_limit.py)
 sentry-sdk[fastapi]==2.66.1
 reportlab==4.0.7
 pyotp==2.9.0

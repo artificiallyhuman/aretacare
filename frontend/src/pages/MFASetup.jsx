@@ -6,6 +6,21 @@ import { mfaAPI } from '../services/api';
 import TOTPSetup from '../components/mfa/TOTPSetup';
 import PasskeySetup from '../components/mfa/PasskeySetup';
 import BackupCodesDisplay from '../components/mfa/BackupCodesDisplay';
+import SensitiveActionModal from '../components/mfa/SensitiveActionModal';
+
+/**
+ * Pull a displayable string out of a FastAPI error.
+ *
+ * Most endpoints return a plain-string `detail`, but the MFA step-up guard returns
+ * `{ code, message }`. Passing that object straight into React state would crash the
+ * render ("Objects are not valid as a React child"), so unwrap it here.
+ */
+const errorMessage = (err, fallback) => {
+  const detail = err?.response?.data?.detail;
+  if (typeof detail === 'string') return detail;
+  if (detail?.message) return detail.message;
+  return fallback;
+};
 
 function ConfirmModal({ isOpen, onClose, onConfirm, title, message, confirmText = 'Confirm', danger = false }) {
   if (!isOpen) return null;
@@ -52,6 +67,7 @@ function MFASetup() {
   const [setupMethod, setSetupMethod] = useState(null); // 'totp' or 'passkey'
   const [generatingCodes, setGeneratingCodes] = useState(false);
   const [enablingMFA, setEnablingMFA] = useState(false);
+  const [mfaActionModal, setMfaActionModal] = useState(null); // 'mfa_regenerate_backup_codes'
 
   useEffect(() => {
     loadMFAStatus();
@@ -77,19 +93,35 @@ function MFASetup() {
     }
   };
 
-  const handleMethodComplete = async () => {
-    // After setting up a method, generate backup codes
+  const handleMethodComplete = async (e, actionToken = null) => {
+    // After setting up a method, generate backup codes.
+    //
+    // During first-time setup MFA isn't enabled yet, so the backend skips step-up.
+    // But this same path runs when an already-protected user adds a second method
+    // from the manage screen, and there regenerating codes needs verification.
+    if (mfaStatus?.mfa_enabled && !actionToken) {
+      setMfaActionModal('mfa_regenerate_backup_codes');
+      return;
+    }
+
     setGeneratingCodes(true);
     setError('');
     try {
-      const response = await mfaAPI.generateBackupCodes();
+      const config = actionToken ? { headers: { 'X-MFA-Action-Token': actionToken } } : {};
+
+      const response = await mfaAPI.generateBackupCodes(config);
       setBackupCodes(response.data.codes);
       setStep('backup');
     } catch (err) {
-      setError(err.response?.data?.detail || 'Failed to generate backup codes');
+      setError(errorMessage(err, 'Failed to generate backup codes'));
     } finally {
       setGeneratingCodes(false);
     }
+  };
+
+  const handleMfaActionSuccess = (actionToken) => {
+    setMfaActionModal(null);
+    handleMethodComplete(null, actionToken);
   };
 
   const handleBackupContinue = async () => {
@@ -100,7 +132,7 @@ function MFASetup() {
       await mfaAPI.enableMFA(setupMethod);
       setStep('complete');
     } catch (err) {
-      setError(err.response?.data?.detail || 'Failed to enable MFA');
+      setError(errorMessage(err, 'Failed to enable MFA'));
     } finally {
       setEnablingMFA(false);
     }
@@ -111,7 +143,7 @@ function MFASetup() {
       await mfaAPI.disableMFA(password);
       await loadMFAStatus();
     } catch (err) {
-      throw new Error(err.response?.data?.detail || 'Failed to disable MFA');
+      throw new Error(errorMessage(err, 'Failed to disable MFA'));
     }
   };
 
@@ -313,6 +345,16 @@ function MFASetup() {
           )}
         </div>
       </div>
+
+      {/* MFA step-up for regenerating backup codes when adding a method to an
+          account that already has MFA enabled */}
+      {mfaActionModal && (
+        <SensitiveActionModal
+          actionType={mfaActionModal}
+          onSuccess={handleMfaActionSuccess}
+          onCancel={() => setMfaActionModal(null)}
+        />
+      )}
     </div>
   );
 }
@@ -332,6 +374,10 @@ function MFAManage({ status, onRefresh, onDisable, onSetupMore }) {
   const [expandedCard, setExpandedCard] = useState(null);
   const [confirmModal, setConfirmModal] = useState(null); // { type, id?, name? }
   const [actionError, setActionError] = useState('');
+  // MFA step-up for actions that weaken the account (removing a factor, minting
+  // fresh backup codes). Mirrors the flow in Settings.jsx.
+  const [mfaActionModal, setMfaActionModal] = useState(null);
+  const [pendingAction, setPendingAction] = useState(null); // { type, id? }
 
   useEffect(() => {
     if (status.passkey_count > 0) {
@@ -376,7 +422,7 @@ function MFAManage({ status, onRefresh, onDisable, onSetupMore }) {
       await mfaAPI.revokeTrustedDevice(id);
       await loadTrustedDevices();
     } catch (err) {
-      setActionError(err.response?.data?.detail || 'Failed to revoke device');
+      setActionError(errorMessage(err, 'Failed to revoke device'));
     }
   };
 
@@ -387,43 +433,97 @@ function MFAManage({ status, onRefresh, onDisable, onSetupMore }) {
       await mfaAPI.revokeAllTrustedDevices();
       await loadTrustedDevices();
     } catch (err) {
-      setActionError(err.response?.data?.detail || 'Failed to revoke devices');
+      setActionError(errorMessage(err, 'Failed to revoke devices'));
     }
   };
 
-  const handleDeletePasskey = async () => {
-    const id = confirmModal?.id;
+  const handleDeletePasskey = async (e, actionToken = null, passkeyId = null) => {
+    // The confirm modal is cleared before the MFA step-up opens, so the id has to
+    // travel through pendingAction rather than being re-read from confirmModal
+    const id = passkeyId ?? confirmModal?.id;
     setConfirmModal(null);
     setActionError('');
+
+    // If MFA is enabled and we don't have an action token, show the MFA modal
+    if (status.mfa_enabled && !actionToken) {
+      setPendingAction({ type: 'deletePasskey', id });
+      setMfaActionModal('mfa_remove_passkey');
+      return;
+    }
+
     try {
-      await mfaAPI.deletePasskey(id);
+      const config = actionToken ? { headers: { 'X-MFA-Action-Token': actionToken } } : {};
+
+      await mfaAPI.deletePasskey(id, config);
       await loadPasskeys();
       onRefresh();
     } catch (err) {
-      setActionError(err.response?.data?.detail || 'Failed to delete passkey');
+      setActionError(errorMessage(err, 'Failed to delete passkey'));
     }
   };
 
-  const handleDeleteTOTP = async () => {
+  const handleDeleteTOTP = async (e, actionToken = null) => {
     setConfirmModal(null);
     setActionError('');
+
+    // If MFA is enabled and we don't have an action token, show the MFA modal
+    if (status.mfa_enabled && !actionToken) {
+      setPendingAction({ type: 'deleteTOTP' });
+      setMfaActionModal('mfa_remove_totp');
+      return;
+    }
+
     try {
-      await mfaAPI.deleteTOTP();
+      const config = actionToken ? { headers: { 'X-MFA-Action-Token': actionToken } } : {};
+
+      await mfaAPI.deleteTOTP(config);
       onRefresh();
     } catch (err) {
-      setActionError(err.response?.data?.detail || 'Failed to delete TOTP');
+      setActionError(errorMessage(err, 'Failed to delete TOTP'));
     }
   };
 
-  const handleGenerateBackupCodes = async () => {
+  const handleGenerateBackupCodes = async (e, actionToken = null) => {
+    setActionError('');
+
+    // If MFA is enabled and we don't have an action token, show the MFA modal
+    if (status.mfa_enabled && !actionToken) {
+      setPendingAction({ type: 'generateBackupCodes' });
+      setMfaActionModal('mfa_regenerate_backup_codes');
+      return;
+    }
+
     try {
-      const response = await mfaAPI.generateBackupCodes();
+      const config = actionToken ? { headers: { 'X-MFA-Action-Token': actionToken } } : {};
+
+      const response = await mfaAPI.generateBackupCodes(config);
       setBackupCodes(response.data.codes);
       setShowBackupCodes(true);
       onRefresh();
     } catch (err) {
-      alert(err.response?.data?.detail || 'Failed to generate backup codes');
+      setActionError(errorMessage(err, 'Failed to generate backup codes'));
     }
+  };
+
+  // Handler for MFA verification success
+  const handleMfaActionSuccess = (actionToken) => {
+    setMfaActionModal(null);
+
+    // Execute the pending action with the token
+    if (pendingAction?.type === 'deletePasskey') {
+      handleDeletePasskey(null, actionToken, pendingAction.id);
+    } else if (pendingAction?.type === 'deleteTOTP') {
+      handleDeleteTOTP(null, actionToken);
+    } else if (pendingAction?.type === 'generateBackupCodes') {
+      handleGenerateBackupCodes(null, actionToken);
+    }
+
+    setPendingAction(null);
+  };
+
+  const handleMfaActionCancel = () => {
+    setMfaActionModal(null);
+    setPendingAction(null);
   };
 
   const handleDisable = async (e) => {
@@ -744,6 +844,15 @@ function MFAManage({ status, onRefresh, onDisable, onSetupMore }) {
         confirmText="Remove"
         danger
       />
+
+      {/* MFA Sensitive Action Modal */}
+      {mfaActionModal && (
+        <SensitiveActionModal
+          actionType={mfaActionModal}
+          onSuccess={handleMfaActionSuccess}
+          onCancel={handleMfaActionCancel}
+        />
+      )}
 
       {/* Backup Codes Modal */}
       {showBackupCodes && backupCodes.length > 0 && (

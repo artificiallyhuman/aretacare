@@ -1,7 +1,7 @@
 import React, { memo, useState, useRef, useEffect } from 'react';
 import PropTypes from 'prop-types';
 import ReactMarkdown from 'react-markdown';
-import { MarkdownLink } from '../utils/markdownComponents';
+import { MarkdownLink, MarkdownImage } from '../utils/markdownComponents';
 import DocumentMessage from './DocumentMessage';
 import ImageMessage from './ImageMessage';
 import SourceTag from './SourceTag';
@@ -195,6 +195,7 @@ const MessageBubble = memo(({ message, onThumbnailLoad, onMessageUpdate, onReset
               <ReactMarkdown
                 components={{
                   a: MarkdownLink,
+                  img: MarkdownImage,
                   // Custom paragraph spacing
                   p: ({node, ...props}) => <p className="mb-2 leading-relaxed" {...props} />,
                   // Custom heading styles

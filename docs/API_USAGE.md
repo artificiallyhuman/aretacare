@@ -383,7 +383,7 @@ Types: `bug`, `improvement`, `feature`, `other`. Authentication optional. Rate l
 
 ```bash
 GET /api/health             # Simple check for load balancers
-GET /api/health/detailed    # Comprehensive (DB, S3, OpenAI, OpenAI Embeddings connectivity)
+GET /api/health/detailed    # Comprehensive (DB, S3, OpenAI, OpenAI Embeddings connectivity) - ADMIN ONLY
 ```
 Simple returns: `{"status": "healthy", "service": "AretaCare API"}`
 

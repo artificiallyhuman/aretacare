@@ -4,7 +4,25 @@ import { journalAPI } from '../services/api';
 import JournalEntry from '../components/Journal/JournalEntry';
 import EntryEditor from '../components/Journal/EntryEditor';
 import { isToday, isFuture, formatDateShort } from '../utils/dateUtils';
+import { isAbortError } from '../utils/requestUtils';
 import SourceTag from '../components/SourceTag';
+
+// Upper bound on date groups held in memory. Mirrors the iOS journal cap so
+// paging back through a long history can't grow the heap without limit.
+const MAX_LOADED_DATE_GROUPS = 90;
+
+/** Keeps the newest MAX_LOADED_DATE_GROUPS date keys (YYYY-MM-DD sorts lexically). */
+const capDateGroups = (entriesByDate) => {
+  const dates = Object.keys(entriesByDate);
+  if (dates.length <= MAX_LOADED_DATE_GROUPS) return entriesByDate;
+  return dates
+    .sort((a, b) => b.localeCompare(a))
+    .slice(0, MAX_LOADED_DATE_GROUPS)
+    .reduce((acc, date) => {
+      acc[date] = entriesByDate[date];
+      return acc;
+    }, {});
+};
 
 const ENTRY_TYPE_COLORS = {
   MEDICAL_UPDATE: 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300',
@@ -24,6 +42,7 @@ const JournalView = () => {
   const [filteredEntries, setFilteredEntries] = useState({});
   const [filterType, setFilterType] = useState('ALL');
   const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
   const [showEditor, setShowEditor] = useState(false);
   const [editingEntry, setEditingEntry] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -35,11 +54,23 @@ const JournalView = () => {
   const [showSidebar, setShowSidebar] = useState(false);
   const searchInputRef = useRef(null);
   const isSearchFocused = useRef(false);
+  // Mirrors sessionId so an in-flight load can verify its response still belongs
+  // to the care session on screen before touching state
+  const activeSessionIdRef = useRef(sessionId);
+  const loadAbortRef = useRef(null);
+
+  useEffect(() => {
+    activeSessionIdRef.current = sessionId;
+  }, [sessionId]);
 
   useEffect(() => {
     if (sessionId) {
       loadJournalEntries();
     }
+    // Drop the previous load so a slow response can't render under a different
+    // care session (or after this page unmounts)
+    return () => loadAbortRef.current?.abort();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessionId]);
 
   // Restore focus to search input if it was focused before re-render
@@ -47,43 +78,71 @@ const JournalView = () => {
     if (isSearchFocused.current && searchInputRef.current && document.activeElement !== searchInputRef.current) {
       searchInputRef.current.focus();
     }
-  });
+  }, [filteredEntries]);
+
+  // Debounce the search query so filtering doesn't lowercase every entry body
+  // on each keystroke
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery);
+    }, 300); // Wait 300ms after user stops typing
+
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
 
   useEffect(() => {
     applyFilters();
-  }, [entries, filterType, searchQuery]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [entries, filterType, debouncedSearchQuery]);
 
   const loadJournalEntries = async () => {
     setLoading(true);
+
+    loadAbortRef.current?.abort();
+    const controller = new AbortController();
+    loadAbortRef.current = controller;
+    const sessionIdForLoad = sessionId;
+
     try {
-      const response = await journalAPI.getEntries(sessionId);
-      setEntries(response.data.entries_by_date);
+      const response = await journalAPI.getEntries(sessionIdForLoad, {}, { signal: controller.signal });
+      if (sessionIdForLoad !== activeSessionIdRef.current) return;
+      setEntries(capDateGroups(response.data.entries_by_date));
       setHasMore(response.data.has_more || false);
       setOldestDate(response.data.oldest_date || null);
     } catch (err) {
+      if (isAbortError(err)) return;
       console.error('Error loading journal entries:', err);
     } finally {
-      setLoading(false);
+      // Only the most recent load owns the spinner - a superseded one must not
+      // clear it out from under the load that replaced it
+      if (loadAbortRef.current === controller) {
+        setLoading(false);
+      }
     }
   };
 
   const loadOlderEntries = async () => {
     if (!oldestDate || loadingMore) return;
+    // At the window cap an older page would be trimmed straight back off
+    if (Object.keys(entries).length >= MAX_LOADED_DATE_GROUPS) return;
     setLoadingMore(true);
+    const sessionIdForLoad = sessionId;
     try {
       // Fetch the next page: entries before the oldest date we have
       const dayBefore = new Date(oldestDate + 'T00:00:00');
       dayBefore.setDate(dayBefore.getDate() - 1);
       const endDate = dayBefore.toISOString().split('T')[0];
 
-      const response = await journalAPI.getEntries(sessionId, { endDate });
+      const response = await journalAPI.getEntries(sessionIdForLoad, { endDate });
+      if (sessionIdForLoad !== activeSessionIdRef.current) return;
       const olderEntries = response.data.entries_by_date;
 
-      // Merge older entries with existing entries
-      setEntries(prev => ({ ...prev, ...olderEntries }));
+      // Merge older entries with existing entries, keeping the window bounded
+      setEntries(prev => capDateGroups({ ...prev, ...olderEntries }));
       setHasMore(response.data.has_more || false);
       setOldestDate(response.data.oldest_date || null);
     } catch (err) {
+      if (isAbortError(err)) return;
       console.error('Error loading older journal entries:', err);
     } finally {
       setLoadingMore(false);
@@ -93,6 +152,15 @@ const JournalView = () => {
   const applyFilters = () => {
     if (!entries) {
       setFilteredEntries({});
+      return;
+    }
+
+    const query = debouncedSearchQuery.trim().toLowerCase();
+
+    // Nothing to narrow - reuse the entries reference so downstream consumers
+    // see a stable identity instead of a fresh object on every keystroke
+    if (filterType === 'ALL' && !query) {
+      setFilteredEntries(entries);
       return;
     }
 
@@ -112,8 +180,7 @@ const JournalView = () => {
     }
 
     // Filter by search query
-    if (searchQuery.trim()) {
-      const query = searchQuery.toLowerCase();
+    if (query) {
       filtered = Object.keys(filtered).reduce((acc, date) => {
         const searchFiltered = filtered[date].filter(
           (entry) =>
@@ -468,7 +535,7 @@ const JournalView = () => {
               })}
 
               {/* Load older entries button */}
-              {hasMore && !searchQuery && filterType === 'ALL' && (
+              {hasMore && !searchQuery && filterType === 'ALL' && Object.keys(entries).length < MAX_LOADED_DATE_GROUPS && (
                 <div className="text-center py-4">
                   <button
                     onClick={loadOlderEntries}

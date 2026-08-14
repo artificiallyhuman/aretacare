@@ -1,6 +1,32 @@
 import Foundation
 import Observation
 
+/// Actions the backend gates behind a fresh MFA verification (`X-MFA-Action-Token`).
+/// Removing a factor — or minting ten new backup codes — weakens the account, so a
+/// stolen access token alone must not be enough to do it.
+enum SensitiveMFAAction: Identifiable, Equatable {
+    case removeAuthenticatorApp
+    case removePasskey(id: String)
+    case regenerateBackupCodes
+
+    var id: String {
+        switch self {
+        case .removeAuthenticatorApp: return "totp"
+        case .removePasskey(let id): return "passkey-\(id)"
+        case .regenerateBackupCodes: return "backup-codes"
+        }
+    }
+
+    /// Completes the sentence "To …, verify your identity."
+    var prompt: String {
+        switch self {
+        case .removeAuthenticatorApp: return "remove your authenticator app"
+        case .removePasskey: return "remove this passkey"
+        case .regenerateBackupCodes: return "generate new backup codes"
+        }
+    }
+}
+
 @Observable @MainActor
 final class MFAViewModel {
     private(set) var mfaStatus: MFAStatusResponse?
@@ -11,6 +37,11 @@ final class MFAViewModel {
     private(set) var isLoading = false
     private(set) var errorMessage: String?
     private(set) var successMessage: String?
+
+    /// Non-nil when the server demanded MFA step-up for an action the user just
+    /// asked for. The view presents `MFAStepUpSheet`; on success the action is
+    /// replayed with the resulting action token.
+    var pendingStepUp: SensitiveMFAAction?
 
     // TOTP setup state
     private(set) var totpSecret: String?
@@ -126,32 +157,36 @@ final class MFAViewModel {
         }
     }
 
-    func deleteTOTP() async {
+    func deleteTOTP(actionToken: String? = nil) async {
         errorMessage = nil
 
         do {
-            try await APIClient.shared.delete(APIEndpoints.MFA.totpDelete)
+            try await APIClient.shared.delete(
+                APIEndpoints.MFA.totpDelete,
+                headers: Self.actionTokenHeader(actionToken)
+            )
             successMessage = "Authenticator app removed."
             await fetchStatus()
         } catch {
-            errorMessage = error.localizedDescription
+            handleSensitiveActionFailure(error, action: .removeAuthenticatorApp)
         }
     }
 
     // MARK: - Backup Codes
 
-    func generateBackupCodes() async {
+    func generateBackupCodes(actionToken: String? = nil) async {
         errorMessage = nil
         isLoading = true
 
         do {
             let response: BackupCodesResponse = try await APIClient.shared.post(
-                APIEndpoints.MFA.generateBackupCodes
+                APIEndpoints.MFA.generateBackupCodes,
+                headers: Self.actionTokenHeader(actionToken)
             )
             backupCodes = response.codes
             backupCodesRemaining = response.count
         } catch {
-            errorMessage = error.localizedDescription
+            handleSensitiveActionFailure(error, action: .regenerateBackupCodes)
         }
 
         isLoading = false
@@ -219,16 +254,19 @@ final class MFAViewModel {
         }
     }
 
-    func deletePasskey(id: String) async {
+    func deletePasskey(id: String, actionToken: String? = nil) async {
         errorMessage = nil
 
         do {
-            try await APIClient.shared.delete(APIEndpoints.MFA.deletePasskey(id))
+            try await APIClient.shared.delete(
+                APIEndpoints.MFA.deletePasskey(id),
+                headers: Self.actionTokenHeader(actionToken)
+            )
             passkeys.removeAll { $0.id == id }
             successMessage = "Passkey removed."
             await fetchStatus()
         } catch {
-            errorMessage = error.localizedDescription
+            handleSensitiveActionFailure(error, action: .removePasskey(id: id))
         }
     }
 
@@ -274,8 +312,112 @@ final class MFAViewModel {
         }
     }
 
+    // MARK: - Sensitive Action Step-Up
+
+    /// Methods the user can verify with right now, in the order the UI offers them.
+    var availableStepUpMethods: [MFAStepUpMethod] {
+        guard let status = mfaStatus else { return [] }
+        var methods: [MFAStepUpMethod] = []
+        if status.hasPasskeys { methods.append(.passkey) }
+        if status.hasTotp { methods.append(.totp) }
+        if status.backupCodesRemaining > 0 { methods.append(.backupCode) }
+        return methods
+    }
+
+    /// Exchanges a fresh MFA proof for a short-lived action token.
+    func verifyForAction(
+        method: MFAStepUpMethod,
+        code: String? = nil,
+        credential: [String: AnyCodableValue]? = nil
+    ) async throws -> String {
+        let request = VerifyForActionRequest(method: method.rawValue, code: code, credential: credential)
+        let response: VerifyForActionResponse = try await APIClient.shared.post(
+            APIEndpoints.MFA.verifyForAction,
+            body: request
+        )
+        guard response.success, let token = response.actionToken else {
+            throw APIError.validationError(message: response.message)
+        }
+        return token
+    }
+
+    /// Runs the WebAuthn assertion used to satisfy step-up with a passkey.
+    func passkeyStepUpCredential() async throws -> [String: AnyCodableValue] {
+        let optionsResponse: PasskeyAuthenticationOptionsResponse = try await APIClient.shared.post(
+            APIEndpoints.MFA.passkeyAuthOptions
+        )
+        return try await PasskeyAuthManager().authenticate(options: optionsResponse.options)
+    }
+
+    /// Replays the action the server rejected, this time carrying the action token.
+    /// The action is passed in rather than read from `pendingStepUp`, which the
+    /// sheet's own dismissal has already cleared by the time this runs.
+    func completeStepUp(_ action: SensitiveMFAAction, actionToken: String) async {
+        pendingStepUp = nil
+
+        switch action {
+        case .removeAuthenticatorApp:
+            await deleteTOTP(actionToken: actionToken)
+        case .removePasskey(let id):
+            await deletePasskey(id: id, actionToken: actionToken)
+        case .regenerateBackupCodes:
+            await generateBackupCodes(actionToken: actionToken)
+        }
+    }
+
+    func cancelStepUp() {
+        pendingStepUp = nil
+    }
+
+    private static func actionTokenHeader(_ token: String?) -> [String: String]? {
+        guard let token else { return nil }
+        return [AppConstants.mfaActionTokenHeader: token]
+    }
+
+    /// Routes a failed sensitive action: a step-up demand opens the verification
+    /// sheet, anything else (notably the 400 refusing to remove the last factor)
+    /// goes to the error banner so the user sees what to do instead.
+    private func handleSensitiveActionFailure(_ error: Error, action: SensitiveMFAAction) {
+        if case APIError.forbidden(let code) = error,
+           code == "MFA_REQUIRED" || code == "MFA_INVALID" {
+            pendingStepUp = action
+            return
+        }
+        errorMessage = error.localizedDescription
+    }
+
     func dismissMessages() {
         errorMessage = nil
         successMessage = nil
+    }
+}
+
+/// The three ways a user can prove identity for a step-up. Raw values are the
+/// `method` strings the backend's `/mfa/verify-for-action` expects.
+enum MFAStepUpMethod: String, Identifiable, CaseIterable {
+    case passkey
+    case totp
+    case backupCode = "backup_code"
+
+    var id: String { rawValue }
+
+    var label: String {
+        switch self {
+        case .passkey: return "Passkey"
+        case .totp: return "Authenticator App"
+        case .backupCode: return "Backup Code"
+        }
+    }
+
+    var systemImage: String {
+        switch self {
+        case .passkey: return "person.badge.key"
+        case .totp: return "qrcode"
+        case .backupCode: return "key"
+        }
+    }
+
+    var codeLength: Int {
+        self == .totp ? 6 : 8
     }
 }

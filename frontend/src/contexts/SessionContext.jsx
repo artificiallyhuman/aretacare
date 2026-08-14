@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useMemo, useCallback } from 'react';
 import { sessionAPI, authAPI, initAuth, clearAccessToken } from '../services/api';
 
 const SessionContext = createContext();
@@ -167,13 +167,17 @@ export const SessionProvider = ({ children }) => {
     // Run immediately on mount
     checkSession();
 
-    // Then run periodically
-    const intervalId = setInterval(checkSession, SESSION_CHECK_INTERVAL);
+    // Then run periodically, but only while the tab is visible - a backgrounded
+    // tab has nothing to react to and would just burn requests
+    const intervalId = setInterval(() => {
+      if (document.visibilityState !== 'visible') return;
+      checkSession();
+    }, SESSION_CHECK_INTERVAL);
 
     return () => clearInterval(intervalId);
   }, [user]);
 
-  const createSession = async (name = null) => {
+  const createSession = useCallback(async (name = null) => {
     try {
       const response = await sessionAPI.create(name);
       const newSession = response.data;
@@ -210,9 +214,9 @@ export const SessionProvider = ({ children }) => {
       }
       throw err;
     }
-  };
+  }, [sessions]);
 
-  const switchSession = async (sessionId) => {
+  const switchSession = useCallback(async (sessionId) => {
     setActiveSessionId(sessionId);
     localStorage.setItem('active_session_id', sessionId);
 
@@ -223,9 +227,9 @@ export const SessionProvider = ({ children }) => {
       console.error('Failed to update last active session on backend:', err);
       // Non-critical error, don't throw
     }
-  };
+  }, []);
 
-  const renameSession = async (sessionId, newName) => {
+  const renameSession = useCallback(async (sessionId, newName) => {
     try {
       const response = await sessionAPI.rename(sessionId, newName);
       const updatedSession = response.data;
@@ -239,9 +243,9 @@ export const SessionProvider = ({ children }) => {
     } catch (err) {
       throw err;
     }
-  };
+  }, []);
 
-  const deleteSession = async (sessionId) => {
+  const deleteSession = useCallback(async (sessionId) => {
     try {
       await sessionAPI.delete(sessionId);
 
@@ -283,38 +287,43 @@ export const SessionProvider = ({ children }) => {
     } catch (err) {
       throw err;
     }
-  };
+  }, [sessions, activeSessionId]);
 
-  const refreshSessions = async () => {
+  const refreshSessions = useCallback(async () => {
     try {
       const response = await sessionAPI.list();
       setSessions(response.data);
     } catch (err) {
       console.error('Failed to refresh sessions:', err);
     }
-  };
+  }, []);
 
-  const setSessionColor = async (sessionId, colorKey, swapWithSessionId = null) => {
+  const setSessionColor = useCallback(async (sessionId, colorKey, swapWithSessionId = null) => {
     const response = await sessionAPI.setColor(sessionId, colorKey, swapWithSessionId);
     // Refresh sessions to get updated color data
     await refreshSessions();
     return response;
-  };
+  }, [refreshSessions]);
 
-  const logout = async () => {
+  const logout = useCallback(async () => {
     await authAPI.logout();
     setUser(null);
     setSessions([]);
     setActiveSessionId(null);
     localStorage.removeItem('active_session_id');
-  };
+  }, []);
 
-  const value = {
+  const activeSession = useMemo(
+    () => sessions.find(s => s.id === activeSessionId) || null,
+    [sessions, activeSessionId]
+  );
+
+  const value = useMemo(() => ({
     user,
     setUser,
     sessions,
     activeSessionId,
-    activeSession: sessions.find(s => s.id === activeSessionId) || null,
+    activeSession,
     loading,
     error,
     createSession,
@@ -324,7 +333,21 @@ export const SessionProvider = ({ children }) => {
     refreshSessions,
     setSessionColor,
     logout,
-  };
+  }), [
+    user,
+    sessions,
+    activeSessionId,
+    activeSession,
+    loading,
+    error,
+    createSession,
+    switchSession,
+    renameSession,
+    deleteSession,
+    refreshSessions,
+    setSessionColor,
+    logout,
+  ]);
 
   return (
     <SessionContext.Provider value={value}>

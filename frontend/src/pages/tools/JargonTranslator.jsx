@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
-import { MarkdownLink } from '../../utils/markdownComponents';
+import { MarkdownLink, MarkdownImage, markdownLinkComponents } from '../../utils/markdownComponents';
 import { toolsAPI } from '../../services/api';
 import { useSessionContext } from '../../contexts/SessionContext';
 import { markdownToHtml } from '../../utils/markdownUtils';
@@ -213,6 +213,7 @@ const JargonTranslator = () => {
             <ReactMarkdown
               components={{
                 a: MarkdownLink,
+                img: MarkdownImage,
                 p: ({node, ...props}) => <p className="mb-2 leading-relaxed text-gray-800 dark:text-gray-200" {...props} />,
                 h1: ({node, ...props}) => <h1 className="text-xl font-bold mb-3 mt-4 text-gray-900 dark:text-white" {...props} />,
                 h2: ({node, ...props}) => <h2 className="text-lg font-semibold mb-2 mt-3 text-gray-900 dark:text-white" {...props} />,
@@ -237,7 +238,7 @@ const JargonTranslator = () => {
           {translation.context_note && (
             <div className="bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-800 rounded-lg p-3 sm:p-4 mt-4">
               <div className="text-sm text-amber-800 dark:text-amber-300">
-                <strong>Note:</strong> <ReactMarkdown className="inline">{translation.context_note}</ReactMarkdown>
+                <strong>Note:</strong> <ReactMarkdown className="inline" components={markdownLinkComponents}>{translation.context_note}</ReactMarkdown>
               </div>
             </div>
           )}

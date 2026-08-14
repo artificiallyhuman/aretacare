@@ -94,6 +94,19 @@ enum AnyCodableValue: Codable, Sendable {
     case dictionary([String: AnyCodableValue])
     case null
 
+    /// Nesting depth beyond which decoding fails rather than recursing. Metadata
+    /// this deep is never legitimate, and unbounded recursion on hostile JSON
+    /// overflows the stack (an uncatchable crash) instead of throwing.
+    private static let maxNestingDepth = 32
+
+    /// Key type used only to probe whether a value is a JSON object.
+    private struct ProbeKey: CodingKey {
+        var stringValue: String
+        var intValue: Int?
+        init?(stringValue: String) { self.stringValue = stringValue }
+        init?(intValue: Int) { self.intValue = intValue; self.stringValue = String(intValue) }
+    }
+
     init(from decoder: Decoder) throws {
         let container = try decoder.singleValueContainer()
         if let value = try? container.decode(Bool.self) {
@@ -104,12 +117,29 @@ enum AnyCodableValue: Codable, Sendable {
             self = .double(value)
         } else if let value = try? container.decode(String.self) {
             self = .string(value)
-        } else if let value = try? container.decode([AnyCodableValue].self) {
-            self = .array(value)
-        } else if let value = try? container.decode([String: AnyCodableValue].self) {
-            self = .dictionary(value)
-        } else {
+        } else if container.decodeNil() {
             self = .null
+        } else {
+            // Container types are the only remaining possibilities, and they are
+            // where recursion happens. `codingPath` tracks how deep we already
+            // are, so it doubles as the depth counter.
+            guard decoder.codingPath.count < Self.maxNestingDepth else {
+                throw DecodingError.dataCorrupted(
+                    DecodingError.Context(
+                        codingPath: decoder.codingPath,
+                        debugDescription: "JSON nesting exceeds \(Self.maxNestingDepth) levels"
+                    )
+                )
+            }
+            // Probe the shape first so the recursive decode can use `try` and
+            // let a depth violation propagate instead of collapsing to null.
+            if (try? decoder.unkeyedContainer()) != nil {
+                self = .array(try container.decode([AnyCodableValue].self))
+            } else if (try? decoder.container(keyedBy: ProbeKey.self)) != nil {
+                self = .dictionary(try container.decode([String: AnyCodableValue].self))
+            } else {
+                self = .null
+            }
         }
     }
 

@@ -25,10 +25,35 @@ final class CertificatePinningDelegate: NSObject, URLSessionDelegate, Sendable {
     //          | base64
     //   4. Include at least 2 hashes (leaf + backup/CA) to avoid bricking the app on certificate rotation.
     //
+    // TODO: Certificate rotation runbook — pinning fails closed, so a rotation
+    // that ships after the server switches certificates bricks every installed
+    // copy of the app until users update.
+    //
+    //   1. BEFORE the server certificate is rotated, add the *new* key's hash to
+    //      `pinnedKeyHashes` alongside the current one and ship that build.
+    //      Both hashes are accepted, so old and new installs keep working
+    //      through the switchover.
+    //   2. Rotate the server certificate only once that build has reached
+    //      effectively all users (App Store adoption takes weeks — plan for it).
+    //   3. After the rotation has settled, drop the retired hash in a later
+    //      release.
+    //   4. Keep a backup pin for a key held offline (generated but not yet
+    //      deployed) so an emergency rotation has a pin already in the field.
+    //      Fill in `backupPinPlaceholder` below with that key's SPKI hash and
+    //      add it to `pinnedKeyHashes`; leaving it as the placeholder makes
+    //      Release builds trap at init (see the guard in `init`).
+    //
+    // Placeholder values that must never ship in a Release build.
     private static let placeholderHashes: Set<String> = [
         "BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB=",
-        "CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC="
+        "CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC=",
+        backupPinPlaceholder
     ]
+
+    /// Slot for the offline-held backup key's SPKI hash (step 4 above).
+    /// Replace this string with the real base64 hash and add it to
+    /// `pinnedKeyHashes`; do not invent a value.
+    private static let backupPinPlaceholder = "REPLACE_WITH_OFFLINE_BACKUP_KEY_SPKI_SHA256="
 
     private let pinnedKeyHashes: Set<String> = [
         // Primary leaf certificate public key hash
@@ -43,9 +68,12 @@ final class CertificatePinningDelegate: NSObject, URLSessionDelegate, Sendable {
     override init() {
         super.init()
         #if !DEBUG
+        // `assertionFailure` is compiled out in Release, so the original guard
+        // never fired in exactly the configuration it exists to protect.
+        // A placeholder pin shipping to the App Store is a build-configuration
+        // error, handled the same way `AppConstants` handles missing config.
         if !pinnedKeyHashes.isDisjoint(with: Self.placeholderHashes) {
-            print("[SSL] WARNING: Certificate pinning is using placeholder hashes. Replace with real hashes before App Store submission.")
-            assertionFailure("Certificate pinning placeholder hashes detected in Release build. See CertificatePinningDelegate.swift for instructions.")
+            fatalError("Certificate pinning placeholder hashes detected in a Release build. Replace them with real SPKI hashes — see CertificatePinningDelegate.swift.")
         }
         #endif
     }

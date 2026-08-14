@@ -12,7 +12,13 @@ struct ContentView: View {
                 loadingView
                     .transition(.identity)
             } else if !authManager.isAuthenticated {
-                if let mfaToken = authManager.mfaToken {
+                if let startupError = authManager.startupErrorMessage, authManager.hasStoredSession {
+                    // The session couldn't be restored for a transient reason and
+                    // the stored credentials are intact — offer a retry rather
+                    // than presenting this as a sign-out.
+                    sessionUnavailableView(message: startupError)
+                        .transition(.identity)
+                } else if let mfaToken = authManager.mfaToken {
                     NavigationStack {
                         MFAVerifyView(mfaToken: mfaToken, mfaMethods: authManager.mfaMethods)
                     }
@@ -41,6 +47,37 @@ struct ContentView: View {
         // The biometric lock and privacy shield render in a dedicated window
         // above all presented sheets (see Core/Security/PrivacyShieldWindow.swift).
         .accessibilityHidden(biometricManager.isLocked)
+    }
+
+    // MARK: - Session Unavailable (transient)
+
+    private func sessionUnavailableView(message: String) -> some View {
+        VStack(spacing: 20) {
+            Image("large_logo")
+                .resizable()
+                .scaledToFit()
+                .frame(width: 72, height: 72)
+
+            Text("Can't reach AretaCare")
+                .font(.title3.weight(.semibold))
+
+            Text(message)
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+
+            Button("Try Again") {
+                Task { await authManager.retryInitAuth() }
+            }
+            .buttonStyle(PrimaryButtonStyle())
+
+            Button("Sign In Instead") {
+                authManager.dismissStartupError()
+            }
+            .font(.subheadline)
+        }
+        .padding(32)
+        .frame(maxWidth: 500)
     }
 
     // MARK: - Subscription Gate

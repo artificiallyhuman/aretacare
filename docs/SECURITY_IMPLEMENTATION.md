@@ -247,7 +247,7 @@ Applied to all frontend static content via Cloudflare Modify Response Header rul
 
 | Header | Value |
 |--------|-------|
-| X-Frame-Options | `SAMEORIGIN` |
+| X-Frame-Options | `DENY` |
 | Referrer-Policy | `strict-origin-when-cross-origin` |
 | Permissions-Policy | Restricts accelerometer, camera, geolocation, gyroscope, magnetometer, payment, USB; allows microphone for audio recording |
 | Content-Security-Policy | See CSP details below |
@@ -260,7 +260,7 @@ Applied via `SecurityHeadersMiddleware` in `backend/app/core/security_headers.py
 |--------|-------|
 | Strict-Transport-Security | `max-age=31536000; includeSubDomains; preload` (production only) |
 | X-Content-Type-Options | `nosniff` |
-| X-Frame-Options | `SAMEORIGIN` |
+| X-Frame-Options | `DENY` |
 | X-XSS-Protection | `1; mode=block` |
 | Referrer-Policy | `strict-origin-when-cross-origin` |
 | Permissions-Policy | Same as Cloudflare |
@@ -337,7 +337,7 @@ Sentry is used for error/crash monitoring on all three platforms (backend, web, 
 - **Client-side file size validation**: File size checked against `AppConstants.maxFileSizeBytes` (30MB) before upload in conversation and document views
 - **Photo format detection**: `PhotosPickerItem` content type inspected via `UTType` to determine actual format (JPEG/PNG/HEIC) instead of hardcoding `.jpg`
 - **Registration AutoFill**: Password fields use `.textContentType(.newPassword)` to trigger iOS strong password suggestions
-- **Device integrity**: `DeviceIntegrityChecker` detects jailbreak indicators (suspicious files, sandbox escape, debugger attachment) on real devices; skips on simulator
+- **Device integrity**: no runtime jailbreak check is shipped. The previous `DeviceIntegrityChecker` was never instantiated and has been removed rather than left as a control that appeared active but did not run. Jailbreak detection is bypassable by design and was not load-bearing for any protection.
 
 **Session & Lifecycle Security:**
 - **Biometric re-auth**: Opt-in Face ID/Touch ID lock (Settings > Security) on foreground return after 5 min background. The background timestamp is persisted to UserDefaults and checked at launch (`lockOnColdLaunchIfNeeded()` in `AretaCareApp.init`), so cold relaunches after iOS terminates the app also lock — crashes and unknown states fail locked. Uses `.deviceOwnerAuthentication` (passcode fallback). Preference cleared on explicit user logout only (survives `forceLogout`/transient auth failures). Idle timer pauses while lock screen active. Opaque lock screen hides health data.

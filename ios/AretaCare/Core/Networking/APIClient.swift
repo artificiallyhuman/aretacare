@@ -64,8 +64,8 @@ final class APIClient: Sendable {
         return try await execute(request)
     }
 
-    func post<T: Decodable>(_ path: String, body: (some Encodable)? = nil as Empty?, queryItems: [URLQueryItem]? = nil) async throws -> T {
-        let request = try buildRequest(path: path, method: "POST", body: body, queryItems: queryItems)
+    func post<T: Decodable>(_ path: String, body: (some Encodable)? = nil as Empty?, queryItems: [URLQueryItem]? = nil, headers: [String: String]? = nil) async throws -> T {
+        let request = try buildRequest(path: path, method: "POST", body: body, queryItems: queryItems, headers: headers)
         return try await execute(request)
     }
 
@@ -96,8 +96,8 @@ final class APIClient: Sendable {
         try await executeVoid(request)
     }
 
-    func delete(_ path: String, body: (some Encodable)? = nil as Empty?) async throws {
-        let request = try buildRequest(path: path, method: "DELETE", body: body)
+    func delete(_ path: String, body: (some Encodable)? = nil as Empty?, headers: [String: String]? = nil) async throws {
+        let request = try buildRequest(path: path, method: "DELETE", body: body, headers: headers)
         try await executeVoid(request)
     }
 
@@ -110,9 +110,9 @@ final class APIClient: Sendable {
         do {
             try checkHTTPResponse(response, data: data, originalRequest: request)
         } catch APIError.unauthorized {
-            guard await attemptTokenRefresh(for: request) else {
-                await AuthManager.shared.forceLogout()
-                throw APIError.unauthorized
+            let outcome = await attemptTokenRefresh(for: request)
+            guard case .success = outcome else {
+                throw await handleFailedRefresh(outcome)
             }
             let (retryData, retryResponse) = try await performAuthorizedRequest(request)
             try checkHTTPResponse(retryResponse, data: retryData, originalRequest: request)
@@ -137,7 +137,7 @@ final class APIClient: Sendable {
 
     // MARK: - Request Building
 
-    private func buildRequest(path: String, method: String, body: (some Encodable)? = nil as Empty?, queryItems: [URLQueryItem]? = nil) throws -> URLRequest {
+    private func buildRequest(path: String, method: String, body: (some Encodable)? = nil as Empty?, queryItems: [URLQueryItem]? = nil, headers: [String: String]? = nil) throws -> URLRequest {
         guard var components = URLComponents(url: baseURL.appendingPathComponent(path), resolvingAgainstBaseURL: false) else {
             throw APIError.networkError(underlying: URLError(.badURL))
         }
@@ -158,6 +158,11 @@ final class APIClient: Sendable {
             request.httpBody = try encoder.encode(body)
         }
 
+        // Per-call headers (e.g. the MFA action token for step-up-gated endpoints)
+        for (field, value) in headers ?? [:] {
+            request.setValue(value, forHTTPHeaderField: field)
+        }
+
         return request
     }
 
@@ -170,9 +175,9 @@ final class APIClient: Sendable {
             try checkHTTPResponse(response, data: data, originalRequest: request)
         } catch APIError.unauthorized {
             // Attempt token refresh and retry (mirrors web app's axios interceptor)
-            guard await attemptTokenRefresh(for: request) else {
-                await AuthManager.shared.forceLogout()
-                throw APIError.unauthorized
+            let outcome = await attemptTokenRefresh(for: request)
+            guard case .success = outcome else {
+                throw await handleFailedRefresh(outcome)
             }
             let (retryData, retryResponse) = try await performAuthorizedRequest(request)
             try checkHTTPResponse(retryResponse, data: retryData, originalRequest: request)
@@ -199,9 +204,9 @@ final class APIClient: Sendable {
         do {
             try checkHTTPResponse(response, data: data, originalRequest: request)
         } catch APIError.unauthorized {
-            guard await attemptTokenRefresh(for: request) else {
-                await AuthManager.shared.forceLogout()
-                throw APIError.unauthorized
+            let outcome = await attemptTokenRefresh(for: request)
+            guard case .success = outcome else {
+                throw await handleFailedRefresh(outcome)
             }
             let (retryData, retryResponse) = try await performAuthorizedRequest(request)
             try checkHTTPResponse(retryResponse, data: retryData, originalRequest: request)
@@ -225,17 +230,29 @@ final class APIClient: Sendable {
         }
     }
 
-    /// Attempt token refresh. Returns true if refresh succeeded.
-    private func attemptTokenRefresh(for request: URLRequest) async -> Bool {
+    /// Attempt token refresh. Only `.rejected` means the session is really over —
+    /// `.transient` must leave the Keychain alone so a dropped connection or a
+    /// backend 5xx doesn't log the user out.
+    private func attemptTokenRefresh(for request: URLRequest) async -> TokenRefreshOutcome {
         let path = request.url?.path ?? ""
         guard await !AuthInterceptor.shared.shouldSkipRefresh(for: path) else {
-            return false
+            return .rejected
         }
         do {
-            return try await AuthInterceptor.shared.refreshAccessToken() != nil
+            return try await AuthInterceptor.shared.refreshAccessToken()
         } catch {
-            return false
+            return .transient
         }
+    }
+
+    /// Maps a failed refresh to the right terminal state: log out only when the
+    /// server rejected the token, otherwise surface a retryable error.
+    private func handleFailedRefresh(_ outcome: TokenRefreshOutcome) async -> APIError {
+        if case .rejected = outcome {
+            await AuthManager.shared.forceLogout()
+            return APIError.unauthorized
+        }
+        return APIError.sessionRefreshUnavailable
     }
 
     // MARK: - Response Handling
@@ -264,6 +281,13 @@ final class APIClient: Sendable {
             let errorCode = detail?.code
             if errorCode == "MFA_REQUIRED", let mfaToken = detail?.mfaToken {
                 throw APIError.mfaRequired(mfaToken: mfaToken)
+            }
+            if errorCode == "SESSION_ACCESS_DENIED" {
+                // Access to one care session was revoked. Let the session list
+                // recover; this is not a logout.
+                Task { @MainActor in
+                    NotificationCenter.default.post(name: .sessionAccessRevoked, object: nil)
+                }
             }
             throw APIError.forbidden(code: errorCode)
         case 400:

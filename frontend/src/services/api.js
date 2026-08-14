@@ -324,11 +324,11 @@ export const documentAPI = {
   },
   checkDuplicate: (sessionId, filenames) =>
     api.post('/documents/check-duplicate', { session_id: sessionId, filenames }),
-  getSessionDocuments: (sessionId, category = null, search = null) => {
+  getSessionDocuments: (sessionId, category = null, search = null, config = {}) => {
     const params = {};
     if (category) params.category = category;
     if (search) params.search = search;
-    return api.get(`/documents/session/${sessionId}`, { params });
+    return api.get(`/documents/session/${sessionId}`, { params, ...config });
   },
   get: (documentId) => api.get(`/documents/${documentId}`),
   update: (documentId, ai_description, category = null) => {
@@ -346,10 +346,10 @@ export const documentAPI = {
 export const conversationAPI = {
   sendMessage: (data, config = {}) =>
     api.post('/conversation/message', data, config),
-  getHistory: (sessionId, limit = 50, offset = 0, beforeId = null) => {
+  getHistory: (sessionId, limit = 50, offset = 0, beforeId = null, config = {}) => {
     const params = { limit, offset };
     if (beforeId !== null) params.before_id = beforeId;
-    return api.get(`/conversation/${sessionId}/history`, { params });
+    return api.get(`/conversation/${sessionId}/history`, { params, ...config });
   },
   transcribeAudio: (audioFile, sessionId, skipJournalSynthesis = false, config = {}) => {
     const formData = new FormData();
@@ -370,8 +370,8 @@ export const conversationAPI = {
 
 // Journal API (new)
 export const journalAPI = {
-  getEntries: (sessionId, { startDate = null, endDate = null, maxDates = null } = {}) =>
-    api.get(`/journal/${sessionId}`, { params: { start_date: startDate, end_date: endDate, max_dates: maxDates } }),
+  getEntries: (sessionId, { startDate = null, endDate = null, maxDates = null } = {}, config = {}) =>
+    api.get(`/journal/${sessionId}`, { params: { start_date: startDate, end_date: endDate, max_dates: maxDates }, ...config }),
   getEntriesForDate: (sessionId, date) =>
     api.get(`/journal/${sessionId}/date/${date}`),
   createEntry: (sessionId, entryData) =>
@@ -384,11 +384,11 @@ export const journalAPI = {
 
 // Audio Recordings API
 export const audioRecordingsAPI = {
-  getRecordings: (sessionId, category = null, search = null) => {
+  getRecordings: (sessionId, category = null, search = null, config = {}) => {
     const params = {};
     if (category) params.category = category;
     if (search) params.search = search;
-    return api.get(`/audio-recordings/${sessionId}`, { params });
+    return api.get(`/audio-recordings/${sessionId}`, { params, ...config });
   },
   getRecording: (sessionId, recordingId) =>
     api.get(`/audio-recordings/${sessionId}/${recordingId}`),
@@ -542,17 +542,20 @@ export const mfaAPI = {
   // TOTP
   setupTOTP: () => api.post('/mfa/totp/setup'),
   verifyTOTPSetup: (code) => api.post('/mfa/totp/verify-setup', { code }),
-  deleteTOTP: () => api.delete('/mfa/totp'),
+  // Removing a factor requires MFA step-up; callers pass the
+  // X-MFA-Action-Token header via config
+  deleteTOTP: (config = {}) => api.delete('/mfa/totp', config),
 
   // Passkeys
   getPasskeyRegOptions: () => api.post('/mfa/passkey/register/options'),
   verifyPasskeyReg: (data) => api.post('/mfa/passkey/register/verify', data),
   getPasskeyAuthOptions: () => api.post('/mfa/passkey/auth/options'),
   listPasskeys: () => api.get('/mfa/passkeys'),
-  deletePasskey: (id) => api.delete(`/mfa/passkeys/${id}`),
+  deletePasskey: (id, config = {}) => api.delete(`/mfa/passkeys/${id}`, config),
 
   // Backup codes
-  generateBackupCodes: () => api.post('/mfa/backup-codes/generate'),
+  // Regenerating returns 10 usable factors, so it requires MFA step-up once MFA is on
+  generateBackupCodes: (config = {}) => api.post('/mfa/backup-codes/generate', null, config),
   getBackupCodesCount: () => api.get('/mfa/backup-codes/count'),
 
   // Trusted devices

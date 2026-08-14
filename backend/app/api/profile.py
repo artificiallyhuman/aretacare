@@ -7,7 +7,7 @@ import json
 import io
 
 from ..core.database import get_db
-from ..api.auth import get_current_user
+from ..api.auth import get_current_user, require_ai_data_sharing_consent
 from ..api.permissions import check_session_access
 from ..models.user import User
 from ..models.profile import Profile
@@ -70,7 +70,7 @@ async def check_profile_status(
 async def update_profile_from_activity(
     session_id: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(require_ai_data_sharing_consent)
 ):
     """
     Trigger AI update of the profile based on new activity.
@@ -229,7 +229,7 @@ async def regenerate_profile(
     session_id: str,
     request: ProfileRegenerateRequest,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(require_ai_data_sharing_consent)
 ):
     """
     Regenerate the profile from scratch.

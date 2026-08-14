@@ -14,6 +14,13 @@ final class AudioRecorderManager: NSObject, AVAudioRecorderDelegate {
     private(set) var elapsedTime: TimeInterval = 0
     private(set) var audioLevel: Float = 0
 
+    /// On-disk copy of the last finished recording. Retained until the caller
+    /// confirms the upload landed — reading the bytes into memory and deleting
+    /// the file immediately meant a background-task expiry mid-upload destroyed
+    /// the only copy. The file is `.completeUnlessOpen`-protected and swept at
+    /// next launch by `TempFileCleanup` if it is never claimed.
+    private(set) var lastRecordingURL: URL?
+
     private var maxDuration: TimeInterval = AppConstants.maxRecordingDuration
 
     var formattedDuration: String {
@@ -128,11 +135,20 @@ final class AudioRecorderManager: NSObject, AVAudioRecorderDelegate {
         audioRecorder = nil
         AudioSessionManager.shared.deactivate()
 
-        // The audio data has been read into memory; remove the temp recording
-        // so it doesn't linger on disk after upload.
-        try? FileManager.default.removeItem(at: fileURL)
+        // Keep the file until the caller confirms the upload succeeded, then
+        // it calls `discardRecording()`. Deleting it here lost the recording
+        // outright whenever the background assertion expired mid-upload.
+        lastRecordingURL = fileURL
 
         return result
+    }
+
+    /// Deletes the retained on-disk recording. Call once the audio is safely
+    /// uploaded, or when the user discards it.
+    func discardRecording() {
+        guard let url = lastRecordingURL else { return }
+        lastRecordingURL = nil
+        try? FileManager.default.removeItem(at: url)
     }
 
     /// Synchronous stop for cancel actions where data isn't needed.

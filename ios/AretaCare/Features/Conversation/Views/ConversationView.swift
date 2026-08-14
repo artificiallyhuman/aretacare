@@ -181,10 +181,8 @@ struct ConversationView: View {
                     },
                     onStop: { audioData in
                         isRecordingAudio = false
-                        guard let sessionId = currentSessionId else { return }
-                        Task {
-                            await conversationVM.uploadAudioMessage(data: audioData, sessionId: sessionId)
-                        }
+                        guard let sessionId = currentSessionId else { return false }
+                        return await conversationVM.uploadAudioMessage(data: audioData, sessionId: sessionId)
                     }
                 )
             } else {
@@ -524,17 +522,28 @@ struct ConversationView: View {
         switch result {
         case .success(let urls):
             guard let url = urls.first else { return }
-            guard url.startAccessingSecurityScopedResource() else { return }
-            defer { url.stopAccessingSecurityScopedResource() }
-
-            guard let data = try? Data(contentsOf: url) else { return }
-            if data.count > AppConstants.maxFileSizeBytes {
-                showFileSizeAlert = true
-                return
-            }
             let filename = url.lastPathComponent
             let contentType = url.pathExtension.mimeTypeForExtension
-            pendingAttachment = PendingAttachment(data: data, filename: filename, contentType: contentType)
+
+            // Reading up to 30 MB — potentially from an iCloud-backed URL that
+            // has to be materialised first — must not run on the main actor.
+            Task {
+                let data = await Task.detached(priority: .userInitiated) { () -> Data? in
+                    guard url.startAccessingSecurityScopedResource() else { return nil }
+                    defer { url.stopAccessingSecurityScopedResource() }
+                    guard let mapped = try? Data(contentsOf: url, options: [.mappedIfSafe]) else { return nil }
+                    // Copy off the mapping before relinquishing access to the
+                    // provider's file — the upload reads these bytes much later.
+                    return Data(mapped)
+                }.value
+
+                guard let data else { return }
+                if data.count > AppConstants.maxFileSizeBytes {
+                    showFileSizeAlert = true
+                    return
+                }
+                pendingAttachment = PendingAttachment(data: data, filename: filename, contentType: contentType)
+            }
 
         case .failure:
             break

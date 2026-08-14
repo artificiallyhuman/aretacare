@@ -1,6 +1,6 @@
 import Foundation
 
-@Observable
+@Observable @MainActor
 final class NotificationRouter {
     static let shared = NotificationRouter()
 

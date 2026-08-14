@@ -46,4 +46,5 @@ api_router.include_router(waitlist.router)
 api_router.include_router(notifications.router)
 
 # Admin console
+api_router.include_router(admin.public_router)
 api_router.include_router(admin.router)
