@@ -170,7 +170,11 @@ struct CollaborationView: View {
         .sensoryFeedback(.success, trigger: shareHapticTrigger)
         .task {
             viewModel.loadCollaborators(session: session)
-            await viewModel.fetchPendingInvitations(sessionId: session.id)
+            // Pending invitations are owner-only on the backend — a collaborator
+            // would get a 403 and see a false permission error.
+            if isOwner {
+                await viewModel.fetchPendingInvitations(sessionId: session.id)
+            }
         }
     }
 

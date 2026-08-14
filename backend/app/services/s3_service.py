@@ -14,6 +14,9 @@ S3_MAX_RETRIES = 3
 S3_RETRY_DELAY = 0.5  # Initial delay in seconds
 S3_MAX_RETRY_DELAY = 4  # Max delay between retries
 
+# Max keys per delete_objects call — 1000 is the S3 API hard limit.
+S3_DELETE_BATCH_SIZE = 1000
+
 # Retryable S3 error codes (transient failures)
 RETRYABLE_S3_ERROR_CODES = {
     'RequestTimeout',
@@ -257,6 +260,75 @@ class S3Service:
                 pass  # Don't let error logging crash the app
 
             return False
+
+    def _delete_objects_sync(self, keys: list) -> list:
+        """Delete up to S3_DELETE_BATCH_SIZE keys in one call. Returns the keys that failed.
+
+        Uses a single client for the whole batch so the connection is reused, and reports
+        per-key failures rather than raising — matching delete_file()'s "log and continue"
+        contract, since orphaned objects are swept up by the admin S3 cleanup.
+        """
+        if not keys:
+            return []
+
+        client = self._create_thread_client()
+        failed = []
+
+        for start in range(0, len(keys), S3_DELETE_BATCH_SIZE):
+            chunk = keys[start:start + S3_DELETE_BATCH_SIZE]
+            try:
+                response = client.delete_objects(
+                    Bucket=self.bucket_name,
+                    Delete={
+                        "Objects": [{"Key": k} for k in chunk],
+                        "Quiet": True,  # only report errors, not every success
+                    },
+                )
+                # delete_objects reports per-key problems in Errors[] instead of raising.
+                for error in response.get("Errors", []) or []:
+                    failed.append(error.get("Key"))
+                    logger.error(
+                        f"Failed to delete S3 file {error.get('Key')}: "
+                        f"{error.get('Code')} {error.get('Message')}"
+                    )
+            except ClientError as e:
+                # Whole-chunk failure (auth, network, throttling). Record every key in it.
+                failed.extend(chunk)
+                logger.error(f"S3 batch delete failed for {len(chunk)} key(s): {e}")
+
+        return failed
+
+    async def delete_files(self, keys: list) -> int:
+        """Delete many S3 objects in batched calls. Returns the number deleted.
+
+        Deleting one key per request meant one round trip (and, because a fresh client was
+        built each time, one TLS handshake) per file — so removing a care session cost
+        2P + I + M sequential round trips. This collapses that to one call per 1000 keys.
+
+        Never raises: failures are logged and reported via the return count, because callers
+        delete the database rows first and orphaned objects are handled by admin cleanup.
+        """
+        if not keys:
+            return 0
+
+        # Drop any None/empty keys defensively — a null thumbnail_s3_key would otherwise
+        # fail the whole chunk.
+        clean_keys = [k for k in keys if k]
+        if not clean_keys:
+            return 0
+
+        try:
+            failed = await asyncio.to_thread(self._delete_objects_sync, clean_keys)
+        except Exception as e:  # pragma: no cover - defensive; _delete_objects_sync catches
+            logger.error(f"Unexpected error during S3 batch delete: {e}")
+            return 0
+
+        deleted = len(clean_keys) - len(failed)
+        logger.info(
+            f"S3 batch delete: {deleted}/{len(clean_keys)} object(s) deleted"
+            + (f", {len(failed)} failed" if failed else "")
+        )
+        return deleted
 
     # Presigned URL expiration constants (seconds)
     PRESIGNED_URL_DOCUMENT = 900       # 15 min for document downloads (healthcare data)

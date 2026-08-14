@@ -152,15 +152,17 @@ final class SettingsViewModel {
         }
     }
 
-    func deleteSession(id: String) async {
+    func deleteSession(id: String) async -> Bool {
         errorMessage = nil
 
         do {
             try await APIClient.shared.delete(APIEndpoints.Sessions.delete(id))
             sessions.removeAll { $0.id == id }
             NotificationCenter.default.post(name: .sessionsDidChange, object: nil)
+            return true
         } catch {
             errorMessage = error.localizedDescription
+            return false
         }
     }
 

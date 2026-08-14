@@ -2197,3 +2197,33 @@ def run_migrations():
             except Exception as e:
                 logger.error(f"Failed to add trigram indexes: {e}")
                 conn.rollback()
+
+        # =================================================================
+        # INDEXES FOR ON DELETE SET NULL FOREIGN KEYS ON conversations
+        # =================================================================
+        # Postgres enforces ON DELETE SET NULL with a per-row trigger, so deleting a
+        # document issues "UPDATE conversations SET document_id = NULL WHERE document_id = ?"
+        # once per deleted row. Without an index on that column each of those is a
+        # sequential scan of the whole conversations table, which is what made deleting a
+        # care session (and deleting an account) take tens of seconds and get worse as the
+        # table grew. audio_recording_id was already covered by idx_conversations_audio;
+        # these two were not.
+        migration_name = "add_conversations_set_null_fk_indexes"
+        if not has_migration_run(conn, migration_name):
+            logger.info("Adding indexes for conversations SET NULL foreign keys...")
+            try:
+                conn.execute(text(
+                    "CREATE INDEX IF NOT EXISTS idx_conversations_document "
+                    "ON conversations (document_id)"
+                ))
+                conn.commit()
+                conn.execute(text(
+                    "CREATE INDEX IF NOT EXISTS idx_conversations_last_edited_by "
+                    "ON conversations (last_edited_by_user_id)"
+                ))
+                conn.commit()
+                mark_migration_complete(conn, migration_name)
+                logger.info("Successfully added conversations SET NULL foreign key indexes")
+            except Exception as e:
+                logger.error(f"Failed to add conversations SET NULL foreign key indexes: {e}")
+                conn.rollback()

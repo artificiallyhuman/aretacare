@@ -4,6 +4,9 @@ struct UploadingOverlay: View {
     // Simple mode (backward compatible)
     var message: String = "Uploading..."
 
+    // VoiceOver label for the simple mode card — override for non-upload work.
+    var accessibilityLabel: String = "Upload in progress"
+
     // Batch mode (optional — all nil by default for backward compatibility)
     var fileProgress: [UploadFileProgress]?
     var currentIndex: Int?
@@ -34,7 +37,7 @@ struct UploadingOverlay: View {
         .padding(24)
         .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16))
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("Upload in progress")
+        .accessibilityLabel(Text(accessibilityLabel))
     }
 
     // MARK: - Batch Mode

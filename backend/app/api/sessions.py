@@ -468,15 +468,13 @@ async def delete_session(
     db.delete(session)
     db.commit()
 
-    # Now delete S3 files after DB commit succeeds
-    # If S3 deletion fails, files become orphans (cleaned up by admin S3 cleanup)
-    for s3_key in s3_keys_to_delete:
-        try:
-            await s3_service.delete_file(s3_key)
-            logger.info(f"Deleted S3 file: {s3_key}")
-        except Exception as e:
-            logger.error(f"Failed to delete S3 file {s3_key}: {str(e)}")
-            # Continue deleting other files even if one fails
+    # Now delete S3 files after DB commit succeeds, in batched calls rather than one
+    # request per object — a session with many documents and recordings previously cost
+    # one sequential round trip per file, which is what made this endpoint take tens of
+    # seconds. delete_files() never raises; failures are logged and the objects become
+    # orphans, cleaned up by the admin S3 cleanup.
+    if s3_keys_to_delete:
+        await s3_service.delete_files(s3_keys_to_delete)
 
     return {"message": "Session deleted successfully"}
 
@@ -1036,14 +1034,26 @@ async def get_pending_invitations(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """Get all pending invitations for a session (owner only)"""
+    """Get all pending invitations for a session.
+
+    Only the owner sees actual invitations; collaborators get an empty list.
+    """
     session = db.query(SessionModel).filter(SessionModel.id == session_id).first()
 
     if not session:
         raise HTTPException(status_code=404, detail="Care session not found")
 
-    # Only owner can view pending invitations
-    check_session_access(session, current_user.id, db, require_owner=True)
+    # Members only — non-members still get a 403 here.
+    check_session_access(session, current_user.id, db)
+
+    # Pending invitations are owner-only information, but returning 403 to a collaborator
+    # made the iOS Collaboration sheet show a spurious "You don't have permission" banner:
+    # it requests this on open and only *displays* the result to owners. An empty list is
+    # returned unconditionally for non-owners, so it discloses nothing — a collaborator
+    # cannot tell whether invitations exist, let alone who they are for. The mutating
+    # invitation endpoints remain owner-only.
+    if session.owner_id != current_user.id:
+        return []
 
     invitations = db.query(PendingInvitation).filter(
         PendingInvitation.session_id == session_id

@@ -13,12 +13,37 @@ struct SessionDetailView: View {
     @State private var showCollaboration = false
     @State private var showDeleteConfirmation = false
     @State private var saveHapticTrigger = 0
+    @State private var isDeleting = false
 
     private var session: SessionResponse? {
         viewModel.sessions.first { $0.id == sessionId }
     }
 
     var body: some View {
+        content
+            .disabled(isDeleting)
+            .overlay {
+                if isDeleting {
+                    UploadingOverlay(
+                        message: "Deleting care session…",
+                        accessibilityLabel: "Deleting care session"
+                    )
+                }
+            }
+            .overlay(alignment: .top) {
+                if let error = viewModel.errorMessage {
+                    ErrorBannerView(message: error) {
+                        viewModel.dismissError()
+                    }
+                    .padding(.top, 8)
+                }
+            }
+    }
+
+    /// Split out of `body` so the deleting overlay and error banner stay attached
+    /// even after the session disappears from the view model (see `else` branch).
+    @ViewBuilder
+    private var content: some View {
         if let session {
             Form {
                 // Session info
@@ -108,8 +133,14 @@ struct SessionDetailView: View {
                     .confirmationDialog("Delete Care Session", isPresented: $showDeleteConfirmation, titleVisibility: .visible) {
                         Button("Delete", role: .destructive) {
                             Task {
-                                await viewModel.deleteSession(id: sessionId)
-                                dismiss()
+                                isDeleting = true
+                                if await viewModel.deleteSession(id: sessionId) {
+                                    // Leave the overlay up through the pop so the
+                                    // empty state never shows.
+                                    dismiss()
+                                } else {
+                                    isDeleting = false
+                                }
                             }
                         }
                         Button("Cancel", role: .cancel) {}
@@ -153,6 +184,12 @@ struct SessionDetailView: View {
                 }
             }
             .sensoryFeedback(.success, trigger: saveHapticTrigger)
+        } else {
+            // A successful delete removes the session from the view model before
+            // `dismiss()` takes effect. Render a matching backdrop rather than
+            // collapsing to nothing, which would flash blank under the overlay.
+            Color(.systemGroupedBackground)
+                .ignoresSafeArea()
         }
     }
 

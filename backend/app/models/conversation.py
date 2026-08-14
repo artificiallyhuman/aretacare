@@ -30,7 +30,13 @@ class Conversation(Base):
 
     # Rich media support
     message_type = Column(Enum(MessageType), default=MessageType.TEXT, nullable=False)
-    document_id = Column(Integer, ForeignKey("documents.id", ondelete="SET NULL"), nullable=True)
+    # index=True on both FK columns is required, not just an optimisation: Postgres runs
+    # ON DELETE SET NULL as a per-row trigger, so deleting a document/recording issues an
+    # UPDATE ... WHERE document_id = ? against this table. Without an index that is a
+    # sequential scan of every conversation on the platform, once per deleted row — which is
+    # what made deleting a care session take tens of seconds. (audio_recording_id is already
+    # covered by idx_conversations_audio; document_id was not.)
+    document_id = Column(Integer, ForeignKey("documents.id", ondelete="SET NULL"), nullable=True, index=True)
     audio_recording_id = Column(Integer, ForeignKey("audio_recordings.id", ondelete="SET NULL"), nullable=True)
     media_url = Column(String, nullable=True)
     extracted_text = Column(Text, nullable=True)
@@ -39,7 +45,8 @@ class Conversation(Base):
 
     # Source tracking for collaborative sessions
     created_by_user_id = Column(String, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
-    last_edited_by_user_id = Column(String, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    # Same reasoning as document_id above — this one fires on account deletion.
+    last_edited_by_user_id = Column(String, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
 
     # Relationships
     session = relationship("Session", back_populates="conversations")
