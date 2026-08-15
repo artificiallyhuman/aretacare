@@ -10,25 +10,31 @@ pydantic-settings==2.15.0
 email-validator==2.3.0
 python-multipart==0.0.32
 boto3==1.43.69
-openai>=1.56.0
+# Pinned, not ranged. These three were previously declared as `>=` floors, which meant every
+# rebuild silently resolved to the newest release — openai had already reached 2.54.0 against
+# a >=1.56.0 floor, pypdf 6.16.1 against >=3.9.0, aioapns 4.0 against >=3.1. That is three
+# unreviewed major upgrades in production, and it also defeats the major-version ignore in
+# .github/dependabot.yml, because Dependabot cannot compute a semver bump type from a range.
+# Pinned here to the versions already running and verified.
+openai==2.54.0
 python-dotenv==1.2.2
 python-jose[cryptography]==3.5.0
 passlib[bcrypt]==1.7.4
 bcrypt==4.3.0
-pypdf>=3.9.0
+pypdf==6.16.1
 python-magic==0.4.27
 pillow==12.3.0
 pytesseract==0.3.13
 pdf2image==1.17.0
 httpx<0.28.0
 slowapi==0.1.10
-redis==5.2.1  # shared rate-limit storage backend for slowapi/limits (see core/rate_limit.py)
+redis==5.3.1  # shared rate-limit storage backend for slowapi/limits (see core/rate_limit.py)
 sentry-sdk[fastapi]==2.67.1
-reportlab==4.0.7
+reportlab==4.5.1
 pyotp==2.10.0
-webauthn==2.2.0
+webauthn==2.8.0
 # pgvector stays pinned deliberately: 0.3.6 -> 0.5.0 is a minor bump on a 0.x line, and this
 # drives journal embeddings + similarity search (services/embedding_service.py). Upgrade with
 # a backfill/query check, not as part of a routine batch.
 pgvector==0.3.6
-aioapns>=3.1
+aioapns==4.0
