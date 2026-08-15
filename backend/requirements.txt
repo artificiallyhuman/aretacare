@@ -22,11 +22,11 @@ pytesseract==0.3.13
 pdf2image==1.17.0
 httpx<0.28.0
 slowapi==0.1.10
-redis==5.2.1  # shared rate-limit storage backend for slowapi/limits (see core/rate_limit.py)
+redis==5.3.1  # shared rate-limit storage backend for slowapi/limits (see core/rate_limit.py)
 sentry-sdk[fastapi]==2.67.1
-reportlab==4.0.7
+reportlab==4.5.1
 pyotp==2.10.0
-webauthn==2.2.0
+webauthn==2.8.0
 # pgvector stays pinned deliberately: 0.3.6 -> 0.5.0 is a minor bump on a 0.x line, and this
 # drives journal embeddings + similarity search (services/embedding_service.py). Upgrade with
 # a backfill/query check, not as part of a routine batch.
