@@ -8,6 +8,7 @@ struct AudioRecorderView: View {
     @State private var recorder = AudioRecorderManager()
     @State private var showingPermissionAlert = false
     @State private var showingCancelConfirmation = false
+    @State private var isUploading = false
 
     var body: some View {
         NavigationStack {
@@ -63,6 +64,7 @@ struct AudioRecorderView: View {
                                 .clipShape(Circle())
                         }
                         .accessibilityLabel(recorder.isPaused ? "Resume recording" : "Pause recording")
+                        .disabled(isUploading)
                     }
 
                     // Record / Stop
@@ -90,9 +92,10 @@ struct AudioRecorderView: View {
                         }
                     }
                     .accessibilityLabel(recorder.isRecording || recorder.isPaused ? "Stop recording" : "Start recording")
+                    .disabled(isUploading)
                 }
 
-                Text(recorder.isRecording ? "Tap to stop" : (recorder.isPaused ? "Paused" : "Tap to record"))
+                Text(statusCaption)
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
 
@@ -110,6 +113,7 @@ struct AudioRecorderView: View {
                             dismiss()
                         }
                     }
+                    .disabled(isUploading)
                 }
             }
             .confirmationDialog("Discard Recording?", isPresented: $showingCancelConfirmation, titleVisibility: .visible) {
@@ -133,6 +137,23 @@ struct AudioRecorderView: View {
                 Text("Please allow microphone access in Settings to record audio.")
             }
         }
+        // Transcription happens server-side and can take a while — without this
+        // the sheet sits on the idle recorder and looks like nothing happened.
+        .overlay {
+            if isUploading {
+                UploadingOverlay(
+                    message: "Uploading and transcribing…",
+                    accessibilityLabel: "Uploading and transcribing your recording"
+                )
+            }
+        }
+        .interactiveDismissDisabled(isUploading)
+    }
+
+    private var statusCaption: String {
+        if isUploading { return "Uploading and transcribing…" }
+        if recorder.isRecording { return "Tap to stop" }
+        return recorder.isPaused ? "Paused" : "Tap to record"
     }
 
     private func startRecording() {
@@ -150,7 +171,10 @@ struct AudioRecorderView: View {
     }
 
     private func stopAndUpload() {
+        guard !isUploading else { return }
+        isUploading = true
         Task {
+            defer { isUploading = false }
             guard let audioData = await recorder.stopAsync() else { return }
             let filename = "recording_\(Date().apiDateString)_\(Int(Date().timeIntervalSince1970)).m4a"
             // Hold the on-disk copy until the upload lands, so a suspended app

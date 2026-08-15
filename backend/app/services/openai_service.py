@@ -948,9 +948,12 @@ class OpenAIService:
 
         response = await self._create_chat_completion(messages, feature="chat", user_id=user_id)
 
-        if response:
-            response = _filter_citation_links(response)
-
+        # NOTE: _filter_citation_links is deliberately NOT applied here. It enforces the
+        # four-domain allowlist that the Jargon Translator and Conversation Coach prompts
+        # explicitly instruct the model to follow, so it is a no-op there. General
+        # conversation carries no such instruction, so filtering flattened every legitimate
+        # link into plain text. Image stripping — the zero-click exfiltration risk — is
+        # applied centrally in _create_chat_completion() and still covers this path.
         return response if response else ai_config.FALLBACK_CHAT
 
     async def chat_with_journal(
@@ -1202,12 +1205,12 @@ The user is now responding to THIS message above. Interpret their response accor
                 user_id=user_id
             )
 
-        # Conversation context includes untrusted content (documents, OCR text, audio
-        # transcripts, collaborator messages), so a prompt injection can reach the model
-        # here. Constrain outbound links to the approved health domains, same as the tools.
-        if response:
-            response = _filter_citation_links(response)
-
+        # NOTE: _filter_citation_links is deliberately NOT applied here — see chat() above.
+        # Conversation context does carry untrusted content (documents, OCR text, audio
+        # transcripts, collaborator messages), but the exfiltration risk that mattered was
+        # markdown images, which fire with no user interaction and are stripped centrally in
+        # _create_chat_completion(). A link requires a deliberate tap, and both clients
+        # already restrict URL schemes.
         return response if response else ai_config.FALLBACK_CHAT
 
     async def transcribe_audio(self, audio_file, filename: str) -> Optional[str]:

@@ -4,6 +4,7 @@ import RevenueCatUI
 struct ContentView: View {
     @State private var authManager = AuthManager.shared
     @State private var subscriptionManager = SubscriptionManager.shared
+    @State private var isSigningOut = false
     private let biometricManager = BiometricManager.shared
 
     var body: some View {
@@ -92,13 +93,29 @@ struct ContentView: View {
                     subscriptionManager.updateEntitlements(from: customerInfo)
                 }
 
-            HStack(spacing: 4) {
-                Link("Terms of Service", destination: AppConstants.termsURL)
-                Text("·")
-                Link("Privacy Policy", destination: AppConstants.privacyURL)
+            VStack(spacing: 6) {
+                // Without this the paywall is a dead end: a signed-in account
+                // with no subscription can neither reach the app nor get back
+                // to the login screen to use a different one.
+                Button("Use a Different Account") {
+                    guard !isSigningOut else { return }
+                    isSigningOut = true
+                    Task {
+                        await authManager.logout()
+                        isSigningOut = false
+                    }
+                }
+                .font(.subheadline)
+                .disabled(isSigningOut)
+
+                HStack(spacing: 4) {
+                    Link("Terms of Service", destination: AppConstants.termsURL)
+                    Text("·")
+                    Link("Privacy Policy", destination: AppConstants.privacyURL)
+                }
+                .font(.caption2)
+                .foregroundStyle(.secondary)
             }
-            .font(.caption2)
-            .foregroundStyle(.secondary)
             .padding(.vertical, 8)
         }
     }

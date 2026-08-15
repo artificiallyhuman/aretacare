@@ -739,19 +739,48 @@ const Conversation = () => {
 
   const confirmReset = async () => {
     if (!pendingReset) return;
+    const anchorId = pendingReset;
     setIsResetting(true);
     try {
-      await conversationAPI.resetToMessage(pendingReset);
-      // The backend deletes every message after the anchor, so drop those
-      // locally rather than reloading (a reload would throw away older messages
-      // the user paged in). The merge below picks up anything still on the server.
-      setMessages(prevMessages =>
-        prevMessages.filter(msg => typeof msg.id !== 'number' || msg.id <= pendingReset)
-      );
-      setPendingReset(null);
+      await conversationAPI.resetToMessage(anchorId);
+
+      // Fetch the post-reset page BEFORE touching state. Truncating locally and then
+      // merging was two separate commits, and the render in between showed a briefly
+      // wrong conversation (the list shrank, so the scroll anchor landed on much older
+      // messages before settling). Computing the final list first makes it one commit.
+      let serverMessages = [];
       if (activeSessionId) {
-        await mergeLatestMessages(activeSessionId);
+        try {
+          const response = await conversationAPI.getHistory(activeSessionId, MESSAGE_PAGE_SIZE, 0);
+          if (activeSessionId !== activeSessionIdRef.current) return;
+          serverMessages = response.data.messages || [];
+        } catch (historyErr) {
+          if (!isAbortError(historyErr)) {
+            // Non-fatal: the reset itself succeeded, so fall back to the local
+            // truncation rather than leaving deleted messages on screen.
+            console.error('Failed to refresh history after reset:', historyErr);
+          }
+        }
       }
+
+      setMessages(prevMessages => {
+        // The backend deletes everything after the anchor and keeps the anchor itself.
+        // Keep older messages the user paged in — a plain reload would discard them.
+        const kept = prevMessages.filter(
+          msg => typeof msg.id === 'number' && msg.id <= anchorId
+        );
+        const knownIds = new Set(kept.map(msg => msg.id));
+        const additions = serverMessages.filter(
+          msg => msg.id <= anchorId && !knownIds.has(msg.id)
+        );
+        return [...kept, ...additions]
+          .sort((a, b) => a.id - b.id)
+          .slice(-MAX_LOADED_MESSAGES);
+      });
+      setPendingReset(null);
+      // The list just got shorter; put the view back at the bottom rather than
+      // wherever the shrunken content left the scroll position.
+      setTimeout(() => scrollToBottom('auto'), 0);
     } catch (err) {
       console.error('Failed to reset conversation:', err);
       setError('Failed to reset conversation. Please try again.');

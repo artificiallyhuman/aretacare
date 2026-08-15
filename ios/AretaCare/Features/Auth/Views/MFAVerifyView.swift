@@ -133,16 +133,22 @@ struct MFAVerifyView: View {
                             .foregroundStyle(.blue)
                             .frame(width: 32)
 
+                        // The VStack takes the row's free width itself rather than
+                        // sharing it with a Spacer — otherwise the description is
+                        // squeezed into half the row and wraps into a narrow block.
                         VStack(alignment: .leading, spacing: 2) {
                             Text(method.displayName)
                                 .font(.subheadline.weight(.medium))
                                 .foregroundStyle(.primary)
+                                .multilineTextAlignment(.leading)
+                                .frame(maxWidth: .infinity, alignment: .leading)
                             Text(methodDescription(method))
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
+                                .multilineTextAlignment(.leading)
+                                .frame(maxWidth: .infinity, alignment: .leading)
                         }
-
-                        Spacer()
+                        .frame(maxWidth: .infinity, alignment: .leading)
 
                         Image(systemName: "chevron.right")
                             .font(.caption.weight(.semibold))
