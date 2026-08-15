@@ -120,11 +120,23 @@ def verify_mfa_for_sensitive_action(
     action_token = request.headers.get("X-MFA-Action-Token")
 
     if not action_token:
+        # A client that understands MFA_REQUIRED never shows this string — it intercepts the
+        # code, presents its step-up UI and replays the call with a token. So the only reader
+        # is a client too old to do that, which on iOS means a build predating 1.0.9. Point
+        # those users at an update; the code itself stays MFA_REQUIRED so current clients'
+        # branching is unaffected.
+        message = "MFA verification required for this action. Please verify your identity."
+        if request.headers.get("X-Client-Type") == "ios":
+            message = (
+                "MFA verification required for this action. If you weren't prompted to "
+                "verify, update AretaCare to the latest version and try again."
+            )
+
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail={
                 "code": "MFA_REQUIRED",
-                "message": "MFA verification required for this action. Please verify your identity."
+                "message": message
             }
         )
 

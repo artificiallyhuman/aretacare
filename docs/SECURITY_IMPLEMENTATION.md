@@ -63,11 +63,27 @@ Technical documentation of AretaCare's security measures.
 
 ### Sensitive Action Protection
 
-Password change, email change, and account deletion require MFA re-verification when MFA is enabled. Flow:
+These actions require MFA re-verification when MFA is enabled:
+
+| Route | Action |
+|-------|--------|
+| `PUT /auth/password` | Password change |
+| `PUT /auth/email` | Email change |
+| `DELETE /auth/account` | Account deletion |
+| `DELETE /mfa/totp` | Remove authenticator app |
+| `DELETE /mfa/passkeys/{id}` | Remove passkey |
+| `POST /mfa/backup-codes/generate` | Regenerate backup codes |
+
+Flow:
 1. Request action → Server returns `MFA_REQUIRED`
 2. User verifies with passkey/TOTP/backup code
 3. Server returns single-use `action_token` (5-min expiry)
 4. Client retries with `X-MFA-Action-Token` header
+
+Factor-removal routes additionally refuse to remove the account's **last remaining factor**,
+returning `400` with a plain-string detail. That guard is independent of step-up and runs
+after it — without it, a user could strip their only factor while `mfa_enabled` stayed true,
+locking themselves out of login.
 
 ### Email Notifications
 

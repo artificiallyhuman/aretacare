@@ -121,7 +121,7 @@ docker compose down -v   # Stop and reset database
 |-------|------------|
 | Frontend | React 18, Vite, Tailwind CSS |
 | iOS App | SwiftUI (iOS 17+), `@Observable @MainActor` ViewModels, XcodeGen, KeychainAccess, MarkdownUI, RevenueCat (subscriptions), iPad-optimized layouts |
-| Backend | FastAPI, SQLAlchemy, PostgreSQL + pgvector (28 tables) |
+| Backend | FastAPI, SQLAlchemy, PostgreSQL + pgvector (28 tables), Redis (shared rate limiting) |
 | AI | OpenAI GPT-5.6 Sol, GPT-4o-transcribe, text-embedding-3-small |
 | Storage | AWS S3 |
 | Monitoring | Sentry (errors/crashes, strict PII scrubbing, disabled without a DSN) |

@@ -27,6 +27,17 @@ Generate secret key:
 python -c "import secrets; print(secrets.token_urlsafe(32))"
 ```
 
+Two variables are easy to miss because the app starts without them:
+
+- **`HCAPTCHA_SECRET_KEY`** — required for the web waitlist and unauthenticated feedback.
+  Verification fails closed, so leaving it unset breaks signups while the app otherwise looks
+  healthy. Get keys at https://www.hcaptcha.com/.
+- **`REDIS_URL`** — backs shared rate-limit counters. Optional for local development (docker
+  compose already runs Redis and falls back to per-process memory without it), but
+  **required in any deploy running more than one instance**: without it each process keeps
+  its own counters, so configured limits are silently multiplied by the instance count and
+  reset on every deploy.
+
 Start services:
 ```bash
 docker compose up --build
@@ -51,11 +62,22 @@ Configure `ios/AretaCare/Configuration/Debug.xcconfig`:
 API_BASE_URL = http://localhost:8000/api
 ```
 
-Build and run on iOS Simulator (requires Xcode 16+, iOS 17+ target).
+Build and run on iOS Simulator (requires Xcode 16+, iOS 17+ target). The Simulator works
+without `Secrets.xcconfig`.
+
+**Device and App Store builds additionally need `Secrets.xcconfig`** (gitignored):
+```bash
+cd ios/AretaCare/Configuration
+cp Secrets.xcconfig.template Secrets.xcconfig
+```
+Then set `DEVELOPMENT_TEAM` to your Apple Team ID and `REVENUECAT_API_KEY` to your RevenueCat
+API key. Without these the project builds for Simulator but cannot sign for a device.
 
 **SPM Dependencies** (resolved automatically on first build):
 - `KeychainAccess` >= 4.2.2 — secure token storage
 - `MarkdownUI` >= 2.4.0 — markdown rendering
+- `RevenueCat` >= 5.27.1 — subscriptions and paywall (iOS requires a subscription)
+- `sentry-cocoa` — crash reporting; skipped at runtime when no DSN is configured
 
 ## AWS S3 Setup
 

@@ -57,6 +57,14 @@ final class APIClient: Sendable {
         }
     }
 
+    /// Marketing version (`CFBundleShortVersionString`, e.g. "1.0.9"), sent on every request
+    /// as `X-App-Version`. Nothing on the server gates on it yet — it exists so a future
+    /// server-side control can tell an out-of-date client apart from a current one and
+    /// degrade deliberately, rather than staying disabled until App Store review completes.
+    /// Falls back to "unknown" rather than crashing; this is telemetry, not a critical path.
+    private static let appVersion: String =
+        Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "unknown"
+
     // MARK: - HTTP Methods
 
     func get<T: Decodable>(_ path: String, queryItems: [URLQueryItem]? = nil) async throws -> T {
@@ -152,6 +160,7 @@ final class APIClient: Sendable {
         request.httpMethod = method
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         request.setValue("ios", forHTTPHeaderField: "X-Client-Type")
+        request.setValue(Self.appVersion, forHTTPHeaderField: "X-App-Version")
 
         if let body, !(body is Empty) {
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")

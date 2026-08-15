@@ -163,16 +163,16 @@ def delete_totp(
     db: Session = Depends(get_db)
 ):
     """Remove TOTP authentication from the account."""
-    # TODO(M-5 re-enable after iOS ships): step-up only. The App Store build in users'
-    # hands does not send X-MFA-Action-Token on this route, so enabling this now would
-    # 403 MFA-enabled iOS users out of factor management until Apple approves the new
-    # build. Uncomment once that release is confirmed live; web already sends the header.
-    #
-    # Do NOT bundle the last-factor guard below back into this hold — it needs no client
-    # support (it returns a plain 400 every client already renders), and disabling it lets
-    # a user strip their only factor while mfa_enabled stays true, locking them out.
-    # verify_mfa_for_sensitive_action(request, current_user, db)
+    # Removing a factor is a sensitive action: a stolen access token could otherwise strip
+    # the account's second factor outright. Both shipping clients satisfy this — iOS catches
+    # MFA_REQUIRED and replays with the token (MFAViewModel/MFAStepUpSheet), web requests
+    # step-up up front (MFASetup.jsx). Builds older than iOS 1.0.9 cannot, which is why the
+    # 403 message carries an "update the app" hint for iOS callers (see auth.py).
+    verify_mfa_for_sensitive_action(request, current_user, db)
 
+    # Independent of step-up, and must stay that way: this returns a plain 400 that every
+    # client renders, and without it a user can strip their only factor while mfa_enabled
+    # stays true — locking themselves out of login.
     _guard_last_remaining_factor(db, current_user, removing="totp")
 
     if MFAService.delete_totp(db, current_user.id):
@@ -202,10 +202,7 @@ def generate_backup_codes(
     # least as sensitive as removing one. Without step-up, a stolen access token buys a
     # durable MFA bypass that outlives the token — and silently invalidates the codes the
     # user actually has.
-    #
-    # TODO(M-5 re-enable after iOS ships): temporarily disabled — see delete_totp above.
-    # Old iOS builds don't send X-MFA-Action-Token here. Re-enable once the iOS release is live.
-    # verify_mfa_for_sensitive_action(request, current_user, db)
+    verify_mfa_for_sensitive_action(request, current_user, db)
 
     codes = MFAService.generate_backup_codes(db, current_user.id)
     _notify_mfa_factor_removed(db, request, current_user, "backup codes (regenerated)")
@@ -307,10 +304,9 @@ def delete_passkey(
     db: Session = Depends(get_db)
 ):
     """Delete a specific passkey."""
-    # TODO(M-5 re-enable after iOS ships): step-up only — see delete_totp above for why the
-    # last-factor guard below must stay enabled and must not be bundled into this hold.
-    # verify_mfa_for_sensitive_action(request, current_user, db)
+    verify_mfa_for_sensitive_action(request, current_user, db)
 
+    # See delete_totp: independent of step-up, and must not be bundled back into it.
     _guard_last_remaining_factor(db, current_user, removing="passkey")
 
     if MFAService.delete_passkey(db, current_user.id, passkey_id):

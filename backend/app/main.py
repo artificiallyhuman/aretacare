@@ -200,6 +200,10 @@ app.add_middleware(
         "X-Requested-With",
         "X-MFA-Action-Token",
         "X-Client-Type",
+        # Sent by iOS 1.0.9+. Nothing gates on it yet; it exists so a future server-side
+        # control can degrade deliberately for clients too old to satisfy it, instead of
+        # having to stay disabled until an App Store review completes (see the M-5 hold).
+        "X-App-Version",
         "X-Trusted-Device",
     ],
 )

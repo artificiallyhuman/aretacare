@@ -131,10 +131,19 @@ require step-up whenever the account has MFA enabled; the check runs *before* th
 verified, so a missing token 403s regardless of the password supplied. Failures return
 `403 {"detail": {"code": "MFA_REQUIRED" | "MFA_INVALID", "message": ...}}`.
 
-The MFA factor-removal routes (`DELETE /mfa/totp`, `DELETE /mfa/passkeys/{id}`,
-`POST /mfa/backup-codes/generate`) are **temporarily not enforcing step-up** — see
-`TODO(M-5 re-enable after iOS ships)` in `backend/app/api/mfa.py`. They do still refuse to
-remove the account's last remaining factor, returning `400` with a plain-string detail.
+The MFA factor-management routes (`DELETE /mfa/totp`, `DELETE /mfa/passkeys/{id}`,
+`POST /mfa/backup-codes/generate`) **also require step-up**. Regenerating backup codes is
+included because it returns ten usable second factors in the response body, so it is at
+least as sensitive as removing one.
+
+Step-up runs *before* the last-factor check, so removing your only remaining factor returns
+`403` until you verify and `400` afterwards. That `400` carries a plain-string detail
+(`"This is your only remaining two-factor method…"`) rather than the `{code, message}` shape.
+
+Clients that understand `MFA_REQUIRED` never surface the message — they present their
+step-up UI and replay the call with a token. For that reason the message sent to iOS callers
+(`X-Client-Type: ios`) additionally suggests updating the app, since the only iOS clients
+that display it are builds older than 1.0.9, which cannot satisfy the challenge.
 
 ## AI data sharing consent
 

@@ -125,7 +125,8 @@ AretaCare implements comprehensive security measures:
 - **TOTP (Authenticator Apps)**: 6-digit time-based codes with 30-second rotation; secrets encrypted at rest using Fernet; replay protection prevents code reuse
 - **Backup Codes**: 10 one-time-use recovery codes; bcrypt hashed, never stored in plaintext
 - **Trusted Devices**: 30-day trust duration with secure HttpOnly cookies; tokens SHA-256 hashed before storage; maximum 10 per user (oldest auto-removed)
-- **Sensitive Action Protection**: Password changes, email changes, and account deletion always require MFA re-verification
+- **Sensitive Action Protection**: Password changes, email changes, account deletion, and MFA factor management (removing an authenticator app or passkey, regenerating backup codes) all require MFA re-verification
+- **Last-Factor Protection**: Removing your only remaining second factor is refused, so MFA can never be left enabled with no way to satisfy it
 - **Challenge Expiration**: MFA challenges expire after 5 minutes; action tokens are single-use with 5-minute expiry
 - **Rate Limiting**: MFA verification limited to 3 attempts per minute
 - **Automatic Cleanup**: Expired challenges and trusted devices cleaned on server startup
