@@ -1,0 +1,47 @@
+# Secret scanning with Gitleaks.
+#
+# This complements GitHub's built-in Push Protection rather than replacing it. Push Protection
+# blocks recognised provider secrets *before* they reach the remote; Gitleaks scans a much
+# broader pattern set (~150 rules plus entropy) after the push, and covers git history — where
+# a secret that was committed and later deleted still lives.
+#
+# No required-status-check ruleset is configured on purpose: a required check only gates pull
+# requests, and day-to-day commits here go directly to main (the only PRs are Dependabot's).
+# The push trigger below is what actually provides coverage for this workflow.
+#
+# Allowlists live in .gitleaks.toml at the repo root, which this action picks up automatically.
+name: Secret Scanning
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  secret-scan:
+    name: Gitleaks
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        # v7 to match .github/workflows/codeql.yml — pinning v4 here would immediately
+        # draw a Dependabot PR to bring it back in line.
+        uses: actions/checkout@v7
+        with:
+          # Full history: the point is to catch secrets in past commits, not just the diff.
+          fetch-depth: 0
+
+      - name: Scan for secrets
+        # v3 is required, not merely current: it moves the action from the Node 20 runtime to
+        # Node 24. GitHub removes Node 20 from hosted runners on 2026-09-16, after which v2
+        # stops working entirely. v3 changes no inputs, outputs, or behaviour.
+        uses: gitleaks/gitleaks-action@v3
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # No GITLEAKS_LICENSE: that is required only for repositories owned by an
+          # organization account. This repo is owned by a personal account, so the action
+          # runs without a key.

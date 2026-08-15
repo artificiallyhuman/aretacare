@@ -1,0 +1,47 @@
+# Gitleaks configuration.
+#
+# Runs in CI via .github/workflows/gitleaks.yml, and locally with:
+#   docker run --rm -v "$PWD:/repo" zricethezav/gitleaks:latest \
+#     git /repo --verbose --config /repo/.gitleaks.toml
+#
+# This complements — it does not replace — GitHub's built-in Push Protection. Push Protection
+# blocks recognised provider secrets *before* they reach the remote; Gitleaks scans a much
+# broader pattern set (~150 rules plus entropy) *after* the push, and covers git history.
+#
+# A baseline scan of all 729 commits found zero real secrets. The five findings were all
+# documentation placeholders, allowlisted individually below rather than by muting whole
+# files, so a genuine secret added to those same files is still caught.
+
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Documentation placeholders. The JWT value is the standard header {\"alg\":\"HS256\",\"typ\":\"JWT\"} followed by a literal ellipsis — a truncated example, not a token."
+regexTarget = "secret"
+regexes = [
+  '''eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9\.\.\.''',
+  '''YOUR_[A-Z0-9_]*_HERE''',
+  '''^conversation/journal/daily$''',
+]
+
+[[allowlists]]
+description = "Example and template config files ship deliberately empty placeholders; that is their purpose."
+paths = [
+  '''(^|/)\.env\.example$''',
+  '''(^|/)Secrets\.xcconfig\.template$''',
+]
+
+[[allowlists]]
+description = "npm lockfile integrity fields are content digests of published packages, not credentials."
+paths = ['''(^|/)package-lock\.json$''']
+
+# DELIBERATELY NOT ALLOWLISTED: the certificate SPKI pin hashes in
+# ios/AretaCare/Core/Networking/CertificatePinningDelegate.swift.
+#
+# They look like secrets (43-char base64) but are SHA-256 digests of *public* keys, and the
+# baseline scan confirmed they trip no rule. An earlier version of this file allowlisted them
+# defensively with `condition = "AND"` scoped to that path; a planted-secret test showed the
+# block suppressed *every* finding in that file, not just the hash-shaped ones — a blind spot
+# in a security-critical file, in exchange for protection against a false positive that does
+# not occur. If a future rule update does flag them, allowlist the exact literal strings by
+# regex rather than the path.

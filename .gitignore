@@ -34,9 +34,27 @@ env/
 # =========================
 # Environment Variables
 # =========================
+# NOTE: .gitignore only stops *untracked* files being added. It never removes anything
+# already committed — history is unaffected. Gitleaks (.github/workflows/gitleaks.yml)
+# covers that side.
 .env
 .env.local
 .env.*.local
+# Catch the variants the three lines above miss (.env.production, .env.backup, ...).
+# The negation must come *after* .env.* or it has no effect.
+.env.*
+!.env.example
+
+# =========================
+# Private Keys / Certificates
+# =========================
+# *.p8 (APNs) and backend/certs/ are handled in their own sections below.
+*.pem
+*.key
+*.p12
+*.pfx
+secrets/
+.secrets/
 
 # =========================
 # Internal Documentation
