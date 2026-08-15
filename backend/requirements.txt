@@ -1,29 +1,34 @@
+# fastapi/uvicorn stay pinned deliberately. Dependabot proposed 0.104.1 -> 0.141.1 and
+# 0.24.0 -> 0.52.1; on a 0.x line a minor bump is breaking by convention, and that is 37
+# and 28 minor releases respectively. They move as a pair, in their own tested change.
 fastapi==0.104.1
 uvicorn[standard]==0.24.0
-sqlalchemy==2.0.23
-psycopg2-binary==2.9.9
-pydantic==2.5.0
-pydantic-settings==2.1.0
-email-validator==2.1.0
-python-multipart==0.0.31
-boto3==1.29.7
+sqlalchemy==2.0.52
+psycopg2-binary==2.9.12
+pydantic==2.13.4
+pydantic-settings==2.15.0
+email-validator==2.3.0
+python-multipart==0.0.32
+boto3==1.43.69
 openai>=1.56.0
 python-dotenv==1.2.2
 python-jose[cryptography]==3.5.0
 passlib[bcrypt]==1.7.4
-bcrypt==4.2.1
+bcrypt==4.3.0
 pypdf>=3.9.0
 python-magic==0.4.27
 pillow==12.3.0
-pytesseract==0.3.10
-pdf2image==1.16.3
-aiofiles==23.2.1
+pytesseract==0.3.13
+pdf2image==1.17.0
 httpx<0.28.0
-slowapi==0.1.9
+slowapi==0.1.10
 redis==5.2.1  # shared rate-limit storage backend for slowapi/limits (see core/rate_limit.py)
-sentry-sdk[fastapi]==2.66.1
+sentry-sdk[fastapi]==2.67.1
 reportlab==4.0.7
-pyotp==2.9.0
+pyotp==2.10.0
 webauthn==2.2.0
+# pgvector stays pinned deliberately: 0.3.6 -> 0.5.0 is a minor bump on a 0.x line, and this
+# drives journal embeddings + similarity search (services/embedding_service.py). Upgrade with
+# a backfill/query check, not as part of a routine batch.
 pgvector==0.3.6
 aioapns>=3.1

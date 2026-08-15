@@ -1,10 +1,17 @@
 # Dependabot configuration.
 #
-# Without this file Dependabot runs on defaults, which is how PR #112 ended up bundling
-# three unrelated major upgrades (react-router 6->7 and vite 5->8) into a single PR — and
-# still pinned react-router to a version inside the vulnerable range. The grouping rules
-# below keep majors in their own PRs so each can be reviewed and tested on its own, while
-# routine patch/minor bumps arrive batched and low-noise.
+# Design goal: LOW NOISE. The first version of this file enabled version updates repo-wide
+# and immediately produced 11 open PRs, only one of which touched a security alert. For a
+# small team with no automated test suite, every merge here is manual QA — so a stream of
+# routine bumps doesn't yield upgrades, it yields alert fatigue, and a genuine security PR
+# gets skimmed past along with the rest. The rules below keep the routine flow to a couple
+# of low-risk, risk-tiered PRs a month and push majors into deliberate, tested work.
+#
+# On ignoring majors: Dependabot *alerts* are not governed by this file at all — they are
+# raised from the dependency graph regardless of any `ignore` here. So the worst case of a
+# blanket major ignore is that we lose an automatically-opened PR, never the visibility. A
+# CVE that is only fixed in a new major still shows up in the Security tab and gets handled
+# as scheduled work. That is the intended trade, not an accident.
 version: 2
 
 updates:
@@ -14,35 +21,33 @@ updates:
   - package-ecosystem: "npm"
     directory: "/frontend"
     schedule:
-      interval: "weekly"
-      day: "monday"
-    open-pull-requests-limit: 5
+      interval: "monthly"
+    open-pull-requests-limit: 3
     labels:
       - "dependencies"
       - "javascript"
     groups:
       # Production dependencies ship to users' browsers, so they are worth reviewing
-      # separately from build tooling. Patch/minor only — majors are excluded from
-      # groups by omission and get their own PR.
+      # separately from build tooling. Every frontend dependency is on a 1.x+ line, so
+      # minor bumps here follow real semver and are safe to batch.
       frontend-production:
         dependency-type: "production"
         update-types:
           - "minor"
           - "patch"
-      # Build/dev tooling (vite, plugins, prerenderer). Never shipped, so these can be
-      # batched more aggressively.
+      # Build/dev tooling (vite, plugins, prerenderer). Never shipped to users.
       frontend-development:
         dependency-type: "development"
         update-types:
           - "minor"
           - "patch"
     ignore:
-      # vite 5 -> 8 crosses three majors and moves the bundler to Rolldown. The plugin
-      # set here is the blocker (rollup-plugin-visualizer declares rollup 2/3/4), and
-      # breaking the prerender step would silently cost the SEO routes. vite is a
-      # devDependency and never reaches users, so this is scheduled work, not a security
-      # fix. Remove this ignore when doing that upgrade deliberately.
-      - dependency-name: "vite"
+      # Majors are scheduled work, not PR-merge work. Each of the ones currently on the
+      # table needs its own tested change: vite 5->8 moves the bundler to Rolldown and can
+      # silently break the prerendered SEO routes; tailwindcss 3->4 changes the config and
+      # PostCSS pipeline; React 19 must move react, react-dom, @types/react and
+      # @types/react-dom together. Remove this (or upgrade by hand) when doing that work.
+      - dependency-name: "*"
         update-types: ["version-update:semver-major"]
 
   # ---------------------------------------------------------------------------
@@ -51,20 +56,41 @@ updates:
   - package-ecosystem: "pip"
     directory: "/backend"
     schedule:
-      interval: "weekly"
-      day: "monday"
-    open-pull-requests-limit: 5
+      interval: "monthly"
+    open-pull-requests-limit: 3
     labels:
       - "dependencies"
       - "python"
     groups:
-      backend-minor-patch:
+      # Risk-tiered into two PRs rather than one. The original single "minor-patch" group
+      # was misleading: it bundled sqlalchemy 2.0.23->2.0.52 (a real patch) together with
+      # fastapi 0.104.1->0.141.1 and uvicorn 0.24.0->0.52.1 — 37 and 28 releases, and
+      # breaking by convention, because on a 0.x line a *minor* bump carries no
+      # compatibility promise. Several backend deps are still on 0.x (python-multipart,
+      # slowapi, pytesseract, python-magic), so patch and minor must not share a PR.
+      backend-patch:
+        update-types:
+          - "patch"
+      backend-minor:
         update-types:
           - "minor"
-          - "patch"
     ignore:
-      # Pinned deliberately — see "Package Constraints" in CLAUDE.md.
-      # passlib 1.7.4 is incompatible with bcrypt 5.x.
+      # See the note at the top of this file — majors become scheduled work.
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
+      # fastapi and uvicorn move as a pair, behind a smoke test, in their own change.
+      # Ignoring their minors keeps them out of the backend-minor group entirely.
+      - dependency-name: "fastapi"
+        update-types: ["version-update:semver-minor"]
+      - dependency-name: "uvicorn"
+        update-types: ["version-update:semver-minor"]
+      # pgvector drives journal embeddings and similarity search
+      # (services/embedding_service.py). 0.3.x -> 0.5.x needs a query/backfill check.
+      - dependency-name: "pgvector"
+        update-types: ["version-update:semver-minor"]
+      # Pinned deliberately — see "Package Constraints" in the project dev reference.
+      # passlib 1.7.4 is incompatible with bcrypt 5.x. (Redundant with the wildcard major
+      # ignore above, kept explicit so the reason survives if that wildcard is relaxed.)
       - dependency-name: "bcrypt"
         update-types: ["version-update:semver-major"]
       # httpx <0.28 is required by the pinned OpenAI client.
@@ -74,13 +100,21 @@ updates:
   # ---------------------------------------------------------------------------
   # CI
   # ---------------------------------------------------------------------------
+  # Deliberately NOT subject to the major ignore. Action majors are CI-only — they cannot
+  # reach the app or the deploy — and they are how GitHub ships runner/Node deprecations,
+  # so blocking them causes workflows to break rather than keeping them stable.
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
       interval: "monthly"
+    open-pull-requests-limit: 3
     labels:
       - "dependencies"
       - "ci"
+    groups:
+      github-actions:
+        patterns:
+          - "*"
 
 # Note: no Swift/SPM entry. iOS dependencies are declared in ios/project.yml (XcodeGen)
 # and resolved into ios/Package.resolved; there is no Package.swift for Dependabot to
