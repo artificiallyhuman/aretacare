@@ -126,6 +126,26 @@ Action types: `password_change`, `email_change`, `account_delete`
 
 Returns `action_token` — include as `X-MFA-Action-Token` header when performing the action. Single-use, expires in 5 minutes.
 
+**Which routes require it.** `PUT /auth/email`, `PUT /auth/password` and `DELETE /auth/account`
+require step-up whenever the account has MFA enabled; the check runs *before* the password is
+verified, so a missing token 403s regardless of the password supplied. Failures return
+`403 {"detail": {"code": "MFA_REQUIRED" | "MFA_INVALID", "message": ...}}`.
+
+The MFA factor-removal routes (`DELETE /mfa/totp`, `DELETE /mfa/passkeys/{id}`,
+`POST /mfa/backup-codes/generate`) are **temporarily not enforcing step-up** — see
+`TODO(M-5 re-enable after iOS ships)` in `backend/app/api/mfa.py`. They do still refuse to
+remove the account's last remaining factor, returning `400` with a plain-string detail.
+
+## AI data sharing consent
+
+Six routes require a recorded `AI_DATA_SHARING` consent because they send content to OpenAI:
+`POST /conversation/message`, `POST /conversation/transcribe`, `POST /documents/upload`,
+`POST /daily-plans/{id}/generate`, `POST /profile/{id}/update`, `POST /profile/{id}/regenerate`.
+
+Without it they return `403 {"detail": {"code": "AI_DATA_SHARING_CONSENT_REQUIRED", ...}}`.
+Record it via `POST /auth/consent/ai-data-sharing`. Read, export and delete routes are never
+gated — a user must always be able to see and remove their own data.
+
 ---
 
 ## Care Sessions
