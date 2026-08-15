@@ -2,9 +2,9 @@ MIT License with Commons Clause
 
 Copyright (c) 2025 AretaCare
 
----
 
-## Commons Clause Restriction
+COMMONS CLAUSE RESTRICTION
+=========================
 
 The Software is provided under the MIT License set out below, with the
 following additional restriction, which takes precedence over any conflicting
@@ -29,12 +29,12 @@ For purposes of the foregoing, "Sell" means:
 
 You may:
 
-- Use the Software internally
-- Modify the Software for your own purposes
-- Build new applications, services, or products inspired by, derived from,
-  or incorporating portions of the Software
-- Sell commercial products or services you create, provided they are not the
-  Software or a trivial modification of it
+  * Use the Software internally
+  * Modify the Software for your own purposes
+  * Build new applications, services, or products inspired by, derived from,
+    or incorporating portions of the Software
+  * Sell commercial products or services you create, provided they are not the
+    Software or a trivial modification of it
 
 The intent is to support transparency and innovation while preventing
 commercial monetization of AretaCare itself.
@@ -42,9 +42,9 @@ commercial monetization of AretaCare itself.
 All rights not explicitly granted remain reserved by AretaCare. See
 COMMONS-CLAUSE.md for the accompanying explanation.
 
----
 
-## MIT License
+MIT LICENSE
+===========
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
