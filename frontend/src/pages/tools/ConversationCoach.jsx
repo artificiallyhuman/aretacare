@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
-import { MarkdownLink, MarkdownImage } from '../../utils/markdownComponents';
+import { MarkdownLink, MarkdownImage, markdownPlugins } from '../../utils/markdownComponents';
 import { toolsAPI, conversationAPI } from '../../services/api';
 import { useSessionContext } from '../../contexts/SessionContext';
 import { formatTime } from '../../utils/dateUtils';
@@ -369,6 +369,7 @@ const ConversationCoach = () => {
           </div>
           <div className="prose prose-sm max-w-none prose-gray dark:prose-invert prose-headings:text-gray-900 dark:prose-headings:text-white prose-p:text-gray-800 dark:prose-p:text-gray-200">
             <ReactMarkdown
+              remarkPlugins={markdownPlugins}
               components={{
                 a: MarkdownLink,
                 img: MarkdownImage,

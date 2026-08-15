@@ -1,7 +1,7 @@
 import React, { memo, useState, useRef, useEffect } from 'react';
 import PropTypes from 'prop-types';
 import ReactMarkdown from 'react-markdown';
-import { MarkdownLink, MarkdownImage } from '../utils/markdownComponents';
+import { MarkdownLink, MarkdownImage, markdownPlugins } from '../utils/markdownComponents';
 import DocumentMessage from './DocumentMessage';
 import ImageMessage from './ImageMessage';
 import SourceTag from './SourceTag';
@@ -193,6 +193,7 @@ const MessageBubble = memo(({ message, onThumbnailLoad, onMessageUpdate, onReset
               }`}
             >
               <ReactMarkdown
+                remarkPlugins={markdownPlugins}
                 components={{
                   a: MarkdownLink,
                   img: MarkdownImage,

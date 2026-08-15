@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
-import { MarkdownLink, MarkdownImage } from '../../utils/markdownComponents';
+import { MarkdownLink, MarkdownImage, markdownPlugins } from '../../utils/markdownComponents';
 import { dailyPlanAPI } from '../../services/api';
 
 const DailyPlanPanel = ({ activeSessionId, isOpen, onToggle, onPlanViewed }) => {
@@ -191,6 +191,7 @@ const DailyPlanPanel = ({ activeSessionId, isOpen, onToggle, onPlanViewed }) => 
             {/* Plan content */}
             <div className="prose prose-sm max-w-none">
               <ReactMarkdown
+                remarkPlugins={markdownPlugins}
                 components={{
                   a: MarkdownLink,
                   img: MarkdownImage,

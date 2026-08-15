@@ -1,4 +1,19 @@
 import React from 'react';
+import remarkGfm from 'remark-gfm';
+
+/**
+ * Shared remark plugins for every ReactMarkdown usage in the app.
+ *
+ * GFM is needed mainly for autolink literals: the model frequently writes a bare
+ * URL rather than `[text](url)`, and without this plugin react-markdown renders
+ * that as unclickable plain text. It also enables tables and strikethrough, which
+ * previously did not render either.
+ *
+ * Safety note: autolinked URLs still pass through MarkdownLink below, so the
+ * protocol allowlist applies to them exactly as it does to authored links, and
+ * images remain blocked by MarkdownImage.
+ */
+export const markdownPlugins = [remarkGfm];
 
 /**
  * Link renderer for ReactMarkdown. Only allows safe URL protocols
@@ -46,3 +61,16 @@ export function MarkdownImage({ alt, ...props }) {
 
 /** Components object for bare ReactMarkdown usages that only need link safety. */
 export const markdownLinkComponents = { a: MarkdownLink, img: MarkdownImage };
+
+/**
+ * Props to spread onto every `<ReactMarkdown>`: shared plugins plus the safe
+ * link/image renderers. Use this instead of wiring plugins per call site so a
+ * new usage can't silently miss either protection.
+ *
+ * Call sites that need extra component overrides spread this first, then pass
+ * their own `components` merged with `markdownLinkComponents`.
+ */
+export const markdownBaseProps = {
+  remarkPlugins: markdownPlugins,
+  components: markdownLinkComponents,
+};

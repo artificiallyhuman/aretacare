@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
 import ReactMarkdown from 'react-markdown';
-import { markdownLinkComponents } from '../utils/markdownComponents';
+import { markdownBaseProps } from '../utils/markdownComponents';
 
 const ImageMessage = ({ content, documentId, mediaUrl, extractedText, onThumbnailLoad, wasDeleted }) => {
   const [showExtracted, setShowExtracted] = useState(false);
@@ -12,7 +12,7 @@ const ImageMessage = ({ content, documentId, mediaUrl, extractedText, onThumbnai
     <div>
       {/* User message about image */}
       <div className="prose prose-sm max-w-none mb-2">
-        <ReactMarkdown components={markdownLinkComponents}>{content}</ReactMarkdown>
+        <ReactMarkdown {...markdownBaseProps}>{content}</ReactMarkdown>
       </div>
 
       {/* Image thumbnail */}

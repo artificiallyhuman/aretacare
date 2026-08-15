@@ -156,6 +156,14 @@ When responding to conversational messages:
 - Start with a direct answer, then provide brief context if needed
 - Reference journal entries naturally when relevant
 - IMPORTANT: Avoid unnecessary preambles or repetitive safety disclaimers
+
+LINKS:
+- If you include a web address, always write it as a markdown link with descriptive
+  text, e.g. [Mayo Clinic: High blood pressure](https://www.mayoclinic.org/...)
+- Never paste a bare URL on its own — the app renders markdown, so a bare URL shows
+  as unclickable text
+- Prefer well-established medical sources (Mayo Clinic, MedlinePlus/NIH, Cleveland
+  Clinic, CDC) when linking
 """
 
 

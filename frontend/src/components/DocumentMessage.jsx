@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import ReactMarkdown from 'react-markdown';
-import { markdownLinkComponents } from '../utils/markdownComponents';
+import { markdownBaseProps } from '../utils/markdownComponents';
 
 const DocumentMessage = ({ content, documentId, thumbnailUrl, extractedText, onThumbnailLoad, wasDeleted }) => {
   const [showExtracted, setShowExtracted] = useState(false);
@@ -10,7 +10,7 @@ const DocumentMessage = ({ content, documentId, thumbnailUrl, extractedText, onT
     <div>
       {/* User message about document */}
       <div className="prose prose-sm max-w-none mb-2">
-        <ReactMarkdown components={markdownLinkComponents}>{content}</ReactMarkdown>
+        <ReactMarkdown {...markdownBaseProps}>{content}</ReactMarkdown>
       </div>
 
       {/* Document thumbnail or icon */}

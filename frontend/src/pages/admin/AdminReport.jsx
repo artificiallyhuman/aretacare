@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
-import { MarkdownLink, MarkdownImage } from '../../utils/markdownComponents';
+import { MarkdownLink, MarkdownImage, markdownPlugins } from '../../utils/markdownComponents';
 import AdminLayout from '../../components/admin/AdminLayout';
 import { adminAPI } from '../../services/api';
 import { formatLocalDateTime } from '../../utils/dateUtils';
@@ -265,6 +265,7 @@ export default function AdminReport() {
                 <div className="p-6">
                   <div className="prose prose-sm dark:prose-invert max-w-none prose-headings:text-gray-900 dark:prose-headings:text-white prose-p:text-gray-600 dark:prose-p:text-gray-300">
                     <ReactMarkdown
+                      remarkPlugins={markdownPlugins}
                       components={{
                         a: MarkdownLink,
                         img: MarkdownImage,

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import ReactMarkdown from 'react-markdown';
-import { MarkdownLink, MarkdownImage } from '../utils/markdownComponents';
+import { MarkdownLink, MarkdownImage, markdownPlugins } from '../utils/markdownComponents';
 import { useSessionContext } from '../contexts/SessionContext';
 import { dailyPlanAPI } from '../services/api';
 import { markdownToHtml } from '../utils/markdownUtils';
@@ -496,6 +496,7 @@ const DailyPlan = () => {
                   ) : (
                     <div className="prose prose-lg dark:prose-invert max-w-none">
                       <ReactMarkdown
+                        remarkPlugins={markdownPlugins}
                         components={{
                           a: MarkdownLink,
                           img: MarkdownImage,

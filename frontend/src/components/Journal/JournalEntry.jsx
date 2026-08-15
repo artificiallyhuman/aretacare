@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import ReactMarkdown from 'react-markdown';
-import { MarkdownLink, MarkdownImage } from '../../utils/markdownComponents';
+import { MarkdownLink, MarkdownImage, markdownPlugins } from '../../utils/markdownComponents';
 import { journalAPI } from '../../services/api';
 import { markdownToHtml } from '../../utils/markdownUtils';
 import SourceTag from '../SourceTag';
@@ -141,6 +141,7 @@ const JournalEntry = ({ entry, colors, onEdit, onDelete, hasCollaborators, curre
         className={`text-sm text-gray-700 dark:text-gray-300 prose prose-sm dark:prose-invert max-w-none ${!expanded ? 'line-clamp-4' : ''}`}
       >
         <ReactMarkdown
+          remarkPlugins={markdownPlugins}
           components={{
             a: MarkdownLink,
             img: MarkdownImage,
