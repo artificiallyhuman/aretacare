@@ -1,0 +1,87 @@
+# Dependabot configuration.
+#
+# Without this file Dependabot runs on defaults, which is how PR #112 ended up bundling
+# three unrelated major upgrades (react-router 6->7 and vite 5->8) into a single PR — and
+# still pinned react-router to a version inside the vulnerable range. The grouping rules
+# below keep majors in their own PRs so each can be reviewed and tested on its own, while
+# routine patch/minor bumps arrive batched and low-noise.
+version: 2
+
+updates:
+  # ---------------------------------------------------------------------------
+  # Web frontend
+  # ---------------------------------------------------------------------------
+  - package-ecosystem: "npm"
+    directory: "/frontend"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "javascript"
+    groups:
+      # Production dependencies ship to users' browsers, so they are worth reviewing
+      # separately from build tooling. Patch/minor only — majors are excluded from
+      # groups by omission and get their own PR.
+      frontend-production:
+        dependency-type: "production"
+        update-types:
+          - "minor"
+          - "patch"
+      # Build/dev tooling (vite, plugins, prerenderer). Never shipped, so these can be
+      # batched more aggressively.
+      frontend-development:
+        dependency-type: "development"
+        update-types:
+          - "minor"
+          - "patch"
+    ignore:
+      # vite 5 -> 8 crosses three majors and moves the bundler to Rolldown. The plugin
+      # set here is the blocker (rollup-plugin-visualizer declares rollup 2/3/4), and
+      # breaking the prerender step would silently cost the SEO routes. vite is a
+      # devDependency and never reaches users, so this is scheduled work, not a security
+      # fix. Remove this ignore when doing that upgrade deliberately.
+      - dependency-name: "vite"
+        update-types: ["version-update:semver-major"]
+
+  # ---------------------------------------------------------------------------
+  # Backend
+  # ---------------------------------------------------------------------------
+  - package-ecosystem: "pip"
+    directory: "/backend"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "python"
+    groups:
+      backend-minor-patch:
+        update-types:
+          - "minor"
+          - "patch"
+    ignore:
+      # Pinned deliberately — see "Package Constraints" in CLAUDE.md.
+      # passlib 1.7.4 is incompatible with bcrypt 5.x.
+      - dependency-name: "bcrypt"
+        update-types: ["version-update:semver-major"]
+      # httpx <0.28 is required by the pinned OpenAI client.
+      - dependency-name: "httpx"
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
+
+  # ---------------------------------------------------------------------------
+  # CI
+  # ---------------------------------------------------------------------------
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+    labels:
+      - "dependencies"
+      - "ci"
+
+# Note: no Swift/SPM entry. iOS dependencies are declared in ios/project.yml (XcodeGen)
+# and resolved into ios/Package.resolved; there is no Package.swift for Dependabot to
+# parse, so SPM updates stay manual. Check them when touching ios/project.yml.
