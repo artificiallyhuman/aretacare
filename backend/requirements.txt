@@ -24,6 +24,6 @@ redis==5.2.1  # shared rate-limit storage backend for slowapi/limits (see core/r
 sentry-sdk[fastapi]==2.66.1
 reportlab==4.0.7
 pyotp==2.9.0
-webauthn==2.2.0
+webauthn==3.0.0
 pgvector==0.3.6
 aioapns>=3.1
