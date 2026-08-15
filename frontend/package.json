@@ -12,7 +12,7 @@
     "prop-types": "^15.8.1",
     "qrcode.react": "^4.2.0",
     "react": "^18.2.0",
-    "react-dom": "^18.2.0",
+    "react-dom": "^19.2.8",
     "react-markdown": "^9.0.1",
     "react-router-dom": "^7.18.2",
     "remark-gfm": "^4.0.1"
@@ -22,7 +22,7 @@
     "@prerenderer/rollup-plugin": "^0.3.12",
     "@sentry/vite-plugin": "^5.4.0",
     "@types/react": "^18.2.42",
-    "@types/react-dom": "^18.2.17",
+    "@types/react-dom": "^19.2.4",
     "@vitejs/plugin-react": "^4.2.1",
     "autoprefixer": "^10.4.16",
     "postcss": "^8.4.32",
