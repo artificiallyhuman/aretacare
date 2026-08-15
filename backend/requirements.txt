@@ -7,7 +7,7 @@ pydantic-settings==2.1.0
 email-validator==2.1.0
 python-multipart==0.0.31
 boto3==1.29.7
-openai>=1.56.0
+openai>=3.0.0
 python-dotenv==1.2.2
 python-jose[cryptography]==3.5.0
 passlib[bcrypt]==1.7.4
