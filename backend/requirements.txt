@@ -31,4 +31,4 @@ webauthn==2.2.0
 # drives journal embeddings + similarity search (services/embedding_service.py). Upgrade with
 # a backfill/query check, not as part of a routine batch.
 pgvector==0.3.6
-aioapns>=3.1
+aioapns>=4.0
