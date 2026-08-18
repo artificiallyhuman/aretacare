@@ -1,5 +1,4 @@
 import SwiftUI
-import Combine
 
 // MARK: - Pending Attachment
 
@@ -118,8 +117,15 @@ struct MessageInputView: View {
             .padding(.vertical, 8)
             .background(Color(.systemBackground))
         }
-        .onReceive(Timer.publish(every: 4, on: .main, in: .common).autoconnect()) { _ in
-            if !hasMessages && text.isEmpty {
+        // Rotate the onboarding placeholder every 4s. Keyed on `hasMessages` so it
+        // restarts only when that flips — an inline Timer.publish in `.onReceive` was
+        // rebuilt on every keystroke and kept waking the run loop after messages existed.
+        .task(id: hasMessages) {
+            guard !hasMessages else { return }
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(4))
+                guard !Task.isCancelled else { break }
+                guard text.isEmpty else { continue }
                 withAnimation(.spring(duration: 0.3)) {
                     currentPromptIndex = (currentPromptIndex + 1) % placeholderPrompts.count
                 }
