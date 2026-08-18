@@ -243,8 +243,17 @@ const calculateCompleteness = (profileData) => {
   let totalSections = 8;
   let completedSections = 0;
 
-  // Patient info
-  if (profileData.patient && (profileData.patient.full_name || profileData.patient.preferred_name)) {
+  // Patient info — any populated field counts, matching iOS. A name-only rule
+  // scored a patient with just a location as incomplete on web while iOS counted
+  // it, so the same profile showed two different percentages per client.
+  if (profileData.patient && [
+    profileData.patient.full_name,
+    profileData.patient.preferred_name,
+    profileData.patient.date_of_birth,
+    profileData.patient.age,
+    profileData.patient.contact_info,
+    profileData.patient.location,
+  ].some((v) => v)) {
     completedSections++;
   }
 

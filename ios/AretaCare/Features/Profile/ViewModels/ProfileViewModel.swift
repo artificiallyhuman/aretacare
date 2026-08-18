@@ -22,16 +22,94 @@ final class ProfileViewModel {
         !pendingChanges.isEmpty
     }
 
+    // MARK: - Section Completeness
+
+    /// One row per profile section, in display order. Single source of truth for
+    /// the completeness percentage, the "what's missing" caption, the empty-section
+    /// placeholders, and `isProfileEmpty`. These were three separate copies of the
+    /// same eight checks and had drifted: the score counted a `patient` object with
+    /// every field nil, and counted `preferences` only when a field inside it was
+    /// populated while the card rendered on `!= nil`. A section is complete iff it
+    /// has content the card can actually display, which is the same rule a reader
+    /// applies looking at the screen.
+    var sectionStatuses: [ProfileSectionStatus] {
+        let data = profileData
+        let patient = data?.patient
+        let prefs = data?.preferences
+
+        let hasPatient = [
+            patient?.fullName, patient?.preferredName, patient?.dateOfBirth,
+            patient?.age, patient?.contactInfo, patient?.location
+        ].contains { !($0 ?? "").isEmpty }
+
+        let hasPreferences = !(prefs?.emergencyInstructions ?? "").isEmpty
+            || !(prefs?.communicationPreferences ?? []).isEmpty
+            || !(prefs?.caregivingGuidelines ?? []).isEmpty
+            || !(prefs?.importantContext ?? []).isEmpty
+            || !(prefs?.additionalNotes ?? "").isEmpty
+
+        return [
+            ProfileSectionStatus(
+                key: "patient", label: "Patient Information",
+                emptyText: "No patient information yet", isComplete: hasPatient
+            ),
+            ProfileSectionStatus(
+                key: "caregivers", label: "Caregivers",
+                emptyText: "No caregivers added yet",
+                isComplete: !(data?.caregivers ?? []).isEmpty
+            ),
+            ProfileSectionStatus(
+                key: "providers", label: "Healthcare Providers",
+                emptyText: "No providers added yet",
+                isComplete: !(data?.providers ?? []).isEmpty
+            ),
+            ProfileSectionStatus(
+                key: "conditions", label: "Conditions",
+                emptyText: "No conditions recorded yet",
+                isComplete: !(data?.conditions ?? []).isEmpty
+            ),
+            ProfileSectionStatus(
+                key: "medications", label: "Medications",
+                emptyText: "No medications recorded yet",
+                isComplete: !(data?.medications ?? []).isEmpty
+            ),
+            ProfileSectionStatus(
+                key: "allergies", label: "Allergies",
+                emptyText: "No allergies recorded yet",
+                isComplete: !(data?.allergies ?? []).isEmpty
+            ),
+            ProfileSectionStatus(
+                key: "events", label: "Key Events",
+                emptyText: "No events recorded yet",
+                isComplete: !(data?.events ?? []).isEmpty
+            ),
+            ProfileSectionStatus(
+                key: "preferences", label: "Preferences",
+                emptyText: "No preferences set yet", isComplete: hasPreferences
+            )
+        ]
+    }
+
+    /// 0-100. Each of the eight sections is worth 12.5%.
+    var completionPercentage: Double {
+        let statuses = sectionStatuses
+        let completed = statuses.filter(\.isComplete).count
+        return Double(completed) / Double(statuses.count) * 100
+    }
+
+    /// Status for one section by `ProfileSectionStatus.key`. Keys are the same
+    /// strings `ProfileEditSection` uses to open the edit sheet.
+    func sectionStatus(_ key: String) -> ProfileSectionStatus {
+        sectionStatuses.first { $0.key == key }
+            ?? ProfileSectionStatus(key: key, label: key, emptyText: "Nothing here yet", isComplete: false)
+    }
+
+    var missingSectionLabels: [String] {
+        sectionStatuses.filter { !$0.isComplete }.map(\.label)
+    }
+
     var isProfileEmpty: Bool {
-        guard let data = profileData else { return true }
-        return data.patient == nil
-            && (data.caregivers ?? []).isEmpty
-            && (data.providers ?? []).isEmpty
-            && (data.conditions ?? []).isEmpty
-            && (data.medications ?? []).isEmpty
-            && (data.allergies ?? []).isEmpty
-            && (data.events ?? []).isEmpty
-            && data.preferences == nil
+        profileData == nil || sectionStatuses.allSatisfy { !$0.isComplete }
     }
 
     // MARK: - Fetch Profile

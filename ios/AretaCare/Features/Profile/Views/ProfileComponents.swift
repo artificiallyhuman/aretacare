@@ -150,6 +150,40 @@ struct ProfileEditSection: Identifiable {
     init(_ name: String) { self.id = name }
 }
 
+// MARK: - Section Completeness
+
+/// Describes one profile section for both scoring and display. Built in
+/// `ProfileViewModel.sectionStatuses` so the percentage, the "what's missing"
+/// caption and the empty-section placeholders can never disagree. `key` matches
+/// the `ProfileEditSection` name used to open the edit sheet.
+struct ProfileSectionStatus: Identifiable {
+    let key: String
+    let label: String
+    let emptyText: String
+    let isComplete: Bool
+
+    var id: String { key }
+}
+
+// MARK: - Empty Section Placeholder
+
+/// Shown inside a section card that has no content yet, so an empty section is
+/// visible rather than absent — otherwise the completeness percentage counts a
+/// section the reader has no way to see. Wording matches the web client.
+struct ProfileEmptyText: View {
+    let text: String
+
+    init(_ text: String) { self.text = text }
+
+    var body: some View {
+        Text(text)
+            .font(.subheadline)
+            .italic()
+            .foregroundStyle(.secondary)
+            .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
 // MARK: - Edit Row
 
 struct ProfileEditRow: View {

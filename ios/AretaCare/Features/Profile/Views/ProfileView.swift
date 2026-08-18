@@ -209,360 +209,29 @@ struct ProfileView: View {
                 VStack(spacing: 16) {
                     progressBar
 
-                if let data = viewModel.profileData {
-                    // Patient
-                    if let patient = data.patient {
-                        ProfileCardSection(
-                            title: "Patient Information",
-                            systemImage: "person.fill",
-                            color: .purple,
-                            count: nil,
-                            onEdit: { editingSection = .init("patient") }
-                        ) {
-                            ProfileField("Full Name", value: patient.fullName)
-                            ProfileField("Preferred Name", value: patient.preferredName)
-                            ProfileField("Date of Birth", value: patient.dateOfBirth)
-                            ProfileField("Age", value: patient.age)
-                            ProfileField("Contact", value: patient.contactInfo)
-                            ProfileField("Location", value: patient.location)
-                        }
+                    if let data = viewModel.profileData {
+                        // Every section renders, empty or not: a hidden section still
+                        // counts toward the completeness percentage, so omitting it left
+                        // the score unexplainable. Completeness comes from
+                        // `viewModel.sectionStatuses` — the view never decides it.
+                        patientSection(data.patient, status: viewModel.sectionStatus("patient"))
+                        caregiversSection(data.caregivers ?? [], status: viewModel.sectionStatus("caregivers"))
+                        providersSection(data.providers ?? [], status: viewModel.sectionStatus("providers"))
+                        conditionsSection(data.conditions ?? [], status: viewModel.sectionStatus("conditions"))
+                        medicationsSection(data.medications ?? [], status: viewModel.sectionStatus("medications"))
+                        allergiesSection(data.allergies ?? [], status: viewModel.sectionStatus("allergies"))
+                        eventsSection(data.events ?? [], status: viewModel.sectionStatus("events"))
+                        preferencesSection(data.preferences, status: viewModel.sectionStatus("preferences"))
                     }
 
-                    // Caregivers
-                    if let caregivers = data.caregivers, !caregivers.isEmpty {
-                        ProfileCardSection(
-                            title: "Caregivers",
-                            systemImage: "person.2.fill",
-                            color: .green,
-                            count: caregivers.count,
-                            onEdit: { editingSection = .init("caregivers") }
-                        ) {
-                            ForEach(caregivers) { caregiver in
-                                AccentCard(color: .green) {
-                                    Text(caregiver.name ?? "Unknown")
-                                        .font(.subheadline.weight(.semibold))
-                                    if let rel = caregiver.relationship {
-                                        Text(rel)
-                                            .font(.caption)
-                                            .foregroundStyle(.secondary)
-                                    }
-                                    if let role = caregiver.role {
-                                        Text(role)
-                                            .font(.caption)
-                                            .foregroundStyle(.secondary)
-                                    }
-                                    if let contact = caregiver.contactInfo {
-                                        Text(contact)
-                                            .font(.caption)
-                                            .foregroundStyle(.tertiary)
-                                    }
-                                    if let location = caregiver.location {
-                                        Text(location)
-                                            .font(.caption)
-                                            .foregroundStyle(.tertiary)
-                                    }
-                                }
-                            }
-                        }
+                    // Last updated
+                    if let lastUpdate = viewModel.profile?.updatedAt {
+                        Text("Last updated: \(lastUpdate.dateTimeString)")
+                            .font(.caption)
+                            .foregroundStyle(.tertiary)
+                            .padding(.top, 4)
+                            .padding(.bottom, 24)
                     }
-
-                    // Providers
-                    if let providers = data.providers, !providers.isEmpty {
-                        ProfileCardSection(
-                            title: "Healthcare Providers",
-                            systemImage: "stethoscope",
-                            color: .teal,
-                            count: providers.count,
-                            onEdit: { editingSection = .init("providers") }
-                        ) {
-                            ForEach(providers) { provider in
-                                ProviderRowView(provider: provider)
-                            }
-                        }
-                    }
-
-                    // Conditions
-                    if let conditions = data.conditions, !conditions.isEmpty {
-                        ProfileCardSection(
-                            title: "Conditions",
-                            systemImage: "heart.text.square.fill",
-                            color: .orange,
-                            count: conditions.count,
-                            onEdit: { editingSection = .init("conditions") }
-                        ) {
-                            ForEach(sortedConditions(conditions)) { condition in
-                                AccentCard(color: profileStatusColor(condition.status ?? "")) {
-                                    HStack {
-                                        Text(condition.clinicalTerm ?? condition.description ?? "Unknown")
-                                            .font(.subheadline.weight(.semibold))
-                                        Spacer()
-                                        if let status = condition.status {
-                                            StatusBadge(text: status.capitalized, color: profileStatusColor(status))
-                                        }
-                                    }
-                                    if let date = condition.diagnosisDate {
-                                        Text("Diagnosed: \(date)")
-                                            .font(.caption)
-                                            .foregroundStyle(.tertiary)
-                                    }
-                                    if let details = condition.details {
-                                        Text(details)
-                                            .font(.caption)
-                                            .foregroundStyle(.secondary)
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-                    // Medications
-                    if let medications = data.medications, !medications.isEmpty {
-                        ProfileCardSection(
-                            title: "Medications",
-                            systemImage: "pills.fill",
-                            color: .pink,
-                            count: medications.count,
-                            onEdit: { editingSection = .init("medications") }
-                        ) {
-                            ForEach(medicationsGroupedByCategory(medications), id: \.category) { group in
-                                VStack(alignment: .leading, spacing: 6) {
-                                    HStack {
-                                        Text(group.label)
-                                            .font(.caption.weight(.bold))
-                                            .foregroundStyle(.secondary)
-                                            .textCase(.uppercase)
-                                        Spacer()
-                                        Text("\(group.medications.count)")
-                                            .font(.caption2.weight(.medium))
-                                            .foregroundStyle(.tertiary)
-                                    }
-                                    .padding(.top, 4)
-
-                                    ForEach(group.medications) { med in
-                                        let medStatus = (med.status ?? "active").lowercased()
-                                        let isActive = medStatus != "discontinued" && medStatus != "paused"
-                                        AccentCard(color: isActive ? .pink : .gray) {
-                                            HStack {
-                                                Text(med.name ?? "Unknown")
-                                                    .font(.subheadline.weight(.semibold))
-                                                Spacer()
-                                                if let status = med.status {
-                                                    StatusBadge(text: status.capitalized, color: profileMedicationStatusColor(status))
-                                                }
-                                            }
-                                            if let desc = med.description, !desc.isEmpty {
-                                                Text(desc)
-                                                    .font(.caption)
-                                                    .foregroundStyle(.secondary)
-                                            }
-                                            if let dose = med.dose {
-                                                HStack(spacing: 4) {
-                                                    Image(systemName: "cross.case")
-                                                        .font(.caption2)
-                                                        .foregroundStyle(.pink)
-                                                    Text(dose + (med.frequency.map { " \u{2022} \($0)" } ?? ""))
-                                                        .font(.caption)
-                                                        .foregroundStyle(.secondary)
-                                                }
-                                            }
-                                            if let prescriber = med.prescriber {
-                                                Text("Prescribed by \(prescriber)")
-                                                    .font(.caption)
-                                                    .foregroundStyle(.tertiary)
-                                            }
-                                            if let startDate = med.startDate {
-                                                Text("Started: \(startDate)")
-                                                    .font(.caption)
-                                                    .foregroundStyle(.tertiary)
-                                            }
-                                            if let notes = med.notes {
-                                                Text(notes)
-                                                    .font(.caption)
-                                                    .foregroundStyle(.secondary)
-                                            }
-                                        }
-                                        .opacity(isActive ? 1.0 : 0.7)
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-                    // Allergies
-                    if let allergies = data.allergies, !allergies.isEmpty {
-                        ProfileCardSection(
-                            title: "Allergies",
-                            systemImage: "exclamationmark.triangle.fill",
-                            color: .red,
-                            count: allergies.count,
-                            onEdit: { editingSection = .init("allergies") }
-                        ) {
-                            ForEach(allergies) { allergy in
-                                AccentCard(color: profileSeverityColor(allergy.severity ?? "")) {
-                                    HStack {
-                                        Text(allergy.substance ?? "Unknown")
-                                            .font(.subheadline.weight(.semibold))
-                                        Spacer()
-                                        if let severity = allergy.severity {
-                                            StatusBadge(text: severity.capitalized, color: profileSeverityColor(severity))
-                                        }
-                                    }
-                                    if let reaction = allergy.reaction {
-                                        Text(reaction)
-                                            .font(.caption)
-                                            .foregroundStyle(.secondary)
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-                    // Events
-                    if let events = data.events, !events.isEmpty {
-                        ProfileCardSection(
-                            title: "Key Events",
-                            systemImage: "calendar",
-                            color: .blue,
-                            count: events.count,
-                            onEdit: { editingSection = .init("events") }
-                        ) {
-                            ForEach(sortedEvents(events)) { event in
-                                AccentCard(color: profileEventTypeColor(event.eventType)) {
-                                    HStack {
-                                        Text(event.description ?? event.eventType ?? "Event")
-                                            .font(.subheadline.weight(.semibold))
-                                        Spacer()
-                                        if let type = event.eventType {
-                                            StatusBadge(text: profileEventTypeLabel(type), color: profileEventTypeColor(type))
-                                        }
-                                    }
-                                    if let date = event.date {
-                                        Text(date)
-                                            .font(.caption)
-                                            .foregroundStyle(.tertiary)
-                                    }
-                                    if let details = event.details {
-                                        Text(details)
-                                            .font(.caption)
-                                            .foregroundStyle(.secondary)
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-                    // Preferences
-                    if let prefs = data.preferences {
-                        ProfileCardSection(
-                            title: "Preferences",
-                            systemImage: "gearshape.fill",
-                            color: .indigo,
-                            count: nil,
-                            onEdit: { editingSection = .init("preferences") }
-                        ) {
-                            if let emergency = prefs.emergencyInstructions, !emergency.isEmpty {
-                                HStack(alignment: .top, spacing: 10) {
-                                    Image(systemName: "exclamationmark.circle.fill")
-                                        .foregroundStyle(.red)
-                                        .font(.subheadline)
-                                    VStack(alignment: .leading, spacing: 2) {
-                                        Text("Emergency Instructions")
-                                            .font(.caption.weight(.semibold))
-                                            .foregroundStyle(.red)
-                                        Text(emergency)
-                                            .font(.caption)
-                                    }
-                                }
-                                .padding(10)
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                .background(Color.red.opacity(0.08))
-                                .clipShape(RoundedRectangle(cornerRadius: 8))
-                            }
-
-                            if let commPrefs = prefs.communicationPreferences, !commPrefs.isEmpty {
-                                PreferencesSubSection(title: "Communication") {
-                                    ForEach(commPrefs) { pref in
-                                        if let value = pref.preference, !value.isEmpty {
-                                            AccentCard(color: .indigo) {
-                                                if let cat = pref.category, !cat.isEmpty {
-                                                    Text(profileCommCategoryLabel(cat))
-                                                        .font(.caption2.weight(.semibold))
-                                                        .foregroundStyle(.indigo)
-                                                }
-                                                Text(value)
-                                                    .font(.caption)
-                                                    .foregroundStyle(.secondary)
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-
-                            if let guidelines = prefs.caregivingGuidelines, !guidelines.isEmpty {
-                                PreferencesSubSection(title: "Caregiving Guidelines") {
-                                    ForEach(guidelines) { guideline in
-                                        if let value = guideline.guideline, !value.isEmpty {
-                                            AccentCard(color: profileImportanceColor(guideline.importance ?? "")) {
-                                                if let cat = guideline.category, !cat.isEmpty {
-                                                    Text(profileGuideCategoryLabel(cat))
-                                                        .font(.caption2.weight(.semibold))
-                                                        .foregroundStyle(profileImportanceColor(guideline.importance ?? ""))
-                                                }
-                                                HStack {
-                                                    Text(value)
-                                                        .font(.caption)
-                                                    Spacer()
-                                                    if let importance = guideline.importance {
-                                                        StatusBadge(
-                                                            text: importance.capitalized,
-                                                            color: profileImportanceColor(importance)
-                                                        )
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-
-                            if let contexts = prefs.importantContext, !contexts.isEmpty {
-                                PreferencesSubSection(title: "Important Context") {
-                                    ForEach(contexts) { ctx in
-                                        if let value = ctx.context, !value.isEmpty {
-                                            AccentCard(color: .indigo) {
-                                                if let cat = ctx.category, !cat.isEmpty {
-                                                    Text(profileContextCategoryLabel(cat))
-                                                        .font(.caption2.weight(.semibold))
-                                                        .foregroundStyle(.indigo)
-                                                }
-                                                Text(value)
-                                                    .font(.caption)
-                                                    .foregroundStyle(.secondary)
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-
-                            if let notes = prefs.additionalNotes, !notes.isEmpty {
-                                PreferencesSubSection(title: "Additional Notes") {
-                                    Text(notes)
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
-                                }
-                            }
-                        }
-                    }
-                }
-
-                // Last updated
-                if let lastUpdate = viewModel.profile?.updatedAt {
-                    Text("Last updated: \(lastUpdate.dateTimeString)")
-                        .font(.caption)
-                        .foregroundStyle(.tertiary)
-                        .padding(.top, 4)
-                        .padding(.bottom, 24)
-                }
                 }
                 .padding(.horizontal)
                 .padding(.top, 8)
@@ -573,17 +242,400 @@ struct ProfileView: View {
         }
     }
 
+    // MARK: - Sections
+
+    @ViewBuilder
+    private func patientSection(_ patient: PatientInfo?, status: ProfileSectionStatus) -> some View {
+        ProfileCardSection(
+            title: "Patient Information",
+            systemImage: "person.fill",
+            color: .purple,
+            count: nil,
+            onEdit: { editingSection = .init("patient") }
+        ) {
+            if status.isComplete, let patient {
+                ProfileField("Full Name", value: patient.fullName)
+                ProfileField("Preferred Name", value: patient.preferredName)
+                ProfileField("Date of Birth", value: patient.dateOfBirth)
+                ProfileField("Age", value: patient.age)
+                ProfileField("Contact", value: patient.contactInfo)
+                ProfileField("Location", value: patient.location)
+            } else {
+                ProfileEmptyText(status.emptyText)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func caregiversSection(_ caregivers: [CaregiverInfo], status: ProfileSectionStatus) -> some View {
+        ProfileCardSection(
+            title: "Caregivers",
+            systemImage: "person.2.fill",
+            color: .green,
+            count: caregivers.isEmpty ? nil : caregivers.count,
+            onEdit: { editingSection = .init("caregivers") }
+        ) {
+            if status.isComplete {
+                ForEach(caregivers) { caregiver in
+                    AccentCard(color: .green) {
+                        Text(caregiver.name ?? "Unknown")
+                            .font(.subheadline.weight(.semibold))
+                        if let rel = caregiver.relationship {
+                            Text(rel)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        if let role = caregiver.role {
+                            Text(role)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        if let contact = caregiver.contactInfo {
+                            Text(contact)
+                                .font(.caption)
+                                .foregroundStyle(.tertiary)
+                        }
+                        if let location = caregiver.location {
+                            Text(location)
+                                .font(.caption)
+                                .foregroundStyle(.tertiary)
+                        }
+                    }
+                }
+            } else {
+                ProfileEmptyText(status.emptyText)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func providersSection(_ providers: [ProviderInfo], status: ProfileSectionStatus) -> some View {
+        ProfileCardSection(
+            title: "Healthcare Providers",
+            systemImage: "stethoscope",
+            color: .teal,
+            count: providers.isEmpty ? nil : providers.count,
+            onEdit: { editingSection = .init("providers") }
+        ) {
+            if status.isComplete {
+                ForEach(providers) { provider in
+                    ProviderRowView(provider: provider)
+                }
+            } else {
+                ProfileEmptyText(status.emptyText)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func conditionsSection(_ conditions: [ConditionInfo], status: ProfileSectionStatus) -> some View {
+        ProfileCardSection(
+            title: "Conditions",
+            systemImage: "heart.text.square.fill",
+            color: .orange,
+            count: conditions.isEmpty ? nil : conditions.count,
+            onEdit: { editingSection = .init("conditions") }
+        ) {
+            if status.isComplete {
+                ForEach(sortedConditions(conditions)) { condition in
+                    AccentCard(color: profileStatusColor(condition.status ?? "")) {
+                        HStack {
+                            Text(condition.clinicalTerm ?? condition.description ?? "Unknown")
+                                .font(.subheadline.weight(.semibold))
+                            Spacer()
+                            if let status = condition.status {
+                                StatusBadge(text: status.capitalized, color: profileStatusColor(status))
+                            }
+                        }
+                        if let date = condition.diagnosisDate {
+                            Text("Diagnosed: \(date)")
+                                .font(.caption)
+                                .foregroundStyle(.tertiary)
+                        }
+                        if let details = condition.details {
+                            Text(details)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+            } else {
+                ProfileEmptyText(status.emptyText)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func medicationsSection(_ medications: [MedicationInfo], status: ProfileSectionStatus) -> some View {
+        ProfileCardSection(
+            title: "Medications",
+            systemImage: "pills.fill",
+            color: .pink,
+            count: medications.isEmpty ? nil : medications.count,
+            onEdit: { editingSection = .init("medications") }
+        ) {
+            if status.isComplete {
+                ForEach(medicationsGroupedByCategory(medications), id: \.category) { group in
+                    VStack(alignment: .leading, spacing: 6) {
+                        HStack {
+                            Text(group.label)
+                                .font(.caption.weight(.bold))
+                                .foregroundStyle(.secondary)
+                                .textCase(.uppercase)
+                            Spacer()
+                            Text("\(group.medications.count)")
+                                .font(.caption2.weight(.medium))
+                                .foregroundStyle(.tertiary)
+                        }
+                        .padding(.top, 4)
+
+                        ForEach(group.medications) { med in
+                            let medStatus = (med.status ?? "active").lowercased()
+                            let isActive = medStatus != "discontinued" && medStatus != "paused"
+                            AccentCard(color: isActive ? .pink : .gray) {
+                                HStack {
+                                    Text(med.name ?? "Unknown")
+                                        .font(.subheadline.weight(.semibold))
+                                    Spacer()
+                                    if let status = med.status {
+                                        StatusBadge(text: status.capitalized, color: profileMedicationStatusColor(status))
+                                    }
+                                }
+                                if let desc = med.description, !desc.isEmpty {
+                                    Text(desc)
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+                                if let dose = med.dose {
+                                    HStack(spacing: 4) {
+                                        Image(systemName: "cross.case")
+                                            .font(.caption2)
+                                            .foregroundStyle(.pink)
+                                        Text(dose + (med.frequency.map { " \u{2022} \($0)" } ?? ""))
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                    }
+                                }
+                                if let prescriber = med.prescriber {
+                                    Text("Prescribed by \(prescriber)")
+                                        .font(.caption)
+                                        .foregroundStyle(.tertiary)
+                                }
+                                if let startDate = med.startDate {
+                                    Text("Started: \(startDate)")
+                                        .font(.caption)
+                                        .foregroundStyle(.tertiary)
+                                }
+                                if let notes = med.notes {
+                                    Text(notes)
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
+                            .opacity(isActive ? 1.0 : 0.7)
+                        }
+                    }
+                }
+            } else {
+                ProfileEmptyText(status.emptyText)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func allergiesSection(_ allergies: [AllergyInfo], status: ProfileSectionStatus) -> some View {
+        ProfileCardSection(
+            title: "Allergies",
+            systemImage: "exclamationmark.triangle.fill",
+            color: .red,
+            count: allergies.isEmpty ? nil : allergies.count,
+            onEdit: { editingSection = .init("allergies") }
+        ) {
+            if status.isComplete {
+                ForEach(allergies) { allergy in
+                    AccentCard(color: profileSeverityColor(allergy.severity ?? "")) {
+                        HStack {
+                            Text(allergy.substance ?? "Unknown")
+                                .font(.subheadline.weight(.semibold))
+                            Spacer()
+                            if let severity = allergy.severity {
+                                StatusBadge(text: severity.capitalized, color: profileSeverityColor(severity))
+                            }
+                        }
+                        if let reaction = allergy.reaction {
+                            Text(reaction)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+            } else {
+                ProfileEmptyText(status.emptyText)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func eventsSection(_ events: [EventInfo], status: ProfileSectionStatus) -> some View {
+        ProfileCardSection(
+            title: "Key Events",
+            systemImage: "calendar",
+            color: .blue,
+            count: events.isEmpty ? nil : events.count,
+            onEdit: { editingSection = .init("events") }
+        ) {
+            if status.isComplete {
+                ForEach(sortedEvents(events)) { event in
+                    AccentCard(color: profileEventTypeColor(event.eventType)) {
+                        HStack {
+                            Text(event.description ?? event.eventType ?? "Event")
+                                .font(.subheadline.weight(.semibold))
+                            Spacer()
+                            if let type = event.eventType {
+                                StatusBadge(text: profileEventTypeLabel(type), color: profileEventTypeColor(type))
+                            }
+                        }
+                        if let date = event.date {
+                            Text(date)
+                                .font(.caption)
+                                .foregroundStyle(.tertiary)
+                        }
+                        if let details = event.details {
+                            Text(details)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+            } else {
+                ProfileEmptyText(status.emptyText)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func preferencesSection(_ prefs: PreferencesInfo?, status: ProfileSectionStatus) -> some View {
+        ProfileCardSection(
+            title: "Preferences",
+            systemImage: "gearshape.fill",
+            color: .indigo,
+            count: nil,
+            onEdit: { editingSection = .init("preferences") }
+        ) {
+            if status.isComplete, let prefs {
+                if let emergency = prefs.emergencyInstructions, !emergency.isEmpty {
+                    HStack(alignment: .top, spacing: 10) {
+                        Image(systemName: "exclamationmark.circle.fill")
+                            .foregroundStyle(.red)
+                            .font(.subheadline)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Emergency Instructions")
+                                .font(.caption.weight(.semibold))
+                                .foregroundStyle(.red)
+                            Text(emergency)
+                                .font(.caption)
+                        }
+                    }
+                    .padding(10)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(Color.red.opacity(0.08))
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                }
+
+                if let commPrefs = prefs.communicationPreferences, !commPrefs.isEmpty {
+                    PreferencesSubSection(title: "Communication") {
+                        ForEach(commPrefs) { pref in
+                            if let value = pref.preference, !value.isEmpty {
+                                AccentCard(color: .indigo) {
+                                    if let cat = pref.category, !cat.isEmpty {
+                                        Text(profileCommCategoryLabel(cat))
+                                            .font(.caption2.weight(.semibold))
+                                            .foregroundStyle(.indigo)
+                                    }
+                                    Text(value)
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
+                        }
+                    }
+                }
+
+                if let guidelines = prefs.caregivingGuidelines, !guidelines.isEmpty {
+                    PreferencesSubSection(title: "Caregiving Guidelines") {
+                        ForEach(guidelines) { guideline in
+                            if let value = guideline.guideline, !value.isEmpty {
+                                AccentCard(color: profileImportanceColor(guideline.importance ?? "")) {
+                                    if let cat = guideline.category, !cat.isEmpty {
+                                        Text(profileGuideCategoryLabel(cat))
+                                            .font(.caption2.weight(.semibold))
+                                            .foregroundStyle(profileImportanceColor(guideline.importance ?? ""))
+                                    }
+                                    HStack {
+                                        Text(value)
+                                            .font(.caption)
+                                        Spacer()
+                                        if let importance = guideline.importance {
+                                            StatusBadge(
+                                                text: importance.capitalized,
+                                                color: profileImportanceColor(importance)
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                if let contexts = prefs.importantContext, !contexts.isEmpty {
+                    PreferencesSubSection(title: "Important Context") {
+                        ForEach(contexts) { ctx in
+                            if let value = ctx.context, !value.isEmpty {
+                                AccentCard(color: .indigo) {
+                                    if let cat = ctx.category, !cat.isEmpty {
+                                        Text(profileContextCategoryLabel(cat))
+                                            .font(.caption2.weight(.semibold))
+                                            .foregroundStyle(.indigo)
+                                    }
+                                    Text(value)
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
+                        }
+                    }
+                }
+
+                if let notes = prefs.additionalNotes, !notes.isEmpty {
+                    PreferencesSubSection(title: "Additional Notes") {
+                        Text(notes)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            } else {
+                ProfileEmptyText(status.emptyText)
+            }
+        }
+    }
+
     // MARK: - Progress Bar
 
     private var progressBar: some View {
-        let percentage = completionPercentage
+        let percentage = viewModel.completionPercentage
+        // Rounded for display so the label matches the web client, which uses
+        // Math.round — truncating showed 87% for a 7-of-8 profile that web called
+        // 88%. Only nine values are reachable (0, 12.5 … 100), so this can never
+        // round up to a false 100%.
+        let shown = Int(percentage.rounded())
         return VStack(spacing: 8) {
             HStack {
                 Text("Profile Completeness")
                     .font(.caption.weight(.medium))
                     .foregroundStyle(.secondary)
                 Spacer()
-                Text("\(Int(percentage))%")
+                Text("\(shown)%")
                     .font(.caption.weight(.bold))
                     .foregroundStyle(percentage >= 100 ? .green : Color.accentColor)
             }
@@ -603,30 +655,31 @@ struct ProfileView: View {
                 }
             }
             .frame(height: 6)
+
+            // Names what the percentage is counting. Empty sections now render as
+            // placeholder cards too, but the caption saves scrolling to find them.
+            Text(completenessHint)
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+                .frame(maxWidth: .infinity, alignment: .leading)
         }
         .padding(12)
         .background(Color(.secondarySystemGroupedBackground))
         .clipShape(RoundedRectangle(cornerRadius: 10))
+        .accessibilityElement(children: .combine)
+        .accessibilityValue("\(shown) percent complete")
     }
 
-    private var completionPercentage: Double {
-        guard let data = viewModel.profileData else { return 0 }
-        var completed = 0
-        let total = 8
-        if data.patient != nil { completed += 1 }
-        if let c = data.caregivers, !c.isEmpty { completed += 1 }
-        if let p = data.providers, !p.isEmpty { completed += 1 }
-        if let c = data.conditions, !c.isEmpty { completed += 1 }
-        if let m = data.medications, !m.isEmpty { completed += 1 }
-        if let a = data.allergies, !a.isEmpty { completed += 1 }
-        if let e = data.events, !e.isEmpty { completed += 1 }
-        if let p = data.preferences,
-           p.emergencyInstructions != nil || !(p.communicationPreferences ?? []).isEmpty
-            || !(p.caregivingGuidelines ?? []).isEmpty || !(p.importantContext ?? []).isEmpty
-            || p.additionalNotes != nil {
-            completed += 1
+    private var completenessHint: String {
+        let missing = viewModel.missingSectionLabels
+        switch missing.count {
+        case 0:
+            return "Your profile is complete"
+        case 1, 2:
+            return "Add \(missing.formatted(.list(type: .and))) to reach 100%"
+        default:
+            return "\(missing.count) sections to go \u{2014} tap a section to add details"
         }
-        return Double(completed) / Double(total) * 100
     }
 
     // MARK: - Empty Profile State
