@@ -1051,9 +1051,10 @@ CONTEXT STRUCTURE EXPLANATION:
 You have been provided with multiple sources of information:
 
 1. **Health Profile** - Long-term, structured memory containing:
-   - Patient demographics, caregivers, healthcare providers
-   - Active conditions, medications (organized by category), allergies
-   - Emergency instructions and preferences
+   - Patient demographics, caregivers and healthcare providers, with contact details
+   - Conditions and medications with their status (resolved, paused and discontinued entries are labelled), allergies
+   - Medical history events (hospitalizations, surgeries, ER visits)
+   - Emergency instructions, caregiving guidelines, communication preferences and context
    - This is STABLE information that changes infrequently
 
 2. **Journal Entries (8-30 days)** - Recent care history:

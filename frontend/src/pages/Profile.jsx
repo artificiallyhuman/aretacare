@@ -583,6 +583,9 @@ const Profile = () => {
         if (p.specialty) text += `, ${p.specialty}`;
         if (p.organization) text += ` at ${p.organization}`;
         text += '\n';
+        if (p.phone) text += `  - Phone: ${p.phone}\n`;
+        if (p.email) text += `  - Email: ${p.email}\n`;
+        if (p.address) text += `  - Address: ${p.address}\n`;
         if (p.contact_info) text += `  - Contact: ${p.contact_info}\n`;
       });
       text += '\n';

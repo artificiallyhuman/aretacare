@@ -557,6 +557,14 @@ async def _generate_profile_pdf(profile: Profile, session: UserSession, timezone
                 story.append(Paragraph(title, item_title_style))
                 if p.get("organization"):
                     story.append(Paragraph(p['organization'], item_detail_style))
+                # Structured contact fields first; the legacy free-form contact_info
+                # still prints so older entries export exactly as they always did.
+                if p.get("phone"):
+                    story.append(Paragraph(f"Phone: {p['phone']}", item_detail_style))
+                if p.get("email"):
+                    story.append(Paragraph(f"Email: {p['email']}", item_detail_style))
+                if p.get("address"):
+                    story.append(Paragraph(f"Address: {p['address']}", item_detail_style))
                 if p.get("contact_info"):
                     story.append(Paragraph(f"Contact: {p['contact_info']}", item_detail_style))
 

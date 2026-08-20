@@ -469,19 +469,17 @@ struct ProfileSectionEditView: View {
             let sectionName = section.id
             switch sectionName {
             case "patient":
-                let patient = PatientInfo(
-                    fullName: fullName.isEmpty ? nil : fullName,
-                    preferredName: preferredName.isEmpty ? nil : preferredName,
-                    dateOfBirth: dateOfBirth.isEmpty ? nil : dateOfBirth,
-                    age: age.isEmpty ? nil : age,
-                    contactInfo: contactInfo.isEmpty ? nil : contactInfo,
-                    location: location.isEmpty ? nil : location
-                )
-                let encoder = JSONEncoder()
-                encoder.keyEncodingStrategy = .convertToSnakeCase
-                if let jsonData = try? encoder.encode(patient),
-                   let dict = try? JSONSerialization.jsonObject(with: jsonData) as? [String: Any] {
-                    await viewModel.updateSection(sessionId: sessionId, section: sectionName, data: .dictionary(dict.mapValues { AnyCodableValue.from($0) }))
+                // Start from the stored object so server fields this build doesn't
+                // model (`additionalFields`) survive the save.
+                var patient = profileData.patient ?? PatientInfo()
+                patient.fullName = fullName.isEmpty ? nil : fullName
+                patient.preferredName = preferredName.isEmpty ? nil : preferredName
+                patient.dateOfBirth = dateOfBirth.isEmpty ? nil : dateOfBirth
+                patient.age = age.isEmpty ? nil : age
+                patient.contactInfo = contactInfo.isEmpty ? nil : contactInfo
+                patient.location = location.isEmpty ? nil : location
+                if let payload = Self.sectionPayload(patient) {
+                    await viewModel.updateSection(sessionId: sessionId, section: sectionName, data: payload)
                 }
             case "caregivers":
                 await saveCodableList(caregivers, section: sectionName)
@@ -496,18 +494,14 @@ struct ProfileSectionEditView: View {
             case "events":
                 await saveCodableList(events, section: sectionName)
             case "preferences":
-                let prefs = PreferencesInfo(
-                    communicationPreferences: communicationPreferences.isEmpty ? nil : communicationPreferences,
-                    caregivingGuidelines: caregivingGuidelines.isEmpty ? nil : caregivingGuidelines,
-                    importantContext: importantContext.isEmpty ? nil : importantContext,
-                    emergencyInstructions: emergencyInstructions.isEmpty ? nil : emergencyInstructions,
-                    additionalNotes: additionalNotes.isEmpty ? nil : additionalNotes
-                )
-                let encoder = JSONEncoder()
-                encoder.keyEncodingStrategy = .convertToSnakeCase
-                if let jsonData = try? encoder.encode(prefs),
-                   let dict = try? JSONSerialization.jsonObject(with: jsonData) as? [String: Any] {
-                    await viewModel.updateSection(sessionId: sessionId, section: sectionName, data: .dictionary(dict.mapValues { AnyCodableValue.from($0) }))
+                var prefs = profileData.preferences ?? PreferencesInfo()
+                prefs.communicationPreferences = communicationPreferences.isEmpty ? nil : communicationPreferences
+                prefs.caregivingGuidelines = caregivingGuidelines.isEmpty ? nil : caregivingGuidelines
+                prefs.importantContext = importantContext.isEmpty ? nil : importantContext
+                prefs.emergencyInstructions = emergencyInstructions.isEmpty ? nil : emergencyInstructions
+                prefs.additionalNotes = additionalNotes.isEmpty ? nil : additionalNotes
+                if let payload = Self.sectionPayload(prefs) {
+                    await viewModel.updateSection(sessionId: sessionId, section: sectionName, data: payload)
                 }
             default:
                 break
@@ -518,14 +512,19 @@ struct ProfileSectionEditView: View {
     }
 
     private func saveCodableList<T: Encodable>(_ items: [T], section: String) async {
+        guard let payload = Self.sectionPayload(items) else { return }
+        await viewModel.updateSection(sessionId: sessionId, section: section, data: payload)
+    }
+
+    /// Encodes a section with snake_case keys and re-reads it as `AnyCodableValue`
+    /// for the request body. Going through JSON text, rather than
+    /// `JSONSerialization`'s `Any` bridging, keeps every key the structs carry in
+    /// `additionalFields` and keeps value types intact (a `true` stays a Bool
+    /// instead of becoming `1`).
+    static func sectionPayload<T: Encodable>(_ value: T) -> AnyCodableValue? {
         let encoder = JSONEncoder()
         encoder.keyEncodingStrategy = .convertToSnakeCase
-        if let jsonData = try? encoder.encode(items),
-           let array = try? JSONSerialization.jsonObject(with: jsonData) as? [[String: Any]] {
-            let codableArray = array.map { dict in
-                AnyCodableValue.dictionary(dict.mapValues { AnyCodableValue.from($0) })
-            }
-            await viewModel.updateSection(sessionId: sessionId, section: section, data: .array(codableArray))
-        }
+        guard let json = try? encoder.encode(value) else { return nil }
+        return try? JSONDecoder().decode(AnyCodableValue.self, from: json)
     }
 }

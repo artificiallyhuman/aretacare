@@ -1,5 +1,6 @@
 from openai import AsyncOpenAI
 import logging
+import copy
 import json
 import uuid
 import time
@@ -24,6 +25,19 @@ PREFERENCES_ID_PREFIXES = {
     "communication_preferences": "comm",
     "caregiving_guidelines": "guide",
     "important_context": "ctx",
+}
+# The field that identifies an item to a person. Used to recognise that a pending
+# AI "add" has been made redundant by an item the user added by hand.
+PRIMARY_FIELDS = {
+    "caregivers": "name",
+    "providers": "name",
+    "medications": "name",
+    "conditions": "clinical_term",
+    "allergies": "substance",
+    "events": "description",
+    "communication_preferences": "preference",
+    "caregiving_guidelines": "guideline",
+    "important_context": "context",
 }
 
 # Initialize OpenAI client
@@ -716,8 +730,14 @@ class ProfileService:
                 if item.get("id") == item_id:
                     if isinstance(new_value, dict):
                         original_id = item.get("id")
+                        # A null in an AI-proposed value means "unknown", not "clear"
+                        # (the update prompt's own example carries nulls for fields it
+                        # has no information about). Never let one erase a value the
+                        # user entered by hand. Removing a whole item is change_type
+                        # "delete"; removing a single field is not something the AI
+                        # proposes.
                         for key, value in new_value.items():
-                            if key != "id":
+                            if key != "id" and value is not None:
                                 item[key] = value
                         if original_id:
                             item["id"] = original_id
@@ -797,7 +817,10 @@ class ProfileService:
                 profile_data[section] = {}
             if change_type in ("add", "edit"):
                 if isinstance(new_value, dict):
-                    profile_data[section].update(new_value)
+                    # Nulls are "unknown", not "clear" — see _apply_list_change.
+                    profile_data[section].update(
+                        {k: v for k, v in new_value.items() if v is not None}
+                    )
                 else:
                     field_name = field_path.split(".")[-1] if field_path else section
                     profile_data[section][field_name] = new_value
@@ -885,10 +908,156 @@ class ProfileService:
         # Explicitly flag JSONB column as modified for SQLAlchemy to detect changes
         flag_modified(profile, "profile_data")
 
+        # The pending AI suggestions were generated against the profile as it was
+        # before this edit. Re-check them so the review screen shows true "current"
+        # values and accepting one cannot undo what the user just typed.
+        if profile.pending_changes:
+            profile.pending_changes = ProfileService._reconcile_pending_changes(
+                profile_data, profile.pending_changes
+            )
+            flag_modified(profile, "pending_changes")
+
         db.commit()
         db.refresh(profile)
 
         return profile
+
+    # ------------------------------------------------------------------
+    # Pending-change reconciliation after a manual edit
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _reconcile_pending_changes(profile_data: Dict, pending_changes: List[Dict]) -> List[Dict]:
+        """Re-check AI-proposed changes against profile data the user just edited by hand.
+
+        For each change:
+        - its target item/field no longer exists        -> dropped (nothing left to change)
+        - the proposed values already equal the profile -> dropped (the user did it by hand)
+        - an "add" duplicates an item that now exists   -> dropped
+        - otherwise                                     -> kept, with ``old_value`` refreshed
+          to the current data so the review diff is truthful
+        A change that cannot be interpreted is kept untouched; reconciliation must
+        never lose a suggestion it does not understand.
+        """
+        reconciled: List[Dict] = []
+        for change in pending_changes or []:
+            try:
+                kept = ProfileService._reconcile_one(profile_data or {}, change)
+            except Exception as e:  # defensive: malformed change payloads
+                logger.warning(f"Could not reconcile pending change {change.get('id')}: {e}")
+                kept = change
+            if kept is not None:
+                reconciled.append(kept)
+        return reconciled
+
+    @staticmethod
+    def _reconcile_one(profile_data: Dict, change: Dict) -> Optional[Dict]:
+        change_type = change.get("change_type")
+        section = change.get("section")
+        field_path = change.get("field_path") or ""
+        new_value = change.get("new_value")
+        if not section or change_type not in ("add", "edit", "delete"):
+            return change
+
+        # Same routing as _apply_change, so we judge the change against the data it would touch.
+        sub_array = ProfileService._resolve_preferences_sub_array(section, field_path, change_type, new_value)
+        if sub_array:
+            preferences = profile_data.get("preferences")
+            items = preferences.get(sub_array) if isinstance(preferences, dict) else None
+            return ProfileService._reconcile_list_change(items, sub_array, change)
+        if section in ("patient", "preferences"):
+            current = profile_data.get(section)
+            return ProfileService._reconcile_dict_change(current if isinstance(current, dict) else {}, change)
+        return ProfileService._reconcile_list_change(profile_data.get(section), section, change)
+
+    @staticmethod
+    def _proposed_fields(new_value: Any) -> Dict:
+        """The keys an accepted add/edit would actually write (nulls are placeholders, never writes)."""
+        if not isinstance(new_value, dict):
+            return {}
+        return {k: v for k, v in new_value.items() if k != "id" and v is not None}
+
+    @staticmethod
+    def _same(current: Any, proposed: Any) -> bool:
+        """Value equality that ignores whitespace/case differences between two scalars."""
+        scalars = (str, int, float, bool, type(None))
+        if isinstance(current, scalars) and isinstance(proposed, scalars):
+            norm = lambda v: " ".join(str(v).split()).casefold() if v is not None else ""
+            return norm(current) == norm(proposed)
+        return current == proposed
+
+    @staticmethod
+    def _reconcile_list_change(items: Any, list_name: str, change: Dict) -> Optional[Dict]:
+        change_type = change.get("change_type")
+        item_id = change.get("item_id")
+        field_path = change.get("field_path") or ""
+        new_value = change.get("new_value")
+        # Unwrap the {"<list_name>": [{...}]} shape the AI sometimes produces (mirrors _apply_change)
+        if isinstance(new_value, dict) and isinstance(new_value.get(list_name), list):
+            new_value = new_value[list_name][0] if new_value[list_name] else new_value
+
+        items = [i for i in (items if isinstance(items, list) else []) if isinstance(i, dict)]
+        target = next((i for i in items if item_id and i.get("id") == item_id), None)
+
+        if change_type == "add":
+            if isinstance(new_value, dict):
+                proposed_id = new_value.get("id")
+                if proposed_id and any(i.get("id") == proposed_id for i in items):
+                    return None
+                primary = PRIMARY_FIELDS.get(list_name)
+                if primary and new_value.get(primary) is not None and any(
+                    ProfileService._same(i.get(primary), new_value.get(primary)) for i in items
+                ):
+                    return None
+            return change
+
+        if target is None:
+            return None  # the item was removed by hand; nothing left to edit or delete
+
+        if change_type == "delete":
+            return {**change, "old_value": copy.deepcopy(target)}
+
+        # change_type == "edit"
+        if isinstance(new_value, dict):
+            proposed = ProfileService._proposed_fields(new_value)
+            if not proposed or all(ProfileService._same(target.get(k), v) for k, v in proposed.items()):
+                return None
+            return {**change, "old_value": copy.deepcopy(target)}
+
+        field_name = field_path.split(".")[-1] if field_path else None
+        if field_name:
+            if ProfileService._same(target.get(field_name), new_value):
+                return None
+            return {**change, "old_value": copy.deepcopy(target.get(field_name))}
+        return change
+
+    @staticmethod
+    def _reconcile_dict_change(current: Dict, change: Dict) -> Optional[Dict]:
+        change_type = change.get("change_type")
+        section = change.get("section")
+        field_path = change.get("field_path") or ""
+        new_value = change.get("new_value")
+        field_name = field_path.split(".")[-1] if field_path else None
+        if field_name == section:
+            field_name = None  # field_path was just the section name
+
+        if change_type == "delete":
+            if not field_name or current.get(field_name) in (None, "", [], {}):
+                return None
+            return {**change, "old_value": copy.deepcopy(current.get(field_name))}
+
+        # add / edit behave the same on a single-object section
+        if isinstance(new_value, dict):
+            proposed = ProfileService._proposed_fields(new_value)
+            if not proposed or all(ProfileService._same(current.get(k), v) for k, v in proposed.items()):
+                return None
+            return {**change, "old_value": {k: copy.deepcopy(current.get(k)) for k in proposed}}
+
+        if field_name:
+            if ProfileService._same(current.get(field_name), new_value):
+                return None
+            return {**change, "old_value": copy.deepcopy(current.get(field_name))}
+        return change
 
     @staticmethod
     def check_for_updates(

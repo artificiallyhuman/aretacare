@@ -875,6 +875,9 @@ struct ProfileView: View {
                 if let v = item.specialty { text += ", \(v)" }
                 if let v = item.organization { text += " at \(v)" }
                 text += "\n"
+                if let v = item.phone { text += "  - Phone: \(v)\n" }
+                if let v = item.email { text += "  - Email: \(v)\n" }
+                if let v = item.address { text += "  - Address: \(v)\n" }
                 if let v = item.contactInfo { text += "  - Contact: \(v)\n" }
             }
             text += "\n"

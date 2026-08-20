@@ -17,6 +17,9 @@ class PatientInfo(BaseModel):
     contact_info: Optional[str] = None
     location: Optional[str] = None
 
+    class Config:
+        extra = "allow"  # Same as every other section: a full-profile PUT must not strip keys this build doesn't declare
+
 
 class CaregiverInfo(BaseModel):
     """Information about a caregiver"""
