@@ -9,6 +9,7 @@ class Settings(BaseSettings):
     # OpenAI
     OPENAI_API_KEY: str
     OPENAI_TIMEOUT_SECONDS: int = 60  # Timeout for API requests
+    OPENAI_SYNTHESIS_TIMEOUT_SECONDS: int = 120  # Timeout for large-context calls (journal synthesis, profile, digest)
     OPENAI_MAX_RETRIES: int = 3  # Max retry attempts for transient failures
     OPENAI_RETRY_DELAY: int = 1  # Initial retry delay in seconds (doubles each attempt)
     OPENAI_MAX_RETRY_DELAY: int = 16  # Maximum retry delay in seconds

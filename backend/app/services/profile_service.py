@@ -41,7 +41,10 @@ PRIMARY_FIELDS = {
 }
 
 # Initialize OpenAI client
-client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
+client = AsyncOpenAI(
+    api_key=settings.OPENAI_API_KEY,
+    timeout=settings.OPENAI_SYNTHESIS_TIMEOUT_SECONDS
+)
 
 # Token budget for profile generation. gpt-5.6-sol's context window is 1.05M tokens,
 # but requests above 272K input tokens are billed at 2x input / 1.5x output —

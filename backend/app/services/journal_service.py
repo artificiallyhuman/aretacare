@@ -106,7 +106,10 @@ class JournalService:
 
     def __init__(self, db: Session):
         self.db = db
-        self.client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
+        self.client = AsyncOpenAI(
+            api_key=settings.OPENAI_API_KEY,
+            timeout=settings.OPENAI_SYNTHESIS_TIMEOUT_SECONDS
+        )
         self.model = ai_config.CHAT_MODEL
 
     # Maximum characters for text-based synthesis (~100K tokens)

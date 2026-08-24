@@ -16,7 +16,10 @@ from .s3_service import S3Service
 logger = logging.getLogger(__name__)
 
 # Initialize OpenAI client
-client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
+client = AsyncOpenAI(
+    api_key=settings.OPENAI_API_KEY,
+    timeout=settings.OPENAI_SYNTHESIS_TIMEOUT_SECONDS
+)
 s3_service = S3Service()
 
 # Token budget for daily plan generation (128K total minus system prompt overhead)
