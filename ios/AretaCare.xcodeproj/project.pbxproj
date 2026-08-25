@@ -126,6 +126,7 @@
 		E20ECAB3F6CD4493EF0B2BB6 /* UnknownFieldsCodable.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2D45623C3A1C5C6591CA5B1 /* UnknownFieldsCodable.swift */; };
 		E26CA1C9CB0D8C8C1FF62921 /* CachedAsyncImage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4DFFD6DF8A0DBEA03685BF4D /* CachedAsyncImage.swift */; };
 		E2DEA360C78510FC4B2E7B4C /* JournalModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5F6E6EBDD16B15CE2538364E /* JournalModels.swift */; };
+		E37E3D14A75AFBB470B15E1F /* TranscriptionPoller.swift in Sources */ = {isa = PBXBuildFile; fileRef = A585075AFC9E79C001507728 /* TranscriptionPoller.swift */; };
 		E513A4C0CB402F7D1C6E732F /* PhotosPickerItem+UploadableImage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 17730A315B085BEDA144CACC /* PhotosPickerItem+UploadableImage.swift */; };
 		E6E27D9B7CD44CF8BD655DF5 /* ProfilePendingChangesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE479EC5465EAC768D022531 /* ProfilePendingChangesView.swift */; };
 		E7FC1EA7B265FA5B75FC04C3 /* ButtonStyles.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8851DF8419D91990C3E34052 /* ButtonStyles.swift */; };
@@ -218,6 +219,7 @@
 		9CD10DC4C25801F0C24FA239 /* ChangeNameView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChangeNameView.swift; sourceTree = "<group>"; };
 		9E0170BF416708AB1C04E485 /* KeychainManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainManager.swift; sourceTree = "<group>"; };
 		A2D45623C3A1C5C6591CA5B1 /* UnknownFieldsCodable.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UnknownFieldsCodable.swift; sourceTree = "<group>"; };
+		A585075AFC9E79C001507728 /* TranscriptionPoller.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranscriptionPoller.swift; sourceTree = "<group>"; };
 		A637F1103A2C92257798863B /* NotificationRouter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationRouter.swift; sourceTree = "<group>"; };
 		A8CE85E368E4932F43A4CDBE /* SessionDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionDetailView.swift; sourceTree = "<group>"; };
 		AA36A10DA17D1D1C0C054BB6 /* AppConstants.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppConstants.swift; sourceTree = "<group>"; };
@@ -447,6 +449,7 @@
 				3B2B7ED3B9517F1E8292EB3F /* MultipartFormData.swift */,
 				B687F7347801DEB2AC2A469A /* NetworkMonitor.swift */,
 				D82ADD9A064CB477AAD4BDB1 /* ResponseCache.swift */,
+				A585075AFC9E79C001507728 /* TranscriptionPoller.swift */,
 				030D59535D2F5FDEF2A4E13D /* UncachedURLSession.swift */,
 			);
 			path = Networking;
@@ -1121,6 +1124,7 @@
 				BD441D07438235169686BDA0 /* ToastView.swift in Sources */,
 				8247F699499A82FDDF95A862 /* ToolsMenuView.swift in Sources */,
 				3B577606A6F91AEC1843EA74 /* ToolsViewModel.swift in Sources */,
+				E37E3D14A75AFBB470B15E1F /* TranscriptionPoller.swift in Sources */,
 				24D9050EA12F843A65061C68 /* TypingBubbleView.swift in Sources */,
 				B5E3A4EACCC7943712D918F4 /* UncachedURLSession.swift in Sources */,
 				E20ECAB3F6CD4493EF0B2BB6 /* UnknownFieldsCodable.swift in Sources */,

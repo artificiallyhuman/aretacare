@@ -13,6 +13,7 @@ from app.core.security_headers import SecurityHeadersMiddleware
 from app.core.sentry import init_sentry
 from app.api import api_router
 from app.services.admin_service import admin_service
+from app.services.audio_transcription_service import fail_inflight_transcriptions
 import asyncio
 import logging
 import os
@@ -396,6 +397,11 @@ async def start_periodic_tasks():
 async def stop_periodic_tasks():
     if _rate_limit_cleanup_task:
         _rate_limit_cleanup_task.cancel()
+    # In-flight audio transcriptions can't survive the process; mark them failed now so
+    # the user gets a Retry instead of a spinner until the stale rule flips them. Runs
+    # before asyncio cancels stray tasks; --timeout-graceful-shutdown keeps a long legacy
+    # inline request from starving this past Render's SIGTERM grace.
+    await fail_inflight_transcriptions()
 
 
 @app.api_route("/", methods=["GET", "HEAD"])

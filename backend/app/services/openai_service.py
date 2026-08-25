@@ -397,6 +397,14 @@ class OpenAIService:
             api_key=settings.OPENAI_API_KEY,
             timeout=settings.OPENAI_TIMEOUT_SECONDS
         )
+        # Transcription uploads a ~19MB chunk and waits for 20 minutes of audio to be
+        # processed, so it needs a longer timeout than chat. SDK retries are off because
+        # transcribe_audio() runs its own retry loop — with both, one chunk could make
+        # nine HTTP attempts. with_options() shares the underlying httpx pool.
+        self.transcription_client = self.client.with_options(
+            timeout=settings.OPENAI_TRANSCRIPTION_TIMEOUT_SECONDS,
+            max_retries=0,
+        )
         self.model = ai_config.CHAT_MODEL
 
     async def _create_chat_completion(
@@ -1218,8 +1226,9 @@ The user is now responding to THIS message above. Interpret their response accor
         """Transcribe audio file using OpenAI's speech-to-text API
 
         Includes:
-        - Configurable timeout per request (configured on client)
-        - Configurable retries with exponential backoff for transient failures
+        - OPENAI_TRANSCRIPTION_TIMEOUT_SECONDS per attempt (transcription_client)
+        - Retries with exponential backoff for transient failures — the only retry
+          layer; SDK retries are disabled on transcription_client
         """
         last_exception = None
         max_retries = settings.OPENAI_MAX_RETRIES
@@ -1235,7 +1244,7 @@ The user is now responding to THIS message above. Interpret their response accor
                         logger.warning(f"Failed to seek audio file to start: {seek_error}")
                         # Continue anyway - first attempt won't need seek
 
-                transcription = await self.client.audio.transcriptions.create(
+                transcription = await self.transcription_client.audio.transcriptions.create(
                     model=ai_config.TRANSCRIPTION_MODEL,
                     file=(filename, audio_file, "audio/mpeg"),
                     response_format="text"

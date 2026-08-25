@@ -2227,3 +2227,39 @@ def run_migrations():
             except Exception as e:
                 logger.error(f"Failed to add conversations SET NULL foreign key indexes: {e}")
                 conn.rollback()
+
+        # Audio transcription now runs as a background job after the upload response
+        # (services/audio_transcription_service.py). transcription_status tracks it and
+        # transcription_updated_at is the per-chunk heartbeat behind the stale rule.
+        # Guarded by both the column inspector and IF NOT EXISTS: up to five instances
+        # start concurrently and has_migration_run() is not atomic.
+        migration_name = "add_audio_recordings_transcription_status"
+        if not has_migration_run(conn, migration_name):
+            logger.info("Adding transcription_status / transcription_updated_at to audio_recordings...")
+            try:
+                columns = [col['name'] for col in inspect(engine).get_columns('audio_recordings')]
+                if 'transcription_status' not in columns:
+                    conn.execute(text(
+                        "ALTER TABLE audio_recordings ADD COLUMN IF NOT EXISTS "
+                        "transcription_status VARCHAR NOT NULL DEFAULT 'completed'"
+                    ))
+                    conn.commit()
+                    # Rows saved without a transcript are exactly the failures the new
+                    # Retry action exists for. Scoped to the default value so a row a
+                    # concurrently-started instance is already processing is left alone.
+                    conn.execute(text(
+                        "UPDATE audio_recordings SET transcription_status = 'failed' "
+                        "WHERE transcribed_text IS NULL AND transcription_status = 'completed'"
+                    ))
+                    conn.commit()
+                if 'transcription_updated_at' not in columns:
+                    conn.execute(text(
+                        "ALTER TABLE audio_recordings ADD COLUMN IF NOT EXISTS "
+                        "transcription_updated_at TIMESTAMP NULL"
+                    ))
+                    conn.commit()
+                mark_migration_complete(conn, migration_name)
+                logger.info("Successfully added audio_recordings transcription status columns")
+            except Exception as e:
+                logger.error(f"Failed to add audio_recordings transcription status columns: {e}")
+                conn.rollback()

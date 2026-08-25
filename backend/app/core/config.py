@@ -13,6 +13,13 @@ class Settings(BaseSettings):
     OPENAI_MAX_RETRIES: int = 3  # Max retry attempts for transient failures
     OPENAI_RETRY_DELAY: int = 1  # Initial retry delay in seconds (doubles each attempt)
     OPENAI_MAX_RETRY_DELAY: int = 16  # Maximum retry delay in seconds
+    OPENAI_TRANSCRIPTION_TIMEOUT_SECONDS: int = 300  # Per transcription chunk: upload ~19MB + transcribe 20 min of audio
+
+    # Audio transcription runs as a background job after the upload response
+    # (services/audio_transcription_service.py)
+    AUDIO_TRANSCRIBE_LEGACY_INLINE_SECONDS: int = 80  # Sync-contract clients (iOS <= 1.0.9): answer before Cloudflare's 100s origin timeout
+    AUDIO_TRANSCRIPTION_CONCURRENCY: int = 2  # Background jobs per instance in the ffmpeg/OpenAI stage
+    AUDIO_TRANSCRIPTION_STALE_SECONDS: int = 20 * 60  # No heartbeat for this long => reported as 'failed' (retryable)
 
     # AWS S3
     AWS_ACCESS_KEY_ID: str

@@ -137,13 +137,14 @@ struct AudioRecorderView: View {
                 Text("Please allow microphone access in Settings to record audio.")
             }
         }
-        // Transcription happens server-side and can take a while — without this
-        // the sheet sits on the idle recorder and looks like nothing happened.
+        // The upload returns once the recording is persisted (transcription
+        // continues server-side) — without this the sheet sits on the idle
+        // recorder and looks like nothing happened.
         .overlay {
             if isUploading {
                 UploadingOverlay(
-                    message: "Uploading and transcribing…",
-                    accessibilityLabel: "Uploading and transcribing your recording"
+                    message: "Uploading…",
+                    accessibilityLabel: "Uploading your recording"
                 )
             }
         }
@@ -151,7 +152,7 @@ struct AudioRecorderView: View {
     }
 
     private var statusCaption: String {
-        if isUploading { return "Uploading and transcribing…" }
+        if isUploading { return "Uploading…" }
         if recorder.isRecording { return "Tap to stop" }
         return recorder.isPaused ? "Paused" : "Tap to record"
     }

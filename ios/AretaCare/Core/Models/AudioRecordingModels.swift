@@ -14,6 +14,12 @@ struct AudioRecordingResponse: Codable, Identifiable, Sendable {
     let createdAt: Date
     let createdBy: SourceTagInfo?
     let lastEditedBy: SourceTagInfo?
+    /// "processing" | "completed" | "failed". Nil from a backend that predates
+    /// background transcription, which only ever returned finished recordings.
+    let transcriptionStatus: String?
+
+    var isTranscribing: Bool { transcriptionStatus == "processing" }
+    var transcriptionFailed: Bool { transcriptionStatus == "failed" }
 }
 
 struct AudioRecordingUpdateRequest: Codable {
@@ -40,4 +46,10 @@ struct AudioTranscribeResponse: Decodable {
     let transcribedText: String?
     let recordingId: Int?
     let duration: Double?
+    /// "processing" on a 202 (transcription continues server-side — poll
+    /// `TranscriptionPoller`); "completed" or nil when the server answered
+    /// inline with `transcribedText` populated.
+    let transcriptionStatus: String?
+
+    var isProcessing: Bool { transcriptionStatus == "processing" }
 }

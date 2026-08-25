@@ -4,7 +4,7 @@ from app.models.session_collaborator import SessionCollaborator
 from app.models.pending_invitation import PendingInvitation
 from app.models.document import Document, DocumentCategory
 from app.models.conversation import Conversation, MessageRole
-from app.models.audio_recording import AudioRecording, AudioRecordingCategory
+from app.models.audio_recording import AudioRecording, AudioRecordingCategory, TranscriptionStatus
 from app.models.journal import JournalEntry, EntryType
 from app.models.daily_plan import DailyPlan
 from app.models.daily_plan_view import DailyPlanView
@@ -28,7 +28,7 @@ from app.models.device_token import DeviceToken
 
 __all__ = [
     "User", "Session", "SessionCollaborator", "PendingInvitation", "Document", "DocumentCategory",
-    "Conversation", "MessageRole", "AudioRecording", "AudioRecordingCategory",
+    "Conversation", "MessageRole", "AudioRecording", "AudioRecordingCategory", "TranscriptionStatus",
     "JournalEntry", "EntryType", "DailyPlan", "DailyPlanView", "AdminAuditLog", "AdminReport",
     "SecurityLog", "ErrorLog", "ApiLog", "Profile", "RefreshToken", "WaitlistEntry",
     "UserPasskey", "UserTOTPSecret", "UserBackupCode", "TrustedDevice", "MFAChallenge",

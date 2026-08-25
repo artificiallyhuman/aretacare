@@ -139,7 +139,7 @@ Password reset has a second, per-account throttle (see Security Logging) layered
 | Registration | 3/hour |
 | Password Reset | 3/hour per IP (+ 3/hour per account) |
 | MFA Verification | 3/minute |
-| File Upload | 10/minute (docs), 5/minute (audio) |
+| File Upload | 10/minute (docs), 10/minute (audio, incl. `/retranscribe`) |
 | Presigned URL | 30/minute (document download, thumbnail, audio playback URLs) |
 | AI Chat | 30/minute |
 | AI Tools | 10/minute (Jargon Translator, Conversation Coach — publicly accessible, no auth required) |

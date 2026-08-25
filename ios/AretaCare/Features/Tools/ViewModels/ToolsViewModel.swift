@@ -72,13 +72,24 @@ final class ToolsViewModel {
         )
         multipart.addTextField(name: "session_id", value: sessionId)
         multipart.addTextField(name: "skip_journal_synthesis", value: "true")
+        multipart.addTextField(name: "background", value: "true")
 
         do {
-            let response: TranscribeResponse = try await APIClient.shared.upload(
+            let response: AudioTranscribeResponse = try await APIClient.shared.upload(
                 APIEndpoints.Conversation.transcribe,
                 multipart: multipart
             )
-            return response.transcribedText
+            // A 202 means the server is still transcribing in the background;
+            // an old backend answers inline with no status.
+            guard response.isProcessing, let recordingId = response.recordingId else {
+                return response.transcribedText
+            }
+            let recording = try await TranscriptionPoller.waitForCompletion(
+                sessionId: sessionId,
+                recordingId: recordingId,
+                duration: response.duration
+            )
+            return recording.transcribedText
         } catch {
             errorMessage = error.localizedDescription
             return nil
@@ -96,10 +107,4 @@ final class ToolsViewModel {
     func dismissError() {
         errorMessage = nil
     }
-}
-
-// MARK: - Transcription Response
-
-private struct TranscribeResponse: Decodable {
-    let transcribedText: String?
 }

@@ -33,4 +33,7 @@ USER appuser
 EXPOSE 8000
 
 # Run the application
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# --timeout-graceful-shutdown: stop waiting for open connections after 20s so the
+# shutdown hook (which marks in-flight audio transcriptions failed/retryable) runs
+# inside Render's SIGTERM grace even if a legacy inline transcribe request is open.
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--timeout-graceful-shutdown", "20"]

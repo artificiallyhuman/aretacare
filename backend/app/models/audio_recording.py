@@ -22,6 +22,13 @@ class AudioRecordingCategory(str, enum.Enum):
     OTHER = "other"
 
 
+class TranscriptionStatus(str, enum.Enum):
+    """Lifecycle of the background transcription job (services/audio_transcription_service.py)"""
+    PROCESSING = "processing"
+    COMPLETED = "completed"
+    FAILED = "failed"
+
+
 class AudioRecording(Base):
     __tablename__ = "audio_recordings"
 
@@ -34,6 +41,17 @@ class AudioRecording(Base):
     category = Column(SQLEnum(AudioRecordingCategory), nullable=True)  # AI-generated category
     ai_summary = Column(Text, nullable=True)  # AI-generated brief summary
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    # Background transcription job state. A plain string (not SQLEnum) so no PG enum
+    # type needs migrating; the server default keeps pre-existing rows 'completed'.
+    transcription_status = Column(
+        String, nullable=False,
+        default=TranscriptionStatus.COMPLETED.value, server_default=TranscriptionStatus.COMPLETED.value,
+    )
+    # Heartbeat: set on creation, after each transcribed chunk, and on finish. A
+    # 'processing' row whose heartbeat is older than AUDIO_TRANSCRIPTION_STALE_SECONDS
+    # is reported as 'failed' (its job died) so the user can retry.
+    transcription_updated_at = Column(DateTime, nullable=True)
 
     # Source tracking for collaborative sessions
     created_by_user_id = Column(String, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)

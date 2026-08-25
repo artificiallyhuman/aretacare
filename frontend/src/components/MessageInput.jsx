@@ -3,6 +3,8 @@ import PropTypes from 'prop-types';
 import { conversationAPI } from '../services/api';
 import { useSessionContext } from '../contexts/SessionContext';
 import { formatTime } from '../utils/dateUtils';
+import { isAbortError } from '../utils/requestUtils';
+import { isProcessingUpload, waitForTranscription } from '../utils/transcriptionPolling';
 import AudioWaveform from './AudioWaveform';
 
 const MAX_RECORDING_SECONDS = 900; // 15 minutes (corresponds to ~50MB at typical WebM bitrate)
@@ -55,6 +57,8 @@ const MessageInput = ({ onSendMessage, loading, hasMessages = false }) => {
   // Mirrors audioStream so the unmount cleanup below sees the live stream
   // rather than the value captured when the effect was created
   const audioStreamRef = useRef(null);
+  // Stops the transcription poll if the chat unmounts while it is waiting
+  const transcriptionAbortRef = useRef(null);
 
   // Release the microphone if the component unmounts mid-recording. The
   // MediaRecorder "stop" handler and cancelRecording() only run on user-initiated
@@ -83,6 +87,7 @@ const MessageInput = ({ onSendMessage, loading, hasMessages = false }) => {
         audioStreamRef.current.getTracks().forEach(track => track.stop());
         audioStreamRef.current = null;
       }
+      transcriptionAbortRef.current?.abort();
     };
   }, []);
 
@@ -400,11 +405,31 @@ const MessageInput = ({ onSendMessage, loading, hasMessages = false }) => {
       const audioFile = new File([audioBlob], `Recording_${timestamp}.webm`, { type: 'audio/webm' });
       // Pass skipJournalSynthesis=true for conversation recordings (will synthesize when message is sent)
       const response = await conversationAPI.transcribeAudio(audioFile, sessionId, true);
-      const transcribedText = response.data.transcribed_text;
       const recordingId = response.data.recording_id;
 
       // Store the recording ID to link to journal entry when message is sent
       setAudioRecordingId(recordingId);
+
+      // The backend answers 202 once the recording is saved and transcribes in the
+      // background; poll until the transcript is ready. An older backend answers
+      // 200 with the transcript inline (no transcription_status) - use it as-is.
+      let transcribedText = response.data.transcribed_text;
+      if (isProcessingUpload(response)) {
+        transcriptionAbortRef.current?.abort();
+        const controller = new AbortController();
+        transcriptionAbortRef.current = controller;
+        try {
+          const recording = await waitForTranscription(sessionId, recordingId, {
+            signal: controller.signal,
+            durationSeconds: response.data.duration,
+          });
+          transcribedText = recording.transcribed_text;
+        } finally {
+          if (transcriptionAbortRef.current === controller) {
+            transcriptionAbortRef.current = null;
+          }
+        }
+      }
 
       // Hide transcribing indicator once transcription is complete
       setIsTranscribing(false);
@@ -422,8 +447,11 @@ const MessageInput = ({ onSendMessage, loading, hasMessages = false }) => {
       setShowNotification(true);
 
     } catch (error) {
+      // The poll was abandoned because the chat unmounted - nothing left to tell
+      if (isAbortError(error)) return;
       console.error('Error transcribing audio:', error);
-      const errorMessage = error.response?.data?.detail || 'Failed to transcribe audio. Please try again.';
+      // Polling errors carry their user-facing text in .message
+      const errorMessage = error.response?.data?.detail || error.message || 'Failed to transcribe audio. Please try again.';
       alert(errorMessage);
       setIsTranscribing(false);
     } finally {

@@ -157,14 +157,14 @@ struct AudioRecordingsView: View {
         .overlay {
             if viewModel.isBatchUploading {
                 UploadingOverlay(
-                    message: "Uploading & Transcribing...",
+                    message: "Uploading…",
                     fileProgress: viewModel.batchUploadProgress,
                     currentIndex: viewModel.batchCurrentIndex,
                     totalCount: viewModel.batchUploadProgress.count,
                     onCancel: { viewModel.cancelBatchUpload() }
                 )
             } else if viewModel.isUploading {
-                UploadingOverlay(message: "Uploading & Transcribing...")
+                UploadingOverlay(message: "Uploading…")
             }
         }
         .toast(batchResultMessage, icon: "checkmark", isPresented: $showBatchResultToast)
@@ -180,6 +180,14 @@ struct AudioRecordingsView: View {
         .task {
             await viewModel.fetchRecordings(sessionId: sessionId)
             await viewModel.fetchDates(sessionId: sessionId)
+        }
+        // Transcription runs server-side after the upload returns; keep the
+        // list current while any row is still processing. `.task(id:)` cancels
+        // the loop when the view disappears or when nothing is processing.
+        .task(id: viewModel.hasProcessingRecordings) {
+            if viewModel.hasProcessingRecordings {
+                await viewModel.refreshWhileProcessing(sessionId: sessionId)
+            }
         }
         .refreshable {
             await viewModel.fetchRecordings(sessionId: sessionId, date: viewModel.selectedDateString)
@@ -236,7 +244,7 @@ struct AudioRecordingsView: View {
                     } else if result.failCount > 0 {
                         batchResultMessage = "\(result.failCount) upload\(result.failCount == 1 ? "" : "s") failed."
                     } else if result.successCount > 1 {
-                        batchResultMessage = "\(result.successCount) recordings uploaded."
+                        batchResultMessage = "\(result.successCount) uploaded — transcribing in the background."
                     } else {
                         viewModel.clearBatchProgress()
                         return
@@ -383,10 +391,26 @@ private struct AudioListRow: View {
             }
             .tint(.red)
             .disabled(viewModel.isLoading)
+
+            if recording.transcriptionFailed {
+                Button {
+                    Task { await viewModel.retranscribe(sessionId: sessionId, recordingId: recording.id) }
+                } label: {
+                    Label("Retry", systemImage: "arrow.clockwise")
+                }
+                .tint(.orange)
+            }
         }
         .contextMenu {
             Button { onSelect?() } label: {
                 Label("View Details", systemImage: "info.circle")
+            }
+            if recording.transcriptionFailed {
+                Button {
+                    Task { await viewModel.retranscribe(sessionId: sessionId, recordingId: recording.id) }
+                } label: {
+                    Label("Retry Transcription", systemImage: "arrow.clockwise")
+                }
             }
             Button(role: .destructive) {
                 showDeleteConfirmation = true
@@ -424,7 +448,24 @@ private struct AudioRecordingRowView: View {
                     .foregroundStyle(.primary)
                     .lineLimit(2)
 
-                if let transcript = recording.transcribedText {
+                if recording.isTranscribing {
+                    HStack(spacing: 6) {
+                        ProgressView()
+                            .controlSize(.mini)
+                        Text("Transcribing…")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    .accessibilityElement(children: .combine)
+                } else if recording.transcriptionFailed {
+                    HStack(spacing: 4) {
+                        Image(systemName: "exclamationmark.triangle")
+                        Text("Transcription failed")
+                    }
+                    .font(.caption)
+                    .foregroundStyle(.red.opacity(0.85))
+                    .accessibilityElement(children: .combine)
+                } else if let transcript = recording.transcribedText {
                     Text(transcript)
                         .font(.caption)
                         .foregroundStyle(.secondary)
@@ -499,6 +540,9 @@ private struct AudioRecordingRowView: View {
 // MARK: - Detail View
 
 private struct AudioRecordingDetailView: View {
+    /// The row as it was when the sheet opened. Read `live` for anything the
+    /// server can still change — transcript, status, duration, category,
+    /// summary — so an open sheet updates when the list refreshes.
     let recording: AudioRecordingResponse
     let sessionId: String
     let viewModel: AudioRecordingsViewModel
@@ -509,10 +553,15 @@ private struct AudioRecordingDetailView: View {
     @State private var editingSummary: String = ""
     @State private var isEditing = false
     @State private var isSaving = false
+    @State private var isRetrying = false
     @State private var showSavedToast = false
     @State private var saveHapticTrigger = 0
     @State private var showCopiedToast = false
     @State private var copyHapticTrigger = 0
+
+    private var live: AudioRecordingResponse {
+        viewModel.recordings.first { $0.id == recording.id } ?? recording
+    }
 
     var body: some View {
         ScrollView {
@@ -531,8 +580,8 @@ private struct AudioRecordingDetailView: View {
                         Spacer()
                         if !isEditing {
                             Button {
-                                editingCategory = recording.category.flatMap { AudioCategory(rawValue: $0) }
-                                editingSummary = recording.aiSummary ?? ""
+                                editingCategory = live.category.flatMap { AudioCategory(rawValue: $0) }
+                                editingSummary = live.aiSummary ?? ""
                                 isEditing = true
                             } label: {
                                 Image(systemName: "pencil")
@@ -552,7 +601,7 @@ private struct AudioRecordingDetailView: View {
                             }
                             .labelsHidden()
                         }
-                    } else if let category = recording.category,
+                    } else if let category = live.category,
                               let cat = AudioCategory(rawValue: category) {
                         LabeledContent("Category") {
                             HStack(spacing: 4) {
@@ -562,7 +611,7 @@ private struct AudioRecordingDetailView: View {
                         }
                     }
 
-                    if let duration = recording.duration {
+                    if let duration = live.duration {
                         LabeledContent("Duration", value: formatDuration(duration))
                     }
 
@@ -587,7 +636,7 @@ private struct AudioRecordingDetailView: View {
                             .padding(8)
                             .background(Color(.systemGray6))
                             .clipShape(RoundedRectangle(cornerRadius: 8))
-                    } else if let summary = recording.aiSummary, !summary.isEmpty {
+                    } else if let summary = live.aiSummary, !summary.isEmpty {
                         Text(summary)
                             .font(.body)
                             .foregroundStyle(.secondary)
@@ -630,7 +679,50 @@ private struct AudioRecordingDetailView: View {
                 }
 
                 // Transcription
-                if let transcript = recording.transcribedText, !transcript.isEmpty {
+                if live.isTranscribing {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Transcription")
+                            .font(.headline)
+                        HStack(spacing: 8) {
+                            ProgressView()
+                            Text("Transcribing…")
+                                .font(.body)
+                                .foregroundStyle(.secondary)
+                        }
+                        .accessibilityElement(children: .combine)
+                    }
+                    .padding()
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(Color(.secondarySystemGroupedBackground))
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                } else if live.transcriptionFailed {
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("Transcription")
+                            .font(.headline)
+                        Text("Transcription failed. The recording can still be played.")
+                            .font(.body)
+                            .foregroundStyle(.secondary)
+                        Button {
+                            Task {
+                                isRetrying = true
+                                await viewModel.retranscribe(sessionId: sessionId, recordingId: recording.id)
+                                isRetrying = false
+                            }
+                        } label: {
+                            if isRetrying {
+                                ProgressView()
+                            } else {
+                                Label("Retry Transcription", systemImage: "arrow.clockwise")
+                            }
+                        }
+                        .buttonStyle(.bordered)
+                        .disabled(isRetrying)
+                    }
+                    .padding()
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(Color(.secondarySystemGroupedBackground))
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                } else if let transcript = live.transcribedText, !transcript.isEmpty {
                     VStack(alignment: .leading, spacing: 8) {
                         HStack {
                             Text("Transcription")
@@ -676,7 +768,7 @@ private struct AudioRecordingDetailView: View {
             }
             .padding()
         }
-        .navigationTitle(recording.aiSummary ?? recording.filename)
+        .navigationTitle(live.aiSummary ?? live.filename)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .cancellationAction) {

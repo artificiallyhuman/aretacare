@@ -1,4 +1,5 @@
 import boto3
+from boto3.exceptions import S3UploadFailedError
 from botocore.exceptions import ClientError
 from app.core.config import settings
 from typing import Optional
@@ -86,6 +87,31 @@ class S3Service:
         'text/plain',
     }
 
+    def _content_disposition(self, content_type: str, filename: str = None) -> str:
+        """Content-Disposition header for a stored object.
+
+        'inline' for safe content types (images, PDFs, text) to allow preview;
+        'attachment' for everything else to prevent browser execution (XSS protection).
+        """
+        disposition = 'inline' if content_type in self.INLINE_SAFE_CONTENT_TYPES else 'attachment'
+        if not filename:
+            return disposition
+
+        # Sanitize filename for Content-Disposition header. Non-ASCII characters use
+        # RFC 5987 encoding to prevent AWS SignatureDoesNotMatch errors.
+        try:
+            # Try ASCII-only filename first (fastest path)
+            filename.encode('ascii')
+            safe_filename = filename.replace('"', '\\"').replace('\n', '').replace('\r', '')
+            return f'{disposition}; filename="{safe_filename}"'
+        except UnicodeEncodeError:
+            # Provide both ASCII fallback and UTF-8 encoded version
+            ascii_fallback = ''.join(c if ord(c) < 128 else '_' for c in filename)
+            ascii_fallback = ascii_fallback.replace('"', '_').replace('\n', '').replace('\r', '')
+            # RFC 5987: filename*=UTF-8''encoded_filename
+            encoded_filename = quote(filename, safe='')
+            return f"{disposition}; filename=\"{ascii_fallback}\"; filename*=UTF-8''{encoded_filename}"
+
     def _put_object_sync(self, key: str, file_content: bytes, content_type: str, filename: str = None):
         """Synchronous S3 put_object with retry logic (for thread pool)"""
         params = {
@@ -96,29 +122,7 @@ class S3Service:
             'ServerSideEncryption': 'AES256'
         }
 
-        # Use 'inline' for safe content types (images, PDFs, text) to allow preview
-        # Use 'attachment' for everything else to prevent browser execution (XSS protection)
-        disposition = 'inline' if content_type in self.INLINE_SAFE_CONTENT_TYPES else 'attachment'
-
-        if filename:
-            # Sanitize filename for Content-Disposition header
-            # Handle non-ASCII characters using RFC 5987 encoding to prevent
-            # AWS SignatureDoesNotMatch errors from special characters
-            try:
-                # Try ASCII-only filename first (fastest path)
-                filename.encode('ascii')
-                safe_filename = filename.replace('"', '\\"').replace('\n', '').replace('\r', '')
-                params['ContentDisposition'] = f'{disposition}; filename="{safe_filename}"'
-            except UnicodeEncodeError:
-                # Filename contains non-ASCII characters - use RFC 5987 encoding
-                # Provide both ASCII fallback and UTF-8 encoded version
-                ascii_fallback = ''.join(c if ord(c) < 128 else '_' for c in filename)
-                ascii_fallback = ascii_fallback.replace('"', '_').replace('\n', '').replace('\r', '')
-                # RFC 5987: filename*=UTF-8''encoded_filename
-                encoded_filename = quote(filename, safe='')
-                params['ContentDisposition'] = f"{disposition}; filename=\"{ascii_fallback}\"; filename*=UTF-8''{encoded_filename}"
-        else:
-            params['ContentDisposition'] = disposition
+        params['ContentDisposition'] = self._content_disposition(content_type, filename)
 
         last_exception = None
         for attempt in range(S3_MAX_RETRIES):
@@ -187,6 +191,61 @@ class S3Service:
                 raise
         raise last_exception
 
+    def _upload_file_sync(self, path: str, key: str, content_type: str, filename: str = None):
+        """Synchronous streaming upload from a file path with retry logic (for thread pool).
+
+        boto3's transfer manager reads the file in parts, so a multi-hundred-MB
+        transcoded recording never has to sit in memory the way put_object's
+        bytes body does.
+        """
+        extra_args = {
+            'ContentType': content_type,
+            'ServerSideEncryption': 'AES256',
+            'ContentDisposition': self._content_disposition(content_type, filename),
+        }
+        last_exception = None
+        for attempt in range(S3_MAX_RETRIES):
+            try:
+                client = self._create_thread_client()
+                client.upload_file(path, self.bucket_name, key, ExtraArgs=extra_args)
+                return
+            except (ClientError, S3UploadFailedError) as e:
+                last_exception = e
+                # The transfer manager wraps the underlying ClientError, so treat its
+                # failures as transient; genuine auth/bucket errors surface on retry too
+                retryable = _is_retryable_s3_error(e) if isinstance(e, ClientError) else True
+                if retryable and attempt < S3_MAX_RETRIES - 1:
+                    retry_delay = min(S3_RETRY_DELAY * (2 ** attempt), S3_MAX_RETRY_DELAY)
+                    logger.warning(
+                        f"S3 upload_file transient error (attempt {attempt + 1}/{S3_MAX_RETRIES}): "
+                        f"{e}. Retrying in {retry_delay}s..."
+                    )
+                    time.sleep(retry_delay)
+                    continue
+                raise
+        raise last_exception
+
+    def _download_file_sync(self, key: str, path: str):
+        """Synchronous streaming download to a file path with retry logic (for thread pool)."""
+        last_exception = None
+        for attempt in range(S3_MAX_RETRIES):
+            try:
+                client = self._create_thread_client()
+                client.download_file(self.bucket_name, key, path)
+                return
+            except ClientError as e:
+                last_exception = e
+                if _is_retryable_s3_error(e) and attempt < S3_MAX_RETRIES - 1:
+                    retry_delay = min(S3_RETRY_DELAY * (2 ** attempt), S3_MAX_RETRY_DELAY)
+                    logger.warning(
+                        f"S3 download_file transient error (attempt {attempt + 1}/{S3_MAX_RETRIES}): "
+                        f"{e.response.get('Error', {}).get('Code')}. Retrying in {retry_delay}s..."
+                    )
+                    time.sleep(retry_delay)
+                    continue
+                raise
+        raise last_exception
+
     async def upload_file(self, file_content: bytes, key: str, content_type: str, filename: str = None) -> bool:
         """Upload file to S3 bucket with AES-256 encryption (runs in thread pool)
 
@@ -237,6 +296,56 @@ class S3Service:
                 pass  # Don't let error logging crash the app
 
             return None
+
+    async def upload_file_from_path(self, path: str, key: str, content_type: str, filename: str = None) -> bool:
+        """Upload a file from disk to S3 with AES-256 encryption, streaming (runs in thread pool).
+
+        Prefer this over upload_file() for anything large — audio recordings are
+        up to 100MB uploaded and ~225MB transcoded, and several transcription jobs
+        can run at once.
+        """
+        try:
+            await asyncio.to_thread(self._upload_file_sync, path, key, content_type, filename)
+            logger.info(f"Successfully uploaded file to S3: {key}")
+            return True
+        except (ClientError, S3UploadFailedError) as e:
+            logger.error(f"Failed to upload file to S3: {e}")
+
+            # Log to database for admin visibility
+            try:
+                from app.services.error_logger import log_error_standalone
+                log_error_standalone(
+                    source="services.s3.upload_file_from_path",
+                    error=e,
+                    level="ERROR",
+                    details={"key": key, "content_type": content_type}
+                )
+            except Exception:
+                pass  # Don't let error logging crash the app
+
+            return False
+
+    async def download_file_to_path(self, key: str, path: str) -> bool:
+        """Download an S3 object straight to disk, streaming (runs in thread pool)."""
+        try:
+            await asyncio.to_thread(self._download_file_sync, key, path)
+            return True
+        except ClientError as e:
+            logger.error(f"Failed to download file from S3: {e}")
+
+            # Log to database for admin visibility
+            try:
+                from app.services.error_logger import log_error_standalone
+                log_error_standalone(
+                    source="services.s3.download_file_to_path",
+                    error=e,
+                    level="ERROR",
+                    details={"key": key}
+                )
+            except Exception:
+                pass  # Don't let error logging crash the app
+
+            return False
 
     async def delete_file(self, key: str) -> bool:
         """Delete file from S3 bucket (runs in thread pool)"""

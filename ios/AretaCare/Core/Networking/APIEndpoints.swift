@@ -85,6 +85,7 @@ enum APIEndpoints {
         static func update(_ sessionId: String, recordingId: String) -> String { "/audio-recordings/\(sessionId)/\(recordingId)" }
         static func delete(_ sessionId: String, recordingId: String) -> String { "/audio-recordings/\(sessionId)/\(recordingId)" }
         static func audioUrl(_ sessionId: String, recordingId: String) -> String { "/audio-recordings/\(sessionId)/\(recordingId)/url" }
+        static func retranscribe(_ sessionId: String, recordingId: String) -> String { "/audio-recordings/\(sessionId)/\(recordingId)/retranscribe" }
         static func dates(_ sessionId: String) -> String { "/audio-recordings/\(sessionId)/dates" }
     }
 

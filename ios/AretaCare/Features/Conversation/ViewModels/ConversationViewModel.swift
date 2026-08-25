@@ -343,9 +343,10 @@ final class ConversationViewModel {
         )
         multipart.addTextField(name: "session_id", value: sessionId)
         multipart.addTextField(name: "skip_journal_synthesis", value: "true")
+        multipart.addTextField(name: "background", value: "true")
 
         do {
-            let response: TranscribeResponse = try await APIClient.shared.upload(
+            let response: AudioTranscribeResponse = try await APIClient.shared.upload(
                 APIEndpoints.Conversation.transcribe,
                 multipart: multipart
             )
@@ -360,10 +361,45 @@ final class ConversationViewModel {
                 return true
             }
 
+            // A 202 means the server is still transcoding/transcribing in the
+            // background — wait for it here, keeping `isSending` and the
+            // background task alive. An old backend answers inline with no
+            // status and `transcribedText` already populated.
+            var transcribedText = response.transcribedText
+            if response.isProcessing, let recordingId = response.recordingId {
+                do {
+                    let recording = try await TranscriptionPoller.waitForCompletion(
+                        sessionId: sessionId,
+                        recordingId: recordingId,
+                        duration: response.duration
+                    )
+                    transcribedText = recording.transcribedText
+                } catch {
+                    // The recording itself is saved (retryable from Audio
+                    // Recordings); only the transcript is missing.
+                    if !Task.isCancelled {
+                        errorMessage = error.localizedDescription
+                    }
+                    isSending = false
+                    if backgroundTaskId != .invalid {
+                        UIApplication.shared.endBackgroundTask(backgroundTaskId)
+                    }
+                    return true
+                }
+
+                if Task.isCancelled || sessionId != activeSessionId {
+                    isSending = false
+                    if backgroundTaskId != .invalid {
+                        UIApplication.shared.endBackgroundTask(backgroundTaskId)
+                    }
+                    return true
+                }
+            }
+
             // Send the transcribed text as a conversation message so AI responds.
             // Note: we don't call sendMessage() here (which would reset sendTask and
             // cancel ourselves). We inline the same logic against this task.
-            if let transcribedText = response.transcribedText, !transcribedText.isEmpty {
+            if let transcribedText, !transcribedText.isEmpty {
                 isSending = false
                 if backgroundTaskId != .invalid {
                     UIApplication.shared.endBackgroundTask(backgroundTaskId)
@@ -791,10 +827,4 @@ private struct SendMessageResponse: Decodable {
         let entryType: String
         let confidence: Double
     }
-}
-
-private struct TranscribeResponse: Decodable {
-    let transcribedText: String?
-    let recordingId: Int?
-    let duration: Double?
 }

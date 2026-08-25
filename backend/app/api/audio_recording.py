@@ -3,17 +3,65 @@ from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.core.rate_limit import limiter, RateLimits
 from app.models import User, Session as SessionModel, AudioRecording
+from app.models.audio_recording import TranscriptionStatus
 from app.schemas.audio_recording import AudioRecordingResponse, AudioRecordingListResponse, AudioRecordingUpdate
 from app.services.s3_service import s3_service
-from app.api.auth import get_current_user
+from app.api.auth import get_current_user, require_ai_data_sharing_consent
 from app.api.permissions import check_session_access
 from app.api.source_tags import session_has_collaborators, build_source_tag_info, get_user_map
-from typing import List
+from app.services.audio_transcription_service import (
+    effective_transcription_status,
+    is_original_upload_key,
+    mp3_key_for,
+    start_transcription_job,
+)
+from typing import List, Optional
+from datetime import datetime
 import logging
+import os
+import tempfile
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/audio-recordings", tags=["audio-recordings"])
+
+
+def _recording_to_dict(rec: AudioRecording, user_map: Optional[dict] = None) -> dict:
+    """Single serializer for every audio recording response.
+
+    `user_map` is None when the session has no collaborators — source tags are
+    then omitted even if the row records a creator, matching the pre-existing
+    behaviour. `transcription_status` is the *effective* status (a 'processing'
+    row with a stale heartbeat is reported as 'failed').
+    """
+    return {
+        "id": rec.id,
+        "session_id": rec.session_id,
+        "filename": rec.filename,
+        "s3_key": rec.s3_key,
+        "duration": rec.duration,
+        "transcribed_text": rec.transcribed_text,
+        "category": rec.category.value if rec.category else None,
+        "ai_summary": rec.ai_summary,
+        "created_at": rec.created_at,
+        "transcription_status": effective_transcription_status(rec),
+        "created_by": (
+            build_source_tag_info(user_map.get(rec.created_by_user_id))
+            if user_map is not None and rec.created_by_user_id else None
+        ),
+        "last_edited_by": (
+            build_source_tag_info(user_map.get(rec.last_edited_by_user_id))
+            if user_map is not None and rec.last_edited_by_user_id else None
+        ),
+    }
+
+
+def _user_map_for(recording: AudioRecording, session_id: str, db: Session) -> Optional[dict]:
+    """Source-tag user lookup for a single recording; None when the session is not shared."""
+    if not session_has_collaborators(session_id, db):
+        return None
+    user_ids = [uid for uid in [recording.created_by_user_id, recording.last_edited_by_user_id] if uid]
+    return get_user_map(user_ids, db)
 
 
 @router.get("/{session_id}", response_model=AudioRecordingListResponse)
@@ -75,10 +123,9 @@ async def get_audio_recordings(
     # Check if session has collaborators (for source tag attribution)
     has_collaborators = session_has_collaborators(session_id, db)
 
-    # Build response with source tags if session has collaborators
-    rec_responses = []
+    # Batch load user info for source tags if the session is shared
+    user_map = None
     if has_collaborators:
-        # Batch load user info for source tags
         user_ids = []
         for rec in recordings:
             if rec.created_by_user_id:
@@ -87,38 +134,7 @@ async def get_audio_recordings(
                 user_ids.append(rec.last_edited_by_user_id)
         user_map = get_user_map(user_ids, db)
 
-        for rec in recordings:
-            rec_dict = {
-                "id": rec.id,
-                "session_id": rec.session_id,
-                "filename": rec.filename,
-                "s3_key": rec.s3_key,
-                "duration": rec.duration,
-                "transcribed_text": rec.transcribed_text,
-                "category": rec.category.value if rec.category else None,
-                "ai_summary": rec.ai_summary,
-                "created_at": rec.created_at,
-                "created_by": build_source_tag_info(user_map.get(rec.created_by_user_id)) if rec.created_by_user_id else None,
-                "last_edited_by": build_source_tag_info(user_map.get(rec.last_edited_by_user_id)) if rec.last_edited_by_user_id else None
-            }
-            rec_responses.append(rec_dict)
-    else:
-        # No collaborators, just convert recordings to response format
-        for rec in recordings:
-            rec_dict = {
-                "id": rec.id,
-                "session_id": rec.session_id,
-                "filename": rec.filename,
-                "s3_key": rec.s3_key,
-                "duration": rec.duration,
-                "transcribed_text": rec.transcribed_text,
-                "category": rec.category.value if rec.category else None,
-                "ai_summary": rec.ai_summary,
-                "created_at": rec.created_at,
-                "created_by": None,
-                "last_edited_by": None
-            }
-            rec_responses.append(rec_dict)
+    rec_responses = [_recording_to_dict(rec, user_map) for rec in recordings]
 
     return {
         "recordings": rec_responses,
@@ -185,38 +201,7 @@ async def get_audio_recording(
     if not recording:
         raise HTTPException(status_code=404, detail="Recording not found")
 
-    has_collaborators = session_has_collaborators(session_id, db)
-
-    if has_collaborators:
-        user_ids = [uid for uid in [recording.created_by_user_id, recording.last_edited_by_user_id] if uid]
-        user_map = get_user_map(user_ids, db)
-        return {
-            "id": recording.id,
-            "session_id": recording.session_id,
-            "filename": recording.filename,
-            "s3_key": recording.s3_key,
-            "duration": recording.duration,
-            "transcribed_text": recording.transcribed_text,
-            "category": recording.category.value if recording.category else None,
-            "ai_summary": recording.ai_summary,
-            "created_at": recording.created_at,
-            "created_by": build_source_tag_info(user_map.get(recording.created_by_user_id)) if recording.created_by_user_id else None,
-            "last_edited_by": build_source_tag_info(user_map.get(recording.last_edited_by_user_id)) if recording.last_edited_by_user_id else None
-        }
-
-    return {
-        "id": recording.id,
-        "session_id": recording.session_id,
-        "filename": recording.filename,
-        "s3_key": recording.s3_key,
-        "duration": recording.duration,
-        "transcribed_text": recording.transcribed_text,
-        "category": recording.category.value if recording.category else None,
-        "ai_summary": recording.ai_summary,
-        "created_at": recording.created_at,
-        "created_by": None,
-        "last_edited_by": None
-    }
+    return _recording_to_dict(recording, _user_map_for(recording, session_id, db))
 
 
 @router.patch("/{session_id}/{recording_id}", response_model=AudioRecordingResponse)
@@ -262,39 +247,7 @@ async def update_audio_recording(
     db.commit()
     db.refresh(recording)
 
-    # Build source tags for response if session has collaborators
-    has_collaborators = session_has_collaborators(session_id, db)
-    if has_collaborators:
-        user_ids = [uid for uid in [recording.created_by_user_id, recording.last_edited_by_user_id] if uid]
-        user_map = get_user_map(user_ids, db)
-
-        return {
-            "id": recording.id,
-            "session_id": recording.session_id,
-            "filename": recording.filename,
-            "s3_key": recording.s3_key,
-            "duration": recording.duration,
-            "transcribed_text": recording.transcribed_text,
-            "category": recording.category.value if recording.category else None,
-            "ai_summary": recording.ai_summary,
-            "created_at": recording.created_at,
-            "created_by": build_source_tag_info(user_map.get(recording.created_by_user_id)) if recording.created_by_user_id else None,
-            "last_edited_by": build_source_tag_info(user_map.get(recording.last_edited_by_user_id)) if recording.last_edited_by_user_id else None
-        }
-
-    return {
-        "id": recording.id,
-        "session_id": recording.session_id,
-        "filename": recording.filename,
-        "s3_key": recording.s3_key,
-        "duration": recording.duration,
-        "transcribed_text": recording.transcribed_text,
-        "category": recording.category.value if recording.category else None,
-        "ai_summary": recording.ai_summary,
-        "created_at": recording.created_at,
-        "created_by": None,
-        "last_edited_by": None
-    }
+    return _recording_to_dict(recording, _user_map_for(recording, session_id, db))
 
 
 @router.delete("/{session_id}/{recording_id}")
@@ -369,3 +322,92 @@ async def get_audio_url(
     url = s3_service.generate_presigned_url(recording.s3_key, expiration=14400)
 
     return {"url": url}
+
+
+@router.post("/{session_id}/{recording_id}/retranscribe", status_code=202)
+@limiter.limit(RateLimits.AUDIO_UPLOAD)
+async def retranscribe_audio_recording(
+    request: Request,
+    session_id: str,
+    recording_id: int,
+    current_user: User = Depends(require_ai_data_sharing_consent),
+    db: Session = Depends(get_db)
+):
+    """Re-run transcription for a recording whose background job failed.
+
+    Covers every way a job can be lost — OpenAI outage, deploy/SIGKILL mid-job,
+    autoscale-down, a stale heartbeat — without re-uploading (an in-app recording
+    is discarded client-side as soon as the upload returns). Fetches the stored
+    object back from S3 and launches the same job the upload uses; a row still on
+    its `.original.<ext>` key is transcoded and swapped like a fresh upload.
+    """
+    session = db.query(SessionModel).filter(SessionModel.id == session_id).first()
+    if not session:
+        raise HTTPException(status_code=404, detail="Care session not found")
+    check_session_access(session, current_user.id, db)
+
+    recording = db.query(AudioRecording).filter(
+        AudioRecording.id == recording_id,
+        AudioRecording.session_id == session_id
+    ).first()
+    if not recording:
+        raise HTTPException(status_code=404, detail="Recording not found")
+
+    if effective_transcription_status(recording) != TranscriptionStatus.FAILED.value:
+        raise HTTPException(status_code=409, detail="This recording is not waiting for a retry.")
+
+    source_key = recording.s3_key
+    original_filename = recording.filename
+    duration = recording.duration
+    source_is_mp3 = not is_original_upload_key(source_key)
+    mp3_key = mp3_key_for(source_key)
+    original_name = original_filename.rsplit('.', 1)[0] if '.' in original_filename else original_filename
+    suffix = os.path.splitext(source_key)[1] or '.mp3'
+
+    temp_fd, temp_path = tempfile.mkstemp(suffix=suffix)
+    os.close(temp_fd)
+    if not await s3_service.download_file_to_path(source_key, temp_path):
+        os.unlink(temp_path)
+        raise HTTPException(status_code=500, detail="Could not fetch the recording for retranscription. Please try again.")
+
+    # Claim the row atomically so two clicks (or two instances) can't both pick it up.
+    # 'processing' is only accepted here because the effective status above already
+    # established that its heartbeat is stale.
+    claimed = db.query(AudioRecording).filter(
+        AudioRecording.id == recording_id,
+        AudioRecording.session_id == session_id,
+        AudioRecording.transcription_status.in_([
+            TranscriptionStatus.FAILED.value, TranscriptionStatus.PROCESSING.value
+        ]),
+    ).update({
+        "transcription_status": TranscriptionStatus.PROCESSING.value,
+        "transcription_updated_at": datetime.utcnow(),
+    }, synchronize_session=False)
+    db.commit()
+    if claimed == 0:
+        os.unlink(temp_path)
+        raise HTTPException(status_code=409, detail="This recording is already being transcribed.")
+
+    start_transcription_job(
+        recording_id=recording_id,
+        session_id=session_id,
+        user_id=current_user.id,
+        source_temp_path=temp_path,
+        source_key=source_key,
+        mp3_key=mp3_key,
+        source_is_mp3=source_is_mp3,
+        original_name=original_name,
+        original_filename=original_filename,
+        skip_synthesis=False,
+        use_semaphore=True,
+    )
+    logger.info(f"Retranscription started for audio recording {recording_id} (source: {source_key})")
+
+    return {
+        "recording_id": recording_id,
+        "filename": original_filename,
+        "duration": duration,
+        "audio_s3_key": source_key,
+        "transcription_status": TranscriptionStatus.PROCESSING.value,
+        "transcribed_text": None,
+    }

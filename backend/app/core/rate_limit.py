@@ -131,7 +131,9 @@ class RateLimits:
 
     # File upload endpoints (resource-intensive)
     FILE_UPLOAD = "10/minute"       # 10 file uploads per minute per user
-    AUDIO_UPLOAD = "5/minute"       # 5 audio uploads per minute per user
+    AUDIO_UPLOAD = "10/minute"      # 10 audio uploads per minute per IP — the upload now returns in
+                                    # seconds (transcription is a background job), so a batch of
+                                    # files arrives quickly; clients honor retry_after on 429
 
     # General API endpoints (authenticated)
     API_GENERAL = "100/minute"      # 100 requests per minute per user

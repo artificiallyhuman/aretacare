@@ -15,6 +15,9 @@ class AudioRecordingResponse(BaseModel):
     category: Optional[str] = None
     ai_summary: Optional[str] = None
     created_at: datetime
+    # 'processing' | 'completed' | 'failed' — background transcription state. Additive;
+    # clients that predate it ignore the key.
+    transcription_status: str = "completed"
     # Source tracking for collaborative sessions
     created_by: Optional[SourceTagInfo] = None
     last_edited_by: Optional[SourceTagInfo] = None

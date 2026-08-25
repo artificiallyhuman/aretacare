@@ -147,8 +147,9 @@ that display it are builds older than 1.0.9, which cannot satisfy the challenge.
 
 ## AI data sharing consent
 
-Six routes require a recorded `AI_DATA_SHARING` consent because they send content to OpenAI:
-`POST /conversation/message`, `POST /conversation/transcribe`, `POST /documents/upload`,
+Seven routes require a recorded `AI_DATA_SHARING` consent because they send content to OpenAI:
+`POST /conversation/message`, `POST /conversation/transcribe`,
+`POST /audio-recordings/{session_id}/{recording_id}/retranscribe`, `POST /documents/upload`,
 `POST /daily-plans/{id}/generate`, `POST /profile/{id}/update`, `POST /profile/{id}/regenerate`.
 
 Without it they return `403 {"detail": {"code": "AI_DATA_SHARING_CONSENT_REQUIRED", ...}}`.
@@ -230,9 +231,30 @@ GET    /api/documents/{id}/thumbnail-url                 # Get thumbnail URL (PD
 POST /api/conversation/transcribe
 Content-Type: multipart/form-data
 ```
-Parameters: `audio`, `session_id`
+Parameters: `audio`, `session_id`, `skip_journal_synthesis` (`"true"` for conversation recordings), `background` (`"true"` — see below)
 
-Supported: MP3, M4A, WAV, WebM, OGG (100MB max, 4 hours max duration). Auto-transcribes, categorizes, converts to MP3. The MP3 and recording record are persisted before transcription — if transcription fails, the recording is still saved (playable, no transcript) and the response is a 500 explaining that.
+Supported: MP3, M4A, WAV, WebM, OGG (100MB max, 4 hours max duration). The original upload is
+stored in S3 and the recording row committed as `processing` **before the response**, so a
+worker death never loses an upload. Transcoding to MP3, transcription (20-minute chunks), AI
+categorization and journal synthesis then run in a background job — the request itself takes
+seconds regardless of recording length (Cloudflare drops any request without an origin response
+after ~100s, and transcoding an hour-long file alone can take that long).
+
+- `background=true` → **202** `{recording_id, filename, duration, audio_s3_key, transcription_status: "processing", transcribed_text: null}`.
+  Poll `GET /api/audio-recordings/{session_id}/{recording_id}` until `transcription_status` is
+  `completed` (transcript in `transcribed_text`) or `failed`. `duration` is null until the job
+  has probed the MP3 for containers without metadata (MediaRecorder webm).
+- `background` omitted → legacy synchronous contract kept for iOS ≤ 1.0.9 (which cannot be
+  updated ahead of App Store review): waits inline for the same job up to ~80s and returns
+  `{transcribed_text, audio_s3_key, filename, recording_id, duration, transcription_status: "completed"}`.
+  If the recording needs longer, **400** *"This recording is long and is still being
+  transcribed…"* while the job carries on. Will be removed once those builds are gone from
+  Sentry's release breakdown.
+
+`failed` means the recording is saved and playable but has no transcript — retry it with
+`/retranscribe` below. A `processing` row whose job died (deploy, instance kill) is reported as
+`failed` once its heartbeat is 20 minutes old. Until the job has swapped in the MP3, the playback
+URL serves the original container with its own content type.
 
 ### Manage
 ```bash
@@ -242,6 +264,7 @@ GET    /api/audio-recordings/{session_id}/{recording_id}         # Get recording
 PATCH  /api/audio-recordings/{session_id}/{recording_id}         # Update category/summary
 DELETE /api/audio-recordings/{session_id}/{recording_id}         # Delete
 GET    /api/audio-recordings/{session_id}/{recording_id}/url     # Get playback URL
+POST   /api/audio-recordings/{session_id}/{recording_id}/retranscribe  # Retry a failed transcription → 202 (409 unless failed); audio-upload rate limit
 ```
 
 ---
@@ -456,7 +479,7 @@ Error format: `{"detail": "Error message"}`
 | Registration | 3/hour |
 | Password Reset | 3/hour |
 | MFA Verification | 3/minute |
-| File Upload | 10/minute (docs), 5/minute (audio) |
+| File Upload | 10/minute (docs), 10/minute (audio, incl. `/retranscribe`) |
 | Presigned URL | 30/minute (document download, thumbnail, audio playback URLs) |
 | AI Chat | 30/minute |
 | AI Tools | 10/minute (Jargon Translator, Conversation Coach — public) |

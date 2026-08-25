@@ -6,6 +6,8 @@ import { toolsAPI, conversationAPI } from '../../services/api';
 import { useSessionContext } from '../../contexts/SessionContext';
 import { formatTime } from '../../utils/dateUtils';
 import { markdownToHtml } from '../../utils/markdownUtils';
+import { isAbortError } from '../../utils/requestUtils';
+import { isProcessingUpload, waitForTranscription } from '../../utils/transcriptionPolling';
 import AudioWaveform from '../../components/AudioWaveform';
 import SEO from '../../components/SEO';
 
@@ -26,6 +28,12 @@ const ConversationCoach = () => {
   const mediaRecorderRef = useRef(null);
   const audioChunksRef = useRef([]);
   const recordingTimerRef = useRef(null);
+  // Stops the transcription poll if the page unmounts while it is waiting
+  const transcriptionAbortRef = useRef(null);
+
+  useEffect(() => {
+    return () => transcriptionAbortRef.current?.abort();
+  }, []);
 
   // Countdown timer for recording
   useEffect(() => {
@@ -127,13 +135,36 @@ const ConversationCoach = () => {
       const timestamp = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}_${now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }).replace(/[: ]/g, '-')}`;
       const audioFile = new File([audioBlob], `Recording_${timestamp}.webm`, { type: 'audio/webm' });
       const response = await conversationAPI.transcribeAudio(audioFile, sessionId);
-      const transcribedText = response.data.transcribed_text;
+
+      // The backend answers 202 once the recording is saved and transcribes in the
+      // background; poll until the transcript is ready. An older backend answers
+      // 200 with the transcript inline (no transcription_status) - use it as-is.
+      let transcribedText = response.data.transcribed_text;
+      if (isProcessingUpload(response)) {
+        transcriptionAbortRef.current?.abort();
+        const controller = new AbortController();
+        transcriptionAbortRef.current = controller;
+        try {
+          const recording = await waitForTranscription(sessionId, response.data.recording_id, {
+            signal: controller.signal,
+            durationSeconds: response.data.duration,
+          });
+          transcribedText = recording.transcribed_text;
+        } finally {
+          if (transcriptionAbortRef.current === controller) {
+            transcriptionAbortRef.current = null;
+          }
+        }
+      }
 
       // Add transcribed text to the situation input
       setSituation(prev => prev ? `${prev}\n${transcribedText}` : transcribedText);
     } catch (error) {
+      // The poll was abandoned because the page unmounted - nothing left to tell
+      if (isAbortError(error)) return;
       console.error('Error transcribing audio:', error);
-      const errorMessage = error.response?.data?.detail || 'Failed to transcribe audio. Please try again.';
+      // Polling errors carry their user-facing text in .message
+      const errorMessage = error.response?.data?.detail || error.message || 'Failed to transcribe audio. Please try again.';
       setError(errorMessage);
     } finally {
       setIsTranscribing(false);

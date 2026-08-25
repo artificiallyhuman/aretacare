@@ -15,6 +15,10 @@ final class AudioRecordingsViewModel {
     private(set) var total = 0
     private(set) var errorMessage: String?
 
+    /// True while any loaded recording is still being transcribed server-side —
+    /// drives the list's refresh loop (`refreshWhileProcessing`).
+    var hasProcessingRecordings: Bool { recordings.contains { $0.isTranscribing } }
+
     private(set) var allDates: [JournalDateInfo] = [] {
         didSet { _sortedDatesCache = allDates.sorted { $0.date > $1.date } }
     }
@@ -134,8 +138,12 @@ final class AudioRecordingsViewModel {
             var multipart = MultipartFormData()
             multipart.addTextField(name: "session_id", value: sessionId)
             multipart.addTextField(name: "skip_journal_synthesis", value: "false")
+            multipart.addTextField(name: "background", value: "true")
             multipart.addFileField(name: "audio", filename: filename, mimeType: mimeType, data: audioData)
 
+            // 202: the recording row is persisted and transcription continues
+            // server-side — the list shows "Transcribing…" until the refresh
+            // loop sees it finish.
             let _: AudioTranscribeResponse = try await APIClient.shared.upload(
                 APIEndpoints.Conversation.transcribe,
                 multipart: multipart
@@ -143,7 +151,13 @@ final class AudioRecordingsViewModel {
             await fetchRecordings(sessionId: sessionId)
             return true
         } catch {
-            errorMessage = error.localizedDescription
+            // The row may have been persisted before the failure (a backend
+            // without background mode answers 400 once its inline budget
+            // expires) — refresh so the list isn't stale, then surface the
+            // error (`fetchRecordings` clears `errorMessage` on entry).
+            let message = error.localizedDescription
+            await fetchRecordings(sessionId: sessionId)
+            errorMessage = message
             return false
         }
     }
@@ -191,12 +205,25 @@ final class AudioRecordingsViewModel {
                 var multipart = MultipartFormData()
                 multipart.addTextField(name: "session_id", value: sessionId)
                 multipart.addTextField(name: "skip_journal_synthesis", value: "false")
+                multipart.addTextField(name: "background", value: "true")
                 multipart.addFileField(name: "audio", filename: file.filename, mimeType: file.contentType, data: file.data)
 
-                let _: AudioTranscribeResponse = try await APIClient.shared.upload(
-                    APIEndpoints.Conversation.transcribe,
-                    multipart: multipart
-                )
+                do {
+                    let _: AudioTranscribeResponse = try await APIClient.shared.upload(
+                        APIEndpoints.Conversation.transcribe,
+                        multipart: multipart
+                    )
+                } catch APIError.rateLimited(let retryAfter) {
+                    // Uploads now return in seconds, so a batch can trip the
+                    // per-IP limit — wait it out and retry this file once.
+                    guard await sleepUnlessBatchCancelled(seconds: min(retryAfter ?? 10, 60)) else {
+                        throw CancellationError()
+                    }
+                    let _: AudioTranscribeResponse = try await APIClient.shared.upload(
+                        APIEndpoints.Conversation.transcribe,
+                        multipart: multipart
+                    )
+                }
 
                 batchUploadProgress[index].status = .success
                 successCount += 1
@@ -253,6 +280,54 @@ final class AudioRecordingsViewModel {
     func clearBatchProgress() {
         batchUploadProgress = []
         batchCurrentIndex = 0
+    }
+
+    /// Sleeps in 1s steps so a Cancel tap on the batch overlay isn't stuck
+    /// behind a long `Retry-After`. Returns false if the batch was cancelled.
+    private func sleepUnlessBatchCancelled(seconds: Int) async -> Bool {
+        for _ in 0..<max(0, seconds) {
+            if batchCancelled { return false }
+            try? await Task.sleep(for: .seconds(1))
+        }
+        return !batchCancelled
+    }
+
+    // MARK: - Background Transcription
+
+    /// Re-fetches the list every few seconds while any loaded recording is
+    /// still transcribing, so rows flip from "Transcribing…" to their
+    /// transcript without a manual refresh. Bound to the view's lifecycle via
+    /// `.task(id:)` — cancellation ends the loop.
+    func refreshWhileProcessing(sessionId: String) async {
+        while !Task.isCancelled && hasProcessingRecordings {
+            try? await Task.sleep(for: .seconds(3))
+            guard !Task.isCancelled else { return }
+            await fetchRecordings(sessionId: sessionId, date: selectedDateString)
+        }
+    }
+
+    /// Re-queues transcription for a recording whose job failed (or was lost
+    /// to a deploy). The server answers 202 and the row goes back to
+    /// "Transcribing…".
+    @discardableResult
+    func retranscribe(sessionId: String, recordingId: Int) async -> Bool {
+        errorMessage = nil
+
+        do {
+            let _: AudioTranscribeResponse = try await APIClient.shared.post(
+                APIEndpoints.AudioRecordings.retranscribe(sessionId, recordingId: String(recordingId))
+            )
+            await fetchRecordings(sessionId: sessionId, date: selectedDateString)
+            return true
+        } catch APIError.unknown(statusCode: 409) {
+            // Not in the `failed` state any more (already re-queued or
+            // finished) — just pick up the current state.
+            await fetchRecordings(sessionId: sessionId, date: selectedDateString)
+            return false
+        } catch {
+            errorMessage = error.localizedDescription
+            return false
+        }
     }
 
     // MARK: - Update Recording

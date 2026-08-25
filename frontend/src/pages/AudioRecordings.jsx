@@ -3,7 +3,8 @@ import { createPortal } from 'react-dom';
 import { useSessionContext } from '../contexts/SessionContext';
 import { audioRecordingsAPI, conversationAPI } from '../services/api';
 import { isToday, formatDateShort, formatLocalDate } from '../utils/dateUtils';
-import { isAbortError } from '../utils/requestUtils';
+import { isAbortError, getRetryAfterSeconds } from '../utils/requestUtils';
+import { isProcessingUpload } from '../utils/transcriptionPolling';
 import SourceTag from '../components/SourceTag';
 
 // Audio recording categories with labels and colors
@@ -37,6 +38,27 @@ const getCategoryLabel = (category) => {
   const cat = CATEGORIES.find(c => c.value === category);
   return cat ? cat.label : 'Other';
 };
+
+// While any recording is still transcribing in the background, refresh the list this often
+const PROCESSING_REFRESH_MS = 5000;
+
+// Resolves after `ms`, or as soon as `signal` aborts
+const waitUnlessAborted = (ms, signal) => new Promise((resolve) => {
+  if (signal?.aborted) {
+    resolve();
+    return;
+  }
+  let timer = null;
+  const onAbort = () => {
+    clearTimeout(timer);
+    resolve();
+  };
+  timer = setTimeout(() => {
+    signal?.removeEventListener('abort', onAbort);
+    resolve();
+  }, ms);
+  signal?.addEventListener('abort', onAbort, { once: true });
+});
 
 const AudioRecordings = () => {
   const { activeSessionId: sessionId, activeSession, user, loading: sessionLoading } = useSessionContext();
@@ -72,6 +94,13 @@ const AudioRecordings = () => {
   // to the care session on screen before touching state
   const activeSessionIdRef = useRef(sessionId);
   const loadAbortRef = useRef(null);
+  // Latest recordings list, so getAudioUrl can tell whether a recording is still processing
+  const recordingsRef = useRef([]);
+  // Ids whose cached presigned URL was fetched while the recording was still processing
+  const processingUrlIdsRef = useRef(new Set());
+  // Latest loadRecordings, so the background refresh never runs a stale closure
+  const loadRecordingsRef = useRef(null);
+  const [retryingIds, setRetryingIds] = useState({});
 
   useEffect(() => {
     activeSessionIdRef.current = sessionId;
@@ -103,14 +132,18 @@ const AudioRecordings = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessionId, selectedCategory, debouncedSearchQuery]);
 
-  const loadRecordings = async () => {
-    // Use different loading states for initial load vs search/filter
-    if (!hasLoadedRef.current) {
-      setLoading(true);
-    } else {
-      setSearching(true);
+  // `silent` is used by the background refresh while recordings are transcribing:
+  // no loading/searching toggles, and a failed refresh is logged rather than shown
+  const loadRecordings = async ({ silent = false } = {}) => {
+    if (!silent) {
+      // Use different loading states for initial load vs search/filter
+      if (!hasLoadedRef.current) {
+        setLoading(true);
+      } else {
+        setSearching(true);
+      }
+      setError(null);
     }
-    setError(null);
 
     loadAbortRef.current?.abort();
     const controller = new AbortController();
@@ -127,11 +160,30 @@ const AudioRecordings = () => {
       if (sessionIdForLoad !== activeSessionIdRef.current) return;
       // Handle both paginated response and legacy array response
       const recordingsData = response.data.recordings || response.data;
+      // A presigned URL fetched while a recording was still processing points at the
+      // original upload, which the job deletes once the MP3 is in place - drop it so
+      // the player asks for a fresh one
+      const finishedIds = recordingsData
+        .filter(r => r.transcription_status !== 'processing' && processingUrlIdsRef.current.has(r.id))
+        .map(r => r.id);
+      if (finishedIds.length > 0) {
+        finishedIds.forEach(id => processingUrlIdsRef.current.delete(id));
+        setAudioUrls(prev => {
+          const next = { ...prev };
+          finishedIds.forEach(id => delete next[id]);
+          return next;
+        });
+      }
+      recordingsRef.current = recordingsData;
       setRecordings(recordingsData);
       hasLoadedRef.current = true;
     } catch (err) {
       if (isAbortError(err)) return;
       if (sessionIdForLoad !== activeSessionIdRef.current) return;
+      if (silent) {
+        console.warn('Background refresh of recordings failed:', err);
+        return;
+      }
       console.error('Error loading recordings:', err);
       setError(err.response?.data?.detail || 'Failed to load recordings. Please try again.');
     } finally {
@@ -143,6 +195,27 @@ const AudioRecordings = () => {
       }
     }
   };
+  loadRecordingsRef.current = loadRecordings;
+
+  // Transcription happens in a background job after the upload returns. While any
+  // loaded recording is still processing, refresh the list (one call, not one per
+  // recording) so rows flip to their transcript without a manual reload. Chained
+  // timeouts rather than setInterval so refreshes never overlap.
+  const hasProcessingRecordings = recordings.some(r => r.transcription_status === 'processing');
+  useEffect(() => {
+    if (!hasProcessingRecordings || !sessionId) return undefined;
+    let stopped = false;
+    let timer = null;
+    const tick = async () => {
+      await loadRecordingsRef.current?.({ silent: true });
+      if (!stopped) timer = setTimeout(tick, PROCESSING_REFRESH_MS);
+    };
+    timer = setTimeout(tick, PROCESSING_REFRESH_MS);
+    return () => {
+      stopped = true;
+      clearTimeout(timer);
+    };
+  }, [hasProcessingRecordings, sessionId]);
 
   const getAudioUrl = async (recordingId) => {
     if (audioUrls[recordingId]) {
@@ -152,6 +225,10 @@ const AudioRecordings = () => {
     try {
       const response = await audioRecordingsAPI.getAudioUrl(sessionId, recordingId);
       const url = response.data.url;
+      // Remember URLs issued mid-transcription; loadRecordings drops them once the job finishes
+      if (recordingsRef.current.find(r => r.id === recordingId)?.transcription_status === 'processing') {
+        processingUrlIdsRef.current.add(recordingId);
+      }
       setAudioUrls(prev => ({ ...prev, [recordingId]: url }));
       return url;
     } catch (err) {
@@ -176,6 +253,26 @@ const AudioRecordings = () => {
       setError('Failed to delete recording');
       setRecordingToDelete(null);
     }
+  };
+
+  const handleRetranscribe = async (recordingId) => {
+    setRetryingIds(prev => ({ ...prev, [recordingId]: true }));
+    setError(null);
+    try {
+      await audioRecordingsAPI.retranscribe(sessionId, recordingId);
+    } catch (err) {
+      console.error('Error restarting transcription:', err);
+      setError(err.response?.data?.detail || 'Failed to restart transcription. Please try again.');
+    } finally {
+      setRetryingIds(prev => {
+        const next = { ...prev };
+        delete next[recordingId];
+        return next;
+      });
+    }
+    // Reload either way: on success the row flips to "Transcribing…", and a 409
+    // means its state already changed under us
+    await loadRecordings({ silent: true });
   };
 
   const toggleTranscript = (recordingId) => {
@@ -370,13 +467,41 @@ const AudioRecordings = () => {
       try {
         // Update status to uploading
         setUploadProgress(prev => prev.map((p, idx) =>
-          idx === i ? { ...p, status: 'uploading', message: 'Uploading & transcribing...' } : p
+          idx === i ? { ...p, status: 'uploading', message: 'Uploading...' } : p
         ));
 
-        // Pass false for skipJournalSynthesis so journal entries ARE created for direct uploads
-        const response = await conversationAPI.transcribeAudio(file, sessionId, false, {
+        // Pass false for skipJournalSynthesis so journal entries ARE created for direct uploads.
+        // The backend answers 202 as soon as the recording is saved and transcribes in the
+        // background (the row shows "Transcribing…" until then), so this returns in seconds.
+        const uploadFile = () => conversationAPI.transcribeAudio(file, sessionId, false, {
           signal: abortControllerRef.current.signal
         });
+        let response;
+        try {
+          response = await uploadFile();
+        } catch (err) {
+          // Fast 202s let a batch trip the per-IP upload limit; wait out the window the
+          // server reports and retry this file once before giving up on it
+          if (err.response?.status !== 429 || uploadCancelledRef.current) throw err;
+          const waitSeconds = getRetryAfterSeconds(err, 60);
+          setUploadProgress(prev => prev.map((p, idx) =>
+            idx === i ? { ...p, message: `Rate limited — retrying in ${waitSeconds}s...` } : p
+          ));
+          await waitUnlessAborted(waitSeconds * 1000, abortControllerRef.current.signal);
+          if (uploadCancelledRef.current) {
+            // Cancelled during the wait: nothing was uploaded, so there is nothing to clean up
+            setUploadProgress(prev => prev.map((p, idx) =>
+              idx >= i && (p.status === 'pending' || p.status === 'uploading')
+                ? { ...p, status: 'cancelled', message: 'Cancelled' }
+                : p
+            ));
+            break;
+          }
+          setUploadProgress(prev => prev.map((p, idx) =>
+            idx === i ? { ...p, message: 'Uploading...' } : p
+          ));
+          response = await uploadFile();
+        }
 
         // Check if cancelled while upload was in progress
         // The upload completed on the backend, so we need to clean up
@@ -402,9 +527,11 @@ const AudioRecordings = () => {
           break;
         }
 
-        // Update status to success
+        // Update status to success. A 202 means the recording is saved and its
+        // transcript is on the way; the list below shows the progress.
+        const successMessage = isProcessingUpload(response) ? 'Uploaded — transcribing…' : 'Complete';
         setUploadProgress(prev => prev.map((p, idx) =>
-          idx === i ? { ...p, status: 'success', progress: 100, message: 'Complete' } : p
+          idx === i ? { ...p, status: 'success', progress: 100, message: successMessage } : p
         ));
 
         successCount++;
@@ -512,12 +639,12 @@ const AudioRecordings = () => {
     } else if (successCount > 0 && failCount === 0) {
       setUploadProgress(prev => [
         ...prev,
-        { id: 'summary', status: 'info', message: `Successfully uploaded ${successCount} recording${successCount > 1 ? 's' : ''}. Journal entries have been created.` }
+        { id: 'summary', status: 'info', message: `Successfully uploaded ${successCount} recording${successCount > 1 ? 's' : ''}. Transcription and journal entries will appear shortly.` }
       ]);
     } else if (successCount > 0 && failCount > 0) {
       setUploadProgress(prev => [
         ...prev,
-        { id: 'summary', status: 'warning', message: `Uploaded ${successCount} recording${successCount > 1 ? 's' : ''}, ${failCount} failed. Journal entries created for successful uploads.` }
+        { id: 'summary', status: 'warning', message: `Uploaded ${successCount} recording${successCount > 1 ? 's' : ''}, ${failCount} failed. Transcription and journal entries for the successful uploads will appear shortly.` }
       ]);
     } else if (failCount > 0) {
       setError(`Failed to upload ${failCount} recording${failCount > 1 ? 's' : ''}.`);
@@ -929,15 +1056,18 @@ const AudioRecordings = () => {
                               )}
                             </div>
                             <div className="flex items-center gap-1 flex-shrink-0">
-                              <button
-                                onClick={() => handleEditSummary(recording.id, recording.ai_summary, recording.category)}
-                                className="p-2 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition min-w-[44px] min-h-[44px] flex items-center justify-center"
-                                title="Edit recording"
-                              >
-                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                                </svg>
-                              </button>
+                              {/* Editing while transcribing would be overwritten by the job's final write */}
+                              {recording.transcription_status !== 'processing' && (
+                                <button
+                                  onClick={() => handleEditSummary(recording.id, recording.ai_summary, recording.category)}
+                                  className="p-2 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition min-w-[44px] min-h-[44px] flex items-center justify-center"
+                                  title="Edit recording"
+                                >
+                                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                                  </svg>
+                                </button>
+                              )}
                               <button
                                 onClick={() => handleDeleteRecording(recording)}
                                 className="p-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 rounded transition min-w-[44px] min-h-[44px] flex items-center justify-center"
@@ -1000,6 +1130,34 @@ const AudioRecordings = () => {
                             </div>
                           )}
 
+                          {/* Transcription status - the transcript comes from a background job */}
+                          {recording.transcription_status === 'processing' && (
+                            <div className="bg-gray-50 dark:bg-gray-700 p-3 rounded mb-3 flex items-center gap-2">
+                              <svg className="w-4 h-4 text-blue-600 dark:text-blue-400 animate-spin flex-shrink-0" fill="none" viewBox="0 0 24 24">
+                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                              </svg>
+                              <p className="text-xs text-gray-600 dark:text-gray-400">
+                                <span className="font-medium text-gray-700 dark:text-gray-300">Transcribing…</span>{' '}
+                                The transcript and journal entries will appear here automatically.
+                              </p>
+                            </div>
+                          )}
+                          {recording.transcription_status === 'failed' && (
+                            <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 p-3 rounded mb-3 flex items-center justify-between gap-3">
+                              <p className="text-xs text-red-700 dark:text-red-300">
+                                Transcription failed — the recording can still be played.
+                              </p>
+                              <button
+                                onClick={() => handleRetranscribe(recording.id)}
+                                disabled={!!retryingIds[recording.id]}
+                                className="px-3 py-1 text-xs font-medium text-white bg-primary-600 hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-md transition-colors flex-shrink-0"
+                              >
+                                {retryingIds[recording.id] ? 'Retrying...' : 'Retry'}
+                              </button>
+                            </div>
+                          )}
+
                           {/* Transcription */}
                           {recording.transcribed_text && (
                             <div className="bg-gray-50 dark:bg-gray-700 p-3 rounded mb-3">
@@ -1059,8 +1217,12 @@ const AudioRecordings = () => {
                             </div>
                           )}
 
-                          {/* Audio player */}
-                          <AudioPlayer recordingId={recording.id} getAudioUrl={getAudioUrl} />
+                          {/* Audio player - keyed on status so it refetches its URL once the job swaps in the MP3 */}
+                          <AudioPlayer
+                            key={recording.transcription_status || 'completed'}
+                            recordingId={recording.id}
+                            getAudioUrl={getAudioUrl}
+                          />
                         </div>
                       );
                     })}

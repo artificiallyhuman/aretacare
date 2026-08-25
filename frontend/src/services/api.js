@@ -356,6 +356,10 @@ export const conversationAPI = {
     formData.append('audio', audioFile);
     formData.append('session_id', sessionId);
     formData.append('skip_journal_synthesis', skipJournalSynthesis ? 'true' : 'false');
+    // Ask for a 202 as soon as the recording is saved; the transcript is produced by a
+    // background job and fetched via audioRecordingsAPI.getRecording (see
+    // utils/transcriptionPolling.js). Older backends ignore this and answer 200 inline.
+    formData.append('background', 'true');
     return api.post('/conversation/transcribe', formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
@@ -390,8 +394,8 @@ export const audioRecordingsAPI = {
     if (search) params.search = search;
     return api.get(`/audio-recordings/${sessionId}`, { params, ...config });
   },
-  getRecording: (sessionId, recordingId) =>
-    api.get(`/audio-recordings/${sessionId}/${recordingId}`),
+  getRecording: (sessionId, recordingId, config = {}) =>
+    api.get(`/audio-recordings/${sessionId}/${recordingId}`, config),
   updateRecording: (sessionId, recordingId, ai_summary, category = null) => {
     const data = {};
     if (ai_summary !== undefined) data.ai_summary = ai_summary;
@@ -402,6 +406,9 @@ export const audioRecordingsAPI = {
     api.delete(`/audio-recordings/${sessionId}/${recordingId}`),
   getAudioUrl: (sessionId, recordingId) =>
     api.get(`/audio-recordings/${sessionId}/${recordingId}/url`),
+  // Re-run transcription for a recording whose transcription_status is "failed" (202; 409 otherwise)
+  retranscribe: (sessionId, recordingId) =>
+    api.post(`/audio-recordings/${sessionId}/${recordingId}/retranscribe`),
 };
 
 // Daily Plans API

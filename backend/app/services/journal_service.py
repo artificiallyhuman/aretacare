@@ -458,6 +458,9 @@ IMPORTANT: Respond with ONLY a valid JSON object in this exact format, with no a
         try:
             recent_entries = self._get_recent_entries(session_id, days=7)
             recent_context = self._format_recent_journal_brief(recent_entries)
+            # The entries are consumed into a string above; release the connection so it
+            # isn't held idle across the OpenAI call (the session reacquires on next query)
+            self.db.rollback()
 
             # Get today's date for context
             today = entry_date if entry_date else date.today()

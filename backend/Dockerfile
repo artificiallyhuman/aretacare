@@ -45,4 +45,7 @@ EXPOSE 8000
 #      across five instances would be ~1,200 connections against a ~100-connection plan.
 #   2. Put an advisory lock around run_migrations(). It is called at module scope in
 #      main.py, so every worker process runs the migrations concurrently.
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# --timeout-graceful-shutdown: stop waiting for open connections after 20s so the
+# shutdown hook (which marks in-flight audio transcriptions failed/retryable) runs
+# inside Render's SIGTERM grace even if a legacy inline transcribe request is open.
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--timeout-graceful-shutdown", "20"]
