@@ -25,6 +25,11 @@ regexes = [
 ]
 
 [[allowlists]]
+description = "A Python attribute reference to a stored S3 object key (`source_key = recording.s3_key` in backend/app/api/audio_recording.py), not a value. generic-api-key fires because the variable name ends in `key` and the 16-char dotted identifier clears the rule's 3.5 entropy threshold."
+regexTarget = "secret"
+regexes = ['''^[a-z_]+\.s3_key$''']
+
+[[allowlists]]
 description = "Example and template config files ship deliberately empty placeholders; that is their purpose."
 paths = [
   '''(^|/)\.env\.example$''',
