@@ -43,6 +43,11 @@ export function initSentry() {
       // Benign browser noise
       'ResizeObserver loop limit exceeded',
       'ResizeObserver loop completed with undelivered notifications',
+      // Browser-extension content scripts (DuckDuckGo Mobile privacy features,
+      // etc.) injected into the page; denyUrls can't catch them on iOS WebKit
+      // because the injected frames carry the page's own URL.
+      /runtime\.sendMessage/,
+      'Extension context invalidated',
       // Connectivity failures are handled by NetworkContext's banner and
       // captured server-side when they matter
       'Network Error',
