@@ -677,6 +677,7 @@ def login(
             )
 
     # No MFA or device is trusted - proceed with normal login
+    user.last_login_at = datetime.utcnow()
 
     # Create access token
     access_token = create_access_token(data={"sub": user.id})
@@ -822,6 +823,8 @@ def verify_mfa_login(
             device_name=user_agent or "Unknown device",
             ip_address=ip_address or "Unknown IP"
         )
+
+    user.last_login_at = datetime.utcnow()
 
     # Create access token
     access_token = create_access_token(data={"sub": user.id})

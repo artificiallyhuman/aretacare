@@ -37,6 +37,17 @@ class User(Base):
     mfa_preferred_method = Column(String(20), nullable=True)  # 'passkey' or 'totp'
     mfa_enabled_at = Column(DateTime, nullable=True)
 
+    # Stamped on successful login (password login and MFA-verify completion), never on
+    # token refresh. Exists because refresh tokens expire after 7 days and expired rows
+    # are cleaned up, so they cannot answer "when did this user last log in".
+    last_login_at = Column(DateTime, nullable=True)
+
+    # Admin campaign email preferences (product-update emails only — never transactional).
+    # The token has no expiry: the unsubscribe link must keep working long after the email
+    # was sent, and it survives unsubscription so re-clicking the link stays idempotent.
+    unsubscribe_token = Column(String, unique=True, index=True, nullable=True)
+    email_unsubscribed_at = Column(DateTime, nullable=True)
+
     # Relationships
     sessions = relationship(
         "Session",

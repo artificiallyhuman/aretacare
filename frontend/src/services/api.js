@@ -524,6 +524,17 @@ export const adminAPI = {
   sendWaitlistInvite: (entryId) => api.post(`/admin/waitlist/${entryId}/invite`),
   updateWaitlistEntry: (entryId, data) => api.patch(`/admin/waitlist/${entryId}`, data),
   deleteWaitlistEntry: (entryId) => api.delete(`/admin/waitlist/${entryId}`),
+
+  // Email campaigns
+  getEmailRecipients: () => api.get('/admin/email/users'),
+  listEmailCampaigns: (page = 1, limit = 20) =>
+    api.get('/admin/email/campaigns', { params: { page, limit } }),
+  createEmailCampaign: (subject, bodyHtml, userIds) =>
+    api.post('/admin/email/campaigns', { subject, body_html: bodyHtml, user_ids: userIds }),
+  getEmailCampaign: (campaignId, includeRecipients = false) =>
+    api.get(`/admin/email/campaigns/${campaignId}`, { params: { include_recipients: includeRecipients } }),
+  resumeEmailCampaign: (campaignId) =>
+    api.post(`/admin/email/campaigns/${campaignId}/resume`),
 };
 
 // Feedback API
@@ -539,6 +550,17 @@ export const waitlistAPI = {
     message: message || null,
     captcha_token: captchaToken
   }),
+};
+
+// Unsubscribe API (public, no auth required — token from the emailed link)
+export const unsubscribeAPI = {
+  unsubscribe: (token) => api.post('/email/unsubscribe', { token }),
+};
+
+// Email preferences API (authenticated — backs the Settings toggle)
+export const emailPreferencesAPI = {
+  get: () => api.get('/email/preferences'),
+  update: (productUpdates) => api.put('/email/preferences', { product_updates: productUpdates }),
 };
 
 // MFA API

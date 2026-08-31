@@ -384,3 +384,87 @@ class RevokeTokenResponse(BaseModel):
     """Response after revoking a token."""
     message: str
     revoked_token_id: int
+
+
+# ==========================================
+# Admin Email Campaign Schemas
+# ==========================================
+
+class EmailRecipientUser(BaseModel):
+    """One user row in the email panel's recipient picker, with engagement metrics."""
+    user_id: str
+    email: str
+    name: str
+    created_at: datetime
+    is_active: bool
+    is_email_verified: bool
+    last_login: Optional[datetime] = None
+    last_activity: Optional[datetime] = None
+    session_count: int
+    conversation_count: int
+    document_count: int
+    audio_count: int
+    journal_count: int
+    features_used: List[str]
+    unsubscribed: bool
+    unsubscribed_at: Optional[datetime] = None
+
+
+class EmailRecipientsResponse(BaseModel):
+    """All users with metrics; the frontend filters/sorts/selects client-side."""
+    generated_at: datetime
+    smtp_configured: bool  # False = dev mode; sends will be recorded as skipped
+    available_features: List[str]  # distinct api_logs.feature values (last 30 days)
+    users: List[EmailRecipientUser]
+
+
+class CreateEmailCampaignRequest(BaseModel):
+    """Request to create and send a product-update email campaign."""
+    subject: str = Field(..., min_length=1, max_length=150)
+    body_html: str = Field(..., min_length=1, max_length=200_000)
+    user_ids: List[str] = Field(..., min_length=1, max_length=1000)
+
+
+class EmailCampaignCreateResponse(BaseModel):
+    """Response after a campaign is accepted for background sending."""
+    campaign_id: str
+    status: str
+    total_recipients: int
+    smtp_configured: bool
+
+
+class EmailCampaignRecipientStatus(BaseModel):
+    """Per-recipient outcome within a campaign."""
+    user_id: Optional[str] = None
+    email: str
+    name: Optional[str] = None
+    status: str  # pending | sent | failed | skipped
+    error: Optional[str] = None
+    sent_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+
+class EmailCampaignStatus(BaseModel):
+    """Campaign summary; status is the effective (stale-aware) status."""
+    id: str
+    subject: str
+    admin_email: str
+    status: str  # pending | sending | stalled | completed | completed_with_errors | failed
+    total_recipients: int
+    sent_count: int
+    failed_count: int
+    skipped_count: int
+    created_at: datetime
+    started_at: Optional[datetime] = None
+    completed_at: Optional[datetime] = None
+    recipients: Optional[List[EmailCampaignRecipientStatus]] = None
+
+
+class EmailCampaignListResponse(BaseModel):
+    """Paginated campaign history, newest first."""
+    total: int
+    page: int
+    limit: int
+    campaigns: List[EmailCampaignStatus]

@@ -120,6 +120,16 @@ struct DevicesCountResponse: Codable {
     let count: Int
 }
 
+// MARK: - Email Preferences (product-update emails only — never transactional)
+
+struct EmailPreferencesResponse: Codable {
+    let productUpdates: Bool
+}
+
+struct UpdateEmailPreferencesRequest: Codable {
+    let productUpdates: Bool
+}
+
 // MARK: - Empty Response (for endpoints with no meaningful body)
 
 struct EmptyResponse: Decodable {}

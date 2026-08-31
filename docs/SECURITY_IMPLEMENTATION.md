@@ -146,7 +146,8 @@ Password reset has a second, per-account throttle (see Security Logging) layered
 | Feedback | 3/hour |
 | Admin Destructive | 5/hour (delete user, delete care session, S3 cleanup) |
 | Admin Sensitive | 10/hour (reset password, reset MFA, transfer) |
-| Admin Email | 20/hour (invitations, notifications) |
+| Admin Email | 20/hour (invitations, notifications, campaign create/resume) |
+| Unsubscribe | 20/minute (public unsubscribe endpoints — the 256-bit per-user token is the real control) |
 | General API | 100/minute |
 
 ---
@@ -156,6 +157,7 @@ Password reset has a second, per-account throttle (see Security Logging) layered
 - **Pydantic schemas**: All API inputs validated (type, length, format)
 - **Care session names**: Alphanumeric + spaces, hyphens, underscores, apostrophes only (`^[a-zA-Z0-9\s\-_']+$`)
 - **Feedback form**: HTML-escaped via `html.escape()`
+- **Admin campaign emails**: admin-composed HTML sanitized server-side with an nh3 allowlist (tags/attributes/URL schemes) before storage and send; subjects header-sanitized (`_safe_header`)
 
 ---
 

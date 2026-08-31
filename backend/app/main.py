@@ -359,6 +359,17 @@ async def _run_startup_cleanup():
             logger.error(f"Admin report cleanup failed: {e}")
             db.rollback()
 
+        # Email campaigns (recipients cascade)
+        try:
+            from app.models.email_campaign import EmailCampaign
+            cutoff = now - timedelta(days=settings.EMAIL_CAMPAIGN_RETENTION_DAYS)
+            deleted = db.query(EmailCampaign).filter(EmailCampaign.created_at < cutoff).delete(synchronize_session=False)
+            db.commit()
+            logger.info(f"✓ Email campaign cleanup: {deleted or 'No'} campaigns removed (retention: {settings.EMAIL_CAMPAIGN_RETENTION_DAYS} days)")
+        except Exception as e:
+            logger.error(f"Email campaign cleanup failed: {e}")
+            db.rollback()
+
         # MFA challenges
         try:
             deleted = MFAService.cleanup_expired_challenges(db)

@@ -156,4 +156,9 @@ enum APIEndpoints {
         static let signupMode = "/waitlist/signup-mode"
         static let join = "/waitlist/join"
     }
+
+    // MARK: - Email Preferences
+    enum EmailPreferences {
+        static let preferences = "/email/preferences"
+    }
 }

@@ -90,6 +90,18 @@ class Settings(BaseSettings):
     FRONTEND_URL: str = "http://localhost:3001"
     FEEDBACK_EMAIL: str = "feedback@aretacare.com"  # Email address to receive feedback submissions
 
+    # Admin email campaigns (product-update emails with per-user unsubscribe links)
+    # Public base URL of the API (e.g. https://api.aretacare.com). Enables the RFC 8058
+    # List-Unsubscribe-Post one-click header, which must point at the API — the static
+    # frontend cannot process a mail provider's POST. Empty = plain RFC 2369 header only.
+    API_PUBLIC_URL: str = ""
+    # Postal address for campaign email footers. CAN-SPAM expects commercial email
+    # to carry a valid postal address — a USPS PO box or registered commercial
+    # mailbox (CMRA/virtual mailbox) counts; it does not have to be a street
+    # address. Empty = the footer's address line is omitted entirely.
+    COMPANY_POSTAL_ADDRESS: str = ""
+    EMAIL_CAMPAIGN_RETENTION_DAYS: int = 365  # Auto-delete campaign send records older than this
+
     # Security Alerts
     SECURITY_ALERT_EMAIL: str = "security@aretacare.com"  # Email address to receive security alerts
     SECURITY_ALERT_EVENTS: str = "account_lockout,blocked_file_upload,email_changed,unauthorized_access"  # Comma-separated event types

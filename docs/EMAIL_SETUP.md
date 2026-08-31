@@ -32,10 +32,43 @@ AretaCare sends automated emails for:
 - **Waitlist invitation** — Approval email with registration link
 - **Waitlist user registered** — Admin notification
 - **Inactive account notification** — Re-engagement emails
+- **Product update campaigns** — Admin-composed emails to selected users (see below)
 
 **Feedback:**
 - **Feedback to team** — Forwards user feedback to team
 - **Feedback confirmation** — Acknowledgment to user
+
+## Admin Campaign Emails & Unsubscribe
+
+The admin console's "Email Users" panel sends product-update emails to selected users.
+These are the only emails with an unsubscribe mechanism — **unsubscribing never affects
+transactional email** (verification, password reset, security, collaboration).
+
+- Every campaign email auto-appends a footer with a **per-user unsubscribe link**
+  (`{FRONTEND_URL}/unsubscribe?token=...`; tokens are 256-bit, per-user, no expiry).
+- **Postal address**: when `COMPANY_POSTAL_ADDRESS` is set, the footer includes it; when
+  empty (the default), the line is omitted entirely. CAN-SPAM expects commercial email to
+  carry a valid postal address, but per FTC guidance a **USPS PO box or a registered
+  commercial mailbox (UPS Store / virtual mailbox)** satisfies it — no home or street
+  address needed. Updates to existing account holders lean toward exempt "relationship"
+  content, but promotional-toned campaigns can count as commercial, so a PO box is the
+  safe long-term answer.
+- A `List-Unsubscribe` header is always set. When `API_PUBLIC_URL` is configured (e.g.
+  `https://api.aretacare.com`), the RFC 8058 `List-Unsubscribe-Post` one-click header is
+  added too, so mail providers can offer native one-click unsubscribe. It must point at the
+  API — the static frontend can't process the provider's POST — hence the separate env var.
+- Users can also opt out (or back in) via the Settings toggle "Receive product update
+  emails" (on by default; web and iOS). Either path sets the same flag; unsubscribed users
+  remain visible in the admin recipient list but cannot be selected.
+- **Dev mode** (no `SMTP_PASSWORD`): campaign recipients are recorded as
+  `skipped (smtp_not_configured)` and each unsubscribe URL is logged, so the flow is
+  testable end-to-end from `docker compose logs -f backend`.
+- Sending runs as a background job (Cloudflare would 524 a long synchronous send); progress
+  is polled by the admin UI, and a campaign interrupted by a deploy shows as `stalled` with
+  a Resume action that never re-emails already-sent recipients.
+- **Deliverability note**: campaigns share `SMTP_FROM_EMAIL` with transactional mail. Fine at
+  waitlist scale; if volume grows, consider a separate From address or an ESP so a
+  spam-flagged campaign can't drag down transactional deliverability.
 
 ## Gmail App Password Setup
 

@@ -18,7 +18,7 @@ from app.api.permissions import check_is_admin, require_admin
 from app.models import (
     User, Session as SessionModel, SessionCollaborator,
     Document, AudioRecording, AdminAuditLog, SecurityLog, ErrorLog, ApiLog,
-    RefreshToken, WaitlistEntry
+    RefreshToken, WaitlistEntry, EmailCampaign, EmailCampaignRecipient
 )
 from app.schemas.admin import (
     PlatformMetrics, MetricsTrendResponse, MetricsTrend,
@@ -33,7 +33,10 @@ from app.schemas.admin import (
     EmailInactiveUsersRequest, EmailInactiveUsersResponse,
     ErrorLogEntry, ErrorLogResponse, ErrorLogCleanupResponse,
     ApiLogEntry, ApiLogSummary, ApiLogResponse,
-    RefreshTokenInfo, UserTokensResponse, RevokeTokenResponse
+    RefreshTokenInfo, UserTokensResponse, RevokeTokenResponse,
+    EmailRecipientsResponse, CreateEmailCampaignRequest,
+    EmailCampaignCreateResponse, EmailCampaignStatus,
+    EmailCampaignRecipientStatus, EmailCampaignListResponse
 )
 from app.schemas.admin_report import (
     AdminReportResponse, AdminReportListResponse, AdminReportGenerateResponse
@@ -47,6 +50,7 @@ from app.models.admin_report import AdminReport
 from app.services.s3_service import s3_service
 from app.services.email_service import email_service
 from app.services.mfa_service import MFAService
+from app.services import email_campaign_service
 
 logger = logging.getLogger(__name__)
 
@@ -999,10 +1003,9 @@ async def cleanup_error_logs(
     db.commit()
 
     # Log the cleanup action
-    admin_service.log_admin_action(
+    admin_service.log_action(
         db=db,
-        admin_user_id=admin.id,
-        admin_email=admin.email,
+        admin_user=admin,
         action="error_logs_cleanup",
         details={"days": days, "deleted_count": deleted_count}
     )
@@ -1355,3 +1358,234 @@ async def backfill_embeddings(
             + (f", Remaining: {stats['remaining']}" if 'remaining' in stats else "")
         )
     }
+
+
+# ==========================================
+# Admin Email Campaigns
+# ==========================================
+
+def _campaign_to_status(campaign: EmailCampaign, recipients=None) -> EmailCampaignStatus:
+    """Build the response model with the effective (stale-aware) status."""
+    return EmailCampaignStatus(
+        id=campaign.id,
+        subject=campaign.subject,
+        admin_email=campaign.admin_email,
+        status=email_campaign_service.effective_campaign_status(campaign),
+        total_recipients=campaign.total_recipients,
+        sent_count=campaign.sent_count,
+        failed_count=campaign.failed_count,
+        skipped_count=campaign.skipped_count,
+        created_at=campaign.created_at,
+        started_at=campaign.started_at,
+        completed_at=campaign.completed_at,
+        recipients=(
+            [EmailCampaignRecipientStatus.model_validate(r) for r in recipients]
+            if recipients is not None else None
+        ),
+    )
+
+
+@router.get("/email/users", response_model=EmailRecipientsResponse)
+async def get_email_recipient_users(db: DBSession = Depends(get_db)):
+    """
+    All users with the engagement metrics the email panel filters and sorts on.
+    The frontend filters/sorts/selects client-side (waitlist-scale user base),
+    which makes "check all after a filter" exact.
+    """
+    data = admin_service.get_email_recipients(db)
+    return EmailRecipientsResponse(
+        generated_at=data["generated_at"],
+        smtp_configured=bool(settings.SMTP_PASSWORD),
+        available_features=data["available_features"],
+        users=data["users"],
+    )
+
+
+@router.post("/email/campaigns", response_model=EmailCampaignCreateResponse, status_code=202)
+@limiter.limit(RateLimits.ADMIN_EMAIL)
+async def create_email_campaign(
+    request: Request,
+    payload: CreateEmailCampaignRequest,
+    admin_user: User = Depends(get_admin_user),
+    db: DBSession = Depends(get_db)
+):
+    """
+    Create a product-update email campaign and start sending it in the
+    background. Returns 202 immediately; poll GET /admin/email/campaigns/{id}.
+
+    Selected users must all be eligible (active, verified, not unsubscribed) —
+    an ineligible id means the client's list is stale, so this 400s with the
+    offending emails rather than silently skipping them.
+    """
+    body_html = email_campaign_service.sanitize_campaign_html(payload.body_html)
+    body_text = email_campaign_service.html_to_plain_text(body_html)
+    if not body_text.strip():
+        raise HTTPException(status_code=400, detail="Email body is empty after sanitization")
+
+    subject = payload.subject.strip()
+    if not subject:
+        raise HTTPException(status_code=400, detail="Subject is required")
+
+    user_ids = list(dict.fromkeys(payload.user_ids))  # dedupe, preserve order
+    users = db.query(User).filter(User.id.in_(user_ids)).all()
+    users_by_id = {u.id: u for u in users}
+
+    problems = []
+    for uid in user_ids:
+        user = users_by_id.get(uid)
+        if user is None:
+            problems.append("a deleted user")
+        elif user.email_unsubscribed_at is not None:
+            problems.append(f"{user.email} (unsubscribed)")
+        elif not user.is_active:
+            problems.append(f"{user.email} (deactivated)")
+        elif not user.is_email_verified:
+            problems.append(f"{user.email} (email not verified)")
+    if problems:
+        shown = ", ".join(problems[:20])
+        more = f" and {len(problems) - 20} more" if len(problems) > 20 else ""
+        raise HTTPException(
+            status_code=400,
+            detail=f"Some selected users are no longer eligible: {shown}{more}. "
+                   "Refresh the recipient list and try again."
+        )
+
+    # One campaign at a time. A stalled campaign (stale heartbeat — its
+    # instance died) does not block; the effective-status check excludes it.
+    stale_cutoff = datetime.utcnow() - timedelta(seconds=email_campaign_service.CAMPAIGN_STALE_SECONDS)
+    active = db.query(EmailCampaign).filter(
+        EmailCampaign.status.in_(["pending", "sending"]),
+        EmailCampaign.updated_at >= stale_cutoff
+    ).first()
+    if active is not None:
+        raise HTTPException(
+            status_code=409,
+            detail="Another email campaign is currently sending. Wait for it to finish."
+        )
+
+    # Lazily mint unsubscribe tokens so every recipient has a working link.
+    for user in users:
+        if not user.unsubscribe_token:
+            user.unsubscribe_token = secrets.token_urlsafe(32)
+
+    campaign = EmailCampaign(
+        admin_user_id=admin_user.id,
+        admin_email=admin_user.email,
+        subject=subject,
+        body_html=body_html,
+        body_text=body_text,
+        status="pending",
+        total_recipients=len(user_ids),
+    )
+    db.add(campaign)
+    db.flush()
+    for uid in user_ids:
+        user = users_by_id[uid]
+        db.add(EmailCampaignRecipient(
+            campaign_id=campaign.id,
+            user_id=user.id,
+            email=user.email,
+            name=user.name,
+        ))
+    db.commit()
+    campaign_id = campaign.id
+
+    # After the commit — log_action commits internally.
+    admin_service.log_action(
+        db=db,
+        admin_user=admin_user,
+        action="email_campaign_sent",
+        target_type="email_campaign",
+        target_id=campaign_id,
+        details={"subject": subject, "recipient_count": len(user_ids)},
+    )
+
+    email_campaign_service.start_campaign_send(campaign_id)
+
+    return EmailCampaignCreateResponse(
+        campaign_id=campaign_id,
+        status="pending",
+        total_recipients=len(user_ids),
+        smtp_configured=bool(settings.SMTP_PASSWORD),
+    )
+
+
+@router.get("/email/campaigns", response_model=EmailCampaignListResponse)
+async def list_email_campaigns(
+    page: int = Query(1, ge=1),
+    limit: int = Query(20, ge=1, le=100),
+    db: DBSession = Depends(get_db)
+):
+    """Campaign history, newest first."""
+    total = db.query(EmailCampaign).count()
+    campaigns = db.query(EmailCampaign).order_by(
+        EmailCampaign.created_at.desc()
+    ).offset((page - 1) * limit).limit(limit).all()
+    return EmailCampaignListResponse(
+        total=total,
+        page=page,
+        limit=limit,
+        campaigns=[_campaign_to_status(c) for c in campaigns],
+    )
+
+
+@router.get("/email/campaigns/{campaign_id}", response_model=EmailCampaignStatus)
+async def get_email_campaign(
+    campaign_id: str,
+    include_recipients: bool = Query(False),
+    db: DBSession = Depends(get_db)
+):
+    """Campaign status for progress polling; recipients on request (the
+    frontend asks for them once, on a terminal state)."""
+    campaign = db.query(EmailCampaign).filter(EmailCampaign.id == campaign_id).first()
+    if campaign is None:
+        raise HTTPException(status_code=404, detail="Campaign not found")
+    recipients = None
+    if include_recipients:
+        recipients = db.query(EmailCampaignRecipient).filter(
+            EmailCampaignRecipient.campaign_id == campaign_id
+        ).order_by(EmailCampaignRecipient.id).all()
+    return _campaign_to_status(campaign, recipients)
+
+
+@router.post("/email/campaigns/{campaign_id}/resume", response_model=EmailCampaignCreateResponse, status_code=202)
+@limiter.limit(RateLimits.ADMIN_EMAIL)
+async def resume_email_campaign(
+    request: Request,
+    campaign_id: str,
+    admin_user: User = Depends(get_admin_user),
+    db: DBSession = Depends(get_db)
+):
+    """
+    Resume a stalled campaign (its instance died mid-send). Only 'pending'
+    recipients are processed — already-sent recipients are never re-sent, and
+    the job's claim UPDATE keeps this exclusive across instances.
+    """
+    campaign = db.query(EmailCampaign).filter(EmailCampaign.id == campaign_id).first()
+    if campaign is None:
+        raise HTTPException(status_code=404, detail="Campaign not found")
+
+    effective = email_campaign_service.effective_campaign_status(campaign)
+    if effective != "stalled":
+        raise HTTPException(
+            status_code=409,
+            detail=f"Campaign is {effective} and cannot be resumed"
+        )
+
+    if not email_campaign_service.start_campaign_send(campaign_id):
+        raise HTTPException(status_code=409, detail="Campaign send is already running")
+
+    admin_service.log_action(
+        db=db,
+        admin_user=admin_user,
+        action="email_campaign_resumed",
+        target_type="email_campaign",
+        target_id=campaign_id,
+    )
+
+    return EmailCampaignCreateResponse(
+        campaign_id=campaign_id,
+        status="sending",
+        total_recipients=campaign.total_recipients,
+        smtp_configured=bool(settings.SMTP_PASSWORD),
+    )

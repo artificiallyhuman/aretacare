@@ -156,3 +156,7 @@ class RateLimits:
 
     # Waitlist submission (spam prevention)
     WAITLIST_JOIN = "5/hour"        # 5 waitlist submissions per hour per IP
+
+    # Public unsubscribe endpoints (hygiene only — the 256-bit token is the real
+    # control; kept generous because provider one-click POSTs share egress IPs)
+    UNSUBSCRIBE = "20/minute"

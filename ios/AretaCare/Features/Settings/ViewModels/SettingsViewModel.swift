@@ -62,6 +62,45 @@ final class SettingsViewModel {
         }
     }
 
+    // MARK: - Email Preferences
+
+    /// nil until loaded; the toggle stays disabled so a tap can't race the fetch.
+    /// Opting out here is identical to clicking an emailed unsubscribe link — it
+    /// affects only admin product-update emails, never transactional email.
+    private(set) var productUpdateEmails: Bool?
+
+    func fetchEmailPreferences() async {
+        do {
+            let response: EmailPreferencesResponse = try await APIClient.shared.get(
+                APIEndpoints.EmailPreferences.preferences
+            )
+            productUpdateEmails = response.productUpdates
+        } catch {
+            // Non-fatal — the toggle stays disabled
+            #if DEBUG
+            print("[Settings] Fetch email preferences failed: \(error)")
+            #endif
+        }
+    }
+
+    func setProductUpdateEmails(_ enabled: Bool) async {
+        errorMessage = nil
+
+        let previous = productUpdateEmails
+        productUpdateEmails = enabled  // optimistic; reverted on failure
+
+        do {
+            let response: EmailPreferencesResponse = try await APIClient.shared.put(
+                APIEndpoints.EmailPreferences.preferences,
+                body: UpdateEmailPreferencesRequest(productUpdates: enabled)
+            )
+            productUpdateEmails = response.productUpdates
+        } catch {
+            productUpdateEmails = previous
+            errorMessage = error.localizedDescription
+        }
+    }
+
     // MARK: - Account Operations
 
     func updateName(name: String, password: String) async -> Bool {

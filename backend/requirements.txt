@@ -38,3 +38,4 @@ webauthn==2.8.0
 # a backfill/query check, not as part of a routine batch.
 pgvector==0.3.6
 aioapns==4.0
+nh3==0.3.7  # HTML sanitizer (Rust/ammonia) for admin campaign email bodies (services/email_campaign_service.py)

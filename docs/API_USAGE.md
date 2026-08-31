@@ -472,6 +472,46 @@ Response:
 
 ---
 
+## Admin: Email Campaigns
+
+Product-update emails composed in the admin console. Admin-only except where noted.
+
+```bash
+GET  /api/admin/email/users                    # All users + engagement metrics (last login, last activity,
+                                               # per-feature usage from the last 30 days, content counts,
+                                               # unsubscribed flag). Frontend filters/sorts client-side.
+POST /api/admin/email/campaigns                # Create + start sending in the background. Returns 202.
+GET  /api/admin/email/campaigns                # Campaign history (page, limit)
+GET  /api/admin/email/campaigns/{id}           # Status polling. ?include_recipients=true for per-recipient outcomes
+POST /api/admin/email/campaigns/{id}/resume    # Resume a campaign stalled by a deploy/restart. Returns 202.
+```
+
+Create body: `{"subject": "...", "body_html": "<p>...</p>", "user_ids": ["..."]}`.
+The HTML body is sanitized server-side with an allowlist (nh3) before storage and send.
+Every selected user must be eligible (active, email verified, not unsubscribed) or the
+request 400s with the offending emails. 409 while another campaign is sending.
+Rate limited: 20/hour (Admin Email).
+
+Campaign `status`: `pending | sending | stalled | completed | completed_with_errors | failed`
+(`stalled` = the sending instance died; resume finishes only pending recipients — sent ones
+are never re-emailed).
+
+## Email Preferences & Unsubscribe
+
+```bash
+POST /api/email/unsubscribe                    # Public. Body: {"token": "..."} from the emailed link
+POST /api/email/unsubscribe/one-click?token=   # Public. RFC 8058 one-click target (List-Unsubscribe-Post)
+GET  /api/email/preferences                    # Authenticated. {"product_updates": true|false}
+PUT  /api/email/preferences                    # Authenticated. Body: {"product_updates": true|false}
+```
+
+Unsubscribing affects only admin product-update emails — transactional email (password
+resets, security alerts, invitations) is unaffected. Both unsubscribe endpoints are
+idempotent; the token has no expiry. The preferences pair backs the Settings toggle
+("Receive product update emails", on by default) and can also opt back in.
+
+---
+
 ## Error Handling
 
 Standard HTTP status codes: `200` OK, `201` Created, `400` Bad Request, `401` Unauthorized, `403` Forbidden, `404` Not Found, `429` Rate Limited, `500` Server Error
@@ -496,7 +536,8 @@ Error format: `{"detail": "Error message"}`
 | Waitlist | 5/hour |
 | Admin Destructive | 5/hour (delete user, delete session, S3 cleanup) |
 | Admin Sensitive | 10/hour (reset password, reset MFA, transfer) |
-| Admin Email | 20/hour (invitations, notifications) |
+| Admin Email | 20/hour (invitations, notifications, campaign create/resume) |
+| Unsubscribe | 20/minute (public unsubscribe endpoints) |
 | General API | 100/minute |
 
 ---

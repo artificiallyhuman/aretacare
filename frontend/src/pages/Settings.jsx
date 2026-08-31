@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate, Link } from 'react-router-dom';
-import { authAPI, sessionAPI, mfaAPI } from '../services/api';
+import { authAPI, sessionAPI, mfaAPI, emailPreferencesAPI } from '../services/api';
 import { useSessionContext } from '../contexts/SessionContext';
 import { formatLocalDate } from '../utils/dateUtils';
 import SensitiveActionModal from '../components/mfa/SensitiveActionModal';
@@ -58,6 +58,45 @@ export default function Settings() {
   // Confirmation modals
   const [sessionToDelete, setSessionToDelete] = useState(null);
   const [accountDeleteConfirm, setAccountDeleteConfirm] = useState(false);
+
+  // Email preferences (null until loaded; on by default server-side)
+  const [productUpdateEmails, setProductUpdateEmails] = useState(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    emailPreferencesAPI.get()
+      .then((response) => {
+        if (!cancelled) setProductUpdateEmails(response.data.product_updates);
+      })
+      .catch(() => {
+        // Leave as null — the toggle stays disabled and the section still renders
+      });
+    return () => { cancelled = true; };
+  }, []);
+
+  const handleToggleProductUpdateEmails = async () => {
+    if (productUpdateEmails === null || loading.emailPrefs) return;
+    const next = !productUpdateEmails;
+    setLoading((prev) => ({ ...prev, emailPrefs: true }));
+    clearMessages('emailPrefs');
+    try {
+      const response = await emailPreferencesAPI.update(next);
+      setProductUpdateEmails(response.data.product_updates);
+      setSuccess((prev) => ({
+        ...prev,
+        emailPrefs: response.data.product_updates
+          ? 'You will receive product update emails.'
+          : "You've been unsubscribed from product update emails.",
+      }));
+    } catch (err) {
+      setErrors((prev) => ({
+        ...prev,
+        emailPrefs: err.response?.data?.detail || 'Failed to update email preferences',
+      }));
+    } finally {
+      setLoading((prev) => ({ ...prev, emailPrefs: false }));
+    }
+  };
 
   // MFA status
   const [mfaStatus, setMfaStatus] = useState(null);
@@ -1172,6 +1211,49 @@ export default function Settings() {
                     )}
                   </div>
                 </div>
+              </div>
+            )}
+          </div>
+
+          {/* Email Preferences */}
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 transition-colors duration-200">
+            <div className="px-4 sm:px-6 py-4 flex items-center justify-between gap-4">
+              <div className="text-left">
+                <h2 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white">Receive product update emails</h2>
+                <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
+                  Occasional emails about new features and improvements. Account and security emails are unaffected.
+                </p>
+              </div>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={productUpdateEmails === true}
+                aria-label="Receive product update emails"
+                onClick={handleToggleProductUpdateEmails}
+                disabled={productUpdateEmails === null || loading.emailPrefs}
+                className={`relative inline-flex h-6 w-11 flex-shrink-0 rounded-full border-2 border-transparent transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 disabled:opacity-50 disabled:cursor-not-allowed ${
+                  productUpdateEmails ? 'bg-primary-600' : 'bg-gray-200 dark:bg-gray-600'
+                }`}
+              >
+                <span
+                  className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${
+                    productUpdateEmails ? 'translate-x-5' : 'translate-x-0'
+                  }`}
+                />
+              </button>
+            </div>
+            {(errors.emailPrefs || success.emailPrefs) && (
+              <div className="px-4 sm:px-6 pb-4">
+                {errors.emailPrefs && (
+                  <div className="text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/30 px-3 py-2 rounded">
+                    {errors.emailPrefs}
+                  </div>
+                )}
+                {success.emailPrefs && (
+                  <div className="text-sm text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/30 px-3 py-2 rounded">
+                    {success.emailPrefs}
+                  </div>
+                )}
               </div>
             )}
           </div>

@@ -2263,3 +2263,117 @@ def run_migrations():
             except Exception as e:
                 logger.error(f"Failed to add audio_recordings transcription status columns: {e}")
                 conn.rollback()
+
+        # =================================================================
+        # ADMIN EMAIL CAMPAIGNS: users columns
+        # =================================================================
+        # last_login_at exists because refresh tokens expire after 7 days (and expired
+        # rows are pruned), so max(refresh_tokens.created_at) cannot serve as "last
+        # login" — the backfill below only covers the surviving-token window, and the
+        # column is stamped on every login from then on. unsubscribe_token /
+        # email_unsubscribed_at back the per-user unsubscribe link on admin
+        # product-update emails (transactional email is unaffected). Guarded by both
+        # the column inspector and IF NOT EXISTS: up to five instances start
+        # concurrently and has_migration_run() is not atomic.
+        migration_name = "add_users_email_campaign_fields"
+        if not has_migration_run(conn, migration_name):
+            logger.info("Adding last_login_at / unsubscribe fields to users...")
+            try:
+                columns = [col['name'] for col in inspect(engine).get_columns('users')]
+                if 'last_login_at' not in columns:
+                    conn.execute(text(
+                        "ALTER TABLE users ADD COLUMN IF NOT EXISTS last_login_at TIMESTAMP NULL"
+                    ))
+                    conn.commit()
+                    # Best-effort backfill from refresh tokens that still exist.
+                    conn.execute(text("""
+                        UPDATE users SET last_login_at = sub.max_created
+                        FROM (
+                            SELECT user_id, MAX(created_at) AS max_created
+                            FROM refresh_tokens GROUP BY user_id
+                        ) sub
+                        WHERE users.id = sub.user_id AND users.last_login_at IS NULL
+                    """))
+                    conn.commit()
+                if 'unsubscribe_token' not in columns:
+                    conn.execute(text(
+                        "ALTER TABLE users ADD COLUMN IF NOT EXISTS unsubscribe_token VARCHAR NULL"
+                    ))
+                    conn.commit()
+                # Same name SQLAlchemy generates for the model's unique+index column,
+                # so a fresh database (create_all) and this migration converge.
+                conn.execute(text(
+                    "CREATE UNIQUE INDEX IF NOT EXISTS ix_users_unsubscribe_token "
+                    "ON users (unsubscribe_token)"
+                ))
+                conn.commit()
+                if 'email_unsubscribed_at' not in columns:
+                    conn.execute(text(
+                        "ALTER TABLE users ADD COLUMN IF NOT EXISTS email_unsubscribed_at TIMESTAMP NULL"
+                    ))
+                    conn.commit()
+                mark_migration_complete(conn, migration_name)
+                logger.info("Successfully added users email campaign fields")
+            except Exception as e:
+                logger.error(f"Failed to add users email campaign fields: {e}")
+                conn.rollback()
+
+        # =================================================================
+        # ADMIN EMAIL CAMPAIGNS: campaign + recipient tables
+        # =================================================================
+        migration_name = "create_email_campaigns_tables"
+        if not has_migration_run(conn, migration_name):
+            logger.info("Running migration: create_email_campaigns_tables")
+            try:
+                conn.execute(text("""
+                    CREATE TABLE IF NOT EXISTS email_campaigns (
+                        id VARCHAR PRIMARY KEY,
+                        admin_user_id VARCHAR REFERENCES users(id) ON DELETE SET NULL,
+                        admin_email VARCHAR NOT NULL,
+                        subject VARCHAR(200) NOT NULL,
+                        body_html TEXT NOT NULL,
+                        body_text TEXT NOT NULL,
+                        status VARCHAR(30) NOT NULL DEFAULT 'pending',
+                        total_recipients INTEGER NOT NULL DEFAULT 0,
+                        sent_count INTEGER NOT NULL DEFAULT 0,
+                        failed_count INTEGER NOT NULL DEFAULT 0,
+                        skipped_count INTEGER NOT NULL DEFAULT 0,
+                        created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+                        started_at TIMESTAMP NULL,
+                        updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
+                        completed_at TIMESTAMP NULL
+                    )
+                """))
+                conn.execute(text("""
+                    CREATE TABLE IF NOT EXISTS email_campaign_recipients (
+                        id SERIAL PRIMARY KEY,
+                        campaign_id VARCHAR NOT NULL REFERENCES email_campaigns(id) ON DELETE CASCADE,
+                        user_id VARCHAR REFERENCES users(id) ON DELETE SET NULL,
+                        email VARCHAR NOT NULL,
+                        name VARCHAR NULL,
+                        status VARCHAR(20) NOT NULL DEFAULT 'pending',
+                        error VARCHAR NULL,
+                        sent_at TIMESTAMP NULL
+                    )
+                """))
+                conn.execute(text(
+                    "CREATE INDEX IF NOT EXISTS ix_email_campaigns_status "
+                    "ON email_campaigns (status)"
+                ))
+                conn.execute(text(
+                    "CREATE INDEX IF NOT EXISTS ix_email_campaign_recipients_campaign_id "
+                    "ON email_campaign_recipients (campaign_id)"
+                ))
+                # user_id is an ON DELETE SET NULL FK, which Postgres enforces with a
+                # per-row trigger on user deletion — keep it indexed (same lesson as
+                # add_conversations_set_null_fk_indexes).
+                conn.execute(text(
+                    "CREATE INDEX IF NOT EXISTS ix_email_campaign_recipients_user_id "
+                    "ON email_campaign_recipients (user_id)"
+                ))
+                conn.commit()
+                mark_migration_complete(conn, migration_name)
+                logger.info("Created email_campaigns and email_campaign_recipients tables")
+            except Exception as e:
+                logger.error(f"Failed to create email campaign tables: {e}")
+                conn.rollback()

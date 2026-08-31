@@ -35,7 +35,8 @@ struct SettingsView: View {
         .task {
             async let sessions: () = viewModel.fetchSessions()
             async let devices: () = viewModel.fetchDevicesCount()
-            _ = await (sessions, devices)
+            async let emailPrefs: () = viewModel.fetchEmailPreferences()
+            _ = await (sessions, devices, emailPrefs)
         }
         .sheet(isPresented: $showChangeName) {
             ChangeNameView(viewModel: viewModel)
@@ -140,7 +141,30 @@ struct SettingsView: View {
                         .foregroundStyle(.secondary)
                 }
             }
+
+            // Product update emails. Off = unsubscribed from admin campaign emails
+            // (same flag an emailed unsubscribe link sets); transactional email is
+            // unaffected. Disabled until the preference has loaded.
+            VStack(alignment: .leading, spacing: 4) {
+                Toggle(isOn: productUpdateEmailsBinding) {
+                    Label("Receive product update emails", systemImage: "megaphone")
+                }
+                .disabled(viewModel.productUpdateEmails == nil)
+                Text("Occasional emails about new features. Account and security emails are unaffected.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .padding(.leading, 36)
+            }
         }
+    }
+
+    private var productUpdateEmailsBinding: Binding<Bool> {
+        Binding(
+            get: { viewModel.productUpdateEmails ?? true },
+            set: { newValue in
+                Task { await viewModel.setProductUpdateEmails(newValue) }
+            }
+        )
     }
 
     // MARK: - Security Section

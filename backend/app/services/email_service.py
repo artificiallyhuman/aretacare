@@ -3418,6 +3418,139 @@ This is an automated security alert from AretaCare.
             logger.error(f"Error preparing security alert email: {str(e)}")
             return False
 
+    @staticmethod
+    def send_admin_campaign_email(
+        to_email: str,
+        user_name: str,
+        subject: str,
+        body_html: str,
+        body_text: str,
+        unsubscribe_url: str,
+        one_click_url: Optional[str] = None,
+    ) -> bool:
+        """
+        Send one admin product-update campaign email.
+
+        Args:
+            to_email: Recipient email address
+            user_name: Recipient display name (escaped here)
+            subject: Campaign subject (header-sanitized here)
+            body_html: PRE-SANITIZED HTML fragment from
+                email_campaign_service.sanitize_campaign_html — never pass raw
+                editor HTML; this method interpolates it unescaped.
+            body_text: Plain-text alternative of the body
+            unsubscribe_url: Per-user frontend unsubscribe page link
+            one_click_url: Per-user RFC 8058 one-click API endpoint, or None
+                when API_PUBLIC_URL is unset
+
+        Returns:
+            bool: True if email sent successfully, False otherwise
+        """
+        try:
+            message = MIMEMultipart("alternative")
+            message["Subject"] = _safe_header(subject, 150)
+            message["From"] = _safe_header(f"{settings.SMTP_FROM_NAME} <{settings.SMTP_FROM_EMAIL}>")
+            message["To"] = _safe_header(to_email)
+            EmailService._add_deliverability_headers(message)
+
+            # List-Unsubscribe improves deliverability and lets providers show
+            # a native unsubscribe control. The one-click Post header must point
+            # at the API — providers POST to it, which the static frontend
+            # cannot process — so without API_PUBLIC_URL we send the plain
+            # RFC 2369 header only.
+            if one_click_url:
+                message["List-Unsubscribe"] = f"<{one_click_url}>"
+                message["List-Unsubscribe-Post"] = "List-Unsubscribe=One-Click"
+            else:
+                message["List-Unsubscribe"] = f"<{unsubscribe_url}>"
+
+            html_greeting = f"Hi {_h(user_name)}," if user_name else "Hi,"
+            text_greeting = f"Hi {user_name}," if user_name else "Hi,"
+
+            # Address line only when configured (a PO box / registered commercial
+            # mailbox satisfies CAN-SPAM; empty means omit the line).
+            text_address = f"\n{settings.COMPANY_POSTAL_ADDRESS}" if settings.COMPANY_POSTAL_ADDRESS else ""
+            html_address = (
+                f"<br>{_h(settings.COMPANY_POSTAL_ADDRESS)}"
+                if settings.COMPANY_POSTAL_ADDRESS else ""
+            )
+
+            text_content = f"""{text_greeting}
+
+{body_text}
+
+---
+You're receiving this email because you have an AretaCare account.
+Unsubscribe from product updates: {unsubscribe_url}{text_address}
+"""
+
+            # body_html is interpolated UNESCAPED by design: it was sanitized
+            # with an allowlist upstream (sanitize_campaign_html) before being
+            # stored on the campaign row.
+            html_content = f"""
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f3f4f6;">
+    <table role="presentation" style="width: 100%; border-collapse: collapse;">
+        <tr>
+            <td align="center" style="padding: 40px 0;">
+                <table role="presentation" style="width: 600px; max-width: 100%; background-color: #ffffff; border-radius: 8px; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);">
+                    <!-- Header -->
+                    <tr>
+                        <td style="padding: 40px 40px 20px; text-align: center;">
+                            <h1 style="margin: 0; color: #059669; font-size: 36px;">AretaCare<span style="font-size: 20px; vertical-align: super;">™</span></h1>
+                            <p style="margin: 10px 0 0; color: #6b7280; font-size: 18px; letter-spacing: 0.5px;">Calm | Clarity | Confidence</p>
+                        </td>
+                    </tr>
+
+                    <!-- Content -->
+                    <tr>
+                        <td style="padding: 20px 40px; color: #374151; font-size: 16px; line-height: 24px;">
+                            <p style="margin: 0 0 16px;">{html_greeting}</p>
+                            {body_html}
+                        </td>
+                    </tr>
+
+                    <!-- Footer -->
+                    <tr>
+                        <td style="padding: 20px 40px; background-color: #f9fafb; border-top: 1px solid #e5e7eb; border-radius: 0 0 8px 8px;">
+                            <p style="margin: 0; color: #6b7280; font-size: 12px; line-height: 18px; text-align: center;">
+                                You're receiving this email because you have an AretaCare account.<br>
+                                <a href="{unsubscribe_url}" style="color: #059669; text-decoration: underline;">Unsubscribe</a> from product updates.{html_address}
+                            </p>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>
+            """
+
+            part1 = MIMEText(text_content, "plain")
+            part2 = MIMEText(html_content, "html")
+            message.attach(part1)
+            message.attach(part2)
+
+            if not settings.SMTP_PASSWORD:
+                logger.warning("SMTP_PASSWORD not configured. Campaign email not sent. Using development mode.")
+                logger.info(f"Development mode: campaign email to {to_email}; unsubscribe: {unsubscribe_url}")
+                return False
+
+            if EmailService._send_with_retry(message):
+                logger.info(f"Campaign email sent successfully to {to_email}")
+                return True
+            return False
+
+        except Exception as e:
+            logger.error(f"Unexpected error preparing campaign email: {str(e)}")
+            return False
+
 
 # Global instance
 email_service = EmailService()

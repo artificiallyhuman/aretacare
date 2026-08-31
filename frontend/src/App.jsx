@@ -43,6 +43,7 @@ const Documents = lazy(() => import('./pages/tools/Documents'));
 const PasswordReset = lazy(() => import('./pages/PasswordReset'));
 const VerifyEmail = lazy(() => import('./pages/VerifyEmail'));
 const VerifyEmailChange = lazy(() => import('./pages/VerifyEmailChange'));
+const Unsubscribe = lazy(() => import('./pages/Unsubscribe'));
 const Profile = lazy(() => import('./pages/Profile'));
 const MFASetup = lazy(() => import('./pages/MFASetup'));
 
@@ -58,6 +59,7 @@ const AdminSecurityLogs = lazy(() => import('./pages/admin/AdminSecurityLogs'));
 const AdminApiLogs = lazy(() => import('./pages/admin/AdminApiLogs'));
 const AdminHealth = lazy(() => import('./pages/admin/AdminHealth'));
 const AdminInvitations = lazy(() => import('./pages/admin/AdminInvitations'));
+const AdminEmail = lazy(() => import('./pages/admin/AdminEmail'));
 
 // Loading fallback component for lazy-loaded routes
 const PageLoadingFallback = () => (
@@ -223,6 +225,10 @@ function AppContent() {
           <Route
             path="/verify-email-change"
             element={<VerifyEmailChange />}
+          />
+          <Route
+            path="/unsubscribe"
+            element={<Unsubscribe />}
           />
           <Route
             path="/terms"
@@ -430,6 +436,14 @@ function AppContent() {
             element={
               <AdminRoute>
                 <AdminInvitations />
+              </AdminRoute>
+            }
+          />
+          <Route
+            path="/admin/email"
+            element={
+              <AdminRoute>
+                <AdminEmail />
               </AdminRoute>
             }
           />

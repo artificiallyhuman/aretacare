@@ -13,7 +13,7 @@ import logging
 from app.models import (
     User, Session as SessionModel, SessionCollaborator,
     Document, AudioRecording, Conversation, JournalEntry, DailyPlan,
-    AdminAuditLog, PendingInvitation, WaitlistEntry
+    AdminAuditLog, PendingInvitation, WaitlistEntry, RefreshToken, ApiLog
 )
 from app.models.error_log import ErrorLog
 from app.models.security_log import SecurityLog
@@ -253,6 +253,145 @@ class AdminService:
     # Account Analysis
     # ==========================================
 
+    def _user_session_ids_map(self, db: Session, user_ids: List[str]) -> dict:
+        """Map each user id to all their session ids (owned ∪ collaborated).
+
+        Batch queries — shared by get_inactive_accounts and get_email_recipients.
+        """
+        owned_sessions_query = db.query(
+            SessionModel.owner_id,
+            func.array_agg(SessionModel.id).label('session_ids')
+        ).group_by(SessionModel.owner_id).all()
+        owned_sessions_map = {row.owner_id: list(row.session_ids) for row in owned_sessions_query}
+
+        collab_sessions_query = db.query(
+            SessionCollaborator.user_id,
+            func.array_agg(SessionCollaborator.session_id).label('session_ids')
+        ).group_by(SessionCollaborator.user_id).all()
+        collab_sessions_map = {row.user_id: list(row.session_ids) for row in collab_sessions_query}
+
+        user_sessions_map = {}
+        for user_id in user_ids:
+            owned = owned_sessions_map.get(user_id, [])
+            collab = collab_sessions_map.get(user_id, [])
+            user_sessions_map[user_id] = list(set(owned + collab))
+        return user_sessions_map
+
+    def _session_activity_maps(self, db: Session) -> Tuple[dict, dict, dict, dict]:
+        """Latest content timestamp per session, one grouped query per content type."""
+        conv_activity = db.query(
+            Conversation.session_id,
+            func.max(Conversation.created_at).label('latest')
+        ).group_by(Conversation.session_id).all()
+        conv_map = {row.session_id: row.latest for row in conv_activity}
+
+        doc_activity = db.query(
+            Document.session_id,
+            func.max(Document.uploaded_at).label('latest')
+        ).group_by(Document.session_id).all()
+        doc_map = {row.session_id: row.latest for row in doc_activity}
+
+        audio_activity = db.query(
+            AudioRecording.session_id,
+            func.max(AudioRecording.created_at).label('latest')
+        ).group_by(AudioRecording.session_id).all()
+        audio_map = {row.session_id: row.latest for row in audio_activity}
+
+        session_activity = db.query(
+            SessionModel.id,
+            SessionModel.last_activity
+        ).filter(SessionModel.last_activity.isnot(None)).all()
+        session_activity_map = {row.id: row.last_activity for row in session_activity}
+
+        return conv_map, doc_map, audio_map, session_activity_map
+
+    def get_email_recipients(self, db: Session) -> dict:
+        """
+        All users with the engagement metrics the admin email panel filters and
+        sorts on. Batch queries throughout — same rationale as get_inactive_accounts
+        (user base is waitlist-controlled and small).
+
+        Counts follow the owned ∪ collaborated session semantics, i.e. "content
+        visible to the user", not "created by the user". Features come from api_logs,
+        whose retention is 30 days, so features_used means "in the last 30 days".
+        """
+        now = datetime.utcnow()
+        users = db.query(User).all()
+        user_ids = [u.id for u in users]
+
+        user_sessions_map = self._user_session_ids_map(db, user_ids)
+        conv_act_map, doc_act_map, audio_act_map, session_activity_map = self._session_activity_maps(db)
+
+        # Last login: the stamped column is authoritative; the surviving-refresh-token
+        # max only covers logins from before the column existed (tokens live 7 days).
+        login_rows = db.query(
+            RefreshToken.user_id,
+            func.max(RefreshToken.created_at).label('latest')
+        ).group_by(RefreshToken.user_id).all()
+        login_map = {row.user_id: row.latest for row in login_rows}
+
+        feature_rows = db.query(ApiLog.user_id, ApiLog.feature).filter(
+            ApiLog.user_id.isnot(None),
+            ApiLog.feature.isnot(None)
+        ).distinct().all()
+        features_map = {}
+        for row in feature_rows:
+            features_map.setdefault(row.user_id, set()).add(row.feature)
+        available_features = sorted({f for feats in features_map.values() for f in feats})
+
+        conv_counts = dict(db.query(
+            Conversation.session_id, func.count(Conversation.id)
+        ).group_by(Conversation.session_id).all())
+        doc_counts = dict(db.query(
+            Document.session_id, func.count(Document.id)
+        ).group_by(Document.session_id).all())
+        audio_counts = dict(db.query(
+            AudioRecording.session_id, func.count(AudioRecording.id)
+        ).group_by(AudioRecording.session_id).all())
+        journal_counts = dict(db.query(
+            JournalEntry.session_id, func.count(JournalEntry.id)
+        ).group_by(JournalEntry.session_id).all())
+
+        result = []
+        for user in users:
+            session_ids = user_sessions_map.get(user.id, [])
+
+            activity_dates = []
+            for sid in session_ids:
+                for activity_map in (conv_act_map, doc_act_map, audio_act_map, session_activity_map):
+                    if sid in activity_map:
+                        activity_dates.append(activity_map[sid])
+            last_activity = max(activity_dates) if activity_dates else None
+
+            login_candidates = [d for d in (user.last_login_at, login_map.get(user.id)) if d is not None]
+            last_login = max(login_candidates) if login_candidates else None
+
+            result.append({
+                "user_id": str(user.id),
+                "email": user.email,
+                "name": user.name,
+                "created_at": user.created_at,
+                "is_active": user.is_active,
+                "is_email_verified": user.is_email_verified,
+                "last_login": last_login,
+                "last_activity": last_activity,
+                "session_count": len(session_ids),
+                "conversation_count": sum(conv_counts.get(sid, 0) for sid in session_ids),
+                "document_count": sum(doc_counts.get(sid, 0) for sid in session_ids),
+                "audio_count": sum(audio_counts.get(sid, 0) for sid in session_ids),
+                "journal_count": sum(journal_counts.get(sid, 0) for sid in session_ids),
+                "features_used": sorted(features_map.get(user.id, set())),
+                "unsubscribed": user.email_unsubscribed_at is not None,
+                "unsubscribed_at": user.email_unsubscribed_at,
+            })
+
+        result.sort(key=lambda x: x["created_at"], reverse=True)
+        return {
+            "generated_at": now,
+            "available_features": available_features,
+            "users": result,
+        }
+
     def get_inactive_accounts(self, db: Session, days: int = 30) -> List[dict]:
         """
         Get accounts with no activity in the specified number of days.
@@ -273,56 +412,8 @@ class AdminService:
         user_ids = [u.id for u in users]
         user_map = {u.id: u for u in users}
 
-        # Batch load all session ownership (owned sessions per user)
-        owned_sessions_query = db.query(
-            SessionModel.owner_id,
-            func.array_agg(SessionModel.id).label('session_ids'),
-            func.count(SessionModel.id).label('session_count')
-        ).group_by(SessionModel.owner_id).all()
-        owned_sessions_map = {row.owner_id: (list(row.session_ids), row.session_count) for row in owned_sessions_query}
-
-        # Batch load all collaboration sessions per user
-        collab_sessions_query = db.query(
-            SessionCollaborator.user_id,
-            func.array_agg(SessionCollaborator.session_id).label('session_ids')
-        ).group_by(SessionCollaborator.user_id).all()
-        collab_sessions_map = {row.user_id: list(row.session_ids) for row in collab_sessions_query}
-
-        # Build map of all session IDs per user
-        user_sessions_map = {}
-        for user_id in user_ids:
-            owned = owned_sessions_map.get(user_id, ([], 0))[0]
-            collab = collab_sessions_map.get(user_id, [])
-            user_sessions_map[user_id] = list(set(owned + collab))
-
-        # Batch load latest activity by session
-        # Latest conversation per session
-        conv_activity = db.query(
-            Conversation.session_id,
-            func.max(Conversation.created_at).label('latest')
-        ).group_by(Conversation.session_id).all()
-        conv_map = {row.session_id: row.latest for row in conv_activity}
-
-        # Latest document per session
-        doc_activity = db.query(
-            Document.session_id,
-            func.max(Document.uploaded_at).label('latest')
-        ).group_by(Document.session_id).all()
-        doc_map = {row.session_id: row.latest for row in doc_activity}
-
-        # Latest audio per session
-        audio_activity = db.query(
-            AudioRecording.session_id,
-            func.max(AudioRecording.created_at).label('latest')
-        ).group_by(AudioRecording.session_id).all()
-        audio_map = {row.session_id: row.latest for row in audio_activity}
-
-        # Session last_activity
-        session_activity = db.query(
-            SessionModel.id,
-            SessionModel.last_activity
-        ).filter(SessionModel.last_activity.isnot(None)).all()
-        session_activity_map = {row.id: row.last_activity for row in session_activity}
+        user_sessions_map = self._user_session_ids_map(db, user_ids)
+        conv_map, doc_map, audio_map, session_activity_map = self._session_activity_maps(db)
 
         result = []
         for user_id, user in user_map.items():

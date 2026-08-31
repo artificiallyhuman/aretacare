@@ -141,6 +141,7 @@ AretaCare implements comprehensive security measures:
 - **Presigned URLs**: 30 per minute (document download, thumbnail, audio playback)
 - **AI Tools**: 10 per minute per IP (Jargon Translator, Conversation Coach — publicly accessible)
 - **Admin Actions**: 5/hour destructive, 10/hour sensitive, 20/hour email
+- **Unsubscribe**: 20/minute (public unsubscribe endpoints; per-user 256-bit tokens)
 
 ### Data Protection
 - **Encryption in Transit**: TLS/SSL for all connections, HSTS header enforces HTTPS (1-year max-age, preload)

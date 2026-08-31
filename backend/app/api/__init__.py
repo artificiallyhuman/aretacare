@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from app.api import auth, sessions, documents, journal, conversation, tools, audio_recording, daily_plans, admin, feedback, profile, waitlist, mfa, health, notifications
+from app.api import auth, sessions, documents, journal, conversation, tools, audio_recording, daily_plans, admin, feedback, profile, waitlist, mfa, health, notifications, unsubscribe
 
 api_router = APIRouter()
 
@@ -44,6 +44,9 @@ api_router.include_router(waitlist.router)
 
 # Push notifications
 api_router.include_router(notifications.router)
+
+# Public unsubscribe (admin product-update emails)
+api_router.include_router(unsubscribe.router)
 
 # Admin console
 api_router.include_router(admin.public_router)
