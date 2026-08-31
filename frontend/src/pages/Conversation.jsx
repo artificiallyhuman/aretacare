@@ -47,7 +47,10 @@ const Conversation = () => {
   const hasCollaborators = activeSession?.collaborators?.length > 0;
 
   // Session background color (only when user has 2+ sessions)
-  const sessionColorClass = sessions.length > 1 ? getColorClasses(activeSession?.color_key) : '';
+  // Render whatever color the server has assigned, even for a lone session —
+  // colors are only *assigned* at 2+ sessions, but one assigned earlier should
+  // survive deleting back down to one (matches iOS's sessionBackground behavior)
+  const sessionColorClass = getColorClasses(activeSession?.color_key);
   const [messages, setMessages] = useState([]);
   const [historyLoaded, setHistoryLoaded] = useState(false);
   const [dailyPlanPanelOpen, setDailyPlanPanelOpen] = useState(false);

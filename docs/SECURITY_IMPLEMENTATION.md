@@ -310,7 +310,7 @@ Sentry is used for error/crash monitoring on all three platforms (backend, web, 
 
 - `send_default_pii` disabled everywhere — no user context, no IP addresses
 - Request bodies are never captured (`max_request_body_size="never"` on the backend; request data deleted in the web `beforeSend` hook)
-- Query strings are stripped from event URLs and network breadcrumbs (presigned S3 links and verification tokens travel in query params)
+- Query strings are stripped from event URLs, network breadcrumbs, and navigation breadcrumbs (presigned S3 links travel in query params; password-reset / email-verify / invite tokens travel in navigation `from`/`to` paths)
 - Auth-related headers (`Authorization`, `Cookie`, MFA/trusted-device headers) are removed before send
 - A recursive event scrubber redacts content-bearing field names (message, journal, transcript, email, tokens, etc.)
 - Backend log lines become breadcrumbs only, never standalone events (formatted log strings may embed user data)

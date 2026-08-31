@@ -354,13 +354,18 @@ GET    /api/profile/{session_id}                        # Get profile
 GET    /api/profile/{session_id}/check                  # Check if AI update available
 POST   /api/profile/{session_id}/update                 # Trigger AI profile update
 PUT    /api/profile/{session_id}                        # Manual full profile update
-PATCH  /api/profile/{session_id}/section                # Update a single section
+PATCH  /api/profile/{session_id}/section                # Update a single section (see valid sections below)
 GET    /api/profile/{session_id}/pending-changes        # Get pending AI-suggested changes
 POST   /api/profile/{session_id}/pending-changes/review # Accept/reject pending changes
 POST   /api/profile/{session_id}/regenerate             # Regenerate from scratch
 DELETE /api/profile/{session_id}                        # Delete profile
 GET    /api/profile/{session_id}/export                 # Export as JSON or PDF (PDF carries a disclaimer)
 ```
+
+`/section` accepts exactly the eight sections the clients edit — `patient` and `preferences`
+(objects), and `caregivers`, `providers`, `conditions`, `medications`, `allergies`, `events`
+(arrays). An unknown section name or a wrong-typed body is a 400; previously it stored anyway
+and broke every subsequent profile read for the session.
 
 ---
 
