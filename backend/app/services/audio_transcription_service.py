@@ -73,9 +73,17 @@ def safe_temp_suffix(name: str, default: str = ".mp3") -> str:
     separators. Nothing user-influenced may reach a filesystem call
     unlaundered (CodeQL py/path-injection), so anything outside the whitelist
     falls back to `default`; ffmpeg detects the real container from content.
+
+    Deliberately returns the *whitelist's* string, never a slice of the input:
+    returning the input after an `in`-check keeps the value tainted as far as
+    dataflow analysis is concerned, whereas a value drawn from a constant set
+    provably isn't.
     """
     ext = os.path.splitext(os.path.basename(name))[1].lower()
-    return ext if ext in _TEMP_SUFFIX_WHITELIST else default
+    for allowed in _TEMP_SUFFIX_WHITELIST:
+        if ext == allowed:
+            return allowed
+    return default
 
 TRANSCRIPTION_FAILED_DETAIL = (
     "Transcription failed, but the recording was saved and can be played back from Audio Recordings."
