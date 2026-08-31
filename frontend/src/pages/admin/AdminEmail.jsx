@@ -9,16 +9,36 @@ import { formatLocalDate, formatLocalDateTime } from '../../utils/dateUtils';
 
 const TERMINAL_STATUSES = ['completed', 'completed_with_errors', 'failed', 'stalled'];
 
-const SORTABLE_COLUMNS = [
+// Every metric is sortable via the "Sort by" control in the filter bar. The
+// columns that remain visible (User, Last Login, Last Activity) can also be
+// sorted by clicking their headers — both share the same `sort` state. The
+// count metrics render as one compact Usage cluster instead of five columns
+// so the table fits without horizontal scrolling.
+const SORT_OPTIONS = [
+  { key: 'last_login', label: 'Last login' },
+  { key: 'last_activity', label: 'Last activity' },
+  { key: 'name', label: 'Name' },
+  { key: 'created_at', label: 'Date joined' },
+  { key: 'session_count', label: 'Sessions' },
+  { key: 'conversation_count', label: 'Messages' },
+  { key: 'document_count', label: 'Documents' },
+  { key: 'audio_count', label: 'Audio recordings' },
+  { key: 'journal_count', label: 'Journal entries' },
+];
+
+const HEADER_SORT_COLUMNS = [
   { key: 'name', label: 'User' },
   { key: 'last_login', label: 'Last Login' },
   { key: 'last_activity', label: 'Last Activity' },
-  { key: 'session_count', label: 'Sessions' },
-  { key: 'conversation_count', label: 'Messages' },
-  { key: 'document_count', label: 'Docs' },
-  { key: 'audio_count', label: 'Audio' },
-  { key: 'journal_count', label: 'Journal' },
-  { key: 'created_at', label: 'Created' },
+];
+
+// Inline Heroicons path data, same convention as AdminLayout's navItems.
+const USAGE_STATS = [
+  { key: 'session_count', label: 'Care sessions', icon: 'M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z' },
+  { key: 'conversation_count', label: 'Messages', icon: 'M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z' },
+  { key: 'document_count', label: 'Documents', icon: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z' },
+  { key: 'audio_count', label: 'Audio recordings', icon: 'M19 11a7 7 0 01-14 0m7 7v3m0 0H8m4 0h4m-4-3a7 7 0 007-7V9a7 7 0 10-14 0v2a7 7 0 007 7z' },
+  { key: 'journal_count', label: 'Journal entries', icon: 'M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.523 5.754 18 7.5 18s3.332.523 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.523 18.247 18 16.5 18c-1.746 0-3.332.523-4.5 1.253' },
 ];
 
 const DATE_KEYS = new Set(['last_login', 'last_activity', 'created_at']);
@@ -73,6 +93,80 @@ function CampaignStatusPill({ status }) {
   );
 }
 
+// Dropdown of checkboxes for the feature filters. No shared multiselect exists
+// in the codebase; kept local to this page.
+function FeatureMultiSelect({ label, hint, options, selected, onChange }) {
+  const [open, setOpen] = useState(false);
+
+  const toggle = (feature) => {
+    onChange(
+      selected.includes(feature)
+        ? selected.filter((f) => f !== feature)
+        : [...selected, feature]
+    );
+  };
+
+  return (
+    <div className="relative">
+      <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 uppercase mb-1">
+        {label}
+      </label>
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className="flex items-center gap-2 px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm min-w-[110px] justify-between"
+      >
+        <span>{selected.length === 0 ? 'Any' : `${selected.length} selected`}</span>
+        <svg className="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+      {open && (
+        <>
+          {/* Click-away backdrop */}
+          <div className="fixed inset-0 z-20" onClick={() => setOpen(false)} />
+          <div className="absolute left-0 top-full mt-1 z-30 w-64 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg">
+            <p className="px-3 pt-2 pb-1 text-xs text-gray-500 dark:text-gray-400">{hint}</p>
+            <div className="max-h-56 overflow-y-auto px-1 pb-1">
+              {options.length === 0 ? (
+                <p className="px-2 py-2 text-sm text-gray-500 dark:text-gray-400">
+                  No feature activity in the last 30 days
+                </p>
+              ) : (
+                options.map((feature) => (
+                  <label
+                    key={feature}
+                    className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer text-sm text-gray-700 dark:text-gray-300"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selected.includes(feature)}
+                      onChange={() => toggle(feature)}
+                      className="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
+                    />
+                    {prettyFeature(feature)}
+                  </label>
+                ))
+              )}
+            </div>
+            {selected.length > 0 && (
+              <div className="border-t border-gray-100 dark:border-gray-700 px-3 py-1.5">
+                <button
+                  type="button"
+                  onClick={() => onChange([])}
+                  className="text-xs font-medium text-primary-600 hover:text-primary-700"
+                >
+                  Clear selection
+                </button>
+              </div>
+            )}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 const RECIPIENT_ERROR_LABELS = {
   smtp_send_failed: 'Send failed',
   interrupted: 'Interrupted mid-send',
@@ -95,8 +189,8 @@ export default function AdminEmail() {
   const [filters, setFilters] = useState({
     search: '',
     lastLogin: 'any',
-    featureUsed: 'any',
-    featureNotUsed: 'any',
+    featureUsed: [],     // match users who used ANY of these (last 30 days)
+    featureNotUsed: [],  // match users who used NONE of these (last 30 days)
     hideUnsubscribed: false,
   });
   const [sort, setSort] = useState({ key: 'last_login', dir: 'desc' });
@@ -168,8 +262,8 @@ export default function AdminEmail() {
         if (filters.lastLogin === 'within30' && !(ts && now - ts <= 30 * day)) return false;
         if (filters.lastLogin === 'over30' && ts && now - ts <= 30 * day) return false;
       }
-      if (filters.featureUsed !== 'any' && !u.features_used.includes(filters.featureUsed)) return false;
-      if (filters.featureNotUsed !== 'any' && u.features_used.includes(filters.featureNotUsed)) return false;
+      if (filters.featureUsed.length > 0 && !filters.featureUsed.some((f) => u.features_used.includes(f))) return false;
+      if (filters.featureNotUsed.length > 0 && filters.featureNotUsed.some((f) => u.features_used.includes(f))) return false;
       if (filters.hideUnsubscribed && u.unsubscribed) return false;
       return true;
     });
@@ -419,7 +513,7 @@ export default function AdminEmail() {
     <th
       key={col.key}
       onClick={() => handleSort(col.key)}
-      className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase cursor-pointer select-none hover:text-gray-700 dark:hover:text-gray-200 whitespace-nowrap"
+      className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase cursor-pointer select-none hover:text-gray-700 dark:hover:text-gray-200 whitespace-nowrap"
     >
       {col.label}
       {sort.key === col.key && (
@@ -458,31 +552,41 @@ export default function AdminEmail() {
               <option value="over30">Over 30 days ago / never</option>
             </select>
           </div>
+          <FeatureMultiSelect
+            label="Feature Used"
+            hint="Match users who used any of the selected features (last 30 days)"
+            options={availableFeatures}
+            selected={filters.featureUsed}
+            onChange={(v) => setFilters({ ...filters, featureUsed: v })}
+          />
+          <FeatureMultiSelect
+            label="Feature Not Used"
+            hint="Match users who used none of the selected features (last 30 days)"
+            options={availableFeatures}
+            selected={filters.featureNotUsed}
+            onChange={(v) => setFilters({ ...filters, featureNotUsed: v })}
+          />
           <div>
-            <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 uppercase mb-1" title="From API activity in the last 30 days">Feature Used</label>
-            <select
-              value={filters.featureUsed}
-              onChange={(e) => setFilters({ ...filters, featureUsed: e.target.value })}
-              className="px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
-            >
-              <option value="any">Any</option>
-              {availableFeatures.map((f) => (
-                <option key={f} value={f}>{prettyFeature(f)}</option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 uppercase mb-1" title="From API activity in the last 30 days">Feature Not Used</label>
-            <select
-              value={filters.featureNotUsed}
-              onChange={(e) => setFilters({ ...filters, featureNotUsed: e.target.value })}
-              className="px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
-            >
-              <option value="any">Any</option>
-              {availableFeatures.map((f) => (
-                <option key={f} value={f}>{prettyFeature(f)}</option>
-              ))}
-            </select>
+            <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 uppercase mb-1">Sort By</label>
+            <div className="flex gap-1">
+              <select
+                value={sort.key}
+                onChange={(e) => setSort({ ...sort, key: e.target.value })}
+                className="px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
+              >
+                {SORT_OPTIONS.map((o) => (
+                  <option key={o.key} value={o.key}>{o.label}</option>
+                ))}
+              </select>
+              <button
+                type="button"
+                onClick={() => setSort({ ...sort, dir: sort.dir === 'asc' ? 'desc' : 'asc' })}
+                title={sort.dir === 'asc' ? 'Ascending — click for descending' : 'Descending — click for ascending'}
+                className="px-2.5 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-600 dark:text-gray-300 text-sm hover:bg-gray-50 dark:hover:bg-gray-600"
+              >
+                {sort.dir === 'asc' ? '▲' : '▼'}
+              </button>
+            </div>
           </div>
           <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300 pb-1.5">
             <input
@@ -495,7 +599,8 @@ export default function AdminEmail() {
           </label>
         </div>
         <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
-          Feature filters reflect the last 30 days of activity. Deactivated, unverified, and
+          Feature filters reflect the last 30 days of activity — "used" matches any selected
+          feature, "not used" excludes anyone who used one. Deactivated, unverified, and
           unsubscribed users can't be selected.
         </p>
       </div>
@@ -506,10 +611,10 @@ export default function AdminEmail() {
         <>
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[1100px]">
+              <table className="w-full">
                 <thead className="bg-gray-50 dark:bg-gray-700">
                   <tr>
-                    <th className="px-4 py-3 text-left">
+                    <th className="px-3 py-3 text-left">
                       <input
                         ref={selectAllRef}
                         type="checkbox"
@@ -520,17 +625,23 @@ export default function AdminEmail() {
                         className="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500 disabled:opacity-40"
                       />
                     </th>
-                    {SORTABLE_COLUMNS.map(renderSortHeader)}
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase whitespace-nowrap" title="From API activity in the last 30 days">
+                    {HEADER_SORT_COLUMNS.map(renderSortHeader)}
+                    <th
+                      className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase"
+                      title="Care sessions · Messages · Documents · Audio recordings · Journal entries — sort via the Sort By control"
+                    >
+                      Usage
+                    </th>
+                    <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase whitespace-nowrap" title="From API activity in the last 30 days">
                       Features (30d)
                     </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Status</th>
+                    <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Status</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
                   {filteredSorted.length === 0 ? (
                     <tr>
-                      <td colSpan={12} className="px-4 py-8 text-center text-gray-600 dark:text-gray-400">
+                      <td colSpan={7} className="px-3 py-8 text-center text-gray-600 dark:text-gray-400">
                         No users match the current filters
                       </td>
                     </tr>
@@ -547,7 +658,7 @@ export default function AdminEmail() {
                               : 'opacity-50'
                           }
                         >
-                          <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                          <td className="px-3 py-3" onClick={(e) => e.stopPropagation()}>
                             <input
                               type="checkbox"
                               checked={selected.has(u.user_id)}
@@ -556,53 +667,57 @@ export default function AdminEmail() {
                               className="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500 disabled:opacity-40 disabled:cursor-not-allowed"
                             />
                           </td>
-                          <td className="px-4 py-3">
-                            <div>
-                              <p className="font-medium text-gray-900 dark:text-white">{u.name}</p>
-                              <p className="text-sm text-gray-500 dark:text-gray-400">{u.email}</p>
+                          <td className="px-3 py-3" title={`Joined ${formatLocalDate(u.created_at)}`}>
+                            <div className="max-w-[220px]">
+                              <p className="font-medium text-gray-900 dark:text-white truncate">{u.name}</p>
+                              <p className="text-sm text-gray-500 dark:text-gray-400 truncate">{u.email}</p>
                             </div>
                           </td>
-                          <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400 whitespace-nowrap">
+                          <td className="px-3 py-3 text-sm text-gray-600 dark:text-gray-400 whitespace-nowrap">
                             {u.last_login ? formatLocalDate(u.last_login) : 'Never'}
                           </td>
-                          <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400 whitespace-nowrap">
+                          <td className="px-3 py-3 text-sm text-gray-600 dark:text-gray-400 whitespace-nowrap">
                             {u.last_activity ? formatLocalDate(u.last_activity) : 'Never'}
                           </td>
-                          <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">{u.session_count}</td>
-                          <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">{u.conversation_count}</td>
-                          <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">{u.document_count}</td>
-                          <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">{u.audio_count}</td>
-                          <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">{u.journal_count}</td>
-                          <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400 whitespace-nowrap">
-                            {formatLocalDate(u.created_at)}
+                          <td className="px-3 py-3">
+                            <div className="flex flex-wrap gap-x-3 gap-y-1 text-sm text-gray-600 dark:text-gray-400">
+                              {USAGE_STATS.map(({ key, label, icon }) => (
+                                <span key={key} title={label} className="inline-flex items-center gap-1 whitespace-nowrap">
+                                  <svg className="w-3.5 h-3.5 text-gray-400 dark:text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={icon} />
+                                  </svg>
+                                  {u[key]}
+                                </span>
+                              ))}
+                            </div>
                           </td>
-                          <td className="px-4 py-3">
-                            <div className="flex flex-wrap gap-1 max-w-[180px]">
+                          <td className="px-3 py-3">
+                            <div className="flex flex-wrap gap-1">
                               {u.features_used.length === 0 ? (
                                 <span className="text-xs text-gray-400 dark:text-gray-500">None</span>
                               ) : (
                                 <>
-                                  {u.features_used.slice(0, 3).map((f) => (
+                                  {u.features_used.slice(0, 2).map((f) => (
                                     <span
                                       key={f}
-                                      className="inline-flex items-center px-1.5 py-0.5 rounded text-xs bg-primary-50 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300"
+                                      className="inline-flex items-center px-1.5 py-0.5 rounded text-xs bg-primary-50 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300 whitespace-nowrap"
                                     >
                                       {prettyFeature(f)}
                                     </span>
                                   ))}
-                                  {u.features_used.length > 3 && (
+                                  {u.features_used.length > 2 && (
                                     <span
                                       className="text-xs text-gray-500 dark:text-gray-400"
-                                      title={u.features_used.slice(3).map(prettyFeature).join(', ')}
+                                      title={u.features_used.slice(2).map(prettyFeature).join(', ')}
                                     >
-                                      +{u.features_used.length - 3}
+                                      +{u.features_used.length - 2}
                                     </span>
                                   )}
                                 </>
                               )}
                             </div>
                           </td>
-                          <td className="px-4 py-3"><UserBadges user={u} /></td>
+                          <td className="px-3 py-3"><UserBadges user={u} /></td>
                         </tr>
                       );
                     })
