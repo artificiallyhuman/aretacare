@@ -1,6 +1,7 @@
 from openai import AsyncOpenAI
 from app.core.config import settings
 from app.config import ai_config
+from app.services.openai_service import guarded_responses_create
 from app.models.journal import JournalEntry, EntryType
 from app.models.profile import Profile
 from app.models.document import Document
@@ -21,6 +22,18 @@ import json
 import time
 
 logger = logging.getLogger(__name__)
+
+# Module-level client: JournalService is constructed per request (~10 sites),
+# and a per-instance AsyncOpenAI builds a fresh httpx pool that is never
+# aclose()d — every chat turn paid a new TCP+TLS handshake and cleanup fell to
+# GC-time fire-and-forget tasks. Same singleton pattern as profile_service /
+# daily_plan_service. SDK retries off so one call is one bounded HTTP attempt
+# (this runs inside the chat request's critical path).
+_openai_client = AsyncOpenAI(
+    api_key=settings.OPENAI_API_KEY,
+    timeout=settings.OPENAI_SYNTHESIS_TIMEOUT_SECONDS,
+    max_retries=0,
+)
 
 
 async def _log_journal_api_call(
@@ -106,10 +119,7 @@ class JournalService:
 
     def __init__(self, db: Session):
         self.db = db
-        self.client = AsyncOpenAI(
-            api_key=settings.OPENAI_API_KEY,
-            timeout=settings.OPENAI_SYNTHESIS_TIMEOUT_SECONDS
-        )
+        self.client = _openai_client
         self.model = ai_config.CHAT_MODEL
 
     # Maximum characters for text-based synthesis (~100K tokens)
@@ -278,7 +288,8 @@ IMPORTANT: Respond with ONLY a valid JSON object in this exact format, with no a
             used_fallback = False
 
             try:
-                response = await self.client.responses.create(
+                response = await guarded_responses_create(
+                    self.client,
                     model=self.model,
                     input=messages
                 )
@@ -307,7 +318,8 @@ IMPORTANT: Respond with ONLY a valid JSON object in this exact format, with no a
                     ]
 
                     try:
-                        response = await self.client.responses.create(
+                        response = await guarded_responses_create(
+                            self.client,
                             model=self.model,
                             input=fallback_messages
                         )
@@ -333,7 +345,8 @@ IMPORTANT: Respond with ONLY a valid JSON object in this exact format, with no a
                     {"role": "system", "content": ai_config.DOCUMENT_JOURNAL_SYNTHESIS_PROMPT},
                     {"role": "user", "content": fallback_prompt}
                 ]
-                response = await self.client.responses.create(
+                response = await guarded_responses_create(
+                    self.client,
                     model=self.model,
                     input=fallback_messages
                 )
@@ -558,7 +571,8 @@ IMPORTANT: Respond with ONLY a valid JSON object in this exact format, with no a
             start_time = time.time()
             response = None
             try:
-                response = await self.client.responses.create(
+                response = await guarded_responses_create(
+                    self.client,
                     model=self.model,
                     input=messages
                 )
@@ -767,7 +781,8 @@ IMPORTANT: Respond with ONLY a valid JSON object in this exact format, with no a
             start_time = time.time()
             response = None
             try:
-                response = await self.client.responses.create(
+                response = await guarded_responses_create(
+                    self.client,
                     model=self.model,
                     input=messages
                 )
@@ -1509,6 +1524,23 @@ IMPORTANT: Respond with ONLY a valid JSON object in this exact format, with no a
             # Re-raise so the caller can handle rollback when auto_commit=False
             raise
 
+    def _user_can_access_session(self, session_id: str, user_id: str) -> bool:
+        """Owner-or-collaborator check — the service-level twin of
+        api.permissions.check_session_access, returning a bool instead of
+        raising so callers can keep their "not found or access denied" 404."""
+        from app.models.session import Session
+        from app.models.session_collaborator import SessionCollaborator
+
+        session = self.db.query(Session).filter(Session.id == session_id).first()
+        if not session:
+            return False
+        if session.owner_id == user_id:
+            return True
+        return self.db.query(SessionCollaborator).filter(
+            SessionCollaborator.session_id == session.id,
+            SessionCollaborator.user_id == user_id
+        ).first() is not None
+
     async def update_entry(
         self,
         entry_id: int,
@@ -1521,20 +1553,7 @@ IMPORTANT: Respond with ONLY a valid JSON object in this exact format, with no a
             if not entry:
                 return None
 
-            # Verify user has access to this session (owner or collaborator)
-            from app.models.session import Session
-            from app.models.session_collaborator import SessionCollaborator
-            session = self.db.query(Session).filter(Session.id == entry.session_id).first()
-            if not session:
-                return None
-
-            is_owner = session.owner_id == user_id
-            is_collaborator = self.db.query(SessionCollaborator).filter(
-                SessionCollaborator.session_id == session.id,
-                SessionCollaborator.user_id == user_id
-            ).first() is not None
-
-            if not (is_owner or is_collaborator):
+            if not self._user_can_access_session(entry.session_id, user_id):
                 return None
 
             # Apply updates
@@ -1580,20 +1599,7 @@ IMPORTANT: Respond with ONLY a valid JSON object in this exact format, with no a
             if not entry:
                 return False
 
-            # Verify user has access to this session (owner or collaborator)
-            from app.models.session import Session
-            from app.models.session_collaborator import SessionCollaborator
-            session = self.db.query(Session).filter(Session.id == entry.session_id).first()
-            if not session:
-                return False
-
-            is_owner = session.owner_id == user_id
-            is_collaborator = self.db.query(SessionCollaborator).filter(
-                SessionCollaborator.session_id == session.id,
-                SessionCollaborator.user_id == user_id
-            ).first() is not None
-
-            if not (is_owner or is_collaborator):
+            if not self._user_can_access_session(entry.session_id, user_id):
                 return False
 
             self.db.delete(entry)

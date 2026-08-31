@@ -9,6 +9,10 @@ struct ProfileSectionEditView: View {
 
     @Environment(\.dismiss) private var dismiss
 
+    // Guards loadData() against onAppear re-firing (see body)
+    @State private var didLoad = false
+    @State private var showSaveError = false
+
     // Patient fields
     @State private var fullName = ""
     @State private var preferredName = ""
@@ -56,7 +60,39 @@ struct ProfileSectionEditView: View {
                 Button("Save") { save() }
             }
         }
-        .onAppear { loadData() }
+        .onAppear {
+            // onAppear re-fires when the view returns to the hierarchy (Picker
+            // pushes, returning from background) — reloading then would silently
+            // revert unsaved edits
+            guard !didLoad else { return }
+            didLoad = true
+            loadData()
+        }
+        .alert("Couldn't Save", isPresented: $showSaveError) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(viewModel.errorMessage ?? "Something went wrong. Please try again.")
+        }
+    }
+
+    /// Item ids come straight from the model output and nothing guarantees they
+    /// are present or unique. ForEach uses them as identity, so a nil or
+    /// duplicated id renders rows with the wrong bindings and makes Remove
+    /// delete every item sharing the id — give each item a unique id before
+    /// editing begins.
+    private func ensureUniqueIds<T>(_ items: [T], id idPath: WritableKeyPath<T, String?>) -> [T] {
+        var seen = Set<String>()
+        return items.map { item in
+            var item = item
+            if let existing = item[keyPath: idPath], !existing.isEmpty, !seen.contains(existing) {
+                seen.insert(existing)
+            } else {
+                let newId = UUID().uuidString
+                item[keyPath: idPath] = newId
+                seen.insert(newId)
+            }
+            return item
+        }
     }
 
     private var sectionTitle: String {
@@ -82,44 +118,33 @@ struct ProfileSectionEditView: View {
             contactInfo = p.contactInfo ?? ""
             location = p.location ?? ""
         }
-        caregivers = profileData.caregivers ?? []
-        providers = profileData.providers ?? []
+        caregivers = ensureUniqueIds(profileData.caregivers ?? [], id: \.id)
+        providers = ensureUniqueIds(profileData.providers ?? [], id: \.id)
 
         // Sort to match display order in ProfileView
-        let statusOrder = ["active": 0, "monitoring": 1, "resolved": 2]
-        conditions = (profileData.conditions ?? []).sorted { (a: ConditionInfo, b: ConditionInfo) in
-            let statA = statusOrder[(a.status ?? "").lowercased()] ?? 1
-            let statB = statusOrder[(b.status ?? "").lowercased()] ?? 1
-            if statA != statB { return statA < statB }
-            return (a.diagnosisDate ?? "") > (b.diagnosisDate ?? "")
-        }
+        conditions = profileSortedConditions(ensureUniqueIds(profileData.conditions ?? [], id: \.id))
 
-        let categoryOrder: [String: Int] = [
-            "multiple": 0, "pain_management": 1, "cardiovascular": 2, "diabetes": 3,
-            "mental_health": 4, "antibiotics": 5, "respiratory": 6, "gastrointestinal": 7,
-            "neurological": 8, "endocrine": 9, "oncology": 10, "immunosuppressant": 11,
-            "vitamins_supplements": 12, "other": 13
-        ]
+        let categoryOrder = MedicationCategories.orderIndex
         let medStatusOrder = ["active": 0, "paused": 1, "discontinued": 2]
-        medications = (profileData.medications ?? []).sorted { (a: MedicationInfo, b: MedicationInfo) in
-            let catA = categoryOrder[(a.category ?? "other").lowercased()] ?? 13
-            let catB = categoryOrder[(b.category ?? "other").lowercased()] ?? 13
+        medications = ensureUniqueIds(profileData.medications ?? [], id: \.id).sorted { (a: MedicationInfo, b: MedicationInfo) in
+            let catA = categoryOrder[(a.category ?? "other").lowercased()] ?? categoryOrder.count
+            let catB = categoryOrder[(b.category ?? "other").lowercased()] ?? categoryOrder.count
             if catA != catB { return catA < catB }
             let statA = medStatusOrder[(a.status ?? "active").lowercased()] ?? 0
             let statB = medStatusOrder[(b.status ?? "active").lowercased()] ?? 0
             return statA < statB
         }
 
-        allergies = profileData.allergies ?? []
-        events = (profileData.events ?? []).sorted { (a: EventInfo, b: EventInfo) in
+        allergies = ensureUniqueIds(profileData.allergies ?? [], id: \.id)
+        events = ensureUniqueIds(profileData.events ?? [], id: \.id).sorted { (a: EventInfo, b: EventInfo) in
             (a.date ?? "") > (b.date ?? "")
         }
         if let prefs = profileData.preferences {
             emergencyInstructions = prefs.emergencyInstructions ?? ""
             additionalNotes = prefs.additionalNotes ?? ""
-            communicationPreferences = prefs.communicationPreferences ?? []
-            caregivingGuidelines = prefs.caregivingGuidelines ?? []
-            importantContext = prefs.importantContext ?? []
+            communicationPreferences = ensureUniqueIds(prefs.communicationPreferences ?? [], id: \.id)
+            caregivingGuidelines = ensureUniqueIds(prefs.caregivingGuidelines ?? [], id: \.id)
+            importantContext = ensureUniqueIds(prefs.importantContext ?? [], id: \.id)
         }
     }
 
@@ -250,20 +275,9 @@ struct ProfileSectionEditView: View {
                     Text("Discontinued").tag("discontinued")
                 }
                 Picker("Category", selection: Binding(get: { med.category ?? "other" }, set: { med.category = $0 })) {
-                    Text("Multiple Uses").tag("multiple")
-                    Text("Pain Relief").tag("pain_management")
-                    Text("Heart & Blood Pressure").tag("cardiovascular")
-                    Text("Diabetes & Blood Sugar").tag("diabetes")
-                    Text("Mental Health").tag("mental_health")
-                    Text("Infection & Antibiotics").tag("antibiotics")
-                    Text("Breathing & Lungs").tag("respiratory")
-                    Text("Stomach & Digestion").tag("gastrointestinal")
-                    Text("Brain & Nerves").tag("neurological")
-                    Text("Hormones").tag("endocrine")
-                    Text("Cancer Treatment").tag("oncology")
-                    Text("Immune System").tag("immunosuppressant")
-                    Text("Vitamins & Supplements").tag("vitamins_supplements")
-                    Text("Other").tag("other")
+                    ForEach(MedicationCategories.displayOrder, id: \.self) { category in
+                        Text(MedicationCategories.label(category) ?? category).tag(category)
+                    }
                 }
                 ProfileDatePickerRow("Start Date", dateString: Binding(get: { med.startDate ?? "" }, set: { med.startDate = $0.isEmpty ? nil : $0 }))
                 ProfileEditRow("Prescriber", text: Binding(get: { med.prescriber ?? "" }, set: { med.prescriber = $0.isEmpty ? nil : $0 }))
@@ -467,6 +481,7 @@ struct ProfileSectionEditView: View {
     private func save() {
         Task {
             let sectionName = section.id
+            var saved = false
             switch sectionName {
             case "patient":
                 // Start from the stored object so server fields this build doesn't
@@ -479,20 +494,20 @@ struct ProfileSectionEditView: View {
                 patient.contactInfo = contactInfo.isEmpty ? nil : contactInfo
                 patient.location = location.isEmpty ? nil : location
                 if let payload = Self.sectionPayload(patient) {
-                    await viewModel.updateSection(sessionId: sessionId, section: sectionName, data: payload)
+                    saved = await viewModel.updateSection(sessionId: sessionId, section: sectionName, data: payload)
                 }
             case "caregivers":
-                await saveCodableList(caregivers, section: sectionName)
+                saved = await saveCodableList(caregivers, section: sectionName)
             case "providers":
-                await saveCodableList(providers, section: sectionName)
+                saved = await saveCodableList(providers, section: sectionName)
             case "conditions":
-                await saveCodableList(conditions, section: sectionName)
+                saved = await saveCodableList(conditions, section: sectionName)
             case "medications":
-                await saveCodableList(medications, section: sectionName)
+                saved = await saveCodableList(medications, section: sectionName)
             case "allergies":
-                await saveCodableList(allergies, section: sectionName)
+                saved = await saveCodableList(allergies, section: sectionName)
             case "events":
-                await saveCodableList(events, section: sectionName)
+                saved = await saveCodableList(events, section: sectionName)
             case "preferences":
                 var prefs = profileData.preferences ?? PreferencesInfo()
                 prefs.communicationPreferences = communicationPreferences.isEmpty ? nil : communicationPreferences
@@ -501,19 +516,25 @@ struct ProfileSectionEditView: View {
                 prefs.emergencyInstructions = emergencyInstructions.isEmpty ? nil : emergencyInstructions
                 prefs.additionalNotes = additionalNotes.isEmpty ? nil : additionalNotes
                 if let payload = Self.sectionPayload(prefs) {
-                    await viewModel.updateSection(sessionId: sessionId, section: sectionName, data: payload)
+                    saved = await viewModel.updateSection(sessionId: sessionId, section: sectionName, data: payload)
                 }
             default:
                 break
+            }
+            // A failed PATCH keeps the sheet (and the user's edits) on screen —
+            // dismissing with the "Saved" toast on failure silently lost them
+            guard saved else {
+                showSaveError = true
+                return
             }
             onSave?()
             dismiss()
         }
     }
 
-    private func saveCodableList<T: Encodable>(_ items: [T], section: String) async {
-        guard let payload = Self.sectionPayload(items) else { return }
-        await viewModel.updateSection(sessionId: sessionId, section: section, data: payload)
+    private func saveCodableList<T: Encodable>(_ items: [T], section: String) async -> Bool {
+        guard let payload = Self.sectionPayload(items) else { return false }
+        return await viewModel.updateSection(sessionId: sessionId, section: section, data: payload)
     }
 
     /// Encodes a section with snake_case keys and re-reads it as `AnyCodableValue`

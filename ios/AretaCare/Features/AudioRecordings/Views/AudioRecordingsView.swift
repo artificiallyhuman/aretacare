@@ -344,7 +344,12 @@ struct AudioRecordingsView: View {
                                 }
                             )
                             .onAppear {
-                                if recording.id == viewModel.recordings.last?.id {
+                                // Trigger on the last *rendered* row: with a
+                                // category filter or search active, the last
+                                // unfiltered recording usually isn't rendered,
+                                // so its onAppear never fired and deeper pages
+                                // were unreachable until the filter cleared
+                                if recording.id == filteredRecordings.last?.id {
                                     Task { await viewModel.loadMoreIfNeeded(sessionId: sessionId) }
                                 }
                             }

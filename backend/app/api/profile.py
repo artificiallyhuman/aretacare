@@ -3,6 +3,7 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from typing import Optional
 from datetime import datetime
+from xml.sax.saxutils import escape as xml_escape
 import json
 import io
 
@@ -25,6 +26,13 @@ from ..schemas.profile import (
 from ..services.profile_service import ProfileService
 
 router = APIRouter()
+
+# The eight sections both clients edit. `PATCH /{sid}/section` must not accept
+# anything else: an unknown key or a wrong-typed value (e.g. a list under
+# "patient") stores fine but then fails ProfileResponse validation, turning
+# every subsequent GET /profile/{sid} into a 500.
+_LIST_SECTIONS = {"caregivers", "providers", "conditions", "medications", "allergies", "events"}
+_DICT_SECTIONS = {"patient", "preferences"}
 
 
 @router.get("/{session_id}", response_model=ProfileResponse)
@@ -153,6 +161,15 @@ async def update_profile_section(
 
     if not profile:
         profile = await ProfileService.get_or_create_profile(db, session_id)
+
+    if update.section in _LIST_SECTIONS:
+        if update.data is not None and not isinstance(update.data, list):
+            raise HTTPException(status_code=400, detail=f"Section '{update.section}' expects a list")
+    elif update.section in _DICT_SECTIONS:
+        if update.data is not None and not isinstance(update.data, dict):
+            raise HTTPException(status_code=400, detail=f"Section '{update.section}' expects an object")
+    else:
+        raise HTTPException(status_code=400, detail=f"Unknown profile section '{update.section}'")
 
     # Update the specific section
     profile_data = profile.profile_data or {}
@@ -458,11 +475,18 @@ async def _generate_profile_pdf(profile: Profile, session: UserSession, timezone
             story_list.append(Spacer(1, 6))
             story_list.append(HRFlowable(width="100%", thickness=0.5, color=colors.HexColor('#e5e7eb')))
 
+        # Paragraph parses its argument as mini-XML, and profile values are free
+        # text the user or the AI wrote — one bare "&" or "<" (e.g. a provider
+        # named "Smith & Jones") kills the whole export with a parse error.
+        # Escape every interpolated value; markup stays in the code's f-strings.
+        def esc(value) -> str:
+            return xml_escape(str(value))
+
         story = []
 
         # Title Block
         story.append(Paragraph("Health Profile", title_style))
-        story.append(Paragraph(f"{session.name}", subtitle_style))
+        story.append(Paragraph(esc(session.name), subtitle_style))
         if profile.last_ai_update:
             local_update_time = to_local_time(profile.last_ai_update)
             story.append(Paragraph(
@@ -486,7 +510,7 @@ async def _generate_profile_pdf(profile: Profile, session: UserSession, timezone
         def format_status(status):
             if not status:
                 return ""
-            status_upper = status.upper()
+            status_upper = esc(status.upper())
             if status_upper == "ACTIVE":
                 return f'<font color="#166534">[{status_upper}]</font>'
             elif status_upper == "RESOLVED":
@@ -508,21 +532,21 @@ async def _generate_profile_pdf(profile: Profile, session: UserSession, timezone
             story.append(Paragraph("Patient Information", section_style))
             # Build patient info as a clean block
             if patient.get("full_name"):
-                name_text = f"<b>{patient['full_name']}</b>"
+                name_text = f"<b>{esc(patient['full_name'])}</b>"
                 if patient.get("preferred_name"):
-                    name_text += f' (goes by "{patient["preferred_name"]}")'
+                    name_text += f' (goes by "{esc(patient["preferred_name"])}")'
                 story.append(Paragraph(name_text, item_title_style))
             details = []
             if patient.get("date_of_birth"):
-                details.append(f"DOB: {patient['date_of_birth']}")
+                details.append(f"DOB: {esc(patient['date_of_birth'])}")
             if patient.get("age"):
-                details.append(f"Age: {patient['age']}")
+                details.append(f"Age: {esc(patient['age'])}")
             if details:
                 story.append(Paragraph(" · ".join(details), item_detail_style))
             if patient.get("location"):
-                story.append(Paragraph(f"Location: {patient['location']}", item_detail_style))
+                story.append(Paragraph(f"Location: {esc(patient['location'])}", item_detail_style))
             if patient.get("contact_info"):
-                story.append(Paragraph(f"Contact: {patient['contact_info']}", item_detail_style))
+                story.append(Paragraph(f"Contact: {esc(patient['contact_info'])}", item_detail_style))
 
         # Caregivers
         caregivers = profile_data.get("caregivers", [])
@@ -532,16 +556,16 @@ async def _generate_profile_pdf(profile: Profile, session: UserSession, timezone
             sections_added.append('caregivers')
             story.append(Paragraph("Caregivers", section_style))
             for cg in caregivers:
-                title = f"<b>{cg.get('name', 'Unknown')}</b>"
+                title = f"<b>{esc(cg.get('name', 'Unknown'))}</b>"
                 if cg.get("relationship"):
-                    title += f" · {cg['relationship']}"
+                    title += f" · {esc(cg['relationship'])}"
                 story.append(Paragraph(title, item_title_style))
                 if cg.get("role"):
-                    story.append(Paragraph(cg['role'], item_detail_style))
+                    story.append(Paragraph(esc(cg['role']), item_detail_style))
                 if cg.get("contact_info"):
-                    story.append(Paragraph(f"Contact: {cg['contact_info']}", item_detail_style))
+                    story.append(Paragraph(f"Contact: {esc(cg['contact_info'])}", item_detail_style))
                 if cg.get("location"):
-                    story.append(Paragraph(f"Location: {cg['location']}", item_detail_style))
+                    story.append(Paragraph(f"Location: {esc(cg['location'])}", item_detail_style))
 
         # Providers
         providers = profile_data.get("providers", [])
@@ -551,22 +575,22 @@ async def _generate_profile_pdf(profile: Profile, session: UserSession, timezone
             sections_added.append('providers')
             story.append(Paragraph("Healthcare Providers", section_style))
             for p in providers:
-                title = f"<b>{p.get('name', 'Unknown')}</b>"
+                title = f"<b>{esc(p.get('name', 'Unknown'))}</b>"
                 if p.get("specialty"):
-                    title += f" · {p['specialty']}"
+                    title += f" · {esc(p['specialty'])}"
                 story.append(Paragraph(title, item_title_style))
                 if p.get("organization"):
-                    story.append(Paragraph(p['organization'], item_detail_style))
+                    story.append(Paragraph(esc(p['organization']), item_detail_style))
                 # Structured contact fields first; the legacy free-form contact_info
                 # still prints so older entries export exactly as they always did.
                 if p.get("phone"):
-                    story.append(Paragraph(f"Phone: {p['phone']}", item_detail_style))
+                    story.append(Paragraph(f"Phone: {esc(p['phone'])}", item_detail_style))
                 if p.get("email"):
-                    story.append(Paragraph(f"Email: {p['email']}", item_detail_style))
+                    story.append(Paragraph(f"Email: {esc(p['email'])}", item_detail_style))
                 if p.get("address"):
-                    story.append(Paragraph(f"Address: {p['address']}", item_detail_style))
+                    story.append(Paragraph(f"Address: {esc(p['address'])}", item_detail_style))
                 if p.get("contact_info"):
-                    story.append(Paragraph(f"Contact: {p['contact_info']}", item_detail_style))
+                    story.append(Paragraph(f"Contact: {esc(p['contact_info'])}", item_detail_style))
 
         # Conditions
         conditions = profile_data.get("conditions", [])
@@ -582,16 +606,16 @@ async def _generate_profile_pdf(profile: Profile, session: UserSession, timezone
                 key=lambda c: (status_order.get(c.get("status", ""), 3), c.get("diagnosis_date", "") or "")
             )
             for c in sorted_conditions:
-                title = f"<b>{c.get('clinical_term', 'Unknown')}</b>"
+                title = f"<b>{esc(c.get('clinical_term', 'Unknown'))}</b>"
                 if c.get("status"):
                     title += f" {format_status(c['status'])}"
                 story.append(Paragraph(title, item_title_style))
                 if c.get("description"):
-                    story.append(Paragraph(c['description'], item_detail_style))
+                    story.append(Paragraph(esc(c['description']), item_detail_style))
                 if c.get("diagnosis_date"):
-                    story.append(Paragraph(f"Diagnosed: {c['diagnosis_date']}", item_detail_style))
+                    story.append(Paragraph(f"Diagnosed: {esc(c['diagnosis_date'])}", item_detail_style))
                 if c.get("details"):
-                    story.append(Paragraph(c['details'], item_detail_style))
+                    story.append(Paragraph(esc(c['details']), item_detail_style))
 
         # Medications - grouped by category
         medications = profile_data.get("medications", [])
@@ -649,31 +673,31 @@ async def _generate_profile_pdf(profile: Profile, session: UserSession, timezone
                 if meds_in_category:
                     # Add category header
                     story.append(Paragraph(
-                        medication_category_labels.get(category_key, category_key),
+                        medication_category_labels.get(category_key, esc(category_key)),
                         category_style
                     ))
 
                     # Add medications in this category
                     for m in meds_in_category:
-                        title = f"<b>{m.get('name', 'Unknown')}</b>"
+                        title = f"<b>{esc(m.get('name', 'Unknown'))}</b>"
                         dosage_parts = []
                         if m.get("dose"):
-                            dosage_parts.append(m['dose'])
+                            dosage_parts.append(esc(m['dose']))
                         if m.get("frequency"):
-                            dosage_parts.append(m['frequency'])
+                            dosage_parts.append(esc(m['frequency']))
                         if dosage_parts:
                             title += f" · {', '.join(dosage_parts)}"
                         if m.get("status"):
                             title += f" {format_status(m['status'])}"
                         story.append(Paragraph(title, item_title_style))
                         if m.get("description"):
-                            story.append(Paragraph(m['description'], item_detail_style))
+                            story.append(Paragraph(esc(m['description']), item_detail_style))
                         if m.get("prescriber"):
-                            story.append(Paragraph(f"Prescribed by: {m['prescriber']}", item_detail_style))
+                            story.append(Paragraph(f"Prescribed by: {esc(m['prescriber'])}", item_detail_style))
                         if m.get("start_date"):
-                            story.append(Paragraph(f"Started: {m['start_date']}", item_detail_style))
+                            story.append(Paragraph(f"Started: {esc(m['start_date'])}", item_detail_style))
                         if m.get("notes"):
-                            story.append(Paragraph(f"Note: {m['notes']}", item_detail_style))
+                            story.append(Paragraph(f"Note: {esc(m['notes'])}", item_detail_style))
 
         # Events/History
         events = profile_data.get("events", [])
@@ -695,15 +719,15 @@ async def _generate_profile_pdf(profile: Profile, session: UserSession, timezone
             sorted_events = sorted(events, key=lambda e: e.get("date", "") or "", reverse=True)
             for e in sorted_events:
                 event_type = e.get('event_type', 'Event')
-                event_label = event_type_labels.get(event_type, event_type.replace('_', ' ').title() if event_type else 'Event')
+                event_label = event_type_labels.get(event_type, esc(event_type.replace('_', ' ').title()) if event_type else 'Event')
                 title = f"<b>{event_label}</b>"
                 if e.get("date"):
-                    title += f" · {e['date']}"
+                    title += f" · {esc(e['date'])}"
                 story.append(Paragraph(title, item_title_style))
                 if e.get("description"):
-                    story.append(Paragraph(e['description'], item_detail_style))
+                    story.append(Paragraph(esc(e['description']), item_detail_style))
                 if e.get("details"):
-                    story.append(Paragraph(e['details'], item_detail_style))
+                    story.append(Paragraph(esc(e['details']), item_detail_style))
 
         # Allergies
         allergies = profile_data.get("allergies", [])
@@ -719,7 +743,7 @@ async def _generate_profile_pdf(profile: Profile, session: UserSession, timezone
                 key=lambda a: severity_order.get((a.get("severity") or "").lower(), 3)
             )
             for a in sorted_allergies:
-                title = f"<b>{a.get('substance', 'Unknown')}</b>"
+                title = f"<b>{esc(a.get('substance', 'Unknown'))}</b>"
                 severity = (a.get("severity") or "").lower()
                 if severity:
                     if severity == "severe":
@@ -727,10 +751,10 @@ async def _generate_profile_pdf(profile: Profile, session: UserSession, timezone
                     elif severity == "moderate":
                         title += f' <font color="#d97706">[MODERATE]</font>'
                     else:
-                        title += f' <font color="#6b7280">[{severity.upper()}]</font>'
+                        title += f' <font color="#6b7280">[{esc(severity.upper())}]</font>'
                 story.append(Paragraph(title, item_title_style))
                 if a.get("reaction"):
-                    story.append(Paragraph(f"Reaction: {a['reaction']}", item_detail_style))
+                    story.append(Paragraph(f"Reaction: {esc(a['reaction'])}", item_detail_style))
 
         # Preferences
         preferences = profile_data.get("preferences")
@@ -743,7 +767,7 @@ async def _generate_profile_pdf(profile: Profile, session: UserSession, timezone
             # Emergency Instructions first (highlighted with alert styling)
             if preferences.get("emergency_instructions"):
                 story.append(Paragraph(
-                    f"<b>⚠ EMERGENCY INSTRUCTIONS:</b> {preferences['emergency_instructions']}",
+                    f"<b>⚠ EMERGENCY INSTRUCTIONS:</b> {esc(preferences['emergency_instructions'])}",
                     alert_style
                 ))
 
@@ -752,41 +776,41 @@ async def _generate_profile_pdf(profile: Profile, session: UserSession, timezone
             if comm_prefs:
                 story.append(Paragraph("<b>Communication Preferences</b>", item_title_style))
                 for pref in comm_prefs:
-                    text = f"• {pref.get('preference', '')}"
+                    text = f"• {esc(pref.get('preference', ''))}"
                     if pref.get("category"):
-                        text += f" ({pref['category'].replace('_', ' ')})"
+                        text += f" ({esc(pref['category'].replace('_', ' '))})"
                     story.append(Paragraph(text, item_detail_style))
                     if pref.get("details"):
-                        story.append(Paragraph(pref['details'], item_detail_style))
+                        story.append(Paragraph(esc(pref['details']), item_detail_style))
 
             # Caregiving Guidelines
             guidelines = preferences.get("caregiving_guidelines", [])
             if guidelines:
                 story.append(Paragraph("<b>Caregiving Guidelines</b>", item_title_style))
                 for guide in guidelines:
-                    text = f"• {guide.get('guideline', '')}"
+                    text = f"• {esc(guide.get('guideline', ''))}"
                     if guide.get("importance"):
                         text += f" {format_status(guide['importance'])}"
                     story.append(Paragraph(text, item_detail_style))
                     if guide.get("details"):
-                        story.append(Paragraph(guide['details'], item_detail_style))
+                        story.append(Paragraph(esc(guide['details']), item_detail_style))
 
             # Important Context
             contexts = preferences.get("important_context", [])
             if contexts:
                 story.append(Paragraph("<b>Important Context</b>", item_title_style))
                 for ctx in contexts:
-                    text = f"• {ctx.get('context', '')}"
+                    text = f"• {esc(ctx.get('context', ''))}"
                     if ctx.get("category"):
-                        text += f" ({ctx['category'].replace('_', ' ')})"
+                        text += f" ({esc(ctx['category'].replace('_', ' '))})"
                     story.append(Paragraph(text, item_detail_style))
                     if ctx.get("details"):
-                        story.append(Paragraph(ctx['details'], item_detail_style))
+                        story.append(Paragraph(esc(ctx['details']), item_detail_style))
 
             # Additional Notes
             if preferences.get("additional_notes"):
                 story.append(Paragraph("<b>Additional Notes</b>", item_title_style))
-                story.append(Paragraph(preferences['additional_notes'], item_detail_style))
+                story.append(Paragraph(esc(preferences['additional_notes']), item_detail_style))
 
         # Footer with disclaimer
         story.append(Spacer(1, 30))

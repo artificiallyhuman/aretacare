@@ -1,5 +1,6 @@
-import React, { createContext, useContext, useState, useEffect, useMemo, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { setGlobalErrorHandler } from '../services/api';
+import { isAbortError } from '../utils/requestUtils';
 
 const NetworkContext = createContext();
 
@@ -19,6 +20,32 @@ export const NetworkProvider = ({ children }) => {
   const [error, setError] = useState(null);
   const [showError, setShowError] = useState(false);
 
+  // Mirrors `error` so the online/offline effect can read the latest value
+  // without depending on it — depending on it re-registered the window
+  // listeners on every error change
+  const errorRef = useRef(null);
+  useEffect(() => {
+    errorRef.current = error;
+  }, [error]);
+
+  // Auto-hide/clear timers. Cancelled before each new error so a second error
+  // raised 4s after the first shows for its full 5s instead of 1s, and on
+  // unmount so a timer can't fire on a gone component.
+  const hideTimerRef = useRef(null);
+  const clearTimerRef = useRef(null);
+  const cancelTimers = useCallback(() => {
+    clearTimeout(hideTimerRef.current);
+    clearTimeout(clearTimerRef.current);
+  }, []);
+  useEffect(() => cancelTimers, [cancelTimers]);
+
+  // Clear error
+  const clearError = useCallback(() => {
+    cancelTimers();
+    setShowError(false);
+    clearTimerRef.current = setTimeout(() => setError(null), 300);
+  }, [cancelTimers]);
+
   // Handle online/offline events
   useEffect(() => {
     // Sync to the real value after mount (was deferred for hydration safety).
@@ -29,7 +56,7 @@ export const NetworkProvider = ({ children }) => {
     const handleOnline = () => {
       setIsOnline(true);
       // Clear error when back online
-      if (error?.type === 'network') {
+      if (errorRef.current?.type === 'network') {
         clearError();
       }
     };
@@ -51,32 +78,27 @@ export const NetworkProvider = ({ children }) => {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
     };
-  }, [error]);
+  }, [clearError]);
 
   // Show an error message
   const showErrorMessage = useCallback((message, type = 'error', persistent = false) => {
+    cancelTimers();
     setError({ message, type, persistent });
     setShowError(true);
 
     // Auto-hide non-persistent errors after 5 seconds
     if (!persistent) {
-      setTimeout(() => {
+      hideTimerRef.current = setTimeout(() => {
         setShowError(false);
-        setTimeout(() => setError(null), 300); // Clear after fade out
+        clearTimerRef.current = setTimeout(() => setError(null), 300); // Clear after fade out
       }, 5000);
     }
-  }, []);
-
-  // Clear error
-  const clearError = useCallback(() => {
-    setShowError(false);
-    setTimeout(() => setError(null), 300);
-  }, []);
+  }, [cancelTimers]);
 
   // Handle API errors (called from axios interceptor)
   const handleApiError = useCallback((error) => {
     // Ignore cancelled/aborted requests - these are intentional user actions
-    if (error.name === 'CanceledError' || error.code === 'ERR_CANCELED') {
+    if (isAbortError(error)) {
       return;
     }
 

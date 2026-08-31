@@ -75,6 +75,17 @@ const Documents = () => {
   const [documentToDelete, setDocumentToDelete] = useState(null);
   const abortControllerRef = useRef(null);
   const uploadCancelledRef = useRef(false);
+  // Auto-dismiss timer for the upload progress list
+  const uploadResultTimerRef = useRef(null);
+
+  // Don't let the progress-dismiss timer fire on an unmounted component
+  useEffect(() => {
+    return () => {
+      if (uploadResultTimerRef.current) {
+        clearTimeout(uploadResultTimerRef.current);
+      }
+    };
+  }, []);
   const [duplicateWarning, setDuplicateWarning] = useState(null); // { files, duplicates }
   // Mirrors sessionId so an in-flight load can verify its response still belongs
   // to the care session on screen before touching state
@@ -411,6 +422,12 @@ const Documents = () => {
 
   const processFileUpload = async (files) => {
     setUploading(true);
+    // A batch started within 5s of the last one must not have its fresh
+    // progress list wiped by the previous batch's dismiss timer
+    if (uploadResultTimerRef.current) {
+      clearTimeout(uploadResultTimerRef.current);
+      uploadResultTimerRef.current = null;
+    }
     setError(null);
     uploadCancelledRef.current = false;
 
@@ -496,49 +513,15 @@ const Documents = () => {
 
         successCount++;
       } catch (err) {
-        // Check if this was a cancellation (axios uses CanceledError with code ERR_CANCELED)
-        const isCancelled = err.name === 'CanceledError' ||
-                           err.name === 'AbortError' ||
-                           err.code === 'ERR_CANCELED' ||
-                           uploadCancelledRef.current;
-        if (isCancelled) {
-          // The backend may have finished processing before the abort took effect
-          // Poll for the document and delete it when found
-          setUploadProgress(prev => prev.map((p, idx) =>
-            idx === i ? { ...p, status: 'cancelled', message: 'Cleaning up...' } : p
-          ));
-          try {
-            // Estimate max processing time based on file size
-            // Base: 10s for small files + ~2s per MB for OCR/extraction, max 120s
-            const fileSizeMB = file.size / (1024 * 1024);
-            const maxWaitMs = Math.min(10000 + fileSizeMB * 2000, 120000);
-            const pollIntervalMs = 2000; // Poll every 2 seconds
-            const startTime = Date.now();
-
-            // Poll until we find the document or timeout
-            while (Date.now() - startTime < maxWaitMs) {
-              // Check if user started a new upload (cancel flag would be cleared)
-              if (!uploadCancelledRef.current) break;
-
-              await new Promise(resolve => setTimeout(resolve, pollIntervalMs));
-
-              // Fetch recent documents and find one matching this file
-              const listResponse = await documentAPI.getSessionDocuments(sessionId);
-              const docs = listResponse.data.documents || listResponse.data;
-              const recentDoc = docs.find(d =>
-                d.filename === file.name &&
-                new Date(d.uploaded_at + 'Z') > new Date(Date.now() - 300000) // Uploaded in last 5 minutes
-              );
-
-              if (recentDoc) {
-                await documentAPI.delete(recentDoc.id);
-                break; // Successfully deleted
-              }
-            }
-          } catch (cleanupErr) {
-            console.error('Failed to clean up cancelled upload:', cleanupErr);
-          }
-
+        // Check if this was a cancellation (isAbortError covers axios's
+        // CanceledError / ERR_CANCELED and the DOM AbortError)
+        if (isAbortError(err) || uploadCancelledRef.current) {
+          // An aborted request carries no document id, so there is nothing to
+          // clean up by ID. (The old fallback here matched by filename +
+          // "uploaded in the last 5 minutes" and could delete an unrelated
+          // document that happened to share a name. In the rare race where the
+          // server committed the row before the abort landed, the document
+          // simply shows up in the list and can be deleted by hand.)
           setUploadProgress(prev => prev.map((p, idx) =>
             idx === i ? { ...p, status: 'cancelled', message: 'Cancelled' } : p
           ));
@@ -604,12 +587,16 @@ const Documents = () => {
       setError(`Failed to upload ${failCount} document${failCount > 1 ? 's' : ''}.`);
     }
 
-    // Clear progress and error after 5 seconds
-    setTimeout(() => {
-      setUploadProgress([]);
-      setUploading(false);
-      setError(null);
-    }, 5000);
+    setUploading(false);
+
+    // Auto-dismiss the progress list only when there is nothing the user still
+    // needs to read. Failures keep the per-file reasons (and the error banner)
+    // on screen until the next upload replaces them.
+    if (failCount === 0) {
+      uploadResultTimerRef.current = setTimeout(() => {
+        setUploadProgress([]);
+      }, 5000);
+    }
   };
 
   const getFileIcon = (contentType) => {

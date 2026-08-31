@@ -226,6 +226,11 @@ struct ConversationCoachView: View {
             Text("Please allow microphone access in Settings to record audio.")
         }
         .navigationBarTitleDisplayMode(.inline)
+        .onDisappear {
+            // The transcription poll can wait for minutes; don't leave it
+            // running (with its spinner state) after the user navigates away
+            viewModel.cancelTranscription()
+        }
         .toolbar {
             ToolbarItem(placement: .principal) {
                 VStack(spacing: 1) {
@@ -259,20 +264,25 @@ struct ConversationCoachView: View {
     }
 
     private func stopRecordingAndTranscribe() {
-        guard let audioData = audioRecorder.stop() else {
-            isRecordingAudio = false
-            return
-        }
-        isRecordingAudio = false
-        isTranscribing = true
-
         Task {
+            // stopAsync waits for AVFoundation to finalize the file and retains
+            // it until the transcription lands. The sync stop() read the file
+            // immediately (sometimes before the moov atom was written) and
+            // deleted it, so a failed upload lost the recording outright.
+            guard let audioData = await audioRecorder.stopAsync() else {
+                isRecordingAudio = false
+                return
+            }
+            isRecordingAudio = false
+            isTranscribing = true
+
             if let transcription = await viewModel.transcribeAudio(data: audioData, sessionId: sessionId) {
                 if situation.isEmpty {
                     situation = transcription
                 } else {
                     situation += " " + transcription
                 }
+                audioRecorder.discardRecording()
             }
             isTranscribing = false
         }

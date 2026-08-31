@@ -135,11 +135,13 @@ final class AudioRecordingsViewModel {
         }
 
         do {
-            var multipart = MultipartFormData()
-            multipart.addTextField(name: "session_id", value: sessionId)
-            multipart.addTextField(name: "skip_journal_synthesis", value: "false")
-            multipart.addTextField(name: "background", value: "true")
-            multipart.addFileField(name: "audio", filename: filename, mimeType: mimeType, data: audioData)
+            let multipart = MultipartFormData.transcribeAudioBody(
+                sessionId: sessionId,
+                audioData: audioData,
+                filename: filename,
+                mimeType: mimeType,
+                skipJournalSynthesis: false
+            )
 
             // 202: the recording row is persisted and transcription continues
             // server-side — the list shows "Transcribing…" until the refresh
@@ -186,6 +188,15 @@ final class AudioRecordingsViewModel {
             UIApplication.shared.endBackgroundTask(backgroundTaskId)
             backgroundTaskId = .invalid
         }
+        // defer, matching uploadRecording above: a future early exit between
+        // here and the end must not leak the assertion (a watchdog kill)
+        defer {
+            isUploading = false
+            isBatchUploading = false
+            if backgroundTaskId != .invalid {
+                UIApplication.shared.endBackgroundTask(backgroundTaskId)
+            }
+        }
 
         var successCount = 0
         var failCount = 0
@@ -202,11 +213,13 @@ final class AudioRecordingsViewModel {
             batchUploadProgress[index].status = .uploading
 
             do {
-                var multipart = MultipartFormData()
-                multipart.addTextField(name: "session_id", value: sessionId)
-                multipart.addTextField(name: "skip_journal_synthesis", value: "false")
-                multipart.addTextField(name: "background", value: "true")
-                multipart.addFileField(name: "audio", filename: file.filename, mimeType: file.contentType, data: file.data)
+                let multipart = MultipartFormData.transcribeAudioBody(
+                    sessionId: sessionId,
+                    audioData: file.data,
+                    filename: file.filename,
+                    mimeType: file.contentType,
+                    skipJournalSynthesis: false
+                )
 
                 do {
                     let _: AudioTranscribeResponse = try await APIClient.shared.upload(
@@ -258,13 +271,6 @@ final class AudioRecordingsViewModel {
             return false
         }.count
 
-        isUploading = false
-        isBatchUploading = false
-
-        if backgroundTaskId != .invalid {
-            UIApplication.shared.endBackgroundTask(backgroundTaskId)
-        }
-
         return UploadBatchResult(
             successCount: successCount,
             failCount: failCount,
@@ -302,7 +308,48 @@ final class AudioRecordingsViewModel {
         while !Task.isCancelled && hasProcessingRecordings {
             try? await Task.sleep(for: .seconds(3))
             guard !Task.isCancelled else { return }
-            await fetchRecordings(sessionId: sessionId, date: selectedDateString)
+            await silentRefresh(sessionId: sessionId)
+        }
+    }
+
+    /// Background tick for the loop above. Unlike `fetchRecordings` it never
+    /// toggles `isLoading` (which flickered the Delete buttons disabled every
+    /// 3s), never resets pagination back to the first page (which snapped the
+    /// scroll position to the top), and swallows transient errors instead of
+    /// painting the persistent error banner.
+    private func silentRefresh(sessionId: String) async {
+        do {
+            // One call sized to cover everything currently loaded (server caps
+            // limit at 100 — beyond that, update the covered window in place)
+            let limit = min(max(recordings.count, AppConstants.defaultPageSize), 100)
+            var queryItems = [
+                URLQueryItem(name: "offset", value: "0"),
+                URLQueryItem(name: "limit", value: String(limit))
+            ]
+            if let date = selectedDateString {
+                queryItems.append(URLQueryItem(name: "date", value: date))
+            }
+
+            let response: AudioRecordingListResponse = try await APIClient.shared.get(
+                APIEndpoints.AudioRecordings.list(sessionId),
+                queryItems: queryItems
+            )
+
+            if recordings.count <= limit {
+                recordings = response.recordings
+                hasMore = response.hasMore
+            } else {
+                let updatedById = Dictionary(uniqueKeysWithValues: response.recordings.map { ($0.id, $0) })
+                for index in recordings.indices {
+                    if let updated = updatedById[recordings[index].id] {
+                        recordings[index] = updated
+                    }
+                }
+            }
+            total = response.total
+        } catch {
+            // Transient (network blip, app briefly backgrounded) — the next
+            // tick retries; a real problem surfaces through user-driven loads
         }
     }
 

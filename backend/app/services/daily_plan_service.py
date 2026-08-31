@@ -11,14 +11,17 @@ from ..models.document import Document
 from ..models.session import Session as UserSession
 from ..core.config import settings
 from ..config import ai_config
+from .openai_service import guarded_responses_create
 from .s3_service import S3Service
 
 logger = logging.getLogger(__name__)
 
-# Initialize OpenAI client
+# Initialize OpenAI client. SDK retries off: one call is one bounded HTTP
+# attempt, so a degraded API can't stretch a request to timeout × 3.
 client = AsyncOpenAI(
     api_key=settings.OPENAI_API_KEY,
-    timeout=settings.OPENAI_SYNTHESIS_TIMEOUT_SECONDS
+    timeout=settings.OPENAI_SYNTHESIS_TIMEOUT_SECONDS,
+    max_retries=0,
 )
 s3_service = S3Service()
 
@@ -313,7 +316,8 @@ class DailyPlanService:
             user_prompt = DailyPlanService._build_user_prompt(context)
 
             # Call OpenAI Responses API
-            response = await client.responses.create(
+            response = await guarded_responses_create(
+                client,
                 model=ai_config.CHAT_MODEL,
                 input=[
                     {"role": "system", "content": ai_config.DAILY_PLAN_SYSTEM_PROMPT},

@@ -87,6 +87,16 @@ struct ProfileView: View {
                 }
             }
         }
+        .overlay(alignment: .top) {
+            // ProfileViewModel writes errorMessage on every failed load/update,
+            // but nothing here rendered it — failures were invisible
+            if let error = viewModel.errorMessage {
+                ErrorBannerView(message: error) {
+                    viewModel.dismissError()
+                }
+                .padding(.top, 8)
+            }
+        }
         .confirmationDialog("Regenerate Profile", isPresented: $showingRegenConfirm, titleVisibility: .visible) {
             Button("Regenerate", role: .destructive) {
                 Task {
@@ -785,39 +795,10 @@ struct ProfileView: View {
     // MARK: - Sorting Helpers
 
     private func sortedConditions(_ conditions: [ConditionInfo]) -> [ConditionInfo] {
-        let statusOrder = ["active": 0, "monitoring": 1, "resolved": 2]
-        return conditions.sorted { a, b in
-            let statusA = statusOrder[(a.status ?? "").lowercased()] ?? 1
-            let statusB = statusOrder[(b.status ?? "").lowercased()] ?? 1
-            if statusA != statusB { return statusA < statusB }
-            return (a.diagnosisDate ?? "") > (b.diagnosisDate ?? "")
-        }
+        profileSortedConditions(conditions)
     }
 
-    private func sortedMedications(_ medications: [MedicationInfo]) -> [MedicationInfo] {
-        let categoryOrder: [String: Int] = [
-            "multiple": 0, "pain_management": 1, "cardiovascular": 2, "diabetes": 3,
-            "mental_health": 4, "antibiotics": 5, "respiratory": 6, "gastrointestinal": 7,
-            "neurological": 8, "endocrine": 9, "oncology": 10, "immunosuppressant": 11,
-            "vitamins_supplements": 12, "other": 13
-        ]
-        let statusOrder = ["active": 0, "paused": 1, "discontinued": 2]
-        return medications.sorted { a, b in
-            let catA = categoryOrder[(a.category ?? "other").lowercased()] ?? 13
-            let catB = categoryOrder[(b.category ?? "other").lowercased()] ?? 13
-            if catA != catB { return catA < catB }
-            let statA = statusOrder[(a.status ?? "active").lowercased()] ?? 0
-            let statB = statusOrder[(b.status ?? "active").lowercased()] ?? 0
-            return statA < statB
-        }
-    }
-
-    private let medicationCategoryOrder: [String] = [
-        "multiple", "pain_management", "cardiovascular", "diabetes",
-        "mental_health", "antibiotics", "respiratory", "gastrointestinal",
-        "neurological", "endocrine", "oncology", "immunosuppressant",
-        "vitamins_supplements", "other"
-    ]
+    private let medicationCategoryOrder = MedicationCategories.displayOrder
 
     private func medicationsGroupedByCategory(_ medications: [MedicationInfo]) -> [(category: String, label: String, medications: [MedicationInfo])] {
         let statusOrder = ["active": 0, "paused": 1, "discontinued": 2]

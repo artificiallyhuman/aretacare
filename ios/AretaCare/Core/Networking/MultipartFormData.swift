@@ -36,3 +36,37 @@ struct MultipartFormData {
         body.append(Self.utf8Data("\r\n"))
     }
 }
+
+// MARK: - Transcribe request body
+
+extension MultipartFormData {
+    /// Cached — the previous per-call-site DateFormatter was rebuilt on every recording.
+    private static let recordingFilenameFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "yyyy-MM-dd_h-mma"
+        f.locale = Locale(identifier: "en_US_POSIX")
+        return f
+    }()
+
+    static func generatedRecordingFilename() -> String {
+        "Recording_\(recordingFilenameFormatter.string(from: Date())).\(AppConstants.audioFileExtension)"
+    }
+
+    /// The `POST /conversation/transcribe` body. One builder for the chat
+    /// recorder, Conversation Coach and the Audio Recordings uploads, which
+    /// each carried their own copy of these four fields.
+    static func transcribeAudioBody(
+        sessionId: String,
+        audioData: Data,
+        filename: String,
+        mimeType: String = AppConstants.audioMimeType,
+        skipJournalSynthesis: Bool
+    ) -> MultipartFormData {
+        var multipart = MultipartFormData()
+        multipart.addTextField(name: "session_id", value: sessionId)
+        multipart.addTextField(name: "skip_journal_synthesis", value: skipJournalSynthesis ? "true" : "false")
+        multipart.addTextField(name: "background", value: "true")
+        multipart.addFileField(name: "audio", filename: filename, mimeType: mimeType, data: audioData)
+        return multipart
+    }
+}

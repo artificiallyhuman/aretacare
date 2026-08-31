@@ -1,6 +1,48 @@
 import Foundation
 import SwiftUI
 
+// MARK: - Medication Categories
+
+/// Matches the medication categories the backend's Health Profile prompt emits.
+/// Single source for display order and labels — previously copied in
+/// ProfileView, ProfileSectionEditView (order dict + Picker) and
+/// ProfileComponents, which had already drifted once.
+enum MedicationCategories {
+    /// Display order for grouped lists and the category picker.
+    static let displayOrder: [String] = [
+        "multiple", "pain_management", "cardiovascular", "diabetes",
+        "mental_health", "antibiotics", "respiratory", "gastrointestinal",
+        "neurological", "endocrine", "oncology", "immunosuppressant",
+        "vitamins_supplements", "other"
+    ]
+
+    /// Sort rank; unknown categories sort last.
+    static let orderIndex: [String: Int] = Dictionary(
+        uniqueKeysWithValues: displayOrder.enumerated().map { ($1, $0) }
+    )
+
+    static let labels: [String: String] = [
+        "multiple": "Multiple Uses",
+        "pain_management": "Pain Relief",
+        "cardiovascular": "Heart & Blood Pressure",
+        "diabetes": "Diabetes & Blood Sugar",
+        "mental_health": "Mental Health",
+        "antibiotics": "Infection & Antibiotics",
+        "respiratory": "Breathing & Lungs",
+        "gastrointestinal": "Stomach & Digestion",
+        "neurological": "Brain & Nerves",
+        "endocrine": "Hormones",
+        "oncology": "Cancer Treatment",
+        "immunosuppressant": "Immune System",
+        "vitamins_supplements": "Vitamins & Supplements",
+        "other": "Other"
+    ]
+
+    static func label(_ category: String) -> String? {
+        labels[category.lowercased()]
+    }
+}
+
 // MARK: - Document Categories
 
 /// Matches backend DocumentCategory enum in models/document.py

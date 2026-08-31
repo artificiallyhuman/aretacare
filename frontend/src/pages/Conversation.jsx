@@ -671,7 +671,7 @@ const Conversation = () => {
       await mergeLatestMessages(activeSessionId);
     } catch (err) {
       console.error('Error sending message:', err);
-      const isTimeout = err.name === 'CanceledError' || err.name === 'AbortError' || err.code === 'ERR_CANCELED';
+      const isTimeout = isAbortError(err);
       const errorMessage = isTimeout
         ? 'Response took too long. Your message was saved — please check back in a moment.'
         : (err.response?.data?.detail || 'Failed to send message. Please try again.');

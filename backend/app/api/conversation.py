@@ -655,18 +655,16 @@ async def reset_to_message(
         # Delete S3 files for documents (non-fatal). Every query below repeats the
         # session predicate so a destructive statement can never widen past this session,
         # even if the id list above is ever changed.
+        s3_keys_to_delete = []
         if document_ids:
             documents = db.query(Document).filter(
                 Document.id.in_(document_ids),
                 Document.session_id == session_id,
             ).all()
             for doc in documents:
-                try:
-                    await s3_service.delete_file(doc.s3_key)
-                    if doc.thumbnail_s3_key:
-                        await s3_service.delete_file(doc.thumbnail_s3_key)
-                except Exception as e:
-                    logger.warning(f"Failed to delete S3 file for document {doc.id}: {e}")
+                s3_keys_to_delete.append(doc.s3_key)
+                if doc.thumbnail_s3_key:
+                    s3_keys_to_delete.append(doc.thumbnail_s3_key)
 
             # Delete documents from DB
             db.query(Document).filter(
@@ -680,17 +678,17 @@ async def reset_to_message(
                 AudioRecording.id.in_(audio_ids),
                 AudioRecording.session_id == session_id,
             ).all()
-            for rec in recordings:
-                try:
-                    await s3_service.delete_file(rec.s3_key)
-                except Exception as e:
-                    logger.warning(f"Failed to delete S3 file for audio {rec.id}: {e}")
+            s3_keys_to_delete.extend(rec.s3_key for rec in recordings)
 
             # Delete audio recordings from DB
             db.query(AudioRecording).filter(
                 AudioRecording.id.in_(audio_ids),
                 AudioRecording.session_id == session_id,
             ).delete(synchronize_session=False)
+
+        # One batched call instead of a round trip per object (delete_files logs
+        # failures instead of raising; orphans go to the admin S3 cleanup)
+        await s3_service.delete_files(s3_keys_to_delete)
 
         # Delete the conversation messages
         db.query(Conversation).filter(
@@ -845,9 +843,10 @@ async def transcribe_audio(
                 detail=f"Invalid audio format. Supported formats: MP3, M4A, WAV, WebM, OGG"
             )
 
-        # Stream-read with size enforcement BEFORE buffering. Aborts with HTTP 413
-        # once running byte count exceeds the limit — prevents a multi-GB POST from
-        # OOMing the worker before the application-level size check fires.
+        # Stream-read with size enforcement BEFORE buffering. Aborts with HTTP 400
+        # (read_upload_with_limit's deliberate choice) once running byte count
+        # exceeds the limit — prevents a multi-GB POST from OOMing the worker
+        # before the application-level size check fires.
         try:
             audio_content = await read_upload_with_limit(audio, MAX_AUDIO_FILE_SIZE)
         except HTTPException as e:
@@ -940,7 +939,6 @@ async def transcribe_audio(
                     source_temp_path=audio_temp_path,
                     source_key=source_key,
                     mp3_key=mp3_key,
-                    source_is_mp3=False,
                     original_name=original_name,
                     original_filename=original_filename,
                     skip_synthesis=skip_synthesis,

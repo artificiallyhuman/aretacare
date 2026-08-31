@@ -37,10 +37,8 @@ const MessageInput = ({ onSendMessage, loading, hasMessages = false }) => {
   const [isTranscribing, setIsTranscribing] = useState(false);
   const [audioStream, setAudioStream] = useState(null);
   const [recordingTimeLeft, setRecordingTimeLeft] = useState(MAX_RECORDING_SECONDS);
-  const [recordingAutoStopped, setRecordingAutoStopped] = useState(false);
   const [currentPromptIndex, setCurrentPromptIndex] = useState(0);
   const [isMobile, setIsMobile] = useState(false);
-  const [audioRecordingId, setAudioRecordingId] = useState(null);
   const [showNotification, setShowNotification] = useState(false);
   const [showSilenceWarning, setShowSilenceWarning] = useState(false);
   const fileInputRef = useRef(null);
@@ -54,6 +52,10 @@ const MessageInput = ({ onSendMessage, loading, hasMessages = false }) => {
   const maxAudioLevelRef = useRef(0);
   const silenceCheckIntervalRef = useRef(null);
   const recordingCancelledRef = useRef(false);
+  // A ref, not state: the MediaRecorder "stop" listener captures transcribeAudio
+  // from the render startRecording ran in, so a state flag set by the countdown
+  // was always read as false there and the auto-stop alert never fired
+  const recordingAutoStoppedRef = useRef(false);
   // Mirrors audioStream so the unmount cleanup below sees the live stream
   // rather than the value captured when the effect was created
   const audioStreamRef = useRef(null);
@@ -91,6 +93,37 @@ const MessageInput = ({ onSendMessage, loading, hasMessages = false }) => {
     };
   }, []);
 
+  // Leaving the current care session mid-recording or mid-poll tears both down.
+  // The stop handler and the transcription poll captured the previous
+  // sessionId, so letting them finish would keep this composer locked on
+  // "Transcribing…" in the new session and drop the finished message's
+  // optimistic bubble into the wrong on-screen transcript.
+  useEffect(() => {
+    return () => {
+      if (silenceCheckIntervalRef.current) {
+        clearInterval(silenceCheckIntervalRef.current);
+        silenceCheckIntervalRef.current = null;
+      }
+      if (audioContextRef.current) {
+        audioContextRef.current.close();
+        audioContextRef.current = null;
+      }
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+        recordingCancelledRef.current = true;
+        mediaRecorderRef.current.stop();
+      }
+      if (audioStreamRef.current) {
+        audioStreamRef.current.getTracks().forEach(track => track.stop());
+        audioStreamRef.current = null;
+      }
+      audioChunksRef.current = [];
+      transcriptionAbortRef.current?.abort();
+      setAudioStream(null);
+      setIsRecording(false);
+      setIsTranscribing(false);
+    };
+  }, [sessionId]);
+
   // Detect mobile screen size
   useEffect(() => {
     const checkMobile = () => {
@@ -125,19 +158,13 @@ const MessageInput = ({ onSendMessage, loading, hasMessages = false }) => {
     };
   }, [hasMessages, message]);
 
-  // Countdown timer for recording
+  // Countdown timer for recording. The updater only counts down — side effects
+  // in an updater run twice under StrictMode, so the auto-stop lives in the
+  // effect below, keyed on the count reaching zero.
   useEffect(() => {
     if (isRecording) {
       recordingTimerRef.current = setInterval(() => {
-        setRecordingTimeLeft((prev) => {
-          if (prev <= 1) {
-            // Time's up - auto-stop recording
-            setRecordingAutoStopped(true);
-            stopRecording();
-            return 0;
-          }
-          return prev - 1;
-        });
+        setRecordingTimeLeft((prev) => Math.max(prev - 1, 0));
       }, 1000);
     } else {
       // Reset timer when not recording
@@ -156,6 +183,15 @@ const MessageInput = ({ onSendMessage, loading, hasMessages = false }) => {
     // Intentionally excluding stopRecording from deps - only restart timer when recording state changes
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isRecording]);
+
+  // Auto-stop when the countdown hits zero
+  useEffect(() => {
+    if (isRecording && recordingTimeLeft === 0) {
+      recordingAutoStoppedRef.current = true;
+      stopRecording();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isRecording, recordingTimeLeft]);
 
   // Auto-hide notification after 5 seconds
   useEffect(() => {
@@ -191,10 +227,9 @@ const MessageInput = ({ onSendMessage, loading, hasMessages = false }) => {
   const handleSubmit = (e) => {
     e.preventDefault();
     if (message.trim() || selectedFile) {
-      onSendMessage(message, selectedFile, audioRecordingId);
+      onSendMessage(message, selectedFile);
       setMessage('');
       setSelectedFile(null);
-      setAudioRecordingId(null);  // Clear audio recording ID after sending
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
@@ -248,8 +283,10 @@ const MessageInput = ({ onSendMessage, loading, hasMessages = false }) => {
 
   const startRecording = async () => {
     try {
-      // Reset cancellation flag
+      // Reset cancellation + auto-stop flags (a stale auto-stop flag from a
+      // recording whose transcribe never ran would alert on the next one)
       recordingCancelledRef.current = false;
+      recordingAutoStoppedRef.current = false;
 
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       setAudioStream(stream); // Save stream for waveform visualization
@@ -328,12 +365,14 @@ const MessageInput = ({ onSendMessage, loading, hasMessages = false }) => {
 
         const audioBlob = new Blob(audioChunksRef.current, { type: mediaRecorder.mimeType });
 
-        await transcribeAudio(audioBlob);
-
-        // Stop all tracks to release the microphone
+        // Release the microphone BEFORE transcribing — the await below now
+        // includes the server-side transcription poll (potentially minutes),
+        // and the OS mic indicator must not stay lit for all of it
         stream.getTracks().forEach(track => track.stop());
         setAudioStream(null); // Clear stream reference
         audioStreamRef.current = null;
+
+        await transcribeAudio(audioBlob);
       });
 
       // Start recording with timeslice to ensure proper WebM container structure
@@ -394,9 +433,9 @@ const MessageInput = ({ onSendMessage, loading, hasMessages = false }) => {
     setIsTranscribing(true);
 
     // Show message if recording was auto-stopped
-    if (recordingAutoStopped) {
+    if (recordingAutoStoppedRef.current) {
+      recordingAutoStoppedRef.current = false;
       alert('Recording reached the 15-minute maximum length and was automatically stopped.');
-      setRecordingAutoStopped(false);
     }
 
     try {
@@ -406,9 +445,6 @@ const MessageInput = ({ onSendMessage, loading, hasMessages = false }) => {
       // Pass skipJournalSynthesis=true for conversation recordings (will synthesize when message is sent)
       const response = await conversationAPI.transcribeAudio(audioFile, sessionId, true);
       const recordingId = response.data.recording_id;
-
-      // Store the recording ID to link to journal entry when message is sent
-      setAudioRecordingId(recordingId);
 
       // The backend answers 202 once the recording is saved and transcribes in the
       // background; poll until the transcript is ready. An older backend answers
@@ -447,15 +483,14 @@ const MessageInput = ({ onSendMessage, loading, hasMessages = false }) => {
       setShowNotification(true);
 
     } catch (error) {
-      // The poll was abandoned because the chat unmounted - nothing left to tell
+      setIsTranscribing(false);
+      // The poll was abandoned (chat unmounted or care session switched) -
+      // nothing left to tell
       if (isAbortError(error)) return;
       console.error('Error transcribing audio:', error);
       // Polling errors carry their user-facing text in .message
       const errorMessage = error.response?.data?.detail || error.message || 'Failed to transcribe audio. Please try again.';
       alert(errorMessage);
-      setIsTranscribing(false);
-    } finally {
-      setAudioRecordingId(null); // Clear the recording ID
     }
   };
 
@@ -537,7 +572,7 @@ const MessageInput = ({ onSendMessage, loading, hasMessages = false }) => {
           />
           <label
             htmlFor="file-upload"
-            className="cursor-pointer p-1.5 md:p-2 text-primary-600 hover:text-primary-700 hover:bg-primary-50 rounded-lg transition flex-shrink-0"
+            className="cursor-pointer p-1.5 md:p-2 text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 hover:bg-primary-50 dark:hover:bg-primary-900/30 rounded-lg transition flex-shrink-0"
             title="Attach a document or image (use Document Manager for multiple at once)"
           >
             <svg className="w-5 h-5 md:w-6 md:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -552,7 +587,7 @@ const MessageInput = ({ onSendMessage, loading, hasMessages = false }) => {
               onClick={startRecording}
               disabled={loading || isTranscribing}
               aria-label={isTranscribing ? "Transcribing audio" : "Start voice recording"}
-              className={`p-1.5 md:p-2 rounded-lg transition text-primary-600 hover:text-primary-700 hover:bg-primary-50 flex-shrink-0 ${(loading || isTranscribing) ? 'opacity-50 cursor-not-allowed' : ''}`}
+              className={`p-1.5 md:p-2 rounded-lg transition text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 hover:bg-primary-50 dark:hover:bg-primary-900/30 flex-shrink-0 ${(loading || isTranscribing) ? 'opacity-50 cursor-not-allowed' : ''}`}
               title="Start recording"
             >
               {isTranscribing ? (

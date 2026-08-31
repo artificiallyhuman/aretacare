@@ -30,6 +30,16 @@ struct AudioRecordingUpdateRequest: Codable {
         self.aiSummary = aiSummary
         self.category = category
     }
+
+    // Synthesized Codable uses encodeIfPresent, which omits nil fields, and the
+    // server treats an absent field as "no change" — so picking "None" for the
+    // category or clearing the summary was a silent no-op behind a success
+    // toast. Encode explicit nulls: on the server, null means "clear".
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(aiSummary, forKey: .aiSummary)
+        try container.encode(category, forKey: .category)
+    }
 }
 
 struct AudioRecordingListResponse: Codable {

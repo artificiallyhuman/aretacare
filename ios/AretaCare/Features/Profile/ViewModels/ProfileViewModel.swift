@@ -168,7 +168,9 @@ final class ProfileViewModel {
 
     // MARK: - Update Section
 
-    func updateSection(sessionId: String, section: String, data: AnyCodableValue) async {
+    /// Returns whether the PATCH landed — the edit sheet must not dismiss with a
+    /// "Saved" toast (and drop the user's edits) when it didn't.
+    func updateSection(sessionId: String, section: String, data: AnyCodableValue) async -> Bool {
         errorMessage = nil
 
         do {
@@ -179,8 +181,10 @@ final class ProfileViewModel {
             )
             profile = response
             pendingChanges = response.pendingChanges ?? []
+            return true
         } catch {
             errorMessage = error.localizedDescription
+            return false
         }
     }
 

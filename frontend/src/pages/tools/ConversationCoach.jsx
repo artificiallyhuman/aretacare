@@ -24,30 +24,49 @@ const ConversationCoach = () => {
   const [isTranscribing, setIsTranscribing] = useState(false);
   const [audioStream, setAudioStream] = useState(null);
   const [recordingTimeLeft, setRecordingTimeLeft] = useState(MAX_RECORDING_SECONDS);
-  const [recordingAutoStopped, setRecordingAutoStopped] = useState(false);
   const mediaRecorderRef = useRef(null);
   const audioChunksRef = useRef([]);
   const recordingTimerRef = useRef(null);
   // Stops the transcription poll if the page unmounts while it is waiting
   const transcriptionAbortRef = useRef(null);
+  // Mirrors audioStream so the unmount cleanup below sees the live stream
+  // rather than the value captured when the effect was created
+  const audioStreamRef = useRef(null);
+  // Skips the stop handler's transcribe path when the stop came from unmount
+  const recordingCancelledRef = useRef(false);
+  // A ref, not state: the MediaRecorder "stop" listener captures transcribeAudio
+  // from the render startRecording ran in, so a state flag set by the countdown
+  // was always read as false there and the auto-stop alert never fired
+  const recordingAutoStoppedRef = useRef(false);
 
+  // Release the microphone if the page unmounts mid-recording — navigating
+  // away would otherwise leave the mic live until the tab closes, with no UI
+  // left to turn it off. (Same pattern as MessageInput.jsx.)
   useEffect(() => {
-    return () => transcriptionAbortRef.current?.abort();
+    return () => {
+      if (recordingTimerRef.current) {
+        clearInterval(recordingTimerRef.current);
+        recordingTimerRef.current = null;
+      }
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+        recordingCancelledRef.current = true;
+        mediaRecorderRef.current.stop();
+      }
+      if (audioStreamRef.current) {
+        audioStreamRef.current.getTracks().forEach(track => track.stop());
+        audioStreamRef.current = null;
+      }
+      transcriptionAbortRef.current?.abort();
+    };
   }, []);
 
-  // Countdown timer for recording
+  // Countdown timer for recording. The updater only counts down — side effects
+  // in an updater run twice under StrictMode, so the auto-stop lives in the
+  // effect below, keyed on the count reaching zero.
   useEffect(() => {
     if (isRecording) {
       recordingTimerRef.current = setInterval(() => {
-        setRecordingTimeLeft((prev) => {
-          if (prev <= 1) {
-            // Time's up - auto-stop recording
-            setRecordingAutoStopped(true);
-            stopRecording();
-            return 0;
-          }
-          return prev - 1;
-        });
+        setRecordingTimeLeft((prev) => Math.max(prev - 1, 0));
       }, 1000);
     } else {
       // Reset timer when not recording
@@ -64,6 +83,15 @@ const ConversationCoach = () => {
       }
     };
   }, [isRecording]);
+
+  // Auto-stop when the countdown hits zero
+  useEffect(() => {
+    if (isRecording && recordingTimeLeft === 0) {
+      recordingAutoStoppedRef.current = true;
+      stopRecording();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isRecording, recordingTimeLeft]);
 
   const handleGetCoaching = async () => {
     if (!situation.trim()) {
@@ -86,8 +114,12 @@ const ConversationCoach = () => {
 
   const startRecording = async () => {
     try {
+      recordingCancelledRef.current = false;
+      recordingAutoStoppedRef.current = false;
+
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       setAudioStream(stream); // Save stream for waveform visualization
+      audioStreamRef.current = stream; // Kept in sync for the unmount cleanup
 
       const mediaRecorder = new MediaRecorder(stream);
       mediaRecorderRef.current = mediaRecorder;
@@ -98,12 +130,21 @@ const ConversationCoach = () => {
       });
 
       mediaRecorder.addEventListener('stop', async () => {
-        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
-        await transcribeAudio(audioBlob);
+        // Unmount cleanup already stopped the tracks - nothing left to update
+        if (recordingCancelledRef.current) {
+          return;
+        }
 
-        // Stop all tracks to release the microphone
+        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+
+        // Release the microphone BEFORE transcribing — the await below now
+        // includes the server-side transcription poll (potentially minutes),
+        // and the OS mic indicator must not stay lit for all of it
         stream.getTracks().forEach(track => track.stop());
         setAudioStream(null); // Clear stream reference
+        audioStreamRef.current = null;
+
+        await transcribeAudio(audioBlob);
       });
 
       mediaRecorder.start();
@@ -125,9 +166,9 @@ const ConversationCoach = () => {
     setIsTranscribing(true);
 
     // Show message if recording was auto-stopped
-    if (recordingAutoStopped) {
+    if (recordingAutoStoppedRef.current) {
+      recordingAutoStoppedRef.current = false;
       alert('Recording reached the 15-minute maximum length and was automatically stopped.');
-      setRecordingAutoStopped(false);
     }
 
     try {

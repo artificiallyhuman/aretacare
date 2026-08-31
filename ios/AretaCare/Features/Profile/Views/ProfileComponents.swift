@@ -364,23 +364,20 @@ func profileMedicationStatusColor(_ status: String) -> Color {
 }
 
 func profileMedicationCategoryLabel(_ category: String) -> String? {
-    let labels: [String: String] = [
-        "multiple": "Multiple Uses",
-        "pain_management": "Pain Relief",
-        "cardiovascular": "Heart & Blood Pressure",
-        "diabetes": "Diabetes & Blood Sugar",
-        "mental_health": "Mental Health",
-        "antibiotics": "Infection & Antibiotics",
-        "respiratory": "Breathing & Lungs",
-        "gastrointestinal": "Stomach & Digestion",
-        "neurological": "Brain & Nerves",
-        "endocrine": "Hormones",
-        "oncology": "Cancer Treatment",
-        "immunosuppressant": "Immune System",
-        "vitamins_supplements": "Vitamins & Supplements",
-        "other": "Other"
-    ]
-    return labels[category.lowercased()]
+    MedicationCategories.label(category)
+}
+
+/// Display-order sort for conditions (active first, then newest diagnosis).
+/// Shared by ProfileView, its copy-text builder and the section editor, which
+/// each carried the same comparator.
+func profileSortedConditions(_ conditions: [ConditionInfo]) -> [ConditionInfo] {
+    let statusOrder = ["active": 0, "monitoring": 1, "resolved": 2]
+    return conditions.sorted { a, b in
+        let statusA = statusOrder[(a.status ?? "").lowercased()] ?? 1
+        let statusB = statusOrder[(b.status ?? "").lowercased()] ?? 1
+        if statusA != statusB { return statusA < statusB }
+        return (a.diagnosisDate ?? "") > (b.diagnosisDate ?? "")
+    }
 }
 
 func profileCommCategoryLabel(_ category: String) -> String {

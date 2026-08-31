@@ -434,29 +434,18 @@ async def admin_delete_user(
     # Get all sessions owned by user
     user_sessions = db.query(SessionModel).filter(SessionModel.user_id == user.id).all()
 
-    # Delete all S3 files for all sessions
+    # Delete all S3 files for all sessions in one batched call (delete_files
+    # logs failures instead of raising; orphans go to the admin S3 cleanup)
+    s3_keys_to_delete = []
     for session in user_sessions:
-        # Delete documents from S3
         documents = db.query(Document).filter(Document.session_id == session.id).all()
         for doc in documents:
-            try:
-                await s3_service.delete_file(doc.s3_key)
-            except Exception as e:
-                logger.error(f"Failed to delete S3 file {doc.s3_key}: {e}")
-
+            s3_keys_to_delete.append(doc.s3_key)
             if doc.thumbnail_s3_key:
-                try:
-                    await s3_service.delete_file(doc.thumbnail_s3_key)
-                except Exception as e:
-                    logger.error(f"Failed to delete S3 thumbnail {doc.thumbnail_s3_key}: {e}")
-
-        # Delete audio from S3
+                s3_keys_to_delete.append(doc.thumbnail_s3_key)
         audio_recordings = db.query(AudioRecording).filter(AudioRecording.session_id == session.id).all()
-        for audio in audio_recordings:
-            try:
-                await s3_service.delete_file(audio.s3_key)
-            except Exception as e:
-                logger.error(f"Failed to delete S3 audio {audio.s3_key}: {e}")
+        s3_keys_to_delete.extend(audio.s3_key for audio in audio_recordings)
+    await s3_service.delete_files(s3_keys_to_delete)
 
     # Log the action before deletion
     admin_service.log_action(
@@ -728,26 +717,17 @@ async def admin_delete_session(
     session_name = session.name
     owner_id = session.owner_id
 
-    # Delete S3 files
+    # Delete S3 files in one batched call (delete_files logs failures instead
+    # of raising; orphans go to the admin S3 cleanup)
     documents = db.query(Document).filter(Document.session_id == session_id).all()
-    for doc in documents:
-        try:
-            await s3_service.delete_file(doc.s3_key)
-        except Exception as e:
-            logger.error(f"Failed to delete S3 file {doc.s3_key}: {e}")
-
-        if doc.thumbnail_s3_key:
-            try:
-                await s3_service.delete_file(doc.thumbnail_s3_key)
-            except Exception as e:
-                logger.error(f"Failed to delete S3 thumbnail {doc.thumbnail_s3_key}: {e}")
-
     audio_recordings = db.query(AudioRecording).filter(AudioRecording.session_id == session_id).all()
-    for audio in audio_recordings:
-        try:
-            await s3_service.delete_file(audio.s3_key)
-        except Exception as e:
-            logger.error(f"Failed to delete S3 audio {audio.s3_key}: {e}")
+    s3_keys_to_delete = []
+    for doc in documents:
+        s3_keys_to_delete.append(doc.s3_key)
+        if doc.thumbnail_s3_key:
+            s3_keys_to_delete.append(doc.thumbnail_s3_key)
+    s3_keys_to_delete.extend(audio.s3_key for audio in audio_recordings)
+    await s3_service.delete_files(s3_keys_to_delete)
 
     # Log the action before deletion
     admin_service.log_action(

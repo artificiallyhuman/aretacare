@@ -11,9 +11,6 @@ final class ConversationViewModel {
     private(set) var hasMore = false
     var errorMessage: String?
 
-    /// Incremented after each silent reconciliation so the view can observe completion.
-    private(set) var reconcileToken = 0
-
     /// IDs of messages that failed to send and can be retried.
     private(set) var failedMessageIds: Set<Int> = []
 
@@ -51,9 +48,6 @@ final class ConversationViewModel {
     /// dropped after a grace pass rather than wedging the polling guard.
     private var tempReconcilePasses: [Int: Int] = [:]
 
-    /// Result of the most recent `uploadAudioMessage` run. Held here rather than
-    /// returned from the inner task so `sendTask` stays cancellable.
-    private var audioUploadSucceeded = false
 
     // Cached formatters (ARCH-3: avoid creating new instances per call)
     private static let apiDateFormatter: DateFormatter = {
@@ -306,14 +300,21 @@ final class ConversationViewModel {
     @discardableResult
     func uploadAudioMessage(data: Data, sessionId: String) async -> Bool {
         sendTask?.cancel()
-        audioUploadSucceeded = false
+        // Per-call result box, not a shared property: `await task.value` is a
+        // suspension point, so with a shared slot an overlapping call could
+        // overwrite the result before this call resumed — a succeeded upload
+        // reporting false makes the caller skip discardRecording() and orphans
+        // the PHI-bearing file on disk. (A box keeps sendTask Task<Void, Never>
+        // and therefore cancellable alongside the text-send path.)
+        final class UploadResultBox { var succeeded = false }
+        let result = UploadResultBox()
         let task: Task<Void, Never> = Task { @MainActor [weak self] in
             guard let self = self else { return }
-            self.audioUploadSucceeded = await self._performUploadAudioMessage(data: data, sessionId: sessionId)
+            result.succeeded = await self._performUploadAudioMessage(data: data, sessionId: sessionId)
         }
         sendTask = task
         await task.value
-        return audioUploadSucceeded
+        return result.succeeded
     }
 
     private func _performUploadAudioMessage(data: Data, sessionId: String) async -> Bool {
@@ -329,21 +330,12 @@ final class ConversationViewModel {
             backgroundTaskId = .invalid
         }
 
-        let df = DateFormatter()
-        df.dateFormat = "yyyy-MM-dd_h-mma"
-        df.locale = Locale(identifier: "en_US_POSIX")
-        let filename = "Recording_\(df.string(from: Date())).\(AppConstants.audioFileExtension)"
-
-        var multipart = MultipartFormData()
-        multipart.addFileField(
-            name: "audio",
-            filename: filename,
-            mimeType: AppConstants.audioMimeType,
-            data: data
+        let multipart = MultipartFormData.transcribeAudioBody(
+            sessionId: sessionId,
+            audioData: data,
+            filename: MultipartFormData.generatedRecordingFilename(),
+            skipJournalSynthesis: true
         )
-        multipart.addTextField(name: "session_id", value: sessionId)
-        multipart.addTextField(name: "skip_journal_synthesis", value: "true")
-        multipart.addTextField(name: "background", value: "true")
 
         do {
             let response: AudioTranscribeResponse = try await APIClient.shared.upload(
@@ -741,7 +733,6 @@ final class ConversationViewModel {
             totalCount = history.totalCount
             hasMore = history.hasMore
             Self.historyCache.set(history, for: sessionId)
-            reconcileToken += 1
         } catch {
             // Silent failure — user already sees correct messages
         }

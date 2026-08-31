@@ -1,5 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from sqlalchemy import and_, func, or_
 from sqlalchemy.orm import Session
+from app.core.config import settings
 from app.core.database import get_db
 from app.core.rate_limit import limiter, RateLimits
 from app.models import User, Session as SessionModel, AudioRecording
@@ -11,15 +13,13 @@ from app.api.permissions import check_session_access
 from app.api.source_tags import session_has_collaborators, build_source_tag_info, get_user_map
 from app.services.audio_transcription_service import (
     effective_transcription_status,
-    is_original_upload_key,
+    has_active_job,
     mp3_key_for,
     start_transcription_job,
 )
 from typing import List, Optional
-from datetime import datetime
+from datetime import datetime, timedelta
 import logging
-import os
-import tempfile
 
 logger = logging.getLogger(__name__)
 
@@ -230,16 +230,20 @@ async def update_audio_recording(
     if not recording:
         raise HTTPException(status_code=404, detail="Recording not found")
 
-    # Update AI summary
-    if update_data.ai_summary is not None:
+    # Absent field = "no change"; an explicit null (or empty category) clears the
+    # value. `is not None` alone made clearing impossible — iOS's "None" category
+    # pick and a cleared summary were silent no-ops behind a success toast.
+    if "ai_summary" in update_data.model_fields_set:
         recording.ai_summary = update_data.ai_summary
 
-    # Update category
-    if update_data.category is not None:
-        try:
-            recording.category = AudioRecordingCategory(update_data.category)
-        except ValueError:
-            raise HTTPException(status_code=400, detail=f"Invalid category: {update_data.category}")
+    if "category" in update_data.model_fields_set:
+        if update_data.category:
+            try:
+                recording.category = AudioRecordingCategory(update_data.category)
+            except ValueError:
+                raise HTTPException(status_code=400, detail=f"Invalid category: {update_data.category}")
+        else:
+            recording.category = None
 
     # Track editor for collaborative sessions
     recording.last_edited_by_user_id = current_user.id
@@ -356,46 +360,48 @@ async def retranscribe_audio_recording(
     if effective_transcription_status(recording) != TranscriptionStatus.FAILED.value:
         raise HTTPException(status_code=409, detail="This recording is not waiting for a retry.")
 
+    # A live job on this instance can look stale-'failed' only if it is truly
+    # wedged; starting a second job over the same S3 keys is never the answer.
+    if has_active_job(recording_id):
+        raise HTTPException(status_code=409, detail="This recording is already being transcribed.")
+
     source_key = recording.s3_key
     original_filename = recording.filename
     duration = recording.duration
-    source_is_mp3 = not is_original_upload_key(source_key)
     mp3_key = mp3_key_for(source_key)
     original_name = original_filename.rsplit('.', 1)[0] if '.' in original_filename else original_filename
-    suffix = os.path.splitext(source_key)[1] or '.mp3'
 
-    temp_fd, temp_path = tempfile.mkstemp(suffix=suffix)
-    os.close(temp_fd)
-    if not await s3_service.download_file_to_path(source_key, temp_path):
-        os.unlink(temp_path)
-        raise HTTPException(status_code=500, detail="Could not fetch the recording for retranscription. Please try again.")
-
-    # Claim the row atomically so two clicks (or two instances) can't both pick it up.
-    # 'processing' is only accepted here because the effective status above already
-    # established that its heartbeat is stale.
+    # Claim the row atomically so two clicks (or two instances) can't both pick it
+    # up. The staleness predicate lives in the WHERE clause: a plain 'processing'
+    # row with a fresh heartbeat (someone else's claim landing first) matches
+    # nothing, so exactly one claimant wins.
+    stale_cutoff = datetime.utcnow() - timedelta(seconds=settings.AUDIO_TRANSCRIPTION_STALE_SECONDS)
     claimed = db.query(AudioRecording).filter(
         AudioRecording.id == recording_id,
         AudioRecording.session_id == session_id,
-        AudioRecording.transcription_status.in_([
-            TranscriptionStatus.FAILED.value, TranscriptionStatus.PROCESSING.value
-        ]),
+        or_(
+            AudioRecording.transcription_status == TranscriptionStatus.FAILED.value,
+            and_(
+                AudioRecording.transcription_status == TranscriptionStatus.PROCESSING.value,
+                func.coalesce(AudioRecording.transcription_updated_at, AudioRecording.created_at) < stale_cutoff,
+            ),
+        ),
     ).update({
         "transcription_status": TranscriptionStatus.PROCESSING.value,
         "transcription_updated_at": datetime.utcnow(),
     }, synchronize_session=False)
     db.commit()
     if claimed == 0:
-        os.unlink(temp_path)
         raise HTTPException(status_code=409, detail="This recording is already being transcribed.")
 
+    # No source_temp_path: the job downloads the stored object itself, so the 202
+    # goes out immediately instead of after a potentially multi-hundred-MB fetch.
     start_transcription_job(
         recording_id=recording_id,
         session_id=session_id,
         user_id=current_user.id,
-        source_temp_path=temp_path,
         source_key=source_key,
         mp3_key=mp3_key,
-        source_is_mp3=source_is_mp3,
         original_name=original_name,
         original_filename=original_filename,
         skip_synthesis=False,
@@ -407,7 +413,9 @@ async def retranscribe_audio_recording(
         "recording_id": recording_id,
         "filename": original_filename,
         "duration": duration,
-        "audio_s3_key": source_key,
+        # The key the recording ends up under; the pre-swap key is deleted by the
+        # job, so it is the only one safe for a client to hold on to.
+        "audio_s3_key": mp3_key,
         "transcription_status": TranscriptionStatus.PROCESSING.value,
         "transcribed_text": None,
     }

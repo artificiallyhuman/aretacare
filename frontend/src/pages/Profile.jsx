@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useSessionContext } from '../contexts/SessionContext';
 import { profileAPI } from '../services/api';
@@ -331,16 +331,27 @@ const Profile = () => {
   // Track if new activity is available (don't auto-trigger AI)
   const [newActivityAvailable, setNewActivityAvailable] = useState(false);
 
+  // Guards loadProfile against a slow response from a previous care session
+  // landing after a switch — without it, session A's conditions, medications
+  // and providers could render (and its pending changes be reviewed) while the
+  // switcher says session B. Same pattern as AudioRecordings.jsx.
+  const activeSessionIdRef = useRef(sessionId);
+  useEffect(() => {
+    activeSessionIdRef.current = sessionId;
+  }, [sessionId]);
+
   // Load profile on mount and when session changes
   const loadProfile = useCallback(async () => {
     if (!sessionId) return;
+    const sessionIdForLoad = sessionId;
 
     try {
       setLoading(true);
       setError(null);
 
       // Check if update is needed (but don't auto-trigger AI)
-      const checkResponse = await profileAPI.check(sessionId);
+      const checkResponse = await profileAPI.check(sessionIdForLoad);
+      if (activeSessionIdRef.current !== sessionIdForLoad) return;
       const { needs_update, has_profile, new_conversation_count, new_journal_count } = checkResponse.data;
 
       // Store activity counts for display
@@ -348,15 +359,20 @@ const Profile = () => {
       setNewActivityAvailable(needs_update);
 
       // Get existing profile (or empty one if none exists)
-      const response = await profileAPI.get(sessionId);
+      const response = await profileAPI.get(sessionIdForLoad);
+      if (activeSessionIdRef.current !== sessionIdForLoad) return;
       setProfile(response.data);
       setPendingChanges(response.data.pending_changes || []);
     } catch (err) {
+      if (activeSessionIdRef.current !== sessionIdForLoad) return;
       console.error('Error loading profile:', err);
       setError(err.response?.data?.detail || 'Failed to load profile');
     } finally {
-      setLoading(false);
-      setUpdating(false);
+      // A superseded load must not clear the spinner the new session's load owns
+      if (activeSessionIdRef.current === sessionIdForLoad) {
+        setLoading(false);
+        setUpdating(false);
+      }
     }
   }, [sessionId]);
 
@@ -364,12 +380,34 @@ const Profile = () => {
     loadProfile();
   }, [loadProfile]);
 
+  // Signature of the pending-change batch, for the dismiss tracking below
+  const pendingChangeIds = pendingChanges.map((c) => c.id).sort().join(',');
+
+  // Remember which batch the user closed the modal on, so a section save or
+  // delete (which flips `updating` and gives `profile` a new identity) doesn't
+  // resurface suggestions they already dismissed. A genuinely new batch has a
+  // different id signature and still auto-opens.
+  const dismissedChangesRef = useRef(null);
+  const prevShowPendingRef = useRef(false);
+  useEffect(() => {
+    if (prevShowPendingRef.current && !showPendingChanges) {
+      dismissedChangesRef.current = pendingChangeIds;
+    }
+    prevShowPendingRef.current = showPendingChanges;
+  }, [showPendingChanges, pendingChangeIds]);
+
   // Auto-show pending changes modal when there are changes after loading
   useEffect(() => {
-    if (!loading && !updating && pendingChanges.length > 0 && profile) {
+    if (
+      !loading &&
+      !updating &&
+      pendingChangeIds !== '' &&
+      profile &&
+      dismissedChangesRef.current !== pendingChangeIds
+    ) {
       setShowPendingChanges(true);
     }
-  }, [loading, updating, pendingChanges.length, profile]);
+  }, [loading, updating, pendingChangeIds, profile]);
 
   // Handle manual refresh/update
   const handleRefresh = async () => {
@@ -437,6 +475,9 @@ const Profile = () => {
       setUpdating(true);
       const response = await profileAPI.save(sessionId, editedData);
       setProfile(response.data);
+      // The save reconciles pending changes server-side — refresh them so the
+      // suggestions badge can't keep counting changes the server already dropped
+      setPendingChanges(response.data.pending_changes || []);
       setEditingSection(null);
       setEditedData(null);
     } catch (err) {
@@ -789,7 +830,7 @@ const Profile = () => {
     setEditedData(prev => {
       const newData = JSON.parse(JSON.stringify(prev));
       if (!newData[section]) newData[section] = [];
-      newData[section].push({ ...template, id: `new_${Date.now()}` });
+      newData[section].push({ ...template, id: `new_${Date.now()}_${Math.random().toString(36).slice(2, 7)}` });
       return newData;
     });
   };
@@ -822,7 +863,7 @@ const Profile = () => {
       const newData = JSON.parse(JSON.stringify(prev));
       if (!newData.preferences) newData.preferences = {};
       if (!newData.preferences[prefSection]) newData.preferences[prefSection] = [];
-      newData.preferences[prefSection].push({ ...template, id: `new_${Date.now()}` });
+      newData.preferences[prefSection].push({ ...template, id: `new_${Date.now()}_${Math.random().toString(36).slice(2, 7)}` });
       return newData;
     });
   };
@@ -947,6 +988,7 @@ const Profile = () => {
   };
 
   const profileData = profile?.profile_data;
+  const completeness = calculateCompleteness(profileData);
   const isEmpty = !profileData || (
     !profileData.patient &&
     (!profileData.caregivers || profileData.caregivers.length === 0) &&
@@ -1002,17 +1044,17 @@ const Profile = () => {
                 <span className="text-sm font-semibold text-gray-900 dark:text-white">Profile Completeness</span>
               </div>
               <span className="text-2xl font-bold text-purple-600 dark:text-purple-400">
-                {calculateCompleteness(profileData)}%
+                {completeness}%
               </span>
             </div>
             <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-3 overflow-hidden">
               <div
                 className="h-full bg-gradient-to-r from-purple-500 to-blue-500 rounded-full transition-all duration-500 shadow-sm"
-                style={{ width: `${calculateCompleteness(profileData)}%` }}
+                style={{ width: `${completeness}%` }}
               />
             </div>
             <p className="mt-2 text-xs text-gray-600 dark:text-gray-400">
-              {calculateCompleteness(profileData) === 100
+              {completeness === 100
                 ? '🎉 Your profile is complete!'
                 : 'Continue chatting to grow your profile, or edit it directly'
               }
@@ -2135,7 +2177,7 @@ const Profile = () => {
                 </button>
               </div>
               <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
-                The AI has suggested the following changes based on new activity. Review each change and decide whether to accept, reject, or edit it.
+                The AI has suggested the following changes based on new activity. Review each change and decide whether to accept or reject it.
               </p>
               <div className="mt-3 flex flex-wrap gap-2">
                 <button

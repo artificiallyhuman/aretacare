@@ -156,15 +156,4 @@ enum AnyCodableValue: Codable, Sendable {
         }
     }
 
-    static func from(_ value: Any) -> AnyCodableValue {
-        switch value {
-        case let s as String: return .string(s)
-        case let i as Int: return .int(i)
-        case let d as Double: return .double(d)
-        case let b as Bool: return .bool(b)
-        case let arr as [Any]: return .array(arr.map { from($0) })
-        case let dict as [String: Any]: return .dictionary(dict.mapValues { from($0) })
-        default: return .null
-        }
-    }
 }

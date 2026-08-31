@@ -27,9 +27,12 @@ protocol UnknownFieldsPreserving {
 extension Decoder {
     /// Every key in this container that is not one of `known`.
     ///
-    /// Keys arrive already transformed by the decoder's `keyDecodingStrategy`
-    /// (`contact_info` → `contactInfo` under `.convertFromSnakeCase`); encoding
-    /// with the matching `.convertToSnakeCase` turns them back.
+    /// Keys arrive already transformed by the decoder's `keyDecodingStrategy`.
+    /// APIClient uses a round-trip-safe variant of `.convertFromSnakeCase`
+    /// (`APIClient.roundTripSafeCamelKey`): a key is camelized only when
+    /// `.convertToSnakeCase` provably turns it back (`contact_info` ⇄
+    /// `contactInfo`); one that can't survive the round trip (`icd_10_code`)
+    /// stays verbatim here and re-encodes unchanged.
     func decodeUnknownFields<Known: CodingKey & CaseIterable>(
         excluding known: Known.Type
     ) throws -> [String: AnyCodableValue] {

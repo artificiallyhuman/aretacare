@@ -1,4 +1,5 @@
 from openai import AsyncOpenAI
+from pydantic import ValidationError
 import logging
 import copy
 import json
@@ -8,6 +9,8 @@ from sqlalchemy.orm import Session
 from sqlalchemy.orm.attributes import flag_modified
 from datetime import datetime
 from typing import Optional, List, Dict, Any, Tuple
+
+from ..schemas.profile import PendingChange
 from ..models.profile import Profile
 from ..models.conversation import Conversation
 from ..models.journal import JournalEntry
@@ -16,6 +19,7 @@ from ..models.user import User
 from ..models.session_collaborator import SessionCollaborator
 from ..core.config import settings
 from ..config import ai_config
+from .openai_service import guarded_responses_create
 
 logger = logging.getLogger(__name__)
 
@@ -40,10 +44,12 @@ PRIMARY_FIELDS = {
     "important_context": "context",
 }
 
-# Initialize OpenAI client
+# Initialize OpenAI client. SDK retries off: one call is one bounded HTTP
+# attempt, so a degraded API can't stretch a request to timeout × 3.
 client = AsyncOpenAI(
     api_key=settings.OPENAI_API_KEY,
-    timeout=settings.OPENAI_SYNTHESIS_TIMEOUT_SECONDS
+    timeout=settings.OPENAI_SYNTHESIS_TIMEOUT_SECONDS,
+    max_retries=0,
 )
 
 # Token budget for profile generation. gpt-5.6-sol's context window is 1.05M tokens,
@@ -286,8 +292,10 @@ class ProfileService:
                 JournalEntry.id > profile.last_processed_journal_id
             )
 
-        # Fetch all journal entries (no arbitrary limit), ordered by date
-        journal_entries = journal_query.order_by(JournalEntry.created_at.asc()).all()
+        # Stream in batches rather than .all(): the loop below stops at the token
+        # budget, and materialising a long session's every entry just to use the
+        # first slice of it pulled the whole history into memory.
+        journal_entries = journal_query.order_by(JournalEntry.created_at.asc()).yield_per(200)
 
         last_journal_id = None
         for entry in journal_entries:
@@ -328,8 +336,8 @@ class ProfileService:
                     Conversation.id > profile.last_processed_conversation_id
                 )
 
-            # Fetch all conversations (no arbitrary limit)
-            conversations = conv_query.order_by(Conversation.created_at.asc()).all()
+            # Streamed for the same reason as the journal query above
+            conversations = conv_query.order_by(Conversation.created_at.asc()).yield_per(200)
 
             last_conv_id = None
             for conv in conversations:
@@ -422,7 +430,8 @@ class ProfileService:
             )
 
             # Call OpenAI
-            response = await client.responses.create(
+            response = await guarded_responses_create(
+                client,
                 model=ai_config.CHAT_MODEL,
                 input=[
                     {"role": "system", "content": ai_config.PROFILE_SYSTEM_PROMPT},
@@ -487,7 +496,8 @@ class ProfileService:
             )
 
             # Call OpenAI
-            response = await client.responses.create(
+            response = await guarded_responses_create(
+                client,
                 model=ai_config.CHAT_MODEL,
                 input=[
                     {"role": "system", "content": ai_config.PROFILE_SYSTEM_PROMPT},
@@ -545,6 +555,19 @@ class ProfileService:
                         change["field_path"] = f"{section}.{item_id}"
                     else:
                         change["field_path"] = f"{section}.new_item"
+
+                # Nothing enforces the prompt's shape on the model output, but the
+                # response schema is strict — one malformed change committed here
+                # (e.g. change_type "update", or a missing reasoning) would make
+                # every profile read for this session 500 with no way to reject it.
+                try:
+                    PendingChange.model_validate(change)
+                except ValidationError as e:
+                    logger.warning(
+                        f"Dropping malformed AI pending change for session {profile.session_id}: "
+                        f"{e.errors()[:3]} in {change!r:.500}"
+                    )
+                    continue
 
                 pending.append(change)
 
@@ -677,6 +700,13 @@ class ProfileService:
                 else:
                     # User provided edited value
                     value_to_apply = decision
+
+                # A null value on anything but a delete is the AI's "unknown"
+                # placeholder (the dict path filters per-key nulls the same way in
+                # _apply_list_change). Applying it would erase a stored value the
+                # user typed — discard the change instead.
+                if value_to_apply is None and change.get("change_type") != "delete":
+                    continue
 
                 # Apply the change
                 ProfileService._apply_change(
@@ -1091,19 +1121,23 @@ class ProfileService:
             needs_commit = False
             from sqlalchemy import func
 
+            # (skip the write when the session has no rows yet — None → None is
+            # no fix, and committing it made every poll of /check write the DB)
             if profile.last_processed_conversation_id is None:
                 max_conv_id = db.query(func.max(Conversation.id)).filter(
                     Conversation.session_id == session_id
                 ).scalar()
-                profile.last_processed_conversation_id = max_conv_id
-                needs_commit = True
+                if max_conv_id is not None:
+                    profile.last_processed_conversation_id = max_conv_id
+                    needs_commit = True
 
             if profile.last_processed_journal_id is None:
                 max_journal_id = db.query(func.max(JournalEntry.id)).filter(
                     JournalEntry.session_id == session_id
                 ).scalar()
-                profile.last_processed_journal_id = max_journal_id
-                needs_commit = True
+                if max_journal_id is not None:
+                    profile.last_processed_journal_id = max_journal_id
+                    needs_commit = True
 
             if needs_commit:
                 db.commit()

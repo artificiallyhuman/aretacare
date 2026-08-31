@@ -18,7 +18,7 @@ const AudioWaveform = ({ stream, isRecording }) => {
         cancelAnimationFrame(animationRef.current);
       }
       if (audioContextRef.current) {
-        audioContextRef.current.close();
+        audioContextRef.current.close().catch(() => {});
         audioContextRef.current = null;
       }
       return;
@@ -91,7 +91,11 @@ const AudioWaveform = ({ stream, isRecording }) => {
         cancelAnimationFrame(animationRef.current);
       }
       if (audioContextRef.current) {
-        audioContextRef.current.close();
+        // Null the ref: the effect body re-runs right after this cleanup, and
+        // its !stream branch would close() the same context a second time —
+        // an unhandled InvalidStateError rejection on every recording stop.
+        audioContextRef.current.close().catch(() => {});
+        audioContextRef.current = null;
       }
     };
   }, [stream, isRecording]);

@@ -95,6 +95,14 @@ final class AudioRecorderManager: NSObject, AVAudioRecorderDelegate {
 
     /// Stops recording and waits for the file to be finalized before returning data.
     /// Times out after 3 seconds and reads directly from the file if the delegate doesn't fire.
+    ///
+    /// Implemented as one continuation with two possible resumers — the delegate
+    /// or the timeout task — each of which takes-and-nils `stopContinuation` on
+    /// the MainActor, so exactly one resumes. (An earlier task-group version
+    /// deadlocked on the timeout branch: the group implicitly awaits the
+    /// continuation child, which nothing could resume until the group returned,
+    /// so the "3s timeout" never actually capped anything and a delegate that
+    /// never fired hung the recorder sheet until force-quit.)
     func stopAsync() async -> Data? {
         stopTimer()
         audioLevel = 0
@@ -103,35 +111,20 @@ final class AudioRecorderManager: NSObject, AVAudioRecorderDelegate {
         isRecording = false
         isPaused = false
 
-        let result = await withTaskGroup(of: Data?.self) { group -> Data? in
-            group.addTask { @MainActor in
-                await withCheckedContinuation { continuation in
-                    self.stopContinuation = continuation
-                    recorder.stop()
-                }
-            }
-            group.addTask {
-                try? await Task.sleep(for: .seconds(3))
-                return nil // sentinel for timeout
-            }
-
-            // Whichever finishes first wins
-            if let first = await group.next() {
-                group.cancelAll()
-                if let data = first {
-                    return data
-                }
-                // Timeout — read directly from file as fallback
-                return try? Data(contentsOf: fileURL)
-            }
-            return nil
+        let timeoutTask = Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .seconds(3))
+            guard !Task.isCancelled, let self, let continuation = self.stopContinuation else { return }
+            self.stopContinuation = nil
+            // Delegate hasn't fired — read directly from the file as fallback
+            continuation.resume(returning: try? Data(contentsOf: fileURL))
         }
 
-        // If we timed out, the continuation may still be pending — resume it to avoid leak
-        if let continuation = stopContinuation {
-            stopContinuation = nil
-            continuation.resume(returning: result)
+        let result = await withCheckedContinuation { continuation in
+            stopContinuation = continuation
+            recorder.stop()
         }
+        timeoutTask.cancel()
+
         audioRecorder = nil
         AudioSessionManager.shared.deactivate()
 

@@ -8,6 +8,38 @@ final class APIClient: Sendable {
     private let encoder: JSONEncoder
     let baseURL: URL
 
+    /// snake_case → camelCase, but only when `.convertToSnakeCase` would turn
+    /// the result back into the exact original; otherwise the key is returned
+    /// unchanged. See the decoder setup in `init` for why.
+    static func roundTripSafeCamelKey(_ raw: String) -> String {
+        // No underscores → nothing to convert; an uppercase-bearing key is not
+        // something this API emits and would not round-trip predictably.
+        guard raw.contains("_"), !raw.contains(where: { $0.isUppercase }) else { return raw }
+
+        let components = raw.split(separator: "_", omittingEmptySubsequences: false)
+        // Leading/trailing/double underscores don't survive the round trip
+        guard components.allSatisfy({ !$0.isEmpty }) else { return raw }
+
+        var camel = String(components[0])
+        for component in components.dropFirst() {
+            camel += component.prefix(1).uppercased() + component.dropFirst()
+        }
+
+        // Re-derive snake_case the way JSONEncoder.convertToSnakeCase does for
+        // this shape (an underscore before each single uppercase letter) and
+        // only accept the conversion when it reproduces the original — a digit
+        // component (`icd_10_code` → `icd10Code` → `icd10_code`) fails this.
+        var snake = ""
+        for ch in camel {
+            if ch.isUppercase {
+                snake += "_" + ch.lowercased()
+            } else {
+                snake.append(ch)
+            }
+        }
+        return snake == raw ? camel : raw
+    }
+
     private init() {
         let config = URLSessionConfiguration.default
         config.timeoutIntervalForRequest = 120
@@ -22,7 +54,20 @@ final class APIClient: Sendable {
         self.session = URLSession(configuration: config, delegate: pinningDelegate, delegateQueue: nil)
 
         self.decoder = JSONDecoder()
-        self.decoder.keyDecodingStrategy = .convertFromSnakeCase
+        // Round-trip-safe variant of .convertFromSnakeCase. The profile models
+        // preserve keys this build doesn't declare (`additionalFields`) and save
+        // sections back whole, and snake→camel→snake is not an inverse for keys
+        // with digit components: `icd_10_code` decoded to `icd10Code` re-encodes
+        // as `icd10_code`, silently renaming a server-added field on the next
+        // section save. Convert a key only when the conversion provably reverses
+        // (which holds for every key this API serves today); otherwise keep the
+        // original string, so it lands in additionalFields verbatim and
+        // .convertToSnakeCase re-encodes it unchanged.
+        self.decoder.keyDecodingStrategy = .custom { codingPath in
+            let key = codingPath.last!
+            guard key.intValue == nil else { return key }
+            return AnyCodingKey(Self.roundTripSafeCamelKey(key.stringValue))
+        }
         self.decoder.dateDecodingStrategy = .custom { decoder in
             let container = try decoder.singleValueContainer()
             let dateString = try container.decode(String.self)

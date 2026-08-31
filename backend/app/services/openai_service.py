@@ -241,6 +241,27 @@ class CircuitBreaker:
 openai_circuit_breaker = CircuitBreaker()
 
 
+async def guarded_responses_create(client: AsyncOpenAI, **kwargs):
+    """`responses.create` behind the shared circuit breaker.
+
+    For the service-level clients (journal, profile, daily plan) whose calls
+    don't go through `_create_chat_completion` — without this they kept issuing
+    full timeout-length requests while the breaker was open for chat, which is
+    exactly the cascade the breaker exists to stop. Raises `CircuitBreakerOpen`
+    when open; callers' existing error handling degrades the same way it does
+    for any other API failure.
+    """
+    if openai_circuit_breaker.is_open():
+        raise CircuitBreakerOpen("OpenAI circuit breaker is open - failing fast")
+    try:
+        response = await client.responses.create(**kwargs)
+    except RETRYABLE_EXCEPTIONS:
+        openai_circuit_breaker.record_failure()
+        raise
+    openai_circuit_breaker.record_success()
+    return response
+
+
 class ImageProcessingError(Exception):
     """Raised when OpenAI cannot process an image file"""
     pass
@@ -393,9 +414,14 @@ class OpenAIService:
     """Service for OpenAI API interactions with safety boundaries"""
 
     def __init__(self):
+        # SDK retries off for the same reason as transcription_client below:
+        # _create_chat_completion runs its own retry loop, and stacking the
+        # SDK's default 2 on top made a degraded call up to 9 HTTP attempts
+        # (~540s) — well past Cloudflare's ~100s origin timeout.
         self.client = AsyncOpenAI(
             api_key=settings.OPENAI_API_KEY,
-            timeout=settings.OPENAI_TIMEOUT_SECONDS
+            timeout=settings.OPENAI_TIMEOUT_SECONDS,
+            max_retries=0,
         )
         # Transcription uploads a ~19MB chunk and waits for 20 minutes of audio to be
         # processed, so it needs a longer timeout than chat. SDK retries are off because

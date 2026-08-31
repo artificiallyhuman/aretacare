@@ -85,6 +85,13 @@ export function initSentry() {
       if ((crumb.category === 'xhr' || crumb.category === 'fetch') && crumb.data?.url) {
         crumb.data.url = crumb.data.url.split('?')[0];
       }
+      // Navigation breadcrumbs carry full from/to paths, and this app puts
+      // single-use secrets in the query string (/reset-password?token=…,
+      // /verify-email?token=…, /register?token=…&email=…).
+      if (crumb.category === 'navigation' && crumb.data) {
+        if (crumb.data.from) crumb.data.from = crumb.data.from.split('?')[0];
+        if (crumb.data.to) crumb.data.to = crumb.data.to.split('?')[0];
+      }
       return crumb;
     },
   });

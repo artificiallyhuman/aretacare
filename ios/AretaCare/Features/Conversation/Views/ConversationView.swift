@@ -113,8 +113,11 @@ struct ConversationView: View {
                     await conversationVM.fetchHistory(sessionId: newId)
                 }
             }
-            // Poll for new messages from collaborators every 10 seconds
-            .task(id: currentSessionId) {
+            // Poll for new messages from collaborators every 10 seconds. The
+            // task id includes the collaborator count so polling starts when
+            // someone is invited mid-session (id-only-on-session meant the
+            // guard was evaluated once and never again).
+            .task(id: "\(currentSessionId ?? "")-\(sessionVM.currentSession?.collaborators.count ?? 0)") {
                 guard let sessionId = currentSessionId,
                       !(sessionVM.currentSession?.collaborators.isEmpty ?? true) else { return }
                 while !Task.isCancelled {
@@ -461,12 +464,20 @@ struct ConversationView: View {
             if granted {
                 isRecordingAudio = true
                 audioRecorder.start(maxDuration: AppConstants.maxRecordingDuration) {
-                    // Auto-stop and upload on max duration
-                    guard let audioData = audioRecorder.stop() else { return }
-                    isRecordingAudio = false
-                    guard let sessionId = currentSessionId else { return }
+                    // Auto-stop and upload on max duration. stopAsync waits for
+                    // the file to be finalized and retains it until the upload
+                    // succeeds — the sync stop() deleted it up front, so a
+                    // failed upload lost the recording outright.
                     Task {
-                        await conversationVM.uploadAudioMessage(data: audioData, sessionId: sessionId)
+                        guard let audioData = await audioRecorder.stopAsync() else {
+                            isRecordingAudio = false
+                            return
+                        }
+                        isRecordingAudio = false
+                        guard let sessionId = currentSessionId else { return }
+                        if await conversationVM.uploadAudioMessage(data: audioData, sessionId: sessionId) {
+                            audioRecorder.discardRecording()
+                        }
                     }
                 }
             } else {

@@ -40,12 +40,10 @@ enum TranscriptionPoller {
         let path = APIEndpoints.AudioRecordings.get(sessionId, recordingId: String(recordingId))
         var attempt = 0
 
+        // Poll first, then sleep — a short clip is often done by the time the
+        // upload response lands, and sleeping up front cost every wait 2s.
         while true {
             try Task.checkCancellation()
-
-            let delay = attempt < initialDelays.count ? initialDelays[attempt] : steadyDelay
-            attempt += 1
-            try await Task.sleep(for: .seconds(delay))
 
             do {
                 let recording: AudioRecordingResponse = try await APIClient.shared.get(path)
@@ -55,18 +53,8 @@ enum TranscriptionPoller {
                 if !recording.isTranscribing {
                     return recording
                 }
-            } catch let error as TranscriptionError {
+            } catch let error where isFatal(error) {
                 throw error
-            } catch is CancellationError {
-                throw CancellationError()
-            } catch APIError.notFound {
-                // Deleted out from under us (e.g. from the Audio Recordings list).
-                throw APIError.notFound
-            } catch let error as APIError where error.requiresLogout {
-                throw error
-            } catch APIError.forbidden(let code) {
-                // Access to the care session was revoked mid-wait.
-                throw APIError.forbidden(code: code)
             } catch {
                 // Network blip, 5xx, rate limit, session refresh in flight —
                 // a single missed poll shouldn't abandon the wait.
@@ -75,6 +63,25 @@ enum TranscriptionPoller {
             if Date().timeIntervalSince(start) >= deadline {
                 throw TranscriptionError.timedOut
             }
+
+            let delay = attempt < initialDelays.count ? initialDelays[attempt] : steadyDelay
+            attempt += 1
+            try await Task.sleep(for: .seconds(delay))
+        }
+    }
+
+    /// Errors that end the wait: the poll's own verdicts, cancellation, the
+    /// recording being deleted out from under us (404), access to the care
+    /// session being revoked mid-wait, and anything that requires logout.
+    private static func isFatal(_ error: Error) -> Bool {
+        if error is TranscriptionError || error is CancellationError { return true }
+        guard let apiError = error as? APIError else { return false }
+        if apiError.requiresLogout { return true }
+        switch apiError {
+        case .notFound, .forbidden:
+            return true
+        default:
+            return false
         }
     }
 }

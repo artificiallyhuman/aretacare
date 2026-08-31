@@ -1,4 +1,5 @@
 import Foundation
+import UIKit
 import Observation
 
 @Observable @MainActor
@@ -12,6 +13,10 @@ final class ToolsViewModel {
     private(set) var isCoaching = false
 
     private(set) var errorMessage: String?
+
+    /// The in-flight upload + transcription-poll, so navigating away can cancel
+    /// a wait that is otherwise unbounded by the view's lifecycle.
+    private var transcriptionTask: Task<String?, Never>?
 
     // MARK: - Jargon Translator
 
@@ -56,23 +61,44 @@ final class ToolsViewModel {
     // MARK: - Audio Transcription
 
     func transcribeAudio(data: Data, sessionId: String) async -> String? {
+        transcriptionTask?.cancel()
+        let task = Task { @MainActor [weak self] () -> String? in
+            guard let self else { return nil }
+            return await self._performTranscribeAudio(data: data, sessionId: sessionId)
+        }
+        transcriptionTask = task
+        return await task.value
+    }
+
+    /// Called when the Conversation Coach view leaves the screen.
+    func cancelTranscription() {
+        transcriptionTask?.cancel()
+        transcriptionTask = nil
+    }
+
+    private func _performTranscribeAudio(data: Data, sessionId: String) async -> String? {
         errorMessage = nil
 
-        let df = DateFormatter()
-        df.dateFormat = "yyyy-MM-dd_h-mma"
-        df.locale = Locale(identifier: "en_US_POSIX")
-        let filename = "Recording_\(df.string(from: Date())).\(AppConstants.audioFileExtension)"
+        // Keep running when the app is backgrounded mid-wait — without an
+        // assertion iOS suspends the process and the poller's wall-clock
+        // deadline expires spuriously (same pattern as the chat audio upload)
+        var backgroundTaskId: UIBackgroundTaskIdentifier = .invalid
+        backgroundTaskId = UIApplication.shared.beginBackgroundTask {
+            UIApplication.shared.endBackgroundTask(backgroundTaskId)
+            backgroundTaskId = .invalid
+        }
+        defer {
+            if backgroundTaskId != .invalid {
+                UIApplication.shared.endBackgroundTask(backgroundTaskId)
+            }
+        }
 
-        var multipart = MultipartFormData()
-        multipart.addFileField(
-            name: "audio",
-            filename: filename,
-            mimeType: AppConstants.audioMimeType,
-            data: data
+        let multipart = MultipartFormData.transcribeAudioBody(
+            sessionId: sessionId,
+            audioData: data,
+            filename: MultipartFormData.generatedRecordingFilename(),
+            skipJournalSynthesis: true
         )
-        multipart.addTextField(name: "session_id", value: sessionId)
-        multipart.addTextField(name: "skip_journal_synthesis", value: "true")
-        multipart.addTextField(name: "background", value: "true")
 
         do {
             let response: AudioTranscribeResponse = try await APIClient.shared.upload(
@@ -90,6 +116,9 @@ final class ToolsViewModel {
                 duration: response.duration
             )
             return recording.transcribedText
+        } catch is CancellationError {
+            // Navigated away — nothing to show, no error banner
+            return nil
         } catch {
             errorMessage = error.localizedDescription
             return nil

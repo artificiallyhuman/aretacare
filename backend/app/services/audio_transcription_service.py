@@ -183,11 +183,30 @@ def is_original_upload_key(s3_key: str) -> bool:
 
 
 def mp3_key_for(s3_key: str) -> str:
-    """The MP3 key a recording will end up under (identity for already-converted rows)."""
-    if not is_original_upload_key(s3_key):
+    """The MP3 key a recording will end up under (identity for already-converted rows).
+
+    Keys from before the background job (no `.original` marker, any container
+    extension) map to a sibling `.mp3` key — mapping them to themselves would
+    make the post-swap `delete_file(source_key)` delete the MP3 just uploaded.
+    """
+    if is_original_upload_key(s3_key):
+        root, _ext = os.path.splitext(s3_key)
+        return f"{root[:-len(ORIGINAL_KEY_MARKER)]}.mp3"
+    root, ext = os.path.splitext(s3_key)
+    if ext.lower() == ".mp3":
         return s3_key
-    root, _ext = os.path.splitext(s3_key)
-    return f"{root[:-len(ORIGINAL_KEY_MARKER)]}.mp3"
+    return f"{root}.mp3"
+
+
+def stored_object_is_mp3(s3_key: str) -> bool:
+    """Whether the stored object is already an MP3 container (no transcode needed).
+
+    Decided by the actual extension, not the `.original` marker: rows from
+    before the background job carry unmarked `.m4a`/`.webm`/`.wav` keys, and
+    treating those as MP3 made a retry segment AAC with `-c copy` (which
+    fails) or upload raw bytes to OpenAI labelled `audio/mpeg`.
+    """
+    return os.path.splitext(s3_key)[1].lower() == ".mp3"
 
 
 # ---------------------------------------------------------------------------
@@ -357,35 +376,54 @@ async def run_transcription_job(
     recording_id: int,
     session_id: str,
     user_id: str,
-    source_temp_path: str,
     source_key: str,
     mp3_key: str,
-    source_is_mp3: bool,
     original_name: str,
     original_filename: str,
     skip_synthesis: bool,
     use_semaphore: bool,
+    source_temp_path: Optional[str] = None,
 ) -> TranscriptionJobResult:
     """Transcode → swap in the MP3 → transcribe → categorise → finalise → synthesise.
 
-    Owns `source_temp_path` and everything it creates, and always removes them.
-    Raises `TranscriptionJobError` (after marking the row 'failed') with a
-    user-facing message; re-raises `CancelledError` after doing the same.
+    The upload path hands over the request's temp file via `source_temp_path`;
+    when it is None (retranscribe) the job downloads `source_key` itself, so the
+    route can 202 without waiting on S3. Owns the temp file either way, plus
+    everything it creates, and always removes them. Raises
+    `TranscriptionJobError` (after marking the row 'failed') with a user-facing
+    message; re-raises `CancelledError` after doing the same.
     """
     mp3_temp_path: Optional[str] = None
     chunk_dir: Optional[str] = None
     mp3_filename = f"{original_name}.mp3"
     duration_seconds: Optional[float] = None
+    # Originals are always transcoded (user-supplied bytes, whatever the extension
+    # claims); only an unmarked .mp3 — a key the swap itself produced — is trusted.
+    needs_transcode = is_original_upload_key(source_key) or not stored_object_is_mp3(source_key)
+    needs_swap = mp3_key != source_key
 
     try:
         async with _stage_limiter(use_semaphore):
+            # Heartbeat now that a slot is held: the queue wait is unbounded, and a
+            # queued row whose heartbeat went stale would be reported 'failed' and
+            # invite a duplicate retry while this job is still alive.
+            if update_processing_recording(recording_id, {}) == 0:
+                return _stopped(recording_id, None, mp3_key)
+
+            # 0. Retranscribe path: fetch the stored object back from S3
+            if source_temp_path is None:
+                source_fd, source_temp_path = tempfile.mkstemp(suffix=os.path.splitext(source_key)[1] or ".mp3")
+                os.close(source_fd)
+                if not await s3_service.download_file_to_path(source_key, source_temp_path):
+                    raise ValueError(f"Could not download stored audio for recording {recording_id}")
+
             # 1. Transcode (a retry of an already-converted recording skips this)
-            if source_is_mp3:
-                mp3_temp_path = source_temp_path
-            else:
+            if needs_transcode:
                 mp3_temp_fd, mp3_temp_path = tempfile.mkstemp(suffix=".mp3")
                 os.close(mp3_temp_fd)
                 await asyncio.to_thread(_transcode_to_mp3, source_temp_path, mp3_temp_path)
+            else:
+                mp3_temp_path = source_temp_path
 
             duration_seconds = await asyncio.to_thread(probe_audio_duration, mp3_temp_path)
             if duration_seconds is None:
@@ -395,11 +433,9 @@ async def run_transcription_job(
                 # the request phase rejects everything else before storing it
                 raise TranscriptionJobError(audio_too_long_error(duration_seconds).detail)
 
-            # 2. Replace the stored original with the browser-friendly MP3
-            if source_is_mp3:
-                if update_processing_recording(recording_id, {"duration": duration_seconds}) == 0:
-                    return _stopped(recording_id, duration_seconds, mp3_key)
-            else:
+            # 2. Replace the stored original with the browser-friendly MP3. Both
+            # branches stamp the heartbeat, covering the transcode above.
+            if needs_swap:
                 uploaded = await s3_service.upload_file_from_path(mp3_temp_path, mp3_key, "audio/mpeg", mp3_filename)
                 if not uploaded:
                     raise ValueError("S3 upload of transcoded MP3 failed")
@@ -414,6 +450,9 @@ async def run_transcription_job(
                     return _stopped(recording_id, duration_seconds, mp3_key)
                 await s3_service.delete_file(source_key)
                 logger.info(f"Audio recording {recording_id}: stored MP3 at {mp3_key}")
+            else:
+                if update_processing_recording(recording_id, {"duration": duration_seconds}) == 0:
+                    return _stopped(recording_id, duration_seconds, mp3_key)
 
             # 3. Transcribe, in chunks OpenAI will accept
             if duration_seconds > MAX_CHUNK_DURATION_SECONDS:
@@ -423,6 +462,10 @@ async def run_transcription_job(
                     f"Audio recording {recording_id}: split into {len(chunk_paths)} chunks "
                     f"of up to {MAX_CHUNK_DURATION_SECONDS}s each"
                 )
+                # Heartbeat after segmentation: its 300s plus a worst-case first
+                # chunk (3 × 300s) would otherwise brush the 20-min stale window
+                if update_processing_recording(recording_id, {}) == 0:
+                    return _stopped(recording_id, duration_seconds, mp3_key)
             else:
                 chunk_paths = [mp3_temp_path]
 
@@ -433,8 +476,12 @@ async def run_transcription_job(
                 chunk_filename = f"{original_name}_chunk_{i + 1}.mp3" if len(chunk_paths) > 1 else mp3_filename
                 chunk_text = await openai_service.transcribe_audio(chunk_buffer, chunk_filename)
                 del chunk_buffer
-                if chunk_text:
-                    transcribed_parts.append(chunk_text)
+                if chunk_text is None:
+                    # A failed chunk (retries exhausted) must fail the whole job — a
+                    # transcript with a silent 20-minute hole saved as 'completed'
+                    # would feed journal synthesis with gapped medical content.
+                    raise TranscriptionJobError(TRANSCRIPTION_FAILED_DETAIL)
+                transcribed_parts.append(chunk_text)
 
                 # Chunk files are only needed once — free the disk early
                 if chunk_dir is not None:
@@ -444,7 +491,7 @@ async def run_transcription_job(
                 if update_processing_recording(recording_id, {}) == 0:
                     return _stopped(recording_id, duration_seconds, mp3_key)
 
-            transcribed_text = " ".join(transcribed_parts)
+            transcribed_text = " ".join(transcribed_parts).strip()
 
         # The rest is OpenAI/DB-bound, not CPU/memory-bound — release the slot first
         if not transcribed_text:
@@ -522,12 +569,23 @@ def _on_job_done(recording_id: int, task: asyncio.Task) -> None:
         pass
 
 
+def has_active_job(recording_id: int) -> bool:
+    """Whether this instance already runs a live job for the recording."""
+    task = _jobs.get(recording_id)
+    return task is not None and not task.done()
+
+
 def start_transcription_job(**job_kwargs) -> asyncio.Task:
     """Launch `run_transcription_job` detached from the current request.
 
     Returns the task so the legacy synchronous path can wait on it (shielded).
+    Refuses a recording this instance is already processing: overwriting the
+    registry entry would orphan the first task (uncancellable on shutdown,
+    uncounted, and racing the second over the same S3 keys).
     """
     recording_id = job_kwargs["recording_id"]
+    if has_active_job(recording_id):
+        raise RuntimeError(f"A transcription job for recording {recording_id} is already running")
     task = asyncio.create_task(run_transcription_job(**job_kwargs), name=f"transcribe-{recording_id}")
     _jobs[recording_id] = task
     task.add_done_callback(lambda t: _on_job_done(recording_id, t))

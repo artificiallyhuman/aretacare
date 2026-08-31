@@ -73,7 +73,11 @@ const AudioRecordings = () => {
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
-  const [audioUrls, setAudioUrls] = useState({});
+  // A ref, not state: nothing renders from this cache (each AudioPlayer holds
+  // its own URL), and keeping it out of state keeps getAudioUrl's identity
+  // stable — as state it re-ran every AudioPlayer's load effect on each parent
+  // render, restarting playback every 5s while anything was transcribing
+  const audioUrlsRef = useRef({});
   const [expandedTranscripts, setExpandedTranscripts] = useState({});
   const [copiedTranscriptId, setCopiedTranscriptId] = useState(null);
   const [editingSummary, setEditingSummary] = useState({});
@@ -90,6 +94,8 @@ const AudioRecordings = () => {
   const [recordingToDelete, setRecordingToDelete] = useState(null);
   const abortControllerRef = useRef(null);
   const uploadCancelledRef = useRef(false);
+  // Auto-dismiss timer for the upload progress list
+  const uploadResultTimerRef = useRef(null);
   // Mirrors sessionId so an in-flight load can verify its response still belongs
   // to the care session on screen before touching state
   const activeSessionIdRef = useRef(sessionId);
@@ -105,6 +111,15 @@ const AudioRecordings = () => {
   useEffect(() => {
     activeSessionIdRef.current = sessionId;
   }, [sessionId]);
+
+  // Don't let the progress-dismiss timer fire on an unmounted component
+  useEffect(() => {
+    return () => {
+      if (uploadResultTimerRef.current) {
+        clearTimeout(uploadResultTimerRef.current);
+      }
+    };
+  }, []);
 
   // Restore focus to search input if it was focused before re-render
   useEffect(() => {
@@ -122,19 +137,9 @@ const AudioRecordings = () => {
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
-  useEffect(() => {
-    if (sessionId) {
-      loadRecordings();
-    }
-    // Drop the previous load so a slow response can't render under a different
-    // care session (or after this page unmounts)
-    return () => loadAbortRef.current?.abort();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sessionId, selectedCategory, debouncedSearchQuery]);
-
   // `silent` is used by the background refresh while recordings are transcribing:
   // no loading/searching toggles, and a failed refresh is logged rather than shown
-  const loadRecordings = async ({ silent = false } = {}) => {
+  const loadRecordings = useCallback(async ({ silent = false } = {}) => {
     if (!silent) {
       // Use different loading states for initial load vs search/filter
       if (!hasLoadedRef.current) {
@@ -166,14 +171,10 @@ const AudioRecordings = () => {
       const finishedIds = recordingsData
         .filter(r => r.transcription_status !== 'processing' && processingUrlIdsRef.current.has(r.id))
         .map(r => r.id);
-      if (finishedIds.length > 0) {
-        finishedIds.forEach(id => processingUrlIdsRef.current.delete(id));
-        setAudioUrls(prev => {
-          const next = { ...prev };
-          finishedIds.forEach(id => delete next[id]);
-          return next;
-        });
-      }
+      finishedIds.forEach(id => {
+        processingUrlIdsRef.current.delete(id);
+        delete audioUrlsRef.current[id];
+      });
       recordingsRef.current = recordingsData;
       setRecordings(recordingsData);
       hasLoadedRef.current = true;
@@ -194,8 +195,22 @@ const AudioRecordings = () => {
         setSearching(false);
       }
     }
-  };
-  loadRecordingsRef.current = loadRecordings;
+  }, [sessionId, selectedCategory, debouncedSearchQuery]);
+
+  // Kept in a ref (assigned in an effect, not during render) so the background
+  // refresh below never runs a stale closure
+  useEffect(() => {
+    loadRecordingsRef.current = loadRecordings;
+  }, [loadRecordings]);
+
+  useEffect(() => {
+    if (sessionId) {
+      loadRecordings();
+    }
+    // Drop the previous load so a slow response can't render under a different
+    // care session (or after this page unmounts)
+    return () => loadAbortRef.current?.abort();
+  }, [sessionId, loadRecordings]);
 
   // Transcription happens in a background job after the upload returns. While any
   // loaded recording is still processing, refresh the list (one call, not one per
@@ -217,9 +232,10 @@ const AudioRecordings = () => {
     };
   }, [hasProcessingRecordings, sessionId]);
 
-  const getAudioUrl = async (recordingId) => {
-    if (audioUrls[recordingId]) {
-      return audioUrls[recordingId];
+  // Stable identity (it's an AudioPlayer effect dependency) — see audioUrlsRef
+  const getAudioUrl = useCallback(async (recordingId) => {
+    if (audioUrlsRef.current[recordingId]) {
+      return audioUrlsRef.current[recordingId];
     }
 
     try {
@@ -229,13 +245,13 @@ const AudioRecordings = () => {
       if (recordingsRef.current.find(r => r.id === recordingId)?.transcription_status === 'processing') {
         processingUrlIdsRef.current.add(recordingId);
       }
-      setAudioUrls(prev => ({ ...prev, [recordingId]: url }));
+      audioUrlsRef.current[recordingId] = url;
       return url;
     } catch (err) {
       console.error('Error getting audio URL:', err);
       return null;
     }
-  };
+  }, [sessionId]);
 
   const handleDeleteRecording = (recording) => {
     setRecordingToDelete(recording);
@@ -434,6 +450,12 @@ const AudioRecordings = () => {
     setUploading(true);
     setError(null);
     uploadCancelledRef.current = false;
+    // A batch started within 5s of the last one must not have its fresh
+    // progress list wiped by the previous batch's dismiss timer
+    if (uploadResultTimerRef.current) {
+      clearTimeout(uploadResultTimerRef.current);
+      uploadResultTimerRef.current = null;
+    }
 
     // Initialize progress for each file
     const initialProgress = files.map((file, index) => ({
@@ -536,55 +558,16 @@ const AudioRecordings = () => {
 
         successCount++;
       } catch (err) {
-        // Check if this was a cancellation (axios uses CanceledError with code ERR_CANCELED)
-        const isCancelled = err.name === 'CanceledError' ||
-                           err.name === 'AbortError' ||
-                           err.code === 'ERR_CANCELED' ||
-                           uploadCancelledRef.current;
-        if (isCancelled) {
-          // The backend may have finished processing before the abort took effect
-          // Poll for the recording and delete it when found
-          setUploadProgress(prev => prev.map((p, idx) =>
-            idx === i ? { ...p, status: 'cancelled', message: 'Cleaning up...' } : p
-          ));
-          try {
-            const uploadedBaseName = file.name.replace(/\.[^/.]+$/, ''); // Remove extension
-
-            // Estimate max processing time based on file size
-            // Audio transcription takes roughly 0.5-1x real-time
-            // Audio files are typically ~1MB per minute, so ~30s processing per MB
-            // Base: 15s for upload/conversion + ~30s per MB for transcription, max 300s
-            const fileSizeMB = file.size / (1024 * 1024);
-            const maxWaitMs = Math.min(15000 + fileSizeMB * 30000, 300000);
-            const pollIntervalMs = 3000; // Poll every 3 seconds
-            const startTime = Date.now();
-
-            // Poll until we find the recording or timeout
-            while (Date.now() - startTime < maxWaitMs) {
-              // Check if user started a new upload (cancel flag would be cleared)
-              if (!uploadCancelledRef.current) break;
-
-              await new Promise(resolve => setTimeout(resolve, pollIntervalMs));
-
-              // Fetch recent recordings and find one matching this file
-              // Note: Backend converts audio to MP3, so compare base filename without extension
-              const listResponse = await audioRecordingsAPI.getRecordings(sessionId);
-              const recs = listResponse.data.recordings || listResponse.data;
-              const recentRec = recs.find(r => {
-                const recBaseName = r.filename.replace(/\.[^/.]+$/, ''); // Remove extension
-                return recBaseName === uploadedBaseName &&
-                  new Date(r.created_at + 'Z') > new Date(Date.now() - 300000); // Created in last 5 minutes
-              });
-
-              if (recentRec) {
-                await audioRecordingsAPI.deleteRecording(sessionId, recentRec.id);
-                break; // Successfully deleted
-              }
-            }
-          } catch (cleanupErr) {
-            console.error('Failed to clean up cancelled upload:', cleanupErr);
-          }
-
+        // Check if this was a cancellation (isAbortError covers axios's
+        // CanceledError / ERR_CANCELED and the DOM AbortError)
+        if (isAbortError(err) || uploadCancelledRef.current) {
+          // An aborted request carries no recording id, so there is nothing to
+          // clean up by ID. (The old fallback here matched by filename +
+          // "created in the last 5 minutes" and could delete an unrelated,
+          // fully transcribed recording that happened to share a name. In the
+          // rare race where the server committed the row before the abort
+          // landed, the recording simply shows up in the list and can be
+          // deleted by hand — strictly better than deleting the wrong one.)
           setUploadProgress(prev => prev.map((p, idx) =>
             idx === i ? { ...p, status: 'cancelled', message: 'Cancelled' } : p
           ));
@@ -650,12 +633,16 @@ const AudioRecordings = () => {
       setError(`Failed to upload ${failCount} recording${failCount > 1 ? 's' : ''}.`);
     }
 
-    // Clear progress after 5 seconds
-    setTimeout(() => {
-      setUploadProgress([]);
-      setUploading(false);
-      setError(null);
-    }, 5000);
+    setUploading(false);
+
+    // Auto-dismiss the progress list only when there is nothing the user still
+    // needs to read. Failures keep the per-file reasons (and the error banner)
+    // on screen until the next upload replaces them.
+    if (failCount === 0) {
+      uploadResultTimerRef.current = setTimeout(() => {
+        setUploadProgress([]);
+      }, 5000);
+    }
   };
 
   if (sessionLoading) {

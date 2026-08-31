@@ -175,6 +175,15 @@ final class DocumentsViewModel {
             UIApplication.shared.endBackgroundTask(backgroundTaskId)
             backgroundTaskId = .invalid
         }
+        // defer, matching uploadDocument above: a future early exit between
+        // here and the end must not leak the assertion (a watchdog kill)
+        defer {
+            isUploading = false
+            isBatchUploading = false
+            if backgroundTaskId != .invalid {
+                UIApplication.shared.endBackgroundTask(backgroundTaskId)
+            }
+        }
 
         var successCount = 0
         var failCount = 0
@@ -238,13 +247,6 @@ final class DocumentsViewModel {
             if case .cancelled = $0.status { return true }
             return false
         }.count
-
-        isUploading = false
-        isBatchUploading = false
-
-        if backgroundTaskId != .invalid {
-            UIApplication.shared.endBackgroundTask(backgroundTaskId)
-        }
 
         return UploadBatchResult(
             successCount: successCount,

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, UploadFile, File, Request, Query
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Request, Query
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 from app.core.database import get_db
@@ -20,6 +20,10 @@ import asyncio
 import os
 import uuid
 import logging
+
+# Strong references to in-flight journal-synthesis tasks (create_task alone is
+# GC-able); discarded by each task's done callback.
+_synthesis_tasks: set = set()
 
 logger = logging.getLogger(__name__)
 
@@ -217,7 +221,6 @@ def validate_pdf_content(file_content: bytes) -> tuple[bool, str, str]:
 @limiter.limit(RateLimits.FILE_UPLOAD)
 async def upload_document(
     request: Request,
-    background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
     session_id: str = None,
     skip_journal_synthesis: str = "false",  # "true" for conversation uploads, "false" for management uploads
@@ -550,7 +553,14 @@ async def upload_document(
                 finally:
                     bg_db.close()
 
-            background_tasks.add_task(_run_journal_synthesis)
+            # asyncio.create_task, not BackgroundTasks: on FastAPI 0.104 the get_db
+            # yield-teardown runs *after* background tasks, so a BackgroundTask
+            # pins the request's pooled connection for the whole synthesis (the
+            # same reason the audio transcription job is a create_task). The set
+            # keeps a strong reference so the task can't be garbage-collected.
+            synthesis_task = asyncio.create_task(_run_journal_synthesis(), name=f"doc-synthesis-{_doc_id}")
+            _synthesis_tasks.add(synthesis_task)
+            synthesis_task.add_done_callback(_synthesis_tasks.discard)
         else:
             logger.info("Skipping journal synthesis for conversation document upload (will synthesize in conversation)")
 

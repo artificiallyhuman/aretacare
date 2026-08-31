@@ -40,8 +40,11 @@ async def get_journal_entries(
     check_session_access(session, current_user.id, db)
 
     # Parse dates
-    start = date.fromisoformat(start_date) if start_date else None
-    end = date.fromisoformat(end_date) if end_date else None
+    try:
+        start = date.fromisoformat(start_date) if start_date else None
+        end = date.fromisoformat(end_date) if end_date else None
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid date format. Use YYYY-MM-DD")
 
     # Get entries with pagination
     journal_service = JournalService(db)

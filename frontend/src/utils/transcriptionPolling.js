@@ -1,5 +1,5 @@
 import { audioRecordingsAPI } from '../services/api';
-import { isAbortError } from './requestUtils';
+import { isAbortError, getRetryAfterSeconds } from './requestUtils';
 
 /**
  * Polling for background audio transcription.
@@ -93,10 +93,12 @@ export const waitForTranscription = async (
   { signal, durationSeconds } = {}
 ) => {
   const deadline = Date.now() + transcriptionDeadlineMs(durationSeconds);
+  let extraDelayMs = 0;
 
   for (let attempt = 0; ; attempt += 1) {
     const delay = attempt < POLL_DELAYS_MS.length ? POLL_DELAYS_MS[attempt] : STEADY_POLL_DELAY_MS;
-    await sleep(delay, signal);
+    await sleep(delay + extraDelayMs, signal);
+    extraDelayMs = 0;
 
     let recording;
     try {
@@ -108,8 +110,10 @@ export const waitForTranscription = async (
       if (status === 404) throw new Error(RECORDING_GONE_MESSAGE);
       // Other 4xx (auth, permission) won't fix themselves - surface the server's message
       if (status && status >= 400 && status < 500 && status !== 429) throw err;
-      // Network blip, 5xx or 429: keep polling until the deadline
+      // Network blip, 5xx or 429: keep polling until the deadline. A 429 also
+      // waits out the window the server reports instead of hammering it.
       if (Date.now() >= deadline) throw new Error(TRANSCRIPTION_TIMEOUT_MESSAGE);
+      if (status === 429) extraDelayMs = getRetryAfterSeconds(err, 10) * 1000;
       continue;
     }
 

@@ -330,7 +330,9 @@ class S3Service:
         try:
             await asyncio.to_thread(self._download_file_sync, key, path)
             return True
-        except ClientError as e:
+        except (ClientError, OSError) as e:
+            # OSError: disk full / unwritable path — same contract as an S3
+            # failure (return False, caller decides), not an unhandled 500
             logger.error(f"Failed to download file from S3: {e}")
 
             # Log to database for admin visibility
@@ -371,7 +373,7 @@ class S3Service:
             return False
 
     def _delete_objects_sync(self, keys: list) -> list:
-        """Delete up to S3_DELETE_BATCH_SIZE keys in one call. Returns the keys that failed.
+        """Delete any number of keys, S3_DELETE_BATCH_SIZE per call. Returns the keys that failed.
 
         Uses a single client for the whole batch so the connection is reused, and reports
         per-key failures rather than raising — matching delete_file()'s "log and continue"
