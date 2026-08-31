@@ -341,7 +341,13 @@ export default function AdminEmail() {
     [users, selected]
   );
 
-  const bodyIsEmpty = bodyHtml.replace(/<[^>]+>/g, '').trim() === '';
+  // DOM-parsed text check, not a regex tag-strip: this is only an emptiness
+  // test (sanitization is server-side nh3), but the `.replace(/<[^>]+>/g)`
+  // idiom trips CodeQL's incomplete-multi-character-sanitization rule.
+  const bodyIsEmpty = useMemo(() => {
+    const doc = new DOMParser().parseFromString(bodyHtml, 'text/html');
+    return !doc.body.textContent.trim();
+  }, [bodyHtml]);
 
   // ---- Step transitions ----
 
@@ -554,14 +560,14 @@ export default function AdminEmail() {
           </div>
           <FeatureMultiSelect
             label="Feature Used"
-            hint="Match users who used any of the selected features (last 30 days)"
+            hint="Match users who have used any of the selected features"
             options={availableFeatures}
             selected={filters.featureUsed}
             onChange={(v) => setFilters({ ...filters, featureUsed: v })}
           />
           <FeatureMultiSelect
             label="Feature Not Used"
-            hint="Match users who used none of the selected features (last 30 days)"
+            hint="Match users who have used none of the selected features"
             options={availableFeatures}
             selected={filters.featureNotUsed}
             onChange={(v) => setFilters({ ...filters, featureNotUsed: v })}
@@ -599,9 +605,8 @@ export default function AdminEmail() {
           </label>
         </div>
         <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
-          Feature filters reflect the last 30 days of activity — "used" matches any selected
-          feature, "not used" excludes anyone who used one. Deactivated, unverified, and
-          unsubscribed users can't be selected.
+          "Feature used" matches any selected feature; "feature not used" excludes anyone
+          who has used one. Deactivated, unverified, and unsubscribed users can't be selected.
         </p>
       </div>
 
@@ -632,8 +637,8 @@ export default function AdminEmail() {
                     >
                       Usage
                     </th>
-                    <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase whitespace-nowrap" title="From API activity in the last 30 days">
-                      Features (30d)
+                    <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase whitespace-nowrap">
+                      Features Used
                     </th>
                     <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Status</th>
                   </tr>
@@ -692,28 +697,18 @@ export default function AdminEmail() {
                             </div>
                           </td>
                           <td className="px-3 py-3">
-                            <div className="flex flex-wrap gap-1">
+                            <div className="flex flex-wrap gap-1 max-w-[220px]">
                               {u.features_used.length === 0 ? (
                                 <span className="text-xs text-gray-400 dark:text-gray-500">None</span>
                               ) : (
-                                <>
-                                  {u.features_used.slice(0, 2).map((f) => (
-                                    <span
-                                      key={f}
-                                      className="inline-flex items-center px-1.5 py-0.5 rounded text-xs bg-primary-50 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300 whitespace-nowrap"
-                                    >
-                                      {prettyFeature(f)}
-                                    </span>
-                                  ))}
-                                  {u.features_used.length > 2 && (
-                                    <span
-                                      className="text-xs text-gray-500 dark:text-gray-400"
-                                      title={u.features_used.slice(2).map(prettyFeature).join(', ')}
-                                    >
-                                      +{u.features_used.length - 2}
-                                    </span>
-                                  )}
-                                </>
+                                u.features_used.map((f) => (
+                                  <span
+                                    key={f}
+                                    className="inline-flex items-center px-1.5 py-0.5 rounded text-xs bg-primary-50 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300 whitespace-nowrap"
+                                  >
+                                    {prettyFeature(f)}
+                                  </span>
+                                ))
                               )}
                             </div>
                           </td>

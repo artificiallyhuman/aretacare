@@ -414,7 +414,7 @@ class EmailRecipientsResponse(BaseModel):
     """All users with metrics; the frontend filters/sorts/selects client-side."""
     generated_at: datetime
     smtp_configured: bool  # False = dev mode; sends will be recorded as skipped
-    available_features: List[str]  # distinct api_logs.feature values (last 30 days)
+    available_features: List[str]  # AdminService.EMAIL_RECIPIENT_FEATURES (fixed product-level list)
     users: List[EmailRecipientUser]
 
 

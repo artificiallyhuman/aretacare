@@ -13,7 +13,8 @@ import logging
 from app.models import (
     User, Session as SessionModel, SessionCollaborator,
     Document, AudioRecording, Conversation, JournalEntry, DailyPlan,
-    AdminAuditLog, PendingInvitation, WaitlistEntry, RefreshToken, ApiLog
+    AdminAuditLog, PendingInvitation, WaitlistEntry, RefreshToken,
+    Profile, UserSessionColor
 )
 from app.models.error_log import ErrorLog
 from app.models.security_log import SecurityLog
@@ -305,6 +306,16 @@ class AdminService:
 
         return conv_map, doc_map, audio_map, session_activity_map
 
+    # Product-level features shown in the email panel's "features used" column and
+    # filters. Deliberately coarse and derived from durable DB state rather than
+    # api_logs: the raw AI-call names (profile_initial vs profile_update, ...) made
+    # "feature not used" misleading, and api_logs' 30-day retention added a hidden
+    # time window. The list is fixed so the filter dropdowns are stable even when
+    # nobody has used a feature yet.
+    EMAIL_RECIPIENT_FEATURES = [
+        "documents", "audio", "profile", "session_customization", "collaboration",
+    ]
+
     def get_email_recipients(self, db: Session) -> dict:
         """
         All users with the engagement metrics the admin email panel filters and
@@ -312,8 +323,12 @@ class AdminService:
         (user base is waitlist-controlled and small).
 
         Counts follow the owned ∪ collaborated session semantics, i.e. "content
-        visible to the user", not "created by the user". Features come from api_logs,
-        whose retention is 30 days, so features_used means "in the last 30 days".
+        visible to the user", not "created by the user". features_used holds
+        EMAIL_RECIPIENT_FEATURES entries, each an all-time signal:
+        documents/audio = created at least one themselves; profile = any of their
+        sessions has a Health Profile; session_customization = has a care-session
+        color preference; collaboration = collaborates on a session or owns one
+        with collaborators.
         """
         now = datetime.utcnow()
         users = db.query(User).all()
@@ -330,14 +345,18 @@ class AdminService:
         ).group_by(RefreshToken.user_id).all()
         login_map = {row.user_id: row.latest for row in login_rows}
 
-        feature_rows = db.query(ApiLog.user_id, ApiLog.feature).filter(
-            ApiLog.user_id.isnot(None),
-            ApiLog.feature.isnot(None)
-        ).distinct().all()
-        features_map = {}
-        for row in feature_rows:
-            features_map.setdefault(row.user_id, set()).add(row.feature)
-        available_features = sorted({f for feats in features_map.values() for f in feats})
+        # Feature-usage signals — one distinct query per feature, membership
+        # tested per user in the loop below.
+        doc_users = {row[0] for row in db.query(Document.uploaded_by_user_id).filter(
+            Document.uploaded_by_user_id.isnot(None)).distinct().all()}
+        audio_users = {row[0] for row in db.query(AudioRecording.created_by_user_id).filter(
+            AudioRecording.created_by_user_id.isnot(None)).distinct().all()}
+        profile_sessions = {row[0] for row in db.query(Profile.session_id).all()}
+        color_users = {row[0] for row in db.query(UserSessionColor.user_id).distinct().all()}
+        collaborator_users = {row[0] for row in db.query(SessionCollaborator.user_id).distinct().all()}
+        owners_with_collaborators = {row[0] for row in db.query(SessionModel.owner_id).join(
+            SessionCollaborator, SessionCollaborator.session_id == SessionModel.id).distinct().all()}
+        available_features = list(self.EMAIL_RECIPIENT_FEATURES)
 
         conv_counts = dict(db.query(
             Conversation.session_id, func.count(Conversation.id)
@@ -366,6 +385,18 @@ class AdminService:
             login_candidates = [d for d in (user.last_login_at, login_map.get(user.id)) if d is not None]
             last_login = max(login_candidates) if login_candidates else None
 
+            features_used = []
+            if user.id in doc_users:
+                features_used.append("documents")
+            if user.id in audio_users:
+                features_used.append("audio")
+            if any(sid in profile_sessions for sid in session_ids):
+                features_used.append("profile")
+            if user.id in color_users:
+                features_used.append("session_customization")
+            if user.id in collaborator_users or user.id in owners_with_collaborators:
+                features_used.append("collaboration")
+
             result.append({
                 "user_id": str(user.id),
                 "email": user.email,
@@ -380,7 +411,7 @@ class AdminService:
                 "document_count": sum(doc_counts.get(sid, 0) for sid in session_ids),
                 "audio_count": sum(audio_counts.get(sid, 0) for sid in session_ids),
                 "journal_count": sum(journal_counts.get(sid, 0) for sid in session_ids),
-                "features_used": sorted(features_map.get(user.id, set())),
+                "features_used": features_used,
                 "unsubscribed": user.email_unsubscribed_at is not None,
                 "unsubscribed_at": user.email_unsubscribed_at,
             })

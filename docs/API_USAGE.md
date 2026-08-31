@@ -478,8 +478,10 @@ Product-update emails composed in the admin console. Admin-only except where not
 
 ```bash
 GET  /api/admin/email/users                    # All users + engagement metrics (last login, last activity,
-                                               # per-feature usage from the last 30 days, content counts,
-                                               # unsubscribed flag). Frontend filters/sorts client-side.
+                                               # content counts, unsubscribed flag, and product-level
+                                               # features_used: documents, audio, profile,
+                                               # session_customization, collaboration — derived from DB
+                                               # state, all-time). Frontend filters/sorts client-side.
 POST /api/admin/email/campaigns                # Create + start sending in the background. Returns 202.
 GET  /api/admin/email/campaigns                # Campaign history (page, limit)
 GET  /api/admin/email/campaigns/{id}           # Status polling. ?include_recipients=true for per-recipient outcomes
