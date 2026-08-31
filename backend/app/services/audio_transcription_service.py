@@ -60,6 +60,23 @@ MAX_CHUNK_DURATION_SECONDS = 1200  # 20 minutes (safely under the limit)
 # The original upload is stored under this marker until the job swaps in the MP3
 ORIGINAL_KEY_MARKER = ".original"
 
+# Extensions the upload route accepts (matching conversation._AUDIO_CONTENT_TYPES),
+# which is also everything a stored key's extension can legitimately be.
+_TEMP_SUFFIX_WHITELIST = {".mp3", ".mpeg", ".mpga", ".m4a", ".mp4", ".wav", ".webm", ".ogg"}
+
+
+def safe_temp_suffix(name: str, default: str = ".mp3") -> str:
+    """A temp-file suffix derived from `name`, clamped to the known audio set.
+
+    Uploaded filenames (and therefore stored S3 keys, which embed them) are
+    attacker-controlled — a multipart filename can even contain path
+    separators. Nothing user-influenced may reach a filesystem call
+    unlaundered (CodeQL py/path-injection), so anything outside the whitelist
+    falls back to `default`; ffmpeg detects the real container from content.
+    """
+    ext = os.path.splitext(os.path.basename(name))[1].lower()
+    return ext if ext in _TEMP_SUFFIX_WHITELIST else default
+
 TRANSCRIPTION_FAILED_DETAIL = (
     "Transcription failed, but the recording was saved and can be played back from Audio Recordings."
 )
@@ -412,7 +429,7 @@ async def run_transcription_job(
 
             # 0. Retranscribe path: fetch the stored object back from S3
             if source_temp_path is None:
-                source_fd, source_temp_path = tempfile.mkstemp(suffix=os.path.splitext(source_key)[1] or ".mp3")
+                source_fd, source_temp_path = tempfile.mkstemp(suffix=safe_temp_suffix(source_key))
                 os.close(source_fd)
                 if not await s3_service.download_file_to_path(source_key, source_temp_path):
                     raise ValueError(f"Could not download stored audio for recording {recording_id}")

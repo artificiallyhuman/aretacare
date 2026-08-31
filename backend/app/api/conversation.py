@@ -22,6 +22,7 @@ from app.services.audio_transcription_service import (
     audio_too_long_error,
     build_audio_keys,
     probe_audio_duration,
+    safe_temp_suffix,
     start_transcription_job,
 )
 from app.services.security_service import SecurityService
@@ -876,8 +877,12 @@ async def transcribe_audio(
         job_task = None
         try:
             try:
-                # Determine file extension from original filename for format detection
-                file_ext = '.' + audio.filename.split('.')[-1].lower() if '.' in audio.filename else '.webm'
+                # Extension for the temp-file suffix, the stored S3 key and the
+                # content-type lookup — clamped to the known audio set, because
+                # the raw multipart filename is attacker-controlled (it can even
+                # contain path separators) and must not reach filesystem calls
+                # unlaundered. Unknown/missing → .webm (MediaRecorder default).
+                file_ext = safe_temp_suffix(audio.filename or "", default=".webm")
 
                 # Write audio content to temporary file with correct extension
                 with tempfile.NamedTemporaryFile(delete=False, suffix=file_ext, mode='wb') as audio_temp:
