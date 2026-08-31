@@ -261,11 +261,15 @@ URL serves the original container with its own content type.
 GET    /api/audio-recordings/{session_id}                       # List (?category=&search=&date=YYYY-MM-DD)
 GET    /api/audio-recordings/{session_id}/dates                  # Dates with recording counts (for calendar)
 GET    /api/audio-recordings/{session_id}/{recording_id}         # Get recording
-PATCH  /api/audio-recordings/{session_id}/{recording_id}         # Update category/summary
+PATCH  /api/audio-recordings/{session_id}/{recording_id}         # Update category/summary (absent field = no change; explicit null clears)
 DELETE /api/audio-recordings/{session_id}/{recording_id}         # Delete
 GET    /api/audio-recordings/{session_id}/{recording_id}/url     # Get playback URL
 POST   /api/audio-recordings/{session_id}/{recording_id}/retranscribe  # Retry a failed transcription → 202 (409 unless failed); audio-upload rate limit
 ```
+
+`/retranscribe` answers 202 immediately (the job fetches the stored audio itself) and its
+`audio_s3_key` is the key the recording ends up under after the MP3 swap. Exactly one retry
+wins per recording: a concurrent second request gets the 409.
 
 ---
 
