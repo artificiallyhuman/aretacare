@@ -57,8 +57,8 @@ transactional email** (verification, password reset, security, collaboration).
   `https://api.aretacare.com`), the RFC 8058 `List-Unsubscribe-Post` one-click header is
   added too, so mail providers can offer native one-click unsubscribe. It must point at the
   API — the static frontend can't process the provider's POST — hence the separate env var.
-- Users can also opt out (or back in) via the Settings toggle "Receive product update
-  emails" (on by default; web and iOS). Either path sets the same flag; unsubscribed users
+- Users can also opt out (or back in) via the Settings toggle "Receive updates"
+  (on by default; web and iOS). Either path sets the same flag; unsubscribed users
   remain visible in the admin recipient list but cannot be selected.
 - **Dev mode** (no `SMTP_PASSWORD`): campaign recipients are recorded as
   `skipped (smtp_not_configured)` and each unsubscribe URL is logged, so the flow is

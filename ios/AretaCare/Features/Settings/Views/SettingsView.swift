@@ -147,10 +147,10 @@ struct SettingsView: View {
             // unaffected. Disabled until the preference has loaded.
             VStack(alignment: .leading, spacing: 4) {
                 Toggle(isOn: productUpdateEmailsBinding) {
-                    Label("Receive product update emails", systemImage: "megaphone")
+                    Label("Receive updates", systemImage: "megaphone")
                 }
                 .disabled(viewModel.productUpdateEmails == nil)
-                Text("Occasional emails about new features. Account and security emails are unaffected.")
+                Text("Occasional emails about new features. Doesn't affect account or security emails.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .padding(.leading, 36)

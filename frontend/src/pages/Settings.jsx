@@ -1219,16 +1219,16 @@ export default function Settings() {
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 transition-colors duration-200">
             <div className="px-4 sm:px-6 py-4 flex items-center justify-between gap-4">
               <div className="text-left">
-                <h2 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white">Receive product update emails</h2>
+                <h2 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white">Receive updates</h2>
                 <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
-                  Occasional emails about new features and improvements. Account and security emails are unaffected.
+                  Occasional emails about new features. Doesn't affect account or security emails.
                 </p>
               </div>
               <button
                 type="button"
                 role="switch"
                 aria-checked={productUpdateEmails === true}
-                aria-label="Receive product update emails"
+                aria-label="Receive updates"
                 onClick={handleToggleProductUpdateEmails}
                 disabled={productUpdateEmails === null || loading.emailPrefs}
                 className={`relative inline-flex h-6 w-11 flex-shrink-0 rounded-full border-2 border-transparent transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 disabled:opacity-50 disabled:cursor-not-allowed ${
