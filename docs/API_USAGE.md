@@ -510,7 +510,7 @@ PUT  /api/email/preferences                    # Authenticated. Body: {"product_
 Unsubscribing affects only admin product-update emails — transactional email (password
 resets, security alerts, invitations) is unaffected. Both unsubscribe endpoints are
 idempotent; the token has no expiry. The preferences pair backs the Settings toggle
-("Receive product update emails", on by default) and can also opt back in.
+("Receive updates", on by default; web and iOS) and can also opt back in.
 
 ---
 
