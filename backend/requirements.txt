@@ -5,11 +5,11 @@ fastapi==0.104.1
 uvicorn[standard]==0.24.0
 sqlalchemy==2.0.52
 psycopg2-binary==2.9.12
-pydantic==2.13.4
+pydantic==2.13.5
 pydantic-settings==2.15.0
 email-validator==2.3.0
 python-multipart==0.0.32
-boto3==1.43.69
+boto3==1.43.83
 # Pinned, not ranged. These three were previously declared as `>=` floors, which meant every
 # rebuild silently resolved to the newest release — openai had already reached 2.54.0 against
 # a >=1.56.0 floor, pypdf 6.16.1 against >=3.9.0, aioapns 4.0 against >=3.1. That is three
@@ -17,11 +17,11 @@ boto3==1.43.69
 # .github/dependabot.yml, because Dependabot cannot compute a semver bump type from a range.
 # Pinned here to the versions already running and verified.
 openai==2.54.0
-python-dotenv==1.2.2
+python-dotenv==1.2.3
 python-jose[cryptography]==3.5.0
 passlib[bcrypt]==1.7.4
 bcrypt==4.3.0
-pypdf==6.16.1
+pypdf==6.16.2
 python-magic==0.4.27
 pillow==12.3.0
 pytesseract==0.3.13
