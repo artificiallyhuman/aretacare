@@ -2,7 +2,7 @@
 # 0.24.0 -> 0.52.1; on a 0.x line a minor bump is breaking by convention, and that is 37
 # and 28 minor releases respectively. They move as a pair, in their own tested change.
 fastapi==0.104.1
-uvicorn[standard]==0.24.0
+uvicorn[standard]==0.24.0.post1
 sqlalchemy==2.0.52
 psycopg2-binary==2.9.12
 pydantic==2.13.4
