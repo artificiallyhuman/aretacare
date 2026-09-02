@@ -13,7 +13,7 @@ Edit `ai_config.py` and update the model constants:
 CHAT_MODEL = "gpt-5.6-sol"  # Change to any OpenAI model
 
 # Audio transcription model
-TRANSCRIPTION_MODEL = "gpt-4o-transcribe"
+TRANSCRIPTION_MODEL = "gpt-transcribe"
 ```
 
 **To modify AI prompts:**

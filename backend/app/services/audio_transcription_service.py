@@ -54,7 +54,8 @@ logger = logging.getLogger(__name__)
 # temp-file disk usage.
 MAX_AUDIO_DURATION_SECONDS = 4 * 60 * 60  # 4 hours
 
-# OpenAI's transcription API rejects requests over ~1400 seconds of audio
+# Per-request chunk sent to OpenAI. The transcription endpoint caps uploads at 25MB
+# (~26 min of 128 kbps MP3); 20 minutes was verified against gpt-transcribe.
 MAX_CHUNK_DURATION_SECONDS = 1200  # 20 minutes (safely under the limit)
 
 # The original upload is stored under this marker until the job swaps in the MP3
@@ -90,6 +91,10 @@ TRANSCRIPTION_FAILED_DETAIL = (
 )
 TRANSCRIPTION_EMPTY_DETAIL = (
     "Failed to transcribe audio. The recording was saved and can be played back from Audio Recordings."
+)
+TRANSCRIPTION_UNREADABLE_DETAIL = (
+    "This audio file could not be read. It may be damaged or in an unsupported format. "
+    "Please try exporting it again or uploading a different file."
 )
 
 
@@ -138,6 +143,10 @@ def probe_audio_duration(audio_path: str) -> Optional[float]:
         return None
 
 
+class UnreadableAudioError(ValueError):
+    """ffmpeg could not decode the uploaded file — bad input, not infrastructure."""
+
+
 def _transcode_to_mp3(input_path: str, output_path: str):
     """Transcode any supported audio container to 128 kbps MP3 on disk."""
     result = subprocess.run(
@@ -149,7 +158,14 @@ def _transcode_to_mp3(input_path: str, output_path: str):
         capture_output=True, text=True, timeout=900,
     )
     if result.returncode != 0:
-        raise ValueError(f"ffmpeg transcode failed: {result.stderr.strip()[:500]}")
+        stderr = result.stderr.strip()[:500]
+        if result.returncode > 0:
+            # ffmpeg ran to completion and rejected the input ("Header missing",
+            # "moov atom not found", "Invalid data found when processing input"):
+            # a bad upload, which the job treats as handled rather than as an outage.
+            # A negative code means a signal killed it (OOM) — that stays a ValueError.
+            raise UnreadableAudioError(f"ffmpeg could not decode the upload: {stderr}")
+        raise ValueError(f"ffmpeg transcode failed: {stderr}")
 
 
 def _segment_mp3(input_path: str, output_dir: str, segment_seconds: int) -> list:
@@ -292,11 +308,16 @@ def mark_transcription_failed(recording_id: int) -> None:
 # ---------------------------------------------------------------------------
 
 class TranscriptionJobError(Exception):
-    """The job failed; `detail` is safe to show to the user."""
+    """The job failed; `detail` is safe to show to the user.
 
-    def __init__(self, detail: str):
+    `status_code` is what the legacy synchronous route answers with: 500 by default,
+    400 when the recording itself is the problem (unreadable, too long).
+    """
+
+    def __init__(self, detail: str, status_code: int = 500):
         super().__init__(detail)
         self.detail = detail
+        self.status_code = status_code
 
 
 @dataclass
@@ -347,6 +368,25 @@ def _log_job_error(error: Exception, user_id: str, session_id: str, recording_id
         )
     except Exception:
         pass  # Don't let error logging crash the job
+
+
+def _log_unreadable_upload(error: Exception, user_id: str, session_id: str, recording_id: int, filename: str) -> None:
+    # Admin error log only — deliberately no Sentry capture. A file ffmpeg cannot
+    # decode is the user's upload, not an outage, and one Sentry error per bad file
+    # (each carrying a 500-char ffmpeg dump) buries the real failures.
+    try:
+        from app.services.error_logger import log_error_standalone
+
+        log_error_standalone(
+            source="services.audio_transcription.unreadable_upload",
+            error=error,
+            level="WARNING",
+            user_id=user_id,
+            session_id=session_id,
+            details={"filename": filename, "recording_id": recording_id},
+        )
+    except Exception:
+        pass
 
 
 def _cleanup_temp_files(*paths: Optional[str], chunk_dir: Optional[str]) -> None:
@@ -446,7 +486,14 @@ async def run_transcription_job(
             if needs_transcode:
                 mp3_temp_fd, mp3_temp_path = tempfile.mkstemp(suffix=".mp3")
                 os.close(mp3_temp_fd)
-                await asyncio.to_thread(_transcode_to_mp3, source_temp_path, mp3_temp_path)
+                try:
+                    await asyncio.to_thread(_transcode_to_mp3, source_temp_path, mp3_temp_path)
+                except UnreadableAudioError as e:
+                    # Handled failure: WARNING in the admin error log, no Sentry
+                    # (the generic handler below would capture it like an outage).
+                    logger.warning(f"Audio recording {recording_id}: {e}")
+                    _log_unreadable_upload(e, user_id, session_id, recording_id, original_filename)
+                    raise TranscriptionJobError(TRANSCRIPTION_UNREADABLE_DETAIL, status_code=400) from e
             else:
                 mp3_temp_path = source_temp_path
 
@@ -456,7 +503,8 @@ async def run_transcription_job(
             if duration_seconds > MAX_AUDIO_DURATION_SECONDS:
                 # Only reachable for containers without duration metadata (webm) —
                 # the request phase rejects everything else before storing it
-                raise TranscriptionJobError(audio_too_long_error(duration_seconds).detail)
+                too_long = audio_too_long_error(duration_seconds)
+                raise TranscriptionJobError(too_long.detail, status_code=too_long.status_code)
 
             # 2. Replace the stored original with the browser-friendly MP3. Both
             # branches stamp the heartbeat, covering the transcode above.

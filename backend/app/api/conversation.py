@@ -1001,7 +1001,7 @@ async def transcribe_audio(
             )
             raise HTTPException(status_code=400, detail=_LEGACY_STILL_TRANSCRIBING_DETAIL)
         except TranscriptionJobError as e:
-            raise HTTPException(status_code=500, detail=e.detail)
+            raise HTTPException(status_code=e.status_code, detail=e.detail)
 
         if result.stopped or not result.transcribed_text:
             raise HTTPException(status_code=500, detail=TRANSCRIPTION_EMPTY_DETAIL)

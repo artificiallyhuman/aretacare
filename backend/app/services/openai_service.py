@@ -1270,12 +1270,15 @@ The user is now responding to THIS message above. Interpret their response accor
                         logger.warning(f"Failed to seek audio file to start: {seek_error}")
                         # Continue anyway - first attempt won't need seek
 
+                # "json" is the one response format every transcription model supports
+                # (gpt-transcribe has no verbose_json/timestamps); the typed object's
+                # .text keeps this function's plain-str contract for the chunk join.
                 transcription = await self.transcription_client.audio.transcriptions.create(
                     model=ai_config.TRANSCRIPTION_MODEL,
                     file=(filename, audio_file, "audio/mpeg"),
-                    response_format="text"
+                    response_format="json",
                 )
-                return transcription
+                return transcription.text
 
             except RETRYABLE_EXCEPTIONS as e:
                 last_exception = e

@@ -12,8 +12,11 @@ Modify this file to change AI behavior, models, or prompt wording.
 # Main conversational AI model
 CHAT_MODEL = "gpt-5.6-sol"
 
-# Audio transcription model
-TRANSCRIPTION_MODEL = "gpt-4o-transcribe"
+# Audio transcription model. gpt-4o-transcribe / whisper-1 are deprecated (shut off
+# 2027-02-26); gpt-transcribe is OpenAI's replacement for file transcription.
+# 20-minute MP3 chunks (audio_transcription_service.MAX_CHUNK_DURATION_SECONDS) were
+# verified against this model.
+TRANSCRIPTION_MODEL = "gpt-transcribe"
 
 # Embedding model for semantic journal retrieval
 EMBEDDING_MODEL = "text-embedding-3-small"
