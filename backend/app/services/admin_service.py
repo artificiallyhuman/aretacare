@@ -406,6 +406,7 @@ class AdminService:
                 "is_email_verified": user.is_email_verified,
                 "last_login": last_login,
                 "last_activity": last_activity,
+                "last_emailed_at": user.last_emailed_at,
                 "session_count": len(session_ids),
                 "conversation_count": sum(conv_counts.get(sid, 0) for sid in session_ids),
                 "document_count": sum(doc_counts.get(sid, 0) for sid in session_ids),

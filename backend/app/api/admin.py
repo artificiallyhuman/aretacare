@@ -243,6 +243,8 @@ async def email_inactive_accounts(
 
         if success:
             emails_sent += 1
+            # Admin-initiated email: surfaces as "Last emailed" in the email panel.
+            user.last_emailed_at = datetime.utcnow()
             details.append({
                 "user_id": user_id,
                 "email": user.email,

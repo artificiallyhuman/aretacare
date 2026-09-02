@@ -48,6 +48,12 @@ class User(Base):
     unsubscribe_token = Column(String, unique=True, index=True, nullable=True)
     email_unsubscribed_at = Column(DateTime, nullable=True)
 
+    # Stamped whenever an admin-initiated email (campaign send, inactive-account reminder)
+    # is delivered to this user — never by transactional email. A column rather than
+    # max(email_campaign_recipients.sent_at) because campaign rows are pruned by
+    # EMAIL_CAMPAIGN_RETENTION_DAYS and the inactive-account reminder writes no recipient row.
+    last_emailed_at = Column(DateTime, nullable=True)
+
     # Relationships
     sessions = relationship(
         "Session",

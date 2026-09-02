@@ -272,14 +272,21 @@ def _run_campaign_send(campaign_id: str) -> None:
                 else:
                     status, error = "failed", "smtp_send_failed"
 
+            sent_ts = datetime.utcnow() if status == "sent" else None
             db.query(EmailCampaignRecipient).filter(
                 EmailCampaignRecipient.id == recipient.id,
                 EmailCampaignRecipient.status == "sending",
             ).update({
                 EmailCampaignRecipient.status: status,
                 EmailCampaignRecipient.error: error,
-                EmailCampaignRecipient.sent_at: datetime.utcnow() if status == "sent" else None,
+                EmailCampaignRecipient.sent_at: sent_ts,
             }, synchronize_session=False)
+            if sent_ts is not None:
+                # Backs the email panel's "Last emailed" column/filter. Same commit
+                # as the recipient outcome and the counter bump below.
+                db.query(User).filter(User.id == user.id).update(
+                    {User.last_emailed_at: sent_ts}, synchronize_session=False
+                )
 
             counter = {
                 "sent": EmailCampaign.sent_count,

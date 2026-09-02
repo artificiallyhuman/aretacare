@@ -477,7 +477,7 @@ Response:
 Product-update emails composed in the admin console. Admin-only except where noted.
 
 ```bash
-GET  /api/admin/email/users                    # All users + engagement metrics (last login, last activity,
+GET  /api/admin/email/users                    # All users + engagement metrics (last login, last activity, last emailed,
                                                # content counts, unsubscribed flag, and product-level
                                                # features_used: documents, audio, profile,
                                                # session_customization, collaboration — derived from DB

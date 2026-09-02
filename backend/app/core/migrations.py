@@ -2377,3 +2377,53 @@ def run_migrations():
             except Exception as e:
                 logger.error(f"Failed to create email campaign tables: {e}")
                 conn.rollback()
+
+        # =================================================================
+        # ADMIN EMAIL CAMPAIGNS: users.last_emailed_at
+        # =================================================================
+        # "When did an admin last email this user" backs the email panel's Last Emailed
+        # column/filter. A stamped column rather than max(email_campaign_recipients.sent_at)
+        # because campaign rows are pruned by EMAIL_CAMPAIGN_RETENTION_DAYS (their user_id
+        # FK is ON DELETE SET NULL too) and the inactive-account reminder writes no recipient
+        # row at all. The backfill is best-effort from what still exists: sent recipient rows
+        # and the inactive_account_email audit entries (90-day retention). Must stay after
+        # create_email_campaigns_tables. Guarded by both the column inspector and IF NOT
+        # EXISTS, same as add_users_email_campaign_fields; both backfills are idempotent.
+        migration_name = "add_users_last_emailed_at"
+        if not has_migration_run(conn, migration_name):
+            logger.info("Adding last_emailed_at to users...")
+            try:
+                columns = [col['name'] for col in inspect(engine).get_columns('users')]
+                if 'last_emailed_at' not in columns:
+                    conn.execute(text(
+                        "ALTER TABLE users ADD COLUMN IF NOT EXISTS last_emailed_at TIMESTAMP NULL"
+                    ))
+                    conn.commit()
+                    conn.execute(text("""
+                        UPDATE users SET last_emailed_at = sub.latest
+                        FROM (
+                            SELECT user_id, MAX(sent_at) AS latest
+                            FROM email_campaign_recipients
+                            WHERE status = 'sent' AND user_id IS NOT NULL
+                            GROUP BY user_id
+                        ) sub
+                        WHERE users.id = sub.user_id AND users.last_emailed_at IS NULL
+                    """))
+                    conn.commit()
+                    # GREATEST ignores NULLs, so this fills gaps and only ever moves a date later.
+                    conn.execute(text("""
+                        UPDATE users SET last_emailed_at = GREATEST(users.last_emailed_at, sub.latest)
+                        FROM (
+                            SELECT target_id, MAX(created_at) AS latest
+                            FROM admin_audit_logs
+                            WHERE action = 'inactive_account_email' AND target_id IS NOT NULL
+                            GROUP BY target_id
+                        ) sub
+                        WHERE users.id = sub.target_id
+                    """))
+                    conn.commit()
+                mark_migration_complete(conn, migration_name)
+                logger.info("Successfully added users.last_emailed_at")
+            except Exception as e:
+                logger.error(f"Failed to add users.last_emailed_at: {e}")
+                conn.rollback()

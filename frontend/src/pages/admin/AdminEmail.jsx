@@ -17,6 +17,7 @@ const TERMINAL_STATUSES = ['completed', 'completed_with_errors', 'failed', 'stal
 const SORT_OPTIONS = [
   { key: 'last_login', label: 'Last login' },
   { key: 'last_activity', label: 'Last activity' },
+  { key: 'last_emailed_at', label: 'Last emailed' },
   { key: 'name', label: 'Name' },
   { key: 'created_at', label: 'Date joined' },
   { key: 'session_count', label: 'Sessions' },
@@ -30,6 +31,7 @@ const HEADER_SORT_COLUMNS = [
   { key: 'name', label: 'User' },
   { key: 'last_login', label: 'Last Login' },
   { key: 'last_activity', label: 'Last Activity' },
+  { key: 'last_emailed_at', label: 'Last Emailed' },
 ];
 
 // Inline Heroicons path data, same convention as AdminLayout's navItems.
@@ -41,7 +43,7 @@ const USAGE_STATS = [
   { key: 'journal_count', label: 'Journal entries', icon: 'M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.523 5.754 18 7.5 18s3.332.523 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.523 18.247 18 16.5 18c-1.746 0-3.332.523-4.5 1.253' },
 ];
 
-const DATE_KEYS = new Set(['last_login', 'last_activity', 'created_at']);
+const DATE_KEYS = new Set(['last_login', 'last_activity', 'last_emailed_at', 'created_at']);
 
 // Only active, verified, not-unsubscribed users can be emailed. Everyone else
 // stays visible in the table (requirement) but greyed and unselectable.
@@ -189,6 +191,7 @@ export default function AdminEmail() {
   const [filters, setFilters] = useState({
     search: '',
     lastLogin: 'any',
+    lastEmailed: 'any',  // 'never', or a day count: exclude anyone an admin emailed within that window
     featureUsed: [],     // match users who used ANY of these (last 30 days)
     featureNotUsed: [],  // match users who used NONE of these (last 30 days)
     hideUnsubscribed: false,
@@ -261,6 +264,16 @@ export default function AdminEmail() {
         if (filters.lastLogin === 'within7' && !(ts && now - ts <= 7 * day)) return false;
         if (filters.lastLogin === 'within30' && !(ts && now - ts <= 30 * day)) return false;
         if (filters.lastLogin === 'over30' && ts && now - ts <= 30 * day) return false;
+      }
+      if (filters.lastEmailed !== 'any') {
+        // Exclusion semantics: the point is to leave out people who were just
+        // emailed about something else. "Never" passes every day-count bucket.
+        const ts = u.last_emailed_at ? new Date(u.last_emailed_at).getTime() : null;
+        if (filters.lastEmailed === 'never') {
+          if (ts) return false;
+        } else if (ts && now - ts <= Number(filters.lastEmailed) * day) {
+          return false;
+        }
       }
       if (filters.featureUsed.length > 0 && !filters.featureUsed.some((f) => u.features_used.includes(f))) return false;
       if (filters.featureNotUsed.length > 0 && filters.featureNotUsed.some((f) => u.features_used.includes(f))) return false;
@@ -558,6 +571,21 @@ export default function AdminEmail() {
               <option value="over30">Over 30 days ago / never</option>
             </select>
           </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 uppercase mb-1">Last Emailed</label>
+            <select
+              value={filters.lastEmailed}
+              onChange={(e) => setFilters({ ...filters, lastEmailed: e.target.value })}
+              className="px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
+            >
+              <option value="any">Any</option>
+              <option value="never">Never emailed</option>
+              <option value="7">Not in last 7 days</option>
+              <option value="14">Not in last 14 days</option>
+              <option value="30">Not in last 30 days</option>
+              <option value="90">Not in last 90 days</option>
+            </select>
+          </div>
           <FeatureMultiSelect
             label="Feature Used"
             hint="Match users who have used any of the selected features"
@@ -606,7 +634,9 @@ export default function AdminEmail() {
         </div>
         <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
           "Feature used" matches any selected feature; "feature not used" excludes anyone
-          who has used one. Deactivated, unverified, and unsubscribed users can't be selected.
+          who has used one. "Last emailed" counts admin campaigns and inactive-account reminders,
+          not verification or security email. Deactivated, unverified, and unsubscribed users
+          can't be selected.
         </p>
       </div>
 
@@ -646,7 +676,7 @@ export default function AdminEmail() {
                 <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
                   {filteredSorted.length === 0 ? (
                     <tr>
-                      <td colSpan={7} className="px-3 py-8 text-center text-gray-600 dark:text-gray-400">
+                      <td colSpan={8} className="px-3 py-8 text-center text-gray-600 dark:text-gray-400">
                         No users match the current filters
                       </td>
                     </tr>
@@ -683,6 +713,9 @@ export default function AdminEmail() {
                           </td>
                           <td className="px-3 py-3 text-sm text-gray-600 dark:text-gray-400 whitespace-nowrap">
                             {u.last_activity ? formatLocalDate(u.last_activity) : 'Never'}
+                          </td>
+                          <td className="px-3 py-3 text-sm text-gray-600 dark:text-gray-400 whitespace-nowrap">
+                            {u.last_emailed_at ? formatLocalDate(u.last_emailed_at) : 'Never'}
                           </td>
                           <td className="px-3 py-3">
                             <div className="flex flex-wrap gap-x-3 gap-y-1 text-sm text-gray-600 dark:text-gray-400">

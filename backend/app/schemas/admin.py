@@ -400,6 +400,7 @@ class EmailRecipientUser(BaseModel):
     is_email_verified: bool
     last_login: Optional[datetime] = None
     last_activity: Optional[datetime] = None
+    last_emailed_at: Optional[datetime] = None  # admin campaigns + inactive-account reminders only
     session_count: int
     conversation_count: int
     document_count: int
