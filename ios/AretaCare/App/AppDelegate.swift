@@ -32,7 +32,7 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
                 if crumb.type == "http",
                    let url = crumb.data?["url"] as? String,
                    let q = url.firstIndex(of: "?") {
-                    crumb.data?["url"] = String(url[url.startIndex..<q])
+                    crumb.setData(value: String(url[url.startIndex..<q]), key: "url")
                 }
                 return crumb
             }
