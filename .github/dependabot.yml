@@ -93,9 +93,11 @@ updates:
       # ignore above, kept explicit so the reason survives if that wildcard is relaxed.)
       - dependency-name: "bcrypt"
         update-types: ["version-update:semver-major"]
-      # httpx <0.28 is required by the pinned OpenAI client.
+      # httpx <0.28 is required by the pinned OpenAI client. Ignored outright, not by
+      # update-type: it is declared as a range ceiling, and Dependabot raises a range as an
+      # "Update httpx requirement" PR that no semver update-type matches (that is how #136
+      # proposed <0.29.0). Lift the ceiling by hand alongside an openai upgrade.
       - dependency-name: "httpx"
-        update-types: ["version-update:semver-major", "version-update:semver-minor"]
 
   # ---------------------------------------------------------------------------
   # iOS
