@@ -21,7 +21,7 @@ python-dotenv==1.2.3
 python-jose[cryptography]==3.5.0
 passlib[bcrypt]==1.7.4
 bcrypt==4.3.0
-pypdf==6.16.2
+pypdf==6.19.0
 python-magic==0.4.27
 pillow==12.3.0
 pytesseract==0.3.13
@@ -29,7 +29,7 @@ pdf2image==1.17.0
 httpx<0.28.0
 slowapi==0.1.10
 redis==5.3.1  # shared rate-limit storage backend for slowapi/limits (see core/rate_limit.py)
-sentry-sdk[fastapi]==2.68.1
+sentry-sdk[fastapi]==2.69.2
 reportlab==4.5.1
 pyotp==2.10.0
 webauthn==2.8.0
