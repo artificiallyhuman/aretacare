@@ -26,7 +26,7 @@ packages:
     from: "5.27.1"
   Sentry:
     url: https://github.com/getsentry/sentry-cocoa
-    from: "9.23.0"
+    from: "9.29.0"
 
 targets:
   AretaCare:
