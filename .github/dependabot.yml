@@ -98,6 +98,34 @@ updates:
         update-types: ["version-update:semver-major", "version-update:semver-minor"]
 
   # ---------------------------------------------------------------------------
+  # iOS
+  # ---------------------------------------------------------------------------
+  # Swift packages declared in ios/project.yml (XcodeGen) and pinned in the lockfile inside
+  # the tracked .xcodeproj bundle (project.xcworkspace/xcshareddata/swiftpm/Package.resolved),
+  # which Dependabot discovers without a Package.swift. Added after RevenueCat sat 32 releases
+  # behind unnoticed until Xcode 27 refused to compile it. When a PR lands, a pbxproj
+  # requirement change also has to go into ios/project.yml or the next xcodegen run drops it.
+  - package-ecosystem: "swift"
+    directory: "/ios"
+    schedule:
+      interval: "monthly"
+    open-pull-requests-limit: 3
+    labels:
+      - "dependencies"
+      - "swift"
+    groups:
+      # All four iOS deps (RevenueCat, Sentry, MarkdownUI, KeychainAccess) follow semver on
+      # 2.x+ lines, so minors and patches are safe to batch into one PR.
+      ios:
+        update-types:
+          - "minor"
+          - "patch"
+    ignore:
+      # See the note at the top of this file — majors become scheduled work.
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
+
+  # ---------------------------------------------------------------------------
   # CI
   # ---------------------------------------------------------------------------
   # Deliberately NOT subject to the major ignore. Action majors are CI-only — they cannot
@@ -115,7 +143,3 @@ updates:
       github-actions:
         patterns:
           - "*"
-
-# Note: no Swift/SPM entry. iOS dependencies are declared in ios/project.yml (XcodeGen)
-# and resolved into ios/Package.resolved; there is no Package.swift for Dependabot to
-# parse, so SPM updates stay manual. Check them when touching ios/project.yml.
