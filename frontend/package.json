@@ -6,7 +6,7 @@
   "dependencies": {
     "@hcaptcha/react-hcaptcha": "^1.10.1",
     "@heroicons/react": "^2.1.1",
-    "@sentry/react": "^10.75.1",
+    "@sentry/react": "^10.75.3",
     "@simplewebauthn/browser": "^13.2.2",
     "@tiptap/core": "^3.31.3",
     "@tiptap/pm": "^3.31.3",
