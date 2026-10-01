@@ -9,7 +9,7 @@ pydantic==2.13.5
 pydantic-settings==2.15.0
 email-validator==2.3.0
 python-multipart==0.0.32
-boto3==1.43.99
+boto3==1.43.103
 # Pinned, not ranged. These three were previously declared as `>=` floors, which meant every
 # rebuild silently resolved to the newest release — openai had already reached 2.54.0 against
 # a >=1.56.0 floor, pypdf 6.16.1 against >=3.9.0, aioapns 4.0 against >=3.1. That is three
