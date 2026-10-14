@@ -24,6 +24,12 @@ logger = logging.getLogger(__name__)
 DEFAULT_TOP_K = 10
 MIN_SIMILARITY_THRESHOLD = 0.3  # Minimum cosine similarity to include in results
 MIN_QUERY_LENGTH = 15  # Skip semantic search for very short messages (e.g., "Yes", "OK")
+# Query text is capped before embedding — messages have no length limit, and a
+# long paste exceeds the model's 8192-token input. 8K chars is the floor the
+# journal-entry truncation ladder ends on, so it fits even dense text. The query
+# path is single-shot (fast-fail client, no retries), so it uses the safe bound
+# directly instead of retrying down a ladder.
+MAX_QUERY_CHARS = 8000
 
 # Shared AsyncOpenAI client — avoids leaking httpx connection pools when
 # EmbeddingService is instantiated per-request (which happens on every
@@ -189,7 +195,7 @@ class EmbeddingService:
                 logger.info(f"Skipping semantic search — query too short ({len(query_text.strip())} chars)")
                 return []
 
-            query_vector = await self.generate_embedding_fast(query_text)
+            query_vector = await self.generate_embedding_fast(query_text[:MAX_QUERY_CHARS])
             cutoff_date = date.today() - timedelta(days=min_days_old)
 
             # pgvector cosine distance: 1 - (a <=> b) = cosine similarity

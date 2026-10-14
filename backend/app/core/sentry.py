@@ -14,6 +14,7 @@ import os
 
 import sentry_sdk
 from sentry_sdk.integrations.logging import LoggingIntegration
+from sentry_sdk.integrations.openai import OpenAIIntegration
 from sentry_sdk.scrubber import DEFAULT_DENYLIST, EventScrubber
 
 from app.core.config import settings
@@ -106,5 +107,11 @@ def init_sentry() -> None:
             # exceptions and explicit capture_exception calls.
             LoggingIntegration(level=logging.INFO, event_level=None),
         ],
+        # Auto-enabled because `openai` is installed. It wraps every SDK call
+        # and reports each OpenAI exception as unhandled before our code can
+        # catch it — retries, truncation fallbacks and non-fatal embedding
+        # failures all paged. Genuinely unhandled errors still reach the
+        # global exception handler's explicit capture.
+        disabled_integrations=[OpenAIIntegration()],
     )
     logger.info(f"✓ Sentry initialized (environment: {settings.SENTRY_ENVIRONMENT})")
