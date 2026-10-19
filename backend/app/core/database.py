@@ -1,7 +1,11 @@
 from sqlalchemy import create_engine
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.engine import make_url
+from sqlalchemy.orm import declarative_base, sessionmaker
 from app.core.config import settings
+
+# Name the driver explicitly: SQLAlchemy 2.1 maps a bare postgresql:// URL (what Render
+# supplies) to psycopg 3, which isn't installed — the app ships psycopg2-binary.
+DATABASE_URL = make_url(settings.DATABASE_URL).set(drivername="postgresql+psycopg2")
 
 # Configure connection pooling for better performance under load
 # pool_size: Number of connections to keep open (default was 5)
@@ -11,7 +15,7 @@ from app.core.config import settings
 # pool_timeout: Maximum seconds to wait for a connection from pool (prevents hanging)
 # connect_timeout: Maximum seconds to wait when establishing a new connection
 engine = create_engine(
-    settings.DATABASE_URL,
+    DATABASE_URL,
     pool_size=20,
     max_overflow=40,
     pool_recycle=3600,

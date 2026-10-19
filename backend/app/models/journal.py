@@ -37,4 +37,6 @@ class JournalEntry(Base):
 
     # Relationships
     session = relationship("Session", back_populates="journal_entries")
-    last_edited_by = relationship("User", foreign_keys=[last_edited_by_user_id])
+    # No `last_edited_by` relationship: JournalEntryResponse reads ORM rows with
+    # from_attributes, and a User object under that name fails its SourceTagInfo field
+    # (500 on the journal list once an entry in an unshared session has been edited).
