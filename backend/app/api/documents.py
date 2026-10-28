@@ -15,6 +15,7 @@ from app.api.permissions import check_session_access
 from app.api.source_tags import session_has_collaborators, build_source_tag_info, get_user_map
 from typing import List, Optional
 from PIL import Image
+from pypdf.errors import FileNotDecryptedError
 from io import BytesIO
 import asyncio
 import os
@@ -207,7 +208,10 @@ def validate_pdf_content(file_content: bytes) -> tuple[bool, str, str]:
     except Exception as e:
         error_msg = str(e).lower()
 
-        if "password" in error_msg or "encrypted" in error_msg:
+        # pypdf reports a PDF that needs a password as FileNotDecryptedError ("File has not
+        # been decrypted"), which matches neither keyword, so check the type. PDFs encrypted
+        # with an empty user password (owner restrictions only) open fine and never get here.
+        if isinstance(e, FileNotDecryptedError) or "password" in error_msg or "encrypted" in error_msg:
             return False, "This PDF is password-protected. Please provide an unencrypted version.", ""
         elif "corrupted" in error_msg or "invalid" in error_msg:
             return False, "This PDF appears to be corrupted and cannot be read.", ""
