@@ -97,6 +97,11 @@ def init_sentry() -> None:
         release=os.getenv("RENDER_GIT_COMMIT") or None,
         send_default_pii=False,
         max_request_body_size="never",
+        # Stack-frame locals hold the raw ASGI scope (Authorization header,
+        # refresh-token cookie, X-MFA-Action-Token, query-string tokens) and
+        # parsed request bodies — none of which before_send or the key-based
+        # EventScrubber can reach. Never attach them.
+        include_local_variables=False,
         traces_sampler=_traces_sampler,
         before_send=_before_send,
         before_breadcrumb=_before_breadcrumb,

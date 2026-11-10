@@ -314,6 +314,7 @@ Sentry is used for error/crash monitoring on all three platforms (backend, web, 
 - Request bodies are never captured (`max_request_body_size="never"` on the backend; request data deleted in the web `beforeSend` hook)
 - Query strings are stripped from event URLs, network breadcrumbs, and navigation breadcrumbs (presigned S3 links travel in query params; password-reset / email-verify / invite tokens travel in navigation `from`/`to` paths)
 - Auth-related headers (`Authorization`, `Cookie`, MFA/trusted-device headers) are removed before send
+- Stack-frame local variables are never attached on the backend (`include_local_variables=False`). The Python SDK attaches them by default, and frames up the ASGI stack hold the raw `scope`/`request` (bearer token, refresh-token cookie, MFA action token, query-string tokens) plus parsed request bodies. Neither `before_send` nor the key-based scrubber can reach them, since headers sit in byte-tuple lists
 - A recursive event scrubber redacts content-bearing field names (message, journal, transcript, email, tokens, etc.)
 - Backend log lines become breadcrumbs only, never standalone events (formatted log strings may embed user data)
 - iOS never attaches screenshots or view hierarchy; session replay is not used on any platform
