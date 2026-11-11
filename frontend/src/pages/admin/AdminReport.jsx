@@ -4,6 +4,7 @@ import { MarkdownLink, MarkdownImage, markdownPlugins } from '../../utils/markdo
 import AdminLayout from '../../components/admin/AdminLayout';
 import { adminAPI } from '../../services/api';
 import { formatLocalDateTime } from '../../utils/dateUtils';
+import { apiErrorMessage } from '../../utils/requestUtils';
 
 export default function AdminReport() {
   const [reports, setReports] = useState([]);
@@ -31,7 +32,7 @@ export default function AdminReport() {
       }
     } catch (err) {
       console.error('Error loading reports:', err);
-      setError(err.response?.data?.detail || 'Failed to load reports');
+      setError(apiErrorMessage(err, 'Failed to load reports'));
     } finally {
       setLoading(false);
     }
@@ -50,7 +51,7 @@ export default function AdminReport() {
       setSelectedReport(response.data.report);
     } catch (err) {
       console.error('Error generating report:', err);
-      setError(err.response?.data?.detail || 'Failed to generate report');
+      setError(apiErrorMessage(err, 'Failed to generate report'));
     } finally {
       setGenerating(false);
     }

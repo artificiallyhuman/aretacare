@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import AdminLayout from '../../components/admin/AdminLayout';
 import { adminAPI } from '../../services/api';
 import { formatLocalDateTime } from '../../utils/dateUtils';
+import { apiErrorMessage } from '../../utils/requestUtils';
 
 function ConfirmModal({ isOpen, onClose, onConfirm, title, message, confirmText = 'Confirm', danger = false }) {
   if (!isOpen) return null;
@@ -77,7 +78,7 @@ export default function AdminErrorLogs() {
       setEntries(response.data.logs || []);
       setTotal(response.data.total || 0);
     } catch (err) {
-      setError(err.response?.data?.detail || 'Failed to load error logs');
+      setError(apiErrorMessage(err, 'Failed to load error logs'));
     } finally {
       setLoading(false);
     }
@@ -94,7 +95,7 @@ export default function AdminErrorLogs() {
       setCleanupMessage(`Deleted ${count} error log${count !== 1 ? 's' : ''}`);
       fetchErrorLogs(); // Refresh the list
     } catch (err) {
-      setError(err.response?.data?.detail || 'Failed to cleanup error logs');
+      setError(apiErrorMessage(err, 'Failed to cleanup error logs'));
     } finally {
       setCleaningUp(false);
     }

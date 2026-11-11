@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, DateTime, Boolean, ForeignKey
+from sqlalchemy import Column, String, DateTime, Boolean, ForeignKey, Integer
 from sqlalchemy.orm import relationship
 from datetime import datetime
 from app.core.database import Base
@@ -41,6 +41,12 @@ class User(Base):
     # token refresh. Exists because refresh tokens expire after 7 days and expired rows
     # are cleaned up, so they cannot answer "when did this user last log in".
     last_login_at = Column(DateTime, nullable=True)
+
+    # Carried in every access token and compared on each request. Incremented when all
+    # of the user's sessions are revoked (password change/reset, sign out everywhere),
+    # so access tokens issued before that stop working immediately instead of living
+    # out their remaining lifetime.
+    token_version = Column(Integer, default=0, server_default="0", nullable=False)
 
     # Admin campaign email preferences (product-update emails only — never transactional).
     # The token has no expiry: the unsubscribe link must keep working long after the email

@@ -3,6 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { unsubscribeAPI } from '../services/api';
 import SEO from '../components/SEO';
 import logo from '../logos/large_logo.png';
+import { apiErrorMessage } from '../utils/requestUtils';
 
 export default function Unsubscribe() {
   const [searchParams] = useSearchParams();
@@ -37,7 +38,7 @@ export default function Unsubscribe() {
         setMaskedEmail(response.data?.email || '');
       } catch (err) {
         if (!isMounted.current) return;
-        setError(err.response?.data?.detail || 'Failed to unsubscribe');
+        setError(apiErrorMessage(err, 'Failed to unsubscribe'));
       } finally {
         if (isMounted.current) {
           setLoading(false);

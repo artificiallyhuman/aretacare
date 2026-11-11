@@ -6,6 +6,7 @@ import { toolsAPI } from '../../services/api';
 import { useSessionContext } from '../../contexts/SessionContext';
 import { markdownToHtml } from '../../utils/markdownUtils';
 import SEO from '../../components/SEO';
+import { apiErrorMessage } from '../../utils/requestUtils';
 
 const JargonTranslator = () => {
   const { activeSessionId: sessionId, user } = useSessionContext();
@@ -29,7 +30,7 @@ const JargonTranslator = () => {
       const response = await toolsAPI.translateJargon(medicalTerm, context, sessionId);
       setTranslation(response.data);
     } catch (err) {
-      setError(err.response?.data?.detail || 'Failed to translate term. Please try again.');
+      setError(apiErrorMessage(err, 'Failed to translate term. Please try again.'));
     } finally {
       setLoading(false);
     }

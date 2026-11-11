@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import AdminLayout from '../../components/admin/AdminLayout';
 import { adminAPI } from '../../services/api';
 import { formatLocalDate } from '../../utils/dateUtils';
+import { apiErrorMessage } from '../../utils/requestUtils';
 
 function ConfirmModal({ isOpen, onClose, onConfirm, title, message, confirmText = 'Confirm', danger = false }) {
   if (!isOpen) return null;
@@ -66,7 +67,7 @@ function UserDetail({ user, onClose, onAction, onRefresh }) {
       // Reload tokens to show updated state
       await loadTokens();
     } catch (err) {
-      onAction(err.response?.data?.detail || 'Failed to revoke tokens', true);
+      onAction(apiErrorMessage(err, 'Failed to revoke tokens'), true);
     } finally {
       setLoading(false);
       setConfirmModal(null);
@@ -81,7 +82,7 @@ function UserDetail({ user, onClose, onAction, onRefresh }) {
       // Reload tokens to show updated state
       await loadTokens();
     } catch (err) {
-      onAction(err.response?.data?.detail || 'Failed to revoke token', true);
+      onAction(apiErrorMessage(err, 'Failed to revoke token'), true);
     } finally {
       setLoading(false);
     }
@@ -93,7 +94,7 @@ function UserDetail({ user, onClose, onAction, onRefresh }) {
       await adminAPI.resetUserPassword(user.id);
       onAction('Password reset email sent');
     } catch (err) {
-      onAction(err.response?.data?.detail || 'Failed to reset password', true);
+      onAction(apiErrorMessage(err, 'Failed to reset password'), true);
     } finally {
       setLoading(false);
       setConfirmModal(null);
@@ -108,7 +109,7 @@ function UserDetail({ user, onClose, onAction, onRefresh }) {
       // Refresh user details to show updated MFA status
       if (onRefresh) onRefresh();
     } catch (err) {
-      onAction(err.response?.data?.detail || 'Failed to reset MFA', true);
+      onAction(apiErrorMessage(err, 'Failed to reset MFA'), true);
     } finally {
       setLoading(false);
       setConfirmModal(null);
@@ -122,7 +123,7 @@ function UserDetail({ user, onClose, onAction, onRefresh }) {
       onAction('User deleted successfully');
       onClose();
     } catch (err) {
-      onAction(err.response?.data?.detail || 'Failed to delete user', true);
+      onAction(apiErrorMessage(err, 'Failed to delete user'), true);
     } finally {
       setLoading(false);
       setConfirmModal(null);
@@ -420,7 +421,7 @@ export default function AdminUsers() {
         setMessage({ type: 'info', text: 'No users found' });
       }
     } catch (err) {
-      setMessage({ type: 'error', text: err.response?.data?.detail || 'Search failed' });
+      setMessage({ type: 'error', text: apiErrorMessage(err, 'Search failed') });
     } finally {
       setLoading(false);
     }
@@ -431,7 +432,7 @@ export default function AdminUsers() {
       const response = await adminAPI.getUserDetail(userId);
       setSelectedUser(response.data);
     } catch (err) {
-      setMessage({ type: 'error', text: err.response?.data?.detail || 'Failed to load user details' });
+      setMessage({ type: 'error', text: apiErrorMessage(err, 'Failed to load user details') });
     }
   };
 

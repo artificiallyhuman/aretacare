@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import AdminLayout from '../../components/admin/AdminLayout';
 import { adminAPI } from '../../services/api';
 import { formatLocalDate } from '../../utils/dateUtils';
+import { apiErrorMessage } from '../../utils/requestUtils';
 
 function AdminInvitations() {
   const [entries, setEntries] = useState([]);
@@ -25,7 +26,7 @@ function AdminInvitations() {
       setEntries(response.data);
       setError(null);
     } catch (err) {
-      setError(err.response?.data?.detail || 'Failed to load waitlist');
+      setError(apiErrorMessage(err, 'Failed to load waitlist'));
     } finally {
       setLoading(false);
     }
@@ -51,7 +52,7 @@ function AdminInvitations() {
       setSuccess(`Invitation sent to ${email}`);
       fetchEntries();
     } catch (err) {
-      setError(err.response?.data?.detail || 'Failed to send invitation');
+      setError(apiErrorMessage(err, 'Failed to send invitation'));
     } finally {
       setSendingInvite(null);
     }
@@ -69,7 +70,7 @@ function AdminInvitations() {
       setNewEmail('');
       fetchEntries();
     } catch (err) {
-      setError(err.response?.data?.detail || 'Failed to add entry');
+      setError(apiErrorMessage(err, 'Failed to add entry'));
     } finally {
       setAddingEntry(false);
     }
@@ -90,7 +91,7 @@ function AdminInvitations() {
       setEntryToDelete(null);
       fetchEntries();
     } catch (err) {
-      setError(err.response?.data?.detail || 'Failed to remove entry');
+      setError(apiErrorMessage(err, 'Failed to remove entry'));
     } finally {
       setDeletingEntry(null);
     }
@@ -108,7 +109,7 @@ function AdminInvitations() {
       setEditingNotes(null);
       fetchEntries();
     } catch (err) {
-      setError(err.response?.data?.detail || 'Failed to update notes');
+      setError(apiErrorMessage(err, 'Failed to update notes'));
     }
   };
 

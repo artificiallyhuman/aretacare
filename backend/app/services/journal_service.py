@@ -1577,9 +1577,14 @@ IMPORTANT: Respond with ONLY a valid JSON object in this exact format, with no a
         self,
         entry_id: int,
         updates: JournalEntryUpdate,
-        user_id: str
+        user_id: str,
+        allow_embedding: bool = True,
     ) -> Optional[JournalEntry]:
-        """Update an existing journal entry"""
+        """Update an existing journal entry.
+
+        allow_embedding=False saves the edit without sending the text to the embedding
+        API (the caller has no recorded AI data sharing consent).
+        """
         try:
             entry = self.db.query(JournalEntry).filter(JournalEntry.id == entry_id).first()
             if not entry:
@@ -1605,7 +1610,7 @@ IMPORTANT: Respond with ONLY a valid JSON object in this exact format, with no a
             self.db.refresh(entry)
 
             # Re-embed if content changed (non-fatal)
-            if updates.title is not None or updates.content is not None:
+            if allow_embedding and (updates.title is not None or updates.content is not None):
                 try:
                     from app.services.embedding_service import EmbeddingService
                     embedding_service = EmbeddingService(self.db)

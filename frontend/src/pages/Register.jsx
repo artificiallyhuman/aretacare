@@ -4,6 +4,7 @@ import { authAPI, waitlistAPI } from '../services/api';
 import { useTheme } from '../contexts/ThemeContext';
 import SEO from '../components/SEO';
 import logo from '../logos/large_logo.png';
+import { apiErrorMessage } from '../utils/requestUtils';
 
 function Register() {
   const { toggleTheme } = useTheme();
@@ -25,10 +26,22 @@ function Register() {
   const [registeredEmail, setRegisteredEmail] = useState('');
   const navigate = useNavigate();
 
-  // Check for invitation parameters in URL
-  const invitationEmail = searchParams.get('email');
-  const invitationToken = searchParams.get('token');
+  // Invitation parameters arrive in the URL. Read them once into state, then remove
+  // them from the address bar so the single-use token and the invitee's email do not
+  // linger in browser history, referrer headers or logs.
+  const [invitation] = useState(() => ({
+    email: searchParams.get('email'),
+    token: searchParams.get('token'),
+  }));
+  const invitationEmail = invitation.email;
+  const invitationToken = invitation.token;
   const isInvitation = !!(invitationEmail && invitationToken);
+
+  useEffect(() => {
+    if (invitation.email || invitation.token) {
+      window.history.replaceState({}, document.title, '/register');
+    }
+  }, [invitation]);
 
   // Pre-populate email from invitation
   useEffect(() => {
@@ -123,7 +136,7 @@ function Register() {
       setRegistrationSuccess(true);
       setRegisteredEmail(response.data.email);
     } catch (err) {
-      setError(err.response?.data?.detail || 'Registration failed. Please try again.');
+      setError(apiErrorMessage(err, 'Registration failed. Please try again.'));
     } finally {
       setLoading(false);
     }
@@ -262,6 +275,7 @@ function Register() {
                   </label>
                   <input
                     type="email"
+                    autoComplete="username"
                     id="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
@@ -285,6 +299,7 @@ function Register() {
                   <div className="relative">
                     <input
                       type={showPassword ? 'text' : 'password'}
+                      autoComplete="new-password"
                       id="password"
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
@@ -323,6 +338,7 @@ function Register() {
                   <div className="relative">
                     <input
                       type={showConfirmPassword ? 'text' : 'password'}
+                      autoComplete="new-password"
                       id="confirmPassword"
                       value={confirmPassword}
                       onChange={(e) => setConfirmPassword(e.target.value)}

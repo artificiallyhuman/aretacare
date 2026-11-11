@@ -16,7 +16,9 @@ RUN apt-get update && apt-get install -y \
 COPY backend/requirements.txt .
 
 # Install Python dependencies
-RUN pip install --no-cache-dir -r requirements.txt
+# requirements.txt is a full lockfile with hashes (generated from requirements.in);
+# --require-hashes refuses anything not listed in it or whose contents differ.
+RUN pip install --no-cache-dir --require-hashes -r requirements.txt
 
 # Copy application code from backend directory
 COPY backend/ .

@@ -114,10 +114,16 @@ final class ProfileViewModel {
 
     // MARK: - Fetch Profile
 
-    func fetchProfile(sessionId: String) async {
-        isLoading = true
-        errorMessage = nil
-        defer { isLoading = false }
+    /// `isRefresh` is the pull-to-refresh path. It must not touch observed state
+    /// before the request returns: `.refreshable` shows its own spinner, and a view
+    /// update triggered mid-refresh makes SwiftUI cancel the refresh task, which
+    /// cancels the request and surfaced as "Network error: cancelled".
+    func fetchProfile(sessionId: String, isRefresh: Bool = false) async {
+        if !isRefresh {
+            isLoading = true
+            errorMessage = nil
+        }
+        defer { if !isRefresh { isLoading = false } }
 
         do {
             let response: ProfileResponse = try await APIClient.shared.get(
@@ -125,16 +131,31 @@ final class ProfileViewModel {
             )
             profile = response
             pendingChanges = response.pendingChanges ?? []
+            errorMessage = nil
         } catch let error as APIError {
             if case .notFound = error {
                 profile = nil
                 pendingChanges = []
+            } else if Self.isCancellation(error) {
+                // The view went away or the refresh was superseded; not a failure.
             } else {
                 errorMessage = error.localizedDescription
             }
         } catch {
-            errorMessage = error.localizedDescription
+            if !Self.isCancellation(error) {
+                errorMessage = error.localizedDescription
+            }
         }
+    }
+
+    /// True for a request that was cancelled rather than one that failed.
+    private static func isCancellation(_ error: Error) -> Bool {
+        if error is CancellationError { return true }
+        if let urlError = error as? URLError, urlError.code == .cancelled { return true }
+        if case APIError.networkError(let underlying) = error {
+            return isCancellation(underlying)
+        }
+        return false
     }
 
     // MARK: - Check Profile

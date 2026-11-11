@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy.orm import Session as DBSession
+import asyncio
 import httpx
 import logging
 import html
@@ -154,8 +155,10 @@ async def submit_feedback(
     }
 
     try:
-        # Send feedback email to AretaCare team
-        feedback_sent = email_service.send_feedback_to_team(
+        # Send feedback email to AretaCare team. SMTP is blocking, so both sends run on
+        # a worker thread; awaiting them here keeps the event loop free for other requests.
+        feedback_sent = await asyncio.to_thread(
+            email_service.send_feedback_to_team,
             user_name=sanitized_name,
             user_email=reply_to_email,
             feedback_types=feedback_types_str,
@@ -168,7 +171,8 @@ async def submit_feedback(
             # Don't fail the request if email fails - just log it
 
         # Send confirmation email to user
-        confirmation_sent = email_service.send_feedback_confirmation(
+        confirmation_sent = await asyncio.to_thread(
+            email_service.send_feedback_confirmation,
             user_email=reply_to_email,
             user_name=sanitized_name,
             feedback_types=feedback_types_str,

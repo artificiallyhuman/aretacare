@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import AdminLayout from '../../components/admin/AdminLayout';
 import { adminAPI } from '../../services/api';
 import { formatLocalDateTime } from '../../utils/dateUtils';
+import { apiErrorMessage } from '../../utils/requestUtils';
 
 function formatBytes(bytes) {
   if (bytes === 0) return '0 Bytes';
@@ -30,7 +31,7 @@ export default function AdminS3Cleanup() {
       const response = await adminAPI.getOrphanedFiles();
       setOrphans(response.data);
     } catch (err) {
-      setError(err.response?.data?.detail || 'Failed to load orphaned files');
+      setError(apiErrorMessage(err, 'Failed to load orphaned files'));
     } finally {
       setLoading(false);
     }
@@ -73,7 +74,7 @@ export default function AdminS3Cleanup() {
       setSelectedKeys(new Set());
       fetchOrphans();
     } catch (err) {
-      setError(err.response?.data?.detail || 'Failed to delete files');
+      setError(apiErrorMessage(err, 'Failed to delete files'));
     } finally {
       setDeleting(false);
     }

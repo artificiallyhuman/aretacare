@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import PropTypes from 'prop-types';
 import { QRCodeSVG } from 'qrcode.react';
 import { mfaAPI } from '../../services/api';
+import { apiErrorMessage } from '../../utils/requestUtils';
 
 function TOTPSetup({ onComplete, onCancel }) {
   const [step, setStep] = useState('loading'); // loading, qr, verify
@@ -21,7 +22,7 @@ function TOTPSetup({ onComplete, onCancel }) {
         setProvisioningUri(response.data.provisioning_uri);
         setStep('qr');
       } catch (err) {
-        setError(err.response?.data?.detail || 'Failed to initialize TOTP setup');
+        setError(apiErrorMessage(err, 'Failed to initialize TOTP setup'));
         setStep('error');
       }
     };
@@ -43,7 +44,7 @@ function TOTPSetup({ onComplete, onCancel }) {
       await mfaAPI.verifyTOTPSetup(code);
       onComplete();
     } catch (err) {
-      setError(err.response?.data?.detail || 'Invalid code. Please try again.');
+      setError(apiErrorMessage(err, 'Invalid code. Please try again.'));
       setCode('');
     } finally {
       setLoading(false);

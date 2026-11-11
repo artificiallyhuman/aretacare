@@ -57,3 +57,45 @@ export const getRetryAfterSeconds = (err, fallbackSeconds = 60, maxSeconds = 60)
   if (seconds === null) seconds = fallbackSeconds;
   return Math.min(maxSeconds, Math.max(1, Math.ceil(seconds)));
 };
+
+/**
+ * Pull a displayable string out of an API error.
+ *
+ * Most endpoints return a plain-string `detail`, but several return an object
+ * (`{ code, message }` for MFA step-up, consent and colour conflicts) and request
+ * validation returns a list of `{ msg, loc }` entries. Putting either of those into
+ * state that is rendered crashes the page ("Objects are not valid as a React
+ * child"), so everything shown to the user goes through this.
+ *
+ * @param {unknown} err - Axios rejection (or any error)
+ * @param {string} [fallback] - Shown when the response carries nothing readable
+ * @returns {string} A message that is always safe to render
+ */
+export const errorMessage = (err, fallback = 'Something went wrong. Please try again.') => {
+  const detail = err?.response?.data?.detail;
+  if (typeof detail === 'string' && detail) return detail;
+  if (detail && typeof detail === 'object') {
+    if (typeof detail.message === 'string' && detail.message) return detail.message;
+    if (Array.isArray(detail)) {
+      const first = detail.find((item) => typeof item?.msg === 'string');
+      if (first) return first.msg;
+    }
+  }
+  return fallback;
+};
+
+/**
+ * The machine-readable code on an object-shaped error detail, if any.
+ *
+ * @param {unknown} err - Axios rejection
+ * @returns {string|null} e.g. "MFA_REQUIRED", or null for string details
+ */
+export const errorCode = (err) => {
+  const detail = err?.response?.data?.detail;
+  return detail && typeof detail === 'object' && !Array.isArray(detail) && typeof detail.code === 'string'
+    ? detail.code
+    : null;
+};
+
+// Alias for modules that already have a local variable called `errorMessage`.
+export const apiErrorMessage = errorMessage;

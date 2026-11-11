@@ -5,6 +5,7 @@ import { useTheme } from '../contexts/ThemeContext';
 import MFAChallenge from '../components/mfa/MFAChallenge';
 import SEO from '../components/SEO';
 import logo from '../logos/large_logo.png';
+import { apiErrorMessage } from '../utils/requestUtils';
 
 function Login() {
   const [email, setEmail] = useState('');
@@ -92,10 +93,8 @@ function Login() {
         setEmailNotVerified(true);
         setUnverifiedEmail(detail.email || email);
         setError('');
-      } else if (typeof detail === 'object' && detail?.message) {
-        setError(detail.message);
       } else {
-        setError(detail || 'Login failed. Please try again.');
+        setError(apiErrorMessage(err, 'Login failed. Please try again.'));
       }
     } finally {
       setLoading(false);
@@ -253,6 +252,7 @@ function Login() {
               </label>
               <input
                 type="email"
+                autoComplete="username"
                 id="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
@@ -279,6 +279,7 @@ function Login() {
               <div className="relative">
                 <input
                   type={showPassword ? 'text' : 'password'}
+                  autoComplete="current-password"
                   id="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}

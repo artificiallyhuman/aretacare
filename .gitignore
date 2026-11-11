@@ -115,7 +115,8 @@ htmlcov/
 # =========================
 # Docker
 # =========================
-.dockerignore
+# .dockerignore files are tracked on purpose: they keep local secrets (.env, APNs keys)
+# out of image build contexts, which only works if every build has them.
 
 # =========================
 # OS

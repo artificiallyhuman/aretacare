@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { useSessionContext } from '../contexts/SessionContext';
 import { audioRecordingsAPI, conversationAPI } from '../services/api';
 import { isToday, formatDateShort, formatLocalDate } from '../utils/dateUtils';
-import { isAbortError, getRetryAfterSeconds } from '../utils/requestUtils';
+import { isAbortError, getRetryAfterSeconds, apiErrorMessage } from '../utils/requestUtils';
 import { isProcessingUpload } from '../utils/transcriptionPolling';
 import SourceTag from '../components/SourceTag';
 
@@ -186,7 +186,7 @@ const AudioRecordings = () => {
         return;
       }
       console.error('Error loading recordings:', err);
-      setError(err.response?.data?.detail || 'Failed to load recordings. Please try again.');
+      setError(apiErrorMessage(err, 'Failed to load recordings. Please try again.'));
     } finally {
       // Only the most recent load owns the spinner - a superseded one must not
       // clear it out from under the load that replaced it
@@ -278,7 +278,7 @@ const AudioRecordings = () => {
       await audioRecordingsAPI.retranscribe(sessionId, recordingId);
     } catch (err) {
       console.error('Error restarting transcription:', err);
-      setError(err.response?.data?.detail || 'Failed to restart transcription. Please try again.');
+      setError(apiErrorMessage(err, 'Failed to restart transcription. Please try again.'));
     } finally {
       setRetryingIds(prev => {
         const next = { ...prev };
@@ -579,7 +579,7 @@ const AudioRecordings = () => {
         }
 
         console.error(`Error uploading ${file.name}:`, err);
-        const errorMessage = err.response?.data?.detail || 'Upload failed';
+        const errorMessage = apiErrorMessage(err, 'Upload failed');
 
         // Update status to error
         setUploadProgress(prev => prev.map((p, idx) =>

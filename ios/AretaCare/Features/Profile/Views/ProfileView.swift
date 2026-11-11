@@ -248,7 +248,8 @@ struct ProfileView: View {
             }
         }
         .refreshable {
-            await viewModel.fetchProfile(sessionId: sessionId)
+            await viewModel.fetchProfile(sessionId: sessionId, isRefresh: true)
+            await viewModel.checkProfile(sessionId: sessionId)
         }
     }
 

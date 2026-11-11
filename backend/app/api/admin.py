@@ -7,13 +7,14 @@ from fastapi import APIRouter, Depends, HTTPException, Query, BackgroundTasks, R
 from sqlalchemy.orm import Session as DBSession
 from datetime import datetime, date, timedelta
 from typing import Optional
+import asyncio
 import secrets
 import logging
 
 from app.core.database import get_db
 from app.core.config import settings
 from app.core.rate_limit import limiter, RateLimits
-from app.api.auth import get_current_user
+from app.api.auth import get_current_user, verify_mfa_for_sensitive_action
 from app.api.permissions import check_is_admin, require_admin
 from app.models import (
     User, Session as SessionModel, SessionCollaborator,
@@ -56,7 +57,33 @@ logger = logging.getLogger(__name__)
 
 def get_admin_user(current_user: User = Depends(get_current_user)) -> User:
     """FastAPI dependency that requires admin access."""
-    return require_admin(current_user)
+    admin_user = require_admin(current_user)
+    if settings.ADMIN_REQUIRE_MFA and not admin_user.mfa_enabled:
+        raise HTTPException(
+            status_code=403,
+            detail="Admin access requires multi-factor authentication. Enable MFA in Settings, then sign in again.",
+        )
+    return admin_user
+
+
+def require_admin_step_up(
+    request: Request,
+    admin_user: User = Depends(get_admin_user),
+    db: DBSession = Depends(get_db),
+) -> None:
+    """Fresh MFA verification for admin actions that change or destroy another user's
+    account, sessions or data, or send email in bulk.
+
+    An admin session alone can reset anyone's MFA or hand a care session to another
+    account, so those actions get the same step-up as a user's own sensitive changes
+    (X-MFA-Action-Token; 403 MFA_REQUIRED without it). Applies when the admin has MFA
+    enabled; settings.ADMIN_REQUIRE_MFA makes that mandatory.
+    """
+    verify_mfa_for_sensitive_action(request, admin_user, db)
+
+
+# Attach to a route with `dependencies=STEP_UP`.
+STEP_UP = [Depends(require_admin_step_up)]
 
 
 # Admin access is enforced at the router level so it is impossible to add an admin
@@ -201,7 +228,7 @@ async def get_unusual_accounts(
     return [UnusualAccount(**a) for a in accounts]
 
 
-@router.post("/accounts/inactive/email", response_model=EmailInactiveUsersResponse)
+@router.post("/accounts/inactive/email", response_model=EmailInactiveUsersResponse, dependencies=STEP_UP)
 @limiter.limit(RateLimits.ADMIN_EMAIL)
 async def email_inactive_accounts(
     request: Request,
@@ -235,7 +262,8 @@ async def email_inactive_accounts(
             days_inactive = (datetime.utcnow() - user.created_at).days
 
         # Send email
-        success = email_service.send_inactive_account_notification(
+        success = await asyncio.to_thread(
+            email_service.send_inactive_account_notification,
             user.email,
             user.name,
             days_inactive
@@ -316,7 +344,7 @@ async def get_user_detail(
     )
 
 
-@router.post("/users/{user_id}/reset-password", response_model=PasswordResetByAdmin)
+@router.post("/users/{user_id}/reset-password", response_model=PasswordResetByAdmin, dependencies=STEP_UP)
 @limiter.limit(RateLimits.ADMIN_SENSITIVE)
 async def admin_reset_password(
     request: Request,
@@ -341,7 +369,7 @@ async def admin_reset_password(
     db.commit()
 
     # Send password reset email
-    email_sent = email_service.send_password_reset_email(user.email, reset_token)
+    email_sent = await asyncio.to_thread(email_service.send_password_reset_email, user.email, reset_token)
 
     # Log the action
     admin_service.log_action(
@@ -359,7 +387,7 @@ async def admin_reset_password(
     )
 
 
-@router.post("/users/{user_id}/reset-mfa")
+@router.post("/users/{user_id}/reset-mfa", dependencies=STEP_UP)
 @limiter.limit(RateLimits.ADMIN_SENSITIVE)
 async def admin_reset_mfa(
     request: Request,
@@ -389,7 +417,8 @@ async def admin_reset_mfa(
     MFAService.disable_mfa(db, user)
 
     # Send notification email to user
-    email_sent = email_service.send_mfa_reset_by_admin_email(
+    email_sent = await asyncio.to_thread(
+        email_service.send_mfa_reset_by_admin_email,
         to_email=user.email,
         user_name=user.name
     )
@@ -410,7 +439,7 @@ async def admin_reset_mfa(
     }
 
 
-@router.delete("/users/{user_id}")
+@router.delete("/users/{user_id}", dependencies=STEP_UP)
 @limiter.limit(RateLimits.ADMIN_DESTRUCTIVE)
 async def admin_delete_user(
     request: Request,
@@ -545,7 +574,7 @@ async def get_user_tokens(
     )
 
 
-@router.post("/users/{user_id}/tokens/revoke-all")
+@router.post("/users/{user_id}/tokens/revoke-all", dependencies=STEP_UP)
 @limiter.limit(RateLimits.ADMIN_SENSITIVE)
 async def revoke_all_user_tokens_admin(
     request: Request,
@@ -588,7 +617,7 @@ async def revoke_all_user_tokens_admin(
     }
 
 
-@router.delete("/tokens/{token_id}", response_model=RevokeTokenResponse)
+@router.delete("/tokens/{token_id}", response_model=RevokeTokenResponse, dependencies=STEP_UP)
 async def revoke_single_token(
     token_id: int,
     admin_user: User = Depends(get_admin_user),
@@ -638,7 +667,7 @@ async def revoke_single_token(
 # Session Administration
 # ==========================================
 
-@router.post("/sessions/{session_id}/transfer", response_model=SessionTransferResponse)
+@router.post("/sessions/{session_id}/transfer", response_model=SessionTransferResponse, dependencies=STEP_UP)
 @limiter.limit(RateLimits.ADMIN_SENSITIVE)
 async def transfer_session_ownership(
     request: Request,
@@ -701,7 +730,7 @@ async def transfer_session_ownership(
     )
 
 
-@router.delete("/sessions/{session_id}")
+@router.delete("/sessions/{session_id}", dependencies=STEP_UP)
 @limiter.limit(RateLimits.ADMIN_DESTRUCTIVE)
 async def admin_delete_session(
     request: Request,
@@ -780,7 +809,7 @@ async def get_orphaned_s3_files(
     )
 
 
-@router.delete("/s3/orphans", response_model=S3DeleteResponse)
+@router.delete("/s3/orphans", response_model=S3DeleteResponse, dependencies=STEP_UP)
 @limiter.limit(RateLimits.ADMIN_DESTRUCTIVE)
 async def delete_orphaned_s3_files(
     request: Request,
@@ -1257,7 +1286,8 @@ async def send_waitlist_invitation(
     db.commit()
 
     # Send invitation email
-    email_service.send_waitlist_invitation(
+    await asyncio.to_thread(
+        email_service.send_waitlist_invitation,
         to_email=entry.email,
         invitation_token=entry.invitation_token
     )
@@ -1403,7 +1433,7 @@ async def get_email_recipient_users(db: DBSession = Depends(get_db)):
     )
 
 
-@router.post("/email/campaigns", response_model=EmailCampaignCreateResponse, status_code=202)
+@router.post("/email/campaigns", response_model=EmailCampaignCreateResponse, status_code=202, dependencies=STEP_UP)
 @limiter.limit(RateLimits.ADMIN_EMAIL)
 async def create_email_campaign(
     request: Request,
@@ -1550,7 +1580,7 @@ async def get_email_campaign(
     return _campaign_to_status(campaign, recipients)
 
 
-@router.post("/email/campaigns/{campaign_id}/resume", response_model=EmailCampaignCreateResponse, status_code=202)
+@router.post("/email/campaigns/{campaign_id}/resume", response_model=EmailCampaignCreateResponse, status_code=202, dependencies=STEP_UP)
 @limiter.limit(RateLimits.ADMIN_EMAIL)
 async def resume_email_campaign(
     request: Request,

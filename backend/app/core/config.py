@@ -12,6 +12,27 @@ class Settings(BaseSettings):
     DB_MAX_OVERFLOW: int = 8
     DB_POOL_TIMEOUT: int = 10  # Seconds to wait for a free connection before failing the request
 
+    # Refresh tokens are looked up by SHA-256 hash. While this is True the raw value is
+    # also kept in the legacy `token` column, so instances still running the previous
+    # release can validate tokens issued by this one during a rolling deploy. Set it to
+    # False once every instance runs this release: new rows then store only the hash and
+    # startup replaces the raw values already in the table.
+    REFRESH_TOKEN_STORE_RAW: bool = True
+    # A token that was just rotated is accepted again for this long. Covers a client
+    # that never received the rotation response (lost connection) and two browser tabs
+    # refreshing at the same moment; without it both cases end in a forced logout.
+    REFRESH_TOKEN_ROTATION_GRACE_SECONDS: int = 30
+    # Presenting a rotated token after the grace window is always logged as a
+    # `refresh_token_reuse` security event. When True it also revokes every session of
+    # that user. Leave False until clients that could hold a legitimately stale token
+    # have aged out (refresh tokens live 7 days), then enable.
+    REFRESH_REUSE_REVOKES_ALL: bool = False
+
+    # When True, an admin account must have MFA enabled to use any admin route.
+    # Destructive admin routes require a fresh MFA step-up whenever the admin has MFA,
+    # regardless of this flag.
+    ADMIN_REQUIRE_MFA: bool = False
+
     # OpenAI
     OPENAI_API_KEY: str
     OPENAI_TIMEOUT_SECONDS: int = 60  # Timeout for API requests

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import AdminLayout from '../../components/admin/AdminLayout';
 import { adminAPI } from '../../services/api';
+import { apiErrorMessage } from '../../utils/requestUtils';
 
 function StatusBadge({ status }) {
   const statusConfig = {
@@ -97,7 +98,7 @@ export default function AdminHealth() {
       setHealth(response.data);
       setLastChecked(new Date());
     } catch (err) {
-      setError(err.response?.data?.detail || 'Failed to check system health');
+      setError(apiErrorMessage(err, 'Failed to check system health'));
     } finally {
       setLoading(false);
     }
@@ -118,7 +119,7 @@ export default function AdminHealth() {
     } catch (err) {
       setBackfillStatus({
         type: 'error',
-        message: err.response?.data?.detail || 'Failed to backfill embeddings',
+        message: apiErrorMessage(err, 'Failed to backfill embeddings'),
         remaining: null
       });
     } finally {

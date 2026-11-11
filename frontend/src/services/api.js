@@ -3,12 +3,21 @@ import axios from 'axios';
 // Use relative URL to leverage Vite's proxy in Docker, or environment variable for production
 const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
 
+// Default ceiling for a request. The edge proxy gives up on any request after roughly
+// 100 seconds, so nothing useful can arrive later than this; without a limit a stalled
+// connection leaves a spinner up indefinitely. Uploads override it per call
+// (UPLOAD_TIMEOUT_MS) because the upload itself can take minutes on a slow connection.
+const DEFAULT_TIMEOUT_MS = 150000;
+const UPLOAD_TIMEOUT_MS = 600000;
+const REFRESH_TIMEOUT_MS = 20000;
+
 const api = axios.create({
   baseURL: API_BASE_URL,
   headers: {
     'Content-Type': 'application/json',
   },
   withCredentials: true,  // Enable cookies for HttpOnly refresh token
+  timeout: DEFAULT_TIMEOUT_MS,
 });
 
 // ==========================================
@@ -33,19 +42,67 @@ export const clearAccessToken = () => {
   delete api.defaults.headers.common['Authorization'];
 };
 
-// Initialize auth by refreshing token from HttpOnly cookie
-// Call this on app startup to restore session after page refresh
-export const initAuth = async () => {
-  try {
+// ==========================================
+// Token refresh
+// ==========================================
+
+// Outcomes of an auth initialisation. Only REJECTED means the session is over; a
+// network error, a 5xx during a deploy or a 429 says nothing about whether the
+// refresh cookie is still good, so it must not be treated as a logout.
+export const AUTH_OK = 'ok';
+export const AUTH_REJECTED = 'rejected';
+export const AUTH_TRANSIENT = 'transient';
+
+const isRefreshRejection = (err) =>
+  err?.response?.status === 401 || err?.response?.status === 403;
+
+// All tabs share one refresh cookie, and the server rotates it on every use: the
+// previous value stops working the moment a refresh succeeds. Two tabs refreshing at
+// the same instant would both present the same cookie and one would be turned away.
+// A Web Lock makes refreshes take turns across tabs, so each one runs with whatever
+// cookie the previous one left behind. Browsers without the Locks API fall back to
+// the per-tab guard below.
+const withRefreshLock = (fn) => {
+  if (typeof navigator !== 'undefined' && navigator.locks?.request) {
+    return navigator.locks.request('aretacare-auth-refresh', fn);
+  }
+  return fn();
+};
+
+// Ask the server for a new access token using the HttpOnly refresh cookie (sent
+// automatically; there is no refresh token in the body). Resolves to the token.
+const requestTokenRefresh = () =>
+  withRefreshLock(async () => {
     const response = await axios.post(`${API_BASE_URL}/auth/refresh`, {}, {
-      withCredentials: true
+      withCredentials: true,
+      timeout: REFRESH_TIMEOUT_MS,
     });
-    const { access_token } = response.data;
-    setAccessToken(access_token);
-    return true;
-  } catch {
-    clearAccessToken();
-    return false;
+    return response.data.access_token;
+  });
+
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+// Initialize auth by refreshing token from HttpOnly cookie
+// Call this on app startup to restore session after page refresh.
+// Returns AUTH_OK, AUTH_REJECTED (no valid session) or AUTH_TRANSIENT (could not
+// reach the server; the session may well still be valid).
+export const initAuth = async () => {
+  const retryDelays = [1000, 3000];
+  for (let attempt = 0; ; attempt += 1) {
+    try {
+      setAccessToken(await requestTokenRefresh());
+      return AUTH_OK;
+    } catch (err) {
+      if (isRefreshRejection(err)) {
+        clearAccessToken();
+        return AUTH_REJECTED;
+      }
+      if (attempt >= retryDelays.length) {
+        clearAccessToken();
+        return AUTH_TRANSIENT;
+      }
+      await sleep(retryDelays[attempt]);
+    }
   }
 };
 
@@ -75,6 +132,22 @@ api.interceptors.request.use((config) => {
 
 // Error handler reference (set by NetworkProvider)
 let globalErrorHandler = null;
+
+// ==========================================
+// MFA step-up
+// ==========================================
+// The server answers 403 { code: "MFA_REQUIRED" | "MFA_INVALID" } when an action
+// needs a fresh MFA verification. Rather than every page knowing which calls those
+// are, a single handler (registered by MFAStepUpProvider) asks the user to verify
+// and resolves to a one-time action token; the request is then replayed with it.
+// Resolves to null when the user cancels.
+const MFA_ACTION_TOKEN_HEADER = 'X-MFA-Action-Token';
+const STEP_UP_CODES = ['MFA_REQUIRED', 'MFA_INVALID'];
+let stepUpHandler = null;
+
+export const setStepUpHandler = (handler) => {
+  stepUpHandler = handler;
+};
 
 // Set the global error handler (called from NetworkProvider)
 export const setGlobalErrorHandler = (handler) => {
@@ -118,11 +191,7 @@ api.interceptors.response.use(
       try {
         // Attempt to refresh the token using HttpOnly cookie (sent automatically)
         // No refresh token in body - relies entirely on secure HttpOnly cookie
-        const response = await axios.post(`${API_BASE_URL}/auth/refresh`, {}, {
-          withCredentials: true  // Send HttpOnly cookie with request
-        });
-
-        const { access_token } = response.data;
+        const access_token = await requestTokenRefresh();
 
         // Store new access token in memory (protects against XSS)
         setAccessToken(access_token);
@@ -135,10 +204,21 @@ api.interceptors.response.use(
         // Retry the original request
         return api(originalRequest);
       } catch (refreshError) {
-        // Refresh failed, clear everything and log out
         processQueue(refreshError, null);
         isRefreshing = false;
 
+        if (!isRefreshRejection(refreshError)) {
+          // Could not reach the server (offline, deploy in progress, rate limited).
+          // That is not a verdict on the session: fail this request, keep the page
+          // and its state, and let the next request try the refresh again.
+          originalRequest._retry = false;
+          if (globalErrorHandler) {
+            globalErrorHandler(refreshError);
+          }
+          return Promise.reject(refreshError);
+        }
+
+        // The server rejected the refresh cookie: the session is over.
         // Clear in-memory token and legacy localStorage values
         clearAccessToken();
         localStorage.removeItem('refresh_token');  // Clean up legacy values
@@ -171,6 +251,27 @@ api.interceptors.response.use(
 
         window.location.replace('/login');
         return new Promise(() => {});
+      }
+
+      // Step-up: verify, then replay the same request once with the action token.
+      // The verification call itself is excluded so a failure there cannot loop.
+      if (
+        errorCode &&
+        STEP_UP_CODES.includes(errorCode) &&
+        stepUpHandler &&
+        originalRequest &&
+        !originalRequest._stepUpRetried &&
+        !originalRequest.url?.includes('/mfa/verify-for-action')
+      ) {
+        originalRequest._stepUpRetried = true;
+        const actionToken = await stepUpHandler();
+        if (actionToken) {
+          originalRequest.headers[MFA_ACTION_TOKEN_HEADER] = actionToken;
+          return api(originalRequest);
+        }
+        // Cancelled: fall through and reject with the original error, whose
+        // detail.message explains that verification is required.
+        return Promise.reject(error);
       }
     }
 
@@ -319,6 +420,7 @@ export const documentAPI = {
       headers: {
         'Content-Type': 'multipart/form-data',
       },
+      timeout: UPLOAD_TIMEOUT_MS,
       ...config,
     });
   },
@@ -364,7 +466,7 @@ export const conversationAPI = {
       headers: {
         'Content-Type': 'multipart/form-data',
       },
-      timeout: 600000, // 10 minutes timeout for long audio files
+      timeout: UPLOAD_TIMEOUT_MS, // long audio files
       ...config,
     });
   },
@@ -413,8 +515,8 @@ export const audioRecordingsAPI = {
 
 // Daily Plans API
 export const dailyPlanAPI = {
-  getAll: (sessionId) =>
-    api.get(`/daily-plans/${sessionId}`),
+  getAll: (sessionId, config = {}) =>
+    api.get(`/daily-plans/${sessionId}`, config),
   getLatest: (sessionId) =>
     api.get(`/daily-plans/${sessionId}/latest`),
   check: (sessionId) =>

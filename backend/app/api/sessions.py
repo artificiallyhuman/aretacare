@@ -16,6 +16,7 @@ from app.core.config import settings
 from app.api.auth import get_current_user
 from app.api.permissions import check_session_access
 from app.services.s3_service import s3_service
+import asyncio
 import logging
 import uuid
 
@@ -29,6 +30,19 @@ ALLOWED_COLOR_KEYS = [
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/sessions", tags=["sessions"])
+
+
+async def _send_email(send, **kwargs):
+    """Run a blocking SMTP send on a worker thread and wait for it.
+
+    The email helpers use smtplib with retries and backoff, which can take many
+    seconds when the mail server is slow. Called directly from an `async def` route
+    that would stall the event loop, and with it every other request on the instance
+    (health checks included). The request still waits for the send, as before; it
+    just no longer blocks anything else while it does. Pass plain values only: the
+    worker thread must not touch ORM objects bound to the request's session.
+    """
+    return await asyncio.to_thread(send, **kwargs)
 
 
 def get_unique_session_name(base_name: str, user_id: str, db: Session, exclude_session_id: str = None) -> str:
@@ -661,7 +675,8 @@ async def share_session(
     # 1. Notify the owner that a collaborator was added
     if owner:
         from app.services.email_service import email_service
-        email_service.send_collaborator_added_to_owner_email(
+        await _send_email(
+            email_service.send_collaborator_added_to_owner_email,
             owner_email=owner.email,
             owner_name=owner.name,
             session_name=session.name,
@@ -671,7 +686,8 @@ async def share_session(
 
     # 2. Notify the new collaborator that they were added
     if owner:
-        email_service.send_collaborator_invitation_email(
+        await _send_email(
+            email_service.send_collaborator_invitation_email,
             collaborator_email=target_user.email,
             collaborator_name=target_user.name,
             session_name=session.name,
@@ -745,7 +761,8 @@ async def revoke_access(
     # Send email notification to removed collaborator
     if collaborator and owner:
         from app.services.email_service import email_service
-        email_service.send_collaborator_removed_email(
+        await _send_email(
+            email_service.send_collaborator_removed_email,
             collaborator_email=collaborator.email,
             collaborator_name=collaborator.name,
             session_name=session.name,
@@ -868,14 +885,16 @@ async def transfer_ownership(
     if old_owner and new_owner:
         from app.services.email_service import email_service
         # Notify new owner that they now own the session
-        email_service.send_ownership_transferred_to_new_owner_email(
+        await _send_email(
+            email_service.send_ownership_transferred_to_new_owner_email,
             new_owner_email=new_owner.email,
             new_owner_name=new_owner.name,
             session_name=session.name,
             old_owner_name=old_owner.name
         )
         # Notify old owner that ownership was transferred
-        email_service.send_ownership_transferred_from_old_owner_email(
+        await _send_email(
+            email_service.send_ownership_transferred_from_old_owner_email,
             old_owner_email=old_owner.email,
             old_owner_name=old_owner.name,
             session_name=session.name,
@@ -1012,7 +1031,8 @@ async def send_invitation(
     frontend_url = settings.FRONTEND_URL or "http://localhost:3001"
     registration_url = f"{frontend_url}/register?email={invitation_data.email}&token={invitation.token}"
 
-    email_service.send_invitation_email(
+    await _send_email(
+        email_service.send_invitation_email,
         to_email=invitation_data.email,
         inviter_name=current_user.name,
         session_name=session.name,

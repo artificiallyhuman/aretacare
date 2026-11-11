@@ -1,0 +1,53 @@
+# Top-level dependencies. This file is the input; requirements.txt is generated from it
+# and is what gets installed. After changing anything here, regenerate the lockfile
+# (Linux, Python 3.11 — same as the production image):
+#
+#   docker run --rm --platform linux/amd64 -v "$PWD/backend":/app -w /app python:3.11-slim \
+#     sh -c "pip install -q pip-tools==7.6.2 && pip-compile --quiet --generate-hashes \
+#            --allow-unsafe --strip-extras --output-file requirements.txt requirements.in"
+#
+# requirements.txt pins every package, including transitive ones (starlette, anyio,
+# h11, cryptography, ...), with hashes, and the images install it with --require-hashes.
+# A top-level-only pin left those to float and invisible to dependency alerts.
+#
+# fastapi and uvicorn move as a pair, in their own change, with the test suite
+# (backend/tests) run against the result: on a 0.x line a minor bump carries no
+# compatibility promise.
+fastapi==0.162.4
+uvicorn[standard]==0.54.0
+sqlalchemy==2.1.6
+psycopg2-binary==2.9.13
+pydantic==2.14.1
+pydantic-settings==2.16.2
+email-validator==2.3.0
+python-multipart==0.0.32
+boto3==1.43.121
+# Pinned, not ranged. These three were previously declared as `>=` floors, which meant every
+# rebuild silently resolved to the newest release — openai had already reached 2.54.0 against
+# a >=1.56.0 floor, pypdf 6.16.1 against >=3.9.0, aioapns 4.0 against >=3.1. That is three
+# unreviewed major upgrades in production, and it also defeats the major-version ignore in
+# .github/dependabot.yml, because Dependabot cannot compute a semver bump type from a range.
+# Pinned here to the versions already running and verified.
+openai==2.54.0
+python-dotenv==1.2.4
+python-jose[cryptography]==3.5.0
+passlib[bcrypt]==1.7.4
+bcrypt==4.3.0
+pypdf==6.21.4
+python-magic==0.4.27
+pillow==13.0.0
+pytesseract==0.3.13
+pdf2image==1.17.0
+httpx<0.28.0
+slowapi==0.1.10
+redis==5.3.1  # shared rate-limit storage backend for slowapi/limits (see core/rate_limit.py)
+sentry-sdk[fastapi]==2.73.0
+reportlab==4.5.1
+pyotp==2.10.0
+webauthn==2.8.0
+# pgvector stays pinned deliberately: 0.3.6 -> 0.5.0 is a minor bump on a 0.x line, and this
+# drives journal embeddings + similarity search (services/embedding_service.py). Upgrade with
+# a backfill/query check, not as part of a routine batch.
+pgvector==0.3.6
+aioapns==4.0
+nh3==0.3.7  # HTML sanitizer (Rust/ammonia) for admin campaign email bodies (services/email_campaign_service.py)

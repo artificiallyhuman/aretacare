@@ -12,6 +12,40 @@ import {
 const isPrerender =
   typeof navigator !== 'undefined' && /HeadlessChrome/i.test(navigator.userAgent);
 
+// Host and path only: query strings and fragments can carry single-use tokens,
+// presigned-URL signatures and search terms.
+const stripQuery = (value) =>
+  typeof value === 'string' ? value.split('?')[0].split('#')[0] : value;
+
+// Span attributes that hold a URL, or part of one.
+const URL_DATA_KEYS = ['http.url', 'url.full', 'url', 'http.target', 'url.path', 'server.address.url'];
+const QUERY_DATA_KEYS = ['http.query', 'url.query', 'http.fragment', 'url.fragment'];
+
+const scrubSpanData = (data) => {
+  if (!data || typeof data !== 'object') return;
+  URL_DATA_KEYS.forEach((key) => {
+    if (data[key]) data[key] = stripQuery(data[key]);
+  });
+  QUERY_DATA_KEYS.forEach((key) => {
+    delete data[key];
+  });
+};
+
+const scrubRequest = (request) => {
+  if (!request) return;
+  delete request.cookies;
+  delete request.data;
+  delete request.query_string;
+  if (request.headers) {
+    delete request.headers.Authorization;
+    delete request.headers.Cookie;
+    ['Referer', 'referer'].forEach((name) => {
+      if (request.headers[name]) request.headers[name] = stripQuery(request.headers[name]);
+    });
+  }
+  if (request.url) request.url = stripQuery(request.url);
+};
+
 /**
  * Initialize Sentry error monitoring. No-op when VITE_SENTRY_DSN is unset
  * (local dev default) or during build-time prerendering.
@@ -65,32 +99,57 @@ export function initSentry() {
     ],
     beforeSend(event) {
       // Strip anything that could carry auth material or user content.
-      if (event.request) {
-        delete event.request.cookies;
-        delete event.request.data;
-        if (event.request.headers) {
-          delete event.request.headers.Authorization;
-          delete event.request.headers.Cookie;
-        }
-        if (event.request.url) {
-          event.request.url = event.request.url.split('?')[0];
-        }
-      }
+      scrubRequest(event.request);
       delete event.user;
       return event;
+    },
+    // Tracing events are separate from error events and do not pass through
+    // beforeSend. Their spans record the full URL of every XHR and every loaded
+    // resource (presigned S3 links for documents and thumbnails included), so they
+    // get the same host/path-only treatment.
+    beforeSendTransaction(event) {
+      scrubRequest(event.request);
+      delete event.user;
+      if (event.transaction) event.transaction = stripQuery(event.transaction);
+      const trace = event.contexts?.trace;
+      if (trace) {
+        if (trace.description) trace.description = stripQuery(trace.description);
+        scrubSpanData(trace.data);
+      }
+      if (Array.isArray(event.spans)) {
+        event.spans.forEach((span) => {
+          if (span.description) span.description = stripQuery(span.description);
+          scrubSpanData(span.data);
+        });
+      }
+      return event;
+    },
+    beforeSendSpan(span) {
+      if (span.description) span.description = stripQuery(span.description);
+      if (span.name) span.name = stripQuery(span.name);
+      scrubSpanData(span.data);
+      scrubSpanData(span.attributes);
+      return span;
     },
     beforeBreadcrumb(crumb) {
       // xhr/fetch breadcrumbs never include bodies, but URLs can carry query
       // params (presigned S3 links, tokens) — keep host/path only.
       if ((crumb.category === 'xhr' || crumb.category === 'fetch') && crumb.data?.url) {
-        crumb.data.url = crumb.data.url.split('?')[0];
+        crumb.data.url = stripQuery(crumb.data.url);
       }
       // Navigation breadcrumbs carry full from/to paths, and this app puts
       // single-use secrets in the query string (/reset-password?token=…,
       // /verify-email?token=…, /register?token=…&email=…).
       if (crumb.category === 'navigation' && crumb.data) {
-        if (crumb.data.from) crumb.data.from = crumb.data.from.split('?')[0];
-        if (crumb.data.to) crumb.data.to = crumb.data.to.split('?')[0];
+        if (crumb.data.from) crumb.data.from = stripQuery(crumb.data.from);
+        if (crumb.data.to) crumb.data.to = stripQuery(crumb.data.to);
+      }
+      // Click/input breadcrumbs describe the target element including its title,
+      // alt and aria-label, which here hold document filenames and people's names.
+      // Keep the fact that an interaction happened, not what was clicked.
+      if (typeof crumb.category === 'string' && crumb.category.startsWith('ui.')) {
+        crumb.message = '';
+        delete crumb.data;
       }
       return crumb;
     },

@@ -3,7 +3,7 @@ import PropTypes from 'prop-types';
 import { conversationAPI } from '../services/api';
 import { useSessionContext } from '../contexts/SessionContext';
 import { formatTime } from '../utils/dateUtils';
-import { isAbortError } from '../utils/requestUtils';
+import { isAbortError, apiErrorMessage } from '../utils/requestUtils';
 import { isProcessingUpload, waitForTranscription } from '../utils/transcriptionPolling';
 import AudioWaveform from './AudioWaveform';
 
@@ -489,7 +489,7 @@ const MessageInput = ({ onSendMessage, loading, hasMessages = false }) => {
       if (isAbortError(error)) return;
       console.error('Error transcribing audio:', error);
       // Polling errors carry their user-facing text in .message
-      const errorMessage = error.response?.data?.detail || error.message || 'Failed to transcribe audio. Please try again.';
+      const errorMessage = apiErrorMessage(error, error.message || 'Failed to transcribe audio. Please try again.');
       alert(errorMessage);
     }
   };

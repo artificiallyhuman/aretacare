@@ -7,6 +7,7 @@ import SEO from '../components/SEO';
 import logo from '../logos/large_logo.png';
 import jasonSignature from '../logos/jason_signature.png';
 import robSignature from '../logos/rob_signature.png';
+import { apiErrorMessage } from '../utils/requestUtils';
 
 function Waitlist() {
   const [email, setEmail] = useState('');
@@ -37,7 +38,7 @@ function Waitlist() {
       setMessage(response.data.message);
       setAlreadyOnList(response.data.already_on_list || false);
     } catch (err) {
-      setError(err.response?.data?.detail || 'Failed to join waitlist. Please try again.');
+      setError(apiErrorMessage(err, 'Failed to join waitlist. Please try again.'));
       // Reset captcha on error
       setCaptchaToken('');
       captchaRef.current?.resetCaptcha();

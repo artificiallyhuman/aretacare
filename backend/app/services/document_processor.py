@@ -2,10 +2,13 @@ from pypdf import PdfReader
 from io import BytesIO
 from PIL import Image
 import pytesseract
-from pdf2image import convert_from_bytes
+from pdf2image import convert_from_bytes, convert_from_path
 from typing import Optional, Tuple
 import logging
 import asyncio
+import os
+import tempfile
+import time
 
 logger = logging.getLogger(__name__)
 
@@ -16,6 +19,85 @@ class DocumentProcessor:
     # OCR configuration
     MAX_OCR_PAGES = 100  # Limit OCR to first 100 pages for memory/time constraints
     OCR_DPI = 200  # Balance between quality and memory usage
+
+    # Pages are rendered one at a time and capped on their longest side, so peak memory
+    # is one grayscale page (a few MB) whatever the page count or the page's declared
+    # size. 2400px is ~218 DPI for a letter page; a page that declares itself several
+    # metres wide is scaled down to the same bitmap instead of allocating gigabytes.
+    OCR_MAX_PAGE_PIXELS = 2400
+
+    # OCR runs inside the upload request, which has to answer before the edge proxy
+    # gives up (~100s). Past this budget the pages done so far are returned as
+    # 'partial_ocr' rather than letting the request run on with no one listening.
+    OCR_TIME_BUDGET_SECONDS = 75
+
+    # Per-subprocess limits: one hostile or corrupt page must not hold a worker
+    # thread (and the budget) on its own.
+    PDF_RENDER_TIMEOUT_SECONDS = 30
+    OCR_PAGE_TIMEOUT_SECONDS = 30
+    IMAGE_OCR_TIMEOUT_SECONDS = 60
+
+    # Longest side of the bitmap rendered for a PDF thumbnail, before the final resize.
+    THUMBNAIL_RENDER_PIXELS = 600
+
+    @staticmethod
+    def _ocr_pdf_pages(file_content: bytes, pages_to_ocr: int) -> Tuple[list, int]:
+        """OCR pages 1..pages_to_ocr one at a time.
+
+        Returns (page_texts, pages_attempted). pages_attempted is lower than
+        pages_to_ocr when the time budget ran out first.
+        """
+        started = time.monotonic()
+        ocr_text_content = []
+        pages_attempted = 0
+
+        # One copy on disk for the renderer to reopen per page, instead of piping the
+        # whole document to a new subprocess for every page.
+        fd, pdf_path = tempfile.mkstemp(suffix=".pdf")
+        try:
+            with os.fdopen(fd, "wb") as f:
+                f.write(file_content)
+
+            for page_number in range(1, pages_to_ocr + 1):
+                if time.monotonic() - started > DocumentProcessor.OCR_TIME_BUDGET_SECONDS:
+                    logger.warning(
+                        f"OCR time budget reached after {pages_attempted} of {pages_to_ocr} pages"
+                    )
+                    break
+                pages_attempted += 1
+
+                image = None
+                try:
+                    images = convert_from_path(
+                        pdf_path,
+                        first_page=page_number,
+                        last_page=page_number,
+                        dpi=DocumentProcessor.OCR_DPI,
+                        size=DocumentProcessor.OCR_MAX_PAGE_PIXELS,
+                        grayscale=True,
+                        timeout=DocumentProcessor.PDF_RENDER_TIMEOUT_SECONDS,
+                    )
+                    if not images:
+                        continue
+                    image = images[0]
+                    text = pytesseract.image_to_string(
+                        image, timeout=DocumentProcessor.OCR_PAGE_TIMEOUT_SECONDS
+                    )
+                    if text and text.strip():
+                        ocr_text_content.append(f"--- Page {page_number} ---\n{text.strip()}")
+                except Exception as ocr_page_error:
+                    logger.warning(f"OCR failed for page {page_number}: {ocr_page_error}")
+                finally:
+                    # Free the page before rendering the next one
+                    if image is not None:
+                        image.close()
+        finally:
+            try:
+                os.unlink(pdf_path)
+            except OSError:
+                pass
+
+        return ocr_text_content, pages_attempted
 
     @staticmethod
     def _extract_text_from_pdf_with_ocr_sync(file_content: bytes) -> Tuple[Optional[str], str]:
@@ -58,29 +140,16 @@ class DocumentProcessor:
                 # Limit pages for OCR to prevent memory issues
                 pages_to_ocr = min(total_pages, DocumentProcessor.MAX_OCR_PAGES)
 
-                images = convert_from_bytes(
-                    file_content,
-                    first_page=1,
-                    last_page=pages_to_ocr,
-                    dpi=DocumentProcessor.OCR_DPI
+                ocr_text_content, pages_done = DocumentProcessor._ocr_pdf_pages(
+                    file_content, pages_to_ocr
                 )
 
-                ocr_text_content = []
-                for i, image in enumerate(images):
-                    try:
-                        text = pytesseract.image_to_string(image)
-                        if text and text.strip():
-                            ocr_text_content.append(f"--- Page {i + 1} ---\n{text.strip()}")
-                    except Exception as ocr_page_error:
-                        logger.warning(f"OCR failed for page {i + 1}: {ocr_page_error}")
-                    finally:
-                        # Free memory immediately
-                        image.close()
-
                 if ocr_text_content:
-                    extraction_method = "ocr" if pages_to_ocr >= total_pages else "partial_ocr"
-                    if pages_to_ocr < total_pages:
-                        ocr_text_content.append(f"\n\n[OCR limited to first {pages_to_ocr} of {total_pages} pages]")
+                    # pages_done falls short of total_pages when the page limit or the
+                    # time budget stopped the pass early.
+                    extraction_method = "ocr" if pages_done >= total_pages else "partial_ocr"
+                    if pages_done < total_pages:
+                        ocr_text_content.append(f"\n\n[OCR limited to first {pages_done} of {total_pages} pages]")
                     return "\n\n".join(ocr_text_content), extraction_method
 
                 # If OCR also failed but we had some native text, return that
@@ -125,7 +194,9 @@ class DocumentProcessor:
         """Synchronous OCR text extraction (CPU-intensive)"""
         try:
             image = Image.open(BytesIO(file_content))
-            text = pytesseract.image_to_string(image)
+            text = pytesseract.image_to_string(
+                image, timeout=DocumentProcessor.IMAGE_OCR_TIMEOUT_SECONDS
+            )
             return text.strip() if text else None
         except Exception as e:
             logger.error(f"Failed to extract text from image: {e}")
@@ -142,8 +213,16 @@ class DocumentProcessor:
     def _generate_pdf_thumbnail_sync(file_content: bytes, max_width: int = 300) -> Optional[bytes]:
         """Synchronous PDF thumbnail generation (CPU-intensive)"""
         try:
-            # Convert first page to image
-            images = convert_from_bytes(file_content, first_page=1, last_page=1, dpi=150)
+            # Convert first page to image. `size` caps the rendered bitmap's longest
+            # side, so the page's declared dimensions cannot drive the allocation.
+            images = convert_from_bytes(
+                file_content,
+                first_page=1,
+                last_page=1,
+                dpi=150,
+                size=DocumentProcessor.THUMBNAIL_RENDER_PIXELS,
+                timeout=DocumentProcessor.PDF_RENDER_TIMEOUT_SECONDS,
+            )
             if not images:
                 return None
 

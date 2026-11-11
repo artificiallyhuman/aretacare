@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
 import { MarkdownLink, MarkdownImage, markdownPlugins } from '../../utils/markdownComponents';
 import { dailyPlanAPI } from '../../services/api';
+import { apiErrorMessage } from '../../utils/requestUtils';
 
 const DailyPlanPanel = ({ activeSessionId, isOpen, onToggle, onPlanViewed }) => {
   const [dailyPlan, setDailyPlan] = useState(null);
@@ -66,11 +67,12 @@ const DailyPlanPanel = ({ activeSessionId, isOpen, onToggle, onPlanViewed }) => 
       await loadLatestPlan();
     } catch (err) {
       console.error('Error generating daily plan:', err);
-      const errorMessage = err.response?.data?.detail ||
-        (err.response?.status === 400
+      setError(apiErrorMessage(
+        err,
+        err.response?.status === 400
           ? "Not enough information yet. Please add journal entries or have conversations first."
-          : 'Failed to generate daily digest');
-      setError(errorMessage);
+          : 'Failed to generate daily digest'
+      ));
       setLoading(false);
     }
   };

@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import AdminLayout from '../../components/admin/AdminLayout';
 import { adminAPI } from '../../services/api';
 import { formatLocalDateTime } from '../../utils/dateUtils';
+import { apiErrorMessage } from '../../utils/requestUtils';
 
 function ConfirmModal({ isOpen, onClose, onConfirm, title, message, confirmText = 'Confirm', danger = false }) {
   if (!isOpen) return null;
@@ -74,7 +75,7 @@ export default function AdminAuditLog() {
       setEntries(response.data.entries);
       setTotal(response.data.total);
     } catch (err) {
-      setError(err.response?.data?.detail || 'Failed to load audit log');
+      setError(apiErrorMessage(err, 'Failed to load audit log'));
     } finally {
       setLoading(false);
     }
@@ -90,7 +91,7 @@ export default function AdminAuditLog() {
       setCleanupMessage(response.data.message);
       fetchAuditLog(); // Refresh the list
     } catch (err) {
-      setError(err.response?.data?.detail || 'Failed to cleanup audit log');
+      setError(apiErrorMessage(err, 'Failed to cleanup audit log'));
     } finally {
       setCleaningUp(false);
     }

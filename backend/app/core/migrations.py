@@ -1,5 +1,6 @@
 from sqlalchemy import text, inspect
 from app.core.database import engine
+from app.core.config import settings
 import logging
 
 logger = logging.getLogger(__name__)
@@ -2264,6 +2265,29 @@ def run_migrations():
                 logger.error(f"Failed to add audio_recordings transcription status columns: {e}")
                 conn.rollback()
 
+        # transcription_job_id records which job run owns a 'processing' recording.
+        # Every job write is filtered on it, so a run that a retry has superseded
+        # stops instead of finishing over the newer run. Nullable with no backfill:
+        # rows from before the column (and fresh uploads until their job claims
+        # them) are simply unowned. Guarded like the migration above, since several
+        # instances can start at once.
+        migration_name = "add_audio_recordings_transcription_job_id"
+        if not has_migration_run(conn, migration_name):
+            logger.info("Adding transcription_job_id to audio_recordings...")
+            try:
+                columns = [col['name'] for col in inspect(engine).get_columns('audio_recordings')]
+                if 'transcription_job_id' not in columns:
+                    conn.execute(text(
+                        "ALTER TABLE audio_recordings ADD COLUMN IF NOT EXISTS "
+                        "transcription_job_id VARCHAR NULL"
+                    ))
+                    conn.commit()
+                mark_migration_complete(conn, migration_name)
+                logger.info("Successfully added audio_recordings.transcription_job_id")
+            except Exception as e:
+                logger.error(f"Failed to add audio_recordings.transcription_job_id: {e}")
+                conn.rollback()
+
         # =================================================================
         # ADMIN EMAIL CAMPAIGNS: users columns
         # =================================================================
@@ -2427,3 +2451,51 @@ def run_migrations():
             except Exception as e:
                 logger.error(f"Failed to add users.last_emailed_at: {e}")
                 conn.rollback()
+
+        # Refresh-token hashing/rotation columns and the access-token version counter.
+        # Guarded by the column inspector and IF NOT EXISTS: several instances can run
+        # migrations at once. All additive, so instances on the previous release keep
+        # working while this one rolls out.
+        migration_name = "add_refresh_token_hash_and_user_token_version"
+        if not has_migration_run(conn, migration_name):
+            logger.info("Adding refresh token hash/rotation columns and users.token_version...")
+            try:
+                conn.execute(text(
+                    "ALTER TABLE refresh_tokens ADD COLUMN IF NOT EXISTS token_hash VARCHAR(64) NULL"
+                ))
+                conn.execute(text(
+                    "ALTER TABLE refresh_tokens ADD COLUMN IF NOT EXISTS replaced_at TIMESTAMP NULL"
+                ))
+                conn.execute(text(
+                    "CREATE UNIQUE INDEX IF NOT EXISTS ix_refresh_tokens_token_hash "
+                    "ON refresh_tokens (token_hash)"
+                ))
+                conn.execute(text(
+                    "ALTER TABLE users ADD COLUMN IF NOT EXISTS token_version INTEGER NOT NULL DEFAULT 0"
+                ))
+                conn.commit()
+                mark_migration_complete(conn, migration_name)
+                logger.info("Successfully added refresh token hash columns and users.token_version")
+            except Exception as e:
+                logger.error(f"Failed to add refresh token hash columns: {e}")
+                conn.rollback()
+
+        # Runs on every start, not once: rows written by instances still on the previous
+        # release during a rolling deploy arrive without a hash and are filled in here.
+        # Idempotent and cheap (touches only rows missing a hash).
+        try:
+            conn.execute(text("""
+                UPDATE refresh_tokens
+                SET token_hash = encode(sha256(convert_to(token, 'UTF8')), 'hex')
+                WHERE token_hash IS NULL
+            """))
+            if not settings.REFRESH_TOKEN_STORE_RAW:
+                # Raw values are no longer needed for compatibility: keep only the hash.
+                conn.execute(text("""
+                    UPDATE refresh_tokens SET token = token_hash
+                    WHERE token_hash IS NOT NULL AND token <> token_hash
+                """))
+            conn.commit()
+        except Exception as e:
+            logger.error(f"Failed to backfill refresh token hashes: {e}")
+            conn.rollback()

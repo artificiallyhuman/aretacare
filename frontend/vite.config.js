@@ -1,4 +1,4 @@
-import { defineConfig } from 'vite'
+import { defineConfig, loadEnv } from 'vite'
 import react from '@vitejs/plugin-react'
 import compression from 'vite-plugin-compression'
 import prerender from '@prerenderer/rollup-plugin'
@@ -126,7 +126,22 @@ function injectSeoTags(html, route) {
   return out
 }
 
-export default defineConfig(({ mode, command }) => ({
+// A production bundle built without the captcha site key would fall back to the
+// public test key, which accepts every challenge. Fail the build instead so a missing
+// variable is noticed at deploy time rather than shipped.
+function assertProductionEnv(mode, command) {
+  if (command !== 'build' || mode !== 'production') return
+  const env = { ...loadEnv(mode, process.cwd(), 'VITE_'), ...process.env }
+  if (!env.VITE_HCAPTCHA_SITE_KEY) {
+    throw new Error(
+      'VITE_HCAPTCHA_SITE_KEY is not set. Production builds require the real hCaptcha site key.'
+    )
+  }
+}
+
+export default defineConfig(({ mode, command }) => {
+  assertProductionEnv(mode, command)
+  return {
   plugins: [
     react(),
     compression({ algorithm: 'brotliCompress', ext: '.br' }),
@@ -196,4 +211,4 @@ export default defineConfig(({ mode, command }) => ({
   esbuild: {
     drop: mode === 'production' ? ['console', 'debugger'] : [],
   },
-}))
+}})

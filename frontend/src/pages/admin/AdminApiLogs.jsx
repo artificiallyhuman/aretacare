@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import AdminLayout from '../../components/admin/AdminLayout';
 import { adminAPI } from '../../services/api';
 import { formatLocalDateTime } from '../../utils/dateUtils';
+import { apiErrorMessage } from '../../utils/requestUtils';
 
 const featureLabels = {
   conversation: 'Conversation',
@@ -42,7 +43,7 @@ export default function AdminApiLogs() {
       const response = await adminAPI.getApiLogs(params);
       setData(response.data);
     } catch (err) {
-      setError(err.response?.data?.detail || 'Failed to load API logs');
+      setError(apiErrorMessage(err, 'Failed to load API logs'));
     } finally {
       setLoading(false);
     }

@@ -25,6 +25,9 @@ services:
     name: aretacare-backend
     env: docker
     plan: standard
+    # Deploy only after the commit's CI checks pass (.github/workflows/ci.yml), so a
+    # build that fails its tests never reaches production or runs its migrations.
+    autoDeployTrigger: checksPass
     scaling:
       minInstances: 1
       maxInstances: 5
@@ -122,7 +125,11 @@ services:
   - type: web
     name: aretacare-frontend
     env: static
-    buildCommand: cd frontend && npm install && npm run build
+    # npm ci installs exactly what package-lock.json records and fails if the lockfile
+    # and package.json disagree; npm install would quietly resolve something else.
+    buildCommand: cd frontend && npm ci && npm run build
+    # Deploy only after the commit's CI checks pass (.github/workflows/ci.yml).
+    autoDeployTrigger: checksPass
     staticPublishPath: ./frontend/dist
     routes:
       # Serve the prerendered HTML for each public route. These must come

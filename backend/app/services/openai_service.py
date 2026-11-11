@@ -1198,6 +1198,11 @@ When information conflicts, trust more recent sources.
             if total_tokens + msg_tokens <= MAX_CONVERSATION_TOKENS:
                 truncated_history.insert(0, msg)  # Insert at beginning to maintain order
                 total_tokens += msg_tokens
+            elif msg_tokens > MAX_CONVERSATION_TOKENS:
+                # A single message larger than the whole budget can never fit. Skip it
+                # rather than stopping, or one huge paste would hide every older
+                # message for as long as it stays in the window.
+                continue
             else:
                 # Stop adding older messages once we hit the limit
                 break

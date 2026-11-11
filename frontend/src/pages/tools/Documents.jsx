@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { useSessionContext } from '../../contexts/SessionContext';
 import { documentAPI } from '../../services/api';
 import { isToday, formatDateShort, formatLocalDate } from '../../utils/dateUtils';
-import { isAbortError } from '../../utils/requestUtils';
+import { isAbortError, apiErrorMessage } from '../../utils/requestUtils';
 import SourceTag from '../../components/SourceTag';
 
 // Presigned-URL endpoints are rate-limited at 30/min, so thumbnails are fetched
@@ -230,7 +230,7 @@ const Documents = () => {
     } catch (err) {
       if (isAbortError(err)) return;
       if (sessionIdForLoad !== activeSessionIdRef.current) return;
-      setError(err.response?.data?.detail || 'Failed to load documents. Please try again.');
+      setError(apiErrorMessage(err, 'Failed to load documents. Please try again.'));
     } finally {
       // Only the most recent load owns the spinner - a superseded one must not
       // clear it out from under the load that replaced it
@@ -292,7 +292,7 @@ const Documents = () => {
       link.click();
       link.remove();
     } catch (err) {
-      setError(err.response?.data?.detail || 'Failed to download document. Please try again.');
+      setError(apiErrorMessage(err, 'Failed to download document. Please try again.'));
     }
   };
 
@@ -308,7 +308,7 @@ const Documents = () => {
       setDocumentToDelete(null);
       loadDocuments();
     } catch (err) {
-      setError(err.response?.data?.detail || 'Failed to delete document. Please try again.');
+      setError(apiErrorMessage(err, 'Failed to delete document. Please try again.'));
       setDocumentToDelete(null);
     }
   };
@@ -533,7 +533,7 @@ const Documents = () => {
         }
 
         console.error(`Error uploading ${file.name}:`, err);
-        const errorMessage = err.response?.data?.detail || 'Upload failed';
+        const errorMessage = apiErrorMessage(err, 'Upload failed');
 
         // Update status to error
         setUploadProgress(prev => prev.map((p, idx) =>

@@ -3,6 +3,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { authAPI } from '../services/api';
 import SEO from '../components/SEO';
 import logo from '../logos/large_logo.png';
+import { apiErrorMessage } from '../utils/requestUtils';
 
 export default function VerifyEmail() {
   const [searchParams] = useSearchParams();
@@ -49,7 +50,7 @@ export default function VerifyEmail() {
         }, 3000);
       } catch (err) {
         if (!isMounted.current) return;
-        setError(err.response?.data?.detail || 'Failed to verify email');
+        setError(apiErrorMessage(err, 'Failed to verify email'));
       } finally {
         if (isMounted.current) {
           setLoading(false);

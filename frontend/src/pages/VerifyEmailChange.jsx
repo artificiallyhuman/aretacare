@@ -4,6 +4,7 @@ import { authAPI } from '../services/api';
 import { useSessionContext } from '../contexts/SessionContext';
 import SEO from '../components/SEO';
 import logo from '../logos/large_logo.png';
+import { apiErrorMessage } from '../utils/requestUtils';
 
 export default function VerifyEmailChange() {
   const [searchParams] = useSearchParams();
@@ -55,7 +56,7 @@ export default function VerifyEmailChange() {
         }, 3000);
       }
     } catch (err) {
-      setError(err.response?.data?.detail || 'Failed to verify email change');
+      setError(apiErrorMessage(err, 'Failed to verify email change'));
     } finally {
       setLoading(false);
     }

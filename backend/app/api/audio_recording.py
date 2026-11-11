@@ -20,6 +20,7 @@ from app.services.audio_transcription_service import (
 from typing import List, Optional
 from datetime import datetime, timedelta
 import logging
+import uuid
 
 logger = logging.getLogger(__name__)
 
@@ -375,6 +376,12 @@ async def retranscribe_audio_recording(
     # up. The staleness predicate lives in the WHERE clause: a plain 'processing'
     # row with a fresh heartbeat (someone else's claim landing first) matches
     # nothing, so exactly one claimant wins.
+    #
+    # The claim also writes a fresh job id. Every write the new job makes is
+    # filtered on it, and so is every write of whichever job held the row before:
+    # if that one is somehow still running, its next write matches nothing and it
+    # stops rather than racing this one over the same S3 keys.
+    job_id = str(uuid.uuid4())
     stale_cutoff = datetime.utcnow() - timedelta(seconds=settings.AUDIO_TRANSCRIPTION_STALE_SECONDS)
     claimed = db.query(AudioRecording).filter(
         AudioRecording.id == recording_id,
@@ -389,6 +396,7 @@ async def retranscribe_audio_recording(
     ).update({
         "transcription_status": TranscriptionStatus.PROCESSING.value,
         "transcription_updated_at": datetime.utcnow(),
+        "transcription_job_id": job_id,
     }, synchronize_session=False)
     db.commit()
     if claimed == 0:
@@ -406,6 +414,7 @@ async def retranscribe_audio_recording(
         original_filename=original_filename,
         skip_synthesis=False,
         use_semaphore=True,
+        job_id=job_id,
     )
     logger.info(f"Retranscription started for audio recording {recording_id} (source: {source_key})")
 

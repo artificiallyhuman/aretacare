@@ -209,6 +209,22 @@ async def send_message(
         # Calculate usage patterns for user context
         usage_patterns = _calculate_usage_patterns(db, session_id)
 
+        # Everything the rest of the request needs from ORM objects is copied into plain
+        # values here, because ending the transaction below expires those objects and
+        # touching one afterwards would quietly check a connection back out.
+        user_id = current_user.id
+        user_message_id = user_message.id
+        user_message_audio_id = user_message.audio_recording_id
+        session_owner_id = session.owner_id
+        session_name = session.name
+
+        # End the read transaction before the model call. The session holds its pooled
+        # connection for as long as a transaction is open, and the call below can take
+        # a minute or more: left open, every in-flight chat turn would pin one
+        # connection doing nothing. Nothing is pending (the user message is committed),
+        # so this only returns the connection to the pool.
+        db.rollback()
+
         # Get AI response with journal context, usage metadata, and native file/image support
         ai_response_text = await openai_service.chat_with_journal(
             message=content,  # Don't include extracted text - use native file support for PDFs
@@ -223,14 +239,13 @@ async def send_message(
             user_timezone=user_timezone,
             current_time=current_time,
             usage_patterns=usage_patterns,
-            user_id=current_user.id
+            user_id=user_id
         )
 
-        # --- Begin atomic zone: assistant message + journal entries + synthesis flag ---
-        # All DB writes after the AI call are flushed (not committed) until the end,
-        # so they either all persist or all roll back on failure.
-
-        # Create assistant message
+        # The reply is committed on its own, before journal synthesis. Synthesis is a
+        # second model call that can fail independently; if the reply shared its
+        # transaction, that failure would discard an answer the user is waiting for
+        # while their own message stayed saved, and a retry would post it twice.
         assistant_message = Conversation(
             session_id=session_id,
             role=MessageRole.ASSISTANT,
@@ -238,7 +253,21 @@ async def send_message(
             message_type=MessageType.TEXT
         )
         db.add(assistant_message)
-        db.flush()  # Get ID without committing
+        db.commit()
+        db.refresh(assistant_message)
+        assistant_message_id = assistant_message.id
+        assistant_payload = {
+            "id": assistant_message_id,
+            "role": assistant_message.role.value,
+            "content": assistant_message.content,
+            "created_at": assistant_message.created_at.isoformat(),
+        }
+        # Release the connection again before synthesis starts.
+        db.rollback()
+
+        # --- Begin atomic zone: journal entries + synthesis flag ---
+        # Writes made during synthesis are flushed (not committed) until the end, so
+        # the entries and the "synthesized" flag either all persist or all roll back.
 
         # Parse user's local date if provided, otherwise use server date
         user_date = None
@@ -252,7 +281,10 @@ async def send_message(
         # Otherwise use conversational synthesis (auto_commit=False defers commit)
         if document_id:
             # Get document details for comprehensive synthesis
-            doc = db.query(Document).filter(Document.id == document_id).first()
+            doc = db.query(Document).filter(
+                Document.id == document_id,
+                Document.session_id == session_id,
+            ).first()
             try:
                 synthesis_result = await journal_service.synthesize_from_document(
                     filename=doc.filename if doc else "Unknown document",
@@ -263,23 +295,25 @@ async def send_message(
                     extracted_text=extracted_text or "",  # Fallback only if URL unavailable
                     entry_date=user_date,
                     document_id=document_id,
-                    user_id=current_user.id,
+                    user_id=user_id,
                     auto_commit=False
                 )
             except Exception as synth_err:
                 logger.error(f"Document synthesis failed, continuing without journal entries: {synth_err}", exc_info=True)
+                # Discard any entries flushed before the failure.
+                db.rollback()
                 try:
                     from app.services.error_logger import log_database_error
                     log_database_error(
                         db=db,
                         source="api.conversation.send_message.document_synthesis",
                         error=synth_err,
-                        user_id=current_user.id,
+                        user_id=user_id,
                         session_id=session_id,
                         details={"document_id": document_id}
                     )
-                except Exception:
-                    pass
+                except Exception as log_error:
+                    logger.error(f"Failed to log error to database: {log_error}")
                 from app.schemas.journal import JournalSynthesisResult
                 synthesis_result = JournalSynthesisResult(
                     should_create=False,
@@ -288,36 +322,71 @@ async def send_message(
                     warning="The document could not be fully analyzed for journal entries. Your AI response has been saved. You can re-upload the document to retry."
                 )
         else:
-            # Regular conversational synthesis
-            synthesis_result = await journal_service.assess_and_synthesize(
-                user_message=complete_message,
-                ai_response=ai_response_text,
-                session_id=session_id,
-                conversation_id=user_message.id,
-                entry_date=user_date,
-                audio_recording_id=user_message.audio_recording_id,
-                user_id=current_user.id,
-                auto_commit=False
-            )
+            # Regular conversational synthesis. A failure here must not cost the user
+            # the reply that is already saved: drop the partial journal writes, keep
+            # the reply, and say so in `processing_warning`.
+            try:
+                synthesis_result = await journal_service.assess_and_synthesize(
+                    user_message=complete_message,
+                    ai_response=ai_response_text,
+                    session_id=session_id,
+                    conversation_id=user_message_id,
+                    entry_date=user_date,
+                    audio_recording_id=user_message_audio_id,
+                    user_id=user_id,
+                    auto_commit=False
+                )
+            except Exception as synth_err:
+                logger.error(f"Conversation synthesis failed, continuing without journal entries: {synth_err}", exc_info=True)
+                db.rollback()
+                try:
+                    from app.services.error_logger import log_database_error
+                    log_database_error(
+                        db=db,
+                        source="api.conversation.send_message.conversation_synthesis",
+                        error=synth_err,
+                        user_id=user_id,
+                        session_id=session_id,
+                        details={"conversation_id": user_message_id}
+                    )
+                except Exception as log_error:
+                    logger.error(f"Failed to log error to database: {log_error}")
+                from app.schemas.journal import JournalSynthesisResult
+                synthesis_result = JournalSynthesisResult(
+                    should_create=False,
+                    reasoning="Synthesis temporarily unavailable",
+                    suggested_entries=[],
+                    warning="Your message and the reply were saved, but the journal could not be updated from this exchange. You can add a journal entry manually if needed."
+                )
 
-        # Mark messages as synthesized if entries were created
-        if synthesis_result.should_create and len(synthesis_result.suggested_entries) > 0:
-            # Use raw SQL to update without triggering onupdate on updated_at
-            # Explicitly preserve updated_at as NULL for new messages
-            from sqlalchemy import text
-            db.execute(
-                text("""
-                    UPDATE conversations
-                    SET synthesized_to_journal = true, updated_at = NULL
-                    WHERE id IN (:user_id, :assistant_id)
-                """),
-                {"user_id": user_message.id, "assistant_id": assistant_message.id}
-            )
+        try:
+            # Mark messages as synthesized if entries were created
+            if synthesis_result.should_create and len(synthesis_result.suggested_entries) > 0:
+                # Use raw SQL to update without triggering onupdate on updated_at
+                # Explicitly preserve updated_at as NULL for new messages
+                from sqlalchemy import text
+                db.execute(
+                    text("""
+                        UPDATE conversations
+                        SET synthesized_to_journal = true, updated_at = NULL
+                        WHERE id IN (:user_id, :assistant_id)
+                    """),
+                    {"user_id": user_message_id, "assistant_id": assistant_message_id}
+                )
 
-        # Commit everything atomically: assistant message + journal entries + synthesis flag
-        db.commit()
-        db.refresh(user_message)
-        db.refresh(assistant_message)
+            # Commit journal entries + synthesis flag together
+            db.commit()
+        except Exception as commit_err:
+            # The reply is already saved; losing the journal writes is the lesser failure.
+            logger.error(f"Committing journal synthesis failed, continuing without journal entries: {commit_err}", exc_info=True)
+            db.rollback()
+            from app.schemas.journal import JournalSynthesisResult
+            synthesis_result = JournalSynthesisResult(
+                should_create=False,
+                reasoning="Synthesis temporarily unavailable",
+                suggested_entries=[],
+                warning="Your message and the reply were saved, but the journal could not be updated from this exchange. You can add a journal entry manually if needed."
+            )
         # --- End atomic zone ---
 
         # Push notification for shared sessions (non-blocking, fire-and-forget)
@@ -327,12 +396,12 @@ async def send_message(
                 SessionCollaborator.session_id == session_id
             ).all()
             if collaborators:
-                all_participant_ids = [c.user_id for c in collaborators] + [session.owner_id]
+                all_participant_ids = [c.user_id for c in collaborators] + [session_owner_id]
                 from app.services.push_notification_service import PushNotificationService
                 PushNotificationService.notify_new_message(
                     session_id=session_id,
-                    session_name=session.name,
-                    sender_user_id=current_user.id,
+                    session_name=session_name,
+                    sender_user_id=user_id,
                     collaborator_user_ids=all_participant_ids,
                 )
         except Exception as push_err:
@@ -350,12 +419,7 @@ async def send_message(
                     logger.warning(f"Deferred embedding failed for entry {created_entry.id}: {embed_err}")
 
         return {
-            "message": {
-                "id": assistant_message.id,
-                "role": assistant_message.role.value,
-                "content": assistant_message.content,
-                "created_at": assistant_message.created_at.isoformat()
-            },
+            "message": assistant_payload,
             "journal_suggestion": {
                 "should_create": synthesis_result.should_create,
                 "reasoning": synthesis_result.reasoning,

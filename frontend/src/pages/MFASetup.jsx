@@ -7,20 +7,7 @@ import TOTPSetup from '../components/mfa/TOTPSetup';
 import PasskeySetup from '../components/mfa/PasskeySetup';
 import BackupCodesDisplay from '../components/mfa/BackupCodesDisplay';
 import SensitiveActionModal from '../components/mfa/SensitiveActionModal';
-
-/**
- * Pull a displayable string out of a FastAPI error.
- *
- * Most endpoints return a plain-string `detail`, but the MFA step-up guard returns
- * `{ code, message }`. Passing that object straight into React state would crash the
- * render ("Objects are not valid as a React child"), so unwrap it here.
- */
-const errorMessage = (err, fallback) => {
-  const detail = err?.response?.data?.detail;
-  if (typeof detail === 'string') return detail;
-  if (detail?.message) return detail.message;
-  return fallback;
-};
+import { errorMessage } from '../utils/requestUtils';
 
 function ConfirmModal({ isOpen, onClose, onConfirm, title, message, confirmText = 'Confirm', danger = false }) {
   if (!isOpen) return null;

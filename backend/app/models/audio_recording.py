@@ -52,6 +52,10 @@ class AudioRecording(Base):
     # 'processing' row whose heartbeat is older than AUDIO_TRANSCRIPTION_STALE_SECONDS
     # is reported as 'failed' (its job died) so the user can retry.
     transcription_updated_at = Column(DateTime, nullable=True)
+    # Which job run owns the row while it is 'processing'. Set when a job (or a retry)
+    # claims the recording and matched by every job write, so a run that has been
+    # superseded stops instead of overwriting the newer run's work.
+    transcription_job_id = Column(String, nullable=True)
 
     # Source tracking for collaborative sessions
     created_by_user_id = Column(String, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)

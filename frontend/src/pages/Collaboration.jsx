@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { sessionAPI } from '../services/api';
 import { useSessionContext } from '../contexts/SessionContext';
 import { formatLocalDate } from '../utils/dateUtils';
+import { apiErrorMessage } from '../utils/requestUtils';
 
 export default function Collaboration() {
   const navigate = useNavigate();
@@ -102,7 +103,7 @@ export default function Collaboration() {
       setUserToAdd(data);
       setStep('confirm');
     } catch (err) {
-      setError(err.response?.data?.detail || 'Failed to check user');
+      setError(apiErrorMessage(err, 'Failed to check user'));
     } finally {
       setLoading(false);
     }
@@ -124,7 +125,7 @@ export default function Collaboration() {
         setSuccess(null);
       }, 1500);
     } catch (err) {
-      setError(err.response?.data?.detail || 'Failed to share care session');
+      setError(apiErrorMessage(err, 'Failed to share care session'));
     } finally {
       setLoading(false);
     }
@@ -151,7 +152,7 @@ export default function Collaboration() {
         setSuccess(null);
       }, 1500);
     } catch (err) {
-      setError(err.response?.data?.detail || 'Failed to revoke access');
+      setError(apiErrorMessage(err, 'Failed to revoke access'));
     } finally {
       setLoading(false);
     }
@@ -176,7 +177,7 @@ export default function Collaboration() {
         setSuccess(null);
       }, 1500);
     } catch (err) {
-      setError(err.response?.data?.detail || 'Failed to leave care session');
+      setError(apiErrorMessage(err, 'Failed to leave care session'));
     } finally {
       setLoading(false);
     }
@@ -210,7 +211,7 @@ export default function Collaboration() {
         setSuccess(null);
       }, 1500);
     } catch (err) {
-      setError(err.response?.data?.detail || 'Failed to transfer ownership');
+      setError(apiErrorMessage(err, 'Failed to transfer ownership'));
     } finally {
       setLoading(false);
     }
@@ -233,7 +234,7 @@ export default function Collaboration() {
         setSuccess(null);
       }, 2000);
     } catch (err) {
-      setError(err.response?.data?.detail || 'Failed to send invitation');
+      setError(apiErrorMessage(err, 'Failed to send invitation'));
     } finally {
       setLoading(false);
     }
@@ -257,7 +258,7 @@ export default function Collaboration() {
         setSuccess(null);
       }, 2000);
     } catch (err) {
-      setError(err.response?.data?.detail || 'Failed to resend invitation');
+      setError(apiErrorMessage(err, 'Failed to resend invitation'));
     } finally {
       setLoading(false);
     }
@@ -279,7 +280,7 @@ export default function Collaboration() {
         setSuccess(null);
       }, 1000);
     } catch (err) {
-      setError(err.response?.data?.detail || 'Failed to cancel invitation');
+      setError(apiErrorMessage(err, 'Failed to cancel invitation'));
     } finally {
       setLoading(false);
     }

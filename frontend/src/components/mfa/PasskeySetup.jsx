@@ -2,6 +2,7 @@ import { useState } from 'react';
 import PropTypes from 'prop-types';
 import { mfaAPI } from '../../services/api';
 import { startRegistration } from '@simplewebauthn/browser';
+import { apiErrorMessage } from '../../utils/requestUtils';
 
 function PasskeySetup({ onComplete, onCancel }) {
   const [step, setStep] = useState('intro'); // intro, naming, registering
@@ -41,7 +42,7 @@ function PasskeySetup({ onComplete, onCancel }) {
       } else if (err.name === 'InvalidStateError') {
         setError('This passkey is already registered.');
       } else {
-        setError(err.response?.data?.detail || err.message || 'Failed to register passkey. Please try again.');
+        setError(apiErrorMessage(err, err.message || 'Failed to register passkey. Please try again.'));
       }
     } finally {
       setLoading(false);

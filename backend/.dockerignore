@@ -1,0 +1,21 @@
+# Build context for backend/Dockerfile (the image docker compose builds). Its
+# `COPY . .` would otherwise copy local secrets into an image layer.
+
+# Local secrets and credentials
+.env
+.env.*
+certs
+*.p8
+*.pem
+*.key
+
+# Python build and test artefacts
+__pycache__
+**/__pycache__
+*.py[cod]
+.pytest_cache
+.venv
+venv/
+
+.DS_Store
+*.log

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import ReactMarkdown from 'react-markdown';
 import { MarkdownLink, MarkdownImage, markdownPlugins } from '../utils/markdownComponents';
@@ -6,6 +6,7 @@ import { useSessionContext } from '../contexts/SessionContext';
 import { dailyPlanAPI } from '../services/api';
 import { markdownToHtml } from '../utils/markdownUtils';
 import { isToday } from '../utils/dateUtils';
+import { isAbortError, apiErrorMessage } from '../utils/requestUtils';
 
 const DailyPlan = () => {
   const { activeSessionId: sessionId } = useSessionContext();
@@ -20,21 +21,54 @@ const DailyPlan = () => {
   const [copied, setCopied] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
+  // The care session the page is currently showing. Requests capture the session
+  // they were started for and compare against this after every await, so a slow
+  // response for a previous session can never be applied to the current one.
+  const activeSessionIdRef = useRef(sessionId);
+  activeSessionIdRef.current = sessionId;
+  const loadAbortRef = useRef(null);
+
   useEffect(() => {
+    // Everything on screen belongs to the previous care session: clear it before
+    // loading, so an edit or delete can never act on another session's digest.
+    loadAbortRef.current?.abort();
+    setPlans([]);
+    setSelectedPlan(null);
+    setIsEditing(false);
+    setEditedContent('');
+    setShowDeleteConfirm(false);
+    setGenerating(false);
+    setError(null);
+
     if (sessionId) {
-      loadDailyPlans();
+      loadDailyPlans(sessionId);
+    } else {
+      setLoading(false);
     }
+
+    return () => loadAbortRef.current?.abort();
+    // Intentionally excluding loadDailyPlans from deps - reload only on session change
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessionId]);
 
-  const loadDailyPlans = async () => {
+  const loadDailyPlans = async (forSessionId = sessionId) => {
+    if (!forSessionId) return;
+
+    loadAbortRef.current?.abort();
+    const controller = new AbortController();
+    loadAbortRef.current = controller;
+    const isCurrent = () => forSessionId === activeSessionIdRef.current;
+
     try {
       setLoading(true);
-      const response = await dailyPlanAPI.getAll(sessionId);
+      const response = await dailyPlanAPI.getAll(forSessionId, { signal: controller.signal });
+      if (!isCurrent()) return;
       // Handle paginated response { plans: [...], has_more, total }
       const plansData = response.data.plans || response.data;
       setPlans(plansData);
 
       // Auto-select only if there's a today's plan
+      let planToSelect = null;
       if (plansData.length > 0) {
         const latestPlan = plansData[0];
         const today = new Date();
@@ -43,55 +77,68 @@ const DailyPlan = () => {
 
         // Only select if it's today's plan
         if (planDate.toDateString() === today.toDateString()) {
-          setSelectedPlan(latestPlan);
-
-          // Mark as viewed if not already
-          if (!latestPlan.viewed) {
-            await dailyPlanAPI.markViewed(latestPlan.id);
-            // Update local state to reflect viewed status
-            const updatedPlan = { ...latestPlan, viewed: true };
-            setSelectedPlan(updatedPlan);
-            // Update the plan in the list as well
-            setPlans(plans => plans.map(p => p.id === latestPlan.id ? updatedPlan : p));
-          }
-        } else {
-          // No today's plan - don't select anything
-          setSelectedPlan(null);
+          planToSelect = latestPlan;
         }
       }
+      setSelectedPlan(planToSelect);
+
+      // Mark as viewed if not already
+      if (planToSelect && !planToSelect.viewed) {
+        await dailyPlanAPI.markViewed(planToSelect.id);
+        if (!isCurrent()) return;
+        // Update local state to reflect viewed status
+        const updatedPlan = { ...planToSelect, viewed: true };
+        setSelectedPlan(updatedPlan);
+        // Update the plan in the list as well
+        setPlans(plans => plans.map(p => p.id === planToSelect.id ? updatedPlan : p));
+      }
     } catch (err) {
+      if (isAbortError(err) || !isCurrent()) return;
       console.error('Error loading daily plans:', err);
       if (err.response?.status !== 404) {
         setError('Failed to load daily digest');
       }
     } finally {
-      setLoading(false);
+      if (isCurrent() && loadAbortRef.current === controller) {
+        setLoading(false);
+      }
     }
   };
 
+  const localDateString = () => {
+    const today = new Date();
+    return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+  };
+
   const handleGenerateNew = async () => {
+    // The session this action was started for; the user may switch before it ends.
+    const forSessionId = sessionId;
+    const isCurrent = () => forSessionId === activeSessionIdRef.current;
+
     try {
       setGenerating(true);
       setError(null);
-      // Get today's date in user's local timezone (YYYY-MM-DD)
-      const today = new Date();
-      const userDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-      const response = await dailyPlanAPI.generate(sessionId, userDate);
+      // Today's date in the user's local timezone (YYYY-MM-DD)
+      const response = await dailyPlanAPI.generate(forSessionId, localDateString());
+      if (!isCurrent()) return;
 
       // Reload plans
-      await loadDailyPlans();
+      await loadDailyPlans(forSessionId);
+      if (!isCurrent()) return;
 
       // Select the new plan
       setSelectedPlan(response.data);
     } catch (err) {
+      if (!isCurrent()) return;
       console.error('Error generating daily plan:', err);
-      const errorMessage = err.response?.data?.detail ||
-        (err.response?.status === 400
+      setError(apiErrorMessage(
+        err,
+        err.response?.status === 400
           ? "Not enough information yet. Please add journal entries or have conversations first."
-          : 'Failed to generate daily digest');
-      setError(errorMessage);
+          : 'Failed to generate daily digest'
+      ));
     } finally {
-      setGenerating(false);
+      if (isCurrent()) setGenerating(false);
     }
   };
 
@@ -106,20 +153,27 @@ const DailyPlan = () => {
   };
 
   const handleSaveEdit = async () => {
+    const forSessionId = sessionId;
+    const isCurrent = () => forSessionId === activeSessionIdRef.current;
+    const planBeingEdited = selectedPlan;
+    if (!planBeingEdited) return;
+
     try {
-      await dailyPlanAPI.update(selectedPlan.id, editedContent);
+      await dailyPlanAPI.update(planBeingEdited.id, editedContent);
+      if (!isCurrent()) return;
 
       // Update local state
       const updatedPlan = {
-        ...selectedPlan,
+        ...planBeingEdited,
         user_edited_content: editedContent
       };
       setSelectedPlan(updatedPlan);
-      setPlans(prev => prev.map(p => p.id === selectedPlan.id ? updatedPlan : p));
+      setPlans(prev => prev.map(p => p.id === planBeingEdited.id ? updatedPlan : p));
 
       setIsEditing(false);
       setEditedContent('');
     } catch (err) {
+      if (!isCurrent()) return;
       console.error('Error saving plan:', err);
       setError('Failed to save changes');
     }
@@ -132,32 +186,43 @@ const DailyPlan = () => {
   const confirmDeleteAndRegenerate = async () => {
     setShowDeleteConfirm(false);
 
+    // Pin both the session and the digest being replaced: the delete and the
+    // generate must hit the same care session even if the user switches midway.
+    const forSessionId = sessionId;
+    const isCurrent = () => forSessionId === activeSessionIdRef.current;
+    const planToReplace = selectedPlan;
+    if (!planToReplace) return;
+
     try {
       setGenerating(true);
       setError(null);
 
       // Delete the current plan
-      await dailyPlanAPI.delete(selectedPlan.id);
+      await dailyPlanAPI.delete(planToReplace.id);
 
       // Generate a new one with user's local date
-      const today = new Date();
-      const userDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-      const response = await dailyPlanAPI.generate(sessionId, userDate);
+      const response = await dailyPlanAPI.generate(forSessionId, localDateString());
+      if (!isCurrent()) return;
 
       // Reload plans
-      await loadDailyPlans();
+      await loadDailyPlans(forSessionId);
+      if (!isCurrent()) return;
 
       // Select the new plan
       setSelectedPlan(response.data);
     } catch (err) {
+      if (!isCurrent()) return;
       console.error('Error regenerating plan:', err);
-      const errorMessage = err.response?.data?.detail ||
-        (err.response?.status === 400
+      setError(apiErrorMessage(
+        err,
+        err.response?.status === 400
           ? "Not enough information yet. Please add journal entries or have conversations first."
-          : 'Failed to regenerate daily digest');
-      setError(errorMessage);
+          : 'Failed to regenerate daily digest'
+      ));
+      // The delete may have succeeded before the failure: resync with the server.
+      loadDailyPlans(forSessionId);
     } finally {
-      setGenerating(false);
+      if (isCurrent()) setGenerating(false);
     }
   };
 

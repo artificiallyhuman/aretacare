@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import AdminLayout from '../../components/admin/AdminLayout';
 import { adminAPI } from '../../services/api';
 import { formatLocalDateTime } from '../../utils/dateUtils';
+import { apiErrorMessage } from '../../utils/requestUtils';
 
 const eventTypeLabels = {
   failed_login: { label: 'Failed Login', color: 'red' },
@@ -43,7 +44,7 @@ export default function AdminSecurityLogs() {
       setLogs(response.data.logs);
       setTotal(response.data.total);
     } catch (err) {
-      setError(err.response?.data?.detail || 'Failed to load security logs');
+      setError(apiErrorMessage(err, 'Failed to load security logs'));
     } finally {
       setLoading(false);
     }

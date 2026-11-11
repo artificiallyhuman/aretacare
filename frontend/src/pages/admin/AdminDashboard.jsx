@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import AdminLayout from '../../components/admin/AdminLayout';
 import { adminAPI } from '../../services/api';
+import { apiErrorMessage } from '../../utils/requestUtils';
 
 function MetricCard({ title, value, subtitle, icon, color, loading }) {
   const colorClasses = {
@@ -119,7 +120,7 @@ export default function AdminDashboard() {
       const response = await adminAPI.getMetrics();
       setMetrics(response.data);
     } catch (err) {
-      setError(err.response?.data?.detail || 'Failed to load metrics');
+      setError(apiErrorMessage(err, 'Failed to load metrics'));
     } finally {
       setLoading(false);
     }

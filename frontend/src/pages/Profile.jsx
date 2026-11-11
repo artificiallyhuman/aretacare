@@ -4,6 +4,12 @@ import { useSessionContext } from '../contexts/SessionContext';
 import { profileAPI } from '../services/api';
 import { markdownToHtml } from '../utils/markdownUtils';
 import { parseContactInfo } from '../utils/parseContactInfo';
+import { apiErrorMessage } from '../utils/requestUtils';
+
+// A provider's email is free text (typed by any collaborator, or suggested by the
+// AI). Only a plain single address becomes a mailto: link; anything else, such as a
+// value carrying "?" or "&" that would add headers to the draft, is shown as text.
+const MAILTO_SAFE_EMAIL_RE = /^[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)+$/;
 
 // Editable field component - defined outside to prevent re-creation on each render
 const EditableField = ({ label, value, path, multiline = false, editedData, setEditedData }) => {
@@ -366,7 +372,7 @@ const Profile = () => {
     } catch (err) {
       if (activeSessionIdRef.current !== sessionIdForLoad) return;
       console.error('Error loading profile:', err);
-      setError(err.response?.data?.detail || 'Failed to load profile');
+      setError(apiErrorMessage(err, 'Failed to load profile'));
     } finally {
       // A superseded load must not clear the spinner the new session's load owns
       if (activeSessionIdRef.current === sessionIdForLoad) {
@@ -421,7 +427,7 @@ const Profile = () => {
       setActivityCounts({ conversations: 0, journal: 0 });
     } catch (err) {
       console.error('Error updating profile:', err);
-      setError(err.response?.data?.detail || 'Failed to update profile');
+      setError(apiErrorMessage(err, 'Failed to update profile'));
     } finally {
       setUpdating(false);
     }
@@ -482,7 +488,7 @@ const Profile = () => {
       setEditedData(null);
     } catch (err) {
       console.error('Error saving profile:', err);
-      setError(err.response?.data?.detail || 'Failed to save profile');
+      setError(apiErrorMessage(err, 'Failed to save profile'));
     } finally {
       setUpdating(false);
     }
@@ -499,7 +505,7 @@ const Profile = () => {
       setChangeDecisions({});
     } catch (err) {
       console.error('Error reviewing changes:', err);
-      setError(err.response?.data?.detail || 'Failed to apply changes');
+      setError(apiErrorMessage(err, 'Failed to apply changes'));
     } finally {
       setUpdating(false);
     }
@@ -515,7 +521,7 @@ const Profile = () => {
       setShowDeleteConfirm(false);
     } catch (err) {
       console.error('Error deleting profile:', err);
-      setError(err.response?.data?.detail || 'Failed to delete profile');
+      setError(apiErrorMessage(err, 'Failed to delete profile'));
     } finally {
       setUpdating(false);
     }
@@ -532,7 +538,7 @@ const Profile = () => {
       setPendingChanges(response.data.pending_changes || []);
     } catch (err) {
       console.error('Error regenerating profile:', err);
-      setError(err.response?.data?.detail || 'Failed to regenerate profile');
+      setError(apiErrorMessage(err, 'Failed to regenerate profile'));
     } finally {
       setRegenerating(false);
       setUpdating(false);
@@ -584,7 +590,7 @@ const Profile = () => {
       window.URL.revokeObjectURL(url);
     } catch (err) {
       console.error('Error exporting PDF:', err);
-      setError(err.response?.data?.detail || 'Failed to export PDF');
+      setError(apiErrorMessage(err, 'Failed to export PDF'));
     }
   };
 
@@ -1474,7 +1480,11 @@ const Profile = () => {
                               <svg className="w-4 h-4 text-teal-600 dark:text-teal-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                               </svg>
-                              <a href={`mailto:${email}`} className="hover:underline break-all">{email}</a>
+                              {MAILTO_SAFE_EMAIL_RE.test(email) ? (
+                                <a href={`mailto:${email}`} className="hover:underline break-all">{email}</a>
+                              ) : (
+                                <span className="break-all">{email}</span>
+                              )}
                             </p>
                           )}
                           {address && (

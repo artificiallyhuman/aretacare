@@ -3,6 +3,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { authAPI } from '../services/api';
 import SEO from '../components/SEO';
 import logo from '../logos/large_logo.png';
+import { apiErrorMessage } from '../utils/requestUtils';
 
 export default function PasswordReset() {
   const [searchParams] = useSearchParams();
@@ -47,7 +48,7 @@ export default function PasswordReset() {
       await authAPI.requestPasswordReset(email);
       setRequestSuccess(true);
     } catch (error) {
-      setRequestError(error.response?.data?.detail || 'Failed to send reset email');
+      setRequestError(apiErrorMessage(error, 'Failed to send reset email'));
     } finally {
       setRequestLoading(false);
     }
@@ -78,7 +79,7 @@ export default function PasswordReset() {
         navigate('/login');
       }, 2000);
     } catch (error) {
-      setResetError(error.response?.data?.detail || 'Failed to reset password');
+      setResetError(apiErrorMessage(error, 'Failed to reset password'));
     } finally {
       setResetLoading(false);
     }
@@ -150,6 +151,7 @@ export default function PasswordReset() {
                     </label>
                     <input
                       type="email"
+                      autoComplete="username"
                       id="email"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
@@ -203,6 +205,7 @@ export default function PasswordReset() {
                     <div className="relative mt-1">
                       <input
                         type={showNewPassword ? 'text' : 'password'}
+                        autoComplete="new-password"
                         id="newPassword"
                         value={newPassword}
                         onChange={(e) => setNewPassword(e.target.value)}
@@ -238,6 +241,7 @@ export default function PasswordReset() {
                     <div className="relative mt-1">
                       <input
                         type={showConfirmPassword ? 'text' : 'password'}
+                        autoComplete="new-password"
                         id="confirmPassword"
                         value={confirmPassword}
                         onChange={(e) => setConfirmPassword(e.target.value)}

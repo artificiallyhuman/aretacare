@@ -20,8 +20,13 @@ class RefreshToken(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     user_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
 
-    # Token value (stored in plaintext - acceptable since tokens are cryptographically
-    # random 256-bit values from secrets.token_urlsafe(32), making brute-force infeasible)
+    # SHA-256 of the token; this is what lookups use. The token is a 256-bit random
+    # value, so an unsalted fast hash is sufficient and keeps the lookup indexed. With
+    # only the hash stored, read access to this table does not yield usable sessions.
+    token_hash = Column(String(64), nullable=True, unique=True, index=True)
+
+    # Legacy column. Holds the raw token while settings.REFRESH_TOKEN_STORE_RAW is True
+    # (rolling-deploy compatibility) and a copy of the hash afterwards.
     token = Column(String, nullable=False, unique=True, index=True)
 
     # Token metadata
@@ -32,6 +37,10 @@ class RefreshToken(Base):
     # Revocation
     is_revoked = Column(Boolean, nullable=False, default=False)
     revoked_at = Column(DateTime, nullable=True)
+    # Set only when the token was revoked by rotation (exchanged for a new one), as
+    # opposed to logout or an admin action. Distinguishes "just rotated, may be
+    # retried" and "rotated long ago, should never be seen again" from a signed-out token.
+    replaced_at = Column(DateTime, nullable=True)
 
     # Device/session information (optional, for display purposes)
     device_info = Column(String, nullable=True)  # User agent or device description

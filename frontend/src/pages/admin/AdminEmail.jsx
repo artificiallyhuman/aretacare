@@ -3,6 +3,7 @@ import AdminLayout from '../../components/admin/AdminLayout';
 import RichTextEditor from '../../components/admin/RichTextEditor';
 import { adminAPI } from '../../services/api';
 import { formatLocalDate, formatLocalDateTime } from '../../utils/dateUtils';
+import { apiErrorMessage } from '../../utils/requestUtils';
 
 // Steps: 'list' (history landing) -> 'select' -> 'compose' -> 'review' -> 'sending'
 // One route + step state machine so AdminLayout's exact-pathname nav highlight works.
@@ -222,7 +223,7 @@ export default function AdminEmail() {
       const response = await adminAPI.listEmailCampaigns();
       setCampaigns(response.data.campaigns);
     } catch (err) {
-      setError(err.response?.data?.detail || 'Failed to load email history');
+      setError(apiErrorMessage(err, 'Failed to load email history'));
     } finally {
       setCampaignsLoading(false);
     }
@@ -239,7 +240,7 @@ export default function AdminEmail() {
       const selectableIds = new Set(response.data.users.filter(isSelectable).map((u) => u.user_id));
       setSelected((prev) => new Set([...prev].filter((id) => selectableIds.has(id))));
     } catch (err) {
-      setError(err.response?.data?.detail || 'Failed to load users');
+      setError(apiErrorMessage(err, 'Failed to load users'));
     } finally {
       setUsersLoading(false);
     }
@@ -384,7 +385,7 @@ export default function AdminEmail() {
       setPollNonce((n) => n + 1);
       setStep('sending');
     } catch (err) {
-      const detail = err.response?.data?.detail || 'Failed to send email';
+      const detail = apiErrorMessage(err, 'Failed to send email');
       setError(detail);
       if (err.response?.status === 400 && detail.includes('no longer eligible')) {
         // Stale recipient list — refresh it and send the admin back to selection
@@ -410,7 +411,7 @@ export default function AdminEmail() {
       await adminAPI.resumeEmailCampaign(campaignId);
       setPollNonce((n) => n + 1);
     } catch (err) {
-      setError(err.response?.data?.detail || 'Failed to resume campaign');
+      setError(apiErrorMessage(err, 'Failed to resume campaign'));
     }
   };
 

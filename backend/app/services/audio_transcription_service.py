@@ -14,9 +14,15 @@ Design notes (also summarised in CLAUDE.md, "Audio transcription"):
   the request's pooled connection idle-in-transaction for the whole job.
 - Every DB write is a query-update filtered on ``transcription_status = 'processing'``.
   A rowcount of 0 means the recording was deleted, or finalised by the shutdown hook,
-  and the job stops without spending more on OpenAI. The per-chunk heartbeat
-  (`transcription_updated_at`) doubles as the liveness signal for the stale rule in
-  `effective_transcription_status()`.
+  and the job stops without spending more on OpenAI. The heartbeat
+  (`transcription_updated_at`) is the liveness signal for the stale rule in
+  `effective_transcription_status()`; a ticker task stamps it once a minute for the
+  whole life of the job (queue wait, download, transcode, upload, every chunk), so
+  only a job whose process has actually died goes stale.
+- Each job owns the row through `transcription_job_id`, set when the job (or a retry)
+  claims the recording and repeated in the WHERE clause of every write. If a retry on
+  another instance takes the recording over, the older job's next write matches
+  nothing and it stops, instead of two jobs finishing over the same S3 keys.
 - The CPU/memory-heavy stage (ffmpeg + chunk uploads to OpenAI) runs under a
   per-process semaphore. Legacy inline requests bypass it: they are bounded by the
   rate limit and would otherwise time out waiting behind background work.
@@ -41,6 +47,7 @@ from typing import Dict, List, Optional, Tuple
 
 import sentry_sdk
 from fastapi import HTTPException
+from sqlalchemy import or_
 
 from app.core.config import settings
 from app.models.audio_recording import AudioRecording, AudioRecordingCategory, TranscriptionStatus
@@ -60,6 +67,17 @@ MAX_CHUNK_DURATION_SECONDS = 1200  # 20 minutes (safely under the limit)
 
 # The original upload is stored under this marker until the job swaps in the MP3
 ORIGINAL_KEY_MARKER = ".original"
+
+# How often a live job stamps its heartbeat. Far below
+# AUDIO_TRANSCRIPTION_STALE_SECONDS, so a few missed beats (a slow DB, a busy event
+# loop) never make a healthy job look dead.
+HEARTBEAT_INTERVAL_SECONDS = 60
+
+# ffmpeg/ffprobe read uploaded bytes and pick the demuxer from content. Limiting the
+# input to the `file` protocol means a container that references other resources
+# (playlists, concat scripts, network URLs) cannot make them open anything but local
+# files, and -nostdin stops ffmpeg treating the server's stdin as interactive input.
+_FFMPEG_INPUT_GUARD = ["-protocol_whitelist", "file"]
 
 # Extensions the upload route accepts (matching conversation._AUDIO_CONTENT_TYPES),
 # which is also everything a stored key's extension can legitimately be.
@@ -130,6 +148,7 @@ def probe_audio_duration(audio_path: str) -> Optional[float]:
         result = subprocess.run(
             [
                 "ffprobe", "-v", "error",
+                *_FFMPEG_INPUT_GUARD,
                 "-show_entries", "format=duration",
                 "-of", "default=noprint_wrappers=1:nokey=1",
                 audio_path,
@@ -151,7 +170,8 @@ def _transcode_to_mp3(input_path: str, output_path: str):
     """Transcode any supported audio container to 128 kbps MP3 on disk."""
     result = subprocess.run(
         [
-            "ffmpeg", "-y", "-v", "error", "-i", input_path,
+            "ffmpeg", "-nostdin", "-y", "-v", "error",
+            *_FFMPEG_INPUT_GUARD, "-i", input_path,
             "-vn", "-acodec", "libmp3lame", "-b:a", "128k",
             output_path,
         ],
@@ -178,7 +198,8 @@ def _segment_mp3(input_path: str, output_dir: str, segment_seconds: int) -> list
     pattern = os.path.join(output_dir, "chunk_%04d.mp3")
     result = subprocess.run(
         [
-            "ffmpeg", "-y", "-v", "error", "-i", input_path,
+            "ffmpeg", "-nostdin", "-y", "-v", "error",
+            *_FFMPEG_INPUT_GUARD, "-i", input_path,
             "-f", "segment", "-segment_time", str(segment_seconds),
             "-c", "copy", pattern,
         ],
@@ -266,25 +287,33 @@ def effective_transcription_status(recording: AudioRecording) -> str:
     return status
 
 
-def update_processing_recording(recording_id: int, values: dict) -> int:
+def update_processing_recording(
+    recording_id: int, values: dict, job_id: Optional[str] = None, include_unowned: bool = False,
+) -> int:
     """Query-update the row while it is still 'processing'; returns the rowcount.
 
     0 means the recording was deleted (the DELETE route also removes its S3
-    object) or finalised elsewhere — the caller must stop. Always stamps the
-    heartbeat. Opens and closes its own session so no connection is held across
+    object), finalised elsewhere, or — when `job_id` is given — now belongs to a
+    different job. In every case the caller must stop. `include_unowned` also
+    matches a row no job has claimed yet (a fresh upload whose job stopped before
+    its claim landed). Always stamps the heartbeat. Opens and closes its own session so no connection is held across
     the OpenAI calls that surround it. Raises on DB errors.
     """
     from app.core.database import SessionLocal
 
     db = SessionLocal()
     try:
-        count = (
-            db.query(AudioRecording)
-            .filter(
-                AudioRecording.id == recording_id,
-                AudioRecording.transcription_status == TranscriptionStatus.PROCESSING.value,
-            )
-            .update({**values, "transcription_updated_at": datetime.utcnow()}, synchronize_session=False)
+        query = db.query(AudioRecording).filter(
+            AudioRecording.id == recording_id,
+            AudioRecording.transcription_status == TranscriptionStatus.PROCESSING.value,
+        )
+        if job_id is not None:
+            owned = AudioRecording.transcription_job_id == job_id
+            if include_unowned:
+                owned = or_(owned, AudioRecording.transcription_job_id.is_(None))
+            query = query.filter(owned)
+        count = query.update(
+            {**values, "transcription_updated_at": datetime.utcnow()}, synchronize_session=False
         )
         db.commit()
         return count
@@ -295,10 +324,58 @@ def update_processing_recording(recording_id: int, values: dict) -> int:
         db.close()
 
 
-def mark_transcription_failed(recording_id: int) -> None:
-    """Best-effort 'failed' write; a no-op if the row is no longer 'processing'."""
+def claim_unowned_recording(recording_id: int, job_id: str) -> int:
+    """Take ownership of a freshly uploaded 'processing' row; returns the rowcount.
+
+    The upload route creates the row without a job id. The claim only matches while
+    it is still unowned, so if a retry elsewhere has already taken the recording this
+    returns 0 and the job stops before doing any work.
+    """
+    from app.core.database import SessionLocal
+
+    db = SessionLocal()
     try:
-        update_processing_recording(recording_id, {"transcription_status": TranscriptionStatus.FAILED.value})
+        count = (
+            db.query(AudioRecording)
+            .filter(
+                AudioRecording.id == recording_id,
+                AudioRecording.transcription_status == TranscriptionStatus.PROCESSING.value,
+                AudioRecording.transcription_job_id.is_(None),
+            )
+            .update(
+                {"transcription_job_id": job_id, "transcription_updated_at": datetime.utcnow()},
+                synchronize_session=False,
+            )
+        )
+        db.commit()
+        return count
+    except Exception:
+        db.rollback()
+        raise
+    finally:
+        db.close()
+
+
+def recording_exists(recording_id: int) -> bool:
+    from app.core.database import SessionLocal
+
+    db = SessionLocal()
+    try:
+        return db.query(AudioRecording.id).filter(AudioRecording.id == recording_id).first() is not None
+    finally:
+        db.close()
+
+
+def mark_transcription_failed(recording_id: int, job_id: Optional[str] = None) -> None:
+    """Best-effort 'failed' write; a no-op if the row is no longer 'processing'
+    (or, with `job_id`, belongs to a different job). A row nobody has claimed yet
+    counts as this job's: only a fresh upload is ever unowned, and a retry always
+    writes its own id."""
+    try:
+        update_processing_recording(
+            recording_id, {"transcription_status": TranscriptionStatus.FAILED.value},
+            job_id, include_unowned=True,
+        )
     except Exception as e:
         logger.error(f"Could not mark audio recording {recording_id} as failed: {e}")
 
@@ -329,7 +406,26 @@ class TranscriptionJobResult:
 
 
 _jobs: Dict[int, asyncio.Task] = {}
+_job_ids: Dict[int, str] = {}  # recording_id -> job id of the task in _jobs
 _semaphore: Optional[asyncio.Semaphore] = None
+
+
+async def _heartbeat_ticker(recording_id: int, job_id: str) -> None:
+    """Stamp the heartbeat on a timer for as long as the job lives.
+
+    The stage-boundary heartbeats alone leave gaps as long as the slowest stage (the
+    queue wait for a concurrency slot is unbounded), during which a healthy job would
+    be reported 'failed' and invite a duplicate retry. Stops by itself once the row is
+    no longer this job's to update; the job cancels it on the way out.
+    """
+    while True:
+        await asyncio.sleep(HEARTBEAT_INTERVAL_SECONDS)
+        try:
+            if await asyncio.to_thread(update_processing_recording, recording_id, {}, job_id) == 0:
+                return
+        except Exception as e:
+            # A missed beat is harmless; the next tick tries again.
+            logger.warning(f"Heartbeat for audio recording {recording_id} failed: {e}")
 
 
 def _stage_limiter(use_semaphore: bool):
@@ -448,6 +544,8 @@ async def run_transcription_job(
     skip_synthesis: bool,
     use_semaphore: bool,
     source_temp_path: Optional[str] = None,
+    job_id: Optional[str] = None,
+    job_preclaimed: bool = False,
 ) -> TranscriptionJobResult:
     """Transcode → swap in the MP3 → transcribe → categorise → finalise → synthesise.
 
@@ -457,7 +555,13 @@ async def run_transcription_job(
     everything it creates, and always removes them. Raises
     `TranscriptionJobError` (after marking the row 'failed') with a user-facing
     message; re-raises `CancelledError` after doing the same.
+
+    `job_id` identifies this run in every write. The retranscribe route writes it
+    in its claim UPDATE (`job_preclaimed=True`); for a fresh upload the job claims
+    the still-unowned row itself as its first step.
     """
+    job_id = job_id or str(uuid.uuid4())
+    heartbeat_task: Optional[asyncio.Task] = None
     mp3_temp_path: Optional[str] = None
     chunk_dir: Optional[str] = None
     mp3_filename = f"{original_name}.mp3"
@@ -468,11 +572,20 @@ async def run_transcription_job(
     needs_swap = mp3_key != source_key
 
     try:
+        if not job_preclaimed and claim_unowned_recording(recording_id, job_id) == 0:
+            return _stopped(recording_id, None, mp3_key)
+
+        # Started before the queue wait: that wait is unbounded, and a queued row
+        # whose heartbeat went stale would be reported 'failed' and invite a
+        # duplicate retry while this job is still alive.
+        heartbeat_task = asyncio.create_task(
+            _heartbeat_ticker(recording_id, job_id), name=f"transcribe-heartbeat-{recording_id}"
+        )
+
         async with _stage_limiter(use_semaphore):
-            # Heartbeat now that a slot is held: the queue wait is unbounded, and a
-            # queued row whose heartbeat went stale would be reported 'failed' and
-            # invite a duplicate retry while this job is still alive.
-            if update_processing_recording(recording_id, {}) == 0:
+            # Ownership check now that a slot is held — no point downloading and
+            # transcoding for a recording that was deleted or taken over while queued.
+            if update_processing_recording(recording_id, {}, job_id) == 0:
                 return _stopped(recording_id, None, mp3_key)
 
             # 0. Retranscribe path: fetch the stored object back from S3
@@ -516,15 +629,18 @@ async def run_transcription_job(
                     "s3_key": mp3_key,
                     "filename": mp3_filename,
                     "duration": duration_seconds,
-                })
+                }, job_id)
                 if swapped == 0:
-                    # Row is gone — don't leave the MP3 we just uploaded as an orphan
-                    await s3_service.delete_file(mp3_key)
+                    # Row deleted — don't leave the MP3 we just uploaded as an orphan.
+                    # If the row still exists, another job has taken the recording
+                    # over and uses this same key, so the object is not ours to remove.
+                    if not await asyncio.to_thread(recording_exists, recording_id):
+                        await s3_service.delete_file(mp3_key)
                     return _stopped(recording_id, duration_seconds, mp3_key)
                 await s3_service.delete_file(source_key)
                 logger.info(f"Audio recording {recording_id}: stored MP3 at {mp3_key}")
             else:
-                if update_processing_recording(recording_id, {"duration": duration_seconds}) == 0:
+                if update_processing_recording(recording_id, {"duration": duration_seconds}, job_id) == 0:
                     return _stopped(recording_id, duration_seconds, mp3_key)
 
             # 3. Transcribe, in chunks OpenAI will accept
@@ -537,7 +653,7 @@ async def run_transcription_job(
                 )
                 # Heartbeat after segmentation: its 300s plus a worst-case first
                 # chunk (3 × 300s) would otherwise brush the 20-min stale window
-                if update_processing_recording(recording_id, {}) == 0:
+                if update_processing_recording(recording_id, {}, job_id) == 0:
                     return _stopped(recording_id, duration_seconds, mp3_key)
             else:
                 chunk_paths = [mp3_temp_path]
@@ -561,7 +677,7 @@ async def run_transcription_job(
                     os.unlink(chunk_path)
 
                 # Heartbeat: keeps the stale rule quiet and notices a deletion mid-job
-                if update_processing_recording(recording_id, {}) == 0:
+                if update_processing_recording(recording_id, {}, job_id) == 0:
                     return _stopped(recording_id, duration_seconds, mp3_key)
 
             transcribed_text = " ".join(transcribed_parts).strip()
@@ -591,7 +707,7 @@ async def run_transcription_job(
             "category": recording_category,
             "ai_summary": ai_summary,
             "transcription_status": TranscriptionStatus.COMPLETED.value,
-        })
+        }, job_id)
         if finalised == 0:
             return _stopped(recording_id, duration_seconds, mp3_key)
         logger.info(f"Audio recording {recording_id} transcribed ({len(transcribed_text)} chars)")
@@ -611,18 +727,20 @@ async def run_transcription_job(
 
     except TranscriptionJobError as e:
         logger.error(f"Transcription job for audio recording {recording_id} failed: {e.detail}")
-        mark_transcription_failed(recording_id)
+        mark_transcription_failed(recording_id, job_id)
         raise
     except asyncio.CancelledError:
         logger.warning(f"Transcription job for audio recording {recording_id} cancelled; marked failed for retry")
-        mark_transcription_failed(recording_id)
+        mark_transcription_failed(recording_id, job_id)
         raise
     except Exception as e:
         logger.error(f"Transcription job for audio recording {recording_id} errored: {e}", exc_info=True)
         _log_job_error(e, user_id, session_id, recording_id, original_filename)
-        mark_transcription_failed(recording_id)
+        mark_transcription_failed(recording_id, job_id)
         raise TranscriptionJobError(TRANSCRIPTION_FAILED_DETAIL) from e
     finally:
+        if heartbeat_task is not None:
+            heartbeat_task.cancel()
         _cleanup_temp_files(source_temp_path, mp3_temp_path, chunk_dir=chunk_dir)
 
 
@@ -630,6 +748,7 @@ def _on_job_done(recording_id: int, task: asyncio.Task) -> None:
     # A retry may have registered a newer task for the same recording
     if _jobs.get(recording_id) is task:
         _jobs.pop(recording_id, None)
+        _job_ids.pop(recording_id, None)
     if task.cancelled():
         return
     exc = task.exception()  # also marks the exception as retrieved
@@ -659,8 +778,17 @@ def start_transcription_job(**job_kwargs) -> asyncio.Task:
     recording_id = job_kwargs["recording_id"]
     if has_active_job(recording_id):
         raise RuntimeError(f"A transcription job for recording {recording_id} is already running")
-    task = asyncio.create_task(run_transcription_job(**job_kwargs), name=f"transcribe-{recording_id}")
+    # A caller that already wrote a job id into the row (the retranscribe claim) passes
+    # it in; otherwise the job claims the unowned row itself under a fresh id.
+    job_id = job_kwargs.pop("job_id", None)
+    job_preclaimed = job_id is not None
+    job_id = job_id or str(uuid.uuid4())
+    task = asyncio.create_task(
+        run_transcription_job(**job_kwargs, job_id=job_id, job_preclaimed=job_preclaimed),
+        name=f"transcribe-{recording_id}",
+    )
     _jobs[recording_id] = task
+    _job_ids[recording_id] = job_id
     task.add_done_callback(lambda t: _on_job_done(recording_id, t))
     return task
 
@@ -677,6 +805,7 @@ async def fail_inflight_transcriptions() -> None:
     lifespan shutdown before asyncio.run() cancels stray tasks, so these writes land.
     """
     tasks = dict(_jobs)
+    job_ids = dict(_job_ids)  # snapshot: the done callbacks empty the registry
     if not tasks:
         return
     logger.warning(
@@ -687,4 +816,6 @@ async def fail_inflight_transcriptions() -> None:
         task.cancel()
     await asyncio.wait(list(tasks.values()), timeout=5)
     for recording_id in tasks:
-        mark_transcription_failed(recording_id)  # no-op when the job already did it
+        # No-op when the job already did it. Scoped to this instance's job id so a
+        # recording another instance has since taken over is left alone.
+        mark_transcription_failed(recording_id, job_ids.get(recording_id))

@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom';
 import { useSessionContext } from '../contexts/SessionContext';
 import { conversationAPI, documentAPI, dailyPlanAPI } from '../services/api';
 import { formatLocalDate } from '../utils/dateUtils';
-import { isAbortError } from '../utils/requestUtils';
+import { isAbortError, apiErrorMessage } from '../utils/requestUtils';
 import MessageBubble from '../components/MessageBubble';
 import MessageInput from '../components/MessageInput';
 import DailyPlanPanel from '../components/DailyPlan/DailyPlanPanel';
@@ -13,6 +13,8 @@ import SEO from '../components/SEO';
 import { getColorClasses } from '../constants/sessionColors';
 
 const MESSAGE_PAGE_SIZE = 25;
+// Messages fetched per collaborator poll
+const POLL_PAGE_SIZE = 10;
 // Upper bound on messages held in memory. Mirrors the iOS sliding window so a
 // long-running conversation can't grow the DOM (and heap) without limit.
 const MAX_LOADED_MESSAGES = 500;
@@ -53,6 +55,8 @@ const Conversation = () => {
   const sessionColorClass = getColorClasses(activeSession?.color_key);
   const [messages, setMessages] = useState([]);
   const [historyLoaded, setHistoryLoaded] = useState(false);
+  // True when the current care session's history could not be loaded
+  const [historyError, setHistoryError] = useState(false);
   const [dailyPlanPanelOpen, setDailyPlanPanelOpen] = useState(false);
   const [hasNewDailyPlan, setHasNewDailyPlan] = useState(false);
   const [showHowItWorks, setShowHowItWorks] = useState(false);
@@ -250,6 +254,11 @@ const Conversation = () => {
       // Mark that we need to scroll after messages load for THIS session
       sessionSwitchScrollPending.current = activeSessionId;
       sessionSwitchScrollWindow.current = true;
+      // Drop the previous care session's transcript before loading this one. Left
+      // in place it stays on screen under the new session's name until the load
+      // resolves — and indefinitely if the load fails.
+      setMessages([]);
+      setHasMoreMessages(false);
       setHistoryLoaded(false);
       loadConversationHistory();
       checkDailyPlan();
@@ -370,6 +379,7 @@ const Conversation = () => {
     historyAbortRef.current?.abort();
     const controller = new AbortController();
     historyAbortRef.current = controller;
+    setHistoryError(false);
 
     try {
       const response = await conversationAPI.getHistory(
@@ -386,6 +396,10 @@ const Conversation = () => {
       if (isAbortError(err)) return;
       console.error('Error loading conversation history:', err);
       if (sessionId !== activeSessionIdRef.current) return;
+      // Show an explicit failure with a retry rather than an empty (or stale) chat.
+      setMessages([]);
+      setHasMoreMessages(false);
+      setHistoryError(true);
       setHistoryLoaded(true);
     }
   };
@@ -461,17 +475,28 @@ const Conversation = () => {
     const sessionId = activeSessionId;
     try {
       // Get the latest 10 messages to check for new ones
-      const response = await conversationAPI.getHistory(sessionId, 10, 0);
+      const response = await conversationAPI.getHistory(sessionId, POLL_PAGE_SIZE, 0);
       if (sessionId !== activeSessionIdRef.current) return;
       const latestMessages = response.data.messages || [];
 
       if (latestMessages.length === 0) return;
+
+      // Never append onto a transcript that belongs to a different care session.
+      if (messages.some(msg => msg.session_id && msg.session_id !== sessionId)) return;
 
       // Find the ID of our current latest message
       const currentLatestId = messages[messages.length - 1]?.id;
 
       // Filter for messages newer than our current latest
       const newMessages = latestMessages.filter(msg => msg.id > currentLatestId);
+
+      // Every message in the page is new, so there may be more new ones than the
+      // page holds (the tab was hidden for a while). Appending would leave a silent
+      // gap in the middle of the conversation; reload the latest page instead.
+      if (newMessages.length > 0 && newMessages.length === latestMessages.length && latestMessages.length >= POLL_PAGE_SIZE) {
+        await loadConversationHistory(sessionId);
+        return;
+      }
 
       if (newMessages.length > 0) {
         // Append new messages to the end, keeping the window bounded
@@ -677,7 +702,7 @@ const Conversation = () => {
       const isTimeout = isAbortError(err);
       const errorMessage = isTimeout
         ? 'Response took too long. Your message was saved — please check back in a moment.'
-        : (err.response?.data?.detail || 'Failed to send message. Please try again.');
+        : (apiErrorMessage(err, 'Failed to send message. Please try again.'));
       setError(errorMessage);
       // Auto-clear error after 8 seconds
       setTimeout(() => setError(''), 8000);
@@ -905,7 +930,20 @@ const Conversation = () => {
             aria-label="Conversation messages"
             className="flex-1 p-2 md:p-4 space-y-2 overscroll-contain overflow-y-auto"
           >
-            {messages.length === 0 && historyLoaded ? (
+            {historyError ? (
+              <div className="flex flex-col items-center justify-center min-h-full text-center px-4">
+                <p className="text-sm text-gray-700 dark:text-gray-300 mb-3">
+                  We couldn't load this conversation. Check your connection and try again.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => { setHistoryLoaded(false); loadConversationHistory(); }}
+                  className="px-4 py-2 bg-primary-600 text-white text-sm rounded-md hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 transition-colors"
+                >
+                  Try again
+                </button>
+              </div>
+            ) : messages.length === 0 && historyLoaded ? (
               <div className="flex flex-col items-center justify-center min-h-full">
                 <div className="max-w-2xl mx-auto px-4 md:px-6">
                   {/* Important Banner */}

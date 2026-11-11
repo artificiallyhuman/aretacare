@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta
-from typing import Optional
+from typing import Optional, Tuple
+import hashlib
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 from app.core.config import settings
@@ -57,6 +58,44 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
     return encoded_jwt
 
 
+def create_user_access_token(user) -> str:
+    """Access token for a user, stamped with their current token version."""
+    return create_access_token(data={"sub": user.id, "tv": user.token_version or 0})
+
+
+def access_token_is_current(payload: dict, user) -> bool:
+    """False when the token predates the user's last "revoke everything".
+
+    Tokens issued before the claim existed carry no version and count as version 0.
+    """
+    return int(payload.get("tv") or 0) == int(user.token_version or 0)
+
+
+def hash_refresh_token(raw_token: str) -> str:
+    return hashlib.sha256(raw_token.encode("utf-8")).hexdigest()
+
+
+def find_refresh_token(db, raw_token: str, for_update: bool = False):
+    """Look up a refresh token row by the raw value a client presented.
+
+    Matches on the hash. Also matches a row holding the raw value with no hash yet:
+    those are written by instances still on the previous release during a rolling
+    deploy, until the startup backfill fills in their hash.
+    """
+    from app.models.refresh_token import RefreshToken
+    from sqlalchemy import and_, or_
+
+    query = db.query(RefreshToken).filter(
+        or_(
+            RefreshToken.token_hash == hash_refresh_token(raw_token),
+            and_(RefreshToken.token_hash.is_(None), RefreshToken.token == raw_token),
+        )
+    )
+    if for_update:
+        query = query.with_for_update()
+    return query.first()
+
+
 def decode_access_token(token: str) -> Optional[dict]:
     """Decode a JWT access token."""
     try:
@@ -74,10 +113,8 @@ def create_refresh_token_record(db, user_id: str, device_info: str = None, ip_ad
     """
     Create a refresh token record in the database.
 
-    Returns the token string which is stored directly (not hashed).
-    Refresh tokens are already cryptographically secure random values,
-    so hashing provides no additional security benefit while causing
-    significant performance issues (would require checking all tokens).
+    Returns the raw token string for the client. The database keeps its SHA-256
+    hash (see RefreshToken.token_hash), which is what lookups use.
 
     Enforces a maximum of MAX_ACTIVE_TOKENS_PER_USER active tokens per user.
     When the limit is exceeded, the oldest tokens are automatically revoked.
@@ -89,9 +126,11 @@ def create_refresh_token_record(db, user_id: str, device_info: str = None, ip_ad
 
     # Create the database record
     now = datetime.utcnow()
+    token_hash = hash_refresh_token(token)
     refresh_token = RefreshToken(
         user_id=user_id,
-        token=token,
+        token_hash=token_hash,
+        token=token if settings.REFRESH_TOKEN_STORE_RAW else token_hash,
         expires_at=now + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS),
         device_info=device_info,
         ip_address=ip_address,
@@ -154,29 +193,71 @@ def verify_refresh_token(db, raw_token: str, for_rotation: bool = False):
                       preventing race conditions when multiple requests
                       try to rotate the same token simultaneously
     """
-    from app.models.refresh_token import RefreshToken
+    token_record = find_refresh_token(db, raw_token, for_update=for_rotation)
 
-    # Build the query
-    query = db.query(RefreshToken).filter(
-        RefreshToken.token == raw_token,
-        RefreshToken.is_revoked == False,
-        RefreshToken.expires_at > datetime.utcnow()
-    )
-
-    # Use FOR UPDATE lock when rotating to prevent race conditions
-    # This ensures only one concurrent request can use a token for rotation
-    if for_rotation:
-        query = query.with_for_update()
-
-    token_record = query.first()
-
-    if token_record:
+    if token_record and token_record.is_valid():
         # Update last_used_at
         token_record.last_used_at = datetime.utcnow()
         db.commit()
         return token_record
 
+    if for_rotation:
+        db.rollback()  # release the row lock
     return None
+
+
+def claim_refresh_token_for_rotation(db, raw_token: str) -> Tuple[Optional[object], str]:
+    """Exchange a refresh token: mark it used and report whether a new one may be issued.
+
+    Returns (record, outcome):
+      "rotated"  the token was live and is now revoked; issue a replacement.
+      "grace"    the token was rotated moments ago; issue another replacement. This is
+                 the retry of a rotation whose response was lost, or a second tab that
+                 raced the first.
+      "reuse"    the token was rotated longer ago than the grace window. A legitimate
+                 client replaces its token on every refresh, so this is either a stale
+                 copy or a stolen one. No replacement.
+      "invalid"  unknown, expired, or revoked by logout. No replacement.
+
+    The row is locked for the duration, and the revoke is a conditional UPDATE, so two
+    concurrent requests cannot both come away with "rotated".
+    """
+    from app.models.refresh_token import RefreshToken
+
+    now = datetime.utcnow()
+    record = find_refresh_token(db, raw_token, for_update=True)
+
+    if record is None or record.expires_at <= now:
+        db.rollback()
+        return None, "invalid"
+
+    if not record.is_revoked:
+        claimed = db.query(RefreshToken).filter(
+            RefreshToken.id == record.id,
+            RefreshToken.is_revoked == False,
+        ).update(
+            {
+                RefreshToken.is_revoked: True,
+                RefreshToken.revoked_at: now,
+                RefreshToken.replaced_at: now,
+                RefreshToken.last_used_at: now,
+            },
+            synchronize_session=False,
+        )
+        db.commit()
+        if claimed == 1:
+            return record, "rotated"
+        db.refresh(record)
+    else:
+        db.rollback()
+
+    if record.replaced_at is None:
+        return None, "invalid"
+
+    age = (now - record.replaced_at).total_seconds()
+    if age <= settings.REFRESH_TOKEN_ROTATION_GRACE_SECONDS:
+        return record, "grace"
+    return record, "reuse"
 
 
 def revoke_refresh_token(db, token_id: int):
@@ -214,6 +295,13 @@ def revoke_all_user_tokens(db, user_id: str):
     # account. A device that signs back in registers its token again.
     from app.models.device_token import DeviceToken
     db.query(DeviceToken).filter(DeviceToken.user_id == user_id).delete(synchronize_session=False)
+
+    # Invalidate access tokens already issued (see User.token_version). Done as an
+    # in-database increment so concurrent revocations cannot lose one.
+    from app.models.user import User
+    db.query(User).filter(User.id == user_id).update(
+        {User.token_version: User.token_version + 1}, synchronize_session=False
+    )
 
     db.commit()
     return len(tokens)

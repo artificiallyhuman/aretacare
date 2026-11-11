@@ -100,15 +100,15 @@ struct MainTabView: View {
             }
         }
         .task(id: currentSessionId) {
-            // Auto-check for new digest every 30 minutes, regardless of active tab.
+            // Generate today's digest if one is due: shortly after the session loads,
+            // then every 30 minutes, regardless of active tab. Checking only after the
+            // first 30-minute sleep meant a digest was never generated unless the app
+            // stayed open that long, since the loop does not run while suspended.
             guard !currentSessionId.isEmpty else { return }
+            try? await Task.sleep(for: .seconds(5))
             while !Task.isCancelled {
+                await digestBadgeVM.autoGenerateIfDue(sessionId: currentSessionId)
                 try? await Task.sleep(for: .seconds(1800))
-                guard !Task.isCancelled else { break }
-                await digestBadgeVM.checkShouldGenerate(sessionId: currentSessionId)
-                if digestBadgeVM.shouldGenerate {
-                    await digestBadgeVM.generate(sessionId: currentSessionId)
-                }
             }
         }
         .onChange(of: activeTab) { oldTab, newTab in

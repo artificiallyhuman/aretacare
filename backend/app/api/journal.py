@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.core.rate_limit import limiter, RateLimits
 from app.models import User, Session as SessionModel
+from app.models.consent_record import ConsentRecord, ConsentType
 from app.schemas.journal import (
     JournalEntryCreate,
     JournalEntryUpdate,
@@ -17,6 +18,14 @@ from datetime import date
 from typing import Optional
 
 router = APIRouter(prefix="/journal", tags=["journal"])
+
+
+def _has_ai_data_sharing_consent(db: Session, user_id: str) -> bool:
+    """Same query as `require_ai_data_sharing_consent` in api/auth.py."""
+    return db.query(ConsentRecord.id).filter(
+        ConsentRecord.user_id == user_id,
+        ConsentRecord.consent_type == ConsentType.AI_DATA_SHARING,
+    ).first() is not None
 
 
 @router.get("/{session_id}", response_model=JournalEntriesGrouped)
@@ -228,11 +237,29 @@ async def create_journal_entry(
 
     # Create entry
     journal_service = JournalService(db)
-    entry = await journal_service.create_entry(
-        session_id=session_id,
-        entry_data=entry_data,
-        created_by=current_user.id
-    )
+    if _has_ai_data_sharing_consent(db, current_user.id):
+        # Commits and then embeds the entry for semantic retrieval.
+        entry = await journal_service.create_entry(
+            session_id=session_id,
+            entry_data=entry_data,
+            created_by=current_user.id
+        )
+    else:
+        # Writing your own journal never requires AI consent, but embedding sends the
+        # entry text to the embeddings API, so that step is skipped. The entry is
+        # saved as normal and the embedding backfill can pick it up later.
+        try:
+            entry = await journal_service.create_entry(
+                session_id=session_id,
+                entry_data=entry_data,
+                created_by=current_user.id,
+                auto_commit=False
+            )
+            db.commit()
+            db.refresh(entry)
+        except Exception:
+            db.rollback()
+            raise
 
     # Return with source tag if session has collaborators
     has_collaborators = session_has_collaborators(session_id, db)
@@ -270,7 +297,8 @@ async def update_journal_entry(
     entry = await journal_service.update_entry(
         entry_id=entry_id,
         updates=updates,
-        user_id=current_user.id
+        user_id=current_user.id,
+        allow_embedding=_has_ai_data_sharing_consent(db, current_user.id),
     )
 
     if not entry:

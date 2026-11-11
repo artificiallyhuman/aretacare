@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import PropTypes from 'prop-types';
 import { mfaAPI, authAPI } from '../../services/api';
 import { startAuthentication } from '@simplewebauthn/browser';
+import { apiErrorMessage } from '../../utils/requestUtils';
 
 function SensitiveActionModal({ actionType, onSuccess, onCancel }) {
   const [mfaStatus, setMfaStatus] = useState(null);
@@ -104,7 +105,7 @@ function SensitiveActionModal({ actionType, onSuccess, onCancel }) {
       } else if (err.name === 'NotSupportedError') {
         setError('Passkeys are not supported on this device.');
       } else {
-        setError(err.response?.data?.detail || 'Verification failed. Please try again.');
+        setError(apiErrorMessage(err, 'Verification failed. Please try again.'));
       }
     } finally {
       setVerifying(false);
@@ -125,12 +126,7 @@ function SensitiveActionModal({ actionType, onSuccess, onCancel }) {
 
       onSuccess(response.data.action_token);
     } catch (err) {
-      const detail = err.response?.data?.detail;
-      if (typeof detail === 'object' && detail?.message) {
-        setError(detail.message);
-      } else {
-        setError(detail || 'Verification failed. Please try again.');
-      }
+      setError(apiErrorMessage(err, 'Verification failed. Please try again.'));
       setCode('');
     } finally {
       setVerifying(false);
@@ -338,6 +334,7 @@ SensitiveActionModal.propTypes = {
     'mfa_remove_totp',
     'mfa_remove_passkey',
     'mfa_regenerate_backup_codes',
+    'generic',
   ]).isRequired,
   onSuccess: PropTypes.func.isRequired,
   onCancel: PropTypes.func.isRequired,

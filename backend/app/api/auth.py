@@ -11,7 +11,9 @@ import re
 from app.core.database import get_db
 from app.core.auth import (
     verify_password, get_password_hash, create_access_token, decode_access_token,
-    create_refresh_token_record, verify_refresh_token, revoke_refresh_token, revoke_all_user_tokens
+    create_refresh_token_record, verify_refresh_token, revoke_refresh_token, revoke_all_user_tokens,
+    create_user_access_token, access_token_is_current, find_refresh_token,
+    claim_refresh_token_for_rotation, hash_refresh_token
 )
 from app.core.config import settings
 from app.core.rate_limit import limiter, RateLimits
@@ -217,6 +219,17 @@ def get_current_user(
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail={"message": "Inactive user", "code": "INACTIVE_USER"}
+        )
+
+    # A token issued before the user's sessions were last revoked (password change,
+    # sign out everywhere) is no longer valid, even though its signature and expiry are.
+    # Plain 401, same as an expired token, so clients take their normal refresh path —
+    # which then fails too, because the refresh tokens were revoked at the same time.
+    if not access_token_is_current(payload, user):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid authentication credentials",
+            headers={"WWW-Authenticate": "Bearer"},
         )
 
     return user
@@ -685,7 +698,7 @@ def login(
     user.last_login_at = datetime.utcnow()
 
     # Create access token
-    access_token = create_access_token(data={"sub": user.id})
+    access_token = create_user_access_token(user)
 
     # Create refresh token
     device_info = request.headers.get("user-agent")
@@ -832,7 +845,7 @@ def verify_mfa_login(
     user.last_login_at = datetime.utcnow()
 
     # Create access token
-    access_token = create_access_token(data={"sub": user.id})
+    access_token = create_user_access_token(user)
 
     # Create refresh token
     device_info = request.headers.get("user-agent")
@@ -1437,6 +1450,31 @@ def reset_password(request: Request, data: PasswordReset, db: DBSession = Depend
     return {"message": "Password reset successful"}
 
 
+def _handle_refresh_token_reuse(db: DBSession, request: Request, token_record) -> None:
+    """Record that a refresh token was presented long after it had been rotated.
+
+    Always logged, so the rate can be watched. Revoking every session of the user in
+    response is the standard reaction to a possibly stolen token, but it also signs
+    out a legitimate client that merely kept a stale copy, so it is opt-in via
+    settings.REFRESH_REUSE_REVOKES_ALL.
+    """
+    try:
+        security_service.log_event(
+            db=db,
+            event_type="refresh_token_reuse",
+            user_id=token_record.user_id,
+            ip_address=security_service.get_client_ip(request),
+            user_agent=security_service.get_user_agent(request),
+            details="A refresh token was presented after it had already been rotated",
+        )
+    except Exception as e:  # logging must never turn a 401 into a 500
+        logger.error(f"Failed to log refresh token reuse: {e}")
+        db.rollback()
+
+    if settings.REFRESH_REUSE_REVOKES_ALL:
+        revoke_all_user_tokens(db, token_record.user_id)
+
+
 def _recover_native_refresh(db: DBSession, body_token: str, cookie_token: str):
     """Let a native client whose stored token went stale continue from its cookie.
 
@@ -1448,14 +1486,17 @@ def _recover_native_refresh(db: DBSession, body_token: str, cookie_token: str):
     client the cookie was issued to, not page script replaying a browser cookie with a
     made-up body, and it can never hand one user's session to another.
     """
-    from app.models.refresh_token import RefreshToken
-
-    stale_record = db.query(RefreshToken).filter(RefreshToken.token == body_token).first()
+    stale_record = find_refresh_token(db, body_token)
     if not stale_record:
         return None
 
-    cookie_record = verify_refresh_token(db, cookie_token, for_rotation=True)
-    if cookie_record and cookie_record.user_id == stale_record.user_id:
+    # Compare owners before claiming, so a mismatched cookie is left untouched.
+    cookie_owner = find_refresh_token(db, cookie_token)
+    if not cookie_owner or cookie_owner.user_id != stale_record.user_id:
+        return None
+
+    cookie_record, outcome = claim_refresh_token_for_rotation(db, cookie_token)
+    if outcome in ("rotated", "grace"):
         return cookie_record
     return None
 
@@ -1495,11 +1536,14 @@ def refresh_access_token(
     # cookie there rotated the wrong token and left the Keychain copy stale.
     is_native = request.headers.get("X-Client-Type") == "ios" and body_token is not None
 
+    # Claiming marks the presented token as used (rotation: each refresh token is good
+    # for one exchange) and tells us whether a replacement may be issued.
     if is_native:
-        # FOR UPDATE lock: only one concurrent request can rotate a given token.
-        token_record = verify_refresh_token(db, body_token, for_rotation=True)
-        if not token_record and refresh_token_cookie:
-            token_record = _recover_native_refresh(db, body_token, refresh_token_cookie)
+        token_record, outcome = claim_refresh_token_for_rotation(db, body_token)
+        if outcome not in ("rotated", "grace") and refresh_token_cookie:
+            recovered = _recover_native_refresh(db, body_token, refresh_token_cookie)
+            if recovered:
+                token_record, outcome = recovered, "rotated"
     else:
         refresh_token_value = refresh_token_cookie or body_token
         if not refresh_token_value:
@@ -1507,7 +1551,13 @@ def refresh_access_token(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Refresh token required"
             )
-        token_record = verify_refresh_token(db, refresh_token_value, for_rotation=True)
+        token_record, outcome = claim_refresh_token_for_rotation(db, refresh_token_value)
+
+    if outcome == "reuse":
+        _handle_refresh_token_reuse(db, request, token_record)
+        token_record = None
+    elif outcome == "invalid":
+        token_record = None
 
     if not token_record:
         # Clear invalid cookie if present
@@ -1526,12 +1576,8 @@ def refresh_access_token(
             detail="User not found or inactive"
         )
 
-    # REFRESH TOKEN ROTATION: Revoke the old token immediately
-    # This ensures each refresh token can only be used once
-    revoke_refresh_token(db, token_record.id)
-
     # Create a new access token
-    access_token = create_access_token(data={"sub": user.id})
+    access_token = create_user_access_token(user)
 
     # Create a NEW refresh token (rotation)
     device_info = request.headers.get("user-agent")
@@ -1592,8 +1638,12 @@ def logout(
 
     if presented_tokens:
         from app.models.refresh_token import RefreshToken
+        from sqlalchemy import or_
         token_records = db.query(RefreshToken).filter(
-            RefreshToken.token.in_(presented_tokens),
+            or_(
+                RefreshToken.token_hash.in_({hash_refresh_token(t) for t in presented_tokens}),
+                RefreshToken.token.in_(presented_tokens),
+            ),
             RefreshToken.is_revoked == False
         ).all()
         for token_record in token_records:

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { sessionAPI } from '../services/api';
+import { apiErrorMessage } from '../utils/requestUtils';
 
 export default function CollaborationModal({ session, onClose, onSuccess }) {
   const [step, setStep] = useState('view'); // 'view', 'enterEmail', 'confirm', 'confirmInvitation', 'confirmTransfer', 'warningMaxSessions', 'confirmRemove', 'confirmLeave', 'confirmCancelInvitation'
@@ -53,7 +54,7 @@ export default function CollaborationModal({ session, onClose, onSuccess }) {
       setUserToAdd(data);
       setStep('confirm');
     } catch (err) {
-      setError(err.response?.data?.detail || 'Failed to check user');
+      setError(apiErrorMessage(err, 'Failed to check user'));
     } finally {
       setLoading(false);
     }
@@ -71,7 +72,7 @@ export default function CollaborationModal({ session, onClose, onSuccess }) {
         onClose();
       }, 1500);
     } catch (err) {
-      setError(err.response?.data?.detail || 'Failed to share care session');
+      setError(apiErrorMessage(err, 'Failed to share care session'));
     } finally {
       setLoading(false);
     }
@@ -97,7 +98,7 @@ export default function CollaborationModal({ session, onClose, onSuccess }) {
         onClose();
       }, 1000);
     } catch (err) {
-      setError(err.response?.data?.detail || 'Failed to revoke access');
+      setError(apiErrorMessage(err, 'Failed to revoke access'));
     } finally {
       setLoading(false);
     }
@@ -119,7 +120,7 @@ export default function CollaborationModal({ session, onClose, onSuccess }) {
         onClose();
       }, 1500);
     } catch (err) {
-      setError(err.response?.data?.detail || 'Failed to leave care session');
+      setError(apiErrorMessage(err, 'Failed to leave care session'));
     } finally {
       setLoading(false);
     }
@@ -149,7 +150,7 @@ export default function CollaborationModal({ session, onClose, onSuccess }) {
         onClose();
       }, 1500);
     } catch (err) {
-      setError(err.response?.data?.detail || 'Failed to transfer ownership');
+      setError(apiErrorMessage(err, 'Failed to transfer ownership'));
     } finally {
       setLoading(false);
     }
@@ -168,7 +169,7 @@ export default function CollaborationModal({ session, onClose, onSuccess }) {
         fetchPendingInvitations(); // Refresh the list
       }, 1500);
     } catch (err) {
-      setError(err.response?.data?.detail || 'Failed to send invitation');
+      setError(apiErrorMessage(err, 'Failed to send invitation'));
     } finally {
       setLoading(false);
     }
@@ -194,7 +195,7 @@ export default function CollaborationModal({ session, onClose, onSuccess }) {
         setInvitationToCancel(null);
       }, 1000);
     } catch (err) {
-      setError(err.response?.data?.detail || 'Failed to cancel invitation');
+      setError(apiErrorMessage(err, 'Failed to cancel invitation'));
     } finally {
       setLoading(false);
     }

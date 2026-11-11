@@ -1,0 +1,41 @@
+# Build context for the root Dockerfile (the production image). It only copies backend/,
+# so everything else is excluded to keep the context small and to make sure local
+# secrets can never end up in an image layer.
+
+# Version control and tooling
+.git
+.gitignore
+.github
+.claude
+.DS_Store
+
+# Not part of the backend image
+frontend
+ios
+docs
+*.md
+node_modules
+build
+dist
+*.log
+
+# Local secrets and credentials
+.env
+.env.*
+**/.env
+**/.env.*
+**/certs
+**/*.p8
+**/*.pem
+**/*.key
+**/Secrets.xcconfig
+
+# Python build and test artefacts
+**/__pycache__
+**/*.py[cod]
+**/.pytest_cache
+.Python
+.venv
+venv/
+ENV/
+env/

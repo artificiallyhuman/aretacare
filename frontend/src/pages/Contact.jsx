@@ -5,6 +5,7 @@ import { useTheme } from '../contexts/ThemeContext';
 import HCaptcha from '@hcaptcha/react-hcaptcha';
 import api from '../services/api';
 import SEO from '../components/SEO';
+import { apiErrorMessage } from '../utils/requestUtils';
 
 function Contact() {
   const { user } = useSessionContext();
@@ -139,7 +140,7 @@ function Contact() {
       }, 3000);
 
     } catch (err) {
-      setError(err.response?.data?.detail || 'Failed to submit feedback. Please try again.');
+      setError(apiErrorMessage(err, 'Failed to submit feedback. Please try again.'));
     } finally {
       setLoading(false);
     }

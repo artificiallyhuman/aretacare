@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import AdminLayout from '../../components/admin/AdminLayout';
 import { adminAPI } from '../../services/api';
 import { formatLocalDate } from '../../utils/dateUtils';
+import { apiErrorMessage } from '../../utils/requestUtils';
 
 export default function AdminAccounts() {
   const [searchParams] = useSearchParams();
@@ -33,7 +34,7 @@ export default function AdminAccounts() {
       const response = await adminAPI.getInactiveAccounts(inactiveDays);
       setInactiveAccounts(response.data);
     } catch (err) {
-      setError(err.response?.data?.detail || 'Failed to load inactive accounts');
+      setError(apiErrorMessage(err, 'Failed to load inactive accounts'));
     } finally {
       setLoading(false);
     }
@@ -67,7 +68,7 @@ export default function AdminAccounts() {
       setEmailSuccess(`Successfully sent ${response.data.emails_sent} email(s). Failed: ${response.data.emails_failed}`);
       setSelectedUsers([]);
     } catch (err) {
-      setError(err.response?.data?.detail || 'Failed to send emails');
+      setError(apiErrorMessage(err, 'Failed to send emails'));
     } finally {
       setSendingEmails(false);
     }
@@ -82,7 +83,7 @@ export default function AdminAccounts() {
       const response = await adminAPI.emailInactiveAccounts([userId]);
       setEmailSuccess(`Successfully sent email to user`);
     } catch (err) {
-      setError(err.response?.data?.detail || 'Failed to send email');
+      setError(apiErrorMessage(err, 'Failed to send email'));
     } finally {
       setSendingEmails(false);
     }
@@ -95,7 +96,7 @@ export default function AdminAccounts() {
       const response = await adminAPI.getUnusualAccounts(2.0);
       setUnusualAccounts(response.data);
     } catch (err) {
-      setError(err.response?.data?.detail || 'Failed to load unusual accounts');
+      setError(apiErrorMessage(err, 'Failed to load unusual accounts'));
     } finally {
       setLoading(false);
     }

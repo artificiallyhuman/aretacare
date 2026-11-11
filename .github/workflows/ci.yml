@@ -1,0 +1,160 @@
+# Build and test gate.
+#
+# Runs on every pull request and every push to main. The production services deploy only
+# after these checks pass (`autoDeployTrigger: checksPass` in render.yaml), so a commit
+# that does not import, fails its tests or does not build never reaches production.
+#
+# Actions are pinned to full commit SHAs with the release in a trailing comment;
+# Dependabot's github-actions updates keep them current.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# Nothing here needs more than a read-only checkout.
+permissions:
+  contents: read
+
+# A newer push to the same branch or pull request supersedes the run in progress.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Backend tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        # Same image as docker-compose.yml: PostgreSQL 15 with the pgvector extension.
+        image: pgvector/pgvector:pg15
+        env:
+          POSTGRES_USER: aretacare
+          POSTGRES_PASSWORD: ci-only-not-a-secret
+          POSTGRES_DB: aretacare_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U aretacare"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      # A disposable database in the service container above. The tests supply
+      # placeholders for every other required setting (backend/tests/conftest.py);
+      # nothing in the suite calls an external service.
+      DATABASE_URL: postgresql://aretacare:ci-only-not-a-secret@localhost:5432/aretacare_test
+      DEBUG: "false"
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Python
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          # Matches the production image (python:3.11-slim).
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: |
+            backend/requirements.txt
+            backend/requirements-dev.txt
+
+      - name: Install system packages
+        # The libraries the application imports at start-up: OCR, PDF rendering, audio
+        # transcoding and file-type detection.
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            tesseract-ocr poppler-utils ffmpeg libmagic1
+
+      - name: Install Python dependencies
+        working-directory: backend
+        run: |
+          python -m pip install --upgrade pip
+          pip install --require-hashes -r requirements.txt
+          pip install -r requirements-dev.txt
+
+      - name: Run tests
+        working-directory: backend
+        run: python -m pytest
+
+  frontend:
+    name: Frontend build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Node
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: frontend
+        # npm ci fails when package-lock.json and package.json disagree, which is the
+        # point: the lockfile is what production installs. The Chromium download is left
+        # on because the build prerenders the public pages with Puppeteer.
+        run: npm ci --no-audit --no-fund
+
+      - name: Allow the prerender browser to start
+        # Ubuntu 24.04 runners restrict unprivileged user namespaces, which Chromium's
+        # sandbox needs. Lifting that restriction on this throwaway runner lets the
+        # prerender step launch the browser with its sandbox intact.
+        run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+
+      - name: Build
+        working-directory: frontend
+        # A full production build, including prerendering the public routes and the
+        # check that every prerendered page received its SEO tags. No Sentry token is
+        # set, so no source maps are generated or uploaded.
+        run: npm run build
+
+  ios:
+    name: iOS build
+    runs-on: macos-15
+    timeout-minutes: 45
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Xcode
+        uses: maxim-lobanov/setup-xcode@ed7a3b1fda3918c0306d1b724322adc0b8cc0a90 # v1.7.0
+        with:
+          xcode-version: "16.2"
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Create Secrets.xcconfig
+        # Placeholders: the build only has to compile, it is never signed or run.
+        run: |
+          cat > ios/AretaCare/Configuration/Secrets.xcconfig <<'EOF'
+          DEVELOPMENT_TEAM = CI_PLACEHOLDER
+          REVENUECAT_API_KEY = ci_placeholder_key
+          EOF
+
+      - name: Generate Xcode project
+        run: cd ios && xcodegen generate
+
+      - name: Build
+        # pipefail so a failed build fails the step rather than reporting xcpretty's
+        # exit status.
+        run: |
+          set -o pipefail
+          cd ios
+          xcodebuild build \
+            -scheme AretaCare \
+            -destination 'generic/platform=iOS Simulator' \
+            -configuration Debug \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            COMPILER_INDEX_STORE_ENABLE=NO \
+            | xcpretty

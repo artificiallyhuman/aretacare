@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useMemo, useCallback } from 'react';
-import { sessionAPI, authAPI, initAuth, clearAccessToken } from '../services/api';
+import { sessionAPI, authAPI, initAuth, clearAccessToken, AUTH_OK, AUTH_REJECTED } from '../services/api';
+import { apiErrorMessage } from '../utils/requestUtils';
 
 const SessionContext = createContext();
 
@@ -23,12 +24,17 @@ export const SessionProvider = ({ children }) => {
     const initializeSession = async () => {
       try {
         // Try to restore auth from HttpOnly refresh token cookie
-        const isLoggedIn = await initAuth();
-        if (!isLoggedIn) {
+        const authOutcome = await initAuth();
+        if (authOutcome !== AUTH_OK) {
           // Clear the returning-user hint so AuthSwitchRoute doesn't show the
           // auth splash on future visits from a logged-out browser. The backend
           // last_active_session_id remains the source of truth after re-login.
-          localStorage.removeItem('active_session_id');
+          // Only when the server actually said the session is gone: if it simply
+          // could not be reached, the session may still be valid and a reload
+          // should pick it back up.
+          if (authOutcome === AUTH_REJECTED) {
+            localStorage.removeItem('active_session_id');
+          }
           setLoading(false);
           return;
         }
@@ -210,7 +216,7 @@ export const SessionProvider = ({ children }) => {
     } catch (err) {
       // Check if it's the 5-session limit error
       if (err.response?.status === 400) {
-        throw new Error(err.response.data.detail || 'Failed to create session');
+        throw new Error(apiErrorMessage(err, 'Failed to create session'));
       }
       throw err;
     }

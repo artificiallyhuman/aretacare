@@ -6,8 +6,10 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-aretacare}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password}
       POSTGRES_DB: ${POSTGRES_DB:-aretacare}
+    # Bound to localhost only — a dev database with a default password should not be
+    # reachable from the rest of the network.
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:

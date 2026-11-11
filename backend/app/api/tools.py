@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.core.rate_limit import limiter, RateLimits
 from app.models import User, Session as SessionModel, SessionCollaborator
+from app.models.consent_record import ConsentRecord, ConsentType
 from app.schemas.conversation import (
     JargonTranslationRequest,
     JargonTranslationResponse,
@@ -21,6 +22,18 @@ import logging
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/tools", tags=["tools"])
+
+
+def _has_ai_data_sharing_consent(db: Session, user_id: str) -> bool:
+    """Same query as `require_ai_data_sharing_consent` in api/auth.py.
+
+    These routes are open to signed-out visitors, so they cannot take that dependency
+    (it rejects the request outright); the check is applied to the optional context.
+    """
+    return db.query(ConsentRecord.id).filter(
+        ConsentRecord.user_id == user_id,
+        ConsentRecord.consent_type == ConsentType.AI_DATA_SHARING,
+    ).first() is not None
 
 
 @router.post("/jargon-translator", response_model=JargonTranslationResponse)
@@ -58,15 +71,23 @@ async def translate_medical_jargon(
                 SessionCollaborator.session_id == session.id,
                 SessionCollaborator.user_id == current_user.id
             ).first() is not None
-            if is_owner or is_collaborator:
+            # Session context (journal and health profile) is only sent to the model
+            # for users with a recorded AI data sharing consent. Without one the tool
+            # still works, on the typed input alone.
+            if (is_owner or is_collaborator) and _has_ai_data_sharing_consent(db, current_user.id):
                 journal_service = JournalService(db)
                 journal_context = await journal_service.format_journal_context(data.session_id)
+
+    # End the read transaction so the pooled connection is not held idle for the
+    # duration of the model call. Read the id first: this expires loaded objects.
+    user_id = current_user.id if current_user else None
+    db.rollback()
 
     translation = await openai_service.translate_jargon(
         data.medical_term,
         data.context,
         journal_context=journal_context,
-        user_id=current_user.id if current_user else None
+        user_id=user_id
     )
 
     return JargonTranslationResponse(**translation)
@@ -101,15 +122,23 @@ async def get_conversation_coaching(
                 SessionCollaborator.session_id == session.id,
                 SessionCollaborator.user_id == current_user.id
             ).first() is not None
-            if is_owner or is_collaborator:
+            # Session context (journal and health profile) is only sent to the model
+            # for users with a recorded AI data sharing consent. Without one the tool
+            # still works, on the typed input alone.
+            if (is_owner or is_collaborator) and _has_ai_data_sharing_consent(db, current_user.id):
                 journal_service = JournalService(db)
                 journal_context = await journal_service.format_journal_context(data.session_id)
 
     # Generate coaching with journal context
+    # End the read transaction so the pooled connection is not held idle for the
+    # duration of the model call. Read the id first: this expires loaded objects.
+    user_id = current_user.id if current_user else None
+    db.rollback()
+
     coaching_data = await openai_service.generate_conversation_coaching(
         data.situation,
         journal_context=journal_context,
-        user_id=current_user.id if current_user else None
+        user_id=user_id
     )
 
     return ConversationCoachResponse(**coaching_data)

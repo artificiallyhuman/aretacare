@@ -55,6 +55,10 @@ def check_is_admin(user: User) -> bool:
     admin_emails = settings.admin_emails_list
     if not admin_emails:
         return False
+    # Admin rights follow the email address, so the address must be proven: an
+    # unverified account is only a claim to it.
+    if not user.is_email_verified:
+        return False
     return user.email.lower() in admin_emails
 
 

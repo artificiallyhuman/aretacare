@@ -6,6 +6,7 @@ import { useSessionContext } from '../contexts/SessionContext';
 import { formatLocalDate } from '../utils/dateUtils';
 import SensitiveActionModal from '../components/mfa/SensitiveActionModal';
 import { SESSION_COLORS } from '../constants/sessionColors';
+import { apiErrorMessage } from '../utils/requestUtils';
 
 export default function Settings() {
   const navigate = useNavigate();
@@ -91,7 +92,7 @@ export default function Settings() {
     } catch (err) {
       setErrors((prev) => ({
         ...prev,
-        emailPrefs: err.response?.data?.detail || 'Failed to update email preferences',
+        emailPrefs: apiErrorMessage(err, 'Failed to update email preferences'),
       }));
     } finally {
       setLoading((prev) => ({ ...prev, emailPrefs: false }));
@@ -186,7 +187,7 @@ export default function Settings() {
     } catch (error) {
       setErrors((prev) => ({
         ...prev,
-        name: error.response?.data?.detail || 'Failed to update name',
+        name: apiErrorMessage(error, 'Failed to update name'),
       }));
     } finally {
       setLoading((prev) => ({ ...prev, name: false }));
@@ -229,7 +230,7 @@ export default function Settings() {
     } catch (error) {
       setErrors((prev) => ({
         ...prev,
-        email: error.response?.data?.detail || 'Failed to request email change',
+        email: apiErrorMessage(error, 'Failed to request email change'),
       }));
     } finally {
       setLoading((prev) => ({ ...prev, email: false }));
@@ -278,7 +279,7 @@ export default function Settings() {
     } catch (error) {
       setErrors((prev) => ({
         ...prev,
-        password: error.response?.data?.detail || 'Failed to update password',
+        password: apiErrorMessage(error, 'Failed to update password'),
       }));
     } finally {
       setLoading((prev) => ({ ...prev, password: false }));
@@ -301,7 +302,7 @@ export default function Settings() {
     } catch (error) {
       setErrors((prev) => ({
         ...prev,
-        security: error.response?.data?.detail || 'Failed to logout everywhere',
+        security: apiErrorMessage(error, 'Failed to logout everywhere'),
       }));
     } finally {
       setLoading((prev) => ({ ...prev, security: false }));
@@ -324,7 +325,7 @@ export default function Settings() {
       } else {
         setErrors(prev => ({
           ...prev,
-          [`color-${sessionId}`]: err.response?.data?.detail || 'Failed to update color',
+          [`color-${sessionId}`]: apiErrorMessage(err, 'Failed to update color'),
         }));
       }
     } finally {
@@ -342,7 +343,7 @@ export default function Settings() {
     } catch (err) {
       setErrors(prev => ({
         ...prev,
-        [`color-${sessionId}`]: err.response?.data?.detail || 'Failed to swap colors',
+        [`color-${sessionId}`]: apiErrorMessage(err, 'Failed to swap colors'),
       }));
     } finally {
       setColorLoading(prev => ({ ...prev, [sessionId]: false }));
@@ -374,7 +375,7 @@ export default function Settings() {
     } catch (error) {
       setErrors((prev) => ({
         ...prev,
-        [`session-${sessionId}`]: error.response?.data?.detail || 'Failed to delete session',
+        [`session-${sessionId}`]: apiErrorMessage(error, 'Failed to delete session'),
       }));
     } finally {
       setLoading((prev) => ({ ...prev, [`session-${sessionId}`]: false }));
@@ -399,7 +400,7 @@ export default function Settings() {
     } catch (error) {
       setErrors((prev) => ({
         ...prev,
-        [`rename-${sessionId}`]: error.response?.data?.detail || 'Failed to rename session',
+        [`rename-${sessionId}`]: apiErrorMessage(error, 'Failed to rename session'),
       }));
     } finally {
       setLoading((prev) => ({ ...prev, [`rename-${sessionId}`]: false }));
@@ -438,7 +439,7 @@ export default function Settings() {
     } catch (error) {
       setErrors((prev) => ({
         ...prev,
-        delete: error.response?.data?.detail || 'Failed to delete account',
+        delete: apiErrorMessage(error, 'Failed to delete account'),
       }));
       setLoading((prev) => ({ ...prev, delete: false }));
       setAccountDeleteConfirm(false);
@@ -534,6 +535,7 @@ export default function Settings() {
                     <div className="relative">
                       <input
                         type={showPasswords.namePassword ? 'text' : 'password'}
+                        autoComplete="current-password"
                         value={nameForm.password}
                         onChange={(e) => setNameForm({ ...nameForm, password: e.target.value })}
                         className="input w-full pr-10"
@@ -619,6 +621,7 @@ export default function Settings() {
                     </label>
                     <input
                       type="email"
+                      autoComplete="email"
                       value={emailForm.email}
                       onChange={(e) => setEmailForm({ ...emailForm, email: e.target.value })}
                       className="input w-full"
@@ -632,6 +635,7 @@ export default function Settings() {
                     <div className="relative">
                       <input
                         type={showPasswords.emailPassword ? 'text' : 'password'}
+                        autoComplete="current-password"
                         value={emailForm.password}
                         onChange={(e) => setEmailForm({ ...emailForm, password: e.target.value })}
                         className="input w-full pr-10"
@@ -712,6 +716,7 @@ export default function Settings() {
                     <div className="relative">
                       <input
                         type={showPasswords.currentPassword ? 'text' : 'password'}
+                        autoComplete="current-password"
                         value={passwordForm.currentPassword}
                         onChange={(e) =>
                           setPasswordForm({ ...passwordForm, currentPassword: e.target.value })
@@ -745,6 +750,7 @@ export default function Settings() {
                     <div className="relative">
                       <input
                         type={showPasswords.newPassword ? 'text' : 'password'}
+                        autoComplete="new-password"
                         value={passwordForm.newPassword}
                         onChange={(e) =>
                           setPasswordForm({ ...passwordForm, newPassword: e.target.value })
@@ -779,6 +785,7 @@ export default function Settings() {
                     <div className="relative">
                       <input
                         type={showPasswords.confirmPassword ? 'text' : 'password'}
+                        autoComplete="new-password"
                         value={passwordForm.confirmPassword}
                         onChange={(e) =>
                           setPasswordForm({ ...passwordForm, confirmPassword: e.target.value })
@@ -1327,6 +1334,7 @@ export default function Settings() {
                     <div className="relative">
                       <input
                         type={showPasswords.deletePassword ? 'text' : 'password'}
+                        autoComplete="current-password"
                         value={deleteForm.password}
                         onChange={(e) => setDeleteForm({ ...deleteForm, password: e.target.value })}
                         className="input w-full pr-10"

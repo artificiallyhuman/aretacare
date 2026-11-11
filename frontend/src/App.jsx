@@ -10,6 +10,7 @@ import Footer from './components/Footer';
 import NetworkStatusBanner from './components/NetworkStatusBanner';
 import FeedbackTab from './components/FeedbackTab';
 import IdleTimeout from './components/IdleTimeout';
+import MFAStepUpProvider from './components/mfa/MFAStepUpProvider';
 import CollaborationAwarenessPopup from './components/CollaborationAwarenessPopup';
 import AIDataSharingConsentModal from './components/AIDataSharingConsentModal';
 import AuthSplash from './components/AuthSplash';
@@ -189,6 +190,7 @@ function AppContent() {
       {user && <CollaborationAwarenessPopup />}
       <AIDataSharingConsentModal user={user} setUser={setUser} />
       <IdleTimeout />
+      {user && <MFAStepUpProvider />}
       <main className="flex-1 overflow-auto">
       <ErrorBoundary>
       <Suspense fallback={<PageLoadingFallback />}>

@@ -141,7 +141,35 @@ updates:
     labels:
       - "dependencies"
       - "ci"
+    # Workflows pin actions by commit SHA with the release in a trailing comment
+    # (`uses: owner/action@<sha> # v1.2.3`). Dependabot understands that form and rewrites
+    # the SHA and the comment together, so the pins do not go stale.
     groups:
       github-actions:
         patterns:
           - "*"
+
+  # ---------------------------------------------------------------------------
+  # Container base images
+  # ---------------------------------------------------------------------------
+  # The Dockerfiles' FROM lines (python for the backend, node for the dev frontend). Base
+  # images carry the OS packages, so this is how their security fixes get noticed. Majors
+  # are ignored like everywhere else: a new Python or Node major is a deliberate upgrade.
+  - package-ecosystem: "docker"
+    directories:
+      - "/"
+      - "/backend"
+      - "/frontend"
+    schedule:
+      interval: "monthly"
+    open-pull-requests-limit: 2
+    labels:
+      - "dependencies"
+      - "docker"
+    groups:
+      docker:
+        patterns:
+          - "*"
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
