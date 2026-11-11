@@ -9,6 +9,7 @@ import asyncio
 from collections import deque
 from threading import Lock
 from urllib.parse import urlparse
+from zoneinfo import ZoneInfo
 
 # Exception types that should trigger a retry (transient failures)
 RETRYABLE_EXCEPTIONS = (RateLimitError, APIConnectionError, APITimeoutError, InternalServerError)
@@ -141,6 +142,55 @@ def wrap_untrusted(text: str, source: str = "user_content") -> str:
         f"{sanitized}\n"
         f"</untrusted_content>"
     )
+
+# Output ceiling for the public tools (Jargon Translator, Conversation Coach). These are
+# reachable without an account, so their cost per request must be bounded. Reasoning
+# tokens count toward the cap, hence the headroom over a typical answer.
+TOOLS_MAX_OUTPUT_TOKENS = 16000
+
+_MAX_CLIENT_METADATA_CHARS = 64
+_CLIENT_TZ_RE = re.compile(r"[A-Za-z0-9_+\-]+(?:/[A-Za-z0-9_+\-]+){0,2}")
+_CLIENT_TIME_RE = re.compile(r"[0-9APMapmTZ/:,.\-+ \u202f]+")
+
+
+def sanitize_user_timezone(value: Optional[str]) -> Optional[str]:
+    """Return `value` only if it names a real IANA timezone, else None.
+
+    The timezone is client-supplied and is placed in a system-role message, so it must
+    be a recognised zone name rather than free text.
+    """
+    if not value or not isinstance(value, str):
+        return None
+    value = value.strip()
+    if not value or len(value) > _MAX_CLIENT_METADATA_CHARS:
+        return None
+    if not _CLIENT_TZ_RE.fullmatch(value):
+        return None
+    try:
+        ZoneInfo(value)
+    except Exception:
+        return None
+    return value
+
+
+def sanitize_current_time(value: Optional[str]) -> Optional[str]:
+    """Return `value` only if it looks like a plain date/time string, else None.
+
+    Same reasoning as sanitize_user_timezone: client-supplied text bound for a
+    system-role message. Clients send locale-formatted timestamps (not only ISO 8601),
+    so this is a character allowlist rather than a parser: digits, date/time
+    punctuation, and the letters needed for AM/PM, "T" and "Z" — nothing that can
+    spell out prose.
+    """
+    if not value or not isinstance(value, str):
+        return None
+    value = value.strip()
+    if not value or len(value) > _MAX_CLIENT_METADATA_CHARS:
+        return None
+    if not _CLIENT_TIME_RE.fullmatch(value):
+        return None
+    return value
+
 
 # Circuit breaker configuration
 CIRCUIT_BREAKER_FAILURE_THRESHOLD = 5  # Number of failures to trip circuit
@@ -438,8 +488,12 @@ class OpenAIService:
         messages: List[Dict[str, str]],
         feature: str = "unknown",
         user_id: Optional[str] = None,
+        max_output_tokens: Optional[int] = None,
     ) -> Optional[str]:
         """Create chat completion with error handling, timeout, retry logic, and circuit breaker.
+
+        `max_output_tokens` bounds the response (reasoning tokens count toward it, so keep
+        it generous). Left unset for chat, where long answers are legitimate.
 
         Includes:
         - Circuit breaker to fail fast during extended outages
@@ -471,10 +525,10 @@ class OpenAIService:
 
         for attempt in range(max_retries):
             try:
-                response = await self.client.responses.create(
-                    model=self.model,
-                    input=messages,
-                )
+                request_kwargs = {"model": self.model, "input": messages}
+                if max_output_tokens is not None:
+                    request_kwargs["max_output_tokens"] = max_output_tokens
+                response = await self.client.responses.create(**request_kwargs)
 
                 # Extract token usage from response
                 if hasattr(response, "usage") and response.usage:
@@ -669,7 +723,12 @@ class OpenAIService:
 
         messages.append({"role": "user", "content": prompt})
 
-        response = await self._create_chat_completion(messages, feature="jargon_translator", user_id=user_id)
+        response = await self._create_chat_completion(
+            messages,
+            feature="jargon_translator",
+            user_id=user_id,
+            max_output_tokens=TOOLS_MAX_OUTPUT_TOKENS,
+        )
 
         if response:
             # Server-side citation allowlist enforcement — drops any markdown links
@@ -716,7 +775,12 @@ class OpenAIService:
 
         messages.append({"role": "user", "content": prompt})
 
-        response = await self._create_chat_completion(messages, feature="conversation_coach", user_id=user_id)
+        response = await self._create_chat_completion(
+            messages,
+            feature="conversation_coach",
+            user_id=user_id,
+            max_output_tokens=TOOLS_MAX_OUTPUT_TOKENS,
+        )
 
         if response:
             response = _filter_citation_links(response)
@@ -1044,6 +1108,11 @@ class OpenAIService:
             )},
         ]
 
+        # Both values come from the client and land in a system-role message below, so
+        # anything that is not a real timezone / ISO timestamp is dropped.
+        user_timezone = sanitize_user_timezone(user_timezone)
+        current_time = sanitize_current_time(current_time)
+
         # Add user metadata context (timezone, time, usage patterns)
         if user_timezone or current_time or usage_patterns:
             metadata_parts = ["---\nUSER CONTEXT METADATA:\n"]
@@ -1150,7 +1219,7 @@ When information conflicts, trust more recent sources.
                     "role": "system",
                     "content": f"""---
 ⚡ IMMEDIATE CONTEXT - Your last message to the user:
-{last_message.get('content', '')}
+{wrap_untrusted(last_message.get('content', ''), source="previous_assistant_message")}
 
 The user is now responding to THIS message above. Interpret their response accordingly:
 - "yes", "sure", "okay", "go ahead" → They AGREE with what you suggested

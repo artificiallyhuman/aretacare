@@ -10,7 +10,7 @@ from sqlalchemy.orm.attributes import flag_modified
 from datetime import datetime
 from typing import Optional, List, Dict, Any, Tuple
 
-from ..schemas.profile import PendingChange
+from ..schemas.profile import PendingChange, ProfileData
 from ..models.profile import Profile
 from ..models.conversation import Conversation
 from ..models.journal import JournalEntry
@@ -19,9 +19,39 @@ from ..models.user import User
 from ..models.session_collaborator import SessionCollaborator
 from ..core.config import settings
 from ..config import ai_config
-from .openai_service import guarded_responses_create
+from .openai_service import guarded_responses_create, wrap_untrusted, _strip_markdown_images
 
 logger = logging.getLogger(__name__)
+
+def _profile_system_messages() -> List[Dict[str, str]]:
+    """System messages for every profile generation call.
+
+    The profile is built from chat turns and journal entries, which in turn come from
+    uploads and from every participant in the care session. Those are passed wrapped,
+    so each call carries the rule that wrapped content is data, plus the shared safety
+    boundaries.
+    """
+    return [
+        {"role": "system", "content": ai_config.GENERATION_SAFETY_PREAMBLE},
+        {"role": "system", "content": ai_config.UNTRUSTED_CONTENT_NOTICE},
+        {"role": "system", "content": ai_config.PROFILE_SYSTEM_PROMPT},
+    ]
+
+
+def _strip_images_deep(value: Any) -> Any:
+    """Apply _strip_markdown_images to every string inside a JSON-like structure.
+
+    Profile text is rendered as markdown by the clients, and here the model returns
+    JSON rather than a single string, so the stripping has to walk the structure.
+    """
+    if isinstance(value, str):
+        return _strip_markdown_images(value)
+    if isinstance(value, list):
+        return [_strip_images_deep(item) for item in value]
+    if isinstance(value, dict):
+        return {key: _strip_images_deep(item) for key, item in value.items()}
+    return value
+
 
 # Preferences sub-fields that are nested arrays (vs scalar fields like emergency_instructions)
 PREFERENCES_ARRAY_FIELDS = {"communication_preferences", "caregiving_guidelines", "important_context"}
@@ -426,15 +456,14 @@ class ProfileService:
 
             # Build the prompt
             user_prompt = ai_config.PROFILE_INITIAL_PROMPT.format(
-                historical_data=historical_data
+                historical_data=wrap_untrusted(historical_data, source="care_session_history")
             )
 
             # Call OpenAI
             response = await guarded_responses_create(
                 client,
                 model=ai_config.CHAT_MODEL,
-                input=[
-                    {"role": "system", "content": ai_config.PROFILE_SYSTEM_PROMPT},
+                input=_profile_system_messages() + [
                     {"role": "user", "content": user_prompt}
                 ]
             )
@@ -454,7 +483,22 @@ class ProfileService:
             await _log_profile_api_call("profile_initial", response, start_time, True, user_id)
 
             # Parse JSON response
-            profile_data = ProfileService._parse_json_response(text)
+            profile_data = _strip_images_deep(ProfileService._parse_json_response(text))
+
+            # This write goes straight into the stored profile with no review step,
+            # and every profile read validates against ProfileData. Output that does
+            # not fit the schema is rejected here, so a malformed generation fails this
+            # one request instead of breaking every later read of the profile.
+            if not isinstance(profile_data, dict):
+                raise ValueError("AI profile output was not a JSON object")
+            try:
+                ProfileData.model_validate(profile_data)
+            except ValidationError as e:
+                logger.warning(
+                    f"Rejecting malformed AI profile for session {profile.session_id}: "
+                    f"{[(err.get('loc'), err.get('type')) for err in e.errors()[:5]]}"
+                )
+                raise ValueError("AI profile output did not match the profile schema")
 
             # Update profile
             profile.profile_data = profile_data
@@ -491,16 +535,15 @@ class ProfileService:
 
             # Build the prompt
             user_prompt = ai_config.PROFILE_UPDATE_PROMPT.format(
-                existing_profile=existing_profile,
-                new_activity=new_activity
+                existing_profile=wrap_untrusted(existing_profile, source="existing_profile"),
+                new_activity=wrap_untrusted(new_activity, source="new_activity")
             )
 
             # Call OpenAI
             response = await guarded_responses_create(
                 client,
                 model=ai_config.CHAT_MODEL,
-                input=[
-                    {"role": "system", "content": ai_config.PROFILE_SYSTEM_PROMPT},
+                input=_profile_system_messages() + [
                     {"role": "user", "content": user_prompt}
                 ]
             )
@@ -520,7 +563,9 @@ class ProfileService:
             await _log_profile_api_call("profile_update", response, start_time, True, user_id)
 
             # Parse JSON response
-            update_data = ProfileService._parse_json_response(text)
+            update_data = _strip_images_deep(ProfileService._parse_json_response(text))
+            if not isinstance(update_data, dict):
+                raise ValueError("AI profile update output was not a JSON object")
 
             # ALL changes require approval - AI returns unified list of suggested changes
             pending = profile.pending_changes or []

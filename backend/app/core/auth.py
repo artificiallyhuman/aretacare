@@ -209,5 +209,11 @@ def revoke_all_user_tokens(db, user_id: str):
         token.is_revoked = True
         token.revoked_at = now
 
+    # Signing out everywhere also has to stop push notifications: a device that can no
+    # longer refresh its session must not keep receiving lock-screen alerts about the
+    # account. A device that signs back in registers its token again.
+    from app.models.device_token import DeviceToken
+    db.query(DeviceToken).filter(DeviceToken.user_id == user_id).delete(synchronize_session=False)
+
     db.commit()
     return len(tokens)

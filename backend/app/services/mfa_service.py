@@ -126,6 +126,11 @@ class MFAService:
         # Store encrypted secret
         encrypted_secret = MFAService._encrypt_totp_secret(secret)
 
+        if existing and existing.verified:
+            # Never overwrite a verified secret: that would silently disable a working
+            # factor. The route rejects this case first; this guards other callers.
+            raise ValueError("A verified TOTP secret already exists for this user")
+
         if existing:
             # Update existing record
             existing.secret_encrypted = encrypted_secret
@@ -157,7 +162,9 @@ class MFAService:
             UserTOTPSecret.user_id == user_id
         ).first()
 
-        if not totp_record:
+        if not totp_record or totp_record.verified:
+            # Nothing pending to confirm. An already-verified secret is checked through
+            # verify_totp, which has replay protection; this path does not.
             return False
 
         # Decrypt secret and verify code

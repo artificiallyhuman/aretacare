@@ -5,6 +5,12 @@ from typing import List
 class Settings(BaseSettings):
     # Database
     DATABASE_URL: str
+    # Connection pool, per instance. (DB_POOL_SIZE + DB_MAX_OVERFLOW) x the maximum
+    # number of instances must stay under the Postgres plan's connection limit — see
+    # core/database.py.
+    DB_POOL_SIZE: int = 10
+    DB_MAX_OVERFLOW: int = 8
+    DB_POOL_TIMEOUT: int = 10  # Seconds to wait for a free connection before failing the request
 
     # OpenAI
     OPENAI_API_KEY: str

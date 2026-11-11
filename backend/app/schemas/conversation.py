@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from datetime import datetime
 from app.models.conversation import MessageRole, MessageType
 from typing import Optional
@@ -6,16 +6,30 @@ from typing import Optional
 from app.schemas.source_tag import SourceTagInfo
 
 
+# Upper bounds on free-text input. Every character is model input, so none of these can
+# be unbounded. The chat limit is generous on purpose — people paste long portal notes
+# and discharge summaries.
+#
+# These are enforced in the routes (a 4xx with a plain-string `detail`) rather than as
+# `Field(max_length=...)`, because clients display `detail` directly and a validation
+# error's list-shaped detail is not something they can render.
+MAX_MESSAGE_CONTENT_CHARS = 100_000
+MAX_JARGON_TERM_CHARS = 200
+MAX_JARGON_CONTEXT_CHARS = 4_000
+MAX_COACH_SITUATION_CHARS = 8_000
+
+
 class MessageRequest(BaseModel):
     content: str
-    session_id: str
-    message_type: str = "text"
+    session_id: str = Field(..., max_length=64)
+    message_type: str = Field("text", max_length=32)
     document_id: Optional[int] = None
     audio_recording_id: Optional[int] = None
-    media_url: Optional[str] = None
-    entry_date: Optional[str] = None
-    user_timezone: Optional[str] = None
-    current_time: Optional[str] = None
+    # No media_url: attachment URLs are generated server-side from document_id.
+    # (Older clients still send the field; it is ignored.)
+    entry_date: Optional[str] = Field(None, max_length=10)
+    user_timezone: Optional[str] = Field(None, max_length=64)
+    current_time: Optional[str] = Field(None, max_length=64)
 
 
 class MessageResponse(BaseModel):

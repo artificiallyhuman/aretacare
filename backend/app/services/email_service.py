@@ -1,6 +1,7 @@
 import html
 import re
 import smtplib
+import ssl
 from datetime import datetime
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
@@ -88,7 +89,9 @@ class EmailService:
         for attempt in range(EMAIL_MAX_RETRIES):
             try:
                 with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT, timeout=EMAIL_SMTP_TIMEOUT) as server:
-                    server.starttls()
+                    # Verify the server certificate and hostname; the default
+                    # (no context) accepts any certificate.
+                    server.starttls(context=ssl.create_default_context())
                     server.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
                     server.send_message(message)
                 return True

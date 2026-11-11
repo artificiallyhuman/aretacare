@@ -36,6 +36,11 @@ from app.core.mfa_config import TRUSTED_DEVICE_COOKIE_NAME
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+
+# Routes that re-check the account password for an already signed-in user. Login has
+# its own lockout; without a limit here these would let a holder of a stolen access
+# token guess the password at full speed.
+PASSWORD_REAUTH_LIMIT = "10/minute"
 security = HTTPBearer()
 security_optional = HTTPBearer(auto_error=False)
 
@@ -1047,7 +1052,9 @@ def accept_ai_data_sharing(
 
 
 @router.put("/name", response_model=UserResponse)
+@limiter.limit(PASSWORD_REAUTH_LIMIT)
 def update_name(
+    request: Request,
     data: UpdateName,
     current_user: User = Depends(get_current_user),
     db: DBSession = Depends(get_db)
@@ -1069,6 +1076,7 @@ def update_name(
 
 
 @router.put("/email")
+@limiter.limit(PASSWORD_REAUTH_LIMIT)
 def request_email_change(
     request: Request,
     data: UpdateEmail,
@@ -1240,6 +1248,7 @@ def cancel_email_change(
 
 
 @router.put("/password")
+@limiter.limit(PASSWORD_REAUTH_LIMIT)
 def update_password(
     request: Request,
     data: UpdatePassword,
@@ -1286,6 +1295,7 @@ def update_password(
 
 
 @router.delete("/account", status_code=status.HTTP_204_NO_CONTENT)
+@limiter.limit(PASSWORD_REAUTH_LIMIT)
 async def delete_account(
     request: Request,
     data: DeleteAccount,
@@ -1427,6 +1437,29 @@ def reset_password(request: Request, data: PasswordReset, db: DBSession = Depend
     return {"message": "Password reset successful"}
 
 
+def _recover_native_refresh(db: DBSession, body_token: str, cookie_token: str):
+    """Let a native client whose stored token went stale continue from its cookie.
+
+    Earlier responses set a refresh cookie for native clients too, and the rotation
+    then followed the cookie while the Keychain kept the old value. Such a client
+    presents a body token that has already been rotated away plus a cookie holding the
+    live one. Accept the cookie only when the body token is a real (now revoked)
+    refresh token belonging to the same user: that proves the caller is the native
+    client the cookie was issued to, not page script replaying a browser cookie with a
+    made-up body, and it can never hand one user's session to another.
+    """
+    from app.models.refresh_token import RefreshToken
+
+    stale_record = db.query(RefreshToken).filter(RefreshToken.token == body_token).first()
+    if not stale_record:
+        return None
+
+    cookie_record = verify_refresh_token(db, cookie_token, for_rotation=True)
+    if cookie_record and cookie_record.user_id == stale_record.user_id:
+        return cookie_record
+    return None
+
+
 @router.post("/refresh", response_model=TokenResponse)
 @limiter.limit(RateLimits.TOKEN_REFRESH)
 def refresh_access_token(
@@ -1445,23 +1478,36 @@ def refresh_access_token(
     - If a token is reused after rotation, it indicates potential theft
 
     The refresh token can be provided via:
-    1. HttpOnly cookie (preferred, more secure)
-    2. Request body (deprecated, for backward compatibility only)
+    1. HttpOnly cookie (browsers)
+    2. Request body (native clients, which keep the token in the Keychain)
     """
-    # Get refresh token from cookie first, then fall back to body
-    refresh_token_value = refresh_token_cookie
-    if not refresh_token_value and data and data.refresh_token:
-        refresh_token_value = data.refresh_token
+    body_token = data.refresh_token if data and data.refresh_token else None
 
-    if not refresh_token_value:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Refresh token required"
-        )
+    # A native client is identified by presenting its token in the body. The
+    # X-Client-Type header alone proves nothing (any caller can set it), but a body
+    # token does: script running in a browser never sees the HttpOnly cookie's value,
+    # so it has nothing to put there.
+    #
+    # For such a request the body token is authoritative and any cookie is ignored.
+    # iOS URLSession keeps a cookie jar unless told otherwise, so a native client can
+    # arrive carrying a cookie from an earlier response — possibly one issued to a
+    # different account that was signed in before on the same device. Preferring the
+    # cookie there rotated the wrong token and left the Keychain copy stale.
+    is_native = request.headers.get("X-Client-Type") == "ios" and body_token is not None
 
-    # Verify the refresh token with FOR UPDATE lock to prevent race conditions
-    # This ensures only one concurrent request can rotate a given token
-    token_record = verify_refresh_token(db, refresh_token_value, for_rotation=True)
+    if is_native:
+        # FOR UPDATE lock: only one concurrent request can rotate a given token.
+        token_record = verify_refresh_token(db, body_token, for_rotation=True)
+        if not token_record and refresh_token_cookie:
+            token_record = _recover_native_refresh(db, body_token, refresh_token_cookie)
+    else:
+        refresh_token_value = refresh_token_cookie or body_token
+        if not refresh_token_value:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Refresh token required"
+            )
+        token_record = verify_refresh_token(db, refresh_token_value, for_rotation=True)
 
     if not token_record:
         # Clear invalid cookie if present
@@ -1497,34 +1543,23 @@ def refresh_access_token(
         ip_address=ip_address
     )
 
-    # Set the NEW refresh token cookie
-    # Note: refresh_token is NOT returned in body to prevent XSS attacks from stealing it
-    set_refresh_token_cookie(response, new_refresh_token)
-
-    # Native clients (no cookie jar) need the rotated token in the body to store in the
-    # Keychain. Browsers must never receive it there — an HttpOnly cookie is only worth
-    # anything if the value can't also be read from JavaScript.
-    #
-    # Deciding this on the X-Client-Type header alone would let injected script on the web
-    # origin call this endpoint with `credentials: 'include'` and that header, and read the
-    # freshly rotated refresh token out of the JSON — turning a transient XSS into 7 days of
-    # re-rotatable account access. So require BOTH: the caller claims to be native AND the
-    # request carried no refresh cookie. A browser always sends the cookie here (same-site,
-    # path=/api/auth), so it can never satisfy the second condition.
-    is_ios = request.headers.get("X-Client-Type") == "ios"
-    presented_cookie = refresh_token_cookie is not None
-    include_token_in_body = is_ios and not presented_cookie
-
-    if is_ios and presented_cookie:
-        logger.warning(
-            "Refresh request claimed X-Client-Type: ios but carried a refresh cookie; "
-            "withholding the token from the response body."
-        )
+    if is_native:
+        # The rotated token goes back in the body for the Keychain, and no cookie is
+        # set: a cookie in the client's jar would shadow the Keychain copy on the next
+        # refresh. Expire any cookie the client is still carrying for the same reason.
+        if refresh_token_cookie is not None:
+            clear_refresh_token_cookie(response)
+    else:
+        # Browsers get the rotated token as an HttpOnly cookie and never in the body —
+        # the cookie is only worth anything if the value can't also be read from
+        # JavaScript. A browser cannot reach the native branch above: that requires
+        # presenting a refresh token in the body, which page script never has.
+        set_refresh_token_cookie(response, new_refresh_token)
 
     return TokenResponse(
         access_token=access_token,
         user=_build_user_response(user, db),
-        refresh_token=new_refresh_token if include_token_in_body else None,
+        refresh_token=new_refresh_token if is_native else None,
     )
 
 
@@ -1548,16 +1583,23 @@ def logout(
     # without the body fallback their refresh token stayed valid for its full 7-day
     # lifetime after "log out" — meaning logout did not actually end the session, which
     # is precisely the remedy a user reaches for after losing a device.
-    presented_token = refresh_token_cookie or (data.refresh_token if data else None)
+    #
+    # Revoke both when both arrive rather than picking one: a native client can carry a
+    # cookie as well as its Keychain token, and they are not necessarily the same token.
+    presented_tokens = {
+        token for token in (refresh_token_cookie, data.refresh_token if data else None) if token
+    }
 
-    if presented_token:
+    if presented_tokens:
         from app.models.refresh_token import RefreshToken
-        token_record = db.query(RefreshToken).filter(
-            RefreshToken.token == presented_token,
+        token_records = db.query(RefreshToken).filter(
+            RefreshToken.token.in_(presented_tokens),
             RefreshToken.is_revoked == False
-        ).first()
-        if token_record:
+        ).all()
+        for token_record in token_records:
             token_record.is_revoked = True
+            token_record.revoked_at = datetime.utcnow()
+        if token_records:
             db.commit()
 
     return {"message": "Logged out successfully"}

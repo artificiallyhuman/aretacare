@@ -1,6 +1,7 @@
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.orm import Session
 from app.core.database import get_db
+from app.core.rate_limit import limiter, RateLimits
 from app.models import User, Session as SessionModel
 from app.schemas.journal import (
     JournalEntryCreate,
@@ -210,7 +211,9 @@ async def get_journal_dates(
 
 
 @router.post("/{session_id}", response_model=JournalEntryResponse)
+@limiter.limit(RateLimits.JOURNAL_WRITE)
 async def create_journal_entry(
+    request: Request,
     session_id: str,
     entry_data: JournalEntryCreate,
     current_user: User = Depends(get_current_user),
@@ -254,7 +257,9 @@ async def create_journal_entry(
 
 
 @router.put("/{entry_id}", response_model=JournalEntryResponse)
+@limiter.limit(RateLimits.JOURNAL_WRITE)
 async def update_journal_entry(
+    request: Request,
     entry_id: int,
     updates: JournalEntryUpdate,
     current_user: User = Depends(get_current_user),

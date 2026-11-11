@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from typing import Optional
@@ -8,6 +8,7 @@ import json
 import io
 
 from ..core.database import get_db
+from ..core.rate_limit import limiter, RateLimits
 from ..api.auth import get_current_user, require_ai_data_sharing_consent
 from ..api.permissions import check_session_access
 from ..models.user import User
@@ -75,7 +76,9 @@ async def check_profile_status(
 
 
 @router.post("/{session_id}/update", response_model=ProfileResponse)
+@limiter.limit(RateLimits.AI_HEAVY)
 async def update_profile_from_activity(
+    request: Request,
     session_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_ai_data_sharing_consent)
@@ -242,9 +245,11 @@ async def review_pending_changes(
 
 
 @router.post("/{session_id}/regenerate", response_model=ProfileResponse)
+@limiter.limit(RateLimits.AI_HEAVY)
 async def regenerate_profile(
+    request: Request,
     session_id: str,
-    request: ProfileRegenerateRequest,
+    regenerate_request: ProfileRegenerateRequest,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_ai_data_sharing_consent)
 ):
@@ -262,7 +267,7 @@ async def regenerate_profile(
 
     check_session_access(session, current_user.id, db)
 
-    if not request.confirm:
+    if not regenerate_request.confirm:
         raise HTTPException(
             status_code=400,
             detail="Regeneration requires confirmation. Set confirm=true to proceed."

@@ -11,7 +11,14 @@ from app.models import User, Session as SessionModel, Conversation, Document, Au
 from app.models.audio_recording import TranscriptionStatus
 from app.models.conversation import MessageRole, MessageType
 from app.models.journal import JournalEntry
-from app.schemas.conversation import MessageRequest, MessageResponse, ConversationHistory, UpdateMessageRequest, UpdateMessageResponse
+from app.schemas.conversation import (
+    MessageRequest,
+    MessageResponse,
+    ConversationHistory,
+    UpdateMessageRequest,
+    UpdateMessageResponse,
+    MAX_MESSAGE_CONTENT_CHARS,
+)
 from app.services.openai_service import openai_service, ImageProcessingError
 from app.services.journal_service import JournalService
 from app.services.s3_service import s3_service
@@ -109,10 +116,16 @@ async def send_message(
     message_type = message_request.message_type
     document_id = message_request.document_id
     audio_recording_id = message_request.audio_recording_id
-    media_url = message_request.media_url
     entry_date = message_request.entry_date
     user_timezone = message_request.user_timezone
     current_time = message_request.current_time
+
+    if len(content) > MAX_MESSAGE_CONTENT_CHARS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"This message is too long. Please keep it under {MAX_MESSAGE_CONTENT_CHARS:,} "
+                   "characters, or upload it as a document instead.",
+        )
 
     # Verify user has access to session (owner or collaborator)
     session = db.query(SessionModel).filter(SessionModel.id == session_id).first()
@@ -162,7 +175,9 @@ async def send_message(
             message_type=MessageType(message_type),
             document_id=document_id,
             audio_recording_id=audio_recording_id,
-            media_url=generated_media_url or media_url,
+            # Only ever a URL this server generated for the attached document. A URL
+            # supplied by the client is not accepted: other participants' apps load it.
+            media_url=generated_media_url,
             extracted_text=extracted_text,
             created_by_user_id=current_user.id  # Track creator for collaborative sessions
         )
@@ -447,7 +462,9 @@ async def get_conversation_history(
     message_responses = []
     for msg in messages:
         # Regenerate presigned URLs for images (30 min) and thumbnails (6 hours)
-        media_url = msg.media_url
+        # A stored URL is only returned for messages still tied to a document (those
+        # URLs were generated server-side); anything else is not passed through.
+        media_url = msg.media_url if msg.document_id else None
         thumbnail_url = None
 
         if msg.document_id:
@@ -503,6 +520,12 @@ async def update_message(
     db: Session = Depends(get_db)
 ):
     """Update a user message in the conversation"""
+    if len(update_data.content) > MAX_MESSAGE_CONTENT_CHARS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"This message is too long. Please keep it under {MAX_MESSAGE_CONTENT_CHARS:,} characters.",
+        )
+
     # Get the message
     message = db.query(Conversation).filter(Conversation.id == message_id).first()
     if not message:

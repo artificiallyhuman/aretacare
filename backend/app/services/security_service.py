@@ -239,7 +239,11 @@ class SecurityService:
         failed_attempts = db.query(SecurityLog).filter(
             and_(
                 SecurityLog.created_at >= cutoff_time,
-                SecurityLog.event_type == "mfa_login_failed",
+                # Login and step-up verification share one budget: both test the
+                # same factors, so counting only one left the other unlimited.
+                SecurityLog.event_type.in_(
+                    ["mfa_login_failed", "mfa_action_verification_failed"]
+                ),
                 SecurityLog.user_id == user_id
             )
         ).count()

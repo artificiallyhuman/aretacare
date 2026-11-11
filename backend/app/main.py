@@ -10,6 +10,7 @@ from app.core.database import engine, Base, SessionLocal
 from app.core.migrations import run_migrations
 from app.core.rate_limit import limiter, rate_limit_exceeded_handler, cleanup_rate_limit_storage
 from app.core.security_headers import SecurityHeadersMiddleware
+from app.core.body_limit import BodySizeLimitMiddleware, upload_body_limit
 from app.core.sentry import init_sentry
 from app.api import api_router
 from app.services.admin_service import admin_service
@@ -41,28 +42,60 @@ init_sentry()
 # Database initialization
 reset_db = os.getenv("RESET_DB", "false").lower() == "true"
 
-# Enable pgvector extension before create_all (required for Vector column type)
-from sqlalchemy import text
-with engine.connect() as _conn:
-    try:
-        _conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
-        _conn.commit()
-    except Exception:
-        _conn.rollback()
+# RESET_DB drops every table. It exists for local development only, so it is honoured
+# only when DEBUG is on AND the database is a local one (the host machine or the
+# docker compose "db" service). Anywhere else the flag is ignored.
+_LOCAL_DB_HOSTS = {"localhost", "127.0.0.1", "::1", "db"}
+if reset_db and not (settings.DEBUG and engine.url.host in _LOCAL_DB_HOSTS):
+    logger.error(
+        "RESET_DB is set but ignored: it only applies with DEBUG=True and a local database."
+    )
+    reset_db = False
 
-if reset_db:
-    logger.warning("⚠️  RESET_DB is enabled - Dropping all tables and recreating schema")
-    logger.warning("⚠️  This will delete ALL data in the database!")
-    Base.metadata.drop_all(bind=engine)
-    logger.info("✓ All tables dropped")
-    Base.metadata.create_all(bind=engine)
-    logger.info("✓ Database schema recreated")
-else:
-    # Normal startup - only create missing tables
-    Base.metadata.create_all(bind=engine)
-    logger.info("✓ Database tables initialized")
-    # Run migrations for schema changes
-    run_migrations()
+# Every instance runs this block at import, and several can start at once (autoscaling,
+# deploys). A session-level advisory lock on a dedicated connection makes the schema
+# work single-file: the first instance creates tables and runs migrations, the others
+# wait and then find nothing left to do. Arbitrary fixed key; it only has to be the
+# same on every instance.
+_SCHEMA_ADVISORY_LOCK_KEY = 728411905316
+
+from sqlalchemy import text
+with engine.connect() as _lock_conn:
+    _lock_conn.execute(text("SELECT pg_advisory_lock(:key)"), {"key": _SCHEMA_ADVISORY_LOCK_KEY})
+    _lock_conn.commit()
+    try:
+        # Enable pgvector extension before create_all (required for Vector column type)
+        with engine.connect() as _conn:
+            try:
+                _conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
+                _conn.commit()
+            except Exception:
+                _conn.rollback()
+
+        if reset_db:
+            logger.warning("⚠️  RESET_DB is enabled - Dropping all tables and recreating schema")
+            logger.warning("⚠️  This will delete ALL data in the database!")
+            Base.metadata.drop_all(bind=engine)
+            logger.info("✓ All tables dropped")
+            Base.metadata.create_all(bind=engine)
+            logger.info("✓ Database schema recreated")
+        else:
+            # Normal startup - only create missing tables
+            Base.metadata.create_all(bind=engine)
+            logger.info("✓ Database tables initialized")
+            # Run migrations for schema changes
+            run_migrations()
+    finally:
+        # Session-level locks also release when the connection closes, so a crash
+        # here cannot leave the lock held.
+        try:
+            _lock_conn.rollback()
+            _lock_conn.execute(
+                text("SELECT pg_advisory_unlock(:key)"), {"key": _SCHEMA_ADVISORY_LOCK_KEY}
+            )
+            _lock_conn.commit()
+        except Exception:
+            _lock_conn.invalidate()
 
 def validate_startup():
     """Validate critical configuration at startup for fast failure."""
@@ -211,6 +244,20 @@ app.add_middleware(
 
 # Add security headers to all responses
 app.add_middleware(SecurityHeadersMiddleware)
+
+# Cap request body size. Added last so it is the outermost middleware: the limit applies
+# before anything else (form parsing, authentication, rate limiting) touches the body.
+# Upload routes get their own file limit plus multipart overhead; everything else is JSON.
+from app.api.conversation import MAX_AUDIO_FILE_SIZE
+from app.api.documents import MAX_FILE_SIZE, MAX_CONVERSATION_FILE_SIZE
+app.add_middleware(
+    BodySizeLimitMiddleware,
+    path_limits={
+        "/api/conversation/transcribe": upload_body_limit(MAX_AUDIO_FILE_SIZE),
+        "/api/documents/upload": upload_body_limit(max(MAX_FILE_SIZE, MAX_CONVERSATION_FILE_SIZE)),
+    },
+    allowed_origins=settings.cors_origins_list,
+)
 
 # Include API routes
 app.include_router(api_router, prefix="/api")

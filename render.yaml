@@ -4,6 +4,9 @@ databases:
     databaseName: aretacare
     user: aretacare
     plan: basic-1gb
+    # Private network only — not reachable from the internet. If external access is
+    # ever needed (e.g. an admin running psql), list those specific IPs here instead.
+    ipAllowList: []
 
 services:
 

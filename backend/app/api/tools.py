@@ -7,7 +7,10 @@ from app.schemas.conversation import (
     JargonTranslationRequest,
     JargonTranslationResponse,
     ConversationCoachRequest,
-    ConversationCoachResponse
+    ConversationCoachResponse,
+    MAX_JARGON_TERM_CHARS,
+    MAX_JARGON_CONTEXT_CHARS,
+    MAX_COACH_SITUATION_CHARS,
 )
 from app.services.openai_service import openai_service
 from app.services.journal_service import JournalService
@@ -29,6 +32,19 @@ async def translate_medical_jargon(
     db: Session = Depends(get_db)
 ):
     """Translate medical jargon into plain language with optional journal context"""
+
+    # This endpoint works without an account, so input size is what bounds its cost.
+    if len(data.medical_term) > MAX_JARGON_TERM_CHARS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Please keep the term under {MAX_JARGON_TERM_CHARS} characters. "
+                   "Use the context box for longer passages.",
+        )
+    if len(data.context or "") > MAX_JARGON_CONTEXT_CHARS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Please keep the context under {MAX_JARGON_CONTEXT_CHARS:,} characters.",
+        )
 
     # Get journal context if authenticated and session_id provided
     journal_context = None
@@ -65,6 +81,13 @@ async def get_conversation_coaching(
     db: Session = Depends(get_db)
 ):
     """Get coaching for healthcare conversations with optional journal context"""
+
+    # This endpoint works without an account, so input size is what bounds its cost.
+    if len(data.situation) > MAX_COACH_SITUATION_CHARS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Please keep the description under {MAX_COACH_SITUATION_CHARS:,} characters.",
+        )
 
     # Get journal context if authenticated and session_id provided
     journal_context = None

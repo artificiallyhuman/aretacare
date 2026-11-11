@@ -119,7 +119,10 @@ def rate_limit_exceeded_handler(request: Request, exc: RateLimitExceeded) -> JSO
 
 # Rate limit constants - centralized configuration
 class RateLimits:
-    """Rate limit configurations for different endpoint types."""
+    """Rate limit configurations for different endpoint types.
+
+    Every limit is keyed by client IP (see get_client_ip), not by user account.
+    """
 
     # Authentication endpoints (sensitive - strict limits)
     LOGIN = "6/minute"              # 6 login attempts per minute per IP (allows 5th to trigger lockout)
@@ -130,18 +133,26 @@ class RateLimits:
     PASSWORD_RESET = "5/hour"       # 5 password resets per hour per IP
 
     # File upload endpoints (resource-intensive)
-    FILE_UPLOAD = "10/minute"       # 10 file uploads per minute per user
+    FILE_UPLOAD = "10/minute"       # 10 file uploads per minute per IP
     AUDIO_UPLOAD = "10/minute"      # 10 audio uploads per minute per IP — the upload now returns in
                                     # seconds (transcription is a background job), so a batch of
                                     # files arrives quickly; clients honor retry_after on 429
 
     # General API endpoints (authenticated)
-    API_GENERAL = "100/minute"      # 100 requests per minute per user
+    API_GENERAL = "100/minute"      # 100 requests per minute per IP
 
     # AI/LLM endpoints (expensive)
-    AI_CHAT = "30/minute"           # 30 chat requests per minute per user
-    AI_SYNTHESIS = "20/minute"      # 20 synthesis requests per minute per user
+    AI_CHAT = "30/minute"           # 30 chat requests per minute per IP
+    AI_SYNTHESIS = "20/minute"      # 20 synthesis requests per minute per IP
     AI_TOOLS = "10/minute"          # 10 tool requests per minute per IP (publicly accessible)
+    AI_HEAVY = "6/minute;30/hour"   # Whole-context generations (Health Profile, daily digest): each call
+                                    # can carry a very large prompt, so both a burst and an hourly cap
+    JOURNAL_WRITE = "30/minute"     # Manual journal create/update (each write is re-embedded)
+
+    # Care session sharing
+    INVITATION_EMAIL = "10/hour"    # Share / invite: each call sends email to an address the caller chooses
+    USER_LOOKUP = "30/minute"       # "Is this email registered?" lookup before sharing
+    SESSION_TRANSFER = "10/hour"    # Ownership transfer (sends email to both parties)
 
     # Admin endpoints (protection against compromised tokens)
     ADMIN_DESTRUCTIVE = "5/hour"    # 5 destructive actions per hour per IP (delete user, delete session, S3 cleanup)
@@ -149,7 +160,7 @@ class RateLimits:
     ADMIN_EMAIL = "20/hour"         # 20 email-sending actions per hour per IP (invitations, notifications)
 
     # File download / presigned URL endpoints (prevent bulk exfiltration)
-    PRESIGNED_URL = "30/minute"     # 30 presigned URL generations per minute per user
+    PRESIGNED_URL = "30/minute"     # 30 presigned URL generations per minute per IP
 
     # Feedback submission (spam prevention)
     FEEDBACK_SUBMIT = "3/hour"      # 3 feedback submissions per hour per IP

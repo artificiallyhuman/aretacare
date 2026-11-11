@@ -1,9 +1,10 @@
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.orm import Session
 from typing import List, Optional
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 
 from ..core.database import get_db
+from ..core.rate_limit import limiter, RateLimits
 from ..api.auth import get_current_user, require_ai_data_sharing_consent
 from ..api.permissions import check_session_access
 from ..models.user import User
@@ -135,7 +136,9 @@ async def check_daily_plan_status(
 
 
 @router.post("/{session_id}/generate", response_model=DailyPlanResponse)
+@limiter.limit(RateLimits.AI_HEAVY)
 async def generate_daily_plan(
+    request: Request,
     session_id: str,
     user_date: str = None,
     db: Session = Depends(get_db),
@@ -146,6 +149,17 @@ async def generate_daily_plan(
     Args:
         user_date: Optional date in YYYY-MM-DD format from user's timezone
     """
+
+    # user_date is "today" in the caller's timezone, so it can only differ from the
+    # server's UTC date by one day either way. Anything else is not a digest for today
+    # (and each distinct date would otherwise generate a separate plan).
+    if user_date is not None:
+        try:
+            requested_date = date.fromisoformat(user_date)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="user_date must be in YYYY-MM-DD format")
+        if abs((requested_date - datetime.utcnow().date()).days) > 1:
+            raise HTTPException(status_code=400, detail="user_date must be today's date")
 
     # Verify user has access to session (owner or collaborator)
     session = db.query(UserSession).filter(UserSession.id == session_id).first()

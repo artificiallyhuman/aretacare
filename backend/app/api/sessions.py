@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func
 from app.core.database import get_db
+from app.core.rate_limit import limiter, RateLimits
 from app.models import Session as SessionModel, User, Document, AudioRecording, JournalEntry, Conversation, SessionCollaborator, PendingInvitation, UserSessionColor
 from app.models.consent_record import ConsentRecord, ConsentType, CONSENT_VERSIONS
 from app.schemas import (
@@ -501,7 +502,9 @@ async def cleanup_session(
 
 
 @router.post("/{session_id}/check-user", response_model=UserExistsResponse)
+@limiter.limit(RateLimits.USER_LOOKUP)
 async def check_user_exists(
+    request: Request,
     session_id: str,
     email_data: UserCheckRequest,
     current_user: User = Depends(get_current_user),
@@ -555,6 +558,7 @@ async def check_user_exists(
 
 
 @router.post("/{session_id}/share", response_model=SessionShareResponse)
+@limiter.limit(RateLimits.INVITATION_EMAIL)
 async def share_session(
     request: Request,
     session_id: str,
@@ -787,7 +791,9 @@ async def leave_session(
 
 
 @router.post("/{session_id}/transfer-ownership", response_model=SessionResponse)
+@limiter.limit(RateLimits.SESSION_TRANSFER)
 async def transfer_ownership(
+    request: Request,
     session_id: str,
     transfer_data: TransferOwnershipRequest,
     current_user: User = Depends(get_current_user),
@@ -896,6 +902,7 @@ async def transfer_ownership(
 
 
 @router.post("/{session_id}/send-invitation")
+@limiter.limit(RateLimits.INVITATION_EMAIL)
 async def send_invitation(
     request: Request,
     session_id: str,

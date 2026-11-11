@@ -67,6 +67,16 @@ def setup_totp(
     Generate a new TOTP secret for authenticator app setup.
     Returns the secret and a provisioning URI for QR code generation.
     """
+    # Setup writes a fresh, unverified secret over the stored one. Allowing that while
+    # a verified authenticator exists would replace a working factor without the
+    # step-up that removing it requires, and an abandoned setup would leave the account
+    # with no usable authenticator. Replacing one is remove (step-up gated) then set up.
+    if MFAService.has_verified_totp(db, current_user.id):
+        raise HTTPException(
+            status_code=400,
+            detail="An authenticator app is already set up. Remove it before setting up a new one."
+        )
+
     secret, provisioning_uri = MFAService.setup_totp(db, current_user)
 
     return TOTPSetupResponse(
@@ -394,6 +404,7 @@ def enable_mfa(
 
 
 @router.post("/disable", response_model=DisableMFAResponse)
+@limiter.limit("5/minute")
 def disable_mfa(
     request: Request,
     data: DisableMFARequest,
@@ -447,6 +458,15 @@ def verify_for_sensitive_action(
     """
     if not current_user.mfa_enabled:
         raise HTTPException(status_code=400, detail="MFA is not enabled for this account")
+
+    # Same lockout as MFA at login: failures here count toward it (see
+    # security_service.check_mfa_lockout), so codes cannot be guessed without limit
+    # through the step-up route by someone who already holds an access token.
+    if security_service.check_mfa_lockout(db, current_user.id)["is_locked"]:
+        raise HTTPException(
+            status_code=429,
+            detail="MFA temporarily locked due to too many failed attempts. Please try again later."
+        )
 
     verified = False
 
