@@ -149,7 +149,9 @@ def wrap_untrusted(text: str, source: str = "user_content") -> str:
 TOOLS_MAX_OUTPUT_TOKENS = 16000
 
 _MAX_CLIENT_METADATA_CHARS = 64
-_CLIENT_TZ_RE = re.compile(r"[A-Za-z0-9_+\-]+(?:/[A-Za-z0-9_+\-]+){0,2}")
+_CLIENT_TZ_CHARS = frozenset(
+    "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_+-/"
+)
 _CLIENT_TIME_RE = re.compile(r"[0-9APMapmTZ/:,.\-+ \u202f]+")
 
 
@@ -164,7 +166,10 @@ def sanitize_user_timezone(value: Optional[str]) -> Optional[str]:
     value = value.strip()
     if not value or len(value) > _MAX_CLIENT_METADATA_CHARS:
         return None
-    if not _CLIENT_TZ_RE.fullmatch(value):
+    # Shape check before the lookup: zone-name characters only, at most three
+    # path segments (e.g. America/Argentina/Salta), none of them empty.
+    segments = value.split("/")
+    if not set(value) <= _CLIENT_TZ_CHARS or len(segments) > 3 or not all(segments):
         return None
     try:
         ZoneInfo(value)

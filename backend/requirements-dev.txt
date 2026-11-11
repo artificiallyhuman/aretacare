@@ -1,4 +1,4 @@
 # Test-only dependencies. Not installed in the production image.
 # The tests drive the app through Starlette's TestClient, which uses httpx — already a
 # runtime dependency (see requirements.txt), so only the runner is added here.
-pytest==8.3.4
+pytest==9.2.0

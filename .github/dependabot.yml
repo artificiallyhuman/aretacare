@@ -173,3 +173,8 @@ updates:
     ignore:
       - dependency-name: "*"
         update-types: ["version-update:semver-major"]
+      # A Python "minor" (3.11 -> 3.12) is a new language runtime: the hashed lockfile
+      # and every compiled wheel are built for one specific version. Treated like a
+      # major, as its own tested change.
+      - dependency-name: "python"
+        update-types: ["version-update:semver-minor"]

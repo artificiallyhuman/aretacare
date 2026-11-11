@@ -38,6 +38,21 @@ Two variables are easy to miss because the app starts without them:
   its own counters, so configured limits are silently multiplied by the instance count and
   reset on every deploy.
 
+Optional settings, all with working defaults (see the comments in `backend/.env.example`):
+
+| Variable | Default | Purpose |
+|----------|---------|---------|
+| `DB_POOL_SIZE`, `DB_MAX_OVERFLOW`, `DB_POOL_TIMEOUT` | 10 / 8 / 10 | Database connections per backend instance. Per-instance total × number of instances must stay under your Postgres connection limit |
+| `REFRESH_TOKEN_STORE_RAW` | `TRUE` | Rolling-deploy compatibility for refresh tokens. Set `FALSE` once every instance runs the current release; only token hashes are stored from then on |
+| `REFRESH_TOKEN_ROTATION_GRACE_SECONDS` | 30 | How long a just-rotated refresh token is still accepted |
+| `REFRESH_REUSE_REVOKES_ALL` | `FALSE` | `TRUE` also revokes all of a user's sessions when a rotated refresh token is presented again |
+| `ADMIN_REQUIRE_MFA` | `FALSE` | `TRUE` requires admin accounts to have MFA enabled |
+
+Local development notes:
+
+- The compose Postgres port is published on `127.0.0.1` only.
+- `RESET_DB=true` (drop and recreate all tables at startup) is honoured only with `DEBUG=True` and a local database host; it is ignored anywhere else.
+
 Start services:
 ```bash
 docker compose up --build
@@ -117,8 +132,11 @@ See [AWS_IAM_POLICY.md](AWS_IAM_POLICY.md) for policy and setup.
    - Required: `OPENAI_API_KEY`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `S3_BUCKET_NAME`, `ADMIN_EMAILS`
    - Optional: `S3_KEY_PREFIX`, `WEBAUTHN_RP_ID`, `WEBAUTHN_ORIGIN`, `PUSH_NOTIFICATIONS_ENABLED`, `APNS_KEY_PATH`, `APNS_KEY_ID`, `APNS_TEAM_ID`
    - Auto-configured: `DATABASE_URL`, `SECRET_KEY`, `CORS_ORIGINS`
+   - Frontend (static site): `VITE_HCAPTCHA_SITE_KEY` is **required** — the production build fails without it
 5. Update S3 CORS with Render frontend URL
 6. Deploy
+
+`render.yaml` sets `autoDeployTrigger: checksPass`, so a deploy starts only after the GitHub checks on the commit (`.github/workflows/ci.yml`: backend tests, frontend build, iOS build) have passed. The Postgres instance is declared with an empty IP allow list (private network only); add specific addresses there if you need to connect from outside Render.
 
 ## Self-Hosted Deployment
 
@@ -143,6 +161,14 @@ Configure nginx/Caddy as reverse proxy with SSL.
 | S3 Access Denied | Verify IAM policy and credentials |
 | OpenAI quota error | Check billing at platform.openai.com |
 | Frontend network error | Check `VITE_API_URL` and CORS settings |
+
+## Backend Tests
+
+The suite in `backend/tests` runs the real application against PostgreSQL with pgvector and makes no calls to OpenAI, S3 or SMTP. Setup and the run command are in [`backend/tests/README.md`](../backend/tests/README.md). CI runs the same suite on every pull request and push to `main`.
+
+## Backend Dependencies
+
+`backend/requirements.in` holds the top-level pins; `backend/requirements.txt` is a generated lockfile with hashes for every package and is what the images install (`pip install --require-hashes`). To change a dependency, edit `requirements.in`, run the `pip-compile` command shown at the top of that file (Linux, Python 3.11, the same as the production image), and commit both files. Test-only packages live in `backend/requirements-dev.txt`.
 
 ## Logs
 
@@ -193,7 +219,7 @@ New journal entries are automatically embedded on creation. The backfill is only
 6. Documents: upload, search, edit category/description, preview PDF/image
 7. Audio: record, verify transcription, play back from message bubble
 8. Audio recordings: upload from Audio tab, verify journal synthesis triggers, edit category/summary
-9. Daily digest: open Digest tab, verify markdown rendering, verify periodic auto-generation check
+9. Daily digest: open Digest tab, verify markdown rendering; with a digest due (after 2 AM local time), verify one is generated shortly after the care session loads
 10. Settings: rename care session, change color, care session statistics display, collaboration (share/revoke/invite)
 11. Logout: verify push token unregistered before auth cleared (check backend logs)
 12. Release build: verify `aps-environment: production` in entitlements, verify crash without `API_BASE_URL`

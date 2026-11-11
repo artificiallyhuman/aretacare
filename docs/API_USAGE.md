@@ -6,6 +6,8 @@ Interactive docs: `/docs` (Swagger) or `/redoc` (ReDoc)
 
 > **Caching:** All `/api` responses are returned with `Cache-Control: no-store` because they carry personal data. Clients must not rely on HTTP caching of API responses; cache deliberately on the client side instead.
 
+> **Request size:** Request bodies are limited to 2MB. The two upload routes allow more: `POST /documents/upload` (30MB file) and `POST /conversation/transcribe` (100MB file), each plus multipart overhead. Larger requests receive `413 {"detail": "Request is too large. ..."}` before the body is read.
+
 ## Authentication
 
 JWT-based auth with access tokens (1 hour) + refresh tokens (7 days max, session cookie that expires on browser close). iOS clients receive tokens in the response body (stored in Keychain) via the `X-Client-Type: ios` header.
@@ -68,6 +70,21 @@ Supported methods: `totp`, `passkey`, `backup_code`.
 
 **Token Usage:** Include `Authorization: Bearer <token>` header on all authenticated requests.
 
+### Refresh and Logout
+
+`POST /auth/refresh` exchanges a refresh token for a new access token and a new refresh token (rotation: each refresh token is good for one exchange).
+
+- **Web:** send the request with credentials; the HttpOnly cookie carries the token. The rotated token comes back as a cookie and `refresh_token` in the body is `null`.
+- **Native (iOS):** send `X-Client-Type: ios` and `{"refresh_token": "..."}` in the body. The body token is used, the rotated token is returned in `refresh_token`, and no cookie is set. Store the new token before discarding the old one.
+- A token that was rotated within the last 30 seconds (configurable) can be exchanged again, so a retry after a lost response succeeds. A rotated token presented later returns `401`.
+- `401` means the session is over and the user must sign in again. Network errors and `5xx` are not a rejection; keep the stored token and retry.
+
+`POST /auth/logout` revokes every refresh token presented, cookie and body alike. Native clients should send their stored token in the body: `{"refresh_token": "..."}`.
+
+`POST /auth/logout-everywhere`, a password change or reset, and an email change revoke all of the user's refresh tokens **and** invalidate access tokens already issued; those return `401` on their next use. Registered push device tokens are removed at the same time.
+
+`PUT /auth/name`, `PUT /auth/email`, `PUT /auth/password` and `DELETE /auth/account` re-check the account password and are limited to 10 requests per minute.
+
 ---
 
 ## Multi-Factor Authentication
@@ -83,6 +100,7 @@ Returns: `mfa_enabled`, `has_passkey`, `passkey_count`, `has_totp`, `backup_code
 POST /api/mfa/totp/setup     # Returns QR code
 POST /api/mfa/totp/verify-setup  # Body: {"code": "123456"}
 ```
+`/totp/setup` returns `400` when an authenticator app is already configured. To replace it, remove the existing one first (`DELETE /mfa/totp`, which requires step-up) and then run setup again.
 
 ### Passkeys
 ```bash
@@ -108,7 +126,7 @@ DELETE /api/mfa/trusted-devices       # Revoke all
 ### Enable/Disable MFA
 ```bash
 POST /api/mfa/enable   # Body: {"preferred_method": "passkey"}
-POST /api/mfa/disable  # Body: {"password": "..."}  (removes all MFA data)
+POST /api/mfa/disable  # Body: {"password": "..."}  (removes all MFA data; 5/minute)
 ```
 
 ### Verify for Sensitive Actions
@@ -126,6 +144,8 @@ Action types: `password_change`, `email_change`, `account_delete`
 
 Returns `action_token` — include as `X-MFA-Action-Token` header when performing the action. Single-use, expires in 5 minutes.
 
+Limited to 5 attempts per minute. Failed attempts count toward the same MFA lockout as failed MFA logins (10 failures in an hour); while locked the route returns `429`.
+
 **Which routes require it.** `PUT /auth/email`, `PUT /auth/password` and `DELETE /auth/account`
 require step-up whenever the account has MFA enabled; the check runs *before* the password is
 verified, so a missing token 403s regardless of the password supplied. Failures return
@@ -139,6 +159,14 @@ least as sensitive as removing one.
 Step-up runs *before* the last-factor check, so removing your only remaining factor returns
 `403` until you verify and `400` afterwards. That `400` carries a plain-string detail
 (`"This is your only remaining two-factor method…"`) rather than the `{code, message}` shape.
+
+**Admin routes.** When the signed-in admin has MFA enabled, the destructive admin routes also
+require step-up: `POST /admin/users/{id}/reset-password`, `POST /admin/users/{id}/reset-mfa`,
+`DELETE /admin/users/{id}`, `POST /admin/users/{id}/tokens/revoke-all`,
+`DELETE /admin/tokens/{id}`, `POST /admin/sessions/{id}/transfer`,
+`DELETE /admin/sessions/{id}`, `DELETE /admin/s3/orphans`,
+`POST /admin/accounts/inactive/email`, and `POST /admin/email/campaigns` (create and
+`/resume`). They return the same `403 MFA_REQUIRED` shape without a token.
 
 Clients that understand `MFA_REQUIRED` never surface the message — they present their
 step-up UI and replay the call with a token. For that reason the message sent to iOS callers
@@ -185,6 +213,8 @@ GET    /api/sessions/{id}/pending-invitations          # List pending invitation
 DELETE /api/sessions/{id}/pending-invitations/{id}     # Cancel invitation
 POST   /api/sessions/{id}/transfer                     # Transfer ownership
 ```
+
+Rate limits: `/share` and `/send-invitation` 10/hour, `/transfer` 10/hour, `/check-user` 30/minute.
 
 ---
 
@@ -290,7 +320,12 @@ POST /api/conversation/message
   "current_time": "2:30 PM"
 }
 ```
-Returns both `user_message` and `assistant_message`. In shared sessions, also sends push notifications to collaborators.
+Returns `message` (the assistant reply), `journal_suggestion` (entries created from the exchange, or `null`) and `processing_warning`. In shared sessions, also sends push notifications to collaborators.
+
+- `content` is limited to 100,000 characters (also on edit).
+- Attachments are referenced by `document_id` / `audio_recording_id`, which must belong to the same care session. The server derives media URLs from those IDs; a client-supplied `media_url` is ignored.
+- `user_timezone` must be an IANA zone name and `current_time` a short date/time string; other values are ignored.
+- `processing_warning` (string or `null`) is set when the reply was generated but a follow-up step did not complete, for example journal synthesis. The reply is still returned and stored; show the warning rather than treating the request as failed.
 
 ### History & Edit
 ```bash
@@ -331,6 +366,8 @@ DELETE /api/journal/{entry_id}                    # Delete entry
 
 Entry types: `MEDICAL_UPDATE`, `TREATMENT_CHANGE`, `APPOINTMENT`, `INSIGHT`, `MILESTONE`, `OTHER`
 
+Create and update are limited to 30/minute.
+
 ---
 
 ## Daily Plans (Digests)
@@ -344,6 +381,10 @@ PUT  /api/daily-plans/{id}                      # Update: {"user_edited_content"
 PUT  /api/daily-plans/{id}/mark-viewed          # Mark viewed: {"viewed": true}
 DELETE /api/daily-plans/{id}                    # Delete
 ```
+
+`/generate` is limited to 6/minute and 30/hour. `user_date` is today's date in the caller's
+timezone, so it must be within one day of the server's UTC date; anything else returns `400`.
+Clients should always send it: without it the server uses its own UTC date.
 
 ---
 
@@ -362,6 +403,8 @@ DELETE /api/profile/{session_id}                        # Delete profile
 GET    /api/profile/{session_id}/export                 # Export as JSON or PDF (PDF carries a disclaimer)
 ```
 
+`/update` and `/regenerate` are limited to 6/minute and 30/hour.
+
 `/section` accepts exactly the eight sections the clients edit — `patient` and `preferences`
 (objects), and `caregivers`, `providers`, `conditions`, `medications`, `allergies`, `events`
 (arrays). An unknown section name or a wrong-typed body is a 400; previously it stored anyway
@@ -371,7 +414,9 @@ and broke every subsequent profile read for the session.
 
 ## Tools
 
-Both tools are **publicly accessible** (no authentication required). When authenticated with a `session_id`, responses are personalized with journal context. Rate limited to 10/minute per IP.
+Both tools are **publicly accessible** (no authentication required). When authenticated with a `session_id`, responses are personalized with journal context, provided the user has recorded AI data sharing consent; otherwise the tool answers from the typed input alone. Rate limited to 10/minute per IP.
+
+Input limits: `medical_term` 200 characters, `context` 4,000, `situation` 8,000. Longer input returns `400` with a readable message.
 
 Responses include citations from approved sources: Mayo Clinic, MedlinePlus/NIH, Cleveland Clinic, CDC.
 
@@ -516,9 +561,11 @@ idempotent; the token has no expiry. The preferences pair backs the Settings tog
 
 ## Error Handling
 
-Standard HTTP status codes: `200` OK, `201` Created, `400` Bad Request, `401` Unauthorized, `403` Forbidden, `404` Not Found, `429` Rate Limited, `500` Server Error
+Standard HTTP status codes: `200` OK, `201` Created, `400` Bad Request, `401` Unauthorized, `403` Forbidden, `404` Not Found, `413` Request Too Large, `429` Rate Limited, `500` Server Error
 
 Error format: `{"detail": "Error message"}`
+
+`detail` is usually a string, but some responses carry an object with a machine-readable code (`{"detail": {"code": "MFA_REQUIRED", "message": "..."}}`, also `MFA_INVALID`, `AI_DATA_SHARING_CONSENT_REQUIRED`) and validation errors (`422`) carry a list. Clients should branch on the code and never render `detail` without checking its type.
 
 ---
 
@@ -534,6 +581,12 @@ Error format: `{"detail": "Error message"}`
 | Presigned URL | 30/minute (document download, thumbnail, audio playback URLs) |
 | AI Chat | 30/minute |
 | AI Tools | 10/minute (Jargon Translator, Conversation Coach — public) |
+| AI Generation | 6/minute and 30/hour (profile update/regenerate, digest generate) |
+| Journal Write | 30/minute (create/update) |
+| Sharing | 10/hour (share, send-invitation), 10/hour (transfer), 30/minute (check-user) |
+| Password Re-Entry | 10/minute (name, email, password, account deletion) |
+| MFA Disable / Step-up Verify | 5/minute each |
+| Token Refresh | 20/minute |
 | Feedback | 3/hour |
 | Waitlist | 5/hour |
 | Admin Destructive | 5/hour (delete user, delete session, S3 cleanup) |
@@ -541,6 +594,8 @@ Error format: `{"detail": "Error message"}`
 | Admin Email | 20/hour (invitations, notifications, campaign create/resume) |
 | Unsubscribe | 20/minute (public unsubscribe endpoints) |
 | General API | 100/minute |
+
+All limits are per client IP. A `429` response includes how long to wait.
 
 ---
 
@@ -554,10 +609,12 @@ const api = axios.create({
   withCredentials: true  // Required for refresh token cookies
 });
 
+// Keep the access token in memory, not in web storage
+let accessToken = null;
+
 // Auto-add auth header
 api.interceptors.request.use(config => {
-  const token = localStorage.getItem('auth_token');
-  if (token) config.headers.Authorization = `Bearer ${token}`;
+  if (accessToken) config.headers.Authorization = `Bearer ${accessToken}`;
   return config;
 });
 
@@ -567,7 +624,7 @@ const login = async (email, password) => {
   if (res.data.requires_mfa) {
     return { requiresMfa: true, mfaToken: res.data.mfa_token, methods: res.data.mfa_methods };
   }
-  localStorage.setItem('auth_token', res.data.access_token);
+  accessToken = res.data.access_token;
   return { user: res.data.user };
 };
 

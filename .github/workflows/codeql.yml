@@ -45,10 +45,9 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - name: Set up Xcode
-        uses: maxim-lobanov/setup-xcode@ed7a3b1fda3918c0306d1b724322adc0b8cc0a90 # v1.7.0
-        with:
-          xcode-version: "16.2"
+      # No Xcode version is selected: the runner's default Xcode is the one whose
+      # iOS Simulator platform is installed on the image. Selecting another version
+      # left xcodebuild with no eligible simulator destination.
 
       - name: Install XcodeGen
         run: brew install xcodegen

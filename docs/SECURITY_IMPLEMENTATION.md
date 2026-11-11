@@ -11,15 +11,21 @@ Technical documentation of AretaCare's security measures.
 | Token Type | Lifetime | Storage | Purpose |
 |------------|----------|---------|---------|
 | Access Token | 1 hour | In-memory | API authentication |
-| Refresh Token | 7 days max, session cookie | HttpOnly cookie | Token renewal (expires on browser close) |
+| Refresh Token | 7 days max, session cookie | HttpOnly cookie (web), Keychain (iOS) | Token renewal (web cookie expires on browser close) |
+
+Access tokens are HS256 JWTs signed and verified with PyJWT; the accepted algorithm is pinned on decode.
 
 **Key Files:** `backend/app/core/auth.py`, `backend/app/api/auth.py`
 
 ### Refresh Token Security
 
 - **HttpOnly cookies**: Prevents XSS token theft (`httponly=True`, `secure=True` in production, `samesite="lax"`, `path="/api/auth"`)
-- **Token rotation**: Old token revoked on each refresh, new token issued
-- **Locking**: `SELECT FOR UPDATE` prevents race conditions when multiple tabs refresh
+- **Hashed storage**: The database stores a SHA-256 hash of each refresh token (`refresh_tokens.token_hash`) and looks tokens up by that hash. Tokens are 256-bit random values, so an unsalted hash keeps the lookup indexed. `REFRESH_TOKEN_STORE_RAW` controls whether the legacy raw column is still written for rolling-deploy compatibility; set it to `FALSE` once every instance runs a release that reads the hash
+- **Token rotation**: Each refresh exchanges the presented token for a new one (`claim_refresh_token_for_rotation` in `core/auth.py`). The row is locked with `SELECT FOR UPDATE` and revoked with a conditional `UPDATE`, so two concurrent requests cannot both rotate the same token
+- **Rotation grace**: A token rotated within the last `REFRESH_TOKEN_ROTATION_GRACE_SECONDS` (default 30) may be exchanged again. This covers a client that never received the rotation response and two browser tabs refreshing at the same moment
+- **Reuse detection**: Presenting a rotated token after the grace period is rejected and logged as a `refresh_token_reuse` security event. With `REFRESH_REUSE_REVOKES_ALL=TRUE` it also revokes every session of that user
+- **Client separation**: A request is treated as native only when it carries `X-Client-Type: ios` and a refresh token in the body; the body token is then authoritative, the rotated token is returned in the body, and no cookie is set. Browsers authenticate with the cookie and never receive a refresh token in a response body
+- **Access-token versioning**: Access tokens carry a `tv` claim matching `users.token_version`. Revoking all of a user's sessions increments it, so already-issued access tokens stop working at once rather than at expiry
 - **Token limit**: Max 5 active tokens per user; oldest auto-revoked
 - **Cleanup**: Expired/revoked tokens deleted on startup
 
@@ -27,14 +33,16 @@ Technical documentation of AretaCare's security measures.
 
 - **Idle timeout**: 30 minutes inactivity triggers logout with 1-minute warning (disabled on iOS when biometric lock is enabled; token expiry provides session safeguard)
 - **Cross-tab sync**: Logout in one tab immediately logs out all tabs via `storage` event
-- **Dedicated logout**: `/logout` endpoint clears cookie and revokes token
+- **Dedicated logout**: `/logout` endpoint clears the cookie and revokes every refresh token presented (cookie and body)
+- **Idle timeout across tabs (web)**: last activity is shared between tabs and checked against the clock when a tab regains focus, so a sleeping machine is logged out on wake
 
 ### Password Security
 
 - **Hashing**: bcrypt via passlib (12 rounds)
 - **Requirements**: 8-72 characters (72 is bcrypt limit)
 - **Email change**: Requires verification link to new email (1-hour expiration), notifies old email
-- **Security logout**: All tokens revoked on password/email change
+- **Security logout**: All refresh tokens revoked and issued access tokens invalidated on password change, password reset, email change, and "Sign Out Everywhere"; registered push-notification device tokens are removed at the same time
+- **Re-entry throttling**: Routes that re-check the password for a signed-in user (`PUT /auth/name`, `PUT /auth/email`, `PUT /auth/password`, `DELETE /auth/account`) are limited to 10/minute per IP; `POST /mfa/disable` to 5/minute
 
 ---
 
@@ -80,6 +88,10 @@ Flow:
 3. Server returns single-use `action_token` (5-min expiry)
 4. Client retries with `X-MFA-Action-Token` header
 
+`POST /mfa/totp/setup` returns `400` while a verified authenticator app exists. Replacing an
+authenticator is therefore remove (step-up gated, above) and then set up again; setup can
+never overwrite a working factor.
+
 Factor-removal routes additionally refuse to remove the account's **last remaining factor**,
 returning `400` with a plain-string detail. That guard is independent of step-up and runs
 after it — without it, a user could strip their only factor while `mfa_enabled` stayed true,
@@ -113,11 +125,11 @@ Separate from login lockout, MFA verification has its own lockout mechanism:
 
 | Setting | Value |
 |---------|-------|
-| Failed MFA attempts before lockout | 5 |
-| Time window for counting | 15 minutes |
-| Lockout duration | 15 minutes |
+| Failed MFA attempts before lockout | 10 |
+| Time window for counting | 60 minutes (rolling) |
+| Security alert | after 5 failures in the window |
 
-Excessive MFA failures trigger a security alert email. This prevents brute-force attacks against MFA codes while allowing legitimate retries.
+Failures at MFA login and at step-up verification (`POST /mfa/verify-for-action`) count toward the same limit, and both routes refuse further attempts with `429` while it is reached. This prevents brute-force attacks against MFA codes while allowing legitimate retries. Values are defined in `backend/app/services/security_service.py`.
 
 ### Account Enumeration Prevention
 
@@ -131,7 +143,7 @@ Implemented via `slowapi`. See `backend/app/core/rate_limit.py`.
 
 **Client IP derivation** (`backend/app/core/client_ip.py`): a single proxy-aware resolver is used for both rate-limit keys and security logging. It honors `CF-Connecting-IP` only when the rightmost `X-Forwarded-For` hop (appended by the hosting proxy from the real TCP peer) is within Cloudflare's published ranges; otherwise it falls back to that peer address. This prevents forged forwarding headers — sent directly to the origin — from evading per-IP limits or poisoning security logs. If `CF-Connecting-IP` is present but the edge hop is unrecognized, a warning is logged (re-sync the Cloudflare ranges if it fires for legitimate traffic).
 
-Password reset has a second, per-account throttle (see Security Logging) layered on top of the per-IP limit below.
+Password reset has a second, per-account throttle (see Security Logging) layered on top of the per-IP limit below. All limits are keyed by client IP.
 
 | Endpoint | Limit |
 |----------|-------|
@@ -143,6 +155,11 @@ Password reset has a second, per-account throttle (see Security Logging) layered
 | Presigned URL | 30/minute (document download, thumbnail, audio playback URLs) |
 | AI Chat | 30/minute |
 | AI Tools | 10/minute (Jargon Translator, Conversation Coach — publicly accessible, no auth required) |
+| AI Generation | 6/minute and 30/hour (Health Profile update/regenerate, daily digest generate) |
+| Journal Write | 30/minute (manual create/update) |
+| Sharing | 10/hour (share, send invitation), 10/hour (ownership transfer), 30/minute (registered-user lookup) |
+| Password Re-Entry | 10/minute (name, email, password, account deletion); 5/minute (`/mfa/disable`) |
+| Step-up Verification | 5/minute (`/mfa/verify-for-action`) |
 | Feedback | 3/hour |
 | Admin Destructive | 5/hour (delete user, delete care session, S3 cleanup) |
 | Admin Sensitive | 10/hour (reset password, reset MFA, transfer) |
@@ -155,6 +172,9 @@ Password reset has a second, per-account throttle (see Security Logging) layered
 ## Input Validation
 
 - **Pydantic schemas**: All API inputs validated (type, length, format)
+- **Request body cap**: `BodySizeLimitMiddleware` (`backend/app/core/body_limit.py`) is the outermost middleware. It rejects a declared `Content-Length` over the limit with `413` before reading the body and counts streamed bytes for chunked requests. Limits: 2MB by default; the document and audio upload routes allow their file limit plus multipart overhead. It runs before form parsing, authentication and rate limiting
+- **Text length limits**: chat and edited messages 100,000 characters; Jargon Translator term 200 and context 4,000; Conversation Coach situation 8,000. The public tools also cap model output length
+- **Client metadata**: `user_timezone` must be a recognised IANA zone and `current_time` a short date/time string, otherwise they are dropped
 - **Care session names**: Alphanumeric + spaces, hyphens, underscores, apostrophes only (`^[a-zA-Z0-9\s\-_']+$`)
 - **Feedback form**: HTML-escaped via `html.escape()`
 - **Admin campaign emails**: admin-composed HTML sanitized server-side with an nh3 allowlist (tags/attributes/URL schemes) before storage and send; subjects header-sanitized (`_safe_header`)
@@ -169,6 +189,8 @@ Password reset has a second, per-account throttle (see Security Logging) layered
 | File validation | MIME type + extension checking |
 | Size limit | 30MB documents, 100MB audio + 4-hour duration cap via ffprobe (OpenAI file URL limit is 32MB; audio is transcribed first) |
 | Image validation | PIL verification |
+| OCR | One page at a time with per-page timeouts and an overall time budget; scanned PDFs are limited to the first 100 pages and return `partial_ocr` when the budget is reached |
+| Audio decoding | ffmpeg/ffprobe run with `-nostdin` and a file-only protocol whitelist, with timeouts |
 | S3 encryption | AES-256 server-side |
 
 Supported types: PDF, PNG, JPG, TXT (documents); MP3, M4A, WAV, WebM, OGG (audio)
@@ -187,7 +209,9 @@ Unauthorized access attempts are logged.
 
 ### Admin Access
 
-Email must be in `ADMIN_EMAILS` env var. Frontend always verifies with server (no client-side caching).
+Email must be in `ADMIN_EMAILS` env var and the account's email must be verified. Frontend always verifies with server (no client-side caching).
+
+**Step-up for destructive actions.** When the admin has MFA enabled, these routes require a fresh `X-MFA-Action-Token` (same flow as Sensitive Action Protection): reset a user's password, reset a user's MFA, delete a user, revoke a user's tokens, transfer or delete a care session, delete orphaned S3 files, send inactive-account emails, and create or resume an email campaign. Setting `ADMIN_REQUIRE_MFA=TRUE` makes MFA mandatory for all admin access. The web client handles `MFA_REQUIRED` globally: it opens the verification dialog and replays the request with the token.
 
 **User Management Capabilities:**
 - Search users by email
@@ -210,6 +234,13 @@ All admin actions are logged to the audit log.
 | Passwords | bcrypt hashing |
 | SQL Injection | SQLAlchemy ORM with parameterized queries |
 | XSS Prevention | ReactMarkdown (web), MarkdownUI (iOS) for safe rendering |
+
+### AI Prompt Handling
+
+- **Untrusted content is delimited.** Document text, OCR output, transcripts, chat turns, journal entries and profile data are wrapped with `wrap_untrusted()` (`backend/app/services/openai_service.py`) before they enter a prompt, alongside a notice that content inside the wrapper is data and not instructions. This applies to chat, the public tools, daily digests, journal synthesis and Health Profile generation.
+- **Safety preamble.** Digest, journal and profile prompts carry a shared safety preamble; the chat system prompt lists the boundaries explicitly (no diagnosis, no treatment recommendations, no outcome predictions).
+- **Output handling.** Markdown images are stripped from model output server-side and are not rendered by either client. Health Profile JSON produced by the model is validated against the profile schema before it is stored; invalid output fails that request and leaves the stored profile unchanged.
+- **Consent.** Routes that send content to OpenAI require a recorded `AI_DATA_SHARING` consent. The tools attach care-session context, and manual journal writes create embeddings, only for users with that consent.
 
 ### Complete Data Deletion
 
@@ -248,6 +279,8 @@ All user consents are recorded in `consent_records` table for compliance verific
 | `account_lockout` | 90 days |
 | `upload_failure` | 90 days |
 | `password_reset_requested` | 90 days |
+| `refresh_token_reuse` | 90 days |
+| `mfa_login_failed`, `mfa_action_verification_failed` | 90 days |
 
 The `password_reset_requested` event also backs the per-account reset throttle: `SecurityService.check_password_reset_throttle()` counts sent events in the trailing hour and the endpoint silently skips sending (returning the same generic response) once the per-account limit is reached. Only sent emails are counted, so throttled attempts don't extend the window.
 
@@ -312,7 +345,8 @@ Sentry is used for error/crash monitoring on all three platforms (backend, web, 
 
 - `send_default_pii` disabled everywhere — no user context, no IP addresses
 - Request bodies are never captured (`max_request_body_size="never"` on the backend; request data deleted in the web `beforeSend` hook)
-- Query strings are stripped from event URLs, network breadcrumbs, and navigation breadcrumbs (presigned S3 links travel in query params; password-reset / email-verify / invite tokens travel in navigation `from`/`to` paths)
+- Query strings are stripped from event URLs, network breadcrumbs, and navigation breadcrumbs on the backend and web (presigned S3 links travel in query params; password-reset / email-verify / invite tokens travel in navigation `from`/`to` paths). The web client applies the same reduction to performance transactions and spans, and click breadcrumbs record only that an interaction happened, not the element's label. The iOS client reduces network breadcrumb URLs to their path
+- The backend engine is created with `hide_parameters=True`, so SQL errors never include bound values
 - Auth-related headers (`Authorization`, `Cookie`, MFA/trusted-device headers) are removed before send
 - Stack-frame local variables are never attached on the backend (`include_local_variables=False`). The Python SDK attaches them by default, and frames up the ASGI stack hold the raw `scope`/`request` (bearer token, refresh-token cookie, MFA action token, query-string tokens) plus parsed request bodies. Neither `before_send` nor the key-based scrubber can reach them, since headers sit in byte-tuple lists
 - A recursive event scrubber redacts content-bearing field names (message, journal, transcript, email, tokens, etc.)
@@ -326,7 +360,10 @@ Sentry is used for error/crash monitoring on all three platforms (backend, web, 
 ## Frontend Security
 
 ### Web (React)
-- **Token storage**: Access token in localStorage (short-lived, 1 hour), refresh token in HttpOnly cookie only
+- **Token storage**: Access token held in memory only (short-lived, 1 hour), refresh token in HttpOnly cookie only
+- **Refresh handling**: Only a `401`/`403` from `/auth/refresh` signs the user out; network errors and `5xx` fail the single request and keep the session. Refreshes are serialised across tabs with the Web Locks API where available
+- **Step-up handling**: A `403` with `MFA_REQUIRED` or `MFA_INVALID` from any route opens the verification dialog and replays the request once with `X-MFA-Action-Token`
+- **Error rendering**: API error details are coerced to strings before display, so structured error bodies cannot break a page
 - **XSS prevention**: ReactMarkdown for content rendering, no `dangerouslySetInnerHTML`. A shared link renderer (`src/utils/markdownComponents.jsx`) restricts markdown links to safe protocols (`http`/`https`/`mailto`/relative) and opens them with `target="_blank" rel="noopener noreferrer"`; it is applied to every `ReactMarkdown` usage (chat, journal, daily digest, tools, admin reports)
 - **No-cache API responses**: backend marks `/api` responses `Cache-Control: no-store`, so personal data isn't retained in the browser cache
 - **Credentials**: `withCredentials: true` on axios for cookie transmission
@@ -408,6 +445,18 @@ Both backend and frontend containers run as non-root users (UID 1000):
 - Backend: `appuser`
 - Frontend: `node`
 
+`.dockerignore` files keep environment files, key material and certificates out of build contexts. The development Postgres port is bound to `127.0.0.1`.
+
+---
+
+## Dependencies & Build Integrity
+
+- **Backend lockfile**: `backend/requirements.in` lists top-level dependencies; `backend/requirements.txt` is generated from it with `pip-compile --generate-hashes` and pins every package, including transitive ones. Images and CI install with `pip install --require-hashes`.
+- **Frontend**: builds use `npm ci` against the committed `package-lock.json`.
+- **Production build guard**: the web build fails if `VITE_HCAPTCHA_SITE_KEY` is not set, so a production bundle cannot ship without the real captcha key.
+- **Outbound email**: SMTP uses STARTTLS with certificate verification (`ssl.create_default_context()`).
+- **Database safety**: `RESET_DB` is honoured only when `DEBUG` is on and the database host is local; schema creation and migrations run under a PostgreSQL advisory lock so concurrent instance starts are serialised.
+
 ---
 
 ## Edge Security (Cloudflare)
@@ -432,4 +481,18 @@ Custom workflow at `.github/workflows/codeql.yml` (default CodeQL setup cannot b
 | JavaScript/TypeScript | `ubuntu-latest` | Autobuild |
 | Swift | `macos-15` | XcodeGen + `xcodebuild` with code signing disabled |
 
-Runs on: push to `main`, PRs to `main`, weekly schedule (Wednesday). The Swift job creates a placeholder `Secrets.xcconfig` (no real credentials needed for static analysis) and builds with `CODE_SIGNING_ALLOWED=NO`.
+Runs on: push to `main`, PRs to `main`, weekly schedule (Wednesday). The Swift job creates a placeholder `Secrets.xcconfig` (no real credentials needed for static analysis) and builds with `CODE_SIGNING_ALLOWED=NO`; the build step fails the job if compilation fails.
+
+### CI
+
+`.github/workflows/ci.yml` runs on every pull request and push to `main` with read-only permissions:
+
+| Job | What it runs |
+|-----|--------------|
+| Backend tests | `backend/tests` (pytest) against a `pgvector/pgvector:pg15` service container: health, login, care-session isolation, refresh-token behaviour, request limits, MFA guards, admin gating. No calls to OpenAI, S3 or SMTP |
+| Frontend build | `npm ci` and a full production build including prerendering |
+| iOS build | XcodeGen + `xcodebuild` for the simulator with code signing disabled |
+
+Render deploys are configured to wait for these checks (`autoDeployTrigger: checksPass` in `render.yaml`).
+
+All workflow actions are pinned to full commit SHAs; Dependabot keeps the pins current. Secret scanning (gitleaks) runs over the full history.

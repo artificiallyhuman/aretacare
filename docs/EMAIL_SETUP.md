@@ -134,6 +134,8 @@ SMTP_FROM_NAME=YourAppName         # Name shown to recipients
 FRONTEND_URL=http://localhost:3001  # Used for reset link
 ```
 
+The connection uses STARTTLS and verifies the mail server's certificate. A server presenting a self-signed or mismatched certificate is rejected and the send fails (logged as an SMTP error).
+
 ## Testing Email Notifications
 
 ### Development Mode (No Email Configured)

@@ -24,7 +24,12 @@ docker compose run --rm --no-deps \
 
 Fixtures create their own users (`@example.com` addresses) and delete them afterwards.
 
+`conftest.py` sets the environment before the app is imported: rate limiting stays in
+process (`REDIS_URL` empty), error reporting is off (`SENTRY_DSN` empty), and the
+refresh-token rotation grace period is zero so replayed tokens are rejected immediately.
+
 ## CI
 
 `.github/workflows/ci.yml` runs the same suite against a `pgvector/pgvector:pg15`
-service container on every pull request and push to `main`.
+service container on every pull request and push to `main`, alongside the frontend and
+iOS builds.

@@ -113,6 +113,18 @@ docker compose down      # Stop
 docker compose down -v   # Stop and reset database
 ```
 
+### Test
+The backend has a small regression suite (care-session isolation, authentication and tokens, request limits). See [backend/tests/README.md](backend/tests/README.md) for the one-time database setup, then:
+```bash
+docker compose run --rm --no-deps \
+  -e DATABASE_URL=postgresql://aretacare:password@db:5432/aretacare_test \
+  -e DEBUG=false -e REDIS_URL= \
+  backend sh -c "pip install --quiet --user -r requirements-dev.txt && python -m pytest"
+```
+
+### Changing backend dependencies
+Edit `backend/requirements.in`, then regenerate the lockfile with the `pip-compile` command at the top of that file and commit both files. `backend/requirements.txt` is generated; do not edit it by hand.
+
 ---
 
 ## Architecture
@@ -121,7 +133,7 @@ docker compose down -v   # Stop and reset database
 |-------|------------|
 | Frontend | React 18, Vite, Tailwind CSS |
 | iOS App | SwiftUI (iOS 17+), `@Observable @MainActor` ViewModels, XcodeGen, KeychainAccess, MarkdownUI, RevenueCat (subscriptions), iPad-optimized layouts |
-| Backend | FastAPI, SQLAlchemy, PostgreSQL + pgvector (28 tables), Redis (shared rate limiting) |
+| Backend | FastAPI, SQLAlchemy, PostgreSQL + pgvector (30 tables), Redis (shared rate limiting) |
 | AI | OpenAI GPT-5.6 Sol, gpt-transcribe, text-embedding-3-small |
 | Storage | AWS S3 |
 | Monitoring | Sentry (errors/crashes, strict PII scrubbing, disabled without a DSN) |
@@ -131,6 +143,8 @@ docker compose down -v   # Stop and reset database
 - 160K context window with prioritized loading (messages + tiered journal + semantic journal retrieval + health profile)
 - Cascade deletes (user/care session deletion removes all data + S3 files)
 - Auto-migrations on startup
+- Backend dependencies installed from a hashed lockfile (`backend/requirements.in` → `backend/requirements.txt`)
+- CI runs the backend tests plus frontend and iOS builds on every push and pull request
 - Centralized AI config in `backend/app/config/ai_config.py`
 
 ---
@@ -143,9 +157,10 @@ aretacare/
 │   ├── api/          # FastAPI routes
 │   ├── config/       # AI configuration
 │   ├── core/         # Auth, migrations, config
-│   ├── models/       # SQLAlchemy models (28 tables)
+│   ├── models/       # SQLAlchemy models (30 tables)
 │   ├── schemas/      # Pydantic schemas
 │   └── services/     # Business logic
+├── backend/tests/    # pytest suite (see backend/tests/README.md)
 ├── frontend/src/
 │   ├── pages/        # React pages
 │   ├── components/   # UI components
@@ -174,6 +189,7 @@ aretacare/
 | [docs/EMAIL_SETUP.md](docs/EMAIL_SETUP.md) | Email configuration |
 | [docs/FEEDBACK_SYSTEM.md](docs/FEEDBACK_SYSTEM.md) | Feedback form and hCaptcha |
 | [docs/SECURITY_IMPLEMENTATION.md](docs/SECURITY_IMPLEMENTATION.md) | Security details |
+| [backend/tests/README.md](backend/tests/README.md) | Running the backend tests |
 
 ---
 
@@ -186,7 +202,7 @@ Deploy to Render using `render.yaml`:
 3. Set environment variables: `OPENAI_API_KEY`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `S3_BUCKET_NAME`, `ADMIN_EMAILS` (optional: `SENTRY_DSN` for error monitoring)
 4. Deploy
 
-Database migrations run automatically on startup.
+Database migrations run automatically on startup. The frontend production build requires `VITE_HCAPTCHA_SITE_KEY` to be set, and Render deploys wait for the CI checks on the commit to pass.
 
 ---
 

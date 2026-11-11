@@ -15,13 +15,13 @@
 # compatibility promise.
 fastapi==0.162.4
 uvicorn[standard]==0.54.0
-sqlalchemy==2.1.6
+sqlalchemy==2.1.8
 psycopg2-binary==2.9.13
-pydantic==2.14.1
+pydantic==2.14.3
 pydantic-settings==2.16.2
 email-validator==2.3.0
-python-multipart==0.0.32
-boto3==1.43.121
+python-multipart==0.0.33
+boto3==1.43.126
 # Pinned, not ranged. These three were previously declared as `>=` floors, which meant every
 # rebuild silently resolved to the newest release — openai had already reached 2.54.0 against
 # a >=1.56.0 floor, pypdf 6.16.1 against >=3.9.0, aioapns 4.0 against >=3.1. That is three
@@ -30,7 +30,9 @@ boto3==1.43.121
 # Pinned here to the versions already running and verified.
 openai==2.54.0
 python-dotenv==1.2.4
-python-jose[cryptography]==3.5.0
+# JWT signing/verification (HS256 only, see core/auth.py). Replaced python-jose, which
+# is unmaintained and pulled in ecdsa.
+PyJWT==2.15.1
 passlib[bcrypt]==1.7.4
 bcrypt==4.3.0
 pypdf==6.21.4
@@ -41,7 +43,7 @@ pdf2image==1.17.0
 httpx<0.28.0
 slowapi==0.1.10
 redis==5.3.1  # shared rate-limit storage backend for slowapi/limits (see core/rate_limit.py)
-sentry-sdk[fastapi]==2.73.0
+sentry-sdk[fastapi]==2.74.0
 reportlab==4.5.1
 pyotp==2.10.0
 webauthn==2.8.0
