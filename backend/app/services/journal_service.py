@@ -497,9 +497,15 @@ IMPORTANT: Respond with ONLY a valid JSON object in this exact format, with no a
         session_id: str,
         entry_date: Optional[date] = None,
         audio_id: Optional[int] = None,
-        user_id: Optional[str] = None
+        user_id: Optional[str] = None,
+        talk_conversation: bool = False,
     ) -> JournalSynthesisResult:
-        """Synthesize comprehensive journal entry from audio recording transcription"""
+        """Synthesize comprehensive journal entry from audio recording transcription.
+
+        talk_conversation=True is a Talk-mode transcript (the user and the assistant):
+        only what the person said is new information, so it uses its own prompt
+        (see ai_config.TALK_JOURNAL_SYNTHESIS_PROMPT).
+        """
         try:
             recent_entries = self._get_recent_entries(session_id, days=7)
             recent_context = self._format_recent_journal_brief(recent_entries)
@@ -594,7 +600,18 @@ IMPORTANT: Respond with ONLY a valid JSON object in this exact format, with no a
   ]
 }}"""
 
-            messages = _synthesis_system_messages(ai_config.AUDIO_JOURNAL_SYNTHESIS_PROMPT) + [
+            system_prompt = ai_config.AUDIO_JOURNAL_SYNTHESIS_PROMPT
+            if talk_conversation:
+                system_prompt = ai_config.TALK_JOURNAL_SYNTHESIS_PROMPT
+                # The shared user prompt below asks for comprehensive extraction of the
+                # whole recording; for a Talk transcript the system prompt's scoping wins.
+                prompt += (
+                    "\n\nThis transcript is a Talk conversation with the AretaCare assistant. "
+                    "Apply the rules in your instructions: record only what the person said that "
+                    "is new, never what the assistant read back from existing records, and return "
+                    "should_create false with an empty list when nothing new was said."
+                )
+            messages = _synthesis_system_messages(system_prompt) + [
                 {"role": "user", "content": prompt}
             ]
 

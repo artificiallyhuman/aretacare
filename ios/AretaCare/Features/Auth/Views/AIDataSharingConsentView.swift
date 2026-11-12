@@ -55,7 +55,7 @@ struct AIDataSharingConsentView: View {
 
                 // Disclosure text
                 VStack(spacing: 12) {
-                    Text("This data is sent to **OpenAI** to power AretaCare's AI features, including conversation responses, journal synthesis, daily digests, audio transcription, and health profile generation.")
+                    Text("This data is sent to **OpenAI** to power AretaCare's AI features, including conversation responses, live voice conversations, journal synthesis, daily digests, audio transcription, and health profile generation.")
                         .font(.subheadline)
 
                     Text("OpenAI processes this data under their API data usage policy and **does not use it to train their models**.")

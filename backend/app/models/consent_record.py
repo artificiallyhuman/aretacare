@@ -18,6 +18,7 @@ class ConsentType(str, enum.Enum):
     AGE_USE = "age_use"  # Confirms 18+, US residency, and lawful use
     SHARING_AUTHORIZATION = "sharing_authorization"  # Confirms right to share session with collaborator
     AI_DATA_SHARING = "ai_data_sharing"  # Explicit consent for third-party AI data sharing (OpenAI)
+    TALK_VOICE = "talk_voice"  # Live voice conversations (iOS Talk mode): streaming + recording
 
 
 # Consent text versions - update version when text changes
@@ -49,6 +50,10 @@ CONSENT_VERSIONS = {
     ConsentType.AI_DATA_SHARING: {
         "version": "1.0",
         "text": "I understand and consent to the following: To provide AI-powered features, AretaCare sends data I provide — including conversations, health profile information, journal entries, documents, and audio recordings — to OpenAI for processing. OpenAI processes this data according to its API data usage policy and does not use it to train its models. For more details, see AretaCare's Privacy Policy and OpenAI's API Data Privacy page."
+    },
+    ConsentType.TALK_VOICE: {
+        "version": "1.0",
+        "text": "I understand and consent to the following: In Talk mode my voice is streamed live to OpenAI so the assistant can listen and respond, and the assistant can look up and update information in this care session at my request. Both sides of each Talk conversation are recorded and saved to this care session's Audio Recordings with a transcript, and journal entries may be created from it. Everyone this care session is shared with can see and hear those recordings. The assistant does not provide medical advice, diagnosis, or treatment."
     }
 }
 

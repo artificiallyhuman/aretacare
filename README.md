@@ -22,6 +22,8 @@ AretaCare was built from this experience—sitting beside a loved one, trying to
 
 **Conversation** — Talk to AretaCare like you would a knowledgeable friend. Ask questions, share updates, upload documents, or record voice notes. It remembers your care situation and helps you make sense of complex medical information.
 
+**Talk** (iOS app) — Have a spoken conversation instead of typing. The assistant knows your care session, can look things up, and can add journal entries or suggest Health Profile updates when you ask — reading each change back before it is saved. Every conversation is recorded, transcribed, and saved to Audio Recordings.
+
 **Journal** — Every conversation automatically becomes a searchable timeline. Appointments, test results, care decisions, and milestones are captured and organized by date—no manual logging required. When you ask about past events, semantic search finds the most relevant entries from your full history.
 
 **Daily Digest** — Each day, get a summary of what's happening: recent changes, upcoming reminders, and suggested questions for your care team. Fully editable if you want to add your own notes.

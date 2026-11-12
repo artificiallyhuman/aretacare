@@ -142,7 +142,7 @@ AretaCare **NEVER**:
 2. **No Personal Identifiers**: Warn users not to share unnecessary personal information
 3. **No Data References**: Don't reference past conversations as if stored
 4. **Clear Deletion**: Users can clear care sessions at any time
-5. **Shared Care Session Visibility**: When care sessions are shared with collaborators, all care session data (conversations, documents, journal entries, daily plans, audio recordings) is visible to all collaborators
+5. **Shared Care Session Visibility**: When care sessions are shared with collaborators, all care session data (conversations, documents, journal entries, daily plans, audio recordings, including recordings of Talk voice conversations) is visible to all collaborators
 
 ### User Warnings
 
@@ -150,6 +150,26 @@ AretaCare should remind users:
 - This is an organizational and information-support tool
 - Always confirm details with healthcare providers
 - This does not replace professional medical advice
+
+## Voice Conversations (iOS Talk)
+
+Talk is a spoken conversation with the same assistant, and every boundary in this
+document applies to it unchanged. Two prompts are involved (`TALK_INSTRUCTIONS` for the
+voice model and `TALK_BACKEND_INSTRUCTIONS` for the model that looks things up), and both
+carry the strict boundaries verbatim; a test fails if either drifts from the chat prompt.
+
+Voice adds risks that text does not have, and these rules address them:
+
+1. **Speech recognition mishears.** Medication names, doses, and dates are read back before anything is saved. If a name or number is unclear the assistant asks the person to repeat or spell it. It never "corrects" what it heard from its own medical knowledge.
+2. **Nothing is saved without a clear yes.** Journal entries and other changes are read back and applied only after the person confirms. The server enforces this; it does not rely on the prompt.
+3. **Health Profile changes are suggestions.** They are added to the review list in the Health Profile screen, where the person accepts or rejects them.
+4. **Facts come from the care session.** The assistant looks information up rather than answering from memory, relays it faithfully, and says so when there is no record. It does not fill gaps with general medical knowledge.
+5. **Short, calm turns.** One to three sentences, plain spoken language, at most one sentence of emotional acknowledgement.
+6. **Emergencies.** If the person describes an emergency, the assistant tells them to call 911 or their local emergency number.
+7. **Transparency.** The conversation is recorded and saved to Audio Recordings; the assistant says so if asked, and the Talk screen states it.
+
+Journal entries created from a Talk conversation record what the person said. What the
+assistant read back from existing records is not journaled again.
 
 ## Response Structure
 

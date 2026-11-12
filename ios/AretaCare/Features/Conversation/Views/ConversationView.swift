@@ -37,6 +37,11 @@ struct ConversationView: View {
     @State private var pendingAttachment: PendingAttachment?
     @State private var showFileSizeAlert = false
 
+    // Talk (live voice) mode
+    @State private var mode: ConversationMode = .chat
+    @State private var talkVM = TalkViewModel()
+    @State private var showingAudioRecordings = false
+
     private var currentUserId: String {
         AuthManager.shared.currentUser?.id ?? ""
     }
@@ -46,7 +51,23 @@ struct ConversationView: View {
     }
 
     var body: some View {
-        conversationContent
+        modeContent
+            .safeAreaInset(edge: .top, spacing: 0) { modePicker }
+            .toolbar(mode == .talk ? .hidden : .visible, for: .navigationBar, .tabBar)
+            .modifier(TalkModeModifier(
+                mode: $mode,
+                talkVM: talkVM,
+                sessionId: currentSessionId,
+                onCallSaved: {
+                    guard let sessionId = currentSessionId else { return }
+                    Task { await conversationVM.fetchHistory(sessionId: sessionId, forceRefresh: true) }
+                }
+            ))
+            .navigationDestination(isPresented: $showingAudioRecordings) {
+                if let session = sessionVM.currentSession {
+                    AudioRecordingsView(sessionId: session.id, sessionName: session.name)
+                }
+            }
             .overlay(alignment: .top) { copiedToast }
             .sensoryFeedback(.success, trigger: copyHapticTrigger)
             .sensoryFeedback(.success, trigger: sendHapticTrigger)
@@ -136,6 +157,28 @@ struct ConversationView: View {
             }
     }
 
+    // MARK: - Chat / Talk
+
+    @ViewBuilder
+    private var modeContent: some View {
+        if mode == .talk {
+            TalkView(viewModel: talkVM) {
+                Task { await talkVM.end() }
+            }
+        } else {
+            conversationContent
+        }
+    }
+
+    @ViewBuilder
+    private var modePicker: some View {
+        if sessionVM.currentSession != nil {
+            ConversationModePicker(mode: $mode, talkDisabled: isRecordingAudio)
+                .padding(.vertical, 6)
+                .frame(maxWidth: .infinity)
+        }
+    }
+
     // MARK: - Extracted Views (type-checker workaround)
 
     private var conversationContent: some View {
@@ -150,6 +193,13 @@ struct ConversationView: View {
             if let error = documentsVM.errorMessage {
                 ErrorBannerView(message: error) {
                     documentsVM.dismissError()
+                }
+                .padding(.top, 4)
+            }
+
+            if let error = talkVM.saveErrorMessage {
+                ErrorBannerView(message: error) {
+                    talkVM.saveErrorMessage = nil
                 }
                 .padding(.top, 4)
             }
@@ -289,7 +339,11 @@ struct ConversationView: View {
                                         .padding(.vertical, 8)
                                 }
 
-                                if editingMessage?.id == message.id {
+                                if let summary = message.talkSummary {
+                                    TalkSummaryCard(message: message, summary: summary) {
+                                        showingAudioRecordings = true
+                                    }
+                                } else if editingMessage?.id == message.id {
                                     VStack(spacing: 8) {
                                         TextEditor(text: $editText)
                                             .frame(minHeight: 60, maxHeight: 150)
@@ -611,4 +665,81 @@ private struct ConversationSheetsModifier: ViewModifier {
 
 #Preview {
     ConversationView(sessionVM: SessionViewModel())
+}
+
+// MARK: - Talk mode wiring
+
+/// Everything that connects the Chat/Talk switch to a live call, kept out of
+/// `ConversationView.body` so that chain stays within the type-checker's reach.
+private struct TalkModeModifier: ViewModifier {
+    @Binding var mode: ConversationMode
+    @Bindable var talkVM: TalkViewModel
+    let sessionId: String?
+    let onCallSaved: () -> Void
+
+    func body(content: Content) -> some View {
+        content
+            .onAppear {
+                talkVM.onExit = { mode = .chat }
+            }
+            .onChange(of: mode) { _, newMode in
+                switch newMode {
+                case .talk:
+                    guard let sessionId else {
+                        mode = .chat
+                        return
+                    }
+                    Task { await talkVM.begin(sessionId: sessionId) }
+                case .chat:
+                    // Switching back to Chat ends the call, like the End button.
+                    if talkVM.isActive {
+                        Task { await talkVM.end() }
+                    }
+                }
+            }
+            .onChange(of: sessionId) { _, _ in
+                // The care session changed underneath a call (e.g. access revoked).
+                talkVM.cancelResultPolling()
+                if talkVM.isActive {
+                    Task { await talkVM.end() }
+                }
+            }
+            .onChange(of: talkVM.savedCallToken) { _, _ in
+                onCallSaved()
+            }
+            .onDisappear {
+                // Logout or the tab being torn down: never leave a call or the mic open.
+                talkVM.abandon()
+                mode = .chat
+            }
+            .sheet(isPresented: $talkVM.showingConsent) {
+                TalkConsentSheet(
+                    maxSessionSeconds: talkVM.maxSessionSeconds,
+                    onAgree: { Task { await talkVM.acceptConsent() } },
+                    onDecline: { talkVM.declineConsent() }
+                )
+            }
+            .alert("Microphone Access Required", isPresented: $talkVM.showingMicDenied) {
+                Button("Open Settings") {
+                    if let url = URL(string: UIApplication.openSettingsURLString) {
+                        UIApplication.shared.open(url)
+                    }
+                }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("Please allow microphone access in Settings to have voice conversations in Talk mode.")
+            }
+            .alert(
+                talkVM.notice?.title ?? "",
+                isPresented: Binding(
+                    get: { talkVM.notice != nil },
+                    set: { if !$0 { talkVM.notice = nil } }
+                ),
+                presenting: talkVM.notice
+            ) { _ in
+                Button("OK", role: .cancel) {}
+            } message: { notice in
+                Text(notice.message)
+            }
+    }
 }

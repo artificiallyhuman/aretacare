@@ -77,7 +77,7 @@ struct ConversationOnboardingView: View {
                             VStack(alignment: .leading, spacing: 10) {
                                 infoRow(icon: "person.2", text: "Bring others into a care session via the people icon at the top right of chat")
                                 infoRow(icon: "gearshape", text: "Rename, recolor, or delete care sessions in Settings → Your Care Sessions")
-                                infoRow(icon: "bolt.fill", text: "AI generates your Daily Digest and Care Journal automatically")
+                                infoRow(icon: "bolt.fill", text: "AI generates your Daily Digest and Care Journal automatically, including from Talk voice conversations")
                                 infoRow(icon: "folder", text: "View files in Document Manager and Audio Recordings (upload multiple at once)")
                                 infoRow(icon: "book", text: "Learn more about AretaCare in Settings → Support → About AretaCare")
                             }
@@ -95,6 +95,7 @@ struct ConversationOnboardingView: View {
                         Label("Message", systemImage: "text.bubble")
                         Label("Attach", systemImage: "paperclip")
                         Label("Record", systemImage: "mic.fill")
+                        Label("Talk", systemImage: "waveform")
                     }
                     .font(.caption)
                     .foregroundStyle(.secondary)

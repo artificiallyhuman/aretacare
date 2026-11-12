@@ -198,6 +198,7 @@ AretaCare implements comprehensive security measures:
 - **Untrusted Content Handling**: Text from uploaded documents, transcripts, messages, and journal entries is passed to the AI as clearly delimited data, with instructions not to act on anything written inside it — in chat, tools, daily digests, journal synthesis, and Health Profile generation
 - **Output Controls**: Markdown images are removed from AI output server-side and never rendered by either client; AI-generated Health Profile data is validated against the profile schema before it is stored
 - **Safety Boundaries**: Prompts instruct the AI not to diagnose, recommend treatment, or predict outcomes (see `docs/SAFETY_GUIDELINES.md`)
+- **Voice Conversations (iOS Talk)**: The app never holds an AI-provider credential; the assistant reaches care-session data only through a per-conversation token scoped to one care session; changes made by voice are read back and applied only after a spoken confirmation, and Health Profile changes wait for on-screen review. Requires a separate recorded consent and an active subscription, verified server-side
 
 ### Supply Chain & Build
 - **Locked Dependencies**: Backend dependencies are installed from a generated lockfile that pins every package, including transitive ones, with hashes (`pip install --require-hashes`); the frontend uses `npm ci` against its committed lockfile

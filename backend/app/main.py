@@ -15,6 +15,7 @@ from app.core.sentry import init_sentry
 from app.api import api_router
 from app.services.admin_service import admin_service
 from app.services.audio_transcription_service import fail_inflight_transcriptions
+from app.services.talk_session_service import shutdown_talk_sessions
 import asyncio
 import logging
 import os
@@ -136,6 +137,20 @@ def validate_startup():
             errors.append(
                 f"PUSH_NOTIFICATIONS_ENABLED is True but {', '.join(missing_apns)} "
                 "not set. Either configure APNs or set PUSH_NOTIFICATIONS_ENABLED=False."
+            )
+
+    # Talk mode needs a public URL OpenAI can call for tools, and a way to verify the
+    # subscription. DEBUG may run without either (no tools, entitlement assumed).
+    if settings.TALK_ENABLED:
+        if not settings.API_PUBLIC_URL:
+            (warnings if settings.DEBUG else errors).append(
+                "TALK_ENABLED is True but API_PUBLIC_URL is not set — the voice agent cannot "
+                "reach its care-session tools."
+            )
+        if not settings.REVENUECAT_SECRET_API_KEY:
+            (warnings if settings.DEBUG else errors).append(
+                "TALK_ENABLED is True but REVENUECAT_SECRET_API_KEY is not set — the iOS "
+                "subscription cannot be verified."
             )
 
     # DEBUG mode warning (HSTS disabled)
@@ -460,6 +475,8 @@ async def stop_periodic_tasks():
     # before asyncio cancels stray tasks; --timeout-graceful-shutdown keeps a long legacy
     # inline request from starving this past Render's SIGTERM grace.
     await fail_inflight_transcriptions()
+    # Live Talk calls: flush each transcript and hand the row to another instance.
+    await shutdown_talk_sessions()
 
 
 @app.api_route("/", methods=["GET", "HEAD"])

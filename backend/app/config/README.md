@@ -28,6 +28,7 @@ Located at the top of `ai_config.py`:
 
 - `CHAT_MODEL` - Main model for conversations, summaries, coaching, etc.
 - `TRANSCRIPTION_MODEL` - Model for audio transcription
+- `TALK_MODEL` / `TALK_BACKEND_MODEL` / `TALK_VOICE` - iOS Talk mode: the live voice model, the model it delegates lookups and writes to, and the voice. Prompts: `TALK_INSTRUCTIONS` (voice model), `TALK_BACKEND_INSTRUCTIONS` (delegated model), `TALK_JOURNAL_SYNTHESIS_PROMPT` (journal entries from a finished call). Both instruction prompts embed `TALK_SAFETY_BOUNDARIES`, which a test keeps in step with `SYSTEM_PROMPT`.
 
 **Note:** All services use the OpenAI Responses API.
 

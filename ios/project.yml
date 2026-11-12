@@ -27,6 +27,11 @@ packages:
   Sentry:
     url: https://github.com/getsentry/sentry-cocoa
     from: "9.29.0"
+  # Prebuilt libwebrtc (Talk mode's live audio connection). A third-party binary build of
+  # Google's WebRTC, so it is pinned to an exact release and bumped deliberately.
+  WebRTC:
+    url: https://github.com/stasel/WebRTC
+    exactVersion: "156.0.0"
 
 targets:
   AretaCare:
@@ -73,7 +78,7 @@ targets:
           NSAllowsLocalNetworking: true
         API_BASE_URL: $(API_BASE_URL)
         FRONTEND_URL: $(FRONTEND_URL)
-        NSMicrophoneUsageDescription: "AretaCare needs microphone access to record voice memos for your health journal."
+        NSMicrophoneUsageDescription: "AretaCare needs microphone access to record voice memos for your health journal and to have voice conversations in Talk mode."
         NSCameraUsageDescription: "AretaCare needs camera access to capture photos of medical documents."
         NSFaceIDUsageDescription: "AretaCare uses Face ID to protect your health information."
         NSPhotoLibraryUsageDescription: "AretaCare needs photo library access to upload medical document images."
@@ -93,3 +98,5 @@ targets:
         product: RevenueCatUI
       - package: Sentry
         product: Sentry
+      - package: WebRTC
+        product: WebRTC

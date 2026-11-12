@@ -438,6 +438,41 @@ POST /api/tools/conversation-coach
 
 ---
 
+## Talk (iOS live voice)
+
+Live voice conversations on OpenAI's GPT-Live API. iOS app only: starting a session requires
+`TALK_ENABLED=TRUE` on the backend, a recorded AI data sharing consent, a recorded Talk
+consent, and an active iOS subscription (verified server-side with RevenueCat).
+
+The phone never receives an OpenAI credential. It creates a WebRTC offer, the backend
+exchanges it for OpenAI's answer, and audio then flows directly between the phone and OpenAI.
+
+| Method | Path | Purpose |
+|--------|------|---------|
+| GET | `/talk/status` | `{enabled, has_consent, remaining_seconds_today, max_session_seconds}` |
+| POST | `/talk/consent` | Record the one-time Talk consent |
+| POST | `/talk/sessions` | Start a call. Body: `{session_id, sdp, user_timezone?, current_time?}` → `201 {talk_id, sdp, max_seconds}` |
+| POST | `/talk/sessions/{talk_id}/end` | End a call (idempotent). Saving continues in the background |
+| GET | `/talk/sessions/{talk_id}` | `{talk_id, status, outcome, audio_recording_id, duration_seconds, journal_entries_created}` |
+
+`status` is `active`, `finalizing`, `completed` or `failed`. `outcome` is `audio` (the
+recording is in Audio Recordings), `transcript_only` (the audio could not be saved, so the
+turns were posted to the chat) or `discarded` (nothing was said).
+
+Start errors carry `detail.code`: `TALK_DISABLED` (404), `TALK_CONSENT_REQUIRED` and
+`TALK_SUBSCRIPTION_REQUIRED` (403), `TALK_ALREADY_ACTIVE` (409, one live call per user),
+`TALK_DAILY_LIMIT` (429), `TALK_UNAVAILABLE` (503).
+
+When a call is saved, an assistant message is added to the conversation with
+`message_metadata = {"kind": "talk_summary", "outcome", "talk_id", "audio_recording_id",
+"duration_seconds", "journal_entries"}`. Its `content` is a plain sentence, so a client
+that does not know the kind shows it as an ordinary message.
+
+`POST /talk/mcp` is not a client endpoint. OpenAI calls it on behalf of the voice
+assistant's backend model, authenticated by a per-call token; access tokens are rejected.
+
+---
+
 ## Push Notifications (iOS)
 
 Device tokens for APNs push notifications. Only functional when `PUSH_NOTIFICATIONS_ENABLED=True` on the backend.
@@ -583,6 +618,7 @@ Error format: `{"detail": "Error message"}`
 | AI Tools | 10/minute (Jargon Translator, Conversation Coach — public) |
 | AI Generation | 6/minute and 30/hour (profile update/regenerate, digest generate) |
 | Journal Write | 30/minute (create/update) |
+| Talk Start | 6/minute and 30/hour (`POST /talk/sessions`), plus per-user limits: one live call, 30 minutes per call, 60 minutes per rolling 24 hours |
 | Sharing | 10/hour (share, send-invitation), 10/hour (transfer), 30/minute (check-user) |
 | Password Re-Entry | 10/minute (name, email, password, account deletion) |
 | MFA Disable / Step-up Verify | 5/minute each |

@@ -46,6 +46,15 @@ enum APIEndpoints {
         static let autoAssignColors = "/sessions/auto-assign-colors"
     }
 
+    // MARK: - Talk (live voice)
+    enum Talk {
+        static let status = "/talk/status"
+        static let consent = "/talk/consent"
+        static let sessions = "/talk/sessions"
+        static func session(_ talkId: String) -> String { "/talk/sessions/\(talkId)" }
+        static func end(_ talkId: String) -> String { "/talk/sessions/\(talkId)/end" }
+    }
+
     // MARK: - Conversation
     enum Conversation {
         static let sendMessage = "/conversation/message"

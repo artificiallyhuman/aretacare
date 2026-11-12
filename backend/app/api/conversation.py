@@ -553,6 +553,7 @@ async def get_conversation_history(
             "media_url": media_url,
             "thumbnail_url": thumbnail_url,
             "extracted_text": msg.extracted_text,
+            "message_metadata": msg.message_metadata,
             # Source tags only when session has collaborators
             "created_by": build_source_tag_info(user_map.get(msg.created_by_user_id)) if has_collaborators and msg.created_by_user_id else None,
             "last_edited_by": build_source_tag_info(user_map.get(msg.last_edited_by_user_id)) if has_collaborators and msg.last_edited_by_user_id else None

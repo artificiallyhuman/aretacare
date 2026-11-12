@@ -157,6 +157,7 @@ Password reset has a second, per-account throttle (see Security Logging) layered
 | AI Tools | 10/minute (Jargon Translator, Conversation Coach — publicly accessible, no auth required) |
 | AI Generation | 6/minute and 30/hour (Health Profile update/regenerate, daily digest generate) |
 | Journal Write | 30/minute (manual create/update) |
+| Talk Start | 6/minute and 30/hour (`POST /talk/sessions`); Talk is also limited per user (see Talk Mode) |
 | Sharing | 10/hour (share, send invitation), 10/hour (ownership transfer), 30/minute (registered-user lookup) |
 | Password Re-Entry | 10/minute (name, email, password, account deletion); 5/minute (`/mfa/disable`) |
 | Step-up Verification | 5/minute (`/mfa/verify-for-action`) |
@@ -242,6 +243,19 @@ All admin actions are logged to the audit log.
 - **Output handling.** Markdown images are stripped from model output server-side and are not rendered by either client. Health Profile JSON produced by the model is validated against the profile schema before it is stored; invalid output fails that request and leaves the stored profile unchanged.
 - **Consent.** Routes that send content to OpenAI require a recorded `AI_DATA_SHARING` consent. The tools attach care-session context, and manual journal writes create embeddings, only for users with that consent.
 
+### Talk Mode (iOS live voice)
+
+Talk is a live voice session on OpenAI's GPT-Live API (`backend/app/services/talk_session_service.py`,
+`backend/app/api/talk.py`, `backend/app/services/talk_tools.py`).
+
+- **No OpenAI credential on the device.** The phone sends a WebRTC offer to the backend, which creates the session with the project API key and returns the answer. The phone's data channel may send nothing and receives four event types.
+- **Gating.** Feature flag (`TALK_ENABLED`), recorded `AI_DATA_SHARING` and `TALK_VOICE` consents, care-session access, and the iOS subscription entitlement verified server-side with RevenueCat (fails closed when RevenueCat cannot be reached). The web app cannot start a session by calling the API.
+- **Cost limits.** One live call per user (a partial unique index, not a check-then-insert), 30 minutes per call, 60 minutes per rolling 24 hours, a silence timeout, and a per-call tool-call budget.
+- **Tool access is a per-call opaque token.** The voice assistant's backend model reaches care-session data through `POST /talk/mcp`. The token is random, stored as a SHA-256 hash, valid only while its call is live, and is not a JWT: it is rejected by every other route, and access tokens are rejected by the MCP route. The care session and user come from the call's row, never from tool arguments; every record lookup repeats the care-session predicate; access is re-checked on each call so a revoked collaborator loses tools mid-conversation.
+- **Writes need a spoken yes, enforced in code.** `propose_*` tools save nothing. `confirm_action` applies a proposal only if the user has been heard speaking after it was made, and each proposal can be applied once and expires after three minutes. Health Profile changes are never applied by voice: they are added to the existing review list. Deleting records, sharing, and account actions are not exposed.
+- **Untrusted content.** Tool results are wrapped with `wrap_untrusted()` and stripped of markdown images; care-session context is supplied to the voice model as wrapped reference material, separate from its instructions. Both Talk prompts carry the full safety boundaries.
+- **Recording.** The session runs with `store: false`. The backend receives both audio streams over a server-side connection, writes the mixed recording to S3 under the same encryption and deletion rules as uploaded audio, and removes its temporary files on every path.
+
 ### Complete Data Deletion
 
 User/care session deletion removes all database records (cascading) + S3 files (documents, thumbnails, audio).
@@ -264,6 +278,7 @@ All user consents are recorded in `consent_records` table for compliance verific
 **Consent Types:**
 - Registration: `MEDICAL_ADVICE`, `HIPAA`, `DATA_PROCESSING`, `TERMS_PRIVACY`, `AGE_USE`
 - Sharing: `SHARING_AUTHORIZATION` (recorded when owner shares care session or sends invitation)
+- AI processing: `AI_DATA_SHARING` (one-time, after login), `TALK_VOICE` (one-time, before the first Talk conversation: live streaming to OpenAI and recording)
 
 **Key Files:** `backend/app/models/consent_record.py` (includes `CONSENT_VERSIONS` dict)
 

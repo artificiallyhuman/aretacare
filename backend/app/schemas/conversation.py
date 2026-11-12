@@ -1,7 +1,7 @@
 from pydantic import BaseModel, Field
 from datetime import datetime
 from app.models.conversation import MessageRole, MessageType
-from typing import Optional
+from typing import Any, Dict, Optional
 
 from app.schemas.source_tag import SourceTagInfo
 
@@ -44,6 +44,10 @@ class MessageResponse(BaseModel):
     media_url: Optional[str] = None
     thumbnail_url: Optional[str] = None
     extracted_text: Optional[str] = None
+    # Structured extras for messages the app renders specially. Today only the Talk
+    # summary ({"kind": "talk_summary", ...}); clients that don't know a kind show
+    # `content` as an ordinary message.
+    message_metadata: Optional[Dict[str, Any]] = None
     # Source tracking for collaborative sessions
     created_by: Optional[SourceTagInfo] = None
     last_edited_by: Optional[SourceTagInfo] = None

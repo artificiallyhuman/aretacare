@@ -85,7 +85,7 @@ struct JournalEntryUpdateRequest: Codable {
 
 // MARK: - AnyCodableValue (for flexible metadata)
 
-enum AnyCodableValue: Codable, Sendable {
+enum AnyCodableValue: Codable, Sendable, Equatable {
     case string(String)
     case int(Int)
     case double(Double)

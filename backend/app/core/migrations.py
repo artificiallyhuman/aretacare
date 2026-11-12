@@ -2480,6 +2480,69 @@ def run_migrations():
                 logger.error(f"Failed to add refresh token hash columns: {e}")
                 conn.rollback()
 
+        # =================================================================
+        # TALK MODE (iOS live voice sessions)
+        # =================================================================
+        migration_name = "create_talk_sessions_table"
+        if not has_migration_run(conn, migration_name):
+            logger.info("Running migration: create_talk_sessions_table")
+            try:
+                conn.execute(text("""
+                    CREATE TABLE IF NOT EXISTS talk_sessions (
+                        id VARCHAR PRIMARY KEY,
+                        session_id VARCHAR NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+                        user_id VARCHAR NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                        openai_session_id VARCHAR,
+                        recording_name VARCHAR,
+                        status VARCHAR NOT NULL DEFAULT 'active',
+                        outcome VARCHAR,
+                        end_reason VARCHAR,
+                        started_at TIMESTAMP NOT NULL DEFAULT NOW(),
+                        ended_at TIMESTAMP,
+                        max_seconds INTEGER NOT NULL,
+                        duration_seconds DOUBLE PRECISION,
+                        heartbeat_at TIMESTAMP NOT NULL DEFAULT NOW(),
+                        last_user_speech_at TIMESTAMP,
+                        mcp_token_hash VARCHAR(64) NOT NULL UNIQUE,
+                        tool_call_count INTEGER NOT NULL DEFAULT 0,
+                        pending_actions JSONB,
+                        transcript JSONB,
+                        audio_recording_id INTEGER REFERENCES audio_recordings(id) ON DELETE SET NULL,
+                        journal_entries_created INTEGER
+                    )
+                """))
+                conn.execute(text(
+                    "CREATE INDEX IF NOT EXISTS ix_talk_sessions_session_id ON talk_sessions(session_id)"
+                ))
+                conn.execute(text(
+                    "CREATE INDEX IF NOT EXISTS ix_talk_sessions_user_id ON talk_sessions(user_id)"
+                ))
+                # audio_recording_id is ON DELETE SET NULL: index it so deleting a
+                # recording does not scan this table (same reason as conversations).
+                conn.execute(text(
+                    "CREATE INDEX IF NOT EXISTS idx_talk_sessions_audio_recording "
+                    "ON talk_sessions(audio_recording_id)"
+                ))
+                conn.commit()
+                mark_migration_complete(conn, migration_name)
+                logger.info("Created talk_sessions table")
+            except Exception as e:
+                logger.error(f"Failed to create talk_sessions table: {e}")
+                conn.rollback()
+
+        # One live call per user, enforced by the database rather than a check-then-insert.
+        # Not created by create_all (it only exists here), and outside the once-only block
+        # above so a table that create_all made on a fresh database still gets it.
+        try:
+            conn.execute(text(
+                "CREATE UNIQUE INDEX IF NOT EXISTS uq_talk_sessions_one_active_per_user "
+                "ON talk_sessions(user_id) WHERE status = 'active'"
+            ))
+            conn.commit()
+        except Exception as e:
+            logger.error(f"Failed to create talk_sessions active-per-user index: {e}")
+            conn.rollback()
+
         # Runs on every start, not once: rows written by instances still on the previous
         # release during a rolling deploy arrive without a hash and are filled in here.
         # Idempotent and cheap (touches only rows missing a hash).

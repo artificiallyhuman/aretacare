@@ -12,6 +12,14 @@ enum MessageType: String, Codable, Sendable {
     case document
     case image
     case audio
+
+    /// An unknown type decodes as `.text` instead of throwing: one unrecognised value
+    /// would otherwise fail the decode of the whole history page, so a message type
+    /// added on the server would blank the chat on every build that predates it.
+    init(from decoder: Decoder) throws {
+        let raw = try decoder.singleValueContainer().decode(String.self)
+        self = MessageType(rawValue: raw) ?? .text
+    }
 }
 
 // MARK: - Source Tag
@@ -38,6 +46,10 @@ struct MessageResponse: Codable, Identifiable, Sendable, Equatable {
     let extractedText: String?
     let createdBy: SourceTagInfo?
     let lastEditedBy: SourceTagInfo?
+    /// Structured extras for messages rendered specially (the Talk summary card).
+    /// A `var` with a default so the memberwise initialiser used for optimistic
+    /// messages is unchanged.
+    var messageMetadata: [String: AnyCodableValue]? = nil
 }
 
 struct ConversationHistory: Codable {

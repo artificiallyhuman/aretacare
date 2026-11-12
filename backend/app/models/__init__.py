@@ -26,6 +26,7 @@ from app.models.user_session_color import UserSessionColor
 from app.models.journal_entry_embedding import JournalEntryEmbedding
 from app.models.device_token import DeviceToken
 from app.models.email_campaign import EmailCampaign, EmailCampaignRecipient
+from app.models.talk_session import TalkSession, TalkStatus
 
 __all__ = [
     "User", "Session", "SessionCollaborator", "PendingInvitation", "Document", "DocumentCategory",
@@ -34,5 +35,6 @@ __all__ = [
     "SecurityLog", "ErrorLog", "ApiLog", "Profile", "RefreshToken", "WaitlistEntry",
     "UserPasskey", "UserTOTPSecret", "UserBackupCode", "TrustedDevice", "MFAChallenge",
     "ConsentRecord", "ConsentType", "CONSENT_VERSIONS", "UserSessionColor",
-    "JournalEntryEmbedding", "DeviceToken", "EmailCampaign", "EmailCampaignRecipient"
+    "JournalEntryEmbedding", "DeviceToken", "EmailCampaign", "EmailCampaignRecipient",
+    "TalkSession", "TalkStatus"
 ]

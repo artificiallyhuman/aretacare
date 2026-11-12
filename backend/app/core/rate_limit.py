@@ -148,6 +148,7 @@ class RateLimits:
     AI_HEAVY = "6/minute;30/hour"   # Whole-context generations (Health Profile, daily digest): each call
                                     # can carry a very large prompt, so both a burst and an hourly cap
     JOURNAL_WRITE = "30/minute"     # Manual journal create/update (each write is re-embedded)
+    TALK_START = "6/minute;30/hour" # Starting a live voice session (each one opens a billed OpenAI session)
 
     # Care session sharing
     INVITATION_EMAIL = "10/hour"    # Share / invite: each call sends email to an address the caller chooses

@@ -149,6 +149,20 @@ class Settings(BaseSettings):
     APNS_TOPIC: str = "com.aretacare.ios"  # iOS bundle ID
     APNS_USE_SANDBOX: bool = True   # True for development, False for production
 
+    # Talk mode (iOS live voice, services/talk_session_service.py). Every session costs
+    # per-minute voice time plus backend model usage, so it is off by default and gated
+    # on the iOS subscription entitlement.
+    TALK_ENABLED: bool = False
+    TALK_MAX_SESSION_SECONDS: int = 30 * 60      # Hard cap on one call
+    TALK_DAILY_SECONDS_PER_USER: int = 60 * 60   # Rolling 24h allowance per user
+    TALK_SILENCE_TIMEOUT_SECONDS: int = 180      # No user speech for this long ends the call
+    TALK_STALE_SECONDS: int = 120                # 'active' row with no heartbeat this long = its instance died
+    TALK_MAX_TOOL_CALLS: int = 300               # Per call; bounds a runaway backend model
+    # RevenueCat secret API key (sk_...), used to verify the subscription server-side.
+    # Empty is only tolerated with DEBUG=True (simulator / local development).
+    REVENUECAT_SECRET_API_KEY: str = ""
+    REVENUECAT_ENTITLEMENT_ID: str = "AretaCare LLC Pro"
+
     # hCaptcha (for spam prevention)
     HCAPTCHA_SECRET_KEY: str = ""  # hCaptcha secret key
 

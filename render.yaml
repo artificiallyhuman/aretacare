@@ -114,6 +114,12 @@ services:
         value: "FALSE"  # TRUE for TestFlight/debug, FALSE for App Store builds
       - key: APNS_KEY_PATH
         sync: false  # Path to .p8 key file on server (e.g., /etc/secrets/AuthKey.p8)
+      - key: TALK_ENABLED
+        value: "FALSE"  # TRUE enables iOS Talk mode (live voice). Needs the two keys below.
+      - key: REVENUECAT_SECRET_API_KEY
+        sync: false  # RevenueCat secret key (sk_...): verifies the iOS subscription before a Talk session
+      - key: API_PUBLIC_URL
+        sync: false  # Public API base URL, e.g. https://api.aretacare.com (Talk tools + one-click unsubscribe)
       - key: SENTRY_DSN
         sync: false  # From sentry.io backend project settings; leave unset to disable
       - key: SENTRY_ENVIRONMENT
