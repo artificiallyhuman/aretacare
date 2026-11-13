@@ -2,11 +2,9 @@ import SwiftUI
 
 /// What the chat screen shows: the conversation, or a live Talk call. Talk starts from the
 /// waveform button in the message bar; a "Chat" button in the navigation bar (or End) leaves it.
-enum ConversationMode: String, CaseIterable, Identifiable {
-    case chat = "Chat"
-    case talk = "Talk"
-
-    var id: String { rawValue }
+enum ConversationMode {
+    case chat
+    case talk
 }
 
 /// Talk mode: the orb, a one-line status, and a way out. Nothing else is on screen.

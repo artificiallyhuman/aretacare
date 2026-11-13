@@ -98,21 +98,28 @@ final class TalkViewModel {
         return phase.caption
     }
 
-    /// Mute and unmute. Only during a live call: before that there is no microphone track.
+    /// The on-screen Mute button. Only during a live call: before that there is no
+    /// microphone track.
     func toggleMute() {
-        guard phase.isLive, let transport else { return }
-        isMuted.toggle()
-        transport.setMuted(isMuted)
-        if isMuted {
+        guard phase.isLive else { return }
+        setMuted(!isMuted)
+        // Tell iOS too, so an AirPods stem press toggles from the right state. The app
+        // plays no tone itself: during a call voice processing ducks any other audio the
+        // app plays to near silence. A firm tap and the button's look carry the state.
+        try? AVAudioApplication.shared.setInputMuted(isMuted)
+        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+    }
+
+    private func setMuted(_ muted: Bool) {
+        guard phase.isLive, let transport, muted != isMuted else { return }
+        isMuted = muted
+        transport.setMuted(muted)
+        if muted {
             userLevel = 0
             if phase == .userSpeaking { setPhase(.listening) }
         }
-        // No sound: during a call iOS's voice processing ducks any other audio the app
-        // plays to near silence, so a tone was inaudible. A firm tap and the button's
-        // inverted look carry the state instead.
-        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
         if UIAccessibility.isVoiceOverRunning {
-            UIAccessibility.post(notification: .announcement, argument: isMuted ? "Microphone muted" : "Microphone on")
+            UIAccessibility.post(notification: .announcement, argument: muted ? "Microphone muted" : "Microphone on")
         }
     }
 
@@ -126,6 +133,7 @@ final class TalkViewModel {
     private var keepAliveTask: Task<Void, Never>?
     private var pollTask: Task<Void, Never>?
     private var interruptionObserver: NSObjectProtocol?
+    private var muteGestureObserver: NSObjectProtocol?
     private var previousIdleTimerDisabled = false
     private var isEnding = false
 
@@ -257,6 +265,8 @@ final class TalkViewModel {
             }
             startLevelLoop()
             startKeepAlive()
+            // A stem press while connecting already muted the microphone at the system level.
+            if AVAudioApplication.shared.isInputMuted { setMuted(true) }
         case .working:
             guard phase.isLive else { return }
             setPhase(.working)
@@ -483,6 +493,17 @@ final class TalkViewModel {
                 await self.end()
             }
         }
+        // AirPods "press to mute" (iOS 17+). Observing this notification opts the app in;
+        // on a stem press iOS mutes the microphone, plays its own tone, and posts it here.
+        // Registered only for the call, so outside Talk the stem keeps its usual job.
+        try? AVAudioApplication.shared.setInputMuted(false)
+        muteGestureObserver = NotificationCenter.default.addObserver(
+            forName: AVAudioApplication.inputMuteStateChangeNotification, object: nil, queue: .main
+        ) { [weak self] notification in
+            guard let muted = notification.userInfo?[AVAudioApplication.muteStateKey] as? Bool else { return }
+            // Also fires for this app's own setInputMuted calls; setMuted ignores no-ops.
+            Task { @MainActor in self?.setMuted(muted) }
+        }
     }
 
     private func endCallEnvironment() {
@@ -491,6 +512,12 @@ final class TalkViewModel {
             NotificationCenter.default.removeObserver(interruptionObserver)
         }
         interruptionObserver = nil
+        if let muteGestureObserver {
+            NotificationCenter.default.removeObserver(muteGestureObserver)
+        }
+        muteGestureObserver = nil
+        // Never leave the app muted: a voice message recorded after the call would be silent.
+        try? AVAudioApplication.shared.setInputMuted(false)
     }
 
     private func announce(_ phase: Phase) {

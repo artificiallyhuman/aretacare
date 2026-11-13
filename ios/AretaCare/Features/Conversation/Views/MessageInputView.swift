@@ -26,7 +26,7 @@ struct MessageInputView: View {
     var onTalk: (() -> Void)? = nil
 
     @FocusState private var isFocused: Bool
-    /// Matches the send button, which takes this slot while there is text to send.
+    /// Talk pill height, close to the send button that takes its slot while there is text.
     @ScaledMetric(relativeTo: .title2) private var talkButtonSize: CGFloat = 32
     @State private var sendTrigger = 0
     @State private var currentPromptIndex = 0
@@ -103,18 +103,26 @@ struct MessageInputView: View {
                     .accessibilityLabel("Record audio")
                     .disabled(isSending || isUploading)
 
-                    // Talk: the filled button at the end of the bar, where Send appears once
-                    // there is text, so the main action sits in the same place.
+                    // Talk: a labeled button at the end of the bar, where Send appears once
+                    // there is text, so the main action sits in the same place. Labeled
+                    // because an icon alone has to be learned.
                     if let onTalk {
                         Button {
                             onTalk()
                         } label: {
-                            Image(systemName: "waveform")
-                                .font(.body.weight(.semibold))
+                            HStack(spacing: 4) {
+                                Image(systemName: "waveform")
+                                Text("Talk")
+                            }
+                                .font(.subheadline.weight(.semibold))
                                 .foregroundStyle(.white)
-                                .frame(width: talkButtonSize, height: talkButtonSize)
-                                .background(Circle().fill(isSending || isUploading ? Color.secondary : Color.accentColor))
+                                .padding(.horizontal, 10)
+                                .frame(minHeight: talkButtonSize)
+                                .background(Capsule().fill(isSending || isUploading ? Color.secondary : Color.accentColor))
+                                .fixedSize()
                         }
+                        // Bar chrome: at the largest sizes the pill would squeeze the text field.
+                        .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
                         .accessibilityLabel("Talk")
                         .accessibilityHint("Start a live voice conversation")
                         .disabled(isSending || isUploading)

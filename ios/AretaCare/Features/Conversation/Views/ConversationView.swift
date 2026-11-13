@@ -79,8 +79,16 @@ struct ConversationView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .principal) {
-                    Text(sessionVM.currentSession?.name ?? "Chat")
-                        .font(.headline)
+                    // In Chat the title also says who can see the chat and opens sharing.
+                    // Not mid-call: collaboration is unreachable during Talk.
+                    if mode == .chat, let session = sessionVM.currentSession {
+                        SessionTitleView(session: session, currentUserId: currentUserId) {
+                            showingCollaboration = true
+                        }
+                    } else {
+                        Text(sessionVM.currentSession?.name ?? "Chat")
+                            .font(.headline)
+                    }
                 }
                 // Switching care session or opening sharing mid-call would pull the session
                 // out from under the call, so these exist only in Chat.
@@ -93,18 +101,8 @@ struct ConversationView: View {
                         }
                         .accessibilityLabel("Switch care session")
                     }
-                    // Talk lives in the message bar, not here: beside the people icon the two
-                    // read as one group, and the bar is where every way of talking to
-                    // AretaCare already is (type, attach, record).
-                    ToolbarItem(placement: .topBarTrailing) {
-                        Button {
-                            showingCollaboration = true
-                        } label: {
-                            Image(systemName: "person.2")
-                        }
-                        .disabled(sessionVM.currentSession == nil)
-                        .accessibilityLabel("Collaborators")
-                    }
+                    // Nothing on the right: sharing is the title's people line, and Talk is
+                    // in the message bar with the other ways of talking to AretaCare.
                 } else {
                     ToolbarItem(placement: .topBarTrailing) {
                         // Leaving Talk ends the call (TalkModeModifier), like the End button.

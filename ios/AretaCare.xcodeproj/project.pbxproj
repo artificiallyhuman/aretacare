@@ -117,6 +117,7 @@
 		CDB7BC5D3BD041F8C2887102 /* ResponseCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = D82ADD9A064CB477AAD4BDB1 /* ResponseCache.swift */; };
 		D1DEFA435F115C29C2FE449C /* TalkOrbView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8C88E5255900588ADB1AC00C /* TalkOrbView.swift */; };
 		D1F3DF891D1869526A24C58D /* ConversationModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5E7776FF791A00B4710A499 /* ConversationModels.swift */; };
+		D3E9A8AC23F70D4BFE472FE9 /* SessionTitleView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1BF254077E1329044C1B48F2 /* SessionTitleView.swift */; };
 		D6258412B4B3161DD8AC98B7 /* JournalViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00C2D6C6E64D7E16697BCAD7 /* JournalViewModel.swift */; };
 		D663D32EF8A8B876578F7124 /* NotificationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20FC3119998F7381FA56058B /* NotificationManager.swift */; };
 		D7EEE79AB11A434E9E5DDC84 /* SettingsViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = EC4A00D860228E10FFD14F06 /* SettingsViewModel.swift */; };
@@ -168,6 +169,7 @@
 		19DCC8C15B3C912F2EB0DA94 /* BiometricManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BiometricManager.swift; sourceTree = "<group>"; };
 		1B028A726A21B814D8863AAF /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		1B0C001CDE94FD6B39780099 /* DailyDigestViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DailyDigestViewModel.swift; sourceTree = "<group>"; };
+		1BF254077E1329044C1B48F2 /* SessionTitleView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionTitleView.swift; sourceTree = "<group>"; };
 		1F79AAF5ABE2DAD5BAE0CDF3 /* CollaborationAwarenessPopup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CollaborationAwarenessPopup.swift; sourceTree = "<group>"; };
 		20FC3119998F7381FA56058B /* NotificationManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationManager.swift; sourceTree = "<group>"; };
 		2221EBB0311842171EB37D1F /* ClipboardHelper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClipboardHelper.swift; sourceTree = "<group>"; };
@@ -670,6 +672,7 @@
 				3521B7815641F919D6A188BD /* ConversationView.swift */,
 				0AA4C8B411853EB70C48BFBF /* MessageBubbleView.swift */,
 				C6A1A2CF990659EEFBAB94E8 /* MessageInputView.swift */,
+				1BF254077E1329044C1B48F2 /* SessionTitleView.swift */,
 				79A6A5C066E84AB8671F983B /* TypingBubbleView.swift */,
 			);
 			path = Views;
@@ -1168,6 +1171,7 @@
 				52A7AA2FBF338EB6D450F62A /* SessionDetailView.swift in Sources */,
 				A15CC1D911F6F8EDD51D66B0 /* SessionModels.swift in Sources */,
 				6B97F3BD7B31D38C508175B4 /* SessionSwitcherView.swift in Sources */,
+				D3E9A8AC23F70D4BFE472FE9 /* SessionTitleView.swift in Sources */,
 				3B9747CB7436E2835339EA7B /* SessionViewModel.swift in Sources */,
 				8AA9C196108D5D71D28370FC /* SettingsView.swift in Sources */,
 				D7EEE79AB11A434E9E5DDC84 /* SettingsViewModel.swift in Sources */,
