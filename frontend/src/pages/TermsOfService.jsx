@@ -17,7 +17,7 @@ const TermsOfService = () => {
           </Link>
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-6 sm:p-8">
             <h1 className="text-4xl sm:text-5xl font-bold text-gray-900 dark:text-white mb-2">Terms of Service</h1>
-            <p className="text-sm text-gray-500 dark:text-gray-400">Last Updated: July 25, 2026</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400">Last Updated: November 13, 2026</p>
           </div>
         </div>
 
@@ -256,6 +256,8 @@ const TermsOfService = () => {
                 <li>Making your own independent medical decisions with qualified healthcare providers</li>
                 <li>Backing up any important information stored in the application</li>
                 <li>Obtaining proper consent before sharing care session data with collaborators (see Section 11)</li>
+                <li>Having the right to add other people's information, such as the medical records of the person you care for</li>
+                <li>Getting permission from anyone else whose voice you record, in an audio recording or a Talk conversation. Some states, including California, Florida, Illinois, and Washington, require the consent of everyone being recorded</li>
                 <li>On iOS: keeping your device software up to date and not circumventing device security measures (jailbreaking)</li>
                 <li>On iOS: logging out before transferring, selling, or disposing of your device to prevent unauthorized access to your account</li>
               </ul>
@@ -360,7 +362,15 @@ const TermsOfService = () => {
                 </div>
                 <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 border border-gray-200 dark:border-gray-600">
                   <h3 className="font-semibold text-gray-900 dark:text-white mb-2">AWS S3</h3>
-                  <p className="text-sm text-gray-600 dark:text-gray-300">For document storage</p>
+                  <p className="text-sm text-gray-600 dark:text-gray-300">For document and audio storage</p>
+                </div>
+                <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 border border-gray-200 dark:border-gray-600">
+                  <h3 className="font-semibold text-gray-900 dark:text-white mb-2">Render</h3>
+                  <p className="text-sm text-gray-600 dark:text-gray-300">For server and database hosting</p>
+                </div>
+                <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 border border-gray-200 dark:border-gray-600">
+                  <h3 className="font-semibold text-gray-900 dark:text-white mb-2">Cloudflare</h3>
+                  <p className="text-sm text-gray-600 dark:text-gray-300">For network security</p>
                 </div>
                 <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 border border-gray-200 dark:border-gray-600">
                   <h3 className="font-semibold text-gray-900 dark:text-white mb-2">Apple</h3>
@@ -369,6 +379,14 @@ const TermsOfService = () => {
                 <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 border border-gray-200 dark:border-gray-600">
                   <h3 className="font-semibold text-gray-900 dark:text-white mb-2">RevenueCat</h3>
                   <p className="text-sm text-gray-600 dark:text-gray-300">For iOS subscription management</p>
+                </div>
+                <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 border border-gray-200 dark:border-gray-600">
+                  <h3 className="font-semibold text-gray-900 dark:text-white mb-2">Sentry</h3>
+                  <p className="text-sm text-gray-600 dark:text-gray-300">For error monitoring (no health information)</p>
+                </div>
+                <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 border border-gray-200 dark:border-gray-600">
+                  <h3 className="font-semibold text-gray-900 dark:text-white mb-2">Email Provider</h3>
+                  <p className="text-sm text-gray-600 dark:text-gray-300">For account and sharing emails</p>
                 </div>
               </div>
               <p className="text-gray-700 dark:text-gray-300 leading-relaxed text-base">
@@ -385,16 +403,14 @@ const TermsOfService = () => {
                 AretaCare never sells your personal data or shares it with hospitals, insurers, advertisers, or data brokers.
               </p>
               <p className="text-gray-700 dark:text-gray-300 leading-relaxed text-base">
-                To fund the platform, we may generate aggregate, population-level insights derived from patterns across many users. These insights:
+                Nor do we create, sell, license, or share aggregate statistics, de-identified data sets, or &ldquo;insights&rdquo; from your information. It is used only to provide AretaCare to you and the people you invite. The{' '}
+                <Link to="/privacy" className="text-primary-600 hover:text-primary-700 font-medium underline">Privacy Policy</Link>{' '}
+                (Section 13) and{' '}
+                <Link to="/health-data-privacy" className="text-primary-600 hover:text-primary-700 font-medium underline">Consumer Health Data Privacy Policy</Link>{' '}
+                set out these commitments in full.
               </p>
-              <ul className="list-disc list-inside space-y-2 text-gray-700 dark:text-gray-300 pl-4">
-                <li>Contain no individual records or personally identifiable information</li>
-                <li>Cannot be traced back to any specific person</li>
-                <li>Are derived from patterns across large groups of users</li>
-                <li>May be used to improve the platform or offered to third parties</li>
-              </ul>
               <p className="text-gray-700 dark:text-gray-300 leading-relaxed text-base">
-                You retain full control over your data and can delete it at any time from Settings. When you delete your data, it is permanently removed from our systems. Cloud providers may maintain their own backup retention policies; consult their terms of service for details.
+                You retain full control over your data and can delete it at any time from Settings. When you delete your data, it is removed from our database and file storage immediately; copies in our providers' automatic backups are deleted on their backup schedules (see Privacy Policy Section 8).
               </p>
             </div>
           </section>

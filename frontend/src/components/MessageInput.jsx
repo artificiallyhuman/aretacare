@@ -521,6 +521,13 @@ const MessageInput = ({ onSendMessage, loading, hasMessages = false }) => {
         </div>
       )}
 
+      {/* Some states require everyone's consent to be recorded (Terms §10). */}
+      {isRecording && (
+        <p className="mb-1 md:mb-2 text-xs text-center text-gray-600 dark:text-gray-400">
+          Recording someone else? Get their OK first. Some states require it.
+        </p>
+      )}
+
       {/* File validation error */}
       {fileError && (
         <div className="mb-2 md:mb-3 bg-red-50 dark:bg-red-900/30 border-2 border-red-300 dark:border-red-700 text-red-900 dark:text-red-100 px-4 py-3 rounded-lg shadow-lg animate-fade-in">

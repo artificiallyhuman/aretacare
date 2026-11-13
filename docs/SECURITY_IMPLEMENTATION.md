@@ -280,6 +280,11 @@ All user consents are recorded in `consent_records` table for compliance verific
 - Sharing: `SHARING_AUTHORIZATION` (recorded when owner shares care session or sends invitation)
 - AI processing: `AI_DATA_SHARING` (one-time, after login), `TALK_VOICE` (one-time, before the first Talk conversation: live streaming to OpenAI and recording)
 
+**Integrity:**
+- Consent records are committed in the same transaction as what they authorize: the new user at sign-up, the collaborator or invitation when sharing. A user or share can't exist without its consent record.
+- `ip_address` comes from `core/client_ip.client_ip_for_record()`, the same proxy-aware resolution rate limiting uses (`CF-Connecting-IP` is honored only when the request arrived through a Cloudflare edge). Don't read IP headers directly.
+- Gates check only that a record of the type exists, not its version. A text change bumps the version for new consents; existing users are not re-prompted.
+
 **Key Files:** `backend/app/models/consent_record.py` (includes `CONSENT_VERSIONS` dict)
 
 ---

@@ -730,7 +730,7 @@ const AudioRecordings = () => {
             <div className="flex-1">
               <h3 className="text-sm font-semibold text-amber-800 dark:text-amber-400 mb-1">Important</h3>
               <p className="text-sm text-amber-800 dark:text-amber-300 leading-relaxed">
-                AI transcriptions and summaries may contain errors. Please review for accuracy.
+                AI transcriptions and summaries may contain errors. Please review for accuracy. If a recording includes other people, such as a doctor&rsquo;s appointment, make sure they agreed to be recorded. Some states require everyone&rsquo;s consent.
               </p>
             </div>
           </div>

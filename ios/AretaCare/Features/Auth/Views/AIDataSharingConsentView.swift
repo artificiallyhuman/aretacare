@@ -77,6 +77,18 @@ struct AIDataSharingConsentView: View {
 
                     Divider()
 
+                    Link(destination: AppConstants.healthDataPrivacyURL) {
+                        HStack {
+                            Text("Consumer Health Data Privacy Policy")
+                                .font(.subheadline)
+                            Spacer()
+                            Image(systemName: "arrow.up.right")
+                                .font(.caption)
+                        }
+                    }
+
+                    Divider()
+
                     Link(destination: URL(string: "https://openai.com/enterprise-privacy/")!) {
                         HStack {
                             Text("OpenAI API Data Privacy")

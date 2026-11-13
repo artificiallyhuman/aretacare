@@ -43,6 +43,9 @@ To help us understand and address the issue quickly, please include:
 - **Status Updates**: We'll provide regular updates as we work on a fix
 - **Resolution**: We aim to release patches for critical vulnerabilities within 30 days
 
+If a vulnerability turns out to have exposed user data, we follow our
+[Breach Response Plan](docs/BREACH_RESPONSE.md), including notifying affected users.
+
 ### Our Commitments
 
 When you report a vulnerability to us, we commit to:

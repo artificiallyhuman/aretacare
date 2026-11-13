@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func
+from app.core.client_ip import client_ip_for_record
 from app.core.database import get_db
 from app.core.rate_limit import limiter, RateLimits
 from app.models import Session as SessionModel, User, Document, AudioRecording, JournalEntry, Conversation, SessionCollaborator, PendingInvitation, UserSessionColor
@@ -642,16 +643,13 @@ async def share_session(
         session_id=session_id,
         user_id=target_user.id
     )
+    # Committed together with the sharing consent below: a share must never exist
+    # without the authorization the owner gave for it.
     db.add(new_collab)
-    db.commit()
-    db.refresh(new_collab)
+    db.flush()
 
     # Record sharing consent
-    client_ip = (
-        request.headers.get("CF-Connecting-IP") or
-        request.headers.get("X-Forwarded-For", "").split(",")[0].strip() or
-        request.client.host if request.client else None
-    )
+    client_ip = client_ip_for_record(request)
     user_agent = request.headers.get("User-Agent", "")[:500]
     consent_info = CONSENT_VERSIONS[ConsentType.SHARING_AUTHORIZATION]
 
@@ -972,8 +970,7 @@ async def send_invitation(
         existing_invitation.created_at = datetime.utcnow()
         import secrets
         existing_invitation.token = secrets.token_urlsafe(32)
-        db.commit()
-        db.refresh(existing_invitation)
+        db.flush()  # committed with the sharing consent below
         invitation = existing_invitation
     else:
         # Creating a NEW invitation - check collaborator limit first
@@ -1001,15 +998,10 @@ async def send_invitation(
             invited_by_user_id=current_user.id
         )
         db.add(invitation)
-        db.commit()
-        db.refresh(invitation)
+        db.flush()  # committed with the sharing consent below
 
     # Record sharing consent
-    client_ip = (
-        request.headers.get("CF-Connecting-IP") or
-        request.headers.get("X-Forwarded-For", "").split(",")[0].strip() or
-        request.client.host if request.client else None
-    )
+    client_ip = client_ip_for_record(request)
     user_agent = request.headers.get("User-Agent", "")[:500]
     consent_info = CONSENT_VERSIONS[ConsentType.SHARING_AUTHORIZATION]
 

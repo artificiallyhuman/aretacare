@@ -94,6 +94,20 @@ def test_voice_prompts_carry_every_chat_safety_boundary():
         assert ai_config.UNTRUSTED_CONTENT_NOTICE in prompt
 
 
+def test_chat_and_voice_prompts_carry_the_emergency_and_crisis_lines():
+    # Chat (which the Jargon Translator and Conversation Coach share) and both voice prompts
+    # must send a medical emergency to 911 and a mention of suicide or self-harm to 988.
+    crisis = [
+        line for line in ai_config.SYSTEM_PROMPT.splitlines()
+        if line.startswith("- ") and ("911" in line or "988" in line)
+    ]
+    assert any("911" in line and "emergency" in line for line in crisis)
+    assert any("988" in line and "self-harm" in line for line in crisis)
+    for prompt in (ai_config.TALK_INSTRUCTIONS, ai_config.TALK_BACKEND_INSTRUCTIONS):
+        for line in crisis:
+            assert line in prompt
+
+
 # --- starting a call -------------------------------------------------------
 
 def test_start_is_refused_while_the_feature_is_off(client, db, alice, monkeypatch):

@@ -1,6 +1,12 @@
-"""Login, protected routes, admin gating and refresh-token handling."""
+"""Login, protected routes, admin gating, refresh-token handling and sign-up consents."""
 
-from tests.conftest import cookie_header, refresh_cookie_from
+import uuid
+
+import pytest
+
+from app.models import ConsentRecord, ConsentType, CONSENT_VERSIONS
+from app.models.user import User
+from tests.conftest import TEST_PASSWORD, cookie_header, refresh_cookie_from
 
 REFRESH = "/api/auth/refresh"
 NATIVE = {"X-Client-Type": "ios"}
@@ -142,3 +148,74 @@ def test_logout_revokes_the_presented_token(client, alice):
     token = alice.login(client, native=True).json()["refresh_token"]
     assert client.post("/api/auth/logout", json={"refresh_token": token}).status_code == 200
     assert client.post(REFRESH, json={"refresh_token": token}, headers=NATIVE).status_code == 401
+
+
+# --- registration consent records ----------------------------------------------
+
+def _register(client, email, headers=None):
+    return client.post(
+        "/api/auth/register",
+        json={
+            "name": "Test Signup",
+            "email": email,
+            "password": TEST_PASSWORD,
+            "acknowledge_not_medical_advice": True,
+            "acknowledge_hipaa": True,
+            "acknowledge_ai_processing": True,
+            "agree_to_terms": True,
+            "acknowledge_age_and_use": True,
+        },
+        headers=headers or {},
+    )
+
+
+@pytest.fixture()
+def open_signups(monkeypatch, db):
+    """Signups without an invitation, no verification email; removes the users it made."""
+    from app.api import auth as auth_api
+
+    monkeypatch.setattr(auth_api.settings, "CONTROL_SIGNUPS", False)
+    monkeypatch.setattr(auth_api.email_service, "send_registration_verification", lambda **_: None)
+    emails = []
+    yield emails
+    db.rollback()
+    if emails:
+        db.query(User).filter(User.email.in_(emails)).delete(synchronize_session=False)
+        db.commit()
+
+
+def test_registration_records_every_consent_with_its_current_text_and_ip(client, db, open_signups):
+    email = f"test-signup-{uuid.uuid4().hex[:12]}@example.com"
+    open_signups.append(email)
+
+    response = _register(client, email, headers={"X-Forwarded-For": "203.0.113.7"})
+    assert response.status_code == 201, response.text
+
+    user = db.query(User).filter(User.email == email).one()
+    records = {r.consent_type: r for r in db.query(ConsentRecord).filter(ConsentRecord.user_id == user.id)}
+    assert set(records) == {
+        ConsentType.MEDICAL_ADVICE, ConsentType.HIPAA, ConsentType.DATA_PROCESSING,
+        ConsentType.TERMS_PRIVACY, ConsentType.AGE_USE,
+    }
+    for consent_type, record in records.items():
+        assert record.consent_version == CONSENT_VERSIONS[consent_type]["version"]
+        assert record.consent_text == CONSENT_VERSIONS[consent_type]["text"]
+        assert record.ip_address == "203.0.113.7"
+    assert "health information" in records[ConsentType.DATA_PROCESSING].consent_text
+
+
+def test_a_failed_consent_write_leaves_no_user_behind(client, db, open_signups, monkeypatch):
+    from app.api import auth as auth_api
+
+    def broken_consent_record(**_):
+        raise RuntimeError("consent write failed")
+
+    monkeypatch.setattr(auth_api, "ConsentRecord", broken_consent_record)
+    email = f"test-signup-{uuid.uuid4().hex[:12]}@example.com"
+    open_signups.append(email)
+
+    with pytest.raises(RuntimeError):
+        _register(client, email)
+
+    db.expire_all()
+    assert db.query(User).filter(User.email == email).first() is None

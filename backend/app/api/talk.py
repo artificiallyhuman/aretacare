@@ -20,6 +20,7 @@ from sqlalchemy.orm import Session as DBSession
 
 from app.api.auth import get_current_user, require_ai_data_sharing_consent
 from app.api.permissions import check_session_access
+from app.core.client_ip import client_ip_for_record
 from app.core.config import settings
 from app.core.database import get_db
 from app.core.rate_limit import RateLimits, limiter
@@ -102,11 +103,7 @@ async def accept_talk_consent(
     if _has_talk_consent(db, current_user.id):
         return {"status": "already_consented"}
     info = CONSENT_VERSIONS[ConsentType.TALK_VOICE]
-    client_ip = (
-        request.headers.get("CF-Connecting-IP")
-        or request.headers.get("X-Forwarded-For", "").split(",")[0].strip()
-        or (request.client.host if request.client else None)
-    )
+    client_ip = client_ip_for_record(request)
     db.add(ConsentRecord(
         user_id=current_user.id, consent_type=ConsentType.TALK_VOICE,
         consent_version=info["version"], consent_text=info["text"],

@@ -9,6 +9,7 @@ is used.
 
 import ipaddress
 import logging
+from typing import Optional
 
 from fastapi import Request
 
@@ -102,3 +103,10 @@ def get_client_ip(request: Request) -> str:
     if request.client and request.client.host:
         return request.client.host
     return "unknown"
+
+
+def client_ip_for_record(request: Request) -> Optional[str]:
+    """The client IP to store on a record (consent records): None when it can't be
+    determined, cut to the 45-character column."""
+    ip = get_client_ip(request)
+    return None if ip == "unknown" else ip[:45]

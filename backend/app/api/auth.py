@@ -16,6 +16,7 @@ from app.core.auth import (
     claim_refresh_token_for_rotation, hash_refresh_token
 )
 from app.core.config import settings
+from app.core.client_ip import client_ip_for_record
 from app.core.rate_limit import limiter, RateLimits
 from app.models.user import User
 from app.models.session import Session
@@ -415,17 +416,13 @@ def register(request: Request, response: Response, user_data: UserRegister, db: 
         email_verification_token_expires=verification_expires
     )
 
+    # The user and their consent records are committed together: a user must never
+    # exist without the consents they agreed to at sign-up.
     db.add(new_user)
-    db.commit()
-    db.refresh(new_user)
+    db.flush()
 
     # Record consent for compliance verification
-    # Get client IP (check Cloudflare header first, then X-Forwarded-For, then direct)
-    client_ip = (
-        request.headers.get("CF-Connecting-IP") or
-        request.headers.get("X-Forwarded-For", "").split(",")[0].strip() or
-        request.client.host if request.client else None
-    )
+    client_ip = client_ip_for_record(request)
     user_agent = request.headers.get("User-Agent", "")[:500]  # Truncate to fit DB column
 
     # Create a consent record for each type
@@ -451,6 +448,7 @@ def register(request: Request, response: Response, user_data: UserRegister, db: 
             db.add(consent_record)
 
     db.commit()
+    db.refresh(new_user)
 
     # Check for pending invitations and auto-add to sessions
     # (User will be collaborator but can't access until verified)
@@ -1043,11 +1041,7 @@ def accept_ai_data_sharing(
         return {"status": "already_consented"}
 
     consent_info = CONSENT_VERSIONS[ConsentType.AI_DATA_SHARING]
-    client_ip = (
-        request.headers.get("CF-Connecting-IP")
-        or request.headers.get("X-Forwarded-For", "").split(",")[0].strip()
-        or (request.client.host if request.client else None)
-    )
+    client_ip = client_ip_for_record(request)
     user_agent = request.headers.get("User-Agent", "")[:500]
 
     record = ConsentRecord(

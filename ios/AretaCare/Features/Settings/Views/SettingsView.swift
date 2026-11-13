@@ -362,6 +362,16 @@ struct SettingsView: View {
             .buttonStyle(.plain)
             .accessibilityHint("Opens Privacy Policy in your browser")
 
+            Button { openURL(AppConstants.healthDataPrivacyURL) } label: {
+                HStack {
+                    Image(systemName: "heart.text.square")
+                        .foregroundStyle(Color.accentColor)
+                    Text("Consumer Health Data Privacy")
+                }
+            }
+            .buttonStyle(.plain)
+            .accessibilityHint("Opens the Consumer Health Data Privacy Policy in your browser")
+
             NavigationLink {
                 FeedbackView()
             } label: {

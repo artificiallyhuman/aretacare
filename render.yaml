@@ -169,6 +169,9 @@ services:
       - type: rewrite
         source: /privacy
         destination: /privacy/index.html
+      - type: rewrite
+        source: /health-data-privacy
+        destination: /health-data-privacy/index.html
       # SPA fallback for auth-gated routes (/settings, /journal, etc.) and
       # unknown paths — they get the root index.html and React Router takes over.
       - type: rewrite

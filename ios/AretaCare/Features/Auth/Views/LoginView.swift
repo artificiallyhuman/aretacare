@@ -147,14 +147,17 @@ struct LoginView: View {
             .padding(.top, 8)
 
             // Footer
-            HStack(spacing: 4) {
-                Link("Terms", destination: AppConstants.termsURL)
-                Text("\u{00B7}")
-                Link("Privacy", destination: AppConstants.privacyURL)
-                Text("\u{00B7}")
-                Link("Contact", destination: AppConstants.contactURL)
-                Text("\u{00B7}")
-                Link("About", destination: AppConstants.aboutURL)
+            VStack(spacing: 6) {
+                HStack(spacing: 4) {
+                    Link("Terms", destination: AppConstants.termsURL)
+                    Text("\u{00B7}")
+                    Link("Privacy", destination: AppConstants.privacyURL)
+                    Text("\u{00B7}")
+                    Link("Contact", destination: AppConstants.contactURL)
+                    Text("\u{00B7}")
+                    Link("About", destination: AppConstants.aboutURL)
+                }
+                Link("Consumer Health Data Privacy", destination: AppConstants.healthDataPrivacyURL)
             }
             .font(.caption)
             .foregroundStyle(.secondary)

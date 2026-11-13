@@ -32,6 +32,7 @@ struct TalkConsentSheet: View {
                     VStack(alignment: .leading, spacing: 14) {
                         row("mic.fill", "Your voice is streamed live to OpenAI so the assistant can listen and respond.")
                         row("record.circle", "Both sides of the conversation are recorded and saved to this care session's Audio Recordings with a transcript. Journal entries may be created from it.")
+                        row("person.wave.2.fill", "Other people's voices nearby can be recorded too. Make sure they're OK with that before you start.")
                         row("person.2.fill", "Everyone this care session is shared with can see and hear those recordings.")
                         row("checkmark.shield.fill", "The assistant reads changes back and asks before saving. Health Profile changes wait for your review.")
                         row("cross.case.fill", "The assistant does not give medical advice, diagnoses, or treatment recommendations. In an emergency, call 911.")

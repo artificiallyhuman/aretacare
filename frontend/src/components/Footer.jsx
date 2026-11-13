@@ -40,6 +40,12 @@ const Footer = () => {
             >
               Privacy Policy
             </Link>
+            <Link
+              to="/health-data-privacy"
+              className="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 transition-colors"
+            >
+              Consumer Health Data Privacy
+            </Link>
           </div>
         </div>
       </div>

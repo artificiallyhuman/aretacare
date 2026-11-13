@@ -99,6 +99,13 @@ struct AudioRecorderView: View {
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
 
+                // Some states require everyone's consent to be recorded (Terms §10).
+                Text("Recording someone else? Get their OK first. Some states require it.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal)
+
                 Spacer()
             }
             .padding()

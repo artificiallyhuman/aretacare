@@ -29,6 +29,12 @@ const PrivacyPolicy = () => {
             <p className="text-gray-700 dark:text-gray-300 leading-relaxed text-base">
               AretaCare™ is an AI assistant that helps patients and caregivers organize and understand medical information. It is a consumer tool and does not provide medical advice, diagnosis, or treatment. AretaCare is available as a web application and a native iOS app. This Privacy Policy explains how we collect, use, and protect your information across all platforms. AretaCare is operated by AretaCare LLC.
             </p>
+            <p className="text-gray-700 dark:text-gray-300 leading-relaxed text-base mt-4">
+              How we handle health information specifically, and your rights over it, is set out in our{' '}
+              <Link to="/health-data-privacy" className="text-primary-600 hover:text-primary-700 font-medium underline">
+                Consumer Health Data Privacy Policy
+              </Link>.
+            </p>
           </section>
 
           {/* Section 2 */}
@@ -200,7 +206,7 @@ const PrivacyPolicy = () => {
                 <li>Generate journal entries, daily digests, and health profiles</li>
                 <li>Store your documents and audio recordings</li>
                 <li>Maintain your account and session</li>
-                <li>Improve the application and fix bugs</li>
+                <li>Keep the application secure and working, and fix bugs</li>
               </ul>
             </div>
           </section>
@@ -334,6 +340,8 @@ const PrivacyPolicy = () => {
                     <li>• Transcribes audio recordings</li>
                     <li>• Powers Talk voice conversations in the iOS app (your voice is streamed live)</li>
                     <li>• Generates journal entries and daily digests</li>
+                    <li>• Does not use your data to train its models</li>
+                    <li>• May keep requests for up to 30 days to monitor for abuse; lookups made during Talk are kept for up to 30 days</li>
                   </ul>
                 </div>
                 <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-5 border border-gray-200 dark:border-gray-600">
@@ -341,6 +349,20 @@ const PrivacyPolicy = () => {
                   <ul className="text-sm text-gray-600 dark:text-gray-300 space-y-1.5">
                     <li>• Stores uploaded documents and images</li>
                     <li>• Stores PDF thumbnails and audio recordings</li>
+                  </ul>
+                </div>
+                <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-5 border border-gray-200 dark:border-gray-600">
+                  <h3 className="font-semibold text-gray-900 dark:text-white mb-3">Render</h3>
+                  <ul className="text-sm text-gray-600 dark:text-gray-300 space-y-1.5">
+                    <li>• Hosts AretaCare's servers and database in the United States</li>
+                    <li>• Stores your account, conversations, journal, Health Profile, and digests (encrypted at rest)</li>
+                  </ul>
+                </div>
+                <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-5 border border-gray-200 dark:border-gray-600">
+                  <h3 className="font-semibold text-gray-900 dark:text-white mb-3">Cloudflare</h3>
+                  <ul className="text-sm text-gray-600 dark:text-gray-300 space-y-1.5">
+                    <li>• Protects AretaCare from attacks and abuse</li>
+                    <li>• All traffic to AretaCare passes through Cloudflare's network on its way to our servers</li>
                   </ul>
                 </div>
                 <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-5 border border-gray-200 dark:border-gray-600">
@@ -377,6 +399,9 @@ const PrivacyPolicy = () => {
                 </div>
               </div>
               <p className="text-gray-700 dark:text-gray-300 leading-relaxed text-base">
+                Of these, only OpenAI, AWS, Render, and Cloudflare handle health information. Your email provider, Apple, RevenueCat, and Sentry receive none; emails and push notifications can include a care session's name, but never its contents.
+              </p>
+              <p className="text-gray-700 dark:text-gray-300 leading-relaxed text-base">
                 Your use of these services through AretaCare is subject to their respective privacy policies and terms of service.
               </p>
             </div>
@@ -389,7 +414,7 @@ const PrivacyPolicy = () => {
               <div>
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">Where Your Data is Stored</h3>
                 <ul className="list-disc list-inside space-y-2 text-gray-700 dark:text-gray-300 pl-4">
-                  <li><strong>Database:</strong> PostgreSQL database (account, conversations, journal, health profiles, daily digests, document and audio metadata)</li>
+                  <li><strong>Database:</strong> PostgreSQL database hosted by Render in the United States (account, conversations, journal, health profiles, daily digests, document and audio metadata)</li>
                   <li><strong>File Storage:</strong> AWS S3 (documents, images, audio files)</li>
                   <li><strong>Browser:</strong> Access tokens in memory (not persisted); refresh tokens and trusted device tokens in secure HttpOnly cookies; only non-sensitive preferences (theme, active session ID) in localStorage</li>
                   <li><strong>iOS Device:</strong> Authentication tokens in iOS Keychain (device-only, not included in backups); images and API responses cached in memory (cleared on logout); non-sensitive preferences in app-local storage (cleared on logout)</li>
@@ -483,10 +508,10 @@ const PrivacyPolicy = () => {
               <div>
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">Cloud Backup Retention</h3>
                 <p className="text-gray-700 dark:text-gray-300 leading-relaxed text-base mb-3">
-                  When you delete data, it is immediately removed from our active systems. However, copies may persist temporarily in cloud provider backups:
+                  When you delete data, it is immediately removed from our database and file storage. Copies can remain for a limited time in our providers' automatic backups: the database backups Render keeps for us, and any earlier versions of stored files kept by AWS.
                 </p>
                 <p className="text-gray-700 dark:text-gray-300 leading-relaxed text-base">
-                  These backup copies are not accessible through the application and are automatically purged according to cloud provider retention policies.
+                  These backup copies are not accessible through the application, are not used for anything else, and are deleted automatically on those providers' backup schedules. Requests AretaCare sends to OpenAI are not stored for reuse; OpenAI may keep them for up to 30 days to monitor for abuse, and then deletes them.
                 </p>
               </div>
 
@@ -609,9 +634,9 @@ const PrivacyPolicy = () => {
             </p>
           </section>
 
-          {/* Section 13 - Data Use and Insights */}
+          {/* Section 13 - Data Use Commitments */}
           <section>
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4 pb-2 border-b-2 border-primary-200 dark:border-primary-800">13. Data Use and Aggregate Insights</h2>
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4 pb-2 border-b-2 border-primary-200 dark:border-primary-800">13. Data Use Commitments</h2>
             <div className="space-y-4">
               <div>
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">Your Personal Data</h3>
@@ -621,18 +646,9 @@ const PrivacyPolicy = () => {
               </div>
 
               <div>
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">Aggregate, Population-Level Insights</h3>
-                <p className="text-gray-700 dark:text-gray-300 leading-relaxed text-base mb-3">
-                  To fund the platform, we may generate aggregate, population-level insights derived from patterns across many users. These insights:
-                </p>
-                <ul className="list-disc list-inside space-y-2 text-gray-700 dark:text-gray-300 pl-4">
-                  <li>Contain no individual records or personally identifiable information</li>
-                  <li>Cannot be traced back to any specific person or account</li>
-                  <li>Are derived from patterns across large groups of users</li>
-                  <li>May be used to improve the platform or offered to third parties</li>
-                </ul>
-                <p className="text-gray-700 dark:text-gray-300 leading-relaxed text-base mt-3">
-                  <strong>Example:</strong> We might identify that "60% of users ask about medication side effects" but we would never reveal that any specific user asked about a specific medication on a specific date.
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">No Aggregate or De-identified Data Products</h3>
+                <p className="text-gray-700 dark:text-gray-300 leading-relaxed text-base">
+                  We don't create, sell, license, or share aggregate statistics, de-identified data sets, or "insights" from your information. Your information is used only to provide AretaCare to you and the people you invite, and to keep it secure and working (Section 3).
                 </p>
               </div>
             </div>
@@ -679,6 +695,17 @@ const PrivacyPolicy = () => {
                 <li>The right to limit use and disclosure of sensitive personal information</li>
                 <li>The right to request correction of inaccurate personal information</li>
               </ul>
+
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">Consumer Health Data (Washington, Nevada, Connecticut)</h3>
+                <p className="text-gray-700 dark:text-gray-300 leading-relaxed text-base">
+                  Washington's My Health My Data Act and similar laws in Nevada and Connecticut give additional rights over health information, including the right to withdraw consent and to appeal a refused request. Our{' '}
+                  <Link to="/health-data-privacy" className="text-primary-600 hover:text-primary-700 font-medium underline">
+                    Consumer Health Data Privacy Policy
+                  </Link>{' '}
+                  explains them; we extend them to every AretaCare user.
+                </p>
+              </div>
 
               <div>
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">California CPRA Rights</h3>

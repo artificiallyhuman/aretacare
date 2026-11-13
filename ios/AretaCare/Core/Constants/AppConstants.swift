@@ -24,6 +24,8 @@ enum AppConstants {
 
     static var termsURL: URL { URL(string: "\(frontendBaseURL)/terms") ?? URL(string: "https://www.aretacare.com/terms")! }
     static var privacyURL: URL { URL(string: "\(frontendBaseURL)/privacy") ?? URL(string: "https://www.aretacare.com/privacy")! }
+    /// Washington's My Health My Data Act requires this policy to be linked inside the app.
+    static var healthDataPrivacyURL: URL { URL(string: "\(frontendBaseURL)/health-data-privacy") ?? URL(string: "https://www.aretacare.com/health-data-privacy")! }
     static var contactURL: URL { URL(string: "\(frontendBaseURL)/contact") ?? URL(string: "https://www.aretacare.com/contact")! }
     static var aboutURL: URL { URL(string: "\(frontendBaseURL)/about") ?? URL(string: "https://www.aretacare.com/about")! }
 

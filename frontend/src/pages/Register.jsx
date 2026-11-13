@@ -416,11 +416,15 @@ function Register() {
                       required
                     />
                     <label htmlFor="acknowledgeAIProcessing" className="ml-3 text-sm text-gray-700 dark:text-gray-300 cursor-pointer">
-                      I consent to the collection, storage, and processing of my information as described in the{' '}
+                      I consent to AretaCare collecting, storing, and processing my information, including health information, as described in the{' '}
                       <Link to="/privacy" className="text-primary-600 dark:text-primary-400 hover:underline" target="_blank">
                         Privacy Policy
                       </Link>
-                      , including processing by OpenAI's AI systems to help organize, summarize, and interpret content.
+                      {' '}and the{' '}
+                      <Link to="/health-data-privacy" className="text-primary-600 dark:text-primary-400 hover:underline" target="_blank">
+                        Consumer Health Data Privacy Policy
+                      </Link>
+                      . This includes processing by OpenAI's AI systems to help organize, summarize, and interpret content.
                     </label>
                   </div>
 
@@ -499,13 +503,17 @@ function Register() {
 
       {/* Legal Links */}
       <div className="mt-4 sm:mx-auto sm:w-full sm:max-w-md px-4 sm:px-0 text-center">
-        <div className="flex justify-center gap-4 text-xs text-gray-500 dark:text-gray-400">
+        <div className="flex flex-wrap justify-center gap-x-4 gap-y-1 text-xs text-gray-500 dark:text-gray-400">
           <Link to="/terms" className="hover:text-gray-700 dark:hover:text-gray-300 underline">
             Terms of Service
           </Link>
           <span>•</span>
           <Link to="/privacy" className="hover:text-gray-700 dark:hover:text-gray-300 underline">
             Privacy Policy
+          </Link>
+          <span>•</span>
+          <Link to="/health-data-privacy" className="hover:text-gray-700 dark:hover:text-gray-300 underline">
+            Consumer Health Data Privacy
           </Link>
         </div>
       </div>

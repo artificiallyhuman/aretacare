@@ -375,13 +375,17 @@ function Login() {
 
       {/* Legal Links */}
       <div className="mt-4 sm:mx-auto sm:w-full sm:max-w-md px-4 sm:px-0 text-center">
-        <div className="flex justify-center gap-4 text-xs text-gray-500 dark:text-gray-400">
+        <div className="flex flex-wrap justify-center gap-x-4 gap-y-1 text-xs text-gray-500 dark:text-gray-400">
           <Link to="/terms" className="hover:text-gray-700 dark:hover:text-gray-300 underline">
             Terms of Service
           </Link>
           <span>•</span>
           <Link to="/privacy" className="hover:text-gray-700 dark:hover:text-gray-300 underline">
             Privacy Policy
+          </Link>
+          <span>•</span>
+          <Link to="/health-data-privacy" className="hover:text-gray-700 dark:hover:text-gray-300 underline">
+            Consumer Health Data Privacy
           </Link>
           <span>•</span>
           <Link to="/contact" className="hover:text-gray-700 dark:hover:text-gray-300 underline">

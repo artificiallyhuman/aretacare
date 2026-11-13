@@ -27,6 +27,7 @@ import About from './pages/About';
 import Contact from './pages/Contact';
 import TermsOfService from './pages/TermsOfService';
 import PrivacyPolicy from './pages/PrivacyPolicy';
+import HealthDataPrivacy from './pages/HealthDataPrivacy';
 import JargonTranslator from './pages/tools/JargonTranslator';
 import ConversationCoach from './pages/tools/ConversationCoach';
 
@@ -239,6 +240,10 @@ function AppContent() {
           <Route
             path="/privacy"
             element={<PrivacyPolicy />}
+          />
+          <Route
+            path="/health-data-privacy"
+            element={<HealthDataPrivacy />}
           />
           <Route
             path="/about"

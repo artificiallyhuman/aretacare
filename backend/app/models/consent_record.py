@@ -32,8 +32,8 @@ CONSENT_VERSIONS = {
         "text": "I understand that AretaCare is a consumer tool, not a HIPAA-covered service, and is not a medical record system. I will not rely on it as my sole repository for critical health information."
     },
     ConsentType.DATA_PROCESSING: {
-        "version": "1.1",
-        "text": "I consent to the collection, storage, and processing of my information as described in the Privacy Policy, including processing by OpenAI's AI systems to help organize, summarize, and interpret content."
+        "version": "1.2",
+        "text": "I consent to AretaCare collecting, storing, and processing my information, including health information, as described in the Privacy Policy and the Consumer Health Data Privacy Policy. This includes processing by OpenAI's AI systems to help organize, summarize, and interpret content."
     },
     ConsentType.TERMS_PRIVACY: {
         "version": "1.0",
@@ -52,8 +52,8 @@ CONSENT_VERSIONS = {
         "text": "I understand and consent to the following: To provide AI-powered features, AretaCare sends data I provide — including conversations, health profile information, journal entries, documents, and audio recordings — to OpenAI for processing. OpenAI processes this data according to its API data usage policy and does not use it to train its models. For more details, see AretaCare's Privacy Policy and OpenAI's API Data Privacy page."
     },
     ConsentType.TALK_VOICE: {
-        "version": "1.0",
-        "text": "I understand and consent to the following: In Talk mode my voice is streamed live to OpenAI so the assistant can listen and respond, and the assistant can look up and update information in this care session at my request. Both sides of each Talk conversation are recorded and saved to this care session's Audio Recordings with a transcript, and journal entries may be created from it. Everyone this care session is shared with can see and hear those recordings. The assistant does not provide medical advice, diagnosis, or treatment."
+        "version": "1.1",
+        "text": "I understand and consent to the following: In Talk mode my voice is streamed live to OpenAI so the assistant can listen and respond, and the assistant can look up and update information in this care session at my request. Both sides of each Talk conversation are recorded and saved to this care session's Audio Recordings with a transcript, and journal entries may be created from it. Other people's voices nearby may be recorded too, and I will make sure they are OK with that before I start. Everyone this care session is shared with can see and hear those recordings. The assistant does not provide medical advice, diagnosis, or treatment."
     }
 }
 

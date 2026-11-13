@@ -9,6 +9,7 @@ Allow: /register
 Allow: /waitlist
 Allow: /terms
 Allow: /privacy
+Allow: /health-data-privacy
 Allow: /tools/jargon
 Allow: /tools/coach
 

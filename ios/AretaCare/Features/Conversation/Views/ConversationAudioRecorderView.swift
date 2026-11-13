@@ -14,6 +14,16 @@ struct ConversationAudioRecorderView: View {
         VStack(spacing: 0) {
             Divider()
 
+            // Some states require everyone's consent to be recorded (Terms §10).
+            Text("Recording someone else? Get their OK first. Some states require it.")
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+                .frame(maxWidth: .infinity)
+                .padding(.horizontal, 12)
+                .padding(.top, 6)
+                .background(Color(.systemBackground))
+
             HStack(spacing: 16) {
                 // Cancel button
                 Button {

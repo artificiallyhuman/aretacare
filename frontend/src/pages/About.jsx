@@ -97,7 +97,7 @@ const FAQ_DATA = [
     content: (
       <div className="space-y-3">
         <p>No. Your personal data is never sold or used for advertising. You stay in control of what you add and what you delete.</p>
-        <p>To fund the platform, we may generate aggregate, population-level insights from patterns across many users, but these insights contain no individual records and cannot be traced back to any specific person.</p>
+        <p>We don't sell or share it in aggregate or de-identified form either. It's used only to run AretaCare for you and the people you invite. See our <Link to="/health-data-privacy" className="text-primary-600 dark:text-primary-400 hover:underline font-medium">Consumer Health Data Privacy Policy</Link>.</p>
       </div>
     ),
   },
@@ -139,6 +139,12 @@ const FAQ_DATA = [
     title: 'Can doctors use AretaCare with me?',
     icon: 'M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z',
     content: "Not right now. AretaCare is designed for personal use by patients and caregivers. It isn't part of clinical workflows and shouldn't replace any official medical systems.",
+  },
+  {
+    id: 'crisis',
+    title: 'What does AretaCare do if someone mentions self-harm?',
+    icon: 'M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z',
+    content: "AretaCare isn't a crisis service. If you describe a medical emergency, in chat or in a Talk conversation, it tells you to call 911. If you mention thoughts of suicide or self-harm, or that someone may be in danger, it gives you the 988 Suicide & Crisis Lifeline (call or text 988) and 911 for immediate danger, and stays supportive without offering counseling. If you're in crisis right now, call or text 988.",
   },
   // PLATFORM DETAILS
   {
@@ -711,9 +717,6 @@ const About = () => {
                 </p>
                 <p>
                   We can't promise that the internet is safe or that no one will ever attempt to break in. What we can promise is that we will never be the ones you have to worry about. We won't sell your personal data. We won't share it with hospitals or insurers. We won't hold it hostage. If you choose to delete your data, it's immediately removed from our active systems (cloud provider backups are automatically purged according to their retention policies). This is your information, and you stay in control of it.
-                </p>
-                <p>
-                  To fund the platform, we may offer aggregate, population-level insights derived from patterns across many users. These insights contain no individual records and cannot be traced back to any specific person.
                 </p>
                 <p className="font-semibold text-gray-900 dark:text-white bg-amber-50 dark:bg-amber-900/20 p-4 rounded-lg border-l-2 border-amber-500 dark:border-amber-400">
                   AretaCare will never sell your personal data or use it in ways that compromise your privacy.

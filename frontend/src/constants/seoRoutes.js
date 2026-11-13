@@ -94,6 +94,10 @@ export const ROUTE_SEO = {
     title: 'Privacy Policy',
     description: 'AretaCare Privacy Policy. Learn how AretaCare collects, uses, and protects your information across the web and iOS apps.',
   },
+  '/health-data-privacy': {
+    title: 'Consumer Health Data Privacy Policy',
+    description: 'How AretaCare collects, uses, shares, and deletes consumer health data, and your rights under Washington, Nevada, and Connecticut health privacy laws.',
+  },
 };
 
 export const fullTitleFor = (path) => {

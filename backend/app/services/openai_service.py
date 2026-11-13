@@ -305,9 +305,12 @@ async def guarded_responses_create(client: AsyncOpenAI, **kwargs):
     exactly the cascade the breaker exists to stop. Raises `CircuitBreakerOpen`
     when open; callers' existing error handling degrades the same way it does
     for any other API failure.
+
+    Responses are not stored at OpenAI (`store=False`, see `_create_chat_completion`).
     """
     if openai_circuit_breaker.is_open():
         raise CircuitBreakerOpen("OpenAI circuit breaker is open - failing fast")
+    kwargs.setdefault("store", False)
     try:
         response = await client.responses.create(**kwargs)
     except RETRYABLE_EXCEPTIONS:
@@ -530,7 +533,10 @@ class OpenAIService:
 
         for attempt in range(max_retries):
             try:
-                request_kwargs = {"model": self.model, "input": messages}
+                # store=False: the API keeps every response for 30 days by default
+                # (retrievable with our key). Nothing here uses previous_response_id,
+                # so health content has no reason to sit there.
+                request_kwargs = {"model": self.model, "input": messages, "store": False}
                 if max_output_tokens is not None:
                     request_kwargs["max_output_tokens"] = max_output_tokens
                 response = await self.client.responses.create(**request_kwargs)

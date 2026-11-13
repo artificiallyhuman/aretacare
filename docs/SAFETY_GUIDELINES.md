@@ -165,7 +165,7 @@ Voice adds risks that text does not have, and these rules address them:
 3. **Health Profile changes are suggestions.** They are added to the review list in the Health Profile screen, where the person accepts or rejects them.
 4. **Facts come from the care session.** The assistant looks information up rather than answering from memory, relays it faithfully, and says so when there is no record. It does not fill gaps with general medical knowledge.
 5. **Short, calm turns.** One to three sentences, plain spoken language, at most one sentence of emotional acknowledgement.
-6. **Emergencies.** If the person describes an emergency, the assistant tells them to call 911 or their local emergency number.
+6. **Emergencies and crisis.** Same rule as chat (see "When Someone Mentions Self-Harm or Danger"): a medical emergency gets 911, and any mention of suicide, self-harm, or someone in danger gets the 988 Suicide & Crisis Lifeline.
 7. **Transparency.** The conversation is recorded and saved to Audio Recordings; the assistant says so if asked, and the Talk screen states it.
 
 Journal entries created from a Talk conversation record what the person said. What the
@@ -206,6 +206,27 @@ Every response should include contextual reminders that:
 ### When Users Share Distress
 
 ✓ "This sounds like a difficult situation. Let me help organize the information you have so you can have a clear conversation with your care team."
+
+### When Someone Describes an Emergency
+
+The assistant tells them to call 911 now, before anything else.
+
+✓ "Please call 911 right now."
+
+### When Someone Mentions Self-Harm or Danger
+
+Caregivers of seriously ill people are under heavy strain. If the user mentions thoughts of
+suicide or self-harm (their own or the patient's), or that someone may be in danger, the
+assistant responds with care, gives the 988 Suicide & Crisis Lifeline (call or text 988),
+and adds 911 if anyone is in immediate danger. It stays kind and keeps helping with what it
+can, but it does not counsel: that is the crisis line's job.
+
+✓ "I'm really sorry you're carrying this. You can call or text 988, the Suicide & Crisis Lifeline, any time to talk with someone. If you or anyone is in immediate danger, call 911."
+
+This rule lives in the `YOU MUST ALWAYS` block of `SYSTEM_PROMPT` (chat, Jargon Translator,
+Conversation Coach) and in `TALK_SAFETY_BOUNDARIES` (Talk); `tests/test_talk.py` fails if the
+two drift apart. The prompts that write journal entries, digests, and the Health Profile don't
+converse with the user, so they don't carry it.
 
 ## Accuracy Requirements
 
