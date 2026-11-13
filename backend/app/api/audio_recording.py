@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.core.database import get_db
 from app.core.rate_limit import limiter, RateLimits
-from app.models import User, Session as SessionModel, AudioRecording
+from app.models import User, Session as SessionModel, AudioRecording, Conversation
 from app.models.audio_recording import TranscriptionStatus
 from app.schemas.audio_recording import AudioRecordingResponse, AudioRecordingListResponse, AudioRecordingUpdate
 from app.services.s3_service import s3_service
@@ -290,6 +290,15 @@ async def delete_audio_recording(
 
     # Delete associated journal entries (cascade should handle this, but explicit for clarity)
     db.query(JournalEntry).filter(JournalEntry.source_audio_id == recording_id).delete()
+
+    # A Talk call's chat card exists only to point at its recording, so it goes too. It is
+    # linked through message_metadata rather than conversations.audio_recording_id (see
+    # talk_session_service), so the foreign key's SET NULL never reaches it.
+    db.query(Conversation).filter(
+        Conversation.session_id == session_id,
+        Conversation.message_metadata["kind"].astext == "talk_summary",
+        Conversation.message_metadata["audio_recording_id"].astext == str(recording_id),
+    ).delete(synchronize_session=False)
 
     # Delete from database
     db.delete(recording)

@@ -69,6 +69,13 @@ final class ConversationViewModel {
         historyCache.invalidateAll()
     }
 
+    /// Drops one care session's cached history so the chat refetches when it next appears.
+    /// Called when something elsewhere removes chat messages on the server (deleting a Talk
+    /// recording also deletes the call's chat card).
+    static func invalidateCachedHistory(sessionId: String) {
+        historyCache.invalidate(sessionId)
+    }
+
     // MARK: - Fetch History
 
     func fetchHistory(sessionId: String, loadMore: Bool = false, forceRefresh: Bool = false) async {

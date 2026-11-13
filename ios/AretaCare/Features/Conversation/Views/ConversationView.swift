@@ -93,16 +93,9 @@ struct ConversationView: View {
                         }
                         .accessibilityLabel("Switch care session")
                     }
-                    ToolbarItem(placement: .topBarTrailing) {
-                        Button {
-                            mode = .talk
-                        } label: {
-                            Image(systemName: "waveform")
-                        }
-                        .disabled(sessionVM.currentSession == nil || isRecordingAudio)
-                        .accessibilityLabel("Talk")
-                        .accessibilityHint("Start a live voice conversation")
-                    }
+                    // Talk lives in the message bar, not here: beside the people icon the two
+                    // read as one group, and the bar is where every way of talking to
+                    // AretaCare already is (type, attach, record).
                     ToolbarItem(placement: .topBarTrailing) {
                         Button {
                             showingCollaboration = true
@@ -149,6 +142,7 @@ struct ConversationView: View {
                     await conversationVM.fetchHistory(sessionId: sessionId)
                 }
             }
+            .task { await talkVM.refreshAvailability() }
             .onChange(of: sessionVM.currentSession?.id) { _, newId in
                 guard let newId else { return }
                 conversationVM.clearMessages()
@@ -264,7 +258,8 @@ struct ConversationView: View {
                     onChoosePhoto: { showingPhotoPicker = true },
                     onChooseFile: { showingFilePicker = true },
                     onMicrophone: { startAudioRecording() },
-                    onRemoveAttachment: { pendingAttachment = nil }
+                    onRemoveAttachment: { pendingAttachment = nil },
+                    onTalk: currentSessionId != nil && talkVM.isOffered ? { mode = .talk } : nil
                 )
             }
         }

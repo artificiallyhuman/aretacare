@@ -630,9 +630,10 @@ async def _run_sideband(talk_id: str, openai_session_id: str, max_seconds: int) 
             line = f"Talk {talk_id}: live error code={code} type={error.get('type')} message={message!r}"
             if code == "responses_validation_failed" or "MCP server" in message:
                 # The assistant has no care-session tools for this call: it can talk but
-                # cannot read or change anything. Usually the MCP URL is unreachable from
-                # OpenAI (a proxy/WAF challenge in front of /api/talk/mcp).
-                logger.error(line)
+                # cannot read or change anything. Seen so far: 424 = OpenAI reached a server
+                # that refused it (a WAF challenge, or our 401); 400 = an http:// URL, whose
+                # redirect OpenAI does not follow. The URL is not secret; name it.
+                logger.error(f"{line} mcp_url={mcp_server_url()!r}")
             else:
                 logger.warning(line)
 

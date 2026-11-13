@@ -14,6 +14,7 @@ from app.models import (
     AudioRecording, ConsentRecord, ConsentType, CONSENT_VERSIONS, Conversation, JournalEntry, Profile,
     TalkSession,
 )
+from app.models.conversation import MessageRole
 from app.models.document import Document
 from app.models.journal import EntryType
 from app.services import entitlement_service, talk_session_service as talk_service, talk_tools
@@ -490,6 +491,32 @@ def test_a_call_with_audio_becomes_a_recording_and_a_summary_message(db, alice, 
     # Not linked by column: "Reset from here" deletes recordings linked to deleted messages.
     assert message.audio_recording_id is None
     assert not __import__("os").path.exists(recorder.input_path)
+
+
+def test_deleting_the_recording_removes_its_chat_card(client, db, alice, bob, finalize_stubs, monkeypatch):
+    async def fake_delete(_key):
+        return True
+
+    monkeypatch.setattr("app.api.audio_recording.s3_service.delete_file", fake_delete)
+    talk_id, _token = live_call(db, alice)
+    asyncio.run(talk_service.finalize_talk(talk_id, reason="remote_hangup", turns=TURNS,
+                                           recorder=recorder_with_audio(talk_id), duration=42.0))
+    db.expire_all()
+    recording_id = db.query(TalkSession).filter(TalkSession.id == talk_id).one().audio_recording_id
+    # A card in another care session that names the same recording id must survive.
+    db.add(Conversation(session_id=bob.session_id, role=MessageRole.ASSISTANT, content="Talk conversation.",
+                        message_metadata={"kind": "talk_summary", "audio_recording_id": recording_id}))
+    db.add(Conversation(session_id=alice.session_id, role=MessageRole.USER, content="Unrelated message"))
+    db.commit()
+
+    response = client.delete(f"/api/audio-recordings/{alice.session_id}/{recording_id}",
+                             headers=alice.auth_headers(client))
+    assert response.status_code == 200, response.text
+    db.expire_all()
+    remaining = db.query(Conversation).filter(Conversation.session_id == alice.session_id).all()
+    assert [m.content for m in remaining] == ["Unrelated message"]
+    assert db.query(Conversation).filter(Conversation.session_id == bob.session_id).count() == 1
+    assert db.query(TalkSession).filter(TalkSession.id == talk_id).one().audio_recording_id is None
 
 
 def test_without_audio_the_turns_are_posted_to_chat(db, alice, finalize_stubs):

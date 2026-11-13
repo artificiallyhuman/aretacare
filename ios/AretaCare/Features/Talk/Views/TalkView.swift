@@ -1,7 +1,7 @@
 import SwiftUI
 
-/// What the chat screen shows: the conversation, or a live Talk call. Switched from the
-/// navigation bar (a waveform button in Chat, a "Chat" button in Talk).
+/// What the chat screen shows: the conversation, or a live Talk call. Talk starts from the
+/// waveform button in the message bar; a "Chat" button in the navigation bar (or End) leaves it.
 enum ConversationMode: String, CaseIterable, Identifiable {
     case chat = "Chat"
     case talk = "Talk"

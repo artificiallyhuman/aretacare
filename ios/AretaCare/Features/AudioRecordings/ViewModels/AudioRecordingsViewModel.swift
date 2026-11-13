@@ -93,6 +93,9 @@ final class AudioRecordingsViewModel {
             )
             recordings.removeAll { $0.id == recordingId }
             total = max(0, total - 1)
+            // A Talk recording's chat card is deleted with it; don't let the chat show it
+            // again from its cached history.
+            ConversationViewModel.invalidateCachedHistory(sessionId: sessionId)
         } catch {
             errorMessage = error.localizedDescription
         }

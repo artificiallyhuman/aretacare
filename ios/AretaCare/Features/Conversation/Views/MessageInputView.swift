@@ -22,8 +22,12 @@ struct MessageInputView: View {
     var onChooseFile: () -> Void
     var onMicrophone: () -> Void
     var onRemoveAttachment: () -> Void
+    /// Starts a Talk call. Nil hides the Talk button (no care session, or Talk is off).
+    var onTalk: (() -> Void)? = nil
 
     @FocusState private var isFocused: Bool
+    /// Matches the send button, which takes this slot while there is text to send.
+    @ScaledMetric(relativeTo: .title2) private var talkButtonSize: CGFloat = 32
     @State private var sendTrigger = 0
     @State private var currentPromptIndex = 0
     @State private var showingAttachOptions = false
@@ -98,6 +102,23 @@ struct MessageInputView: View {
                     }
                     .accessibilityLabel("Record audio")
                     .disabled(isSending || isUploading)
+
+                    // Talk: the filled button at the end of the bar, where Send appears once
+                    // there is text, so the main action sits in the same place.
+                    if let onTalk {
+                        Button {
+                            onTalk()
+                        } label: {
+                            Image(systemName: "waveform")
+                                .font(.body.weight(.semibold))
+                                .foregroundStyle(.white)
+                                .frame(width: talkButtonSize, height: talkButtonSize)
+                                .background(Circle().fill(isSending || isUploading ? Color.secondary : Color.accentColor))
+                        }
+                        .accessibilityLabel("Talk")
+                        .accessibilityHint("Start a live voice conversation")
+                        .disabled(isSending || isUploading)
+                    }
                 } else {
                     // Send button
                     Button {

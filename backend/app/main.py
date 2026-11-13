@@ -139,6 +139,16 @@ def validate_startup():
                 "not set. Either configure APNs or set PUSH_NOTIFICATIONS_ENABLED=False."
             )
 
+    # API_PUBLIC_URL needs its scheme. Without https:// (bare host or http://), OpenAI
+    # can't load Talk's tools — it won't follow Cloudflare's redirect and reports
+    # "Http status code: 400" without the request reaching us — and the one-click
+    # unsubscribe header in campaign emails is not a valid URL.
+    if settings.API_PUBLIC_URL and not settings.API_PUBLIC_URL.strip().lower().startswith("https://"):
+        (errors if settings.TALK_ENABLED and not settings.DEBUG else warnings).append(
+            "API_PUBLIC_URL must start with https:// (e.g. https://api.aretacare.com) — "
+            "OpenAI cannot load Talk's tools from it, and one-click unsubscribe links are invalid."
+        )
+
     # Talk mode needs a public URL OpenAI can call for tools, and a way to verify the
     # subscription. DEBUG may run without either (no tools, entitlement assumed).
     if settings.TALK_ENABLED:

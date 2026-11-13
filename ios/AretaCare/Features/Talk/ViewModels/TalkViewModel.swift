@@ -73,6 +73,21 @@ final class TalkViewModel {
     /// Called when Talk should give the screen back to Chat.
     var onExit: (() -> Void)?
 
+    /// Whether to show the Talk button at all: false once the server says Talk is switched
+    /// off (`TALK_ENABLED`), so a rollback doesn't leave a dead button in the composer.
+    /// Starts true so the button doesn't appear late on every launch.
+    private(set) var isOffered = true
+    private var offeredCheckedAt: Date?
+
+    /// Refreshes `isOffered`, at most every 10 minutes. A failed check keeps the last
+    /// answer; tapping Talk checks again and explains anything that's wrong.
+    func refreshAvailability() async {
+        if let checked = offeredCheckedAt, Date().timeIntervalSince(checked) < 600 { return }
+        guard let status: TalkStatusResponse = try? await APIClient.shared.get(APIEndpoints.Talk.status) else { return }
+        isOffered = status.enabled
+        offeredCheckedAt = Date()
+    }
+
     var isActive: Bool { phase != .idle }
 
     /// The status line under the orb. While muted, "Listening" would be misleading.
@@ -87,22 +102,15 @@ final class TalkViewModel {
     func toggleMute() {
         guard phase.isLive, let transport else { return }
         isMuted.toggle()
+        transport.setMuted(isMuted)
         if isMuted {
-            // Close the mic first, so the tone never reaches the assistant.
-            transport.setMuted(true)
-            TalkSounds.play(.muted)
             userLevel = 0
             if phase == .userSpeaking { setPhase(.listening) }
-        } else {
-            // Play the tone, then open the mic once it has finished.
-            TalkSounds.play(.unmuted)
-            Task { [weak self] in
-                try? await Task.sleep(for: .seconds(TalkSounds.cueSeconds))
-                guard let self, !self.isMuted, self.phase.isLive, let transport = self.transport else { return }
-                transport.setMuted(false)
-            }
         }
-        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        // No sound: during a call iOS's voice processing ducks any other audio the app
+        // plays to near silence, so a tone was inaudible. A firm tap and the button's
+        // inverted look carry the state instead.
+        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
         if UIAccessibility.isVoiceOverRunning {
             UIAccessibility.post(notification: .announcement, argument: isMuted ? "Microphone muted" : "Microphone on")
         }
@@ -144,6 +152,8 @@ final class TalkViewModel {
             let status: TalkStatusResponse = try await APIClient.shared.get(APIEndpoints.Talk.status)
             guard phase == .preparing else { return }
             maxSessionSeconds = status.maxSessionSeconds
+            isOffered = status.enabled
+            offeredCheckedAt = Date()
             guard status.enabled else {
                 fail(title: "Talk Unavailable", message: "Talk isn't available right now.")
                 return

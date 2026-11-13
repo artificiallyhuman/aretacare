@@ -12,7 +12,6 @@
 		03347DC70ECD74127C884B55 /* BiometricLockView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7F8AA6FDED83B7DF8A65C8B7 /* BiometricLockView.swift */; };
 		0540EF23CA9596E07142C28F /* ForgotPasswordView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB41D6AF72CECF6A6DD77021 /* ForgotPasswordView.swift */; };
 		067068C504F37E36870A4463 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 1B028A726A21B814D8863AAF /* Assets.xcassets */; };
-		08C73BC8981C26D8198F1906 /* TalkSounds.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2409398BB6AE2A2EBA96BC75 /* TalkSounds.swift */; };
 		0B66560DCE8F771413357CBD /* MFAStepUpSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4F6F725F3756E8A8933F0A3 /* MFAStepUpSheet.swift */; };
 		0C2172357DF29AF94A18F9DF /* SkeletonView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BE0670B69E46027B276AC1E7 /* SkeletonView.swift */; };
 		0F3E4528C7D3F3019768904F /* DailyDigestViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1B0C001CDE94FD6B39780099 /* DailyDigestViewModel.swift */; };
@@ -172,7 +171,6 @@
 		1F79AAF5ABE2DAD5BAE0CDF3 /* CollaborationAwarenessPopup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CollaborationAwarenessPopup.swift; sourceTree = "<group>"; };
 		20FC3119998F7381FA56058B /* NotificationManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationManager.swift; sourceTree = "<group>"; };
 		2221EBB0311842171EB37D1F /* ClipboardHelper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClipboardHelper.swift; sourceTree = "<group>"; };
-		2409398BB6AE2A2EBA96BC75 /* TalkSounds.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TalkSounds.swift; sourceTree = "<group>"; };
 		24675F990B9344CF390CCA2C /* ProfileViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileViewModel.swift; sourceTree = "<group>"; };
 		24EE7C9EF983EF124E0FE035 /* AuthInterceptor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthInterceptor.swift; sourceTree = "<group>"; };
 		2806A2EDE3883CAA07074772 /* MarkdownTheme+AretaCare.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "MarkdownTheme+AretaCare.swift"; sourceTree = "<group>"; };
@@ -621,7 +619,6 @@
 		811F9642071F3CEB54B95126 /* Talk */ = {
 			isa = PBXGroup;
 			children = (
-				2409398BB6AE2A2EBA96BC75 /* TalkSounds.swift */,
 				63FE3DB78B63F0498768D731 /* TalkTransport.swift */,
 				69BF67EAF7BBEB886B6385F9 /* WebRTCTalkTransport.swift */,
 			);
@@ -1183,7 +1180,6 @@
 				8DE4E29DC389C140E12A1411 /* TalkConsentSheet.swift in Sources */,
 				C8EF2C712446BBE35D25C1BE /* TalkModels.swift in Sources */,
 				D1DEFA435F115C29C2FE449C /* TalkOrbView.swift in Sources */,
-				08C73BC8981C26D8198F1906 /* TalkSounds.swift in Sources */,
 				127D9D8F732CFBDCE24D464C /* TalkTransport.swift in Sources */,
 				D92442E88F0556FF0F9EF1F6 /* TalkView.swift in Sources */,
 				4050F29E50BE442BCC06AB3C /* TalkViewModel.swift in Sources */,
