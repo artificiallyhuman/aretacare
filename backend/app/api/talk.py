@@ -36,7 +36,10 @@ router = APIRouter(prefix="/talk", tags=["talk"])
 
 MAX_SDP_CHARS = 20_000
 MIN_REMAINING_SECONDS = 60
-MCP_PROTOCOL_VERSIONS = ("2025-06-18", "2025-03-26", "2024-11-05")
+# Newest first: an unknown requested version gets the first entry. 2025-11-25 is what
+# current MCP clients request; this server's subset (stateless tools over JSON, tool
+# failures as isError results) is unchanged across these revisions.
+MCP_PROTOCOL_VERSIONS = ("2025-11-25", "2025-06-18", "2025-03-26", "2024-11-05")
 
 
 def _error(status_code: int, code: str, message: str) -> HTTPException:
@@ -268,6 +271,10 @@ def _authenticate_mcp(request: Request, db: DBSession) -> TalkSession:
             TalkSession.status == TalkStatus.ACTIVE.value,
         ).first()
     if talk is None:
+        # Which case, never the token itself: tells "OpenAI sent no header" apart from
+        # "the call had already ended" when diagnosing a voice call with no tools.
+        reason = "no token" if not token else ("malformed token" if not token.startswith("talk_") else "unknown or ended token")
+        logger.warning(f"Talk MCP: 401 ({reason}) ua={request.headers.get('user-agent', '')[:80]!r}")
         raise HTTPException(status_code=401, detail="Unauthorized", headers={"WWW-Authenticate": "Bearer"})
     return talk
 
@@ -328,6 +335,7 @@ async def _handle_rpc(db: DBSession, talk: TalkSession, message: Any) -> Optiona
 
     if method == "initialize":
         requested = params.get("protocolVersion") if isinstance(params, dict) else None
+        logger.info(f"Talk MCP initialize: client requested protocol {str(requested)[:20]!r}")
         return _rpc_result(message_id, {
             "protocolVersion": requested if requested in MCP_PROTOCOL_VERSIONS else MCP_PROTOCOL_VERSIONS[0],
             "capabilities": {"tools": {"listChanged": False}},
@@ -347,13 +355,28 @@ async def talk_mcp(request: Request, db: DBSession = Depends(get_db)):
     """Stateless MCP (Streamable HTTP, JSON responses) for the delegated Talk model."""
     _require_enabled()
     talk = _authenticate_mcp(request, db)
+    # Transport details only (no bodies): enough to see what OpenAI's MCP client sends.
+    transport = (
+        f"ct={request.headers.get('content-type', '')[:60]!r} "
+        f"ce={request.headers.get('content-encoding', '')[:20]!r} "
+        f"proto={request.headers.get('mcp-protocol-version', '')[:20]!r} "
+        f"ua={request.headers.get('user-agent', '')[:80]!r}"
+    )
     try:
         payload = await request.json()
     except Exception:
+        logger.warning(f"Talk {talk.id}: MCP 400 parse error {transport}")
         return JSONResponse(_rpc_error(None, -32700, "Parse error"), status_code=400)
+
+    methods = (
+        [m.get("method") for m in payload if isinstance(m, dict)] if isinstance(payload, list)
+        else payload.get("method") if isinstance(payload, dict) else None
+    )
+    logger.info(f"Talk {talk.id}: MCP {methods} {transport}")
 
     if isinstance(payload, list):
         if not payload or len(payload) > 20:
+            logger.warning(f"Talk {talk.id}: MCP 400 batch of {len(payload)}")
             return JSONResponse(_rpc_error(None, -32600, "Invalid request"), status_code=400)
         responses = [r for r in [await _handle_rpc(db, talk, m) for m in payload] if r is not None]
         return JSONResponse(responses) if responses else Response(status_code=202)

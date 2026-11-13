@@ -87,10 +87,20 @@ final class TalkViewModel {
     func toggleMute() {
         guard phase.isLive, let transport else { return }
         isMuted.toggle()
-        transport.setMuted(isMuted)
         if isMuted {
+            // Close the mic first, so the tone never reaches the assistant.
+            transport.setMuted(true)
+            TalkSounds.play(.muted)
             userLevel = 0
             if phase == .userSpeaking { setPhase(.listening) }
+        } else {
+            // Play the tone, then open the mic once it has finished.
+            TalkSounds.play(.unmuted)
+            Task { [weak self] in
+                try? await Task.sleep(for: .seconds(TalkSounds.cueSeconds))
+                guard let self, !self.isMuted, self.phase.isLive, let transport = self.transport else { return }
+                transport.setMuted(false)
+            }
         }
         UIImpactFeedbackGenerator(style: .light).impactOccurred()
         if UIAccessibility.isVoiceOverRunning {

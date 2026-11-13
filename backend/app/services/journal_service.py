@@ -1691,8 +1691,9 @@ IMPORTANT: Respond with ONLY a valid JSON object in this exact format, with no a
 
             # Get the N most recent distinct dates
             date_rows = (
-                self.db.query(distinct(JournalEntry.entry_date))
+                self.db.query(JournalEntry.entry_date)
                 .filter(*filters)
+                .distinct()
                 .order_by(desc(JournalEntry.entry_date))
                 .limit(max_dates)
                 .all()

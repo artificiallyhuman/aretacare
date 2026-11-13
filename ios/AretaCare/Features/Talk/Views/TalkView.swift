@@ -1,29 +1,12 @@
 import SwiftUI
 
-/// Chat ⇄ Talk switch shown at the top-centre of the chat screen and of Talk mode.
+/// What the chat screen shows: the conversation, or a live Talk call. Switched from the
+/// navigation bar (a waveform button in Chat, a "Chat" button in Talk).
 enum ConversationMode: String, CaseIterable, Identifiable {
     case chat = "Chat"
     case talk = "Talk"
 
     var id: String { rawValue }
-}
-
-struct ConversationModePicker: View {
-    @Binding var mode: ConversationMode
-    var talkDisabled = false
-
-    var body: some View {
-        Picker("Conversation mode", selection: $mode) {
-            Text("Chat").tag(ConversationMode.chat)
-            Text("Talk").tag(ConversationMode.talk)
-        }
-        .pickerStyle(.segmented)
-        .frame(maxWidth: 220)
-        // The control sits in fixed chrome; body content still scales to every size.
-        .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
-        .disabled(talkDisabled && mode == .chat)
-        .accessibilityHint("Switch between typing and a live voice conversation")
-    }
 }
 
 /// Talk mode: the orb, a one-line status, and a way out. Nothing else is on screen.
