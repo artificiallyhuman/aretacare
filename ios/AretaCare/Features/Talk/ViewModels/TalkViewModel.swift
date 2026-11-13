@@ -65,7 +65,8 @@ final class TalkViewModel {
     var showingConsent = false
     var showingMicDenied = false
     var notice: Notice?
-    /// Set when a saved call's summary is ready to be loaded into the chat.
+    /// Bumped when the chat should reload to show the call's card: once when the server has
+    /// posted it as "saving", again when the summary is filled in.
     private(set) var savedCallToken = 0
     /// Shown as a banner in chat when saving failed.
     var saveErrorMessage: String?
@@ -73,14 +74,17 @@ final class TalkViewModel {
     /// Called when Talk should give the screen back to Chat.
     var onExit: (() -> Void)?
 
-    /// Whether to show the Talk button at all: false once the server says Talk is switched
-    /// off (`TALK_ENABLED`), so a rollback doesn't leave a dead button in the composer.
-    /// Starts true so the button doesn't appear late on every launch.
-    private(set) var isOffered = true
+    /// Whether to show the Talk button: only once the server has said Talk is on
+    /// (`TALK_ENABLED`). Remembered across launches, so the button neither flashes up while
+    /// Talk is off in production nor appears late on every launch while it is on.
+    private(set) var isOffered = UserDefaults.standard.bool(forKey: TalkViewModel.offeredKey) {
+        didSet { UserDefaults.standard.set(isOffered, forKey: TalkViewModel.offeredKey) }
+    }
+    private static let offeredKey = "talkOffered"
     private var offeredCheckedAt: Date?
 
-    /// Refreshes `isOffered`, at most every 10 minutes. A failed check keeps the last
-    /// answer; tapping Talk checks again and explains anything that's wrong.
+    /// Refreshes `isOffered`, at most every 10 minutes. A failed check (offline) keeps the
+    /// last answer; tapping Talk checks again and explains anything that's wrong.
     func refreshAvailability() async {
         if let checked = offeredCheckedAt, Date().timeIntervalSince(checked) < 600 { return }
         guard let status: TalkStatusResponse = try? await APIClient.shared.get(APIEndpoints.Talk.status) else { return }
@@ -188,6 +192,7 @@ final class TalkViewModel {
             guard phase == .preparing else { return }
             await startCall()
         } catch {
+            guard phase == .preparing else { return }  // ended while the request was in flight
             fail(title: "Talk Unavailable", message: Self.message(for: error))
         }
     }
@@ -238,12 +243,12 @@ final class TalkViewModel {
                 currentTime: ISO8601DateFormatter().string(from: Date())
             )
             let response: TalkStartResponse = try await APIClient.shared.post(APIEndpoints.Talk.sessions, body: request)
-            talkId = response.talkId
             guard phase == .connecting else {
                 // Ended while the request was in flight: the server still has a live call.
-                await sendEnd(talkId: response.talkId)
+                Self.sendEnd(talkId: response.talkId)
                 return
             }
+            talkId = response.talkId
             maxSessionSeconds = response.maxSeconds
             try await transport.applyAnswer(response.sdp)
         } catch {
@@ -291,9 +296,10 @@ final class TalkViewModel {
         }
     }
 
-    /// Ends the call (End button, switching back to Chat, or any failure after connecting)
-    /// and hands the screen back to Chat. Saving continues on the server; the result is
-    /// polled so the summary appears in the chat.
+    /// Ends the call (End button, a server close, a lost connection, …) and hands the screen
+    /// back to Chat straight away. Saving continues on the server; the result is polled so
+    /// the chat card appears and fills in. Never waits on the network: End is the only way
+    /// off the Talk screen, and `/end` can stall for minutes on a bad connection.
     func end() async {
         guard isActive, !isEnding else { return }
         isEnding = true
@@ -307,7 +313,7 @@ final class TalkViewModel {
         let endedTalkId = talkId
         let endedSessionId = sessionId
         if let endedTalkId {
-            await sendEnd(talkId: endedTalkId)
+            Self.sendEnd(talkId: endedTalkId)
         }
         endCallEnvironment()
         reset()
@@ -324,20 +330,29 @@ final class TalkViewModel {
         transport?.close()
         transport = nil
         if let talkId {
-            Task { await self.sendEnd(talkId: talkId) }
+            Self.sendEnd(talkId: talkId)
         }
         endCallEnvironment()
         reset()
     }
 
-    private func sendEnd(talkId: String) async {
-        // Closing the peer connection already ends the session server-side; this just
-        // makes the backend save promptly. Protected so a screen lock doesn't cut it off.
-        let backgroundTask = UIApplication.shared.beginBackgroundTask(withName: "talk-end")
-        defer {
-            if backgroundTask != .invalid { UIApplication.shared.endBackgroundTask(backgroundTask) }
+    /// Fire and forget. Closing the peer connection already ends the session server-side;
+    /// this makes the backend save promptly. Background time keeps a screen lock from
+    /// cutting it off, and the expiration handler ends that time if the request outlasts
+    /// it (an unended background task gets the app terminated).
+    private static func sendEnd(talkId: String) {
+        var backgroundTaskId: UIBackgroundTaskIdentifier = .invalid
+        backgroundTaskId = UIApplication.shared.beginBackgroundTask(withName: "talk-end") {
+            UIApplication.shared.endBackgroundTask(backgroundTaskId)
+            backgroundTaskId = .invalid
         }
-        let _: TalkSessionStatusResponse? = try? await APIClient.shared.post(APIEndpoints.Talk.end(talkId))
+        Task { @MainActor in
+            let _: TalkSessionStatusResponse? = try? await APIClient.shared.post(APIEndpoints.Talk.end(talkId))
+            if backgroundTaskId != .invalid {
+                UIApplication.shared.endBackgroundTask(backgroundTaskId)
+                backgroundTaskId = .invalid
+            }
+        }
     }
 
     private func fail(title: String, message: String) {
@@ -350,7 +365,7 @@ final class TalkViewModel {
         notice = Notice(title: title, message: message)
         onExit?()
         if let orphanedTalkId {
-            Task { await self.sendEnd(talkId: orphanedTalkId) }
+            Self.sendEnd(talkId: orphanedTalkId)
         }
     }
 
@@ -369,19 +384,32 @@ final class TalkViewModel {
     private func pollForResult(talkId: String, sessionId: String) {
         pollTask?.cancel()
         pollTask = Task { [weak self] in
-            let delays: [Double] = [2, 2, 3]
-            let deadline = Date().addingTimeInterval(180)
+            // Quick at first (the card appears within seconds), then slower; up to the
+            // server's own limit (FINALIZING_STALE_SECONDS) for a save that queues behind uploads.
+            let delays: [Double] = [2, 2, 3, 5, 5, 5]
+            let deadline = Date().addingTimeInterval(15 * 60)
             var attempt = 0
+            var savingRefreshes = 0
             while !Task.isCancelled, Date() < deadline {
-                try? await Task.sleep(for: .seconds(attempt < delays.count ? delays[attempt] : 5))
+                try? await Task.sleep(for: .seconds(attempt < delays.count ? delays[attempt] : 10))
                 attempt += 1
                 guard !Task.isCancelled else { return }
                 do {
                     let status: TalkSessionStatusResponse = try await APIClient.shared.get(APIEndpoints.Talk.session(talkId))
-                    guard status.isFinished else { continue }
+                    guard status.isFinished else {
+                        // Saving has started, so the card is in the chat already: show it now
+                        // rather than after the recording and journal entries are done. Twice,
+                        // because the server posts the card a moment after "finalizing".
+                        if status.status == "finalizing", savingRefreshes < 2, let self {
+                            savingRefreshes += 1
+                            self.savedCallToken += 1
+                        }
+                        continue
+                    }
                     guard let self, !Task.isCancelled else { return }
                     if status.failed {
                         self.saveErrorMessage = "We couldn't save that Talk conversation."
+                        self.savedCallToken += 1  // the server removed the "saving" card
                     } else if !status.wasDiscarded {
                         self.savedCallToken += 1
                     }

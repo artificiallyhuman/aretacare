@@ -493,6 +493,61 @@ def test_a_call_with_audio_becomes_a_recording_and_a_summary_message(db, alice, 
     assert not __import__("os").path.exists(recorder.input_path)
 
 
+def test_the_chat_card_appears_before_the_recording_is_saved(db, alice, finalize_stubs, monkeypatch):
+    seen = {}
+    real_save = talk_service._save_recording
+
+    async def watching_save(talk_id, claimed, turns, duration, recorder):
+        db.expire_all()
+        seen["cards"] = [(m.content, dict(m.message_metadata)) for m in
+                         db.query(Conversation).filter(Conversation.session_id == alice.session_id)]
+        return await real_save(talk_id, claimed, turns, duration, recorder)
+
+    monkeypatch.setattr(talk_service, "_save_recording", watching_save)
+    talk_id, _token = live_call(db, alice)
+    asyncio.run(talk_service.finalize_talk(talk_id, reason="remote_hangup", turns=TURNS,
+                                           recorder=recorder_with_audio(talk_id), duration=42.0))
+    ((content, metadata),) = seen["cards"]
+    assert metadata["kind"] == "talk_summary" and metadata["status"] == "saving"
+    assert "Saving" in content and metadata["duration_seconds"] == 42.0
+
+    db.expire_all()
+    (card,) = db.query(Conversation).filter(Conversation.session_id == alice.session_id).all()
+    assert "status" not in card.message_metadata and card.message_metadata["outcome"] == "audio"
+    assert "saved in Audio Recordings" in card.content
+
+
+def test_a_failed_save_removes_the_saving_card(db, alice, finalize_stubs, monkeypatch):
+    async def broken(*_args, **_kwargs):
+        raise RuntimeError("synthesis exploded")
+
+    monkeypatch.setattr(talk_service, "_synthesize_and_summarize_audio", broken)
+    talk_id, _token = live_call(db, alice)
+    asyncio.run(talk_service.finalize_talk(talk_id, reason="remote_hangup", turns=TURNS,
+                                           recorder=recorder_with_audio(talk_id), duration=42.0))
+    db.expire_all()
+    assert db.query(TalkSession).filter(TalkSession.id == talk_id).one().status == "failed"
+    assert db.query(Conversation).filter(Conversation.session_id == alice.session_id).count() == 0
+
+
+def test_a_card_left_saving_by_a_dead_instance_reads_as_failed(client, db, alice):
+    db.add(Conversation(
+        session_id=alice.session_id, role=MessageRole.ASSISTANT, content="Talk conversation (1 min). Saving…",
+        created_at=datetime.utcnow() - timedelta(seconds=talk_service.FINALIZING_STALE_SECONDS + 60),
+        message_metadata={"kind": "talk_summary", "status": "saving", "duration_seconds": 61.0},
+    ))
+    db.add(Conversation(
+        session_id=alice.session_id, role=MessageRole.ASSISTANT, content="Talk conversation (2 min). Saving…",
+        message_metadata={"kind": "talk_summary", "status": "saving", "duration_seconds": 120.0},
+    ))
+    db.commit()
+    response = client.get(f"/api/conversation/{alice.session_id}/history", headers=alice.auth_headers(client))
+    assert response.status_code == 200, response.text
+    old, fresh = response.json()["messages"]
+    assert old["message_metadata"]["status"] == "failed" and "could not be saved" in old["content"]
+    assert fresh["message_metadata"]["status"] == "saving"
+
+
 def test_deleting_the_recording_removes_its_chat_card(client, db, alice, bob, finalize_stubs, monkeypatch):
     async def fake_delete(_key):
         return True

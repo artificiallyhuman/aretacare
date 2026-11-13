@@ -50,6 +50,9 @@ struct TalkSummaryInfo: Equatable, Sendable {
     let hasRecording: Bool
     let durationSeconds: Double?
     let journalEntries: Int
+    /// Posted when the call ends; the server fills in the summary once the recording,
+    /// transcript and journal entries are saved.
+    let isSaving: Bool
 
     init?(metadata: [String: AnyCodableValue]?) {
         guard let metadata, case .string("talk_summary")? = metadata["kind"] else { return nil }
@@ -66,6 +69,7 @@ struct TalkSummaryInfo: Equatable, Sendable {
         hasRecording = number(value("audio_recording_id", "audioRecordingId")) != nil
         durationSeconds = number(value("duration_seconds", "durationSeconds"))
         journalEntries = Int(number(value("journal_entries", "journalEntries")) ?? 0)
+        isSaving = metadata["status"] == .string("saving")
     }
 
     var durationLabel: String? {

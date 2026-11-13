@@ -292,7 +292,7 @@ GET    /api/audio-recordings/{session_id}                       # List (?categor
 GET    /api/audio-recordings/{session_id}/dates                  # Dates with recording counts (for calendar)
 GET    /api/audio-recordings/{session_id}/{recording_id}         # Get recording
 PATCH  /api/audio-recordings/{session_id}/{recording_id}         # Update category/summary (absent field = no change; explicit null clears)
-DELETE /api/audio-recordings/{session_id}/{recording_id}         # Delete
+DELETE /api/audio-recordings/{session_id}/{recording_id}         # Delete (with its journal entries, and a Talk call's chat card)
 GET    /api/audio-recordings/{session_id}/{recording_id}/url     # Get playback URL
 POST   /api/audio-recordings/{session_id}/{recording_id}/retranscribe  # Retry a failed transcription → 202 (409 unless failed); audio-upload rate limit
 ```
@@ -463,10 +463,17 @@ Start errors carry `detail.code`: `TALK_DISABLED` (404), `TALK_CONSENT_REQUIRED`
 `TALK_SUBSCRIPTION_REQUIRED` (403), `TALK_ALREADY_ACTIVE` (409, one live call per user),
 `TALK_DAILY_LIMIT` (429), `TALK_UNAVAILABLE` (503).
 
-When a call is saved, an assistant message is added to the conversation with
-`message_metadata = {"kind": "talk_summary", "outcome", "talk_id", "audio_recording_id",
-"duration_seconds", "journal_entries"}`. Its `content` is a plain sentence, so a client
-that does not know the kind shows it as an ordinary message.
+A kept call gets one assistant message in the conversation, posted as soon as saving
+starts: `message_metadata = {"kind": "talk_summary", "status": "saving", "talk_id",
+"duration_seconds"}`. When saving finishes, the same message is updated in place to
+`{"kind": "talk_summary", "outcome", "talk_id", "audio_recording_id", "duration_seconds",
+"journal_entries"}` (no `status`). If saving fails the message is deleted; if the audio
+could not be saved, the turns are posted to the chat and the summary follows them. A
+message still `saving` after 15 minutes is returned by the history endpoint with
+`status: "failed"` and a "could not be saved" `content`. `content` is always a plain
+sentence, so a client that does not know the kind shows it as an ordinary message.
+Deleting the call's recording (`DELETE /audio-recordings/{session_id}/{recording_id}`)
+also deletes this message.
 
 `POST /talk/mcp` is not a client endpoint. OpenAI calls it on behalf of the voice
 assistant's backend model, authenticated by a per-call token; access tokens are rejected.

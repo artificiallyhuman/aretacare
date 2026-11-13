@@ -651,13 +651,39 @@ final class ConversationViewModel {
             // Only append truly new messages (positive IDs not already in the list)
             let existingIds = Set(messages.map(\.id))
             let newMessages = history.messages.filter { $0.id > 0 && !existingIds.contains($0.id) }
+            let updatedCards = refreshSavingTalkCards(from: history.messages)
             if !newMessages.isEmpty {
                 messages.append(contentsOf: newMessages)
+            }
+            if !newMessages.isEmpty || updatedCards {
                 Self.historyCache.invalidate(sessionId)
             }
         } catch {
             // Silent failure for polling — don't show error banners
         }
+    }
+
+    /// A Talk card is posted as "saving" and filled in later on the same row (or deleted if
+    /// saving failed); polling otherwise only appends, so collaborators would keep the
+    /// spinner. Updates in place by id, which keeps ForEach identity. Returns whether
+    /// anything changed.
+    private func refreshSavingTalkCards(from page: [MessageResponse]) -> Bool {
+        guard let oldestInPage = page.first?.id else { return false }
+        let pageById = Dictionary(page.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+        var changed = false
+        for index in messages.indices.reversed() where messages[index].talkSummary?.isSaving == true {
+            let id = messages[index].id
+            if let fresh = pageById[id] {
+                if fresh != messages[index] {
+                    messages[index] = fresh
+                    changed = true
+                }
+            } else if id >= oldestInPage {
+                messages.remove(at: index)  // within the page's range but gone: deleted
+                changed = true
+            }
+        }
+        return changed
     }
 
     // MARK: - Silent Reconciliation

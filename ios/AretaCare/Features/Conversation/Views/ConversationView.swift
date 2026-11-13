@@ -52,7 +52,7 @@ struct ConversationView: View {
 
     var body: some View {
         modeContent
-            // The navigation bar stays in Talk (title + a "Chat" button); the tab bar goes.
+            // In Talk the navigation bar keeps only the title; the tab bar goes.
             .toolbar(mode == .talk ? .hidden : .visible, for: .tabBar)
             .modifier(TalkModeModifier(
                 mode: $mode,
@@ -103,16 +103,8 @@ struct ConversationView: View {
                     }
                     // Nothing on the right: sharing is the title's people line, and Talk is
                     // in the message bar with the other ways of talking to AretaCare.
-                } else {
-                    ToolbarItem(placement: .topBarTrailing) {
-                        // Leaving Talk ends the call (TalkModeModifier), like the End button.
-                        Button("Chat") {
-                            mode = .chat
-                        }
-                        .accessibilityLabel("Back to Chat")
-                        .accessibilityHint("Ends the voice conversation")
-                    }
                 }
+                // In Talk the bar holds only the title: End is the way out.
             }
             .sheet(isPresented: $showingSessionSwitcher) {
                 SessionSwitcherView(sessionVM: sessionVM)
@@ -143,6 +135,10 @@ struct ConversationView: View {
             .task { await talkVM.refreshAvailability() }
             .onChange(of: sessionVM.currentSession?.id) { _, newId in
                 guard let newId else { return }
+                // Nothing from the previous care session carries over: a pushed Audio
+                // Recordings screen still holds its id, and a Talk save error is about it.
+                showingAudioRecordings = false
+                talkVM.saveErrorMessage = nil
                 conversationVM.clearMessages()
                 isNearBottom = true
                 Task {
@@ -300,7 +296,7 @@ struct ConversationView: View {
             SkeletonConversationView()
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else if conversationVM.messages.isEmpty {
-            ConversationOnboardingView()
+            ConversationOnboardingView(talkOffered: talkVM.isOffered)
         } else {
             ScrollViewReader { proxy in
                 ScrollView {

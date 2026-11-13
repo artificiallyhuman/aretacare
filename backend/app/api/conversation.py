@@ -22,6 +22,7 @@ from app.schemas.conversation import (
 from app.services.openai_service import openai_service, ImageProcessingError
 from app.services.journal_service import JournalService
 from app.services.s3_service import s3_service
+from app.services.talk_session_service import effective_summary_card
 from app.services.audio_transcription_service import (
     MAX_AUDIO_DURATION_SECONDS,
     TRANSCRIPTION_EMPTY_DETAIL,
@@ -541,11 +542,13 @@ async def get_conversation_history(
                     # For document thumbnails (PDFs), generate thumbnail URL (6 hours)
                     thumbnail_url = s3_service.generate_presigned_url(doc.thumbnail_s3_key, expiration=21600)
 
+        # A Talk card left "saving" by a finalizer that died reads as failed.
+        content, message_metadata = effective_summary_card(msg.content, msg.message_metadata, msg.created_at)
         msg_dict = {
             "id": msg.id,
             "session_id": msg.session_id,
             "role": msg.role,
-            "content": msg.content,
+            "content": content,
             "created_at": msg.created_at,
             "updated_at": msg.updated_at,
             "message_type": msg.message_type,
@@ -553,7 +556,7 @@ async def get_conversation_history(
             "media_url": media_url,
             "thumbnail_url": thumbnail_url,
             "extracted_text": msg.extracted_text,
-            "message_metadata": msg.message_metadata,
+            "message_metadata": message_metadata,
             # Source tags only when session has collaborators
             "created_by": build_source_tag_info(user_map.get(msg.created_by_user_id)) if has_collaborators and msg.created_by_user_id else None,
             "last_edited_by": build_source_tag_info(user_map.get(msg.last_edited_by_user_id)) if has_collaborators and msg.last_edited_by_user_id else None

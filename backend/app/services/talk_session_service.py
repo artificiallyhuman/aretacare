@@ -75,6 +75,9 @@ SIDEBAND_MAX_RECONNECTS = 4
 MIN_SAVED_CALL_SECONDS = 5
 # A 'finalizing' row older than this lost its finalizer; it is reported as failed.
 FINALIZING_STALE_SECONDS = 15 * 60
+# `message_metadata.status` of a Talk chat card; a finished card has no status.
+SUMMARY_SAVING = "saving"
+SUMMARY_FAILED = "failed"
 
 # What the phone's data channel may receive. It may send nothing.
 DATA_CHANNEL_SERVER_EVENTS = [
@@ -803,6 +806,8 @@ async def finalize_talk(
     preclaimed: Optional[dict] = None,
 ) -> None:
     """Save a finished call. Safe to call from several places: the claim is exclusive."""
+    card_id: Optional[int] = None
+    session_id: Optional[str] = None
     try:
         claimed = preclaimed or await asyncio.to_thread(
             _claim_for_finalizing, talk_id, reason, turns, duration, False
@@ -818,6 +823,11 @@ async def finalize_talk(
             await asyncio.to_thread(_finish_row, talk_id, TalkStatus.COMPLETED, TalkOutcome.DISCARDED, duration)
             return
 
+        # The chat card goes in now, as "saving"; mixing, upload and journal synthesis take
+        # a while, and the finished summary replaces this same row.
+        session_id = claimed["session_id"]
+        card_id = await asyncio.to_thread(_insert_saving_card, talk_id, session_id, duration)
+
         recording_id = None
         if recorder is not None and recorder.has_audio:
             try:
@@ -828,12 +838,12 @@ async def finalize_talk(
                     sentry_sdk.capture_exception(e)
 
         if recording_id is not None:
-            entries = await _synthesize_and_summarize_audio(talk_id, claimed, turns, duration, recording_id)
+            entries = await _synthesize_and_summarize_audio(talk_id, claimed, turns, duration, recording_id, card_id)
             await asyncio.to_thread(
                 _finish_row, talk_id, TalkStatus.COMPLETED, TalkOutcome.AUDIO, duration, recording_id, entries
             )
         else:
-            entries = await _save_transcript_only(talk_id, claimed, turns, duration)
+            entries = await _save_transcript_only(talk_id, claimed, turns, duration, card_id)
             await asyncio.to_thread(
                 _finish_row, talk_id, TalkStatus.COMPLETED, TalkOutcome.TRANSCRIPT_ONLY, duration, None, entries
             )
@@ -845,6 +855,10 @@ async def finalize_talk(
             sentry_sdk.capture_exception(e)
         with contextlib.suppress(Exception):
             await asyncio.to_thread(_finish_row, talk_id, TalkStatus.FAILED, None, duration)
+        if card_id is not None and session_id is not None:
+            # The app shows its own "couldn't save" banner; a card stuck on "saving" would lie.
+            with contextlib.suppress(Exception):
+                await asyncio.to_thread(_delete_card, card_id, session_id)
     finally:
         if recorder is not None:
             recorder.cleanup()
@@ -928,6 +942,60 @@ def _insert_messages(session_id: str, rows: List[dict]) -> List[int]:
         db.close()
 
 
+def _insert_saving_card(talk_id: str, session_id: str, duration: float) -> int:
+    (card_id,) = _insert_messages(session_id, [{
+        "role": MessageRole.ASSISTANT,
+        "content": f"Talk conversation ({format_duration(duration)}). Saving the recording and transcript…",
+        "synthesized_to_journal": True,
+        "message_metadata": {
+            "kind": "talk_summary", "status": SUMMARY_SAVING, "talk_id": talk_id,
+            "duration_seconds": round(duration, 1),
+        },
+    }])
+    return card_id
+
+
+def _update_card(card_id: int, session_id: str, content: str, metadata: dict) -> None:
+    """Fill in the finished summary. A card deleted meanwhile (the user reset the chat
+    past it) stays deleted."""
+    db = SessionLocal()
+    try:
+        db.query(Conversation).filter(
+            Conversation.id == card_id, Conversation.session_id == session_id
+        ).update({"content": content, "message_metadata": metadata}, synchronize_session=False)
+        db.commit()
+    finally:
+        db.close()
+
+
+def _delete_card(card_id: int, session_id: str) -> None:
+    db = SessionLocal()
+    try:
+        db.query(Conversation).filter(
+            Conversation.id == card_id, Conversation.session_id == session_id
+        ).delete(synchronize_session=False)
+        db.commit()
+    finally:
+        db.close()
+
+
+def effective_summary_card(content: str, metadata: Optional[dict], created_at: Optional[datetime]):
+    """(content, metadata) as clients should see a Talk card: one still "saving" after a
+    finalizer would have finished is reported failed (the instance died mid-save), the same
+    rule `effective_status` applies to the call itself."""
+    if (
+        isinstance(metadata, dict) and metadata.get("kind") == "talk_summary"
+        and metadata.get("status") == SUMMARY_SAVING and created_at is not None
+        and (datetime.utcnow() - created_at).total_seconds() > FINALIZING_STALE_SECONDS
+    ):
+        duration = metadata.get("duration_seconds") or 0
+        return (
+            f"Talk conversation ({format_duration(duration)}). It could not be saved.",
+            {**metadata, "status": SUMMARY_FAILED},
+        )
+    return content, metadata
+
+
 async def _synthesize_journal(claimed: dict, filename: str, transcript_text: str, summary: str,
                               duration: float, recording_id: Optional[int]) -> None:
     from datetime import date as date_type
@@ -955,7 +1023,7 @@ def _entries_phrase(count: int) -> str:
 
 
 async def _synthesize_and_summarize_audio(talk_id: str, claimed: dict, turns: List[dict],
-                                          duration: float, recording_id: int) -> int:
+                                          duration: float, recording_id: int, card_id: int) -> int:
     transcript_text = format_transcript(turns, claimed["user_name"])
     filename = f"{claimed['recording_name'] or 'Talk'}.mp3"
     summary = ""
@@ -977,14 +1045,11 @@ async def _synthesize_and_summarize_audio(talk_id: str, claimed: dict, turns: Li
     )
     # Deliberately no `audio_recording_id` on the row: "Reset from here" deletes the
     # recordings linked to deleted messages, and a Talk recording is its own record.
-    await asyncio.to_thread(_insert_messages, claimed["session_id"], [{
-        "role": MessageRole.ASSISTANT, "content": content, "synthesized_to_journal": True,
-        "message_metadata": {
-            "kind": "talk_summary", "outcome": TalkOutcome.AUDIO.value, "talk_id": talk_id,
-            "audio_recording_id": recording_id, "duration_seconds": round(duration, 1),
-            "journal_entries": entries,
-        },
-    }])
+    await asyncio.to_thread(_update_card, card_id, claimed["session_id"], content, {
+        "kind": "talk_summary", "outcome": TalkOutcome.AUDIO.value, "talk_id": talk_id,
+        "audio_recording_id": recording_id, "duration_seconds": round(duration, 1),
+        "journal_entries": entries,
+    })
     return entries
 
 
@@ -1000,8 +1065,11 @@ def _count_recent_ai_entries(session_id: str, since: datetime) -> int:
         db.close()
 
 
-async def _save_transcript_only(talk_id: str, claimed: dict, turns: List[dict], duration: float) -> int:
+async def _save_transcript_only(talk_id: str, claimed: dict, turns: List[dict], duration: float,
+                                card_id: int) -> int:
     """The audio is gone: post the conversation into the chat as if it had been typed."""
+    # The summary below says the text is "above", so the saving card can't stay where it is.
+    await asyncio.to_thread(_delete_card, card_id, claimed["session_id"])
     rows = []
     for turn in turns:
         cleaned = _clean_turn(turn.get("text", ""))

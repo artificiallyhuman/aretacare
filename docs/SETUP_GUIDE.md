@@ -224,8 +224,8 @@ New journal entries are automatically embedded on creation. The backfill is only
 10. Settings: rename care session, change color, care session statistics display, collaboration (share/revoke/invite)
 11. Logout: verify push token unregistered before auth cleared (check backend logs)
 12. Release build: verify `aps-environment: production` in entitlements, verify crash without `API_BASE_URL`
-13. Talk (backend needs `TALK_ENABLED=TRUE`): first use shows the consent sheet, then the microphone prompt; ask about something in the Health Profile and something only in an old journal entry; dictate a journal entry and confirm it; ask to change a medication and find it under pending changes in Health Profile; interrupt the assistant mid-sentence; mute, talk (the assistant should not hear it), unmute; end the call and check the summary card in Chat, the recording (both voices) and transcript in Audio Recordings, and the journal entries
-14. Talk edge cases: airplane mode mid-call, an incoming phone call, locking the screen, a Bluetooth headset, speakerphone (no echo), Reduce Motion, largest Dynamic Type, VoiceOver
+13. Talk (backend needs `TALK_ENABLED=TRUE`): first use shows the consent sheet, then the microphone prompt; ask about something in the Health Profile and something only in an old journal entry; dictate a journal entry and confirm it; ask to change a medication and find it under pending changes in Health Profile; interrupt the assistant mid-sentence; mute, talk (the assistant should not hear it), unmute; end the call and check that the summary card appears in Chat within a few seconds as "Saving…" and then fills in, and check the summary, the recording (both voices) and transcript in Audio Recordings, and the journal entries
+14. Talk edge cases: airplane mode mid-call, an incoming phone call, locking the screen, a Bluetooth headset, AirPods stem press to mute and unmute (iOS plays its tone and the Mute button follows), speakerphone (no echo), Reduce Motion, largest Dynamic Type, VoiceOver
 
 ### iOS Pre-Deploy
 - Replace `TEAMID` in `frontend/public/.well-known/apple-app-site-association` with your actual Apple Team ID

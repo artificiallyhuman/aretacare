@@ -23,10 +23,10 @@ packages:
     from: "2.4.0"
   RevenueCat:
     url: https://github.com/RevenueCat/purchases-ios-spm.git
-    from: "5.27.1"
+    from: "5.102.3"
   Sentry:
     url: https://github.com/getsentry/sentry-cocoa
-    from: "9.29.0"
+    from: "9.29.2"
   # Prebuilt libwebrtc (Talk mode's live audio connection). A third-party binary build of
   # Google's WebRTC, so it is pinned to an exact release and bumped deliberately.
   WebRTC:

@@ -66,7 +66,7 @@ struct TalkConsentSheet: View {
     }
 }
 
-/// The message a finished Talk call leaves in the chat.
+/// The message a Talk call leaves in the chat: "saving" right after the call, then the summary.
 struct TalkSummaryCard: View {
     let message: MessageResponse
     let summary: TalkSummaryInfo
@@ -88,10 +88,20 @@ struct TalkSummaryCard: View {
                 }
             }
 
-            Text(message.content)
-                .font(.footnote)
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
+            if summary.isSaving {
+                HStack(spacing: 8) {
+                    ProgressView()
+                        .controlSize(.small)
+                    Text("Saving the recording and transcript…")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+            } else {
+                Text(message.content)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+            }
 
             if summary.hasRecording {
                 Button(action: onOpenRecordings) {

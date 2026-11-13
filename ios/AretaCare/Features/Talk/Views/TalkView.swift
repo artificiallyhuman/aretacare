@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// What the chat screen shows: the conversation, or a live Talk call. Talk starts from the
-/// waveform button in the message bar; a "Chat" button in the navigation bar (or End) leaves it.
+/// Talk pill in the message bar; the End button leaves it.
 enum ConversationMode {
     case chat
     case talk
@@ -27,6 +27,7 @@ struct TalkView: View {
                 .padding(.top, 20)
                 .padding(.horizontal, 24)
                 .accessibilityAddTraits(.updatesFrequently)
+                .dynamicTypeSize(...DynamicTypeSize.accessibility2)
 
             Spacer(minLength: 12)
 
@@ -37,6 +38,9 @@ struct TalkView: View {
                 onToggleMute: { viewModel.toggleMute() },
                 onEnd: onEnd
             )
+            // Call controls are chrome (CLAUDE.md, Dynamic Type policy): uncapped, the scaled
+            // Mute button, End and the notice push the orb off a small screen.
+            .dynamicTypeSize(...DynamicTypeSize.accessibility1)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }

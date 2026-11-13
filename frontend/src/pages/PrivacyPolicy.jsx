@@ -17,7 +17,7 @@ const PrivacyPolicy = () => {
           </Link>
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-6 sm:p-8">
             <h1 className="text-4xl sm:text-5xl font-bold text-gray-900 dark:text-white mb-2">Privacy Policy</h1>
-            <p className="text-sm text-gray-500 dark:text-gray-400">Last Updated: July 25, 2026</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400">Last Updated: November 13, 2026</p>
           </div>
         </div>
 
@@ -153,7 +153,7 @@ const PrivacyPolicy = () => {
                   The iOS app may request the following device permissions, each of which you can grant or deny:
                 </p>
                 <ul className="list-disc list-inside space-y-2 text-gray-700 dark:text-gray-300 pl-4">
-                  <li><strong>Microphone:</strong> Used to record voice memos for your health journal. Audio is recorded locally and uploaded to our servers for transcription.</li>
+                  <li><strong>Microphone:</strong> Used to record voice memos for your health journal, and for Talk voice conversations. Voice memos are recorded locally and uploaded to our servers for transcription. During a Talk conversation your voice is streamed live to OpenAI so the assistant can listen and respond, and both sides of the conversation are recorded by our servers and saved to the care session's audio recordings.</li>
                   <li><strong>Camera:</strong> Used to capture photos of medical documents for upload. Photos are not stored locally after upload.</li>
                   <li><strong>Photo Library:</strong> Used to select existing photos of medical documents for upload.</li>
                   <li><strong>Face ID / Touch ID:</strong> Used for optional biometric app lock. Biometric data never leaves your device.</li>
@@ -332,6 +332,7 @@ const PrivacyPolicy = () => {
                   <ul className="text-sm text-gray-600 dark:text-gray-300 space-y-1.5">
                     <li>• Processes your messages to provide AI assistance</li>
                     <li>• Transcribes audio recordings</li>
+                    <li>• Powers Talk voice conversations in the iOS app (your voice is streamed live)</li>
                     <li>• Generates journal entries and daily digests</li>
                   </ul>
                 </div>
