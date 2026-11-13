@@ -131,7 +131,7 @@ See [AWS_IAM_POLICY.md](AWS_IAM_POLICY.md) for policy and setup.
 4. Set environment variables:
    - Required: `OPENAI_API_KEY`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `S3_BUCKET_NAME`, `ADMIN_EMAILS`
    - Optional: `S3_KEY_PREFIX`, `WEBAUTHN_RP_ID`, `WEBAUTHN_ORIGIN`, `PUSH_NOTIFICATIONS_ENABLED`, `APNS_KEY_PATH`, `APNS_KEY_ID`, `APNS_TEAM_ID`
-   - Talk mode (iOS live voice, off by default): `TALK_ENABLED=TRUE`, `REVENUECAT_SECRET_API_KEY` (RevenueCat → API keys → secret key) and `API_PUBLIC_URL` (the API's public base URL — OpenAI calls the assistant's tools there). The backend refuses to start with Talk enabled and either one missing.
+   - Talk mode (iOS live voice, off by default): `TALK_ENABLED=TRUE`, `REVENUECAT_SECRET_API_KEY` (RevenueCat → API keys → secret key) and `API_PUBLIC_URL` (the API's public base URL — OpenAI calls the assistant's tools there). The backend refuses to start with Talk enabled and either one missing. **Cloudflare must let OpenAI's servers reach `POST /api/talk/mcp`**: bot protection that challenges non-browser clients answers OpenAI with a 403 challenge page, and the assistant then talks but cannot read or change anything (backend log: `live error code=responses_validation_failed … Error retrieving tool list from MCP server`). Add a WAF custom rule on each API hostname — `http.request.uri.path eq "/api/talk/mcp" and http.request.method eq "POST"` → Skip (bot protections / managed challenge). The endpoint authenticates every call with its per-call token.
    - Auto-configured: `DATABASE_URL`, `SECRET_KEY`, `CORS_ORIGINS`
    - Frontend (static site): `VITE_HCAPTCHA_SITE_KEY` is **required** — the production build fails without it
 5. Update S3 CORS with Render frontend URL
@@ -224,7 +224,7 @@ New journal entries are automatically embedded on creation. The backfill is only
 10. Settings: rename care session, change color, care session statistics display, collaboration (share/revoke/invite)
 11. Logout: verify push token unregistered before auth cleared (check backend logs)
 12. Release build: verify `aps-environment: production` in entitlements, verify crash without `API_BASE_URL`
-13. Talk (backend needs `TALK_ENABLED=TRUE`): first use shows the consent sheet, then the microphone prompt; ask about something in the Health Profile and something only in an old journal entry; dictate a journal entry and confirm it; ask to change a medication and find it under pending changes in Health Profile; interrupt the assistant mid-sentence; end the call and check the summary card in Chat, the recording (both voices) and transcript in Audio Recordings, and the journal entries
+13. Talk (backend needs `TALK_ENABLED=TRUE`): first use shows the consent sheet, then the microphone prompt; ask about something in the Health Profile and something only in an old journal entry; dictate a journal entry and confirm it; ask to change a medication and find it under pending changes in Health Profile; interrupt the assistant mid-sentence; mute, talk (the assistant should not hear it), unmute; end the call and check the summary card in Chat, the recording (both voices) and transcript in Audio Recordings, and the journal entries
 14. Talk edge cases: airplane mode mid-call, an incoming phone call, locking the screen, a Bluetooth headset, speakerphone (no echo), Reduce Motion, largest Dynamic Type, VoiceOver
 
 ### iOS Pre-Deploy

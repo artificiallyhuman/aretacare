@@ -126,6 +126,13 @@ final class WebRTCTalkTransport: NSObject, TalkTransport {
         }
     }
 
+    func setMuted(_ muted: Bool) {
+        guard !isClosed else { return }
+        // A disabled track sends silence frames, so the session sees a quiet microphone
+        // rather than a dropped stream.
+        audioTrack?.isEnabled = !muted
+    }
+
     func close() {
         guard !isClosed else { return }
         isClosed = true

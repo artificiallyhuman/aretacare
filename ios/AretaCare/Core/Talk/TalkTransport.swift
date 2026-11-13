@@ -35,6 +35,9 @@ protocol TalkTransport: AnyObject {
     func makeOffer() async throws -> String
     func applyAnswer(_ sdp: String) async throws
     func currentLevels() async -> TalkAudioLevels
+    /// Stops (or resumes) sending the microphone. The connection stays up and the
+    /// assistant's voice keeps playing; while muted the server receives silence.
+    func setMuted(_ muted: Bool)
     /// Idempotent. Ends the call and releases the microphone and audio session.
     func close()
 }

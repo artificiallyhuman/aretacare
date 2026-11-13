@@ -39,7 +39,7 @@ struct TalkView: View {
                 .frame(maxWidth: 320, maxHeight: 320)
                 .padding(.horizontal, 32)
 
-            Text(viewModel.phase.caption)
+            Text(viewModel.caption)
                 .font(.title3.weight(.medium))
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
@@ -49,29 +49,61 @@ struct TalkView: View {
 
             Spacer(minLength: 12)
 
-            TalkFooter(isEnding: viewModel.phase == .ending, onEnd: onEnd)
+            TalkFooter(
+                isEnding: viewModel.phase == .ending,
+                isMuted: viewModel.isMuted,
+                canMute: viewModel.phase.isLive,
+                onToggleMute: { viewModel.toggleMute() },
+                onEnd: onEnd
+            )
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
 
+/// Call controls, phone-call style: a round Mute button beside the End button.
 private struct TalkFooter: View {
     let isEnding: Bool
+    let isMuted: Bool
+    let canMute: Bool
+    let onToggleMute: () -> Void
     let onEnd: () -> Void
+
+    @ScaledMetric(relativeTo: .title2) private var muteSize: CGFloat = 60
 
     var body: some View {
         VStack(spacing: 12) {
-            Button(action: onEnd) {
-                Label("End", systemImage: "phone.down.fill")
-                    .font(.headline)
-                    .frame(maxWidth: 220)
-                    .padding(.vertical, 14)
+            HStack(spacing: 20) {
+                Button(action: onToggleMute) {
+                    Image(systemName: isMuted ? "mic.slash.fill" : "mic.fill")
+                        .font(.title2)
+                        // Muted reads as "switched on": inverted colors, as in the Phone app.
+                        .foregroundStyle(isMuted ? Color(.systemBackground) : Color.primary)
+                        .frame(width: muteSize, height: muteSize)
+                        .background(Circle().fill(isMuted ? Color.primary : Color(.tertiarySystemFill)))
+                        .contentShape(Circle())
+                }
+                .buttonStyle(.plain)
+                .disabled(!canMute || isEnding)
+                .opacity(canMute ? 1 : 0.4)
+                .accessibilityLabel("Mute")
+                .accessibilityValue(isMuted ? "On" : "Off")
+                .accessibilityHint("Stops sending your voice. AretaCare keeps listening for you to unmute.")
+
+                Button(action: onEnd) {
+                    Label("End", systemImage: "phone.down.fill")
+                        .font(.headline)
+                        .frame(maxWidth: 180)
+                        .frame(minHeight: muteSize - 28)
+                        .padding(.vertical, 14)
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(.red)
+                .clipShape(Capsule())
+                .disabled(isEnding)
+                .accessibilityLabel("End conversation")
             }
-            .buttonStyle(.borderedProminent)
-            .tint(.red)
-            .clipShape(Capsule())
-            .disabled(isEnding)
-            .accessibilityLabel("End conversation")
+            .padding(.horizontal, 24)
 
             Text("AI responses are not medical advice. This conversation is recorded and saved to Audio Recordings.")
                 .font(.caption)

@@ -622,7 +622,19 @@ async def _run_sideband(talk_id: str, openai_session_id: str, max_seconds: int) 
                 state["usage_seconds"] = float(seconds)
         elif kind == "error":
             error = event.get("error") or {}
-            logger.warning(f"Talk {talk_id}: live error code={error.get('code')} type={error.get('type')}")
+            code = error.get("code")
+            # Live errors describe configuration (e.g. "Error retrieving tool list from MCP
+            # server: 'aretacare'. Http status code: 424"), not conversation content; the
+            # message is the only place the reason appears, so keep a bounded copy.
+            message = str(error.get("message") or "")[:300]
+            line = f"Talk {talk_id}: live error code={code} type={error.get('type')} message={message!r}"
+            if code == "responses_validation_failed" or "MCP server" in message:
+                # The assistant has no care-session tools for this call: it can talk but
+                # cannot read or change anything. Usually the MCP URL is unreachable from
+                # OpenAI (a proxy/WAF challenge in front of /api/talk/mcp).
+                logger.error(line)
+            else:
+                logger.warning(line)
 
     async def pump(ws) -> None:
         while not state["closed"]:

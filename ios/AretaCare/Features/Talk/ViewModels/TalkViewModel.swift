@@ -60,6 +60,8 @@ final class TalkViewModel {
     private(set) var userLevel: Double = 0
     private(set) var agentLevel: Double = 0
     private(set) var maxSessionSeconds = 1800
+    /// The microphone is muted (the person is listening, or there's background noise).
+    private(set) var isMuted = false
     var showingConsent = false
     var showingMicDenied = false
     var notice: Notice?
@@ -72,6 +74,29 @@ final class TalkViewModel {
     var onExit: (() -> Void)?
 
     var isActive: Bool { phase != .idle }
+
+    /// The status line under the orb. While muted, "Listening" would be misleading.
+    var caption: String {
+        if isMuted, phase == .listening || phase == .userSpeaking {
+            return "Muted"
+        }
+        return phase.caption
+    }
+
+    /// Mute and unmute. Only during a live call: before that there is no microphone track.
+    func toggleMute() {
+        guard phase.isLive, let transport else { return }
+        isMuted.toggle()
+        transport.setMuted(isMuted)
+        if isMuted {
+            userLevel = 0
+            if phase == .userSpeaking { setPhase(.listening) }
+        }
+        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        if UIAccessibility.isVoiceOverRunning {
+            UIAccessibility.post(notification: .announcement, argument: isMuted ? "Microphone muted" : "Microphone on")
+        }
+    }
 
     // MARK: - Private state
 
@@ -303,6 +328,7 @@ final class TalkViewModel {
         phase = .idle
         userLevel = 0
         agentLevel = 0
+        isMuted = false
         talkId = nil
         sessionId = nil
         isEnding = false
@@ -366,7 +392,8 @@ final class TalkViewModel {
             let boosted = min(1, target * 3)
             return boosted > current ? current + (boosted - current) * 0.6 : current + (boosted - current) * 0.18
         }
-        userLevel = smooth(userLevel, levels.user)
+        // The source statistic still measures the microphone while the track is disabled.
+        userLevel = isMuted ? 0 : smooth(userLevel, levels.user)
         agentLevel = smooth(agentLevel, levels.agent)
 
         if agentLevel > Self.speakingThreshold * 2 {

@@ -52,8 +52,10 @@ struct ConversationView: View {
 
     var body: some View {
         modeContent
-            .safeAreaInset(edge: .top, spacing: 0) { modePicker }
-            .toolbar(mode == .talk ? .hidden : .visible, for: .navigationBar, .tabBar)
+            .modifier(NavigationModeBar(bar: modePicker, isChat: mode == .chat))
+            // The navigation bar stays (title + Chat/Talk row) in Talk; only the tab bar
+            // goes, and the toolbar buttons below are chat-only.
+            .toolbar(mode == .talk ? .hidden : .visible, for: .tabBar)
             .modifier(TalkModeModifier(
                 mode: $mode,
                 talkVM: talkVM,
@@ -82,22 +84,26 @@ struct ConversationView: View {
                     Text(sessionVM.currentSession?.name ?? "Chat")
                         .font(.headline)
                 }
-                ToolbarItem(placement: .topBarLeading) {
-                    Button {
-                        showingSessionSwitcher = true
-                    } label: {
-                        Image(systemName: "list.bullet")
+                // Switching care session or opening sharing mid-call would pull the session
+                // out from under the call, so these exist only in Chat.
+                if mode == .chat {
+                    ToolbarItem(placement: .topBarLeading) {
+                        Button {
+                            showingSessionSwitcher = true
+                        } label: {
+                            Image(systemName: "list.bullet")
+                        }
+                        .accessibilityLabel("Switch care session")
                     }
-                    .accessibilityLabel("Switch care session")
-                }
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button {
-                        showingCollaboration = true
-                    } label: {
-                        Image(systemName: "person.2")
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Button {
+                            showingCollaboration = true
+                        } label: {
+                            Image(systemName: "person.2")
+                        }
+                        .disabled(sessionVM.currentSession == nil)
+                        .accessibilityLabel("Collaborators")
                     }
-                    .disabled(sessionVM.currentSession == nil)
-                    .accessibilityLabel("Collaborators")
                 }
             }
             .sheet(isPresented: $showingSessionSwitcher) {
@@ -174,7 +180,9 @@ struct ConversationView: View {
     private var modePicker: some View {
         if sessionVM.currentSession != nil {
             ConversationModePicker(mode: $mode, talkDisabled: isRecordingAudio)
-                .padding(.vertical, 6)
+                .padding(.horizontal, 16)
+                .padding(.top, 2)
+                .padding(.bottom, 8)
                 .frame(maxWidth: .infinity)
         }
     }
@@ -665,6 +673,42 @@ private struct ConversationSheetsModifier: ViewModifier {
 
 #Preview {
     ConversationView(sessionVM: SessionViewModel())
+}
+
+// MARK: - Chat / Talk row
+
+/// Puts the Chat/Talk control on its own row directly under the care-session title, as
+/// part of the navigation bar. On iOS 26+ `safeAreaBar` joins the bar's scroll-edge
+/// effect (hard edge: chat is text-heavy, and a soft edge let message text show through
+/// the control). Earlier systems get the bar material behind the row instead.
+private struct NavigationModeBar<Bar: View>: ViewModifier {
+    let bar: Bar
+    let isChat: Bool
+
+    func body(content: Content) -> some View {
+        #if compiler(>=6.2)
+        if #available(iOS 26.0, *) {
+            content
+                .safeAreaBar(edge: .top, spacing: 0) { bar }
+                .scrollEdgeEffectStyle(.hard, for: .top)
+        } else {
+            legacy(content)
+        }
+        #else
+        legacy(content)
+        #endif
+    }
+
+    private func legacy(_ content: Content) -> some View {
+        content.safeAreaInset(edge: .top, spacing: 0) {
+            bar.background {
+                // Talk has no scrolling content under the row, so no material there.
+                if isChat {
+                    Rectangle().fill(.bar).ignoresSafeArea(edges: .top)
+                }
+            }
+        }
+    }
 }
 
 // MARK: - Talk mode wiring
