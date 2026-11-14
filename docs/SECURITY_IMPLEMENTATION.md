@@ -81,12 +81,21 @@ These actions require MFA re-verification when MFA is enabled:
 | `DELETE /mfa/totp` | Remove authenticator app |
 | `DELETE /mfa/passkeys/{id}` | Remove passkey |
 | `POST /mfa/backup-codes/generate` | Regenerate backup codes |
+| `POST /mfa/totp/setup` | Add an authenticator app (when MFA is on) |
+| `POST /mfa/passkey/register/options` | Add a passkey (when MFA is on) |
+| `POST /mfa/disable` | Turn MFA off (after the password check) |
 
 Flow:
 1. Request action → Server returns `MFA_REQUIRED`
 2. User verifies with passkey/TOTP/backup code
 3. Server returns single-use `action_token` (5-min expiry)
 4. Client retries with `X-MFA-Action-Token` header
+
+Adding a factor and turning MFA off are gated because a stolen access token could otherwise
+register the attacker's own passkey or authenticator, which then satisfies every later
+step-up. iOS builds before 2.0.0 cannot answer the demand on those three routes and are
+exempt while `STEP_UP_EXEMPT_LEGACY_IOS` is `TRUE` (the version header is self-declared, so
+this is a temporary gap; turn the setting off once Sentry shows no such builds).
 
 `POST /mfa/totp/setup` returns `400` while a verified authenticator app exists. Replacing an
 authenticator is therefore remove (step-up gated, above) and then set up again; setup can
@@ -365,7 +374,7 @@ Sentry is used for error/crash monitoring on all three platforms (backend, web, 
 
 - `send_default_pii` disabled everywhere — no user context, no IP addresses
 - Request bodies are never captured (`max_request_body_size="never"` on the backend; request data deleted in the web `beforeSend` hook)
-- Query strings are stripped from event URLs, network breadcrumbs, and navigation breadcrumbs on the backend and web (presigned S3 links travel in query params; password-reset / email-verify / invite tokens travel in navigation `from`/`to` paths). The web client applies the same reduction to performance transactions and spans, and click breadcrumbs record only that an interaction happened, not the element's label. The iOS client reduces network breadcrumb URLs to their path
+- Query strings are stripped from event URLs, network breadcrumbs, and navigation breadcrumbs on the backend and web (presigned S3 links travel in query params; password-reset / email-verify / invite tokens travel in navigation `from`/`to` paths). The web client applies the same reduction to performance transactions and spans, and click breadcrumbs record only that an interaction happened, not the element's label. The iOS client reduces network breadcrumb URLs to their path and removes the separate `http.query` / `http.fragment` fields the SDK copies onto network breadcrumbs and spans, and the query string and fragment of failed-request events
 - The backend engine is created with `hide_parameters=True`, so SQL errors never include bound values
 - Auth-related headers (`Authorization`, `Cookie`, MFA/trusted-device headers) are removed before send
 - Stack-frame local variables are never attached on the backend (`include_local_variables=False`). The Python SDK attaches them by default, and frames up the ASGI stack hold the raw `scope`/`request` (bearer token, refresh-token cookie, MFA action token, query-string tokens) plus parsed request bodies. Neither `before_send` nor the key-based scrubber can reach them, since headers sit in byte-tuple lists

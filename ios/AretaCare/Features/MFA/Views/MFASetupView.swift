@@ -78,12 +78,9 @@ struct MFASetupView: View {
                     }
                 } else {
                     Button {
-                        Task {
-                            await viewModel.setupTOTP()
-                            if viewModel.totpSecret != nil {
-                                showingTOTPSetup = true
-                            }
-                        }
+                        // The sheet opens from `totpSecret`, which can also arrive after
+                        // a step-up detour (adding a second factor while MFA is on).
+                        Task { await viewModel.setupTOTP() }
                     } label: {
                         Label("Set Up Authenticator App", systemImage: "qrcode")
                     }
@@ -188,8 +185,9 @@ struct MFASetupView: View {
                 PasskeySetupSheet(viewModel: viewModel)
             }
         }
-        // MFA step-up: the server refuses factor removal and backup-code
-        // regeneration without a fresh verification. Verify, then replay.
+        // MFA step-up: the server refuses factor removal, backup-code regeneration,
+        // adding an authenticator app and turning MFA off without a fresh verification.
+        // Verify, then replay. (Adding a passkey runs its own, from its sheet.)
         .sheet(item: $viewModel.pendingStepUp) { action in
             NavigationStack {
                 MFAStepUpSheet(viewModel: viewModel, action: action) { actionToken in
@@ -203,6 +201,11 @@ struct MFASetupView: View {
         .onChange(of: viewModel.backupCodes) { _, codes in
             if !codes.isEmpty {
                 showingBackupCodes = true
+            }
+        }
+        .onChange(of: viewModel.totpSecret) { _, secret in
+            if secret != nil {
+                showingTOTPSetup = true
             }
         }
         .task {
@@ -430,6 +433,9 @@ private struct PasskeySetupSheet: View {
     @Environment(\.dismiss) private var dismiss
     @State private var deviceName = UIDevice.current.name
     @State private var isRegistering = false
+    /// Set when the server wants a fresh verification first (MFA already on). Presented
+    /// from this sheet: the screen beneath can't present a second sheet over it.
+    @State private var stepUp: SensitiveMFAAction?
 
     var body: some View {
         ScrollView {
@@ -464,14 +470,7 @@ private struct PasskeySetupSheet: View {
                 }
 
                 Button {
-                    isRegistering = true
-                    Task {
-                        await viewModel.registerPasskey(deviceName: deviceName.trimmingCharacters(in: .whitespaces))
-                        isRegistering = false
-                        if viewModel.successMessage != nil {
-                            dismiss()
-                        }
-                    }
+                    register()
                 } label: {
                     if isRegistering {
                         ProgressView()
@@ -497,6 +496,29 @@ private struct PasskeySetupSheet: View {
         .toolbar {
             ToolbarItem(placement: .cancellationAction) {
                 Button("Cancel") { dismiss() }
+            }
+        }
+        .sheet(item: $stepUp) { action in
+            NavigationStack {
+                MFAStepUpSheet(viewModel: viewModel, action: action) { actionToken in
+                    register(actionToken: actionToken)
+                }
+            }
+        }
+    }
+
+    private func register(actionToken: String? = nil) {
+        isRegistering = true
+        Task {
+            let outcome = await viewModel.registerPasskey(
+                deviceName: deviceName.trimmingCharacters(in: .whitespaces),
+                actionToken: actionToken
+            )
+            isRegistering = false
+            switch outcome {
+            case .registered: dismiss()
+            case .needsStepUp: stepUp = .addPasskey
+            case .failed: break
             }
         }
     }

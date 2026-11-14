@@ -60,7 +60,14 @@ struct AretaCareApp: App {
         let path = components.path
         let queryItems = components.queryItems ?? []
 
-        if path.contains("verify-email"), let token = queryItems.first(where: { $0.name == "token" })?.value {
+        // Email change first: "verify-email" is also a substring of its path, and matching
+        // that sent the change link to sign-up verification, which rejects its token. The
+        // website's AASA now sends these links to Safari; this covers devices still holding
+        // the older AASA.
+        if path.hasPrefix("/verify-email-change"), let token = queryItems.first(where: { $0.name == "token" })?.value {
+            guard isValidDeepLinkToken(token) else { return }
+            deepLinkRoute = .verifyEmailChange(token: token)
+        } else if path.contains("verify-email"), let token = queryItems.first(where: { $0.name == "token" })?.value {
             guard isValidDeepLinkToken(token) else { return }
             deepLinkRoute = .verifyEmail(token: token)
         } else if path.contains("password-reset"), let token = queryItems.first(where: { $0.name == "token" })?.value {
@@ -86,6 +93,8 @@ struct AretaCareApp: App {
         switch route {
         case .verifyEmail(let token):
             VerifyEmailView(token: token)
+        case .verifyEmailChange(let token):
+            VerifyEmailView(token: token, isEmailChange: true)
         case .resetPassword(let token):
             ResetPasswordView(token: token)
         case .register(let invitationToken):
@@ -98,12 +107,14 @@ struct AretaCareApp: App {
 
 enum DeepLinkRoute: Equatable, Identifiable {
     case verifyEmail(token: String)
+    case verifyEmailChange(token: String)
     case resetPassword(token: String)
     case register(invitationToken: String)
 
     var id: String {
         switch self {
         case .verifyEmail(let token): return "verify-\(token)"
+        case .verifyEmailChange(let token): return "verify-change-\(token)"
         case .resetPassword(let token): return "reset-\(token)"
         case .register(let token): return "register-\(token)"
         }

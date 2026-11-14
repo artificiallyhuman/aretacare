@@ -15,8 +15,8 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
 
     /// Crash/error reporting. Skipped when no DSN is configured (simulator
     /// without Secrets.xcconfig). PHI is on screen throughout the app, so
-    /// screenshots and view hierarchy are never attached, and network
-    /// breadcrumb URLs are stripped of query strings.
+    /// screenshots and view hierarchy are never attached, and request query
+    /// strings are scrubbed from breadcrumbs, spans and events.
     private func startSentry() {
         guard let dsn = AppConstants.sentryDSN else { return }
         SentrySDK.start { options in
@@ -26,17 +26,43 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
             options.tracesSampleRate = 0.1
             options.attachScreenshot = false
             options.attachViewHierarchy = false
+            // Query strings and fragments carry presigned S3 signatures, verification tokens
+            // and search text (which can be health terms). The SDK strips them from "url"
+            // but copies them into separate fields on network breadcrumbs ("http.query",
+            // "http.fragment"), network spans (same keys) and failed-request events
+            // (request.queryString / fragment). Scrub all three; keep scheme://host/path.
             options.beforeBreadcrumb = { crumb in
-                // Presigned S3 links and reset/verify tokens live in query
-                // strings — keep scheme://host/path only.
-                if crumb.type == "http",
-                   let url = crumb.data?["url"] as? String,
-                   let q = url.firstIndex(of: "?") {
-                    crumb.setData(value: String(url[url.startIndex..<q]), key: "url")
+                if crumb.type == "http" {
+                    crumb.setData(value: nil, key: "http.query")
+                    crumb.setData(value: nil, key: "http.fragment")
+                    if let url = crumb.data?["url"] as? String {
+                        crumb.setData(value: Self.withoutQuery(url), key: "url")
+                    }
                 }
                 return crumb
             }
+            options.beforeSendSpan = { span in
+                span.removeData(key: "http.query")
+                span.removeData(key: "http.fragment")
+                return span
+            }
+            options.beforeSend = { event in
+                if let request = event.request {
+                    request.queryString = nil
+                    request.fragment = nil
+                    if let url = request.url {
+                        request.url = Self.withoutQuery(url)
+                    }
+                }
+                return event
+            }
         }
+    }
+
+    /// scheme://host/path of a URL string, without its query or fragment.
+    nonisolated private static func withoutQuery(_ url: String) -> String {
+        guard let cut = url.firstIndex(where: { $0 == "?" || $0 == "#" }) else { return url }
+        return String(url[..<cut])
     }
 
     // MARK: - Remote Notification Registration

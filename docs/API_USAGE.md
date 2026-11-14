@@ -102,7 +102,7 @@ Returns: `mfa_enabled`, `has_passkey`, `passkey_count`, `has_totp`, `backup_code
 POST /api/mfa/totp/setup     # Returns QR code
 POST /api/mfa/totp/verify-setup  # Body: {"code": "123456"}
 ```
-`/totp/setup` returns `400` when an authenticator app is already configured. To replace it, remove the existing one first (`DELETE /mfa/totp`, which requires step-up) and then run setup again.
+`/totp/setup` returns `400` when an authenticator app is already configured. To replace it, remove the existing one first (`DELETE /mfa/totp`, which requires step-up) and then run setup again. When MFA is already on (adding a second factor), `/totp/setup` requires step-up.
 
 ### Passkeys
 ```bash
@@ -157,6 +157,15 @@ The MFA factor-management routes (`DELETE /mfa/totp`, `DELETE /mfa/passkeys/{id}
 `POST /mfa/backup-codes/generate`) **also require step-up**. Regenerating backup codes is
 included because it returns ten usable second factors in the response body, so it is at
 least as sensitive as removing one.
+
+While MFA is on, **adding a factor and turning MFA off** require step-up too:
+`POST /mfa/totp/setup`, `POST /mfa/passkey/register/options` (the follow-up verify calls
+only complete what these started) and `POST /mfa/disable` (password checked first, so a
+wrong password returns `401` without a verification prompt). Otherwise a stolen access
+token could add the attacker's own factor, which then passes every later step-up. iOS
+builds before 2.0.0 (by `X-Client-Type`/`X-App-Version`) are exempt while
+`STEP_UP_EXEMPT_LEGACY_IOS` is `TRUE`, because they cannot answer the demand; set it to
+`FALSE` once no such builds remain.
 
 Step-up runs *before* the last-factor check, so removing your only remaining factor returns
 `403` until you verify and `400` afterwards. That `400` carries a plain-string detail

@@ -3,13 +3,17 @@ import Observation
 
 /// Actions the backend gates behind a fresh MFA verification (`X-MFA-Action-Token`).
 /// Removing a factor — or minting ten new backup codes — weakens the account, so a
-/// stolen access token alone must not be enough to do it. The same gate covers the
-/// account-level changes in Settings: taking over the login email, the password, or
-/// deleting everything.
+/// stolen access token alone must not be enough to do it. So does adding a factor while
+/// MFA is on (an attacker's own passkey would pass every later check) and turning MFA
+/// off. The same gate covers the account-level changes in Settings: taking over the
+/// login email, the password, or deleting everything.
 enum SensitiveMFAAction: Identifiable, Equatable {
     case removeAuthenticatorApp
     case removePasskey(id: String)
     case regenerateBackupCodes
+    case addAuthenticatorApp
+    case addPasskey
+    case disableMFA(password: String)
     case changeEmail
     case changePassword
     case deleteAccount
@@ -19,6 +23,9 @@ enum SensitiveMFAAction: Identifiable, Equatable {
         case .removeAuthenticatorApp: return "totp"
         case .removePasskey(let id): return "passkey-\(id)"
         case .regenerateBackupCodes: return "backup-codes"
+        case .addAuthenticatorApp: return "add-totp"
+        case .addPasskey: return "add-passkey"
+        case .disableMFA: return "disable-mfa"
         case .changeEmail: return "change-email"
         case .changePassword: return "change-password"
         case .deleteAccount: return "delete-account"
@@ -31,11 +38,23 @@ enum SensitiveMFAAction: Identifiable, Equatable {
         case .removeAuthenticatorApp: return "remove your authenticator app"
         case .removePasskey: return "remove this passkey"
         case .regenerateBackupCodes: return "generate new backup codes"
+        case .addAuthenticatorApp: return "add an authenticator app"
+        case .addPasskey: return "add a passkey"
+        case .disableMFA: return "turn off two-factor authentication"
         case .changeEmail: return "change your email address"
         case .changePassword: return "change your password"
         case .deleteAccount: return "delete your account"
         }
     }
+}
+
+/// How a passkey registration attempt ended. The registration sheet drives its own
+/// step-up (it is itself a sheet, and a second one can't be presented from the screen
+/// beneath it), so the demand comes back as a result rather than through `pendingStepUp`.
+enum PasskeyRegistrationOutcome {
+    case registered
+    case needsStepUp
+    case failed
 }
 
 @Observable @MainActor
@@ -109,7 +128,8 @@ final class MFAViewModel {
         }
     }
 
-    func disableMFA(password: String) async {
+    /// The server checks the password, then asks for step-up; the replay sends both.
+    func disableMFA(password: String, actionToken: String? = nil) async {
         isLoading = true
         errorMessage = nil
         defer { isLoading = false }
@@ -118,28 +138,35 @@ final class MFAViewModel {
             let request = DisableMFARequest(password: password)
             let response: DisableMFAResponse = try await APIClient.shared.post(
                 APIEndpoints.MFA.disableMFA,
-                body: request
+                body: request,
+                headers: Self.actionTokenHeader(actionToken)
             )
             successMessage = response.message
             await fetchStatus()
         } catch {
-            errorMessage = error.localizedDescription
+            handleSensitiveActionFailure(error, action: .disableMFA(password: password))
         }
     }
 
     // MARK: - TOTP
 
-    func setupTOTP() async {
+    /// Step-up is demanded only when MFA is already on (adding a second factor).
+    func setupTOTP(actionToken: String? = nil) async {
         errorMessage = nil
+        // Cleared first so a successful setup always changes it: the view opens the setup
+        // sheet on that change, and the server hands back the same secret for 5 minutes.
+        totpSecret = nil
+        totpProvisioningUri = nil
 
         do {
             let response: TOTPSetupResponse = try await APIClient.shared.post(
-                APIEndpoints.MFA.totpSetup
+                APIEndpoints.MFA.totpSetup,
+                headers: Self.actionTokenHeader(actionToken)
             )
             totpSecret = response.secret
             totpProvisioningUri = response.provisioningUri
         } catch {
-            errorMessage = error.localizedDescription
+            handleSensitiveActionFailure(error, action: .addAuthenticatorApp)
         }
     }
 
@@ -227,16 +254,24 @@ final class MFAViewModel {
         }
     }
 
-    func registerPasskey(deviceName: String) async {
+    /// Registers a passkey. With MFA already on, the server first demands step-up; the
+    /// caller verifies and calls again with the action token.
+    func registerPasskey(deviceName: String, actionToken: String? = nil) async -> PasskeyRegistrationOutcome {
         isLoading = true
         errorMessage = nil
         defer { isLoading = false }
 
         do {
             // Step 1: Get registration options from server
-            let optionsResponse: PasskeyRegistrationOptionsResponse = try await APIClient.shared.post(
-                APIEndpoints.MFA.passkeyRegisterOptions
-            )
+            let optionsResponse: PasskeyRegistrationOptionsResponse
+            do {
+                optionsResponse = try await APIClient.shared.post(
+                    APIEndpoints.MFA.passkeyRegisterOptions,
+                    headers: Self.actionTokenHeader(actionToken)
+                )
+            } catch APIError.forbidden(let code) where code == "MFA_REQUIRED" || code == "MFA_INVALID" {
+                return .needsStepUp
+            }
 
             // Step 2: Perform platform WebAuthn registration ceremony
             let credential = try await PasskeyAuthManager().register(options: optionsResponse.options)
@@ -255,13 +290,17 @@ final class MFAViewModel {
                 successMessage = "Passkey registered successfully."
                 await listPasskeys()
                 await fetchStatus()
+                return .registered
             } else {
                 errorMessage = "Failed to register passkey. Please try again."
+                return .failed
             }
         } catch PasskeyError.cancelled {
             // User cancelled — don't show error
+            return .failed
         } catch {
             errorMessage = error.localizedDescription
+            return .failed
         }
     }
 
@@ -373,6 +412,13 @@ final class MFAViewModel {
             await deletePasskey(id: id, actionToken: actionToken)
         case .regenerateBackupCodes:
             await generateBackupCodes(actionToken: actionToken)
+        case .addAuthenticatorApp:
+            await setupTOTP(actionToken: actionToken)
+        case .disableMFA(let password):
+            await disableMFA(password: password, actionToken: actionToken)
+        case .addPasskey:
+            // Driven by the registration sheet, which replays with the token itself.
+            break
         case .changeEmail, .changePassword, .deleteAccount:
             // Owned by Settings, which drives the sheet itself and replays via its
             // own `onVerified` closure — this view model never sees those requests.

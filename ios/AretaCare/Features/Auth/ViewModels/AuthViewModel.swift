@@ -233,6 +233,28 @@ final class AuthViewModel {
         }
     }
 
+    /// Completes an email change from the link sent to the new address. The server then
+    /// revokes every session, so a signed-in app is signed out here rather than on its next
+    /// request.
+    func verifyEmailChange(token: String) async {
+        emailVerificationStatus = .verifying
+
+        do {
+            let _: EmptyResponse = try await APIClient.shared.post(
+                APIEndpoints.Auth.verifyEmailChange,
+                queryItems: [URLQueryItem(name: "token", value: token)]
+            )
+            emailVerificationStatus = .success
+            if AuthManager.shared.isAuthenticated {
+                await AuthManager.shared.forceLogout()
+            }
+        } catch let error as APIError {
+            emailVerificationStatus = .failed(error.errorDescription ?? "Verification failed.")
+        } catch {
+            emailVerificationStatus = .failed("An unexpected error occurred.")
+        }
+    }
+
     // MARK: - MFA Verification
 
     func verifyMFA(mfaToken token: String, code: String, method: String, trustDevice: Bool) async {

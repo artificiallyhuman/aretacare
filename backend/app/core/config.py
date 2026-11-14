@@ -33,6 +33,12 @@ class Settings(BaseSettings):
     # regardless of this flag.
     ADMIN_REQUIRE_MFA: bool = False
 
+    # Adding an MFA factor and turning MFA off need a fresh MFA step-up when MFA is on.
+    # iOS builds before 2.0.0 cannot answer that demand, so while this is TRUE they are let
+    # through without it (the X-App-Version header is self-declared, so this is a gap, not a
+    # control). Set FALSE once Sentry's release breakdown shows no iOS builds below 2.0.0.
+    STEP_UP_EXEMPT_LEGACY_IOS: bool = True
+
     # OpenAI
     OPENAI_API_KEY: str
     OPENAI_TIMEOUT_SECONDS: int = 60  # Timeout for API requests

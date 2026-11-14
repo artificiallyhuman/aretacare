@@ -1,7 +1,10 @@
 import SwiftUI
 
+/// Confirms a sign-up email address, or (`isEmailChange`) completes a change of address
+/// from the link sent to the new one.
 struct VerifyEmailView: View {
     let token: String
+    var isEmailChange = false
 
     @State private var viewModel = AuthViewModel()
     @Environment(\.dismiss) private var dismiss
@@ -30,11 +33,13 @@ struct VerifyEmailView: View {
                         .imageScale(.large)
                         .foregroundStyle(.green)
 
-                    Text("Email Verified")
+                    Text(isEmailChange ? "Email Address Changed" : "Email Verified")
                         .font(.title2)
                         .fontWeight(.bold)
 
-                    Text("Your email has been verified successfully. You can now log in to your account.")
+                    Text(isEmailChange
+                         ? "Your email address has been changed. For security you've been signed out everywhere: sign in with your new address."
+                         : "Your email has been verified successfully. You can now log in to your account.")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)
@@ -86,10 +91,14 @@ struct VerifyEmailView: View {
         .frame(maxWidth: 500)
         .frame(maxWidth: .infinity)
         }
-        .navigationTitle("Verify Email")
+        .navigationTitle(isEmailChange ? "Change Email" : "Verify Email")
         .navigationBarTitleDisplayMode(.inline)
         .task {
-            await viewModel.verifyEmail(token: token)
+            if isEmailChange {
+                await viewModel.verifyEmailChange(token: token)
+            } else {
+                await viewModel.verifyEmail(token: token)
+            }
         }
     }
 }

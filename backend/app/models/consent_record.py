@@ -7,6 +7,7 @@ from sqlalchemy import Column, String, Text, DateTime, Integer, Enum, ForeignKey
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 from app.core.database import Base
+from app.core.client_version import is_ios_build_below
 
 
 class ConsentType(str, enum.Enum):
@@ -72,24 +73,17 @@ LEGACY_IOS_REGISTRATION_CONSENTS = {
 }
 
 
-def _parse_app_version(value):
-    """'2.0.0' -> (2, 0, 0); None for a missing or malformed value."""
-    try:
-        return tuple(int(part) for part in (value or "").strip().split("."))
-    except ValueError:
-        return None
-
-
 def registration_consent(consent_type, client_type=None, app_version=None):
     """The version and text of a sign-up consent as the registering client displayed it.
 
     `client_type` and `app_version` are the X-Client-Type and X-App-Version request headers.
     iOS builds before 1.0.9 send no version, and they show the legacy text too.
     """
-    if (client_type or "").lower() == "ios" and consent_type in LEGACY_IOS_REGISTRATION_CONSENTS:
-        version = _parse_app_version(app_version)
-        if version is None or version < IOS_CURRENT_REGISTRATION_TEXT_SINCE:
-            return LEGACY_IOS_REGISTRATION_CONSENTS[consent_type]
+    if consent_type in LEGACY_IOS_REGISTRATION_CONSENTS and is_ios_build_below(
+        {"X-Client-Type": client_type, "X-App-Version": app_version},
+        IOS_CURRENT_REGISTRATION_TEXT_SINCE,
+    ):
+        return LEGACY_IOS_REGISTRATION_CONSENTS[consent_type]
     return CONSENT_VERSIONS[consent_type]
 
 

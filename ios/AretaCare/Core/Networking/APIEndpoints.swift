@@ -14,6 +14,7 @@ enum APIEndpoints {
         static let emailVerify = "/auth/email/verify"
         static let emailPending = "/auth/email/pending"
         static let verifyEmail = "/auth/verify-email"
+        static let verifyEmailChange = "/auth/email/verify"
         static let resendVerification = "/auth/resend-verification"
         static let password = "/auth/password"
         static let passwordResetRequest = "/auth/password-reset/request"

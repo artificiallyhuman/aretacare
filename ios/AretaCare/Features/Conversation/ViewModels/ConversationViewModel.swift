@@ -283,8 +283,27 @@ final class ConversationViewModel {
     // MARK: - Retry Failed Message
 
     func retryMessage(messageId: Int, sessionId: String) async {
-        guard failedMessageIds.contains(messageId),
+        guard sessionId == activeSessionId, !isSending,
+              failedMessageIds.contains(messageId),
               let content = failedMessageContent[messageId] else { return }
+
+        // A "failed" send has often reached the server: the user's message is stored
+        // before the AI call, so a connection that dropped mid-request loses only the
+        // answer, and the reply may still be on its way. Resending then posted it twice
+        // (and a second reply) whenever the connection came back. Check first: the
+        // reconcile swaps the temp for the stored message when the server has it.
+        await silentReconcile(sessionId: sessionId)
+        guard sessionId == activeSessionId else { return }
+        if !messages.contains(where: { $0.id == messageId }) {
+            failedMessageIds.remove(messageId)
+            failedMessageContent.removeValue(forKey: messageId)
+            retryCount.removeValue(forKey: messageId)
+            if errorMessage != nil { errorMessage = nil }
+            if messages.last?.role != .assistant {
+                awaitLateReply(sessionId: sessionId)
+            }
+            return
+        }
 
         let count = (retryCount[messageId] ?? 0) + 1
         retryCount[messageId] = count
@@ -714,6 +733,25 @@ final class ConversationViewModel {
             try? await Task.sleep(for: delay)
             guard !Task.isCancelled else { return }
             await self?.silentReconcile(sessionId: sessionId)
+        }
+    }
+
+    /// Re-syncs a few times over about two minutes (past the ~100 s an AI reply can take
+    /// behind Cloudflare) to pick up a reply the server was still writing when the
+    /// connection dropped. Stops at the first reply or a care-session switch.
+    private func awaitLateReply(sessionId: String) {
+        reconcileTask?.cancel()
+        reconcileTask = Task { @MainActor [weak self] in
+            for wait in [5, 10, 20, 30, 45] {
+                try? await Task.sleep(for: .seconds(wait))
+                guard !Task.isCancelled, let self, sessionId == self.activeSessionId else { return }
+                await self.silentReconcile(sessionId: sessionId)
+                if self.messages.last?.role == .assistant { return }
+            }
+            // The message is saved but no answer came (the server failed mid-reply).
+            guard !Task.isCancelled, let self, sessionId == self.activeSessionId,
+                  self.messages.last?.role == .user else { return }
+            self.errorMessage = "AretaCare didn't get to reply to your last message. Ask again to get an answer."
         }
     }
 

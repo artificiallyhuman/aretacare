@@ -14,8 +14,8 @@
           "/privacy",
           "/tools/jargon",
           "/tools/coach",
+          "NOT /verify-email-change*",
           "/verify-email*",
-          "/verify-email-change*",
           "/password-reset*",
           "/collaboration",
           "/settings"

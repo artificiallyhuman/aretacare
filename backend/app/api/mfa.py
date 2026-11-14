@@ -15,6 +15,8 @@ from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.core.auth import verify_password
 from app.api.auth import get_current_user, verify_mfa_for_sensitive_action
+from app.core.client_version import is_ios_build_below
+from app.core.config import settings
 from app.core.rate_limit import limiter
 from app.models.user import User
 from app.services.mfa_service import MFAService
@@ -52,6 +54,26 @@ def get_mfa_status(
     return MFAStatusResponse(**status)
 
 
+# iOS added handling for a step-up demand on these routes in 2.0.0.
+IOS_STEP_UP_ON_MFA_CHANGES_SINCE = (2, 0, 0)
+
+
+def _require_step_up_for_mfa_change(request: Request, user: User, db: Session) -> None:
+    """Fresh MFA verification for adding a factor or turning MFA off, when MFA is on.
+
+    Without it, a stolen access token can register the attacker's own passkey or
+    authenticator, which then passes every later step-up gate, or switch MFA off with the
+    password alone. When MFA is off this is a no-op (there is nothing to verify with).
+    iOS builds before 2.0.0 are exempt while STEP_UP_EXEMPT_LEGACY_IOS is on: they cannot
+    answer MFA_REQUIRED here, and the exemption ends when that setting is turned off.
+    """
+    if settings.STEP_UP_EXEMPT_LEGACY_IOS and is_ios_build_below(
+        request.headers, IOS_STEP_UP_ON_MFA_CHANGES_SINCE
+    ):
+        return
+    verify_mfa_for_sensitive_action(request, user, db)
+
+
 # ==========================================
 # TOTP Endpoints
 # ==========================================
@@ -76,6 +98,10 @@ def setup_totp(
             status_code=400,
             detail="An authenticator app is already set up. Remove it before setting up a new one."
         )
+
+    # Adding a second factor while MFA is on. Gating setup is enough: verify-setup only
+    # confirms the secret this call created.
+    _require_step_up_for_mfa_change(request, current_user, db)
 
     secret, provisioning_uri = MFAService.setup_totp(db, current_user)
 
@@ -245,6 +271,10 @@ def get_passkey_registration_options(
     Generate WebAuthn registration options for passkey enrollment.
     Returns the options needed to start the browser's WebAuthn registration ceremony.
     """
+    # Gating the options is enough: register/verify only accepts a credential answering
+    # the challenge this call issued.
+    _require_step_up_for_mfa_change(request, current_user, db)
+
     try:
         options, _ = MFAService.generate_passkey_registration_options(db, current_user)
     except ValueError as e:
@@ -428,6 +458,9 @@ def disable_mfa(
             details="MFA disable attempt failed - incorrect password"
         )
         raise HTTPException(status_code=401, detail="Incorrect password")
+
+    # After the password check, so a wrong password fails without a verification prompt.
+    _require_step_up_for_mfa_change(request, current_user, db)
 
     MFAService.disable_mfa(db, current_user)
 
