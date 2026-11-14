@@ -154,7 +154,7 @@ AretaCare implements comprehensive security measures:
 
 ### Data Protection
 - **Encryption in Transit**: TLS/SSL for all connections, HSTS header enforces HTTPS (1-year max-age, preload)
-- **SSL Certificate Pinning (iOS)**: SHA-256 SPKI public key pinning on all HTTPS requests including token refresh; Release builds assert if placeholder hashes are detected
+- **SSL Certificate Pinning (iOS)**: SHA-256 SPKI public key pinning on all HTTPS requests to the API, including token refresh, against the root keys of the certificate authorities our edge provider issues from (so routine certificate renewals need no app update)
 - **Encryption at Rest**: S3 server-side encryption (AES-256)
 - **Keychain Security (iOS)**: Tokens stored with `.afterFirstUnlockThisDeviceOnly` (prevents Keychain restoration to other devices)
 - **SQL Injection Prevention**: SQLAlchemy ORM with parameterized queries
@@ -169,7 +169,7 @@ AretaCare implements comprehensive security measures:
 - **Security Headers**: X-Content-Type-Options, X-Frame-Options, X-XSS-Protection, Referrer-Policy, Permissions-Policy, CSP
 - **Data at rest (iOS)**: Tokens in the Keychain (`ThisDeviceOnly`, never synced to iCloud); downloaded documents and exported health profiles written with complete file protection; temporary files swept at launch
 - **Logout Data Cleanup (iOS)**: All in-memory caches, image cache, and UserDefaults preferences cleared on logout to prevent data leakage on shared devices
-- **Build Safety (iOS)**: Release builds crash if `API_BASE_URL` is not configured or if certificate pinning uses placeholder hashes
+- **Build Safety (iOS)**: Release builds crash if `API_BASE_URL` is not configured; the app also stops at launch if a certificate pin is malformed
 
 ### Push Notifications (iOS)
 - **Feature-gated**: Disabled by default (`PUSH_NOTIFICATIONS_ENABLED=False`); APNs credentials validated at startup

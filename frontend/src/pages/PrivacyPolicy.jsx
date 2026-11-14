@@ -508,10 +508,10 @@ const PrivacyPolicy = () => {
               <div>
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">Cloud Backup Retention</h3>
                 <p className="text-gray-700 dark:text-gray-300 leading-relaxed text-base mb-3">
-                  When you delete data, it is immediately removed from our database and file storage. Copies can remain for a limited time in our providers' automatic backups: the database backups Render keeps for us, and any earlier versions of stored files kept by AWS.
+                  When you delete data, it is immediately removed from our database and file storage. Uploaded files (documents, images, and audio recordings) are deleted outright: we don't keep earlier versions or backup copies of them. Database records can remain for up to 7 days in the automatic database backups Render keeps for us for disaster recovery.
                 </p>
                 <p className="text-gray-700 dark:text-gray-300 leading-relaxed text-base">
-                  These backup copies are not accessible through the application, are not used for anything else, and are deleted automatically on those providers' backup schedules. Requests AretaCare sends to OpenAI are not stored for reuse; OpenAI may keep them for up to 30 days to monitor for abuse, and then deletes them.
+                  Those backup copies are not accessible through the application, are not used for anything else, and are deleted automatically after 7 days. Requests AretaCare sends to OpenAI are not stored for reuse; OpenAI may keep them for up to 30 days to monitor for abuse, and then deletes them.
                 </p>
               </div>
 

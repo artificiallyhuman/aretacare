@@ -13,14 +13,16 @@ import logging
 
 from app.core.database import get_db
 from app.core.config import settings
+from app.core.email_address import find_user_by_email
 from app.core.rate_limit import limiter, RateLimits
 from app.api.auth import get_current_user, verify_mfa_for_sensitive_action
 from app.api.permissions import check_is_admin, require_admin
 from app.models import (
     User, Session as SessionModel, SessionCollaborator,
     Document, AudioRecording, AdminAuditLog, SecurityLog, ErrorLog, ApiLog,
-    RefreshToken, WaitlistEntry, EmailCampaign, EmailCampaignRecipient
+    RefreshToken, WaitlistEntry, EmailCampaign, EmailCampaignRecipient, AppNotice
 )
+from app.schemas.notice import AppNoticeCreate, AdminAppNoticeResponse, AdminAppNoticeListResponse
 from app.schemas.admin import (
     PlatformMetrics, MetricsTrendResponse, MetricsTrend,
     InactiveAccount, UnusualAccount,
@@ -687,7 +689,7 @@ async def transfer_session_ownership(
         raise HTTPException(status_code=404, detail="Care session not found")
 
     # Find new owner by email
-    new_owner = db.query(User).filter(User.email == transfer_data.new_owner_email).first()
+    new_owner = find_user_by_email(db, transfer_data.new_owner_email)
     if not new_owner:
         raise HTTPException(status_code=404, detail="New owner not found")
 
@@ -1217,7 +1219,7 @@ async def add_to_waitlist(
     email = data.email.lower().strip()
 
     # Check if already registered
-    if db.query(User).filter(User.email == email).first():
+    if find_user_by_email(db, email):
         raise HTTPException(status_code=400, detail="Email already registered as a user")
 
     # Check if already on waitlist
@@ -1269,7 +1271,7 @@ async def send_waitlist_invitation(
         raise HTTPException(status_code=404, detail="Waitlist entry not found")
 
     # Check if user already registered
-    existing_user = db.query(User).filter(User.email == entry.email).first()
+    existing_user = find_user_by_email(db, entry.email)
     if existing_user:
         # Remove from waitlist since they already registered
         db.delete(entry)
@@ -1621,3 +1623,88 @@ async def resume_email_campaign(
         total_recipients=campaign.total_recipients,
         smtp_configured=bool(settings.SMTP_PASSWORD),
     )
+
+
+# ==========================================
+# In-App Notice
+# ==========================================
+# The second electronic channel for breach notifications (docs/BREACH_RESPONSE.md):
+# one notice at a time, shown to every signed-in user on web and iOS. Publishing reaches
+# every account, so both actions take step-up and are audit-logged; rows are never deleted.
+
+@router.get("/notices", response_model=AdminAppNoticeListResponse)
+async def list_app_notices(db: DBSession = Depends(get_db)):
+    """Every notice ever published, newest first."""
+    notices = db.query(AppNotice).order_by(AppNotice.id.desc()).limit(100).all()
+    return AdminAppNoticeListResponse(notices=notices)
+
+
+@router.post("/notices", response_model=AdminAppNoticeResponse, status_code=201, dependencies=STEP_UP)
+@limiter.limit(RateLimits.ADMIN_SENSITIVE)
+async def publish_app_notice(
+    request: Request,
+    payload: AppNoticeCreate,
+    admin_user: User = Depends(get_admin_user),
+    db: DBSession = Depends(get_db),
+):
+    """Publish a notice to every signed-in user, replacing the current one."""
+    now = datetime.utcnow()
+    db.query(AppNotice).filter(AppNotice.is_active.is_(True)).update(
+        {"is_active": False, "ended_at": now, "ended_by_email": admin_user.email},
+        synchronize_session=False,
+    )
+    notice = AppNotice(
+        title=payload.title,
+        body=payload.body,
+        link_url=payload.link_url,
+        link_label=payload.link_label,
+        is_active=True,
+        created_at=now,
+        created_by_user_id=admin_user.id,
+        created_by_email=admin_user.email,
+    )
+    db.add(notice)
+    db.commit()
+    db.refresh(notice)
+
+    # After the commit — log_action commits internally.
+    admin_service.log_action(
+        db=db,
+        admin_user=admin_user,
+        action="app_notice_published",
+        target_type="app_notice",
+        target_id=str(notice.id),
+        details={"title": notice.title, "link_url": notice.link_url},
+    )
+    return notice
+
+
+@router.post("/notices/{notice_id}/end", response_model=AdminAppNoticeResponse, dependencies=STEP_UP)
+@limiter.limit(RateLimits.ADMIN_SENSITIVE)
+async def end_app_notice(
+    request: Request,
+    notice_id: int,
+    admin_user: User = Depends(get_admin_user),
+    db: DBSession = Depends(get_db),
+):
+    """Stop showing a notice. The row stays as the record of what was shown."""
+    notice = db.query(AppNotice).filter(AppNotice.id == notice_id).first()
+    if notice is None:
+        raise HTTPException(status_code=404, detail="Notice not found")
+    if not notice.is_active:
+        raise HTTPException(status_code=409, detail="That notice has already ended")
+    notice.is_active = False
+    notice.ended_at = datetime.utcnow()
+    notice.ended_by_email = admin_user.email
+    db.commit()
+    db.refresh(notice)
+
+    admin_service.log_action(
+        db=db,
+        admin_user=admin_user,
+        action="app_notice_ended",
+        target_type="app_notice",
+        target_id=str(notice.id),
+        details={"title": notice.title},
+    )
+    return notice

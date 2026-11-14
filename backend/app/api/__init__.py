@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from app.api import auth, sessions, documents, journal, conversation, tools, audio_recording, daily_plans, admin, feedback, profile, waitlist, mfa, health, notifications, unsubscribe, talk
+from app.api import auth, sessions, documents, journal, conversation, tools, audio_recording, daily_plans, admin, feedback, profile, waitlist, mfa, health, notifications, unsubscribe, talk, notices
 
 api_router = APIRouter()
 
@@ -50,6 +50,9 @@ api_router.include_router(talk.router)
 
 # Public unsubscribe (admin product-update emails)
 api_router.include_router(unsubscribe.router)
+
+# In-app notice (breach notification channel; admins publish it under /admin/notices)
+api_router.include_router(notices.router)
 
 # Admin console
 api_router.include_router(admin.public_router)

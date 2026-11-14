@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func
 from app.core.client_ip import client_ip_for_record
+from app.core.email_address import find_user_by_email
 from app.core.database import get_db
 from app.core.rate_limit import limiter, RateLimits
 from app.models import Session as SessionModel, User, Document, AudioRecording, JournalEntry, Conversation, SessionCollaborator, PendingInvitation, UserSessionColor
@@ -535,7 +536,7 @@ async def check_user_exists(
     check_session_access(session, current_user.id, db, require_owner=True)
 
     # Look up user by email
-    target_user = db.query(User).filter(User.email == email_data.email).first()
+    target_user = find_user_by_email(db, email_data.email)
 
     if not target_user:
         return UserExistsResponse(
@@ -616,7 +617,7 @@ async def share_session(
         )
 
     # Look up user by email
-    target_user = db.query(User).filter(User.email == share_data.email).first()
+    target_user = find_user_by_email(db, share_data.email)
 
     if not target_user:
         raise HTTPException(status_code=404, detail="User not found")
@@ -950,7 +951,7 @@ async def send_invitation(
     check_session_access(session, current_user.id, db, require_owner=True)
 
     # Verify user doesn't already exist
-    existing_user = db.query(User).filter(User.email == invitation_data.email).first()
+    existing_user = find_user_by_email(db, invitation_data.email)
     if existing_user:
         raise HTTPException(
             status_code=400,
@@ -960,7 +961,7 @@ async def send_invitation(
     # Create pending invitation
     # Check if invitation already exists for this email/session combo
     existing_invitation = db.query(PendingInvitation).filter(
-        PendingInvitation.email == invitation_data.email,
+        func.lower(PendingInvitation.email) == invitation_data.email,
         PendingInvitation.session_id == session_id
     ).first()
 

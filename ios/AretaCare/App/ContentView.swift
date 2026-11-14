@@ -5,9 +5,40 @@ struct ContentView: View {
     @State private var authManager = AuthManager.shared
     @State private var subscriptionManager = SubscriptionManager.shared
     @State private var isSigningOut = false
+    @State private var noticeModel = AppNoticeViewModel()
+    @Environment(\.scenePhase) private var scenePhase
     private let biometricManager = BiometricManager.shared
 
     var body: some View {
+        // Admin-published notice (breach notification channel): every signed-in screen,
+        // including the AI consent gate and the paywall. Stacked above the content rather than
+        // in a safe-area inset: a tab's UINavigationController lays its bar out against the
+        // window and ignores SwiftUI insets, so an inset banner covered the navigation title.
+        VStack(spacing: 0) {
+            if authManager.isAuthenticated, !authManager.isLoading, let notice = noticeModel.visibleNotice {
+                AppNoticeBanner(notice: notice) { noticeModel.dismiss() }
+            }
+            screen
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+        .task(id: authManager.isAuthenticated) {
+            if authManager.isAuthenticated {
+                await noticeModel.refresh(force: true)
+            } else {
+                noticeModel.reset()
+            }
+        }
+        .onChange(of: scenePhase) { _, phase in
+            guard phase == .active, authManager.isAuthenticated else { return }
+            Task { await noticeModel.refresh() }
+        }
+        // The biometric lock and privacy shield render in a dedicated window
+        // above all presented sheets (see Core/Security/PrivacyShieldWindow.swift).
+        .accessibilityHidden(biometricManager.isLocked)
+    }
+
+    @ViewBuilder
+    private var screen: some View {
         Group {
             if authManager.isLoading {
                 loadingView
@@ -45,9 +76,6 @@ struct ContentView: View {
                     .transition(.identity)
             }
         }
-        // The biometric lock and privacy shield render in a dedicated window
-        // above all presented sheets (see Core/Security/PrivacyShieldWindow.swift).
-        .accessibilityHidden(biometricManager.isLocked)
     }
 
     // MARK: - Session Unavailable (transient)

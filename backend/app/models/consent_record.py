@@ -58,6 +58,41 @@ CONSENT_VERSIONS = {
 }
 
 
+# iOS sign-up screens hard-code the registration texts, so an iOS build older than
+# IOS_CURRENT_REGISTRATION_TEXT_SINCE still shows the text below, and a consent record has to
+# store what the person actually saw. Web always ships with the server, so it never needs this.
+# Delete the entry (and this mechanism) once Sentry's release breakdown shows no iOS builds
+# below 2.0.0 in use.
+IOS_CURRENT_REGISTRATION_TEXT_SINCE = (2, 0, 0)
+LEGACY_IOS_REGISTRATION_CONSENTS = {
+    ConsentType.DATA_PROCESSING: {
+        "version": "1.1",
+        "text": "I consent to the collection, storage, and processing of my information as described in the Privacy Policy, including processing by OpenAI's AI systems to help organize, summarize, and interpret content."
+    },
+}
+
+
+def _parse_app_version(value):
+    """'2.0.0' -> (2, 0, 0); None for a missing or malformed value."""
+    try:
+        return tuple(int(part) for part in (value or "").strip().split("."))
+    except ValueError:
+        return None
+
+
+def registration_consent(consent_type, client_type=None, app_version=None):
+    """The version and text of a sign-up consent as the registering client displayed it.
+
+    `client_type` and `app_version` are the X-Client-Type and X-App-Version request headers.
+    iOS builds before 1.0.9 send no version, and they show the legacy text too.
+    """
+    if (client_type or "").lower() == "ios" and consent_type in LEGACY_IOS_REGISTRATION_CONSENTS:
+        version = _parse_app_version(app_version)
+        if version is None or version < IOS_CURRENT_REGISTRATION_TEXT_SINCE:
+            return LEGACY_IOS_REGISTRATION_CONSENTS[consent_type]
+    return CONSENT_VERSIONS[consent_type]
+
+
 class ConsentRecord(Base):
     """Records user consent for compliance and audit purposes."""
     __tablename__ = "consent_records"

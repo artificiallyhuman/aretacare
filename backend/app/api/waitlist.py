@@ -9,9 +9,9 @@ import logging
 
 from app.core.database import get_db
 from app.core.config import settings
+from app.core.email_address import find_user_by_email
 from app.core.rate_limit import limiter, RateLimits
 from app.models.waitlist import WaitlistEntry
-from app.models.user import User
 from app.schemas.waitlist import (
     WaitlistJoinRequest,
     WaitlistJoinResponse,
@@ -95,7 +95,7 @@ async def join_waitlist(
         user_message = html.escape(data.message.strip())[:1000]
 
     # Check if already a registered user
-    existing_user = db.query(User).filter(User.email == email).first()
+    existing_user = find_user_by_email(db, email)
     if existing_user:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,

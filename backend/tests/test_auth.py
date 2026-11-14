@@ -204,6 +204,39 @@ def test_registration_records_every_consent_with_its_current_text_and_ip(client,
     assert "health information" in records[ConsentType.DATA_PROCESSING].consent_text
 
 
+@pytest.mark.parametrize("app_version, expected_version", [
+    (None, "1.1"),        # iOS builds before 1.0.9 send no version
+    ("1.0.9", "1.1"),
+    ("1.12.3", "1.1"),
+    ("2.0.0", None),      # None: the current text
+    ("2.1", None),
+])
+def test_ios_registration_records_the_text_that_build_showed(client, db, open_signups, app_version, expected_version):
+    from app.models.consent_record import LEGACY_IOS_REGISTRATION_CONSENTS
+
+    email = f"test-signup-{uuid.uuid4().hex[:12]}@example.com"
+    open_signups.append(email)
+    headers = {"X-Client-Type": "ios"}
+    if app_version:
+        headers["X-App-Version"] = app_version
+
+    response = _register(client, email, headers=headers)
+    assert response.status_code == 201, response.text
+
+    user = db.query(User).filter(User.email == email).one()
+    records = {r.consent_type: r for r in db.query(ConsentRecord).filter(ConsentRecord.user_id == user.id)}
+    expected = (
+        LEGACY_IOS_REGISTRATION_CONSENTS[ConsentType.DATA_PROCESSING]
+        if expected_version else CONSENT_VERSIONS[ConsentType.DATA_PROCESSING]
+    )
+    assert records[ConsentType.DATA_PROCESSING].consent_version == expected["version"]
+    assert records[ConsentType.DATA_PROCESSING].consent_text == expected["text"]
+    if expected_version:
+        assert expected["version"] == expected_version
+    # Checkboxes whose wording didn't change are recorded as current on every build.
+    assert records[ConsentType.AGE_USE].consent_text == CONSENT_VERSIONS[ConsentType.AGE_USE]["text"]
+
+
 def test_a_failed_consent_write_leaves_no_user_behind(client, db, open_signups, monkeypatch):
     from app.api import auth as auth_api
 
@@ -219,3 +252,92 @@ def test_a_failed_consent_write_leaves_no_user_behind(client, db, open_signups, 
 
     db.expire_all()
     assert db.query(User).filter(User.email == email).first() is None
+
+
+# --- email addresses ignore case ------------------------------------------------
+#
+# iOS lowercases the address before sending it; the web sends it as typed. Accounts
+# created before addresses were normalized can hold mixed case, so every lookup has to
+# match regardless of case or a web sign-up can't sign in on iOS.
+
+def _mixed_case(email):
+    local, _, domain = email.partition("@")
+    return f"{local[:1].upper()}{local[1:]}@{domain.upper()}"
+
+
+def test_login_ignores_case_for_an_account_stored_in_mixed_case(client, db, alice):
+    stored = _mixed_case(alice.email)
+    db.query(User).filter(User.id == alice.user_id).update({"email": stored})
+    db.commit()
+
+    for typed in (alice.email, stored, alice.email.upper()):
+        response = client.post(
+            "/api/auth/login", json={"email": typed, "password": alice.password}, headers=NATIVE
+        )
+        assert response.status_code == 200, (typed, response.text)
+        assert response.json()["user"]["email"] == stored
+
+
+def test_registration_stores_the_address_lowercased_and_matches_case_variants(client, db, open_signups):
+    email = f"test-signup-{uuid.uuid4().hex[:12]}@example.com"
+    open_signups.append(email)
+
+    first = _register(client, _mixed_case(email))
+    assert first.status_code == 201, first.text
+    assert db.query(User).filter(User.email == email).count() == 1
+
+    # A second sign-up in another case gets the same answer (no account enumeration)
+    # and creates nothing.
+    second = _register(client, email.upper())
+    assert second.status_code == 201, second.text
+    assert second.json() == first.json()
+    from sqlalchemy import func
+    assert db.query(User).filter(func.lower(User.email) == email).count() == 1
+
+
+def test_failed_logins_in_any_case_count_toward_one_lockout(client, db, alice):
+    from app.models.security_log import SecurityLog
+
+    client.post("/api/auth/login", json={"email": alice.email.upper(), "password": "wrong-password-1"})
+    client.post("/api/auth/login", json={"email": _mixed_case(alice.email), "password": "wrong-password-2"})
+
+    failures = db.query(SecurityLog).filter(
+        SecurityLog.event_type == "failed_login", SecurityLog.email == alice.email
+    ).count()
+    assert failures == 2
+
+
+def test_sharing_finds_a_collaborator_whatever_case_is_typed(client, alice, bob):
+    response = client.post(
+        f"/api/sessions/{alice.session_id}/check-user",
+        json={"email": bob.email.upper()},
+        headers=alice.auth_headers(client),
+    )
+    assert response.status_code == 200, response.text
+    assert response.json()["exists"] is True
+
+
+def test_accounts_differing_only_by_case_resolve_to_the_lowercase_one(db):
+    from app.core.auth import get_password_hash
+    from app.core.email_address import find_user_by_email
+
+    email = f"test-dup-{uuid.uuid4().hex[:12]}@example.com"
+    accounts = []
+    for stored in (_mixed_case(email), email.upper(), email):  # oldest first
+        user = User(name="Test Duplicate", email=stored, password_hash=get_password_hash(TEST_PASSWORD))
+        db.add(user)
+        db.commit()
+        accounts.append(user)
+    oldest, _, lowercase = accounts
+    try:
+        assert find_user_by_email(db, email.upper()).id == lowercase.id
+        db.delete(lowercase)
+        db.commit()
+        # Without a lowercase account, the oldest wins.
+        assert find_user_by_email(db, email).id == oldest.id
+        assert find_user_by_email(db, f"test-nobody-{uuid.uuid4().hex[:8]}@example.com") is None
+    finally:
+        db.rollback()
+        from sqlalchemy import func
+        db.query(User).filter(func.lower(User.email) == email).delete(synchronize_session=False)
+        db.commit()

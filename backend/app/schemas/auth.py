@@ -1,6 +1,8 @@
-from pydantic import BaseModel, EmailStr, Field, field_validator
+from pydantic import BaseModel, Field, field_validator
 from datetime import datetime
 import re
+
+from app.core.email_address import NormalizedEmail
 
 # Display-name validator. Allows Unicode letters/digits, whitespace, and a small
 # set of common punctuation (apostrophes, hyphens, dots, commas, parentheses).
@@ -34,7 +36,7 @@ def _validate_display_name(value: str) -> str:
 class UserRegister(BaseModel):
     """Schema for user registration."""
     name: str = Field(..., min_length=1, max_length=80)
-    email: EmailStr
+    email: NormalizedEmail
     password: str = Field(..., min_length=8, max_length=72)
 
     @field_validator("name")
@@ -51,7 +53,7 @@ class UserRegister(BaseModel):
 
 class UserLogin(BaseModel):
     """Schema for user login."""
-    email: EmailStr
+    email: NormalizedEmail
     password: str
 
 
@@ -106,7 +108,7 @@ class UpdateName(BaseModel):
 
 class UpdateEmail(BaseModel):
     """Schema for updating user email."""
-    email: EmailStr
+    email: NormalizedEmail
     current_password: str
 
 
@@ -123,7 +125,7 @@ class DeleteAccount(BaseModel):
 
 class PasswordResetRequest(BaseModel):
     """Schema for requesting password reset."""
-    email: EmailStr
+    email: NormalizedEmail
 
 
 class PasswordReset(BaseModel):
@@ -140,7 +142,7 @@ class RegistrationResponse(BaseModel):
 
 class ResendVerificationRequest(BaseModel):
     """Schema for requesting verification email resend."""
-    email: EmailStr
+    email: NormalizedEmail
 
 
 class MFARequiredResponse(BaseModel):

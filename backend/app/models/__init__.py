@@ -27,6 +27,7 @@ from app.models.journal_entry_embedding import JournalEntryEmbedding
 from app.models.device_token import DeviceToken
 from app.models.email_campaign import EmailCampaign, EmailCampaignRecipient
 from app.models.talk_session import TalkSession, TalkStatus
+from app.models.app_notice import AppNotice
 
 __all__ = [
     "User", "Session", "SessionCollaborator", "PendingInvitation", "Document", "DocumentCategory",
@@ -36,5 +37,5 @@ __all__ = [
     "UserPasskey", "UserTOTPSecret", "UserBackupCode", "TrustedDevice", "MFAChallenge",
     "ConsentRecord", "ConsentType", "CONSENT_VERSIONS", "UserSessionColor",
     "JournalEntryEmbedding", "DeviceToken", "EmailCampaign", "EmailCampaignRecipient",
-    "TalkSession", "TalkStatus"
+    "TalkSession", "TalkStatus", "AppNotice"
 ]

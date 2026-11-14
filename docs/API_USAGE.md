@@ -12,6 +12,8 @@ Interactive docs: `/docs` (Swagger) or `/redoc` (ReDoc)
 
 JWT-based auth with access tokens (1 hour) + refresh tokens (7 days max, session cookie that expires on browser close). iOS clients receive tokens in the response body (stored in Keychain) via the `X-Client-Type: ios` header.
 
+Email addresses are case-insensitive everywhere (sign-up, sign-in, password reset, sharing, invitations): the server trims and lowercases every email it receives, and new accounts are stored lowercase.
+
 ### Register
 ```bash
 POST /api/auth/register
@@ -165,8 +167,9 @@ require step-up: `POST /admin/users/{id}/reset-password`, `POST /admin/users/{id
 `DELETE /admin/users/{id}`, `POST /admin/users/{id}/tokens/revoke-all`,
 `DELETE /admin/tokens/{id}`, `POST /admin/sessions/{id}/transfer`,
 `DELETE /admin/sessions/{id}`, `DELETE /admin/s3/orphans`,
-`POST /admin/accounts/inactive/email`, and `POST /admin/email/campaigns` (create and
-`/resume`). They return the same `403 MFA_REQUIRED` shape without a token.
+`POST /admin/accounts/inactive/email`, `POST /admin/email/campaigns` (create and
+`/resume`), and `POST /admin/notices` (publish and `/end`). They return the same
+`403 MFA_REQUIRED` shape without a token.
 
 Clients that understand `MFA_REQUIRED` never surface the message — they present their
 step-up UI and replay the call with a token. For that reason the message sent to iOS callers
@@ -584,6 +587,26 @@ Rate limited: 20/hour (Admin Email).
 Campaign `status`: `pending | sending | stalled | completed | completed_with_errors | failed`
 (`stalled` = the sending instance died; resume finishes only pending recipients — sent ones
 are never re-emailed).
+
+## In-App Notice
+
+One admin-published notice at a time, shown to every signed-in user (web banner; iOS 2.0.0+
+banner that opens the full text). It is the breach-notification channel next to email
+(`docs/BREACH_RESPONSE.md`).
+
+```bash
+GET  /api/notice                     # Authenticated, any user. {"notice": {id, title, body, link_url,
+                                     # link_label, created_at}} or {"notice": null}. No AI-consent or
+                                     # subscription gate.
+GET  /api/admin/notices              # Admin. Every notice ever published, newest first (max 100)
+POST /api/admin/notices              # Admin, step-up. Publish; ends the active one. Returns 201.
+POST /api/admin/notices/{id}/end     # Admin, step-up. Stop showing it. 409 if already ended.
+```
+
+Publish body: `{"title": "...", "body": "...", "link_url": "https://aretacare.com/...", "link_label": "Learn more"}`.
+Title ≤ 120 chars, body ≤ 2,000, plain text. `link_url` is optional and must be `https://` on
+aretacare.com or a subdomain (a notice reaches every user, so it can't link elsewhere);
+`link_label` defaults to "Learn more". Rows are never deleted. Rate limited: 10/hour (Admin Sensitive).
 
 ## Email Preferences & Unsubscribe
 

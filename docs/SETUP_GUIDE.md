@@ -229,10 +229,10 @@ New journal entries are automatically embedded on creation. The backfill is only
 
 ### iOS Pre-Deploy
 - Replace `TEAMID` in `frontend/public/.well-known/apple-app-site-association` with your actual Apple Team ID
-- Replace placeholder SSL pinning hashes in `ios/AretaCare/Core/Networking/CertificatePinningDelegate.swift` with actual production certificate public key hashes. Generate with:
+- Certificate pins (`ios/AretaCare/Core/Networking/CertificatePinningDelegate.swift`) are the root keys of the authorities Cloudflare issues the API certificate from, so certificate renewals need no change. Check that the live chain still ends in one of them (the root hash below must appear in the file):
   ```bash
-  openssl s_client -connect aretacare.com:443 </dev/null 2>/dev/null | \
-    openssl x509 -pubkey -noout | \
-    openssl pkey -pubin -outform der | \
-    openssl dgst -sha256 -binary | base64
+  openssl s_client -connect api.aretacare.com:443 -servername api.aretacare.com -showcerts </dev/null 2>/dev/null \
+    | awk '/-----BEGIN CERTIFICATE-----/{n++} {print > ("cert" n ".pem")}'
+  for f in cert[1-9]*.pem; do openssl x509 -in "$f" -noout -subject
+    openssl x509 -in "$f" -pubkey -noout | openssl pkey -pubin -outform der | openssl dgst -sha256 -binary | base64; done
   ```

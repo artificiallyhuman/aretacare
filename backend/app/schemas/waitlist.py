@@ -1,11 +1,13 @@
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel
 from datetime import datetime
 from typing import Optional, List
+
+from app.core.email_address import NormalizedEmail
 
 
 class WaitlistJoinRequest(BaseModel):
     """Schema for joining the waitlist."""
-    email: EmailStr
+    email: NormalizedEmail
     message: Optional[str] = None  # "Anything you want us to know"
     captcha_token: str | None = None  # hCaptcha token (required for web, skipped for iOS)
 
@@ -47,7 +49,7 @@ class WaitlistEntryResponse(BaseModel):
 
 class WaitlistAddRequest(BaseModel):
     """Schema for manually adding to waitlist (admin)."""
-    email: EmailStr
+    email: NormalizedEmail
 
 
 class WaitlistUpdateRequest(BaseModel):

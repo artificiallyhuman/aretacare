@@ -637,6 +637,22 @@ export const adminAPI = {
     api.get(`/admin/email/campaigns/${campaignId}`, { params: { include_recipients: includeRecipients } }),
   resumeEmailCampaign: (campaignId) =>
     api.post(`/admin/email/campaigns/${campaignId}/resume`),
+
+  // In-app notice (breach notification channel); publish and end take MFA step-up
+  listNotices: () => api.get('/admin/notices'),
+  publishNotice: ({ title, body, linkUrl, linkLabel }) =>
+    api.post('/admin/notices', {
+      title,
+      body,
+      link_url: linkUrl || null,
+      link_label: linkLabel || null,
+    }),
+  endNotice: (noticeId) => api.post(`/admin/notices/${noticeId}/end`),
+};
+
+// In-app notice shown to every signed-in user (authenticated)
+export const noticeAPI = {
+  getCurrent: () => api.get('/notice'),
 };
 
 // Feedback API

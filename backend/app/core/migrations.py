@@ -2562,3 +2562,26 @@ def run_migrations():
         except Exception as e:
             logger.error(f"Failed to backfill refresh token hashes: {e}")
             conn.rollback()
+
+        # Emails are matched without regard to case (core/email_address.py): lookups compare
+        # lower(users.email), so index that expression. Not unique: accounts created before
+        # normalization may differ only by case, and the unique index on users.email is
+        # case-sensitive. Logged on every start so such pairs stay visible until resolved.
+        try:
+            conn.execute(text(
+                "CREATE INDEX IF NOT EXISTS idx_users_email_lower ON users (lower(email))"
+            ))
+            conn.commit()
+            duplicate_groups = conn.execute(text(
+                "SELECT COUNT(*) FROM (SELECT lower(email) FROM users "
+                "GROUP BY lower(email) HAVING COUNT(*) > 1) AS d"
+            )).scalar()
+            if duplicate_groups:
+                logger.warning(
+                    f"{duplicate_groups} email address(es) belong to more than one account, "
+                    "differing only by case. Sign-in uses the lowercase (else oldest) account; "
+                    "see find_user_by_email."
+                )
+        except Exception as e:
+            logger.error(f"Failed to create users lower(email) index: {e}")
+            conn.rollback()

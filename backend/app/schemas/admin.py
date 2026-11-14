@@ -1,6 +1,8 @@
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, Field
 from datetime import datetime, date
 from typing import Optional, List, Any
+
+from app.core.email_address import NormalizedEmail
 
 
 # ==========================================
@@ -131,7 +133,7 @@ class PasswordResetByAdmin(BaseModel):
 
 class SessionTransfer(BaseModel):
     """Schema for transferring session ownership."""
-    new_owner_email: EmailStr
+    new_owner_email: NormalizedEmail
 
 
 class SessionTransferResponse(BaseModel):

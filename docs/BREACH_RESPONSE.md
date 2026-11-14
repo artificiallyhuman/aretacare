@@ -137,10 +137,20 @@ their primary contact method, and only when it is paired with **a second electro
 channel**: a text message, an in-app message, or an electronic banner.
 
 - **Email:** every account has a verified address; send through the existing SMTP setup.
-- **Second channel:**
-  - iOS push notifications, where enabled (`PUSH_NOTIFICATIONS_ENABLED`);
-  - a web page about the incident, linked from the site.
-  - *Known gap:* there is no admin-controlled in-app banner yet. Build one before it's needed: a short message shown on both clients after sign-in.
+- **Second channel: the in-app notice.** In the admin console, open **In-App Notice**, write
+  a short plain-text summary (title up to 120 characters, message up to 2,000), link it to
+  the incident page, review, and publish. It needs MFA step-up.
+  - Every signed-in user sees it: a banner on the web, and a banner that opens the full text
+    in the iOS app (version 2.0.0 and later). It also shows before AI consent and on the iOS
+    paywall, so people without a subscription see it too.
+  - The link must be an `https://` page on aretacare.com, so put the full notice on an
+    incident page there.
+  - Users can dismiss it. Publishing a new notice replaces the old one and shows to
+    everyone again. End it from the same page once it has run its course.
+  - Every notice is kept in the `app_notices` table, with who published and ended it and
+    when, and each action is in the admin audit log. Export those rows into the incident log.
+  - Also send iOS push notifications where they are enabled (`PUSH_NOTIFICATIONS_ENABLED`).
+    Older iOS builds don't show the notice, and push reaches people who don't open the app.
 - **Substitute notice:** if contact details are out of date for 10 or more people, post a
   conspicuous notice on the homepage for 90 days (or use major print or broadcast media
   where they live), with a toll-free number that stays active for at least 90 days.

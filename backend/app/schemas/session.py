@@ -1,7 +1,9 @@
-from pydantic import BaseModel, Field, EmailStr, field_validator
+from pydantic import BaseModel, Field, field_validator
 from datetime import datetime
 from typing import Optional, List
 import re
+
+from app.core.email_address import NormalizedEmail
 
 # Regex pattern for safe session names: alphanumeric, spaces, hyphens, underscores, apostrophes
 SESSION_NAME_PATTERN = re.compile(r"^[a-zA-Z0-9\s\-_']+$")
@@ -66,11 +68,11 @@ class SessionRename(BaseModel):
 
 class UserCheckRequest(BaseModel):
     """Request to check if a user exists (before sharing)"""
-    email: EmailStr = Field(..., description="Email to check")
+    email: NormalizedEmail = Field(..., description="Email to check")
 
 
 class SessionShareRequest(BaseModel):
-    email: EmailStr = Field(..., description="Email of the user to share the session with")
+    email: NormalizedEmail = Field(..., description="Email of the user to share the session with")
     confirm_sharing_consent: bool = Field(..., description="User confirms they have the right to share this session")
 
 

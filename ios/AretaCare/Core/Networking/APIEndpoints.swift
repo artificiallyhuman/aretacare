@@ -170,4 +170,9 @@ enum APIEndpoints {
     enum EmailPreferences {
         static let preferences = "/email/preferences"
     }
+
+    // MARK: - In-App Notice
+    enum Notices {
+        static let current = "/notice"
+    }
 }

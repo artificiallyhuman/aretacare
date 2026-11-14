@@ -8,6 +8,7 @@ import ErrorBoundary from './components/ErrorBoundary';
 import Header from './components/Header';
 import Footer from './components/Footer';
 import NetworkStatusBanner from './components/NetworkStatusBanner';
+import AppNoticeBanner from './components/AppNoticeBanner';
 import FeedbackTab from './components/FeedbackTab';
 import IdleTimeout from './components/IdleTimeout';
 import MFAStepUpProvider from './components/mfa/MFAStepUpProvider';
@@ -62,6 +63,7 @@ const AdminApiLogs = lazy(() => import('./pages/admin/AdminApiLogs'));
 const AdminHealth = lazy(() => import('./pages/admin/AdminHealth'));
 const AdminInvitations = lazy(() => import('./pages/admin/AdminInvitations'));
 const AdminEmail = lazy(() => import('./pages/admin/AdminEmail'));
+const AdminNotice = lazy(() => import('./pages/admin/AdminNotice'));
 
 // Loading fallback component for lazy-loaded routes
 const PageLoadingFallback = () => (
@@ -187,6 +189,7 @@ function AppContent() {
     <div className="h-full flex flex-col bg-gray-50 dark:bg-gray-900 transition-colors duration-200 overflow-hidden">
       <NetworkStatusBanner />
       {user && <Header onLogout={handleLogout} user={user} />}
+      {user && <AppNoticeBanner userId={user.id} />}
       {user && <FeedbackTab />}
       {user && <CollaborationAwarenessPopup />}
       <AIDataSharingConsentModal user={user} setUser={setUser} />
@@ -451,6 +454,14 @@ function AppContent() {
             element={
               <AdminRoute>
                 <AdminEmail />
+              </AdminRoute>
+            }
+          />
+          <Route
+            path="/admin/notice"
+            element={
+              <AdminRoute>
+                <AdminNotice />
               </AdminRoute>
             }
           />

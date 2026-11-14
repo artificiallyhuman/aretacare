@@ -410,7 +410,7 @@ const TermsOfService = () => {
                 set out these commitments in full.
               </p>
               <p className="text-gray-700 dark:text-gray-300 leading-relaxed text-base">
-                You retain full control over your data and can delete it at any time from Settings. When you delete your data, it is removed from our database and file storage immediately; copies in our providers' automatic backups are deleted on their backup schedules (see Privacy Policy Section 8).
+                You retain full control over your data and can delete it at any time from Settings. When you delete your data, it is removed from our database and file storage immediately; copies in our automatic database backups are deleted within 7 days (see Privacy Policy Section 8).
               </p>
             </div>
           </section>

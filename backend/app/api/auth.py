@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Request, Response, Cookie, Query
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from sqlalchemy import func
 from sqlalchemy.orm import Session as DBSession
 from pydantic import BaseModel
 from typing import Optional
@@ -17,12 +18,13 @@ from app.core.auth import (
 )
 from app.core.config import settings
 from app.core.client_ip import client_ip_for_record
+from app.core.email_address import find_user_by_email
 from app.core.rate_limit import limiter, RateLimits
 from app.models.user import User
 from app.models.session import Session
 from app.models.document import Document
 from app.models.audio_recording import AudioRecording
-from app.models.consent_record import ConsentRecord, ConsentType, CONSENT_VERSIONS
+from app.models.consent_record import ConsentRecord, ConsentType, CONSENT_VERSIONS, registration_consent
 from app.schemas.auth import (
     UserRegister, UserLogin, TokenResponse, UserResponse,
     UpdateName, UpdateEmail, UpdatePassword, DeleteAccount,
@@ -358,7 +360,7 @@ def register(request: Request, response: Response, user_data: UserRegister, db: 
         if not waitlist_entry:
             collaboration_invitation = db.query(PendingInvitation).filter(
                 PendingInvitation.token == user_data.invitation_token,
-                PendingInvitation.email == user_data.email
+                func.lower(PendingInvitation.email) == user_data.email
             ).first()
 
             if not collaboration_invitation:
@@ -383,7 +385,7 @@ def register(request: Request, response: Response, user_data: UserRegister, db: 
             )
 
     # Check if user already exists
-    existing_user = db.query(User).filter(User.email == user_data.email).first()
+    existing_user = find_user_by_email(db, user_data.email)
     if existing_user:
         # Return identical response to prevent account enumeration
         # Log for admin visibility but don't reveal to the caller
@@ -434,9 +436,14 @@ def register(request: Request, response: Response, user_data: UserRegister, db: 
         (ConsentType.AGE_USE, user_data.acknowledge_age_and_use),
     ]
 
+    # Record the text this client displayed: an older iOS build still shows the previous
+    # wording of some checkboxes (see LEGACY_IOS_REGISTRATION_CONSENTS).
+    client_type = request.headers.get("X-Client-Type")
+    app_version = request.headers.get("X-App-Version")
+
     for consent_type, consented in consent_mappings:
         if consented:
-            consent_info = CONSENT_VERSIONS[consent_type]
+            consent_info = registration_consent(consent_type, client_type, app_version)
             consent_record = ConsentRecord(
                 user_id=new_user.id,
                 consent_type=consent_type,
@@ -456,7 +463,7 @@ def register(request: Request, response: Response, user_data: UserRegister, db: 
     from app.models.session_collaborator import SessionCollaborator
 
     pending_invitations = db.query(PendingInvitation).filter(
-        PendingInvitation.email == user_data.email
+        func.lower(PendingInvitation.email) == user_data.email
     ).all()
 
     # If an invitation token was provided, validate it
@@ -620,7 +627,7 @@ def login(
             return "Incorrect email or password"
 
     # Find user by email
-    user = db.query(User).filter(User.email == user_data.email).first()
+    user = find_user_by_email(db, user_data.email)
     if not user:
         # Log failed login attempt
         security_service.log_failed_login(
@@ -990,10 +997,7 @@ def resend_verification(
     Rate limited to 1 request per minute per email.
     """
     # Find unverified user by email
-    user = db.query(User).filter(
-        User.email == data.email,
-        User.is_email_verified == False
-    ).first()
+    user = find_user_by_email(db, data.email, User.is_email_verified == False)
 
     if not user:
         # Don't reveal whether email exists or is already verified
@@ -1117,7 +1121,7 @@ def request_email_change(
         )
 
     # Check if new email is already taken by another user
-    existing_user = db.query(User).filter(User.email == data.email).first()
+    existing_user = find_user_by_email(db, data.email)
     if existing_user and existing_user.id != current_user.id:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -1184,7 +1188,7 @@ def verify_email_change(
 
     # Check if pending email still doesn't exist for another user
     if user.pending_email:
-        existing_user = db.query(User).filter(User.email == user.pending_email).first()
+        existing_user = find_user_by_email(db, user.pending_email)
         if existing_user and existing_user.id != user.id:
             # Clear the pending change
             user.pending_email = None
@@ -1373,7 +1377,7 @@ async def delete_account(
 def request_password_reset(request: Request, data: PasswordResetRequest, db: DBSession = Depends(get_db)):
     """Request a password reset token and send email."""
     # Find user by email
-    user = db.query(User).filter(User.email == data.email).first()
+    user = find_user_by_email(db, data.email)
 
     # Don't reveal if user exists or not (security best practice)
     if not user:
