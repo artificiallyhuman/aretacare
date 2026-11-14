@@ -14,6 +14,7 @@ struct ConversationCoachView: View {
     @State private var audioRecorder = AudioRecorderManager()
     @State private var isTranscribing = false
     @State private var showingMicPermissionAlert = false
+    @State private var showingStartFailedAlert = false
 
     var body: some View {
         ScrollView {
@@ -225,6 +226,11 @@ struct ConversationCoachView: View {
         } message: {
             Text("Please allow microphone access in Settings to record audio.")
         }
+        .alert("Couldn't Start Recording", isPresented: $showingStartFailedAlert) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text("The microphone may be in use by a call or another app. Try again in a moment.")
+        }
         .navigationBarTitleDisplayMode(.inline)
         .onDisappear {
             // The transcription poll can wait for minutes; don't leave it
@@ -253,10 +259,11 @@ struct ConversationCoachView: View {
         Task {
             let granted = await audioRecorder.requestPermission()
             if granted {
-                isRecordingAudio = true
-                audioRecorder.start(maxDuration: AppConstants.maxRecordingDuration) {
+                let started = audioRecorder.start(maxDuration: AppConstants.maxRecordingDuration) {
                     stopRecordingAndTranscribe()
                 }
+                isRecordingAudio = started
+                if !started { showingStartFailedAlert = true }
             } else {
                 showingMicPermissionAlert = true
             }

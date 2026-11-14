@@ -148,6 +148,7 @@
 		EC10CA6120F3B9D21A116F94 /* MessageInputView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C6A1A2CF990659EEFBAB94E8 /* MessageInputView.swift */; };
 		EED4EE3ED4317321FEC0CACF /* TempFileCleanup.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB4C47D683D1A2C54DCA978F /* TempFileCleanup.swift */; };
 		EF8EC77E447DF4973ED617D6 /* CollaborationAwarenessPopup.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1F79AAF5ABE2DAD5BAE0CDF3 /* CollaborationAwarenessPopup.swift */; };
+		F23100277148165A14285AF2 /* PendingRecordingStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6CA55E69387DA92A3A87A534 /* PendingRecordingStore.swift */; };
 		F2D303643CBB165FB51B0D23 /* VerifyEmailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6DC39C7FF0A02AB3D5426E79 /* VerifyEmailView.swift */; };
 		F30BA5FE71DD743CCE096DE3 /* View+Conditional.swift in Sources */ = {isa = PBXBuildFile; fileRef = C2083E82CCDFD8984697A1E9 /* View+Conditional.swift */; };
 		FCD3FABC9F15108BF9E7C82D /* MarkdownTheme+AretaCare.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2806A2EDE3883CAA07074772 /* MarkdownTheme+AretaCare.swift */; };
@@ -207,6 +208,7 @@
 		671E3C9F5D612BE9DC06C9C0 /* SessionViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionViewModel.swift; sourceTree = "<group>"; };
 		698CFD852FE80B39B88B220F /* DocumentsListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DocumentsListView.swift; sourceTree = "<group>"; };
 		69BF67EAF7BBEB886B6385F9 /* WebRTCTalkTransport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebRTCTalkTransport.swift; sourceTree = "<group>"; };
+		6CA55E69387DA92A3A87A534 /* PendingRecordingStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PendingRecordingStore.swift; sourceTree = "<group>"; };
 		6DC39C7FF0A02AB3D5426E79 /* VerifyEmailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VerifyEmailView.swift; sourceTree = "<group>"; };
 		6E4B5DBE48781DB7A771D1CB /* Date+Formatting.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Date+Formatting.swift"; sourceTree = "<group>"; };
 		7096E6F01BE165BB0D4733BF /* MFAVerifyView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MFAVerifyView.swift; sourceTree = "<group>"; };
@@ -349,6 +351,7 @@
 				E6F8F2C9265DEF176EFB714E /* AudioRecorderManager.swift */,
 				124701936AF06F95EC71E3C6 /* AudioSessionManager.swift */,
 				5FA9437C916BDF08F6DC3D50 /* NowPlayingManager.swift */,
+				6CA55E69387DA92A3A87A534 /* PendingRecordingStore.swift */,
 				3B98AA56D872032D01D5C59A /* WaveformBar.swift */,
 			);
 			path = Audio;
@@ -1189,6 +1192,7 @@
 				298E62B62F6A968E21DB2013 /* NotificationRouter.swift in Sources */,
 				E04AC0715A92EEAD2A5F27DB /* NowPlayingManager.swift in Sources */,
 				015A922D623B453D1FB51C8C /* PasskeyAuthManager.swift in Sources */,
+				F23100277148165A14285AF2 /* PendingRecordingStore.swift in Sources */,
 				E513A4C0CB402F7D1C6E732F /* PhotosPickerItem+UploadableImage.swift in Sources */,
 				41ECF1AEEF2E3C1B766BDBCD /* PrivacyShieldView.swift in Sources */,
 				419CAE32B059E84E5974C129 /* PrivacyShieldWindow.swift in Sources */,

@@ -43,6 +43,11 @@ struct MainTabView: View {
                     NavigationStack {
                         ToolsMenuView(sessionVM: sessionVM)
                     }
+                    // A care-session change resets Tools to its menu. A screen left open
+                    // kept the previous session's data in its own state while its session
+                    // id followed the switch, so a Health Profile section loaded from one
+                    // care session could be saved into another.
+                    .id(currentSessionId)
                     .tag(2)
                     .tabItem {
                         Label("Tools", systemImage: "wrench.and.screwdriver")
@@ -92,6 +97,7 @@ struct MainTabView: View {
         }
         .task(id: currentSessionId) {
             guard !currentSessionId.isEmpty else { return }
+            digestBadgeVM.show(sessionId: currentSessionId)
             await digestBadgeVM.fetchAll(sessionId: currentSessionId)
             // If already on Digest tab, mark as viewed immediately
             if activeTab == 1, digestBadgeVM.hasUnviewedDigest,
@@ -105,6 +111,7 @@ struct MainTabView: View {
             // first 30-minute sleep meant a digest was never generated unless the app
             // stayed open that long, since the loop does not run while suspended.
             guard !currentSessionId.isEmpty else { return }
+            digestBadgeVM.show(sessionId: currentSessionId)
             try? await Task.sleep(for: .seconds(5))
             while !Task.isCancelled {
                 await digestBadgeVM.autoGenerateIfDue(sessionId: currentSessionId)
@@ -123,6 +130,12 @@ struct MainTabView: View {
         }
         .onChange(of: notificationRouter.pendingSessionId) { _, sessionId in
             guard let sessionId else { return }
+            // Not mid-recording: a recording is uploaded to the care session it was made
+            // in, and switching would tear down a recorder open in Tools.
+            if AudioRecorderManager.isRecordingInProgress {
+                notificationRouter.clearPendingRoute()
+                return
+            }
             if sessionVM.currentSession?.id != sessionId,
                let session = sessionVM.sessions.first(where: { $0.id == sessionId }) {
                 sessionVM.switchSession(to: session)

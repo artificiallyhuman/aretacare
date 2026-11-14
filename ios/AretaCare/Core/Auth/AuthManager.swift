@@ -242,6 +242,11 @@ final class AuthManager {
         // must not silently disable the lock.
         UserDefaults.standard.removeObject(forKey: "biometricLockEnabled")
 
+        // Recordings whose upload failed are health data held only on this device. Kept
+        // through `forceLogout` (an expired session, after which the same person signs back
+        // in), deleted when someone chooses to sign out.
+        PendingRecordingStore.shared.removeAll()
+
         // Now safe to clear tokens — views are dismounting.
         startupErrorMessage = nil
         await AuthInterceptor.shared.clearAccessToken()

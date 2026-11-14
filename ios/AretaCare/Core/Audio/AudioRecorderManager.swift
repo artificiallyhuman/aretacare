@@ -11,6 +11,11 @@ final class AudioRecorderManager: NSObject, AVAudioRecorderDelegate {
 
     private(set) var isRecording = false
     private(set) var isPaused = false
+
+    /// True from a successful `start` until the recording is stopped (paused counts as in
+    /// progress). Navigation that would change care session checks it, because a recording
+    /// is uploaded to the session it was made in.
+    private(set) static var isRecordingInProgress = false
     private(set) var elapsedTime: TimeInterval = 0
     private(set) var audioLevel: Float = 0
 
@@ -18,7 +23,9 @@ final class AudioRecorderManager: NSObject, AVAudioRecorderDelegate {
     /// confirms the upload landed — reading the bytes into memory and deleting
     /// the file immediately meant a background-task expiry mid-upload destroyed
     /// the only copy. The file is `.completeUnlessOpen`-protected and swept at
-    /// next launch by `TempFileCleanup` if it is never claimed.
+    /// next launch by `TempFileCleanup` if it is never claimed. Callers that upload take it
+    /// with `takeRecordingFile()` straight after `stopAsync()`, so a second recording made
+    /// while the first uploads can't be confused with it.
     private(set) var lastRecordingURL: URL?
 
     private var maxDuration: TimeInterval = AppConstants.maxRecordingDuration
@@ -37,7 +44,9 @@ final class AudioRecorderManager: NSObject, AVAudioRecorderDelegate {
         }
     }
 
-    func start(maxDuration: TimeInterval, onMaxDuration: @escaping () -> Void) {
+    /// Starts recording. Returns false when the microphone couldn't start (a phone call, or
+    /// another app holding the input): the caller must say so, not show a running timer.
+    func start(maxDuration: TimeInterval, onMaxDuration: @escaping () -> Void) -> Bool {
         self.maxDuration = maxDuration
         self.onMaxDuration = onMaxDuration
 
@@ -54,10 +63,19 @@ final class AudioRecorderManager: NSObject, AVAudioRecorderDelegate {
             AVEncoderAudioQualityKey: AVAudioQuality.high.rawValue
         ]
 
-        guard let recorder = try? AVAudioRecorder(url: tempURL, settings: settings) else { return }
+        guard let recorder = try? AVAudioRecorder(url: tempURL, settings: settings) else {
+            AudioSessionManager.shared.deactivate()
+            return false
+        }
         recorder.delegate = self
         recorder.isMeteringEnabled = true
-        recorder.record()
+        // record() reports whether capture actually began. Ignoring it showed a running
+        // timer over a recording that contained nothing.
+        guard recorder.record() else {
+            recorder.deleteRecording()
+            AudioSessionManager.shared.deactivate()
+            return false
+        }
 
         // Protect the recording at rest. Use completeUnlessOpen (not complete)
         // so recording can continue if the device locks — the app has the audio
@@ -73,8 +91,10 @@ final class AudioRecorderManager: NSObject, AVAudioRecorderDelegate {
         elapsedTime = 0
         audioLevel = 0
         meterTickCount = 0
+        Self.isRecordingInProgress = true
         setupInterruptionHandling()
         startTimer()
+        return true
     }
 
     func pause() {
@@ -85,8 +105,9 @@ final class AudioRecorderManager: NSObject, AVAudioRecorderDelegate {
         stopTimer()
     }
 
+    /// Stays paused if capture can't restart (the interruption is still holding the input).
     func resume() {
-        audioRecorder?.record()
+        guard audioRecorder?.record() == true else { return }
         isPaused = false
         isRecording = true
         meterTickCount = 0
@@ -126,6 +147,7 @@ final class AudioRecorderManager: NSObject, AVAudioRecorderDelegate {
         timeoutTask.cancel()
 
         audioRecorder = nil
+        Self.isRecordingInProgress = false
         AudioSessionManager.shared.deactivate()
 
         // Keep the file until the caller confirms the upload succeeded, then
@@ -134,6 +156,14 @@ final class AudioRecorderManager: NSObject, AVAudioRecorderDelegate {
         lastRecordingURL = fileURL
 
         return result
+    }
+
+    /// Hands over the file of the recording `stopAsync()` just finished and forgets it, so
+    /// `discardRecording()` can no longer delete it. The caller then deletes it after a
+    /// successful upload or keeps it in `PendingRecordingStore`.
+    func takeRecordingFile() -> URL? {
+        defer { lastRecordingURL = nil }
+        return lastRecordingURL
     }
 
     /// Deletes the retained on-disk recording. Call once the audio is safely
@@ -155,6 +185,7 @@ final class AudioRecorderManager: NSObject, AVAudioRecorderDelegate {
         isRecording = false
         isPaused = false
         audioRecorder = nil
+        Self.isRecordingInProgress = false
 
         AudioSessionManager.shared.deactivate()
 
@@ -209,6 +240,7 @@ final class AudioRecorderManager: NSObject, AVAudioRecorderDelegate {
         let data: Data? = flag ? (try? Data(contentsOf: recorder.url)) : nil
         Task { @MainActor in
             audioRecorder = nil
+            Self.isRecordingInProgress = false
             AudioSessionManager.shared.deactivate()
 
             if let continuation = stopContinuation {

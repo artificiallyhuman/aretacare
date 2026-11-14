@@ -7,6 +7,7 @@ struct AudioRecorderView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var recorder = AudioRecorderManager()
     @State private var showingPermissionAlert = false
+    @State private var showingStartFailedAlert = false
     @State private var showingCancelConfirmation = false
     @State private var isUploading = false
 
@@ -143,6 +144,11 @@ struct AudioRecorderView: View {
             } message: {
                 Text("Please allow microphone access in Settings to record audio.")
             }
+            .alert("Couldn't Start Recording", isPresented: $showingStartFailedAlert) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text("The microphone may be in use by a call or another app. Try again in a moment.")
+            }
         }
         // The upload returns once the recording is persisted (transcription
         // continues server-side) — without this the sheet sits on the idle
@@ -168,10 +174,11 @@ struct AudioRecorderView: View {
         Task {
             let granted = await recorder.requestPermission()
             if granted {
-                recorder.start(maxDuration: AppConstants.maxRecordingDuration) {
+                let started = recorder.start(maxDuration: AppConstants.maxRecordingDuration) {
                     // Auto-stop after max duration
                     stopAndUpload()
                 }
+                if !started { showingStartFailedAlert = true }
             } else {
                 showingPermissionAlert = true
             }
@@ -184,11 +191,18 @@ struct AudioRecorderView: View {
         Task {
             defer { isUploading = false }
             guard let audioData = await recorder.stopAsync() else { return }
+            let file = recorder.takeRecordingFile()
             let filename = "recording_\(Date().apiDateString)_\(Int(Date().timeIntervalSince1970)).m4a"
             // Hold the on-disk copy until the upload lands, so a suspended app
             // doesn't take the recording with it.
             if await viewModel.uploadRecording(sessionId: sessionId, audioData: audioData, filename: filename) {
-                recorder.discardRecording()
+                if let file { try? FileManager.default.removeItem(at: file) }
+            } else if let file {
+                // Kept on this device: the Audio Recordings screen under this sheet lists it
+                // with Upload and Discard, next to the upload error. It used to be left in
+                // the temporary directory with nothing pointing at it, and the next
+                // launch's sweep deleted it.
+                PendingRecordingStore.shared.keep(fileAt: file, sessionId: sessionId, filename: filename)
             }
             dismiss()
         }

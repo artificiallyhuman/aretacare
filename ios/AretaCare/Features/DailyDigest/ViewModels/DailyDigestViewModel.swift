@@ -7,8 +7,20 @@ final class DailyDigestViewModel {
     private(set) var allDigests: [DailyPlanResponse] = []
     private(set) var shouldGenerate = false
     private(set) var isLoading = false
-    private(set) var isGenerating = false
     private(set) var errorMessage: String?
+
+    /// The care session whose digests are shown. Only `show(sessionId:)` sets it. Every
+    /// method re-checks it after awaiting, so a digest fetched or generated for one care
+    /// session can't land in another's list (generating in A and switching to B used to
+    /// put A's new digest at the top of B's Digest screen).
+    private(set) var activeSessionId: String?
+
+    /// Care sessions with a generation in flight; `isGenerating` describes the one shown.
+    private var generatingSessionIds: Set<String> = []
+
+    var isGenerating: Bool {
+        activeSessionId.map { generatingSessionIds.contains($0) } ?? false
+    }
 
     private static let latestCache = ResponseCache<DailyPlanResponse>(ttl: 600) // 10 min
 
@@ -21,9 +33,24 @@ final class DailyDigestViewModel {
         return false
     }
 
+    // MARK: - Care Session
+
+    /// Shows a care session's digests, clearing the previous session's if it was different.
+    /// Call before loading, on first appearance and on every switch.
+    func show(sessionId: String) {
+        guard sessionId != activeSessionId else { return }
+        activeSessionId = sessionId
+        latestDigest = nil
+        allDigests = []
+        shouldGenerate = false
+        isLoading = false
+        errorMessage = nil
+    }
+
     // MARK: - Fetch Latest
 
     func fetchLatest(sessionId: String, forceRefresh: Bool = false) async {
+        guard sessionId == activeSessionId else { return }
         if !forceRefresh, let cached = Self.latestCache.get(sessionId) {
             latestDigest = cached
             return
@@ -31,23 +58,28 @@ final class DailyDigestViewModel {
 
         isLoading = true
         errorMessage = nil
-        defer { isLoading = false }
+        defer {
+            if sessionId == activeSessionId { isLoading = false }
+        }
 
         do {
             let digest: DailyPlanResponse? = try await APIClient.shared.get(
                 APIEndpoints.DailyPlans.latest(sessionId)
             )
-            latestDigest = digest
             if let digest {
                 Self.latestCache.set(digest, for: sessionId)
             }
+            guard sessionId == activeSessionId else { return }
+            latestDigest = digest
         } catch let error as APIError {
+            guard sessionId == activeSessionId else { return }
             if case .notFound = error {
                 latestDigest = nil
             } else if !isCancellation(error) {
                 errorMessage = error.localizedDescription
             }
         } catch {
+            guard sessionId == activeSessionId else { return }
             if !isCancellation(error) {
                 errorMessage = error.localizedDescription
             }
@@ -57,14 +89,17 @@ final class DailyDigestViewModel {
     // MARK: - Fetch All
 
     func fetchAll(sessionId: String) async {
+        guard sessionId == activeSessionId else { return }
         errorMessage = nil
 
         do {
             let response: DailyPlanListResponse = try await APIClient.shared.get(
                 APIEndpoints.DailyPlans.all(sessionId)
             )
+            guard sessionId == activeSessionId else { return }
             allDigests = response.plans
         } catch {
+            guard sessionId == activeSessionId else { return }
             if !isCancellation(error) {
                 errorMessage = error.localizedDescription
             }
@@ -77,12 +112,15 @@ final class DailyDigestViewModel {
     /// the Generate button, where allowing is harmless. The automatic path passes
     /// false: a transient error must not start an AI generation nobody asked for.
     func checkShouldGenerate(sessionId: String, failOpen: Bool = true) async {
+        guard sessionId == activeSessionId else { return }
         do {
             let response: DailyPlanCheckResponse = try await APIClient.shared.get(
                 APIEndpoints.DailyPlans.check(sessionId)
             )
+            guard sessionId == activeSessionId else { return }
             shouldGenerate = response.shouldGenerate
         } catch {
+            guard sessionId == activeSessionId else { return }
             shouldGenerate = failOpen
         }
     }
@@ -114,11 +152,13 @@ final class DailyDigestViewModel {
 
     // MARK: - Generate
 
+    /// Generates today's digest for a care session. If the user has switched away by the
+    /// time it is ready, it is saved for its own session and not shown here.
     func generate(sessionId: String) async {
-        isGenerating = true
-        errorMessage = nil
+        generatingSessionIds.insert(sessionId)
+        if sessionId == activeSessionId { errorMessage = nil }
         Self.latestCache.invalidate(sessionId)
-        defer { isGenerating = false }
+        defer { generatingSessionIds.remove(sessionId) }
 
         do {
             // "Today" is the user's local date; the server otherwise falls back to its
@@ -127,12 +167,14 @@ final class DailyDigestViewModel {
                 APIEndpoints.DailyPlans.generate(sessionId),
                 queryItems: [URLQueryItem(name: "user_date", value: Date().apiDateString)]
             )
-            latestDigest = digest
             Self.latestCache.set(digest, for: sessionId)
+            guard sessionId == activeSessionId else { return }
+            latestDigest = digest
             shouldGenerate = false
             // Prepend to history
             allDigests.insert(digest, at: 0)
         } catch {
+            guard sessionId == activeSessionId else { return }
             if !isCancellation(error) {
                 errorMessage = error.localizedDescription
             }
@@ -194,6 +236,7 @@ final class DailyDigestViewModel {
         // Capture sessionId before modifying state
         let sessionId = allDigests.first(where: { $0.id == planId })?.sessionId
             ?? latestDigest?.sessionId
+        let shownSessionId = activeSessionId
 
         do {
             try await APIClient.shared.delete(APIEndpoints.DailyPlans.delete(String(planId)))
@@ -205,6 +248,7 @@ final class DailyDigestViewModel {
                 Self.latestCache.invalidate(sessionId)
             }
         } catch {
+            guard shownSessionId == activeSessionId else { return }
             if !isCancellation(error) {
                 errorMessage = error.localizedDescription
             }

@@ -168,7 +168,7 @@ AretaCare implements comprehensive security measures:
 - **Care Session Name Validation**: Character restrictions (alphanumeric, spaces, hyphens, underscores, apostrophes only)
 - **Security Headers**: X-Content-Type-Options, X-Frame-Options, X-XSS-Protection, Referrer-Policy, Permissions-Policy, CSP
 - **Data at rest (iOS)**: Tokens in the Keychain (`ThisDeviceOnly`, never synced to iCloud); downloaded documents and exported health profiles written with complete file protection; temporary files swept at launch
-- **Logout Data Cleanup (iOS)**: All in-memory caches, image cache, and UserDefaults preferences cleared on logout to prevent data leakage on shared devices
+- **Logout Data Cleanup (iOS)**: All in-memory caches, image cache, UserDefaults preferences, and any recordings still waiting to upload are cleared on logout to prevent data leakage on shared devices
 - **Build Safety (iOS)**: Release builds crash if `API_BASE_URL` is not configured; the app also stops at launch if a certificate pin is malformed
 
 ### Push Notifications (iOS)

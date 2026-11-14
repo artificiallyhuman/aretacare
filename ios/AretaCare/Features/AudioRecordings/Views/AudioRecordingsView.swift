@@ -58,13 +58,17 @@ struct AudioRecordingsView: View {
                 Divider()
             }
 
-            Group {
+            // A VStack, not a Group: inside the HStack a Group laid the error banner out
+            // beside the list instead of above it.
+            VStack(spacing: 0) {
                 if let error = viewModel.errorMessage {
                     ErrorBannerView(message: error) {
                         viewModel.dismissError()
                     }
                     .padding(.top, 4)
                 }
+
+                PendingRecordingsCard(sessionId: sessionId, viewModel: viewModel)
 
                 if viewModel.isLoading && viewModel.recordings.isEmpty {
                     SkeletonListView()
@@ -178,6 +182,7 @@ struct AudioRecordingsView: View {
             }
         }
         .task {
+            PendingRecordingStore.shared.reload()
             await viewModel.fetchRecordings(sessionId: sessionId)
             await viewModel.fetchDates(sessionId: sessionId)
         }
@@ -825,3 +830,119 @@ private struct AudioRecordingDetailView: View {
     }
 }
 
+
+// MARK: - Recordings Not Yet Uploaded
+
+/// Recordings from this care session whose upload failed, kept on the device by
+/// `PendingRecordingStore` (from this screen's recorder or a chat voice message).
+private struct PendingRecordingsCard: View {
+    let sessionId: String
+    let viewModel: AudioRecordingsViewModel
+
+    @State private var uploadingId: String?
+
+    private var pending: [PendingRecording] {
+        PendingRecordingStore.shared.items(for: sessionId)
+    }
+
+    var body: some View {
+        if !pending.isEmpty {
+            VStack(alignment: .leading, spacing: 10) {
+                Label {
+                    Text(pending.count == 1 ? "1 recording not uploaded" : "\(pending.count) recordings not uploaded")
+                        .font(.subheadline.weight(.semibold))
+                } icon: {
+                    Image(systemName: "exclamationmark.icloud")
+                        .foregroundStyle(.orange)
+                }
+                Text("Saved only on this device until you upload it.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                ForEach(pending) { item in
+                    PendingRecordingRow(
+                        item: item,
+                        isUploading: uploadingId == item.id,
+                        uploadDisabled: uploadingId != nil || viewModel.isUploading,
+                        onUpload: { upload(item) }
+                    )
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(12)
+            .background(
+                RoundedRectangle(cornerRadius: 10)
+                    .fill(Color.orange.opacity(0.1))
+            )
+            .padding(.horizontal)
+            .padding(.top, 8)
+        }
+    }
+
+    private func upload(_ item: PendingRecording) {
+        guard uploadingId == nil else { return }
+        guard let data = PendingRecordingStore.shared.data(for: item) else {
+            viewModel.showError("This recording can't be read right now. Unlock your device and try again.")
+            return
+        }
+        uploadingId = item.id
+        Task {
+            defer { uploadingId = nil }
+            if await viewModel.uploadRecording(sessionId: sessionId, audioData: data, filename: item.filename) {
+                PendingRecordingStore.shared.remove(item)
+            }
+        }
+    }
+}
+
+/// One pending recording. Owns its discard confirmation so the dialog anchors to its button.
+private struct PendingRecordingRow: View {
+    let item: PendingRecording
+    let isUploading: Bool
+    let uploadDisabled: Bool
+    let onUpload: () -> Void
+
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    @State private var showingDiscardConfirmation = false
+
+    var body: some View {
+        let layout = dynamicTypeSize.isAccessibilitySize
+            ? AnyLayout(VStackLayout(alignment: .leading, spacing: 8))
+            : AnyLayout(HStackLayout(spacing: 12))
+        layout {
+            Text("Recorded \(item.recordedAt.formatted(date: .abbreviated, time: .shortened))")
+                .font(.subheadline)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            if isUploading {
+                ProgressView()
+                    .accessibilityLabel("Uploading")
+            } else {
+                HStack(spacing: 12) {
+                    Button("Discard") {
+                        showingDiscardConfirmation = true
+                    }
+                    .font(.subheadline)
+                    .tint(.red)
+                    .confirmationDialog(
+                        "Discard This Recording?",
+                        isPresented: $showingDiscardConfirmation,
+                        titleVisibility: .visible
+                    ) {
+                        Button("Discard", role: .destructive) {
+                            PendingRecordingStore.shared.remove(item)
+                        }
+                        Button("Keep", role: .cancel) {}
+                    } message: {
+                        Text("It hasn't been uploaded, so it can't be recovered.")
+                    }
+
+                    Button("Upload") {
+                        onUpload()
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.small)
+                    .disabled(uploadDisabled)
+                }
+            }
+        }
+    }
+}

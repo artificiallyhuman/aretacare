@@ -3,9 +3,9 @@ import SwiftUI
 struct ConversationAudioRecorderView: View {
     let recorder: AudioRecorderManager
     var onCancel: () -> Void
-    /// Returns true once the recording is safely on the server. Until then the
-    /// on-disk copy is kept so a failed upload doesn't lose it.
-    var onStop: (Data) async -> Bool
+    /// Receives the recording and its on-disk file, which the caller deletes once the
+    /// upload succeeds or keeps for a later upload if it fails.
+    var onStop: (Data, URL?) async -> Void
 
     @State private var sendTrigger = 0
     @State private var showingCancelConfirmation = false
@@ -94,10 +94,11 @@ struct ConversationAudioRecorderView: View {
     private func stopAndSend() {
         Task {
             guard let audioData = await recorder.stopAsync() else { return }
+            // Taken straight away: a second recording started while this one uploads
+            // would otherwise replace it as the recorder's last file.
+            let file = recorder.takeRecordingFile()
             sendTrigger += 1
-            if await onStop(audioData) {
-                recorder.discardRecording()
-            }
+            await onStop(audioData, file)
         }
     }
 }

@@ -133,13 +133,18 @@ struct DailyDigestView: View {
     // MARK: - Data Loading
 
     private func loadData(forceRefresh: Bool = false) async {
-        guard !sessionId.isEmpty else { return }
+        // Captured once: the computed `sessionId` follows the care session, which can
+        // change while these requests are in flight.
+        let sid = sessionId
+        guard !sid.isEmpty else { return }
+        viewModel.show(sessionId: sid)
 
         // Sequential fetches — concurrent async let mutations of @Observable
         // properties can cause SwiftUI to cancel the .refreshable task.
-        await viewModel.fetchAll(sessionId: sessionId)
-        await viewModel.fetchLatest(sessionId: sessionId, forceRefresh: forceRefresh)
-        await viewModel.checkShouldGenerate(sessionId: sessionId)
+        await viewModel.fetchAll(sessionId: sid)
+        await viewModel.fetchLatest(sessionId: sid, forceRefresh: forceRefresh)
+        await viewModel.checkShouldGenerate(sessionId: sid)
+        guard sid == sessionId else { return }
 
         // Auto-select latest, or refresh the selected digest's data
         if let current = selectedDigest,
@@ -510,7 +515,9 @@ struct DailyDigestView: View {
     // MARK: - Actions
 
     private func generateDigest() async {
-        await viewModel.generate(sessionId: sessionId)
+        let sid = sessionId
+        await viewModel.generate(sessionId: sid)
+        guard sid == sessionId else { return }
         selectedDigest = viewModel.latestDigest
     }
 
@@ -521,10 +528,13 @@ struct DailyDigestView: View {
         selectedDigest = nextSelection
     }
 
+    /// Replaces a digest in its own care session, even if the user switches away midway.
     private func regenerateDigest(replacing digest: DailyPlanResponse) async {
+        let sid = digest.sessionId
         await viewModel.deleteDigest(planId: digest.id)
-        await viewModel.checkShouldGenerate(sessionId: sessionId)
-        await viewModel.generate(sessionId: sessionId)
+        await viewModel.checkShouldGenerate(sessionId: sid)
+        await viewModel.generate(sessionId: sid)
+        guard sid == sessionId else { return }
         selectedDigest = viewModel.latestDigest
     }
 }

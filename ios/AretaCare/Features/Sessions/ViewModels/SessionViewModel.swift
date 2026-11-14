@@ -34,6 +34,12 @@ final class SessionViewModel {
             let fetched: [SessionResponse] = try await APIClient.shared.get(APIEndpoints.Sessions.base)
             sessions = fetched
 
+            // A recording kept after a failed upload can only go to a care session the
+            // user still has; anything else (or another user's) is dropped.
+            if let userId = AuthManager.shared.currentUser?.id {
+                PendingRecordingStore.shared.prune(userId: userId, validSessionIds: Set(fetched.map(\.id)))
+            }
+
             // If no current session selected, restore using priority:
             // 1. Backend preference (synced across devices)
             // 2. Local UserDefaults cache (offline fallback)

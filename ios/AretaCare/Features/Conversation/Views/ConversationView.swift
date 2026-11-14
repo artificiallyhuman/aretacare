@@ -28,6 +28,9 @@ struct ConversationView: View {
     @State private var isRecordingAudio = false
     @State private var audioRecorder = AudioRecorderManager()
     @State private var showingMicPermissionAlert = false
+    /// The care session a voice message is being recorded in; it is uploaded there even if
+    /// something switches the chat before it finishes.
+    @State private var recordingSessionId: String?
 
     // Attachment state
     @State private var showingCamera = false
@@ -100,6 +103,8 @@ struct ConversationView: View {
                             Image(systemName: "list.bullet")
                         }
                         .accessibilityLabel("Switch care session")
+                        // A voice message belongs to the care session it is recorded in.
+                        .disabled(isRecordingAudio)
                     }
                     // Nothing on the right: sharing is the title's people line, and Talk is
                     // in the message bar with the other ways of talking to AretaCare.
@@ -129,6 +134,7 @@ struct ConversationView: View {
             ))
             .task {
                 if let sessionId = currentSessionId {
+                    conversationVM.show(sessionId: sessionId)
                     await conversationVM.fetchHistory(sessionId: sessionId)
                 }
             }
@@ -139,7 +145,7 @@ struct ConversationView: View {
                 // Recordings screen still holds its id, and a Talk save error is about it.
                 showingAudioRecordings = false
                 talkVM.saveErrorMessage = nil
-                conversationVM.clearMessages()
+                conversationVM.show(sessionId: newId)
                 isNearBottom = true
                 Task {
                     await conversationVM.fetchHistory(sessionId: newId)
@@ -233,11 +239,11 @@ struct ConversationView: View {
                     recorder: audioRecorder,
                     onCancel: {
                         isRecordingAudio = false
+                        recordingSessionId = nil
                     },
-                    onStop: { audioData in
+                    onStop: { audioData, file in
                         isRecordingAudio = false
-                        guard let sessionId = currentSessionId else { return false }
-                        return await conversationVM.uploadAudioMessage(data: audioData, sessionId: sessionId)
+                        await sendVoiceMessage(audioData, file: file)
                     }
                 )
             } else {
@@ -518,28 +524,54 @@ struct ConversationView: View {
     private func startAudioRecording() {
         Task {
             let granted = await audioRecorder.requestPermission()
-            if granted {
-                isRecordingAudio = true
-                audioRecorder.start(maxDuration: AppConstants.maxRecordingDuration) {
-                    // Auto-stop and upload on max duration. stopAsync waits for
-                    // the file to be finalized and retains it until the upload
-                    // succeeds — the sync stop() deleted it up front, so a
-                    // failed upload lost the recording outright.
-                    Task {
-                        guard let audioData = await audioRecorder.stopAsync() else {
-                            isRecordingAudio = false
-                            return
-                        }
-                        isRecordingAudio = false
-                        guard let sessionId = currentSessionId else { return }
-                        if await conversationVM.uploadAudioMessage(data: audioData, sessionId: sessionId) {
-                            audioRecorder.discardRecording()
-                        }
-                    }
-                }
-            } else {
+            guard granted else {
                 showingMicPermissionAlert = true
+                return
             }
+            guard let sessionId = currentSessionId else { return }
+            let started = audioRecorder.start(maxDuration: AppConstants.maxRecordingDuration) {
+                // Auto-stop and upload on max duration. stopAsync waits for
+                // the file to be finalized and retains it until the upload
+                // succeeds — the sync stop() deleted it up front, so a
+                // failed upload lost the recording outright.
+                Task {
+                    guard let audioData = await audioRecorder.stopAsync() else {
+                        isRecordingAudio = false
+                        recordingSessionId = nil
+                        return
+                    }
+                    let file = audioRecorder.takeRecordingFile()
+                    isRecordingAudio = false
+                    await sendVoiceMessage(audioData, file: file)
+                }
+            }
+            guard started else {
+                conversationVM.errorMessage = "Couldn't start recording. The microphone may be in use by a call or another app."
+                return
+            }
+            recordingSessionId = sessionId
+            isRecordingAudio = true
+        }
+    }
+
+    /// Uploads a finished voice message to the care session it was recorded in. On success
+    /// the local file is deleted; on failure it is kept on the device for Audio Recordings
+    /// to upload later (it used to be swept away at the next launch).
+    private func sendVoiceMessage(_ audioData: Data, file: URL?) async {
+        guard let sessionId = recordingSessionId ?? currentSessionId else { return }
+        recordingSessionId = nil
+        if await conversationVM.uploadAudioMessage(data: audioData, sessionId: sessionId) {
+            if let file { try? FileManager.default.removeItem(at: file) }
+            return
+        }
+        guard let file else { return }
+        let kept = PendingRecordingStore.shared.keep(
+            fileAt: file,
+            sessionId: sessionId,
+            filename: MultipartFormData.generatedRecordingFilename()
+        )
+        if kept, sessionId == currentSessionId {
+            conversationVM.errorMessage = "Your voice message couldn't be sent. It's saved on this device: open Audio Recordings in Tools to upload it."
         }
     }
 

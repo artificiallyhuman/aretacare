@@ -7,7 +7,6 @@ final class ConversationViewModel {
     private(set) var messages: [MessageResponse] = []
     private(set) var isLoading = false
     private(set) var isLoadingMore = false
-    private(set) var isSending = false
     private(set) var hasMore = false
     var errorMessage: String?
 
@@ -38,10 +37,21 @@ final class ConversationViewModel {
     /// append the previous session's messages into the newly rendered chat.
     private var reconcileTask: Task<Void, Never>?
 
-    /// The care session whose messages are currently loaded. Every async path
-    /// re-checks this after awaiting so a switch mid-flight can't cross-write
-    /// one session's data into another's list.
+    /// The care session whose chat is on screen. Only `show(sessionId:)` sets it (the
+    /// view's first load and every care-session change). Every async path checks it
+    /// before touching `messages` and again after each await, so work for one care
+    /// session can never paint into another's chat. The send paths used to re-assign it:
+    /// a file that finished uploading after a switch re-pointed the chat at the old
+    /// session, and its message, reply and recent history were appended under the new one.
     private(set) var activeSessionId: String?
+
+    /// Care sessions with a send or voice upload in flight. `isSending` describes only the
+    /// session on screen, and finishing work for one session never clears another's.
+    private var sendingSessionIds: Set<String> = []
+
+    var isSending: Bool {
+        activeSessionId.map { sendingSessionIds.contains($0) } ?? false
+    }
 
     /// Reconcile passes each surviving temp (negative-ID) message has been
     /// through. A temp the server rewrote never matches by signature, so it is
@@ -76,10 +86,20 @@ final class ConversationViewModel {
         historyCache.invalidate(sessionId)
     }
 
+    // MARK: - Care Session
+
+    /// Points the chat at a care session, clearing the previous one's messages if it was
+    /// different. Call before `fetchHistory` on first load and on every switch.
+    func show(sessionId: String) {
+        guard sessionId != activeSessionId else { return }
+        clearMessages()
+        activeSessionId = sessionId
+    }
+
     // MARK: - Fetch History
 
     func fetchHistory(sessionId: String, loadMore: Bool = false, forceRefresh: Bool = false) async {
-        activeSessionId = sessionId
+        guard sessionId == activeSessionId else { return }
         if loadMore {
             guard !isLoadingMore else { return }
             isLoadingMore = true
@@ -111,12 +131,11 @@ final class ConversationViewModel {
                 queryItems: queryItems
             )
 
-            // A care-session switch while the request was in flight must not
-            // paint the previous session's history into the new one.
-            guard sessionId == activeSessionId else {
-                if loadMore { isLoadingMore = false } else { isLoading = false }
-                return
-            }
+            // A care-session switch while the request was in flight must not paint the
+            // previous session's history into the new one. Leave the loading flags alone:
+            // `show` reset them, and the new session's load may own them by now (setting
+            // them here left a quick A→B→A switch on an empty chat).
+            guard sessionId == activeSessionId else { return }
 
             if loadMore {
                 // Older messages come first from API; prepend them
@@ -136,6 +155,7 @@ final class ConversationViewModel {
             totalCount = history.totalCount
             hasMore = history.hasMore
         } catch {
+            guard sessionId == activeSessionId else { return }
             if !isCancellation(error) {
                 errorMessage = error.localizedDescription
             }
@@ -172,10 +192,9 @@ final class ConversationViewModel {
 
     private func _performSendMessage(text: String, sessionId: String, audioRecordingId: Int?) async {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty, !isSending else { return }
+        guard !trimmed.isEmpty, !isSending, sessionId == activeSessionId else { return }
 
-        activeSessionId = sessionId
-        isSending = true
+        sendingSessionIds.insert(sessionId)
         errorMessage = nil
         invalidateCache(for: sessionId)
 
@@ -216,12 +235,10 @@ final class ConversationViewModel {
                 body: request
             )
 
+            sendingSessionIds.remove(sessionId)
             // Session was switched mid-send — drop the response rather than appending
             // it to a different session's message list.
-            if Task.isCancelled || sessionId != activeSessionId {
-                isSending = false
-                return
-            }
+            if Task.isCancelled || sessionId != activeSessionId { return }
 
             // Append assistant response directly — avoids full array replacement
             // which causes LazyVStack to lose scroll position and "disappear" messages.
@@ -241,15 +258,14 @@ final class ConversationViewModel {
                 lastEditedBy: nil
             )
             messages.append(assistantMessage)
-            isSending = false
 
             // Background reconciliation to sync temp IDs with server state
             scheduleReconcile(sessionId: sessionId)
         } catch is CancellationError {
             // Session switch cancelled this send — silently abandon.
-            isSending = false
+            sendingSessionIds.remove(sessionId)
         } catch {
-            isSending = false
+            sendingSessionIds.remove(sessionId)
             if Task.isCancelled || sessionId != activeSessionId { return }
             // The server may have processed the message despite the connection
             // dropping (e.g. phone slept during AI response). Reconcile first.
@@ -302,32 +318,19 @@ final class ConversationViewModel {
 
     // MARK: - Upload Audio for Transcription
 
-    /// Uploads a recording for transcription. Returns true once the recording is
-    /// safely on the server — the caller keeps its on-disk copy until then.
+    /// Uploads a voice message to the care session it was recorded in. Returns true once
+    /// the recording is safely on the server; until then the caller keeps its copy.
+    ///
+    /// Not run inside `sendTask`: a care-session switch cancels that, and cancelling an
+    /// upload threw the recording away. If the user has switched away by the time the
+    /// transcript is ready, the message is still posted to its own session, off screen.
     @discardableResult
     func uploadAudioMessage(data: Data, sessionId: String) async -> Bool {
-        sendTask?.cancel()
-        // Per-call result box, not a shared property: `await task.value` is a
-        // suspension point, so with a shared slot an overlapping call could
-        // overwrite the result before this call resumed — a succeeded upload
-        // reporting false makes the caller skip discardRecording() and orphans
-        // the PHI-bearing file on disk. (A box keeps sendTask Task<Void, Never>
-        // and therefore cancellable alongside the text-send path.)
-        final class UploadResultBox { var succeeded = false }
-        let result = UploadResultBox()
-        let task: Task<Void, Never> = Task { @MainActor [weak self] in
-            guard let self = self else { return }
-            result.succeeded = await self._performUploadAudioMessage(data: data, sessionId: sessionId)
+        let onScreen = sessionId == activeSessionId
+        if onScreen {
+            errorMessage = nil
         }
-        sendTask = task
-        await task.value
-        return result.succeeded
-    }
-
-    private func _performUploadAudioMessage(data: Data, sessionId: String) async -> Bool {
-        activeSessionId = sessionId
-        isSending = true
-        errorMessage = nil
+        sendingSessionIds.insert(sessionId)
         invalidateCache(for: sessionId)
 
         // Request background execution time so the upload survives screen lock / app backgrounding
@@ -335,6 +338,12 @@ final class ConversationViewModel {
         backgroundTaskId = UIApplication.shared.beginBackgroundTask {
             UIApplication.shared.endBackgroundTask(backgroundTaskId)
             backgroundTaskId = .invalid
+        }
+        defer {
+            sendingSessionIds.remove(sessionId)
+            if backgroundTaskId != .invalid {
+                UIApplication.shared.endBackgroundTask(backgroundTaskId)
+            }
         }
 
         let multipart = MultipartFormData.transcribeAudioBody(
@@ -344,100 +353,77 @@ final class ConversationViewModel {
             skipJournalSynthesis: true
         )
 
+        let response: AudioTranscribeResponse
         do {
-            let response: AudioTranscribeResponse = try await APIClient.shared.upload(
+            response = try await APIClient.shared.upload(
                 APIEndpoints.Conversation.transcribe,
                 multipart: multipart
             )
-
-            // The recording is persisted server-side at this point, so the
-            // caller may drop its on-disk copy even if the follow-up send fails.
-            if Task.isCancelled || sessionId != activeSessionId {
-                isSending = false
-                if backgroundTaskId != .invalid {
-                    UIApplication.shared.endBackgroundTask(backgroundTaskId)
-                }
-                return true
-            }
-
-            // A 202 means the server is still transcoding/transcribing in the
-            // background — wait for it here, keeping `isSending` and the
-            // background task alive. An old backend answers inline with no
-            // status and `transcribedText` already populated.
-            var transcribedText = response.transcribedText
-            if response.isProcessing, let recordingId = response.recordingId {
-                do {
-                    let recording = try await TranscriptionPoller.waitForCompletion(
-                        sessionId: sessionId,
-                        recordingId: recordingId,
-                        duration: response.duration
-                    )
-                    transcribedText = recording.transcribedText
-                } catch {
-                    // The recording itself is saved (retryable from Audio
-                    // Recordings); only the transcript is missing.
-                    if !Task.isCancelled {
-                        errorMessage = error.localizedDescription
-                    }
-                    isSending = false
-                    if backgroundTaskId != .invalid {
-                        UIApplication.shared.endBackgroundTask(backgroundTaskId)
-                    }
-                    return true
-                }
-
-                if Task.isCancelled || sessionId != activeSessionId {
-                    isSending = false
-                    if backgroundTaskId != .invalid {
-                        UIApplication.shared.endBackgroundTask(backgroundTaskId)
-                    }
-                    return true
-                }
-            }
-
-            // Send the transcribed text as a conversation message so AI responds.
-            // Note: we don't call sendMessage() here (which would reset sendTask and
-            // cancel ourselves). We inline the same logic against this task.
-            if let transcribedText, !transcribedText.isEmpty {
-                isSending = false
-                if backgroundTaskId != .invalid {
-                    UIApplication.shared.endBackgroundTask(backgroundTaskId)
-                }
-                await _performSendMessage(
-                    text: transcribedText,
-                    sessionId: sessionId,
-                    audioRecordingId: response.recordingId
-                )
-                return true
-            }
-
-            isSending = false
-            if backgroundTaskId != .invalid {
-                UIApplication.shared.endBackgroundTask(backgroundTaskId)
-            }
-            return true
-        } catch is CancellationError {
-            isSending = false
-            if backgroundTaskId != .invalid {
-                UIApplication.shared.endBackgroundTask(backgroundTaskId)
-            }
-            return false
         } catch {
-            if !Task.isCancelled {
+            if sessionId == activeSessionId, !isCancellation(error) {
                 errorMessage = error.localizedDescription
             }
+            return false
         }
 
-        isSending = false
-        if backgroundTaskId != .invalid {
-            UIApplication.shared.endBackgroundTask(backgroundTaskId)
+        // The recording is persisted server-side from here on, so the caller may drop
+        // its on-disk copy even if what follows fails.
+
+        // A 202 means the server is still transcoding/transcribing in the background —
+        // wait for it here, keeping the sending state and the background task alive. An
+        // old backend answers inline with no status and `transcribedText` populated.
+        var transcribedText = response.transcribedText
+        if response.isProcessing, let recordingId = response.recordingId {
+            do {
+                let recording = try await TranscriptionPoller.waitForCompletion(
+                    sessionId: sessionId,
+                    recordingId: recordingId,
+                    duration: response.duration
+                )
+                transcribedText = recording.transcribedText
+            } catch {
+                // The recording itself is saved (retryable from Audio Recordings); only
+                // the transcript is missing.
+                if sessionId == activeSessionId, !isCancellation(error) {
+                    errorMessage = error.localizedDescription
+                }
+                return true
+            }
         }
-        return false
+
+        guard let transcribedText, !transcribedText.isEmpty else { return true }
+
+        // Send the transcript as a chat message so the AI responds. The send refuses to
+        // start while this session has work in flight, so this upload's claim ends here.
+        sendingSessionIds.remove(sessionId)
+        if sessionId == activeSessionId {
+            await sendMessage(text: transcribedText, sessionId: sessionId, audioRecordingId: response.recordingId)
+        } else {
+            await postOffscreen(
+                messageRequest(content: transcribedText, sessionId: sessionId, audioRecordingId: response.recordingId),
+                sessionId: sessionId
+            )
+        }
+        return true
     }
 
     // MARK: - Send Document/Image Message
 
     func sendDocumentMessage(sessionId: String, documentId: Int, filename: String, messageType: String, mediaUrl: String? = nil, thumbnailUrl: String? = nil, content: String? = nil) async {
+        // The file finished uploading after the user switched care session. The message
+        // still belongs to the session it was attached in: post it there, show nothing here.
+        guard sessionId == activeSessionId else {
+            await postOffscreen(
+                messageRequest(
+                    content: content ?? "Uploaded: \(filename)",
+                    sessionId: sessionId,
+                    messageType: messageType,
+                    documentId: documentId
+                ),
+                sessionId: sessionId
+            )
+            return
+        }
         sendTask?.cancel()
         let task: Task<Void, Never> = Task { @MainActor [weak self] in
             guard let self = self else { return }
@@ -456,8 +442,8 @@ final class ConversationViewModel {
     }
 
     private func _performSendDocumentMessage(sessionId: String, documentId: Int, filename: String, messageType: String, mediaUrl: String?, thumbnailUrl: String?, content: String?) async {
-        activeSessionId = sessionId
-        isSending = true
+        guard sessionId == activeSessionId else { return }
+        sendingSessionIds.insert(sessionId)
         errorMessage = nil
         invalidateCache(for: sessionId)
 
@@ -483,17 +469,12 @@ final class ConversationViewModel {
         )
         messages.append(tempUserMessage)
 
-        let entryDate = Self.apiDateFormatter.string(from: now)
-        let currentTime = Self.timeFormatter24h.string(from: now)
-
-        let request = SendMessageRequest(
+        let request = messageRequest(
             content: displayContent,
             sessionId: sessionId,
             messageType: messageType,
             documentId: documentId,
-            entryDate: entryDate,
-            userTimezone: TimeZone.current.identifier,
-            currentTime: currentTime
+            at: now
         )
 
         do {
@@ -502,10 +483,8 @@ final class ConversationViewModel {
                 body: request
             )
 
-            if Task.isCancelled || sessionId != activeSessionId {
-                isSending = false
-                return
-            }
+            sendingSessionIds.remove(sessionId)
+            if Task.isCancelled || sessionId != activeSessionId { return }
 
             // Append assistant response directly — avoids full array replacement
             let assistantMessage = MessageResponse(
@@ -524,14 +503,13 @@ final class ConversationViewModel {
                 lastEditedBy: nil
             )
             messages.append(assistantMessage)
-            isSending = false
 
             // Background reconciliation to sync temp IDs with server state
             scheduleReconcile(sessionId: sessionId)
         } catch is CancellationError {
-            isSending = false
+            sendingSessionIds.remove(sessionId)
         } catch {
-            isSending = false
+            sendingSessionIds.remove(sessionId)
             if Task.isCancelled || sessionId != activeSessionId { return }
             // The server may have processed the message despite the connection
             // dropping (e.g. phone slept during AI response). Reconcile to check
@@ -544,6 +522,36 @@ final class ConversationViewModel {
                 errorMessage = error.localizedDescription
             }
         }
+    }
+
+    /// The request body for a chat message, stamped with the user's local date and time.
+    private func messageRequest(content: String, sessionId: String, messageType: String = "text", documentId: Int? = nil, audioRecordingId: Int? = nil, at now: Date = Date()) -> SendMessageRequest {
+        SendMessageRequest(
+            content: content,
+            sessionId: sessionId,
+            messageType: messageType,
+            documentId: documentId,
+            audioRecordingId: audioRecordingId,
+            entryDate: Self.apiDateFormatter.string(from: now),
+            userTimezone: TimeZone.current.identifier,
+            currentTime: Self.timeFormatter24h.string(from: now)
+        )
+    }
+
+    /// Sends a message for a care session that is no longer on screen. Nothing is added to
+    /// the chat on screen; that session's history is refetched when the user returns.
+    private func postOffscreen(_ request: SendMessageRequest, sessionId: String) async {
+        do {
+            let _: SendMessageResponse = try await APIClient.shared.post(
+                APIEndpoints.Conversation.sendMessage,
+                body: request
+            )
+        } catch {
+            #if DEBUG
+            print("[Conversation] Off-screen message for another care session failed: \(error)")
+            #endif
+        }
+        invalidateCache(for: sessionId)
     }
 
     // MARK: - Edit Message
@@ -560,7 +568,7 @@ final class ConversationViewModel {
                 body: request
             )
 
-            // Update the local message
+            // Update the local message (a no-op if the chat has switched care session)
             if let index = messages.firstIndex(where: { $0.id == messageId }) {
                 let old = messages[index]
                 messages[index] = MessageResponse(
@@ -580,6 +588,7 @@ final class ConversationViewModel {
                 )
             }
         } catch {
+            guard sessionId == activeSessionId else { return }
             errorMessage = error.localizedDescription
         }
     }
@@ -595,10 +604,13 @@ final class ConversationViewModel {
                 APIEndpoints.Conversation.resetToMessage(String(messageId))
             )
 
-            // Reload history after reset
+            // Reload history after reset, unless the chat has moved to another care
+            // session meanwhile (clearing here would wipe that session's messages).
+            guard sessionId == activeSessionId else { return }
             messages = []
             await fetchHistory(sessionId: sessionId)
         } catch {
+            guard sessionId == activeSessionId else { return }
             errorMessage = error.localizedDescription
         }
     }
@@ -613,6 +625,10 @@ final class ConversationViewModel {
         reconcileTask?.cancel()
         reconcileTask = nil
         activeSessionId = nil
+        // The previous session's load may still be in flight; its result is dropped, and it
+        // must not block the next session's load (`fetchHistory` returns while loading).
+        isLoading = false
+        isLoadingMore = false
         messages = []
         hasMore = false
         hasNewerTrimmed = false
@@ -648,6 +664,8 @@ final class ConversationViewModel {
                 APIEndpoints.Conversation.history(sessionId),
                 queryItems: queryItems
             )
+            // The care session may have changed while the request was in flight.
+            guard sessionId == activeSessionId else { return }
             // Only append truly new messages (positive IDs not already in the list)
             let existingIds = Set(messages.map(\.id))
             let newMessages = history.messages.filter { $0.id > 0 && !existingIds.contains($0.id) }

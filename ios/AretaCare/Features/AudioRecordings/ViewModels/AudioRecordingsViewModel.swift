@@ -438,4 +438,8 @@ final class AudioRecordingsViewModel {
     func dismissError() {
         errorMessage = nil
     }
+
+    func showError(_ message: String) {
+        errorMessage = message
+    }
 }
