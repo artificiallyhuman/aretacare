@@ -103,9 +103,10 @@ final class APIClient: Sendable {
     }
 
     /// Marketing version (`CFBundleShortVersionString`, e.g. "1.0.9"), sent on every request
-    /// as `X-App-Version`. Nothing on the server gates on it yet — it exists so a future
-    /// server-side control can tell an out-of-date client apart from a current one and
-    /// degrade deliberately, rather than staying disabled until App Store review completes.
+    /// as `X-App-Version`. The server uses it to tell builds released before a change from
+    /// current ones (`backend/app/core/client_version.py`): which sign-up consent text was
+    /// shown, and which builds can answer an MFA step-up when adding a factor. It is
+    /// self-declared, so the server only ever relaxes a control with it, never grants access.
     /// Falls back to "unknown" rather than crashing; this is telemetry, not a critical path.
     private static let appVersion: String =
         Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "unknown"

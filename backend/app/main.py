@@ -1,3 +1,8 @@
+# First, before anything logs: mask email addresses and query-string values in every
+# log record (see app/core/log_redaction.py).
+from app.core.log_redaction import install_log_redaction
+install_log_redaction()
+
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware

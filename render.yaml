@@ -111,11 +111,11 @@ services:
       - key: APNS_TOPIC
         value: com.aretacare.ios
       - key: APNS_USE_SANDBOX
-        value: "FALSE"  # TRUE for TestFlight/debug, FALSE for App Store builds
+        value: "FALSE"  # FALSE for TestFlight and App Store builds (both get production APNs tokens); TRUE only for Xcode debug builds
       - key: APNS_KEY_PATH
         sync: false  # Path to .p8 key file on server (e.g., /etc/secrets/AuthKey.p8)
       - key: TALK_ENABLED
-        value: "FALSE"  # TRUE enables iOS Talk mode (live voice). Needs the two keys below.
+        sync: false  # Set in the dashboard. TRUE enables iOS Talk mode (live voice); set the two keys below first, or startup fails. (A value here would be re-applied on every Blueprint sync, silently switching Talk back.)
       - key: REVENUECAT_SECRET_API_KEY
         sync: false  # RevenueCat secret key (sk_...): verifies the iOS subscription before a Talk session
       - key: API_PUBLIC_URL

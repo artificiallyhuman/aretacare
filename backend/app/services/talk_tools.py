@@ -501,7 +501,7 @@ async def _apply_action(ctx: ToolContext, kind: str, params: dict) -> str:
         from fastapi import HTTPException
         from app.services.daily_plan_service import DailyPlanService
         try:
-            plan = await DailyPlanService.generate_daily_plan(
+            plan, _created = await DailyPlanService.generate_daily_plan(
                 ctx.db, ctx.session_id, user_date=params["date"], user_id=ctx.user_id,
             )
         except HTTPException as e:

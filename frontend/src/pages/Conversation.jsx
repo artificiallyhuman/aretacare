@@ -484,6 +484,23 @@ const Conversation = () => {
       // Never append onto a transcript that belongs to a different care session.
       if (messages.some(msg => msg.session_id && msg.session_id !== sessionId)) return;
 
+      // A Talk call's card is posted while its recording is still saving, then filled in
+      // place (or deleted, if the save fails). Appending alone left it reading "Saving…"
+      // until a reload. Same rule as iOS: refresh a saving card from the page, and drop
+      // one that is within the page's range but no longer in it.
+      const isSavingTalkCard = msg =>
+        msg.message_metadata?.kind === 'talk_summary' && msg.message_metadata?.status === 'saving';
+      if (messages.some(isSavingTalkCard)) {
+        const pageById = new Map(latestMessages.map(msg => [msg.id, msg]));
+        const oldestInPage = Math.min(...latestMessages.map(msg => msg.id));
+        setMessages(prevMessages => prevMessages.flatMap(msg => {
+          if (!isSavingTalkCard(msg)) return [msg];
+          const fresh = pageById.get(msg.id);
+          if (fresh) return [fresh];
+          return msg.id >= oldestInPage ? [] : [msg];
+        }));
+      }
+
       // Find the ID of our current latest message
       const currentLatestId = messages[messages.length - 1]?.id;
 

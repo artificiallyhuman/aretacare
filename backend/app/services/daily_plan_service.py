@@ -80,7 +80,7 @@ class DailyPlanService:
         session_id: str,
         user_date: str = None,
         user_id: str = None
-    ) -> DailyPlan:
+    ) -> tuple[DailyPlan, bool]:
         """
         Generate a new daily plan for today based on all available context.
 
@@ -90,7 +90,10 @@ class DailyPlanService:
             user_date: Optional date string (YYYY-MM-DD) from user's timezone
 
         Returns:
-            DailyPlan: The newly created daily plan
+            (plan, created): today's plan, and whether this call created it. A plan that
+            already existed is returned as is, with created False. Clients call this
+            whenever /check says a digest is due, and /check uses the server's UTC date,
+            so in US evenings it is routinely called for a day that already has one.
         """
         try:
             logger.info(f"Generating daily plan for session {session_id}, user_date={user_date}")
@@ -116,7 +119,7 @@ class DailyPlanService:
 
             if existing_plan:
                 logger.info(f"Daily plan already exists for {today}, returning existing plan")
-                return existing_plan
+                return existing_plan, False
 
             # 3. Gather all context
             logger.info(f"Gathering context for session {session_id}")
@@ -157,7 +160,7 @@ class DailyPlanService:
                 db.commit()
                 db.refresh(daily_plan)
                 logger.info(f"Daily plan created successfully for {today}, ID: {daily_plan.id}")
-                return daily_plan
+                return daily_plan, True
             except Exception as commit_error:
                 db.rollback()
                 # Handle race condition: if another request created a plan while we were generating
@@ -168,7 +171,7 @@ class DailyPlanService:
                         DailyPlan.date == today
                     ).first()
                     if existing_plan:
-                        return existing_plan
+                        return existing_plan, False
                 raise
 
         except Exception as e:

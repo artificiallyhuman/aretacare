@@ -380,6 +380,7 @@ Sentry is used for error/crash monitoring on all three platforms (backend, web, 
 - Stack-frame local variables are never attached on the backend (`include_local_variables=False`). The Python SDK attaches them by default, and frames up the ASGI stack hold the raw `scope`/`request` (bearer token, refresh-token cookie, MFA action token, query-string tokens) plus parsed request bodies. Neither `before_send` nor the key-based scrubber can reach them, since headers sit in byte-tuple lists
 - A recursive event scrubber redacts content-bearing field names (message, journal, transcript, email, tokens, etc.)
 - Backend log lines become breadcrumbs only, never standalone events (formatted log strings may embed user data)
+- Backend log lines themselves are redacted where they are created (`app/core/log_redaction.py`, a log-record factory installed first thing in `main.py`), so the same rule covers the hosting provider's log store and Sentry breadcrumbs: email addresses keep only their first character and domain (`r***@example.com`), and request-log lines keep query parameter names but only the values of counts, dates, IDs and flags (`/auth/verify-email?token=[redacted]`, `?search=[redacted]`)
 - iOS never attaches screenshots or view hierarchy; session replay is not used on any platform
 - Server-side data scrubbing and IP-storage prevention are additionally enabled in Sentry project settings as defense-in-depth
 - Sentry is disabled entirely when no DSN is configured (the local-development default)

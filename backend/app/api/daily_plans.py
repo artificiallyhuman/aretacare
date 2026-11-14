@@ -170,7 +170,7 @@ async def generate_daily_plan(
     check_session_access(session, current_user.id, db)
 
     # Generate the plan (HTTPException will pass through to FastAPI)
-    plan = await DailyPlanService.generate_daily_plan(db, session_id, user_date, user_id=current_user.id)
+    plan, created = await DailyPlanService.generate_daily_plan(db, session_id, user_date, user_id=current_user.id)
 
     # Check if current user has viewed this plan (for existing plans returned by generate)
     user_view = db.query(DailyPlanView).filter(
@@ -179,7 +179,11 @@ async def generate_daily_plan(
     ).first()
     plan.viewed = user_view is not None
 
-    # Push notification to session participants (non-blocking)
+    # Push notification to session participants (non-blocking), only for a digest this
+    # call created: returning an existing one re-sent "Daily Digest Ready" to everyone
+    # else on every call.
+    if not created:
+        return plan
     try:
         from app.models import SessionCollaborator
         collaborator_ids = [c.user_id for c in db.query(SessionCollaborator.user_id).filter(

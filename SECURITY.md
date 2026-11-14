@@ -173,7 +173,7 @@ AretaCare implements comprehensive security measures:
 
 ### Push Notifications (iOS)
 - **Feature-gated**: Disabled by default (`PUSH_NOTIFICATIONS_ENABLED=False`); APNs credentials validated at startup
-- **Fire-and-forget**: Push sends run in daemon threads and never block API responses
+- **Fire-and-forget**: Push sends run on a background thread and never block API responses
 - **Auto-cleanup**: Invalid/expired device tokens automatically removed when APNs reports them
 - **Scope**: Notifications for shared care session messages, care session sharing, and daily digests only
 
@@ -193,6 +193,7 @@ AretaCare implements comprehensive security measures:
 - **AI-Powered Daily Reports**: Automated analysis of security/error/API logs to detect concerning patterns and generate actionable insights for administrators
 - **Audit Logging**: Admin actions tracked with retention policies
 - **Error Logging**: Application errors logged for debugging (30-day retention)
+- **Log Redaction**: Server log lines mask email addresses and drop query-string values such as one-time tokens and search text
 - **API Logging**: OpenAI API calls tracked (30-day retention)
 - **Error Monitoring**: Crash/error reporting via Sentry on all platforms with strict PII controls — default PII collection disabled, request bodies never captured, auth headers stripped, URL query strings removed from backend and web events and performance traces, server-side data scrubbing enabled, no session replay (see `docs/SECURITY_IMPLEMENTATION.md` for details)
 - **Email Notifications**: Users notified of security-relevant events (MFA enabled/disabled, new passkey, new trusted device)

@@ -2563,6 +2563,23 @@ def run_migrations():
             logger.error(f"Failed to backfill refresh token hashes: {e}")
             conn.rollback()
 
+        # conversations.updated_at used to stamp itself on any ORM update, and filling in a
+        # Talk summary card is one, so the web showed those cards as "(edited)". Only user
+        # messages can be edited, so a stamp on an assistant message is never a real edit.
+        migration_name = "clear_updated_at_on_assistant_messages"
+        if not has_migration_run(conn, migration_name):
+            try:
+                cleared = conn.execute(text(
+                    "UPDATE conversations SET updated_at = NULL "
+                    "WHERE lower(role::text) = 'assistant' AND updated_at IS NOT NULL"
+                )).rowcount
+                conn.commit()
+                mark_migration_complete(conn, migration_name)
+                logger.info(f"Cleared a spurious edited stamp on {cleared} assistant message(s)")
+            except Exception as e:
+                logger.error(f"Failed to clear updated_at on assistant messages: {e}")
+                conn.rollback()
+
         # Emails are matched without regard to case (core/email_address.py): lookups compare
         # lower(users.email), so index that expression. Not unique: accounts created before
         # normalization may differ only by case, and the unique index on users.email is

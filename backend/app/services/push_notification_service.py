@@ -1,8 +1,8 @@
 """
 Push notification service for sending APNs notifications.
 
-Uses fire-and-forget daemon threads (matching SecurityService pattern)
-so notification sends never block API responses.
+Sends are fire-and-forget: they run on one long-lived event loop on a daemon thread
+(per process), so they never block API responses.
 """
 import asyncio
 import base64
@@ -29,6 +29,16 @@ class PushNotificationService:
 
     _client = None
     _client_lock = threading.Lock()
+
+    # aioapns binds its connection pool to the event loop that is current when the
+    # client is created (APNsBaseConnectionPool.loop) and opens every connection on it.
+    # The client is a singleton, so every send has to run on that same loop: a new loop
+    # per send, closed afterwards, made every send after the first on an instance fail
+    # with "Event loop is closed". One loop also keeps the HTTP/2 connection to APNs
+    # open between sends, which Apple asks for.
+    _loop: Optional[asyncio.AbstractEventLoop] = None
+    _loop_thread: Optional[threading.Thread] = None
+    _loop_lock = threading.Lock()
 
     _resolved_key = None  # Cached key content string
 
@@ -75,8 +85,22 @@ class PushNotificationService:
         return cls._resolved_key
 
     @classmethod
+    def _get_loop(cls) -> asyncio.AbstractEventLoop:
+        """The process's push event loop, started on first use."""
+        with cls._loop_lock:
+            if cls._loop_thread is None or not cls._loop_thread.is_alive():
+                loop = asyncio.new_event_loop()
+                thread = threading.Thread(target=loop.run_forever, name="apns-push", daemon=True)
+                thread.start()
+                # A client from an earlier loop can't be used on this one.
+                with cls._client_lock:
+                    cls._client = None
+                cls._loop, cls._loop_thread = loop, thread
+            return cls._loop
+
+    @classmethod
     def _get_client(cls):
-        """Lazy-init APNs client (singleton, thread-safe)."""
+        """Lazy-init APNs client (singleton, thread-safe). Call only on the push loop."""
         if cls._client is None:
             with cls._client_lock:
                 if cls._client is None:
@@ -111,27 +135,23 @@ class PushNotificationService:
         data: Optional[dict] = None,
         exclude_user_id: Optional[str] = None,
     ):
-        """
-        Fire-and-forget push notification send in a background daemon thread.
-        Mirrors SecurityService._send_alert_async() pattern.
-        """
+        """Fire-and-forget push notification send on the push event loop."""
         if not settings.PUSH_NOTIFICATIONS_ENABLED:
             return
 
-        def send():
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-            try:
-                loop.run_until_complete(
-                    cls._send_to_users(user_ids, title, body, notification_type, data, exclude_user_id)
-                )
-            except Exception as e:
-                logger.error(f"Push notification send failed: {e}")
-            finally:
-                loop.close()
+        future = asyncio.run_coroutine_threadsafe(
+            cls._send_to_users(user_ids, title, body, notification_type, data, exclude_user_id),
+            cls._get_loop(),
+        )
+        future.add_done_callback(cls._log_send_failure)
 
-        thread = threading.Thread(target=send, daemon=True)
-        thread.start()
+    @staticmethod
+    def _log_send_failure(future):
+        if future.cancelled():
+            return
+        error = future.exception()
+        if error is not None:
+            logger.error(f"Push notification send failed: {type(error).__name__}: {error}")
 
     @classmethod
     async def _send_to_users(
@@ -193,7 +213,9 @@ class PushNotificationService:
                             db.commit()
                             logger.info(f"Removed invalid device token {device_token.token[:8]}...")
                 except Exception as e:
-                    logger.warning(f"Failed to send push to {device_token.token[:8]}...: {e}")
+                    logger.warning(
+                        f"Failed to send push to {device_token.token[:8]}...: {type(e).__name__}: {e}"
+                    )
         finally:
             db.close()
 

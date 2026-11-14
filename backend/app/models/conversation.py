@@ -26,7 +26,10 @@ class Conversation(Base):
     role = Column(Enum(MessageRole), nullable=False)
     content = Column(Text, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
-    updated_at = Column(DateTime, onupdate=datetime.utcnow, nullable=True)
+    # Set only when a user edits the message (the edit route stamps it); both clients
+    # show "(edited)" whenever it is non-null. Deliberately no onupdate: system writes
+    # (the Talk summary card being filled in, journal flags) are not edits.
+    updated_at = Column(DateTime, nullable=True)
 
     # Rich media support
     message_type = Column(Enum(MessageType), default=MessageType.TEXT, nullable=False)
