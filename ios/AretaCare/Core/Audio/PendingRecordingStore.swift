@@ -23,10 +23,21 @@ struct PendingRecording: Codable, Identifiable, Hashable, Sendable {
 final class PendingRecordingStore {
     static let shared = PendingRecordingStore()
 
+    /// Who a recording belongs to, taken just before its upload starts (`currentOwner()`)
+    /// and handed to `keep` if the upload fails.
+    struct Owner {
+        let userId: String
+        /// The explicit sign-outs counted when the upload started.
+        fileprivate let signOuts: Int
+    }
+
     private(set) var items: [PendingRecording] = []
 
     @ObservationIgnored private let directory: URL
     @ObservationIgnored private let fileManager = FileManager.default
+    /// Explicit sign-outs (`removeAll`) since launch. An upload that started before one
+    /// must not put its recording back on the device once it fails.
+    @ObservationIgnored private var signOuts = 0
 
     private init() {
         let base = (try? fileManager.url(
@@ -44,17 +55,27 @@ final class PendingRecordingStore {
             .sorted { $0.recordedAt > $1.recordedAt }
     }
 
-    /// Moves a finished recording into the store. Returns false (leaving the file where it
-    /// was) if it couldn't be kept.
-    ///
-    /// `userId` is the person who made the recording, captured by the caller before the
-    /// upload: an upload that fails because the session expired has already run
+    /// The signed-in person, for a recording about to be uploaded. Take it before the upload
+    /// starts: an upload that fails because the session expired has already run
     /// `forceLogout`, so the signed-in user is gone by the time the recording is kept.
+    func currentOwner() -> Owner? {
+        AuthManager.shared.currentUser.map { Owner(userId: $0.id, signOuts: signOuts) }
+    }
+
+    /// Moves a finished recording into the store. Returns false if it couldn't be kept,
+    /// leaving the file where it was, except after an explicit sign-out that happened
+    /// while it uploaded: then the file is deleted, like everything `removeAll` deleted.
+    /// (An expired session is not a sign-out; that recording is kept for when the same
+    /// person signs back in.)
     @discardableResult
-    func keep(fileAt source: URL, sessionId: String, filename: String, userId: String) -> Bool {
+    func keep(fileAt source: URL, sessionId: String, filename: String, owner: Owner) -> Bool {
+        guard owner.signOuts == signOuts else {
+            try? fileManager.removeItem(at: source)
+            return false
+        }
         let recordedAt = (try? fileManager.attributesOfItem(atPath: source.path)[.creationDate] as? Date) ?? Date()
         let item = PendingRecording(
-            id: UUID().uuidString, userId: userId, sessionId: sessionId,
+            id: UUID().uuidString, userId: owner.userId, sessionId: sessionId,
             filename: filename, recordedAt: recordedAt
         )
         do {
@@ -95,7 +116,9 @@ final class PendingRecordingStore {
     }
 
     /// Explicit sign-out: health data must not stay on a device someone may hand over.
+    /// Uploads still in flight are covered too: their failure path can't keep the file.
     func removeAll() {
+        signOuts += 1
         try? fileManager.removeItem(at: directory)
         items = []
     }
