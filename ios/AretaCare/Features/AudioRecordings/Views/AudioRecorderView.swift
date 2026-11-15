@@ -193,16 +193,19 @@ struct AudioRecorderView: View {
             guard let audioData = await recorder.stopAsync() else { return }
             let file = recorder.takeRecordingFile()
             let filename = "recording_\(Date().apiDateString)_\(Int(Date().timeIntervalSince1970)).m4a"
+            // Before the upload: if it fails because the session expired, the signed-in
+            // user is already cleared when we get the result back.
+            let ownerId = AuthManager.shared.currentUser?.id
             // Hold the on-disk copy until the upload lands, so a suspended app
             // doesn't take the recording with it.
             if await viewModel.uploadRecording(sessionId: sessionId, audioData: audioData, filename: filename) {
                 if let file { try? FileManager.default.removeItem(at: file) }
-            } else if let file {
+            } else if let file, let ownerId {
                 // Kept on this device: the Audio Recordings screen under this sheet lists it
                 // with Upload and Discard, next to the upload error. It used to be left in
                 // the temporary directory with nothing pointing at it, and the next
                 // launch's sweep deleted it.
-                PendingRecordingStore.shared.keep(fileAt: file, sessionId: sessionId, filename: filename)
+                PendingRecordingStore.shared.keep(fileAt: file, sessionId: sessionId, filename: filename, userId: ownerId)
             }
             dismiss()
         }

@@ -10,12 +10,12 @@ final class AppNoticeViewModel {
     private var dismissedId: Int?
     private var lastFetch: Date?
 
-    private static let dismissedKey = "dismissedAppNoticeId"
     private static let refreshInterval: TimeInterval = 10 * 60
 
     init() {
-        let stored = UserDefaults.standard.integer(forKey: Self.dismissedKey)
-        dismissedId = stored == 0 ? nil : stored
+        // Dismissals used to be one device-wide value, so a notice one person dismissed
+        // stayed hidden for the next account signed in on the phone.
+        UserDefaults.standard.removeObject(forKey: "dismissedAppNoticeId")
     }
 
     /// The notice to show, or nil when there is none or the user dismissed it.
@@ -31,6 +31,7 @@ final class AppNoticeViewModel {
             return
         }
         lastFetch = Date()
+        dismissedId = storedDismissal()
         do {
             let response: CurrentAppNoticeResponse = try await APIClient.shared.get(APIEndpoints.Notices.current)
             notice = response.notice
@@ -40,17 +41,28 @@ final class AppNoticeViewModel {
     }
 
     func dismiss() {
-        guard let notice else { return }
+        guard let notice, let key = Self.dismissedKey() else { return }
         dismissedId = notice.id
-        UserDefaults.standard.set(notice.id, forKey: Self.dismissedKey)
+        UserDefaults.standard.set(notice.id, forKey: key)
     }
 
-    /// Signed out: forget the notice so the next account fetches its own.
+    /// Signed out: forget the notice so the next account fetches its own, and its own
+    /// dismissal (read on that account's first refresh).
     func reset() {
         notice = nil
         lastFetch = nil
-        // Logout resets UserDefaults, so re-read: the dismissal doesn't carry across sign-ins.
-        let stored = UserDefaults.standard.integer(forKey: Self.dismissedKey)
-        dismissedId = stored == 0 ? nil : stored
+        dismissedId = nil
+    }
+
+    /// Per account: someone else signing in on this phone still sees a notice this
+    /// person dismissed.
+    private static func dismissedKey() -> String? {
+        AuthManager.shared.currentUser.map { "dismissedAppNoticeId.\($0.id)" }
+    }
+
+    private func storedDismissal() -> Int? {
+        guard let key = Self.dismissedKey() else { return nil }
+        let stored = UserDefaults.standard.integer(forKey: key)
+        return stored == 0 ? nil : stored
     }
 }

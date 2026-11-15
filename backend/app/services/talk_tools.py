@@ -18,6 +18,7 @@ from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 from typing import Any, Awaitable, Callable, Dict, List, Optional
 
+from pydantic import ValidationError
 from sqlalchemy import desc, or_
 from sqlalchemy.orm import Session as DBSession
 from sqlalchemy.orm.attributes import flag_modified
@@ -27,7 +28,7 @@ from app.models import (
 )
 from app.models.journal import EntryType
 from app.schemas.journal import JournalEntryCreate, JournalEntryUpdate
-from app.schemas.profile import PendingChange
+from app.schemas.profile import PendingChange, ProfileData
 from app.services.openai_service import _strip_markdown_images, wrap_untrusted
 
 logger = logging.getLogger(__name__)
@@ -501,13 +502,15 @@ async def _apply_action(ctx: ToolContext, kind: str, params: dict) -> str:
         from fastapi import HTTPException
         from app.services.daily_plan_service import DailyPlanService
         try:
-            plan, _created = await DailyPlanService.generate_daily_plan(
+            plan, created = await DailyPlanService.generate_daily_plan(
                 ctx.db, ctx.session_id, user_date=params["date"], user_id=ctx.user_id,
             )
         except HTTPException as e:
             # e.g. not enough recent activity: a normal answer, not a server fault.
             detail = e.detail if isinstance(e.detail, str) else "The Daily Digest could not be generated."
             raise ToolError(detail)
+        if created:
+            DailyPlanService.notify_digest_ready(ctx.db, ctx.session_id, exclude_user_id=ctx.user_id)
         return f"The Daily Digest for {plan.date.isoformat()} is in the Digest tab."
 
     raise ToolError("Unknown action.")
@@ -533,6 +536,9 @@ async def _suggest_profile_change(ctx: ToolContext, args: dict) -> str:
 
     from app.services.profile_service import ProfileService
     profile = await ProfileService.get_or_create_profile(ctx.db, ctx.session_id)
+    # Lock the row and re-read it before appending: a collaborator's Talk call, the review
+    # screen and AI updates rewrite the same list, and the later write would erase this one.
+    ctx.db.refresh(profile, with_for_update=True)
     data = profile.profile_data or {}
     old_value: Any = None
 
@@ -584,6 +590,16 @@ async def _suggest_profile_change(ctx: ToolContext, args: dict) -> str:
         "reasoning": f"Requested in a Talk conversation: {reasoning}",
     }
     PendingChange.model_validate(change)  # a malformed row would break every profile read
+    # The change's shape is fine; now its values. `new_value` is free-form, and accepting
+    # e.g. an integer age would store a profile that no longer validates on read.
+    try:
+        ProfileData.model_validate(ProfileService.preview_change(data, change))
+    except ValidationError as e:
+        problems = "; ".join(
+            f"{'.'.join(str(part) for part in err['loc'])}: {err['msg']}" for err in e.errors()[:3]
+        )
+        # api/talk.py rolls back on ToolError, which also releases the row lock.
+        raise ToolError(f"'new_value' doesn't fit the Health Profile ({problems}). Fix it and try again.")
 
     pending = list(profile.pending_changes or [])
     if len(pending) >= MAX_PENDING_PROFILE_CHANGES:

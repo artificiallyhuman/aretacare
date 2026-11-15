@@ -447,6 +447,15 @@ async def _run_startup_cleanup():
             logger.error(f"Email campaign cleanup failed: {e}")
             db.rollback()
 
+        # Talk working transcripts (the saved recording or chat turns are the user's copy)
+        try:
+            from app.services.talk_session_service import clear_saved_transcripts
+            cleared = clear_saved_transcripts(db)
+            logger.info(f"✓ Talk transcript cleanup: {cleared or 'No'} finished calls cleared")
+        except Exception as e:
+            logger.error(f"Talk transcript cleanup failed: {e}")
+            db.rollback()
+
         # MFA challenges
         try:
             deleted = MFAService.cleanup_expired_challenges(db)

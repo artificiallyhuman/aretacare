@@ -5,6 +5,7 @@ import copy
 import json
 import uuid
 import time
+from types import SimpleNamespace
 from sqlalchemy.orm import Session
 from sqlalchemy.orm.attributes import flag_modified
 from datetime import datetime
@@ -567,8 +568,11 @@ class ProfileService:
             if not isinstance(update_data, dict):
                 raise ValueError("AI profile update output was not a JSON object")
 
-            # ALL changes require approval - AI returns unified list of suggested changes
-            pending = profile.pending_changes or []
+            # ALL changes require approval - AI returns unified list of suggested changes.
+            # Re-read the list under a row lock: Talk suggestions, the review screen and
+            # manual edits rewrite it too, and the model call above can take minutes.
+            db.refresh(profile, attribute_names=["pending_changes"], with_for_update=True)
+            pending = list(profile.pending_changes or [])
 
             # Process all suggested changes from AI
             changes = update_data.get("changes", [])
@@ -622,8 +626,9 @@ class ProfileService:
             # or if we actually modified profile_data. Don't update just for generating pending changes.
             profile.updated_at = datetime.utcnow()
 
-            # Explicitly flag JSONB columns as modified for SQLAlchemy to detect changes
-            flag_modified(profile, "profile_data")
+            # Only the pending list changed. profile_data is NOT flagged: this copy was read
+            # before the model call, and writing it back would undo a manual edit made
+            # in the meantime.
             flag_modified(profile, "pending_changes")
 
             db.commit()
@@ -722,6 +727,10 @@ class ProfileService:
             Profile: The updated profile
         """
         try:
+            # Lock the row and re-read it: a Talk suggestion or another reviewer may have
+            # changed the list since the route loaded the profile, and writing back a stale
+            # list would erase their change.
+            db.refresh(profile, with_for_update=True)
             pending_changes = profile.pending_changes or []
             remaining_changes = []
             changes_applied = 0
@@ -751,6 +760,22 @@ class ProfileService:
                 # _apply_list_change). Applying it would erase a stored value the
                 # user typed — discard the change instead.
                 if value_to_apply is None and change.get("change_type") != "delete":
+                    continue
+
+                # Every profile read validates against ProfileData, so one value of the
+                # wrong type (an integer age from a voice suggestion, a malformed AI change,
+                # an edited value) would make the whole profile unreadable. Check the
+                # result first; a change that fails is dropped, like a malformed AI one.
+                try:
+                    ProfileData.model_validate(ProfileService.preview_change(
+                        profile.profile_data, {**change, "new_value": value_to_apply}
+                    ))
+                except ValidationError as e:
+                    # Locations and error types only: the values are health data.
+                    logger.warning(
+                        f"Dropping pending change {change_id} for session {profile.session_id}: "
+                        f"it would make the profile invalid {[(err['loc'], err['type']) for err in e.errors()[:3]]}"
+                    )
                     continue
 
                 # Apply the change
@@ -785,6 +810,22 @@ class ProfileService:
             logger.error(f"Error applying pending changes: {str(e)}", exc_info=True)
             db.rollback()
             raise
+
+    @staticmethod
+    def preview_change(profile_data: Optional[Dict], change: Dict) -> Dict:
+        """The profile data as it would be after `change`, leaving the stored profile and
+        the change untouched. Validate the result against ProfileData before a change is
+        queued or applied."""
+        stand_in = SimpleNamespace(profile_data=copy.deepcopy(profile_data or {}))
+        ProfileService._apply_change(
+            stand_in,
+            change.get("change_type"),
+            change.get("section"),
+            change.get("item_id"),
+            change.get("field_path"),
+            copy.deepcopy(change.get("new_value")),  # an add stamps an id into it
+        )
+        return stand_in.profile_data
 
     @staticmethod
     def _apply_list_change(
@@ -979,6 +1020,9 @@ class ProfileService:
         Returns:
             Profile: The updated profile
         """
+        # Lock the row and re-read the pending list before reconciling it below, so a
+        # suggestion added since the route loaded the profile isn't written over.
+        db.refresh(profile, attribute_names=["pending_changes"], with_for_update=True)
         profile.profile_data = profile_data
         profile.last_user_update = datetime.utcnow()
         profile.updated_at = datetime.utcnow()

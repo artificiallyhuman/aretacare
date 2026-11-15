@@ -6,20 +6,24 @@ import { noticeAPI } from '../services/api';
 // signed-in user, before AI consent and on every page. Plain text only: the body is never
 // rendered as HTML or markdown, and the server only accepts https links on aretacare.com.
 
-const DISMISSED_KEY = 'dismissedNoticeId';
+// Per account: on a shared browser, one person dismissing a breach notice must not hide
+// it from the next person who signs in.
+const dismissedKey = (userId) => `dismissedNoticeId:${userId}`;
 const REFRESH_MS = 10 * 60 * 1000;
 
-function readDismissed() {
+function readDismissed(userId) {
+  if (!userId) return null;
   try {
-    return window.localStorage.getItem(DISMISSED_KEY);
+    return window.localStorage.getItem(dismissedKey(userId));
   } catch {
     return null;
   }
 }
 
-function writeDismissed(id) {
+function writeDismissed(userId, id) {
   try {
-    window.localStorage.setItem(DISMISSED_KEY, String(id));
+    window.localStorage.setItem(dismissedKey(userId), String(id));
+    window.localStorage.removeItem('dismissedNoticeId'); // the old browser-wide key
   } catch {
     // Storage unavailable (private mode, blocked): the banner simply returns next load.
   }
@@ -27,7 +31,7 @@ function writeDismissed(id) {
 
 const AppNoticeBanner = ({ userId }) => {
   const [notice, setNotice] = useState(null);
-  const [dismissedId, setDismissedId] = useState(readDismissed);
+  const [dismissedId, setDismissedId] = useState(() => readDismissed(userId));
   const lastFetch = useRef(0);
 
   const load = useCallback(async () => {
@@ -41,6 +45,7 @@ const AppNoticeBanner = ({ userId }) => {
   }, []);
 
   useEffect(() => {
+    setDismissedId(readDismissed(userId));
     if (!userId) {
       setNotice(null);
       return undefined;
@@ -58,7 +63,7 @@ const AppNoticeBanner = ({ userId }) => {
   if (!notice || String(notice.id) === dismissedId) return null;
 
   const dismiss = () => {
-    writeDismissed(notice.id);
+    writeDismissed(userId, notice.id);
     setDismissedId(String(notice.id));
   };
   const link = notice.link_url && notice.link_url.startsWith('https://') ? notice.link_url : null;

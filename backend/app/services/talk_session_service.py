@@ -72,6 +72,9 @@ FLUSH_INTERVAL_SECONDS = 5          # transcript + heartbeat to the row
 SPEECH_STAMP_INTERVAL_SECONDS = 1   # last_user_speech_at (read by confirm_action)
 WRAP_UP_WARNING_SECONDS = 60
 SIDEBAND_MAX_RECONNECTS = 4
+# A sideband connection that lasted this long resets the reconnect budget; shorter ones
+# count against it.
+SIDEBAND_STABLE_SECONDS = 30
 MIN_SAVED_CALL_SECONDS = 5
 # A 'finalizing' row older than this lost its finalizer; it is reported as failed.
 FINALIZING_STALE_SECONDS = 15 * 60
@@ -348,10 +351,28 @@ def _finish_row(talk_id: str, status: TalkStatus, outcome: Optional[TalkOutcome]
             "duration_seconds": duration,
             "audio_recording_id": audio_recording_id,
             "journal_entries_created": journal_entries,
+            # The saved copies (the recording's transcript, or the turns posted to chat)
+            # are the ones the user can see and delete. Keeping this one would outlive
+            # them: deleting the recording only nulls audio_recording_id here.
+            "transcript": None,
         }, synchronize_session=False)
         db.commit()
     finally:
         db.close()
+
+
+def clear_saved_transcripts(db) -> int:
+    """Startup retention step: drop the working transcript from every call that is no
+    longer live. `_finish_row` already does this; this catches a finalizer that died
+    mid-save (its row stays 'finalizing' for good) and rows saved before it did."""
+    cutoff = datetime.utcnow() - timedelta(seconds=FINALIZING_STALE_SECONDS)
+    count = db.query(TalkSession).filter(
+        TalkSession.status != TalkStatus.ACTIVE.value,
+        TalkSession.transcript.isnot(None),
+        TalkSession.ended_at < cutoff,
+    ).update({"transcript": None}, synchronize_session=False)
+    db.commit()
+    return count
 
 
 def effective_status(talk: TalkSession) -> str:
@@ -681,22 +702,40 @@ async def _run_sideband(talk_id: str, openai_session_id: str, max_seconds: int) 
     try:
         failures = 0
         while not state["closed"] and state["close_sent_at"] is None:
+            connected_at = None
             try:
                 async with websockets.connect(
                     LIVE_ATTACH_URL.format(session_id=openai_session_id),
                     additional_headers=_openai_headers(),
                     max_size=4 * 1024 * 1024, open_timeout=10, ping_interval=20, ping_timeout=20,
                 ) as ws:
-                    failures = 0
+                    connected_at = time.monotonic()
                     recorder.new_connection()
                     await pump(ws)
             except asyncio.CancelledError:
                 raise
             except Exception as e:
+                now = time.monotonic()
+                # Only a connection that held for a while earns a fresh budget. Resetting on
+                # every handshake let one that opens and drops at once retry forever.
+                if connected_at is not None and now - connected_at >= SIDEBAND_STABLE_SECONDS:
+                    failures = 0
                 failures += 1
                 logger.warning(f"Talk {talk_id}: sideband dropped ({type(e).__name__}), attempt {failures}")
-                if failures > SIDEBAND_MAX_RECONNECTS:
-                    state["reason"] = state["reason"] or "sideband_lost"
+                # pump's limit checks run only after a recv; a socket that raises at once
+                # never reaches them, so they are repeated here.
+                if end_requested.is_set():
+                    stop_reason = "ended_by_user"
+                elif state["row_gone"]:
+                    stop_reason = "superseded"
+                elif now - started >= max_seconds:
+                    stop_reason = "time_limit"
+                elif failures > SIDEBAND_MAX_RECONNECTS:
+                    stop_reason = "sideband_lost"
+                else:
+                    stop_reason = None
+                if stop_reason:
+                    state["reason"] = state["reason"] or stop_reason
                     break
                 await asyncio.sleep(min(1.5 * failures, 5))
     except asyncio.CancelledError:

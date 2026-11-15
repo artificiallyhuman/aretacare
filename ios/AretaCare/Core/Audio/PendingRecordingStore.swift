@@ -46,9 +46,12 @@ final class PendingRecordingStore {
 
     /// Moves a finished recording into the store. Returns false (leaving the file where it
     /// was) if it couldn't be kept.
+    ///
+    /// `userId` is the person who made the recording, captured by the caller before the
+    /// upload: an upload that fails because the session expired has already run
+    /// `forceLogout`, so the signed-in user is gone by the time the recording is kept.
     @discardableResult
-    func keep(fileAt source: URL, sessionId: String, filename: String) -> Bool {
-        guard let userId = AuthManager.shared.currentUser?.id else { return false }
+    func keep(fileAt source: URL, sessionId: String, filename: String, userId: String) -> Bool {
         let recordedAt = (try? fileManager.attributesOfItem(atPath: source.path)[.creationDate] as? Date) ?? Date()
         let item = PendingRecording(
             id: UUID().uuidString, userId: userId, sessionId: sessionId,

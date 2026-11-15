@@ -446,6 +446,111 @@ def test_profile_changes_are_queued_for_review_never_applied(client, db, alice, 
         .profile_data["medications"][0]["dose"] == "20 mg"
 
 
+def empty_profile(db, account, pending=None):
+    db.add(Profile(session_id=account.session_id, pending_changes=pending or [], profile_data={
+        "patient": None, "caregivers": [], "providers": [], "conditions": [], "allergies": [], "events": [],
+        "preferences": None, "medications": [{"id": "med_abc123", "name": "Lisinopril", "dose": "10 mg"}],
+    }))
+    db.commit()
+
+
+def test_a_suggestion_that_would_break_the_profile_is_refused(client, db, alice, talk_on):
+    """`new_value` is free-form. An integer age queued here would, once accepted, store a
+    profile that fails validation on every read."""
+    empty_profile(db, alice)
+    _talk_id, token = live_call(db, alice)
+
+    text, is_error = call_tool(client, token, "suggest_profile_change", {
+        "section": "patient", "change_type": "edit", "new_value": {"age": 72}, "reasoning": "Said his age."})
+    assert is_error and "patient.age" in text
+    db.expire_all()
+    assert db.query(Profile).filter(Profile.session_id == alice.session_id).one().pending_changes == []
+
+    text, is_error = call_tool(client, token, "suggest_profile_change", {
+        "section": "patient", "change_type": "edit", "new_value": {"age": "72"}, "reasoning": "Said his age."})
+    assert not is_error, text
+    db.expire_all()
+    assert len(db.query(Profile).filter(Profile.session_id == alice.session_id).one().pending_changes) == 1
+
+
+def test_accepting_a_change_that_would_break_the_profile_drops_it(client, db, alice):
+    empty_profile(db, alice, pending=[{
+        "id": "bad00001", "change_type": "edit", "field_path": "patient", "section": "patient",
+        "item_id": None, "old_value": None, "new_value": {"age": 72}, "reasoning": "x",
+    }])
+    headers = alice.auth_headers(client)
+    applied = client.post(f"/api/profile/{alice.session_id}/pending-changes/review",
+                          json={"decisions": {"bad00001": "accept"}}, headers=headers)
+    assert applied.status_code == 200, applied.text
+    assert applied.json()["pending_changes"] == []
+    assert client.get(f"/api/profile/{alice.session_id}", headers=headers).status_code == 200
+    db.expire_all()
+    assert db.query(Profile).filter(Profile.session_id == alice.session_id).one().profile_data["patient"] in (None, {})
+
+
+def test_a_review_from_a_stale_copy_keeps_a_newer_suggestion(client, db, alice, talk_on):
+    """The review screen loaded the profile, then a Talk call added a suggestion. Writing
+    back the list the screen loaded used to erase it."""
+    from app.core.database import SessionLocal
+    from app.services.profile_service import ProfileService
+
+    empty_profile(db, alice, pending=[{
+        "id": "old00001", "change_type": "edit", "field_path": "medications.med_abc123",
+        "section": "medications", "item_id": "med_abc123", "old_value": None,
+        "new_value": {"dose": "15 mg"}, "reasoning": "x",
+    }])
+    reviewer = SessionLocal()
+    try:
+        stale = reviewer.query(Profile).filter(Profile.session_id == alice.session_id).one()
+        assert len(stale.pending_changes) == 1
+
+        _talk_id, token = live_call(db, alice)
+        assert call_tool(client, token, "suggest_profile_change", {
+            "section": "medications", "change_type": "edit", "item_id": "med_abc123",
+            "new_value": {"dose": "20 mg"}, "reasoning": "Said it doubled."})[1] is False
+
+        result = asyncio.run(ProfileService.apply_pending_changes(reviewer, stale, {"old00001": "reject"}))
+        assert [c["new_value"] for c in result.pending_changes] == [{"dose": "20 mg"}]
+    finally:
+        reviewer.close()
+
+
+def test_a_digest_made_by_voice_notifies_the_others_once(client, db, alice, bob, talk_on, monkeypatch):
+    from app.models import SessionCollaborator
+    from app.services.daily_plan_service import DailyPlanService
+    from app.services.push_notification_service import PushNotificationService
+
+    db.add(SessionCollaborator(session_id=alice.session_id, user_id=bob.user_id))
+    db.commit()
+    pushes = []
+    monkeypatch.setattr(PushNotificationService, "notify_daily_digest",
+                        classmethod(lambda cls, **kwargs: pushes.append(kwargs)))
+
+    async def _context(_db, _session_id):
+        return {}
+
+    async def _content(_context, user_id=None):
+        return "Synthetic digest"
+
+    monkeypatch.setattr(DailyPlanService, "_gather_context", staticmethod(_context))
+    monkeypatch.setattr(DailyPlanService, "_has_sufficient_data", staticmethod(lambda _c: True))
+    monkeypatch.setattr(DailyPlanService, "_generate_plan_content", staticmethod(_content))
+
+    talk_id, token = live_call(db, alice)
+    for _ in range(2):  # the second returns the digest the first made
+        text, is_error = call_tool(client, token, "propose_generate_digest", {"date": "2026-11-10"})
+        assert not is_error, text
+        action_id = text.split("action_id: ")[1].split(".")[0]
+        db.query(TalkSession).filter(TalkSession.id == talk_id).update(
+            {"last_user_speech_at": datetime.utcnow() + timedelta(seconds=5)})
+        db.commit()
+        text, is_error = call_tool(client, token, "confirm_action", {"action_id": action_id})
+        assert not is_error, text
+
+    assert len(pushes) == 1
+    assert bob.user_id in pushes[0]["user_ids"] and pushes[0]["exclude_user_id"] == alice.user_id
+
+
 # --- saving a finished call ------------------------------------------------
 
 TURNS = [
@@ -491,6 +596,8 @@ def test_a_call_with_audio_becomes_a_recording_and_a_summary_message(db, alice, 
     db.expire_all()
     talk = db.query(TalkSession).filter(TalkSession.id == talk_id).one()
     assert (talk.status, talk.outcome) == ("completed", "audio")
+    # The recording's transcript is the user's copy; the working one on the row is gone.
+    assert talk.transcript is None
     recording = db.query(AudioRecording).filter(AudioRecording.id == talk.audio_recording_id).one()
     assert recording.session_id == alice.session_id and recording.transcription_status == "completed"
     assert recording.s3_key == finalize_stubs["uploaded"] and recording.s3_key.endswith(".mp3")
@@ -540,7 +647,8 @@ def test_a_failed_save_removes_the_saving_card(db, alice, finalize_stubs, monkey
     asyncio.run(talk_service.finalize_talk(talk_id, reason="remote_hangup", turns=TURNS,
                                            recorder=recorder_with_audio(talk_id), duration=42.0))
     db.expire_all()
-    assert db.query(TalkSession).filter(TalkSession.id == talk_id).one().status == "failed"
+    talk = db.query(TalkSession).filter(TalkSession.id == talk_id).one()
+    assert talk.status == "failed" and talk.transcript is None
     assert db.query(Conversation).filter(Conversation.session_id == alice.session_id).count() == 0
 
 
@@ -594,6 +702,7 @@ def test_without_audio_the_turns_are_posted_to_chat(db, alice, finalize_stubs):
     db.expire_all()
     talk = db.query(TalkSession).filter(TalkSession.id == talk_id).one()
     assert (talk.status, talk.outcome, talk.audio_recording_id) == ("completed", "transcript_only", None)
+    assert talk.transcript is None  # the turns in chat are the user's copy
     messages = db.query(Conversation).filter(
         Conversation.session_id == alice.session_id).order_by(Conversation.id).all()
     assert [m.role.value for m in messages] == ["user", "assistant", "assistant"]
@@ -620,7 +729,8 @@ def test_a_call_where_nothing_was_said_is_discarded(db, alice, finalize_stubs):
     silent = [{"role": "assistant", "text": "Hi, how can I help?", "start_ms": 0, "end_ms": 2000}]
     asyncio.run(talk_service.finalize_talk(talk_id, reason="silence", turns=silent, duration=60.0))
     db.expire_all()
-    assert db.query(TalkSession).filter(TalkSession.id == talk_id).one().outcome == "discarded"
+    talk = db.query(TalkSession).filter(TalkSession.id == talk_id).one()
+    assert talk.outcome == "discarded" and talk.transcript is None
     assert db.query(Conversation).filter(Conversation.session_id == alice.session_id).count() == 0
     assert finalize_stubs["synth"] == 0
 
@@ -644,6 +754,93 @@ def test_a_live_heartbeat_cannot_be_claimed_as_stale(db, alice):
     assert asyncio.run(talk_service.claim_stale_and_finalize(talk_id)) is False
     db.expire_all()
     assert db.query(TalkSession).filter(TalkSession.id == talk_id).one().status == "active"
+
+
+def test_startup_clears_transcripts_of_calls_that_are_over(db, alice):
+    """A finalizer that died leaves its row 'finalizing' for good; rows saved before
+    _finish_row cleared the transcript keep theirs. The startup sweep catches both, but
+    never a live call or a save still in progress."""
+    long_ago = datetime.utcnow() - timedelta(seconds=talk_service.FINALIZING_STALE_SECONDS + 60)
+    rows = {}
+    for name, status, ended_at in [
+        ("old_completed", "completed", long_ago),
+        ("dead_finalizer", "finalizing", long_ago),
+        ("saving_now", "finalizing", datetime.utcnow()),
+        ("live", "active", None),
+    ]:
+        talk_id, _token = live_call(db, alice)  # one active call per user: demote before the next
+        db.query(TalkSession).filter(TalkSession.id == talk_id).update(
+            {"status": status, "ended_at": ended_at, "transcript": TURNS})
+        db.commit()
+        rows[name] = talk_id
+
+    assert talk_service.clear_saved_transcripts(db) == 2
+    db.expire_all()
+    transcript = {name: db.query(TalkSession).filter(TalkSession.id == talk_id).one().transcript
+                  for name, talk_id in rows.items()}
+    assert transcript["old_completed"] is None and transcript["dead_finalizer"] is None
+    assert transcript["saving_now"] == TURNS and transcript["live"] == TURNS
+
+
+# --- the sideband gives up instead of reconnecting forever -------------------
+
+def run_sideband_against_dropping_socket(monkeypatch, max_seconds=600, end_requested=False):
+    """A sideband whose every connection opens and drops at once. Returns (connects, reason)."""
+    connects, finalized = [], {}
+
+    class DroppingSocket:
+        async def __aenter__(self):
+            # A refused handshake counts against even the old budget, so a regression
+            # fails this test instead of spinning (wait_for can lose its cancel on 3.11).
+            if len(connects) >= 50:
+                raise ConnectionRefusedError("test cap")
+            connects.append(1)
+            return self
+
+        async def __aexit__(self, *_exc):
+            return False
+
+        async def recv(self):
+            raise ConnectionError("dropped")
+
+        async def send(self, _message):
+            pass
+
+    real_sleep = asyncio.sleep
+
+    async def no_wait(_seconds):
+        await real_sleep(0)
+
+    async def fake_finalize(talk_id, *, reason, recorder=None, **_kwargs):
+        finalized["reason"] = reason
+        if recorder is not None:
+            recorder.cleanup()
+
+    monkeypatch.setattr(talk_service.websockets, "connect", lambda *a, **k: DroppingSocket())
+    monkeypatch.setattr(talk_service.asyncio, "sleep", no_wait)
+    monkeypatch.setattr(talk_service, "finalize_talk", fake_finalize)
+
+    talk_id = "sideband-test"
+    event = asyncio.Event()
+    if end_requested:
+        event.set()
+    talk_service._end_requests[talk_id] = event
+    try:
+        asyncio.run(talk_service._run_sideband(talk_id, "live_x", max_seconds))
+    finally:
+        talk_service._end_requests.pop(talk_id, None)
+    return len(connects), finalized.get("reason")
+
+
+def test_a_sideband_that_keeps_dropping_gives_up(monkeypatch):
+    connects, reason = run_sideband_against_dropping_socket(monkeypatch)
+    assert reason == "sideband_lost"
+    assert connects == talk_service.SIDEBAND_MAX_RECONNECTS + 1
+
+
+def test_a_dropping_sideband_still_honours_end_and_the_time_limit(monkeypatch):
+    assert run_sideband_against_dropping_socket(monkeypatch, end_requested=True) == (1, "ended_by_user")
+    assert run_sideband_against_dropping_socket(monkeypatch, max_seconds=0) == (1, "time_limit")
 
 
 def test_recorder_places_both_streams_on_one_timeline():

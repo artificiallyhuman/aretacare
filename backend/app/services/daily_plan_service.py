@@ -75,6 +75,29 @@ class DailyPlanService:
     """Service for generating and managing daily plans"""
 
     @staticmethod
+    def notify_digest_ready(db: Session, session_id: str, exclude_user_id: Optional[str]) -> None:
+        """Push "Daily Digest Ready" to the care session's people, except whoever made it.
+        Call only for a digest that was just created (`generate_daily_plan`'s `created`):
+        every path that makes one (the generate route, Talk) goes through here. Never raises."""
+        try:
+            from ..models import SessionCollaborator
+            from .push_notification_service import PushNotificationService
+            session = db.query(UserSession).filter(UserSession.id == session_id).first()
+            if session is None:
+                return
+            participant_ids = [c.user_id for c in db.query(SessionCollaborator.user_id).filter(
+                SessionCollaborator.session_id == session_id
+            ).all()] + [session.owner_id]
+            PushNotificationService.notify_daily_digest(
+                session_id=session_id,
+                session_name=session.name,
+                user_ids=participant_ids,
+                exclude_user_id=exclude_user_id,
+            )
+        except Exception as e:
+            logger.warning(f"Push notification failed (non-fatal): {type(e).__name__}: {e}")
+
+    @staticmethod
     async def generate_daily_plan(
         db: Session,
         session_id: str,

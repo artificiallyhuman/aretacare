@@ -140,6 +140,11 @@ final class TalkViewModel {
     private var muteGestureObserver: NSObjectProtocol?
     private var previousIdleTimerDisabled = false
     private var isEnding = false
+    /// The current attempt. Phase alone can't tell an ended attempt from a new one (both
+    /// reach `.connecting`), so a slow response from a call the user already ended passed
+    /// the phase checks, took over `talkId` and failed the new call. Every await and every
+    /// transport event re-checks this; `reset()` replaces it.
+    private var attemptId = UUID()
 
     private static let connectTimeoutSeconds: Double = 20
     private static let speakingThreshold = 0.02
@@ -149,6 +154,8 @@ final class TalkViewModel {
     /// The user chose Talk. Checks availability and consent before touching the microphone.
     func begin(sessionId: String) async {
         guard phase == .idle else { return }
+        let attempt = UUID()
+        attemptId = attempt
         self.sessionId = sessionId
         phase = .preparing
 
@@ -162,7 +169,7 @@ final class TalkViewModel {
         }
         do {
             let status: TalkStatusResponse = try await APIClient.shared.get(APIEndpoints.Talk.status)
-            guard phase == .preparing else { return }
+            guard attempt == attemptId, phase == .preparing else { return }
             maxSessionSeconds = status.maxSessionSeconds
             isOffered = status.enabled
             offeredCheckedAt = Date()
@@ -175,24 +182,25 @@ final class TalkViewModel {
                 return
             }
             if status.hasConsent {
-                await startCall()
+                await startCall(attempt: attempt)
             } else {
                 showingConsent = true
             }
         } catch {
-            guard phase == .preparing else { return }
+            guard attempt == attemptId, phase == .preparing else { return }
             fail(title: "Talk Unavailable", message: Self.message(for: error))
         }
     }
 
     func acceptConsent() async {
         showingConsent = false
+        let attempt = attemptId
         do {
             let _: TalkConsentResponse = try await APIClient.shared.post(APIEndpoints.Talk.consent)
-            guard phase == .preparing else { return }
-            await startCall()
+            guard attempt == attemptId, phase == .preparing else { return }
+            await startCall(attempt: attempt)
         } catch {
-            guard phase == .preparing else { return }  // ended while the request was in flight
+            guard attempt == attemptId, phase == .preparing else { return }  // ended while the request was in flight
             fail(title: "Talk Unavailable", message: Self.message(for: error))
         }
     }
@@ -205,13 +213,13 @@ final class TalkViewModel {
 
     // MARK: - Call lifecycle
 
-    private func startCall() async {
-        guard let sessionId, phase == .preparing else { return }
+    private func startCall(attempt: UUID) async {
+        guard attempt == attemptId, let sessionId, phase == .preparing else { return }
 
         let granted = await withCheckedContinuation { continuation in
             AVAudioApplication.requestRecordPermission { continuation.resume(returning: $0) }
         }
-        guard phase == .preparing else { return }
+        guard attempt == attemptId, phase == .preparing else { return }
         guard granted else {
             showingMicDenied = true
             reset()
@@ -226,16 +234,17 @@ final class TalkViewModel {
         // Anything else using the audio session (a playing voice message) stops first.
         AudioSessionManager.shared.deactivate()
         self.transport = transport
-        transport.onEvent = { [weak self] event in self?.handle(event) }
+        transport.onEvent = { [weak self] event in self?.handle(event, attempt: attempt) }
         phase = .connecting
         beginCallEnvironment()
         startWatchdog(seconds: Self.connectTimeoutSeconds) { [weak self] in
-            self?.fail(title: "Couldn't Connect", message: "Talk couldn't connect. Please try again.")
+            guard let self, attempt == self.attemptId else { return }
+            self.fail(title: "Couldn't Connect", message: "Talk couldn't connect. Please try again.")
         }
 
         do {
             let offer = try await transport.makeOffer()
-            guard phase == .connecting else { return }
+            guard attempt == attemptId, phase == .connecting else { return }
             let request = TalkStartRequest(
                 sessionId: sessionId,
                 sdp: offer,
@@ -243,8 +252,9 @@ final class TalkViewModel {
                 currentTime: ISO8601DateFormatter().string(from: Date())
             )
             let response: TalkStartResponse = try await APIClient.shared.post(APIEndpoints.Talk.sessions, body: request)
-            guard phase == .connecting else {
-                // Ended while the request was in flight: the server still has a live call.
+            guard attempt == attemptId, phase == .connecting else {
+                // Ended while the request was in flight (possibly with a new attempt
+                // already under way): the server still has this live call.
                 Self.sendEnd(talkId: response.talkId)
                 return
             }
@@ -252,12 +262,13 @@ final class TalkViewModel {
             maxSessionSeconds = response.maxSeconds
             try await transport.applyAnswer(response.sdp)
         } catch {
-            guard phase == .connecting else { return }
+            guard attempt == attemptId, phase == .connecting else { return }
             fail(title: "Couldn't Start Talk", message: Self.message(for: error))
         }
     }
 
-    private func handle(_ event: TalkTransportEvent) {
+    private func handle(_ event: TalkTransportEvent, attempt: UUID) {
+        guard attempt == attemptId else { return }  // a transport from an ended attempt
         switch event {
         case .ready:
             guard phase == .connecting else { return }
@@ -377,6 +388,7 @@ final class TalkViewModel {
         talkId = nil
         sessionId = nil
         isEnding = false
+        attemptId = UUID()  // anything still in flight now belongs to an ended attempt
     }
 
     // MARK: - Result polling

@@ -560,15 +560,19 @@ struct ConversationView: View {
     private func sendVoiceMessage(_ audioData: Data, file: URL?) async {
         guard let sessionId = recordingSessionId ?? currentSessionId else { return }
         recordingSessionId = nil
+        // Before the upload: if it fails because the session expired, the signed-in user
+        // is already cleared when the result comes back.
+        let ownerId = AuthManager.shared.currentUser?.id
         if await conversationVM.uploadAudioMessage(data: audioData, sessionId: sessionId) {
             if let file { try? FileManager.default.removeItem(at: file) }
             return
         }
-        guard let file else { return }
+        guard let file, let ownerId else { return }
         let kept = PendingRecordingStore.shared.keep(
             fileAt: file,
             sessionId: sessionId,
-            filename: MultipartFormData.generatedRecordingFilename()
+            filename: MultipartFormData.generatedRecordingFilename(),
+            userId: ownerId
         )
         if kept, sessionId == currentSessionId {
             conversationVM.errorMessage = "Your voice message couldn't be sent. It's saved on this device: open Audio Recordings in Tools to upload it."
