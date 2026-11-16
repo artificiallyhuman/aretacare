@@ -408,3 +408,56 @@ def test_a_lookup_round_that_runs_out_of_time_still_answers(db, alice, fake_open
     assert fake.calls[2]["timeout"] == ai_config.CHAT_REPLY_RESERVE_SECONDS
     # A timeout we shortened says nothing about OpenAI's health.
     assert breaker_failures == []
+
+
+def test_a_request_is_cut_off_when_its_time_runs_out(clock, fake_openai, monkeypatch):
+    """httpx's timeout limits each network step, not the whole request; the deadline is
+    enforced around the request itself."""
+    import time as real_time
+
+    breaker_failures = []
+    monkeypatch.setattr(service_module, "MIN_REQUEST_SECONDS", 0.05)
+    monkeypatch.setattr(service_module.openai_circuit_breaker, "record_failure",
+                        lambda: breaker_failures.append(1))
+
+    class SlowResponses:
+        async def create(self, **_kwargs):
+            await asyncio.sleep(5)  # the server trickles: no single step times out
+            return _reply("too late")
+
+    monkeypatch.setattr(service_module.openai_service, "client", SimpleNamespace(responses=SlowResponses()))
+    started = real_time.perf_counter()
+    response = asyncio.run(service_module.openai_service._request_with_retries(
+        {"input": [], "store": False}, "conversation", None, deadline=clock.now + 0.3,
+    ))
+    assert response is None
+    assert real_time.perf_counter() - started < 2
+    assert breaker_failures == []  # our own limit, not OpenAI's health
+
+
+def test_a_slow_lookup_is_cut_off_and_the_reply_still_written(db, alice, fake_openai, clock, monkeypatch):
+    import time as real_time
+
+    # 0.3 s of lookup time before the closing reply's reserve.
+    monkeypatch.setattr(ai_config, "CHAT_REPLY_DEADLINE_SECONDS", ai_config.CHAT_REPLY_RESERVE_SECONDS + 0.3)
+
+    async def slow_search(self, **_kwargs):
+        await asyncio.sleep(5)
+        return []
+
+    monkeypatch.setattr("app.services.embedding_service.EmbeddingService.find_similar_entries", slow_search)
+
+    def respond(kwargs, i):
+        if kwargs.get("tool_choice") == "none":
+            return _reply("Answered with what I had.")
+        return _lookup(_call("search_journal", {"query": "what did the cardiologist say"}))
+
+    fake = fake_openai(respond)
+    runner = ChatToolRunner(db, session_id=alice.session_id, user_id=alice.user_id)
+    started = real_time.perf_counter()
+
+    assert _complete(runner) == "Answered with what I had."
+    assert real_time.perf_counter() - started < 2
+    assert runner.calls == []
+    assert "took too long" in _outputs(fake.calls[-1])["call_1"]
+    assert fake.calls[-1]["tool_choice"] == "none"

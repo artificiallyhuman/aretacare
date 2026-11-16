@@ -335,8 +335,10 @@ def _claimed_info(db, talk_id: str, *, resumed: bool = False) -> dict:
         "recording_name": talk.recording_name,
         # The call's date where the caller is (it started then), for journal synthesis.
         "local_date": local_date(talk.user_timezone, talk.started_at),
-        # Set when an interrupted save had already stored the recording.
+        # Set when an interrupted save had already stored the recording / journaled the
+        # conversation (stamped in the same transaction as the entries).
         "audio_recording_id": talk.audio_recording_id,
+        "journal_entries_created": talk.journal_entries_created,
         "card_id": card_id,
         "resumed": resumed,
     }
@@ -1213,8 +1215,22 @@ def effective_summary_card(content: str, metadata: Optional[dict], created_at: O
 
 
 async def _synthesize_journal(claimed: dict, filename: str, transcript_text: str, summary: str,
-                              duration: float, recording_id: Optional[int]) -> None:
+                              duration: float, recording_id: Optional[int]) -> Optional[int]:
+    """Journal the conversation, once. Returns how many entries were created (None if
+    synthesis failed). The count is stamped on the call's row in the same transaction as
+    the entries, so a save resumed after a shutdown knows they exist."""
     from app.services.journal_service import JournalService
+
+    if claimed.get("journal_entries_created") is not None:
+        return claimed["journal_entries_created"]
+
+    stamped: Dict[str, int] = {}
+
+    def stamp(db, count: int) -> None:
+        db.query(TalkSession).filter(TalkSession.id == claimed["talk_id"]).update(
+            {"journal_entries_created": count}, synchronize_session=False
+        )
+        stamped["count"] = count
 
     db = SessionLocal()
     try:
@@ -1222,12 +1238,14 @@ async def _synthesize_journal(claimed: dict, filename: str, transcript_text: str
             filename=filename, transcribed_text=transcript_text, ai_summary=summary or "",
             duration=duration, session_id=claimed["session_id"], entry_date=claimed["local_date"],
             audio_id=recording_id, user_id=claimed["user_id"], talk_conversation=True,
+            before_commit=stamp,
         )
     except Exception as e:
         # The recording/transcript is already saved; synthesis failing must not undo that.
         logger.warning(f"Talk journal synthesis failed: {e}")
     finally:
         db.close()
+    return stamped.get("count")
 
 
 def _entries_phrase(count: int) -> str:
@@ -1265,18 +1283,6 @@ async def _synthesize_and_summarize_audio(talk_id: str, claimed: dict, turns: Li
         "journal_entries": entries,
     })
     return entries
-
-
-def _count_recent_ai_entries(session_id: str, since: datetime) -> int:
-    db = SessionLocal()
-    try:
-        return db.query(JournalEntry).filter(
-            JournalEntry.session_id == session_id, JournalEntry.created_at >= since,
-            JournalEntry.created_by == "ai", JournalEntry.source_audio_id.is_(None),
-            JournalEntry.source_document_id.is_(None), JournalEntry.source_message_ids.is_(None),
-        ).count()
-    finally:
-        db.close()
 
 
 def _turn_rows(talk_id: str, claimed: dict, turns: List[dict]) -> List[dict]:
@@ -1318,11 +1324,9 @@ async def _save_transcript_only(talk_id: str, claimed: dict, turns: List[dict], 
     if not await asyncio.to_thread(_turns_posted, claimed["session_id"], talk_id):
         await asyncio.to_thread(_insert_messages, claimed["session_id"], _turn_rows(talk_id, claimed, turns))
 
-    synthesis_started = datetime.utcnow()
-    await _synthesize_journal(
+    entries = await _synthesize_journal(
         claimed, "Talk conversation", format_transcript(turns, claimed["user_name"]), "", duration, None
-    )
-    entries = await asyncio.to_thread(_count_recent_ai_entries, claimed["session_id"], synthesis_started)
+    ) or 0
 
     content = (
         f"That was a Talk conversation ({format_duration(duration)}), saved above as text. "

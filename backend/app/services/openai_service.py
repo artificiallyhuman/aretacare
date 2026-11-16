@@ -17,6 +17,10 @@ RETRYABLE_EXCEPTIONS = (RateLimitError, APIConnectionError, APITimeoutError, Int
 # With a deadline, an attempt (or retry) is not started with less time than this left.
 MIN_REQUEST_SECONDS = 5
 
+
+class _DeadlineExceeded(Exception):
+    """An attempt cut off by its deadline (asyncio.wait_for), handled like a timeout."""
+
 # Approved citation domains for Jargon Translator and Conversation Coach outputs.
 # Per SAFETY_GUIDELINES.md, the AI is instructed in the prompt to only cite these
 # domains — but a single jailbreak/prompt-injection/model-error can still produce
@@ -624,12 +628,20 @@ class OpenAIService:
             items.extend(output_items)
             for call in calls:
                 # Checked per lookup, not only per round: a slow model request can return
-                # its calls after the deadline has passed.
-                if time.monotonic() >= lookup_deadline:
+                # its calls after the deadline has passed. A lookup that starts is cut off
+                # when it would eat into the closing reply's reserve.
+                lookup_budget = reply_deadline - ai_config.CHAT_REPLY_RESERVE_SECONDS - time.monotonic()
+                if time.monotonic() >= lookup_deadline or lookup_budget <= 0:
                     output = "The time for lookups on this message has run out. Answer with what you have."
                 elif calls_made < ai_config.CHAT_MAX_LOOKUP_CALLS:
                     calls_made += 1
-                    output = await tool_runner.run(call.name, call.arguments)
+                    try:
+                        output = await asyncio.wait_for(
+                            tool_runner.run(call.name, call.arguments), timeout=lookup_budget
+                        )
+                    except asyncio.TimeoutError:
+                        logger.warning(f"Chat lookup {call.name} cut off by the reply's time limit")
+                        output = "That lookup took too long. Answer with what you have."
                 else:
                     output = "The lookup limit for this message has been reached. Answer with what you have."
                 items.append({"type": "function_call_output", "call_id": call.call_id, "output": output})
@@ -650,8 +662,10 @@ class OpenAIService:
         logged and returns None, or is re-raised when `raise_bad_request` is set.
 
         `deadline` (a time.monotonic() value) bounds the whole request, retries included:
-        each attempt gets only the time left as its timeout, and no attempt or retry
-        starts with less than MIN_REQUEST_SECONDS left.
+        each attempt is cut off by asyncio.wait_for when the time left runs out, and no
+        attempt or retry starts with less than MIN_REQUEST_SECONDS left. (The SDK's own
+        `timeout` is httpx's, which limits each network step, not the whole request: a
+        request given 5 s could still take longer. It is passed as well, as a backstop.)
         """
         message_count = len(request_kwargs.get("input") or [])
 
@@ -679,17 +693,26 @@ class OpenAIService:
 
         for attempt in range(max_retries):
             attempt_kwargs = request_kwargs
+            attempt_timeout: Optional[float] = None
             capped_timeout = False
             if deadline is not None:
                 remaining = deadline - time.monotonic()
                 if remaining < MIN_REQUEST_SECONDS:
                     logger.warning(f"OpenAI request for {feature} not started: out of time for this reply")
                     break
-                timeout = min(float(settings.OPENAI_TIMEOUT_SECONDS), remaining)
-                capped_timeout = timeout < settings.OPENAI_TIMEOUT_SECONDS
-                attempt_kwargs = {**request_kwargs, "timeout": timeout}
+                attempt_timeout = min(float(settings.OPENAI_TIMEOUT_SECONDS), remaining)
+                capped_timeout = attempt_timeout < settings.OPENAI_TIMEOUT_SECONDS
+                attempt_kwargs = {**request_kwargs, "timeout": attempt_timeout}
             try:
-                response = await self.client.responses.create(**attempt_kwargs)
+                if attempt_timeout is None:
+                    response = await self.client.responses.create(**attempt_kwargs)
+                else:
+                    try:
+                        response = await asyncio.wait_for(
+                            self.client.responses.create(**attempt_kwargs), timeout=attempt_timeout
+                        )
+                    except asyncio.TimeoutError:
+                        raise _DeadlineExceeded(f"no response within {attempt_timeout:.1f}s")
 
                 # Extract token usage from response
                 if hasattr(response, "usage") and response.usage:
@@ -713,7 +736,7 @@ class OpenAIService:
                 openai_circuit_breaker.record_success()
                 return response
 
-            except RETRYABLE_EXCEPTIONS as e:
+            except (*RETRYABLE_EXCEPTIONS, _DeadlineExceeded) as e:
                 last_exception = e
                 retry_delay = min(
                     settings.OPENAI_RETRY_DELAY * (2 ** attempt),
@@ -735,7 +758,7 @@ class OpenAIService:
                     # Final attempt failed - record with circuit breaker. A timeout we
                     # shortened to fit a reply's time budget says nothing about OpenAI's
                     # health, so it doesn't count toward tripping the breaker.
-                    if not (capped_timeout and isinstance(e, APITimeoutError)):
+                    if not (capped_timeout and isinstance(e, (APITimeoutError, _DeadlineExceeded))):
                         openai_circuit_breaker.record_failure()
                     logger.error(
                         f"OpenAI API failed after {attempt + 1} attempt(s): {type(e).__name__}: {e}"

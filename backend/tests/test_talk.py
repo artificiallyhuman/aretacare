@@ -18,6 +18,10 @@ from app.models.conversation import MessageRole
 from app.models.document import Document
 from app.models.journal import EntryType
 from app.services import entitlement_service, talk_session_service as talk_service, talk_tools
+from app.services.journal_service import JournalService as _JournalService
+
+# Before any test patches it.
+REAL_SYNTHESIZE_FROM_AUDIO = _JournalService.synthesize_from_audio
 
 OFFER = "v=0\r\no=- 1 1 IN IP4 0.0.0.0\r\n"
 
@@ -902,6 +906,78 @@ def test_the_result_poll_and_the_next_call_resume_interrupted_saves(client, db, 
     assert response.status_code == 200 and response.json()["status"] == "finalizing"
     assert start(client, alice).status_code == 201
     assert resumed == [talk_id, talk_id]
+
+
+def test_a_resumed_save_does_not_journal_the_conversation_twice(db, alice, finalize_stubs, monkeypatch):
+    """Shutdown lands after journal synthesis committed (before the card was filled in).
+    The real synthesis runs, against a scripted model reply; resuming must not repeat it."""
+    from types import SimpleNamespace
+
+    from app.services.journal_service import JournalService
+
+    reply = SimpleNamespace(usage=None, output_text=__import__("json").dumps({
+        "should_create": True, "reasoning": "new information",
+        "suggested_entries": [{"title": "Dose question", "content": "Asked about Dad's lisinopril dose.",
+                               "entry_type": "OTHER"}],
+    }))
+    model_calls = []
+
+    async def scripted_model(*_args, **_kwargs):
+        model_calls.append(1)
+        return reply
+
+    async def no_embedding(self, _entry):
+        return None
+
+    monkeypatch.setattr(JournalService, "synthesize_from_audio", REAL_SYNTHESIZE_FROM_AUDIO)
+    monkeypatch.setattr("app.services.journal_service.guarded_responses_create", scripted_model)
+    monkeypatch.setattr("app.services.embedding_service.EmbeddingService.embed_journal_entry", no_embedding)
+
+    for with_audio in (True, False):
+        talk_id, _token = live_call(db, alice)
+        real_synthesize = talk_service._synthesize_journal
+
+        async def scenario():
+            reached = asyncio.Event()
+
+            async def synthesize_then_stall(*args, **kwargs):
+                result = await real_synthesize(*args, **kwargs)
+                reached.set()
+                await asyncio.Event().wait()
+                return result
+
+            monkeypatch.setattr(talk_service, "_synthesize_journal", synthesize_then_stall)
+            task = asyncio.create_task(talk_service.finalize_talk(
+                talk_id, reason="closed", turns=TURNS, duration=42.0,
+                recorder=recorder_with_audio(talk_id) if with_audio else None))
+            talk_service._finalizers.add(task)
+            try:
+                await reached.wait()
+                await talk_service.shutdown_talk_sessions()
+            finally:
+                talk_service._finalizers.discard(task)
+                monkeypatch.setattr(talk_service, "_synthesize_journal", real_synthesize)
+
+        asyncio.run(scenario())
+        db.expire_all()
+        talk = db.query(TalkSession).filter(TalkSession.id == talk_id).one()
+        assert talk.status == "interrupted" and talk.journal_entries_created == 1
+        entries_before = db.query(JournalEntry).filter(JournalEntry.session_id == alice.session_id).count()
+
+        resume(talk_id)
+        db.expire_all()
+        talk = db.query(TalkSession).filter(TalkSession.id == talk_id).one()
+        assert talk.status == "completed" and talk.journal_entries_created == 1
+        assert db.query(JournalEntry).filter(JournalEntry.session_id == alice.session_id).count() == entries_before
+        summary = db.query(Conversation).filter(
+            Conversation.session_id == alice.session_id,
+            Conversation.message_metadata["talk_id"].astext == talk_id,
+            Conversation.message_metadata["kind"].astext == "talk_summary",
+        ).one()
+        assert "1 journal entry was created" in summary.content, summary.content
+
+    assert len(model_calls) == 2  # once per call, never again on resume
+    assert db.query(JournalEntry).filter(JournalEntry.session_id == alice.session_id).count() == 2
 
 
 # --- the caller's date -----------------------------------------------------------

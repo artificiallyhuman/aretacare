@@ -14,7 +14,7 @@ from app.schemas.journal import (
 )
 from sqlalchemy.orm import Session
 from sqlalchemy import and_, desc, func, distinct
-from typing import List, Dict, Optional
+from typing import Callable, List, Dict, Optional
 from datetime import datetime, date, timedelta
 from collections import defaultdict
 import logging
@@ -499,12 +499,18 @@ IMPORTANT: Respond with ONLY a valid JSON object in this exact format, with no a
         audio_id: Optional[int] = None,
         user_id: Optional[str] = None,
         talk_conversation: bool = False,
+        before_commit: Optional[Callable[[Session, int], None]] = None,
     ) -> JournalSynthesisResult:
         """Synthesize comprehensive journal entry from audio recording transcription.
 
         talk_conversation=True is a Talk-mode transcript (the user and the assistant):
         only what the person said is new information, so it uses its own prompt
         (see ai_config.TALK_JOURNAL_SYNTHESIS_PROMPT).
+
+        The entries are committed together, so they all exist or none do.
+        `before_commit(db, count)` runs in that same transaction (also with 0), so a
+        caller can record that synthesis happened: a Talk save resumed after a shutdown
+        uses it not to journal the same conversation twice.
         """
         try:
             recent_entries = self._get_recent_entries(session_id, days=7)
@@ -678,7 +684,8 @@ IMPORTANT: Respond with ONLY a valid JSON object in this exact format, with no a
                 suggested_entries=suggestions
             )
 
-            # Auto-save ALL suggested entries
+            # Auto-save ALL suggested entries, in one transaction (see the docstring)
+            created: List[JournalEntry] = []
             for suggestion in suggestions:
                 # Check if audio recording still exists before creating entry (may have been deleted/cancelled)
                 if audio_id:
@@ -690,7 +697,7 @@ IMPORTANT: Respond with ONLY a valid JSON object in this exact format, with no a
                 # Truncate title to 100 characters if needed (database limit)
                 title = suggestion.title[:100] if len(suggestion.title) > 100 else suggestion.title
 
-                await self.create_entry(
+                created.append(await self.create_entry(
                     session_id=session_id,
                     entry_data=JournalEntryCreate(
                         title=title,
@@ -700,8 +707,22 @@ IMPORTANT: Respond with ONLY a valid JSON object in this exact format, with no a
                     ),
                     created_by="ai",
                     source_message_ids=None,
-                    source_audio_id=audio_id
-                )
+                    source_audio_id=audio_id,
+                    auto_commit=False,
+                ))
+            if before_commit is not None:
+                before_commit(self.db, len(created))
+            self.db.commit()
+
+            # Embeddings for semantic retrieval (non-fatal), after the commit
+            from app.services.embedding_service import EmbeddingService
+            embedding_service = EmbeddingService(self.db)
+            for entry in created:
+                try:
+                    self.db.refresh(entry)
+                    await embedding_service.embed_journal_entry(entry)
+                except Exception as embed_err:
+                    logger.warning(f"Failed to generate embedding for entry {entry.id}: {embed_err}")
 
             return synthesis_result
 
@@ -715,6 +736,9 @@ IMPORTANT: Respond with ONLY a valid JSON object in this exact format, with no a
             )
         except Exception as e:
             logger.error(f"Audio journal synthesis error: {e}", exc_info=True)
+            # Entries are only flushed until the single commit: never let a later commit
+            # by the caller's session save half of them.
+            self.db.rollback()
             return JournalSynthesisResult(
                 should_create=False,
                 reasoning="Error during synthesis",
