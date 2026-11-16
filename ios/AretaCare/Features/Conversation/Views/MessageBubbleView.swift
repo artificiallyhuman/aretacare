@@ -245,8 +245,8 @@ struct MessageBubbleView: View {
                         .foregroundStyle(isUser ? .white : .primary)
                         .lineLimit(2)
                 }
-                if !message.content.isEmpty {
-                    Text(message.content)
+                if let caption = documentCaption {
+                    Text(caption)
                         .font(.footnote)
                         .foregroundStyle(isUser ? .white.opacity(0.85) : .secondary)
                         .lineLimit(3)
@@ -419,18 +419,32 @@ struct MessageBubbleView: View {
         ClipboardHelper.copyFormatted(markdown)
     }
 
+    /// Text the app sends with a file when the user typed nothing.
+    private static let uploadedPrefix = "Uploaded: "
+
+    /// The attached file's name. Never `content`: that is what the user typed with the
+    /// file ("Can you summarize this?"), which made the question show up as the name.
     private var documentFilename: String {
-        // Try to extract filename from the content first (backend often puts it there)
-        if !message.content.isEmpty, message.content.count < 200 {
-            return message.content
+        if let name = message.documentFilename, !name.isEmpty {
+            return name
         }
-        // Fall back to extracting from the URL path
-        if let mediaUrl = message.mediaUrl,
-           let urlComponents = URLComponents(string: mediaUrl),
-           let lastComponent = urlComponents.path.split(separator: "/").last {
-            return String(lastComponent)
+        // A server without `document_filename`: the placeholder text the app sends
+        // with a file the user said nothing about carries the name.
+        if message.content.hasPrefix(Self.uploadedPrefix) {
+            let name = message.content.dropFirst(Self.uploadedPrefix.count)
+            if !name.isEmpty { return String(name) }
         }
         return "Document"
+    }
+
+    /// What the user typed with the file, shown under its name. Hidden when it is only
+    /// the "Uploaded: <name>" placeholder, which would repeat the name.
+    private var documentCaption: String? {
+        let text = message.content.trimmingCharacters(in: .whitespacesAndNewlines)
+        if text.isEmpty || text == Self.uploadedPrefix + documentFilename {
+            return nil
+        }
+        return text
     }
 }
 

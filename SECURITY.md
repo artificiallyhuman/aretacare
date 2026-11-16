@@ -206,7 +206,7 @@ AretaCare implements comprehensive security measures:
 
 ### Supply Chain & Build
 - **Locked Dependencies**: Backend dependencies are installed from a generated lockfile that pins every package, including transitive ones, with hashes (`pip install --require-hashes`); the frontend uses `npm ci` against its committed lockfile
-- **CI Gate**: Every push and pull request runs the backend test suite (care-session isolation, authentication and token handling, request limits) and the frontend build, and deployments wait for these checks; pull requests that change the iOS app also run the iOS build
+- **CI Gate**: Every push and pull request runs the backend test suite (care-session isolation, authentication and token handling, request limits) and the frontend build, and deployments wait for these checks; pushes and pull requests that change the iOS app also run the iOS build
 - **Pinned Workflows**: GitHub Actions are pinned to full commit SHAs; CodeQL, secret scanning (gitleaks), and Dependabot run on the repository
 - **Outbound Email**: SMTP connections verify the mail server's TLS certificate
 

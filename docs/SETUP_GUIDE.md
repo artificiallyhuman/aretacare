@@ -137,7 +137,7 @@ See [AWS_IAM_POLICY.md](AWS_IAM_POLICY.md) for policy and setup.
 5. Update S3 CORS with Render frontend URL
 6. Deploy
 
-`render.yaml` sets `autoDeployTrigger: checksPass`, so a deploy starts only after the GitHub checks on the commit (`.github/workflows/ci.yml`: backend tests and frontend build; CodeQL for Python and JavaScript; secret scanning) have passed. The iOS build and the Swift analysis need a Mac and run only on pull requests that change `ios/`, so they never hold up a deploy. The Postgres instance is declared with an empty IP allow list (private network only); add specific addresses there if you need to connect from outside Render.
+`render.yaml` sets `autoDeployTrigger: checksPass`, so a deploy starts only after the GitHub checks on the commit (`.github/workflows/ci.yml`: backend tests and frontend build; CodeQL for Python and JavaScript; secret scanning) have passed. A commit that changes `ios/` also waits for the iOS simulator build (`ios.yml`, 5–8 minutes). The Swift analysis takes about an hour, so it runs overnight rather than on each push and never holds up a deploy. The Postgres instance is declared with an empty IP allow list (private network only); add specific addresses there if you need to connect from outside Render.
 
 ## Self-Hosted Deployment
 

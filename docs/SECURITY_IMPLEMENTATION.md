@@ -511,9 +511,9 @@ Custom workflows (default CodeQL setup cannot build Swift):
 |----------|----------|--------|-------|---------|
 | Python | `codeql.yml` | `ubuntu-latest` | Autobuild | push to `main`, PRs to `main`, weekly (Wednesday) |
 | JavaScript/TypeScript | `codeql.yml` | `ubuntu-latest` | Autobuild | push to `main`, PRs to `main`, weekly (Wednesday) |
-| Swift | `codeql-swift.yml` | `macos-15` | XcodeGen + `xcodebuild` with code signing disabled | PRs to `main` that change `ios/`, weekly (Wednesday), on demand |
+| Swift | `codeql-swift.yml` | `macos-15` | XcodeGen + `xcodebuild` with code signing disabled | `main` nightly after a day with `ios/` changes and every Wednesday night, PRs to `main` that change `ios/`, on demand |
 
-The Swift analysis needs a Mac and takes about an hour, so it does not run on pushes to `main`, which Render deploys only once every check has passed. It creates a placeholder `Secrets.xcconfig` (no real credentials needed for static analysis) and builds with `CODE_SIGNING_ALLOWED=NO`; the build step fails the job if compilation fails.
+The Swift analysis needs a Mac and takes about an hour. Render deploys a `main` commit only once every check on it has passed, so running it on each push would hold every iOS commit's deploy for an hour; instead it runs on `main` overnight, after Render has deployed. A cheap Linux job decides whether a night's run goes ahead. It creates a placeholder `Secrets.xcconfig` (no real credentials needed for static analysis) and builds with `CODE_SIGNING_ALLOWED=NO`; the build step fails the job if compilation fails.
 
 ### CI
 
@@ -526,6 +526,6 @@ The Swift analysis needs a Mac and takes about an hour, so it does not run on pu
 
 Render deploys are configured to wait for these checks (`autoDeployTrigger: checksPass` in `render.yaml`).
 
-`.github/workflows/ios.yml` builds the iOS app for the simulator (XcodeGen + `xcodebuild`, code signing disabled) on pull requests that change `ios/`, and on demand. Like the Swift analysis it needs a Mac, so it does not run on pushes to `main`; Xcode Cloud archives the app from `main`.
+`.github/workflows/ios.yml` builds the iOS app for the simulator (XcodeGen + `xcodebuild`, code signing disabled) on pushes to `main` and `feature/iOS` and on pull requests that change `ios/`, and on demand. On `main` it is one of the checks Render waits for, but only on commits that change `ios/`; it takes 5–8 minutes.
 
 All workflow actions are pinned to full commit SHAs; Dependabot keeps the pins current. Secret scanning (gitleaks) runs over the full history.

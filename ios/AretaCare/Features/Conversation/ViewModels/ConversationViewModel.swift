@@ -484,7 +484,8 @@ final class ConversationViewModel {
             thumbnailUrl: thumbnailUrl,
             extractedText: nil,
             createdBy: nil,
-            lastEditedBy: nil
+            lastEditedBy: nil,
+            documentFilename: filename
         )
         messages.append(tempUserMessage)
 
@@ -603,7 +604,9 @@ final class ConversationViewModel {
                     thumbnailUrl: old.thumbnailUrl,
                     extractedText: old.extractedText,
                     createdBy: old.createdBy,
-                    lastEditedBy: response.lastEditedBy
+                    lastEditedBy: response.lastEditedBy,
+                    messageMetadata: old.messageMetadata,
+                    documentFilename: old.documentFilename
                 )
             }
         } catch {

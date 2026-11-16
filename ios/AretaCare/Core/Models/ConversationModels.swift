@@ -50,6 +50,10 @@ struct MessageResponse: Codable, Identifiable, Sendable, Equatable {
     /// A `var` with a default so the memberwise initialiser used for optimistic
     /// messages is unchanged.
     var messageMetadata: [String: AnyCodableValue]? = nil
+    /// The attached file's name (document and image messages). `content` is what the
+    /// user typed with the file, so it can't stand in for the name. Defaulted like
+    /// `messageMetadata`; servers before this field leave it nil.
+    var documentFilename: String? = nil
 }
 
 struct ConversationHistory: Codable {

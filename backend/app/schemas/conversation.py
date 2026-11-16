@@ -43,6 +43,9 @@ class MessageResponse(BaseModel):
     document_id: Optional[int] = None
     media_url: Optional[str] = None
     thumbnail_url: Optional[str] = None
+    # The attached file's name, for document and image messages whose document still
+    # exists. `content` is what the user typed with the file, not its name.
+    document_filename: Optional[str] = None
     extracted_text: Optional[str] = None
     # Structured extras for messages the app renders specially. Today only the Talk
     # summary ({"kind": "talk_summary", ...}); clients that don't know a kind show

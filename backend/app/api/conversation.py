@@ -541,10 +541,12 @@ async def get_conversation_history(
         # URLs were generated server-side); anything else is not passed through.
         media_url = msg.media_url if msg.document_id else None
         thumbnail_url = None
+        document_filename = None
 
         if msg.document_id:
             doc = docs_by_id.get(msg.document_id)
             if doc:
+                document_filename = doc.filename
                 if msg.message_type == MessageType.IMAGE:
                     # For images, regenerate the image URL (30 min)
                     media_url = s3_service.generate_presigned_url(doc.s3_key)
@@ -565,6 +567,7 @@ async def get_conversation_history(
             "document_id": msg.document_id,
             "media_url": media_url,
             "thumbnail_url": thumbnail_url,
+            "document_filename": document_filename,
             "extracted_text": msg.extracted_text,
             "message_metadata": message_metadata,
             # Source tags only when session has collaborators

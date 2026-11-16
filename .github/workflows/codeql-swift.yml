@@ -1,10 +1,13 @@
 # CodeQL analysis of the iOS app's Swift.
 #
-# Runs weekly on main, on pull requests that change the iOS app, and on demand (Actions →
-# CodeQL (Swift) → Run workflow). Never on a push to main: it needs a Mac and takes about
-# an hour, and Render deploys a main commit only once every check on it has passed. A
-# manual run adds its check to the commit it analyses; start it after Render has deployed
-# that commit, or the deploy waits for it.
+# Runs on main every night that follows a change to the iOS app, and every Wednesday night
+# regardless (CodeQL's own queries change too); on pull requests to main that change the
+# iOS app; and on demand (Actions → CodeQL (Swift) → Run workflow).
+#
+# Not on each push to main: it needs a Mac and takes about an hour, and Render deploys a
+# main commit only once every check on it has passed, so it would hold every iOS commit's
+# deploy for an hour. A run's check attaches to main's latest commit, which overnight has
+# long been deployed; start a manual run after Render has deployed, too.
 #
 # Actions are pinned to full commit SHAs (a tag can be moved; a SHA cannot). The trailing
 # comment records the release, and Dependabot's github-actions updates keep both in step.
@@ -17,12 +20,41 @@ on:
       - "ios/**"
       - ".github/workflows/codeql-swift.yml"
   schedule:
-    - cron: "25 14 * * 3" # Weekly on Wednesday
+    - cron: "0 9 * * *" # Nightly, 09:00 UTC
   workflow_dispatch:
 
 jobs:
+  # A scheduled run goes ahead only on Wednesdays or when the iOS app changed in the last
+  # day, so a quiet day doesn't take a Mac for an hour. A cheap Linux job decides.
+  nightly-gate:
+    name: Check for iOS changes
+    if: github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      analyze: ${{ steps.check.outputs.analyze }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - name: Check for iOS changes
+        id: check
+        # 25 hours, so a commit made just before yesterday's run isn't missed.
+        run: |
+          changed=$(git log --since='25 hours ago' --format=%H -- ios .github/workflows/codeql-swift.yml)
+          if [ "$(date -u +%u)" = 3 ] || [ -n "$changed" ]; then
+            echo "analyze=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "analyze=false" >> "$GITHUB_OUTPUT"
+          fi
+
   analyze-swift:
     name: Analyze (Swift)
+    needs: nightly-gate
+    # The gate is skipped for every trigger except the schedule; that means analyse.
+    if: ${{ !cancelled() && (needs.nightly-gate.result == 'skipped' || needs.nightly-gate.outputs.analyze == 'true') }}
     runs-on: macos-15
     # A normal run takes about an hour. Without a limit, a hung build would hold the Mac
     # for GitHub's default of six hours.
