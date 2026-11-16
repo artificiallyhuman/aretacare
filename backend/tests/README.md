@@ -31,5 +31,5 @@ refresh-token rotation grace period is zero so replayed tokens are rejected imme
 ## CI
 
 `.github/workflows/ci.yml` runs the same suite against a `pgvector/pgvector:pg15`
-service container on every pull request and push to `main`, alongside the frontend and
-iOS builds.
+service container on every pull request and push to `main`, alongside the frontend
+build (and the iOS build, on pull requests that change the iOS app).

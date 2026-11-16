@@ -3,7 +3,8 @@
 # Runs on every pull request and every push to main. The production services deploy only
 # after these checks pass (`autoDeployTrigger: checksPass` in render.yaml), so a commit
 # that does not import, fails its tests or does not build never reaches production. The
-# iOS build runs only when the commit touches the iOS app (see the `changes` job).
+# iOS build runs only on pull requests that touch the iOS app, never on pushes to main
+# (see the `changes` job).
 #
 # Actions are pinned to full commit SHAs with the release in a trailing comment;
 # Dependabot's github-actions updates keep them current.
@@ -25,15 +26,20 @@ concurrency:
 
 jobs:
   changes:
-    # The macOS jobs (CI's iOS build, CodeQL's Swift analysis) need a GitHub-hosted Mac,
-    # and those run short at times: a job
-    # that never gets one is cancelled after about 15 minutes and fails the run, which
-    # holds back the Render deploy (it waits for every check). Render counts a skipped
-    # check as passing, so a commit that does not touch the iOS app skips them.
+    # The macOS jobs (CI's iOS build, CodeQL's Swift analysis) never run on a push to
+    # main. Render deploys a main commit only once every check on it has passed (a
+    # skipped check counts as passing), and neither Render service contains iOS code,
+    # but a macOS job could still hold the deploy back: GitHub-hosted Macs run short at
+    # times (a job that never gets one is cancelled after about 15 minutes and fails the
+    # run), and the Swift analysis takes about an hour. So they run on pull requests that
+    # touch ios/ or the workflows, and CodeQL's weekly scan covers main. An iOS change
+    # pushed straight to main gets no check here; a broken build there shows up in Xcode
+    # or Xcode Cloud instead.
     # Renames are listed as a deletion plus an addition (--no-renames), so moving a file
     # into or out of ios/ counts, and git needs no file contents for the diff.
-    # Same step in codeql.yml; change both together.
+    # Same job in codeql.yml; change both together.
     name: Detect iOS changes
+    if: github.event_name != 'push'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     outputs:
@@ -42,24 +48,22 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          # Full history (without file contents) so the diff can reach the push's
-          # previous commit or the pull request's base.
+          # Full history (without file contents) so the diff can reach the pull
+          # request's base.
           fetch-depth: 0
           filter: blob:none
 
-      - name: Compare with the previous commit
+      - name: Compare with the pull request's base
         id: diff
         env:
           EVENT_NAME: ${{ github.event_name }}
-          PUSH_BEFORE: ${{ github.event.before }}
           PR_BASE: ${{ github.event.pull_request.base.sha }}
         run: |
           case "$EVENT_NAME" in
-            push) base="$PUSH_BEFORE" ;;
             pull_request) base="$PR_BASE" ;;
             *) base="" ;;   # scheduled or manual runs build everything
           esac
-          # No usable base (a scheduled run, a new branch, a force push): build.
+          # No usable base (a scheduled or manual run, a base we cannot reach): build.
           if [ -z "$base" ] || ! git cat-file -e "${base}^{commit}" 2>/dev/null; then
             echo "ios=true" >> "$GITHUB_OUTPUT"
             echo "No base to compare with; building the iOS app."
@@ -175,7 +179,8 @@ jobs:
   ios:
     name: iOS build
     needs: changes
-    if: needs.changes.outputs.ios == 'true'
+    # Never on a push to main (see the `changes` job).
+    if: github.event_name != 'push' && needs.changes.outputs.ios == 'true'
     runs-on: macos-15
     timeout-minutes: 45
     steps:

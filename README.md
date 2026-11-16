@@ -146,7 +146,7 @@ Edit `backend/requirements.in`, then regenerate the lockfile with the `pip-compi
 - Cascade deletes (user/care session deletion removes all data + S3 files)
 - Auto-migrations on startup
 - Backend dependencies installed from a hashed lockfile (`backend/requirements.in` → `backend/requirements.txt`)
-- CI runs the backend tests plus frontend and iOS builds on every push and pull request
+- CI runs the backend tests and frontend build on every push and pull request, and the iOS build on pull requests that change the iOS app
 - Centralized AI config in `backend/app/config/ai_config.py`
 
 ---
