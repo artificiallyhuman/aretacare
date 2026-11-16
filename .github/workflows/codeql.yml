@@ -10,7 +10,62 @@ on:
   schedule:
     - cron: "25 14 * * 3" # Weekly on Wednesday
 
+# The Python and JavaScript analysis runs on every push and pull request. The Swift
+# analysis needs a macOS runner, so it runs only when the iOS app changed, and always on
+# the weekly schedule (see the `changes` job).
 jobs:
+  changes:
+    # The macOS jobs (CI's iOS build, CodeQL's Swift analysis) need a GitHub-hosted Mac,
+    # and those run short at times: a job
+    # that never gets one is cancelled after about 15 minutes and fails the run, which
+    # holds back the Render deploy (it waits for every check). Render counts a skipped
+    # check as passing, so a commit that does not touch the iOS app skips them.
+    # Renames are listed as a deletion plus an addition (--no-renames), so moving a file
+    # into or out of ios/ counts, and git needs no file contents for the diff.
+    # Same step in ci.yml; change both together.
+    name: Detect iOS changes
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      ios: ${{ steps.diff.outputs.ios }}
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # Full history (without file contents) so the diff can reach the push's
+          # previous commit or the pull request's base.
+          fetch-depth: 0
+          filter: blob:none
+
+      - name: Compare with the previous commit
+        id: diff
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          PUSH_BEFORE: ${{ github.event.before }}
+          PR_BASE: ${{ github.event.pull_request.base.sha }}
+        run: |
+          case "$EVENT_NAME" in
+            push) base="$PUSH_BEFORE" ;;
+            pull_request) base="$PR_BASE" ;;
+            *) base="" ;;   # scheduled or manual runs build everything
+          esac
+          # No usable base (a scheduled run, a new branch, a force push): build.
+          if [ -z "$base" ] || ! git cat-file -e "${base}^{commit}" 2>/dev/null; then
+            echo "ios=true" >> "$GITHUB_OUTPUT"
+            echo "No base to compare with; building the iOS app."
+            exit 0
+          fi
+          changed=$(git diff --name-only --no-renames "$base" "$GITHUB_SHA")
+          if printf '%s\n' "$changed" | grep -qE '^(ios/|\.github/workflows/)'; then
+            echo "ios=true" >> "$GITHUB_OUTPUT"
+            echo "iOS app or workflow files changed; building the iOS app."
+          else
+            echo "ios=false" >> "$GITHUB_OUTPUT"
+            echo "No iOS changes; the macOS job is skipped."
+          fi
+
   analyze-interpreted:
     name: Analyze (Python & JavaScript)
     runs-on: ubuntu-latest
@@ -38,6 +93,8 @@ jobs:
 
   analyze-swift:
     name: Analyze (Swift)
+    needs: changes
+    if: needs.changes.outputs.ios == 'true'
     runs-on: macos-15
     permissions:
       security-events: write
