@@ -2543,6 +2543,22 @@ def run_migrations():
             logger.error(f"Failed to create talk_sessions active-per-user index: {e}")
             conn.rollback()
 
+        # The caller's timezone, so a call's journal entries and default dates use their
+        # local date rather than the server's UTC one. create_all already adds it on a fresh
+        # database. Checked first (a fresh inspector: the table may be new in this run), so
+        # restarts don't take an ALTER TABLE lock on a table live calls write every second.
+        try:
+            talk_columns = {c["name"] for c in inspect(conn).get_columns("talk_sessions")}
+            if "user_timezone" not in talk_columns:
+                conn.execute(text(
+                    "ALTER TABLE talk_sessions ADD COLUMN IF NOT EXISTS user_timezone VARCHAR(64)"
+                ))
+                logger.info("Added talk_sessions.user_timezone")
+            conn.commit()
+        except Exception as e:
+            logger.error(f"Failed to add talk_sessions.user_timezone: {e}")
+            conn.rollback()
+
         # Runs on every start, not once: rows written by instances still on the previous
         # release during a rolling deploy arrive without a hash and are filled in here.
         # Idempotent and cheap (touches only rows missing a hash).

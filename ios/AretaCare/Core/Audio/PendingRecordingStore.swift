@@ -1,7 +1,7 @@
 import Foundation
 import Observation
 
-/// A recording whose upload failed, kept on this device until it is uploaded or discarded.
+/// A recording not yet on the server, kept on this device until it is uploaded or discarded.
 struct PendingRecording: Codable, Identifiable, Hashable, Sendable {
     let id: String
     let userId: String
@@ -12,7 +12,10 @@ struct PendingRecording: Codable, Identifiable, Hashable, Sendable {
 
 /// Recordings that never reached the server. A failed upload used to leave the file in the
 /// temporary directory with nothing pointing at it, and the launch sweep then deleted it:
-/// a caregiver who recorded an appointment on bad signal lost it.
+/// a caregiver who recorded an appointment on bad signal lost it. A recording now moves in
+/// here *before* its upload starts (`upload(file:…)`), so iOS ending the app mid-upload
+/// (a long file on cellular outlasts the background time) can't lose it either; it is
+/// hidden from the list while that upload runs and removed once it succeeds.
 ///
 /// Files live in Application Support/PendingRecordings, which `TempFileCleanup` never
 /// touches, with complete file protection and excluded from device backups. A JSON sidecar
@@ -31,7 +34,19 @@ final class PendingRecordingStore {
         fileprivate let signOuts: Int
     }
 
+    enum UploadOutcome {
+        case uploaded
+        /// The upload failed and the recording is listed for Upload/Discard.
+        case keptOnDevice
+        /// The upload failed and the recording is gone (signed out meanwhile, or it could
+        /// not be stored).
+        case notKept
+    }
+
     private(set) var items: [PendingRecording] = []
+    /// Recordings whose first upload is running now. Not listed (the Upload button would
+    /// send them twice); after a relaunch nothing is running, so they all show.
+    private var uploading: Set<String> = []
 
     @ObservationIgnored private let directory: URL
     @ObservationIgnored private let fileManager = FileManager.default
@@ -51,8 +66,42 @@ final class PendingRecordingStore {
     func items(for sessionId: String) -> [PendingRecording] {
         guard let userId = AuthManager.shared.currentUser?.id else { return [] }
         return items
-            .filter { $0.sessionId == sessionId && $0.userId == userId }
+            .filter { $0.sessionId == sessionId && $0.userId == userId && !uploading.contains($0.id) }
             .sorted { $0.recordedAt > $1.recordedAt }
+    }
+
+    /// Uploads a just-finished recording (`send`) with the file already held here, so it
+    /// survives the app being ended mid-upload. Removed when `send` succeeds; listed for
+    /// Upload/Discard when it fails. If an app ended right after the server received it,
+    /// the next launch lists it anyway: a duplicate the person can delete beats a loss.
+    func upload(
+        file: URL?, sessionId: String, filename: String, send: () async -> Bool
+    ) async -> UploadOutcome {
+        // Before the upload: one rejected because the session expired has already run
+        // `forceLogout` when it returns, so the signed-in user is gone by then.
+        let owner = currentOwner()
+        var held: PendingRecording?
+        if let file, let owner {
+            held = store(fileAt: file, sessionId: sessionId, filename: filename, owner: owner, uploading: true)
+        }
+        let succeeded = await send()
+
+        if let held {
+            uploading.remove(held.id)
+            if succeeded {
+                remove(held)
+                return .uploaded
+            }
+            // An explicit sign-out during the upload deleted it with everything else.
+            return items.contains(held) ? .keptOnDevice : .notKept
+        }
+        // It couldn't be stored up front (out of space?): the file is still where it was.
+        if succeeded {
+            if let file { try? fileManager.removeItem(at: file) }
+            return .uploaded
+        }
+        guard let file, let owner else { return .notKept }
+        return keep(fileAt: file, sessionId: sessionId, filename: filename, owner: owner) ? .keptOnDevice : .notKept
     }
 
     /// The signed-in person, for a recording about to be uploaded. Take it before the upload
@@ -69,9 +118,15 @@ final class PendingRecordingStore {
     /// person signs back in.)
     @discardableResult
     func keep(fileAt source: URL, sessionId: String, filename: String, owner: Owner) -> Bool {
+        store(fileAt: source, sessionId: sessionId, filename: filename, owner: owner, uploading: false) != nil
+    }
+
+    private func store(
+        fileAt source: URL, sessionId: String, filename: String, owner: Owner, uploading isUploading: Bool
+    ) -> PendingRecording? {
         guard owner.signOuts == signOuts else {
             try? fileManager.removeItem(at: source)
-            return false
+            return nil
         }
         let recordedAt = (try? fileManager.attributesOfItem(atPath: source.path)[.creationDate] as? Date) ?? Date()
         let item = PendingRecording(
@@ -94,13 +149,14 @@ final class PendingRecordingStore {
                 throw error
             }
             try? fileManager.setAttributes([.protectionKey: FileProtectionType.complete], ofItemAtPath: audioURL(item).path)
+            if isUploading { uploading.insert(item.id) }
             items.append(item)
-            return true
+            return item
         } catch {
             #if DEBUG
             print("[PendingRecordingStore] Could not keep recording: \(error)")
             #endif
-            return false
+            return nil
         }
     }
 
@@ -121,6 +177,7 @@ final class PendingRecordingStore {
         signOuts += 1
         try? fileManager.removeItem(at: directory)
         items = []
+        uploading = []
     }
 
     /// Drops recordings that can no longer be uploaded: another user's, or one whose care

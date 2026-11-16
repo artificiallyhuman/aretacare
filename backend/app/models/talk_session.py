@@ -12,6 +12,9 @@ from app.core.database import Base
 class TalkStatus(str, enum.Enum):
     ACTIVE = "active"            # Call in progress (or its instance died: see heartbeat_at)
     FINALIZING = "finalizing"    # Claimed for saving; exactly one finalizer wins the claim
+    # A shutdown cut the save off. The transcript is still on the row; any instance may
+    # claim it back to 'finalizing' and finish the save. Reported to clients as finalizing.
+    INTERRUPTED = "interrupted"
     COMPLETED = "completed"
     FAILED = "failed"
 
@@ -31,6 +34,9 @@ class TalkSession(Base):
     openai_session_id = Column(String, nullable=True)
     # "Talk_2026-11-12_3-15PM" in the caller's timezone; becomes the recording's filename.
     recording_name = Column(String, nullable=True)
+    # The caller's IANA timezone (validated), so the call's journal entries and the tools'
+    # default dates use their local date, not the server's UTC date.
+    user_timezone = Column(String(64), nullable=True)
     # Plain strings (not SQLEnum) so no PG enum type ever needs migrating.
     status = Column(String, nullable=False, default=TalkStatus.ACTIVE.value)
     outcome = Column(String, nullable=True)

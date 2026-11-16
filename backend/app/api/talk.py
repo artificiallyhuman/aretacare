@@ -157,13 +157,21 @@ async def start_talk_session(
     if not subscribed:
         raise _error(403, "TALK_SUBSCRIPTION_REQUIRED", "Talk requires an active AretaCare subscription.")
 
-    # A previous call whose instance died still holds this user's one live-call slot.
-    for stale in db.query(TalkSession).filter(
-        TalkSession.user_id == user_id, TalkSession.status == TalkStatus.ACTIVE.value
-    ).all():
-        if talk_service.is_stale(stale):
-            await talk_service.claim_stale_and_finalize(stale.id)
+    # A previous call whose instance died still holds this user's one live-call slot, and
+    # a save cut off by a deploy waits for someone to resume it.
+    earlier = db.query(TalkSession).filter(
+        TalkSession.user_id == user_id,
+        TalkSession.status.in_([
+            TalkStatus.ACTIVE.value, TalkStatus.FINALIZING.value, TalkStatus.INTERRUPTED.value,
+        ]),
+    ).all()
+    stale_ids = [t.id for t in earlier if talk_service.is_stale(t)]
+    resumable_ids = [t.id for t in earlier if talk_service.is_resumable(t)]
     db.rollback()
+    for stale_id in stale_ids:
+        await talk_service.claim_stale_and_finalize(stale_id)
+    for resumable_id in resumable_ids:
+        await talk_service.resume_interrupted_save(resumable_id)
 
     remaining = settings.TALK_DAILY_SECONDS_PER_USER - talk_service.seconds_used_today(db, user_id)
     if remaining < MIN_REMAINING_SECONDS:
@@ -178,6 +186,7 @@ async def start_talk_session(
     talk = TalkSession(
         session_id=session_id, user_id=user_id, max_seconds=max_seconds,
         mcp_token_hash=token_hash, recording_name=_recording_name(body.user_timezone),
+        user_timezone=sanitize_user_timezone(body.user_timezone),
     )
     db.add(talk)
     try:
@@ -224,6 +233,10 @@ async def end_talk_session(
         if stale:
             await talk_service.claim_stale_and_finalize(talk_id)
         talk = _load_own_talk(db, talk_id, current_user)
+    elif talk_service.is_resumable(talk):
+        db.rollback()
+        await talk_service.resume_interrupted_save(talk_id)
+        talk = _load_own_talk(db, talk_id, current_user)
     return _talk_response(talk)
 
 
@@ -235,6 +248,11 @@ async def get_talk_session(
     if talk_service.is_stale(talk):
         db.rollback()
         await talk_service.claim_stale_and_finalize(talk_id)
+        talk = _load_own_talk(db, talk_id, current_user)
+    elif talk_service.is_resumable(talk):
+        # A deploy cut the save off; the phone's result poll is what usually resumes it.
+        db.rollback()
+        await talk_service.resume_interrupted_save(talk_id)
         talk = _load_own_talk(db, talk_id, current_user)
     return _talk_response(talk)
 
@@ -280,6 +298,7 @@ async def _call_tool(db: DBSession, talk: TalkSession, params: Any) -> dict:
         return text_result("Malformed tool call.", True)
     name = params["name"]
     talk_id, session_id, user_id = talk.id, talk.session_id, talk.user_id
+    user_timezone = talk.user_timezone
 
     # Access can be revoked mid-call (collaborator removed, account deactivated).
     user = db.query(User).filter(User.id == user_id).first()
@@ -304,7 +323,10 @@ async def _call_tool(db: DBSession, talk: TalkSession, params: Any) -> dict:
     if not allowed:
         return text_result("The tool limit for this conversation has been reached.", True)
 
-    ctx = talk_tools.ToolContext(db=db, talk_id=talk_id, session_id=session_id, user_id=user_id)
+    ctx = talk_tools.ToolContext(
+        db=db, talk_id=talk_id, session_id=session_id, user_id=user_id,
+        user_today=talk_tools.local_date(user_timezone),
+    )
     try:
         output = await talk_tools.call_tool(ctx, name, params.get("arguments"))
         logger.info(f"Talk {talk_id}: tool {name} ok")

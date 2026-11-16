@@ -179,12 +179,17 @@ class EmbeddingService:
         exclude_entry_ids: Optional[List[int]] = None,
         top_k: int = DEFAULT_TOP_K,
         min_days_old: int = 8,
-        min_similarity: float = MIN_SIMILARITY_THRESHOLD
+        min_similarity: float = MIN_SIMILARITY_THRESHOLD,
+        start_date: Optional[date] = None,
+        end_date: Optional[date] = None,
     ) -> List[Tuple[JournalEntry, float]]:
         """Find journal entries semantically similar to query text.
 
         Returns entries sorted by similarity (highest first), excluding
         entries from the last min_days_old days and any in exclude_entry_ids.
+        `start_date` / `end_date` (inclusive) restrict the search itself, so the
+        top_k are the best matches inside that period, not the best overall
+        filtered afterwards (which found nothing when those fell outside it).
         Skips search entirely for very short messages (< MIN_QUERY_LENGTH chars)
         whose embeddings lack discriminative power.
         """
@@ -198,46 +203,34 @@ class EmbeddingService:
             query_vector = await self.generate_embedding_fast(query_text[:MAX_QUERY_CHARS])
             cutoff_date = date.today() - timedelta(days=min_days_old)
 
+            # Fixed clauses only; every value is a bound parameter.
+            conditions = ["jee.session_id = :session_id", "je.entry_date < :cutoff_date"]
+            params = {
+                "query_vector": str(query_vector),
+                "session_id": session_id,
+                "cutoff_date": cutoff_date,
+                "top_k": top_k,
+            }
+            if exclude_entry_ids:
+                conditions.append("je.id != ALL(:exclude_ids)")
+                params["exclude_ids"] = exclude_entry_ids
+            if start_date is not None:
+                conditions.append("je.entry_date >= :start_date")
+                params["start_date"] = start_date
+            if end_date is not None:
+                conditions.append("je.entry_date <= :end_date")
+                params["end_date"] = end_date
+
             # pgvector cosine distance: 1 - (a <=> b) = cosine similarity
             # Use CAST() instead of :: to avoid conflict with SQLAlchemy's :param syntax
-            if exclude_entry_ids:
-                query = text("""
-                    SELECT
-                        je.id,
-                        1 - (jee.embedding <=> CAST(:query_vector AS vector)) as similarity
-                    FROM journal_entry_embeddings jee
-                    JOIN journal_entries je ON je.id = jee.journal_entry_id
-                    WHERE jee.session_id = :session_id
-                      AND je.entry_date < :cutoff_date
-                      AND je.id != ALL(:exclude_ids)
-                    ORDER BY jee.embedding <=> CAST(:query_vector AS vector)
-                    LIMIT :top_k
-                """)
-                params = {
-                    "query_vector": str(query_vector),
-                    "session_id": session_id,
-                    "cutoff_date": cutoff_date,
-                    "exclude_ids": exclude_entry_ids,
-                    "top_k": top_k
-                }
-            else:
-                query = text("""
-                    SELECT
-                        je.id,
-                        1 - (jee.embedding <=> CAST(:query_vector AS vector)) as similarity
-                    FROM journal_entry_embeddings jee
-                    JOIN journal_entries je ON je.id = jee.journal_entry_id
-                    WHERE jee.session_id = :session_id
-                      AND je.entry_date < :cutoff_date
-                    ORDER BY jee.embedding <=> CAST(:query_vector AS vector)
-                    LIMIT :top_k
-                """)
-                params = {
-                    "query_vector": str(query_vector),
-                    "session_id": session_id,
-                    "cutoff_date": cutoff_date,
-                    "top_k": top_k
-                }
+            query = text(
+                "SELECT je.id, 1 - (jee.embedding <=> CAST(:query_vector AS vector)) AS similarity "
+                "FROM journal_entry_embeddings jee "
+                "JOIN journal_entries je ON je.id = jee.journal_entry_id "
+                "WHERE " + " AND ".join(conditions) + " "
+                "ORDER BY jee.embedding <=> CAST(:query_vector AS vector) "
+                "LIMIT :top_k"
+            )
 
             result = self.db.execute(query, params)
             rows = result.fetchall()

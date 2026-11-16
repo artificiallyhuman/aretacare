@@ -259,3 +259,152 @@ def test_chat_route_without_lookups_when_switched_off(client, alice, fake_openai
     assert not any(m.get("content") == ai_config.CHAT_LOOKUP_INSTRUCTIONS
                    for m in fake.calls[0]["input"] if isinstance(m, dict))
     assert captured["restated_records"] is False
+
+
+# --- searching a date range --------------------------------------------------
+
+def test_a_date_range_is_searched_not_filtered_afterwards(db, alice, monkeypatch):
+    """The best matches overall were taken first and then filtered by date, so an older
+    entry was reported missing whenever newer ones matched too."""
+    for n in range(10):
+        db.add(_entry(alice.session_id, alice.user_id, n + 1, f"Refill {n}", "Picked up refills at the pharmacy."))
+    db.add(_entry(alice.session_id, alice.user_id, 90, "Pharmacy change", "Prescriptions moved to Example Pharmacy."))
+    db.commit()
+    seen = {}
+
+    async def similar(self, **kwargs):
+        seen.update(kwargs)
+        return []
+
+    monkeypatch.setattr("app.services.embedding_service.EmbeddingService.find_similar_entries", similar)
+    day = date.today() - timedelta(days=90)
+    start, end = day - timedelta(days=5), day + timedelta(days=5)
+    runner = ChatToolRunner(db, session_id=alice.session_id, user_id=alice.user_id)
+
+    output = asyncio.run(runner.run("search_journal", json.dumps(
+        {"query": "pharmacy", "start_date": start.isoformat(), "end_date": end.isoformat()})))
+
+    assert "Example Pharmacy" in output and "Refill" not in output
+    assert (seen["start_date"], seen["end_date"]) == (start, end)
+
+
+def test_semantic_search_applies_the_date_range_before_its_limit(db, alice, bob, monkeypatch):
+    from app.models.journal_entry_embedding import JournalEntryEmbedding
+    from app.services.embedding_service import EmbeddingService
+
+    exact = [1.0] + [0.0] * 1535
+    near = [0.9, 0.1] + [0.0] * 1534
+
+    def embedded(account, days_ago, title, vector):
+        entry = _entry(account.session_id, account.user_id, days_ago, title, "text")
+        db.add(entry)
+        db.flush()
+        db.add(JournalEntryEmbedding(journal_entry_id=entry.id, session_id=account.session_id,
+                                     embedding=vector, content_hash="x"))
+        return entry
+
+    recent = [embedded(alice, n, f"recent {n}", exact) for n in (1, 2, 3)]
+    old = embedded(alice, 60, "old", near)
+    embedded(bob, 60, "bob old", exact)  # another care session, same period
+    db.commit()
+
+    async def fixed_vector(self, _text):
+        return exact
+
+    monkeypatch.setattr(EmbeddingService, "generate_embedding_fast", fixed_vector)
+    service = EmbeddingService(db)
+    day = date.today() - timedelta(days=60)
+
+    def titles(**kwargs):
+        found = asyncio.run(service.find_similar_entries(
+            session_id=alice.session_id, query_text="what happened back then?", top_k=2, min_days_old=-1, **kwargs))
+        return [entry.title for entry, _score in found]
+
+    assert set(titles()) <= {e.title for e in recent}
+    assert titles(start_date=day - timedelta(days=3), end_date=day + timedelta(days=3)) == ["old"]
+    assert titles(start_date=day - timedelta(days=3)) != ["old"]  # open-ended: newer ones rank first
+    assert titles(end_date=day, exclude_entry_ids=[old.id]) == []
+
+
+# --- the clock -----------------------------------------------------------------
+
+class _Clock:
+    """Stands in for the time module inside openai_service: monotonic() only moves when a
+    test moves it."""
+
+    def __init__(self):
+        import time as real_time
+        self.now = 1000.0
+        self.time = real_time.time
+
+    def monotonic(self):
+        return self.now
+
+
+@pytest.fixture()
+def clock(monkeypatch):
+    fake = _Clock()
+    monkeypatch.setattr(service_module, "time", fake)
+    return fake
+
+
+def test_lookups_returned_after_the_deadline_are_not_run(db, alice, fake_openai, clock):
+    def respond(kwargs, i):
+        if i == 0:
+            clock.now += ai_config.CHAT_LOOKUP_DEADLINE_SECONDS + 5  # a slow first request
+            return _lookup(_call("get_daily_digest", {}))
+        return _reply("Answered with what I had.")
+
+    fake = fake_openai(respond)
+    runner = ChatToolRunner(db, session_id=alice.session_id, user_id=alice.user_id)
+
+    assert _complete(runner) == "Answered with what I had."
+    assert runner.calls == []
+    assert fake.calls[1]["tool_choice"] == "none"
+    assert "run out" in _outputs(fake.calls[1])["call_1"]
+
+
+def test_each_request_gets_only_the_time_left(db, alice, fake_openai, clock):
+    def respond(kwargs, i):
+        clock.now += 10
+        if kwargs.get("tool_choice") == "none":
+            return _reply("Done.")
+        return _lookup(_call("list_documents", {}, f"c{i}"))
+
+    fake = fake_openai(respond)
+    runner = ChatToolRunner(db, session_id=alice.session_id, user_id=alice.user_id)
+
+    assert _complete(runner) == "Done."
+    timeouts = [c["timeout"] for c in fake.calls]
+    reply, reserve = ai_config.CHAT_REPLY_DEADLINE_SECONDS, ai_config.CHAT_REPLY_RESERVE_SECONDS
+    # The first request is also the plain reply: the normal timeout. Later lookup rounds
+    # leave the reserve for the closing reply, which gets whatever is left.
+    assert timeouts[0] == settings.OPENAI_TIMEOUT_SECONDS
+    assert timeouts[1] == reply - reserve - 10 and timeouts[2] == reply - reserve - 20
+    assert fake.calls[-1]["tool_choice"] == "none" and timeouts[-1] == reply - 10 * (len(fake.calls) - 1)
+    assert all(t <= settings.OPENAI_TIMEOUT_SECONDS for t in timeouts)
+
+
+def test_a_lookup_round_that_runs_out_of_time_still_answers(db, alice, fake_openai, clock, monkeypatch):
+    from openai import APITimeoutError
+
+    breaker_failures = []
+    monkeypatch.setattr(service_module.openai_circuit_breaker, "record_failure",
+                        lambda: breaker_failures.append(1))
+
+    def respond(kwargs, i):
+        if kwargs.get("tool_choice") == "none":
+            return _reply("Here is what I found so far.")
+        if i == 0:
+            return _lookup(_call("get_daily_digest", {}))
+        clock.now += kwargs["timeout"]  # the round used its whole share and timed out
+        raise APITimeoutError(request=httpx.Request("POST", "https://api.openai.test/v1/responses"))
+
+    fake = fake_openai(respond)
+    runner = ChatToolRunner(db, session_id=alice.session_id, user_id=alice.user_id)
+
+    assert _complete(runner) == "Here is what I found so far."
+    assert len(fake.calls) == 3  # no retry of the timed-out round: no time for one
+    assert fake.calls[2]["timeout"] == ai_config.CHAT_REPLY_RESERVE_SECONDS
+    # A timeout we shortened says nothing about OpenAI's health.
+    assert breaker_failures == []

@@ -135,6 +135,7 @@ final class TalkViewModel {
     private var levelTask: Task<Void, Never>?
     private var watchdogTask: Task<Void, Never>?
     private var keepAliveTask: Task<Void, Never>?
+    private var statusTask: Task<Void, Never>?
     private var pollTask: Task<Void, Never>?
     private var interruptionObserver: NSObjectProtocol?
     private var muteGestureObserver: NSObjectProtocol?
@@ -147,6 +148,7 @@ final class TalkViewModel {
     private var attemptId = UUID()
 
     private static let connectTimeoutSeconds: Double = 20
+    private static let statusCheckSeconds: Double = 20
     private static let speakingThreshold = 0.02
 
     // MARK: - Entry
@@ -281,6 +283,7 @@ final class TalkViewModel {
             }
             startLevelLoop()
             startKeepAlive()
+            startStatusChecks(attempt: attempt)
             // A stem press while connecting already muted the microphone at the system level.
             if AVAudioApplication.shared.isInputMuted { setMuted(true) }
         case .working:
@@ -497,6 +500,35 @@ final class TalkViewModel {
         }
     }
 
+    /// The voice connection runs straight to OpenAI, so it can outlive the server's side of
+    /// the call: if the server stops recording it (its own connection to the call failed for
+    /// good, or its instance died), nothing would be saved from then on, and the assistant
+    /// can no longer look anything up. The server ends calls it can; this catches the rest.
+    /// Network errors are ignored: a lost connection has its own path.
+    private func startStatusChecks(attempt: UUID) {
+        statusTask?.cancel()
+        guard let talkId else { return }
+        statusTask = Task { [weak self] in
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(Self.statusCheckSeconds))
+                guard !Task.isCancelled else { return }
+                guard let status: TalkSessionStatusResponse = try? await APIClient.shared.get(
+                    APIEndpoints.Talk.session(talkId)
+                ) else { continue }
+                guard let self, !Task.isCancelled, attempt == self.attemptId, self.phase.isLive,
+                      !self.isEnding else { return }
+                if status.status != "active" {
+                    self.notice = Notice(
+                        title: "Conversation Ended",
+                        message: "Talk lost its connection to AretaCare, so this conversation was ended. What was said up to now is being saved."
+                    )
+                    await self.end()
+                    return
+                }
+            }
+        }
+    }
+
     private func startWatchdog(seconds: Double, onFire: @escaping @MainActor () -> Void) {
         watchdogTask?.cancel()
         watchdogTask = Task {
@@ -510,9 +542,11 @@ final class TalkViewModel {
         levelTask?.cancel()
         watchdogTask?.cancel()
         keepAliveTask?.cancel()
+        statusTask?.cancel()
         levelTask = nil
         watchdogTask = nil
         keepAliveTask = nil
+        statusTask = nil
     }
 
     // MARK: - Device environment

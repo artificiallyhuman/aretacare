@@ -26,7 +26,8 @@ enum TempFileCleanup {
             try? fm.removeItem(at: tmp.appendingPathComponent(name))
         }
 
-        // Orphaned audio recordings (UUID.m4a) left by an interrupted upload.
+        // Orphaned audio recordings (UUID.m4a): a recording the app was ended during. A
+        // finished recording moves to PendingRecordingStore before its upload starts.
         if let entries = try? fm.contentsOfDirectory(at: tmp, includingPropertiesForKeys: nil) {
             for url in entries where url.pathExtension.lowercased() == "m4a" {
                 try? fm.removeItem(at: url)

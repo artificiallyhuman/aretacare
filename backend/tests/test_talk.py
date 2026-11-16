@@ -757,36 +757,196 @@ def test_a_live_heartbeat_cannot_be_claimed_as_stale(db, alice):
 
 
 def test_startup_clears_transcripts_of_calls_that_are_over(db, alice):
-    """A finalizer that died leaves its row 'finalizing' for good; rows saved before
-    _finish_row cleared the transcript keep theirs. The startup sweep catches both, but
-    never a live call or a save still in progress."""
+    """Rows saved before _finish_row cleared the transcript lose theirs at startup. A save
+    that was cut off keeps it (it is the only copy until the save is resumed), unless it
+    is past the resume window, when it is cleared and the call marked failed. A live call
+    and a save in progress are never touched."""
     long_ago = datetime.utcnow() - timedelta(seconds=talk_service.FINALIZING_STALE_SECONDS + 60)
+    too_old = datetime.utcnow() - timedelta(seconds=talk_service.RESUME_WINDOW_SECONDS + 60)
     rows = {}
     for name, status, ended_at in [
         ("old_completed", "completed", long_ago),
         ("dead_finalizer", "finalizing", long_ago),
+        ("interrupted", "interrupted", long_ago),
+        ("abandoned", "finalizing", too_old),
         ("saving_now", "finalizing", datetime.utcnow()),
         ("live", "active", None),
     ]:
         talk_id, _token = live_call(db, alice)  # one active call per user: demote before the next
         db.query(TalkSession).filter(TalkSession.id == talk_id).update(
-            {"status": status, "ended_at": ended_at, "transcript": TURNS})
+            {"status": status, "ended_at": ended_at, "heartbeat_at": ended_at or datetime.utcnow(),
+             "transcript": TURNS})
         db.commit()
         rows[name] = talk_id
 
     assert talk_service.clear_saved_transcripts(db) == 2
     db.expire_all()
-    transcript = {name: db.query(TalkSession).filter(TalkSession.id == talk_id).one().transcript
-                  for name, talk_id in rows.items()}
-    assert transcript["old_completed"] is None and transcript["dead_finalizer"] is None
-    assert transcript["saving_now"] == TURNS and transcript["live"] == TURNS
+    talks = {name: db.query(TalkSession).filter(TalkSession.id == talk_id).one()
+             for name, talk_id in rows.items()}
+    assert talks["old_completed"].transcript is None
+    assert talks["abandoned"].transcript is None and talks["abandoned"].status == "failed"
+    for kept in ("dead_finalizer", "interrupted", "saving_now", "live"):
+        assert talks[kept].transcript == TURNS, kept
+    assert [name for name, talk in talks.items() if talk_service.is_resumable(talk)] == [
+        "dead_finalizer", "interrupted"]
+
+
+# --- a save cut off by a deploy is resumed, not lost ---------------------------
+
+def cancel_finalize_at(monkeypatch, talk_id, stage, recorder=None):
+    """Runs finalize_talk and, once it reaches `stage`, stops it the way a deploy does
+    (the shutdown hook cancels every save in progress)."""
+    target = {"recording": "_save_recording", "synthesis": "_synthesize_and_summarize_audio"}[stage]
+    original = getattr(talk_service, target)
+
+    async def scenario():
+        reached = asyncio.Event()
+
+        async def hang(*_args, **_kwargs):
+            reached.set()
+            await asyncio.Event().wait()
+
+        monkeypatch.setattr(talk_service, target, hang)
+        task = asyncio.create_task(talk_service.finalize_talk(
+            talk_id, reason="closed", turns=TURNS, recorder=recorder, duration=42.0))
+        talk_service._finalizers.add(task)
+        try:
+            await reached.wait()
+            await talk_service.shutdown_talk_sessions()
+            assert task.cancelled()
+        finally:
+            talk_service._finalizers.discard(task)
+            monkeypatch.setattr(talk_service, target, original)
+
+    asyncio.run(scenario())
+
+
+def resume(talk_id):
+    async def scenario():
+        assert await talk_service.resume_interrupted_save(talk_id) is True
+        assert await talk_service.resume_interrupted_save(talk_id) is False  # claimed once
+        await asyncio.gather(*list(talk_service._finalizers))
+
+    asyncio.run(scenario())
+
+
+def test_a_save_cut_off_before_the_recording_is_resumed_from_the_transcript(db, alice, finalize_stubs, monkeypatch):
+    talk_id, _token = live_call(db, alice)
+    recorder = recorder_with_audio(talk_id)
+    cancel_finalize_at(monkeypatch, talk_id, "recording", recorder)
+
+    db.expire_all()
+    talk = db.query(TalkSession).filter(TalkSession.id == talk_id).one()
+    assert talk.status == "interrupted" and talk.transcript == TURNS
+    assert talk_service.effective_status(talk) == "finalizing"  # the app keeps waiting
+    (card,) = db.query(Conversation).filter(Conversation.session_id == alice.session_id).all()
+    assert card.message_metadata["status"] == "saving"
+    assert not __import__("os").path.exists(recorder.input_path)  # the audio went with the instance
+
+    resume(talk_id)
+    db.expire_all()
+    talk = db.query(TalkSession).filter(TalkSession.id == talk_id).one()
+    assert (talk.status, talk.outcome, talk.transcript) == ("completed", "transcript_only", None)
+    messages = db.query(Conversation).filter(
+        Conversation.session_id == alice.session_id).order_by(Conversation.id).all()
+    assert [m.message_metadata["kind"] for m in messages] == ["talk_turn", "talk_turn", "talk_summary"]
+    assert "status" not in messages[2].message_metadata
+    assert finalize_stubs["synth"] == 1
+
+
+def test_a_save_cut_off_after_the_recording_reuses_it(db, alice, finalize_stubs, monkeypatch):
+    talk_id, _token = live_call(db, alice)
+    cancel_finalize_at(monkeypatch, talk_id, "synthesis", recorder_with_audio(talk_id))
+
+    db.expire_all()
+    talk = db.query(TalkSession).filter(TalkSession.id == talk_id).one()
+    assert talk.status == "interrupted" and talk.audio_recording_id is not None
+    recording_id = talk.audio_recording_id
+
+    resume(talk_id)
+    db.expire_all()
+    talk = db.query(TalkSession).filter(TalkSession.id == talk_id).one()
+    assert (talk.status, talk.outcome, talk.audio_recording_id) == ("completed", "audio", recording_id)
+    assert db.query(AudioRecording).filter(AudioRecording.session_id == alice.session_id).count() == 1
+    (card,) = db.query(Conversation).filter(Conversation.session_id == alice.session_id).all()
+    assert card.message_metadata["outcome"] == "audio" and "status" not in card.message_metadata
+    assert card.message_metadata["audio_recording_id"] == recording_id
+    assert finalize_stubs["synth_kwargs"]["audio_id"] == recording_id
+
+
+def test_a_save_in_progress_is_not_resumable(db, alice, finalize_stubs):
+    talk_id, _token = live_call(db, alice)
+    claimed = talk_service._claim_for_finalizing(talk_id, "closed", TURNS, 42.0, False)
+    assert claimed is not None
+    db.expire_all()
+    talk = db.query(TalkSession).filter(TalkSession.id == talk_id).one()
+    assert talk.status == "finalizing" and not talk_service.is_resumable(talk)
+    assert asyncio.run(talk_service.resume_interrupted_save(talk_id)) is False
+
+
+def test_the_result_poll_and_the_next_call_resume_interrupted_saves(client, db, alice, talk_on, monkeypatch):
+    resumed = []
+
+    async def fake_resume(talk_id):
+        resumed.append(talk_id)
+        return True
+
+    monkeypatch.setattr(talk_service, "resume_interrupted_save", fake_resume)
+    grant_talk_consent(db, alice)
+    talk_id, _token = live_call(db, alice)
+    db.query(TalkSession).filter(TalkSession.id == talk_id).update(
+        {"status": "interrupted", "ended_at": datetime.utcnow(), "transcript": TURNS})
+    db.commit()
+
+    response = client.get(f"/api/talk/sessions/{talk_id}", headers=alice.auth_headers(client))
+    assert response.status_code == 200 and response.json()["status"] == "finalizing"
+    assert start(client, alice).status_code == 201
+    assert resumed == [talk_id, talk_id]
+
+
+# --- the caller's date -----------------------------------------------------------
+
+def test_local_date_is_the_callers_calendar_day():
+    nine_pm_in_chicago = datetime(2026, 11, 13, 3, 0)  # UTC
+    assert talk_tools.local_date("America/Chicago", nine_pm_in_chicago) == date(2026, 11, 12)
+    assert talk_tools.local_date(None, nine_pm_in_chicago) == date(2026, 11, 13)
+    assert talk_tools.local_date("Not/AZone", nine_pm_in_chicago) == date(2026, 11, 13)
+
+
+def test_start_keeps_the_callers_timezone(client, db, alice, talk_on):
+    grant_talk_consent(db, alice)
+    talk_id = start(client, alice).json()["talk_id"]
+    assert db.query(TalkSession).filter(TalkSession.id == talk_id).one().user_timezone == "America/Chicago"
+
+
+def test_an_evening_call_is_journaled_on_the_callers_date(db, alice, finalize_stubs):
+    talk_id, _token = live_call(db, alice)
+    db.query(TalkSession).filter(TalkSession.id == talk_id).update(
+        {"user_timezone": "America/Chicago", "started_at": datetime(2026, 11, 13, 3, 0)})
+    db.commit()
+    asyncio.run(talk_service.finalize_talk(talk_id, reason="closed", turns=TURNS,
+                                           recorder=recorder_with_audio(talk_id), duration=42.0))
+    assert finalize_stubs["synth_kwargs"]["entry_date"] == date(2026, 11, 12)
+
+
+def test_a_spoken_entry_defaults_to_the_callers_date(client, db, alice, talk_on, monkeypatch):
+    monkeypatch.setattr(talk_tools, "local_date",
+                        lambda tz, at=None: date(2026, 11, 12) if tz == "America/Chicago" else date(2026, 11, 13))
+    talk_id, token = live_call(db, alice)
+    db.query(TalkSession).filter(TalkSession.id == talk_id).update({"user_timezone": "America/Chicago"})
+    db.commit()
+    text, is_error = call_tool(client, token, "propose_journal_entry",
+                               {"title": "Blood pressure", "content": "128/80 this evening.", "entry_type": "OTHER"})
+    assert not is_error, text
+    assert "dated 2026-11-12" in text
 
 
 # --- the sideband gives up instead of reconnecting forever -------------------
 
 def run_sideband_against_dropping_socket(monkeypatch, max_seconds=600, end_requested=False):
-    """A sideband whose every connection opens and drops at once. Returns (connects, reason)."""
-    connects, finalized = [], {}
+    """A sideband whose every connection opens and drops at once.
+    Returns (connects, reason, OpenAI sessions it closed)."""
+    connects, finalized, closed = [], {}, []
 
     class DroppingSocket:
         async def __aenter__(self):
@@ -816,9 +976,13 @@ def run_sideband_against_dropping_socket(monkeypatch, max_seconds=600, end_reque
         if recorder is not None:
             recorder.cleanup()
 
+    async def fake_close(openai_session_id):
+        closed.append(openai_session_id)
+
     monkeypatch.setattr(talk_service.websockets, "connect", lambda *a, **k: DroppingSocket())
     monkeypatch.setattr(talk_service.asyncio, "sleep", no_wait)
     monkeypatch.setattr(talk_service, "finalize_talk", fake_finalize)
+    monkeypatch.setattr(talk_service, "close_live_session", fake_close)
 
     talk_id = "sideband-test"
     event = asyncio.Event()
@@ -829,18 +993,21 @@ def run_sideband_against_dropping_socket(monkeypatch, max_seconds=600, end_reque
         asyncio.run(talk_service._run_sideband(talk_id, "live_x", max_seconds))
     finally:
         talk_service._end_requests.pop(talk_id, None)
-    return len(connects), finalized.get("reason")
+    return len(connects), finalized.get("reason"), closed
 
 
-def test_a_sideband_that_keeps_dropping_gives_up(monkeypatch):
-    connects, reason = run_sideband_against_dropping_socket(monkeypatch)
+def test_a_sideband_that_keeps_dropping_gives_up_and_ends_the_call(monkeypatch):
+    connects, reason, closed = run_sideband_against_dropping_socket(monkeypatch)
     assert reason == "sideband_lost"
     assert connects == talk_service.SIDEBAND_MAX_RECONNECTS + 1
+    # Nothing more can be recorded, so the call itself is closed rather than left running
+    # unrecorded on the phone.
+    assert closed == ["live_x"]
 
 
 def test_a_dropping_sideband_still_honours_end_and_the_time_limit(monkeypatch):
-    assert run_sideband_against_dropping_socket(monkeypatch, end_requested=True) == (1, "ended_by_user")
-    assert run_sideband_against_dropping_socket(monkeypatch, max_seconds=0) == (1, "time_limit")
+    assert run_sideband_against_dropping_socket(monkeypatch, end_requested=True) == (1, "ended_by_user", [])
+    assert run_sideband_against_dropping_socket(monkeypatch, max_seconds=0) == (1, "time_limit", [])
 
 
 def test_recorder_places_both_streams_on_one_timeline():

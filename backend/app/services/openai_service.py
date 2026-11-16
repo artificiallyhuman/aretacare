@@ -14,6 +14,9 @@ from zoneinfo import ZoneInfo
 # Exception types that should trigger a retry (transient failures)
 RETRYABLE_EXCEPTIONS = (RateLimitError, APIConnectionError, APITimeoutError, InternalServerError)
 
+# With a deadline, an attempt (or retry) is not started with less time than this left.
+MIN_REQUEST_SECONDS = 5
+
 # Approved citation domains for Jargon Translator and Conversation Coach outputs.
 # Per SAFETY_GUIDELINES.md, the AI is instructed in the prompt to only cite these
 # domains — but a single jailbreak/prompt-injection/model-error can still produce
@@ -556,20 +559,24 @@ class OpenAIService:
         With store=False there is no previous_response_id, so every round re-sends the
         whole input with the model's own output items appended (its reasoning, as
         encrypted content, and its function calls), followed by the lookup results.
-        Bounded by CHAT_MAX_LOOKUP_ROUNDS, CHAT_MAX_LOOKUP_CALLS and
-        CHAT_LOOKUP_DEADLINE_SECONDS; the closing round sends tool_choice "none" so the
-        model writes its reply. If OpenAI rejects a request with lookups (400), the reply
-        is written without them rather than failing.
+        Bounded by CHAT_MAX_LOOKUP_ROUNDS, CHAT_MAX_LOOKUP_CALLS and the clock (see
+        CHAT_REPLY_DEADLINE_SECONDS in ai_config); the closing round sends tool_choice
+        "none" so the model writes its reply. If OpenAI rejects a request with lookups
+        (400), the reply is written without them rather than failing.
         """
         items = list(request_kwargs["input"])
         started = time.monotonic()
+        lookup_deadline = started + ai_config.CHAT_LOOKUP_DEADLINE_SECONDS
+        reply_deadline = started + ai_config.CHAT_REPLY_DEADLINE_SECONDS
         calls_made = 0
         rounds = 0
+        closing = False
         while True:
             can_look_up = (
-                rounds < ai_config.CHAT_MAX_LOOKUP_ROUNDS
+                not closing
+                and rounds < ai_config.CHAT_MAX_LOOKUP_ROUNDS
                 and calls_made < ai_config.CHAT_MAX_LOOKUP_CALLS
-                and time.monotonic() - started < ai_config.CHAT_LOOKUP_DEADLINE_SECONDS
+                and time.monotonic() < lookup_deadline
             )
             round_kwargs = {
                 **request_kwargs,
@@ -579,6 +586,13 @@ class OpenAIService:
             }
             if not can_look_up:
                 round_kwargs["tool_choice"] = "none"
+            # The first request is also the plain reply when nothing needs looking up, so
+            # it may use the whole budget. A later round that may still look things up
+            # must leave time for a closing reply.
+            if can_look_up and rounds > 0:
+                deadline = reply_deadline - ai_config.CHAT_REPLY_RESERVE_SECONDS
+            else:
+                deadline = reply_deadline
 
             try:
                 response = await self._request_with_retries(
@@ -586,13 +600,21 @@ class OpenAIService:
                     feature if rounds == 0 else "conversation_lookup",
                     user_id,
                     raise_bad_request=True,
+                    deadline=deadline,
                 )
             except BadRequestError:
                 logger.warning("OpenAI rejected a chat request with lookups; answering without them")
-                response = await self._request_with_retries(request_kwargs, feature, user_id)
+                response = await self._request_with_retries(
+                    request_kwargs, feature, user_id, deadline=reply_deadline
+                )
                 return None if response is None else _response_text(response)
 
             if response is None:
+                if can_look_up and rounds > 0:
+                    # The lookup round ran out of its share of time: write the reply from
+                    # what has been found so far.
+                    closing = True
+                    continue
                 return None
             output_items = list(getattr(response, "output", None) or [])
             calls = [item for item in output_items if getattr(item, "type", None) == "function_call"]
@@ -601,7 +623,11 @@ class OpenAIService:
 
             items.extend(output_items)
             for call in calls:
-                if calls_made < ai_config.CHAT_MAX_LOOKUP_CALLS:
+                # Checked per lookup, not only per round: a slow model request can return
+                # its calls after the deadline has passed.
+                if time.monotonic() >= lookup_deadline:
+                    output = "The time for lookups on this message has run out. Answer with what you have."
+                elif calls_made < ai_config.CHAT_MAX_LOOKUP_CALLS:
                     calls_made += 1
                     output = await tool_runner.run(call.name, call.arguments)
                 else:
@@ -615,12 +641,17 @@ class OpenAIService:
         feature: str,
         user_id: Optional[str],
         raise_bad_request: bool = False,
+        deadline: Optional[float] = None,
     ):
         """One Responses request behind the circuit breaker, with retries and API-call
         logging. Returns the response, or None if it failed.
 
         A rejected image always raises ImageProcessingError. Any other BadRequestError is
         logged and returns None, or is re-raised when `raise_bad_request` is set.
+
+        `deadline` (a time.monotonic() value) bounds the whole request, retries included:
+        each attempt gets only the time left as its timeout, and no attempt or retry
+        starts with less than MIN_REQUEST_SECONDS left.
         """
         message_count = len(request_kwargs.get("input") or [])
 
@@ -647,8 +678,18 @@ class OpenAIService:
         max_retries = settings.OPENAI_MAX_RETRIES
 
         for attempt in range(max_retries):
+            attempt_kwargs = request_kwargs
+            capped_timeout = False
+            if deadline is not None:
+                remaining = deadline - time.monotonic()
+                if remaining < MIN_REQUEST_SECONDS:
+                    logger.warning(f"OpenAI request for {feature} not started: out of time for this reply")
+                    break
+                timeout = min(float(settings.OPENAI_TIMEOUT_SECONDS), remaining)
+                capped_timeout = timeout < settings.OPENAI_TIMEOUT_SECONDS
+                attempt_kwargs = {**request_kwargs, "timeout": timeout}
             try:
-                response = await self.client.responses.create(**request_kwargs)
+                response = await self.client.responses.create(**attempt_kwargs)
 
                 # Extract token usage from response
                 if hasattr(response, "usage") and response.usage:
@@ -679,7 +720,11 @@ class OpenAIService:
                     settings.OPENAI_MAX_RETRY_DELAY
                 )
 
-                if attempt < max_retries - 1:
+                time_for_retry = (
+                    deadline is None
+                    or deadline - time.monotonic() - retry_delay >= MIN_REQUEST_SECONDS
+                )
+                if attempt < max_retries - 1 and time_for_retry:
                     logger.warning(
                         f"OpenAI API transient error (attempt {attempt + 1}/{max_retries}): {type(e).__name__}. "
                         f"Retrying in {retry_delay}s..."
@@ -687,12 +732,15 @@ class OpenAIService:
                     await asyncio.sleep(retry_delay)
                     continue  # Try again
                 else:
-                    # Final attempt failed - record with circuit breaker
-                    openai_circuit_breaker.record_failure()
+                    # Final attempt failed - record with circuit breaker. A timeout we
+                    # shortened to fit a reply's time budget says nothing about OpenAI's
+                    # health, so it doesn't count toward tripping the breaker.
+                    if not (capped_timeout and isinstance(e, APITimeoutError)):
+                        openai_circuit_breaker.record_failure()
                     logger.error(
-                        f"OpenAI API failed after {max_retries} attempts: {type(e).__name__}: {e}"
+                        f"OpenAI API failed after {attempt + 1} attempt(s): {type(e).__name__}: {e}"
                     )
-                    # Fall through to log the error
+                    break  # log the error below
 
             except BadRequestError as e:
                 response_time_ms = int((time.time() - start_time) * 1000)

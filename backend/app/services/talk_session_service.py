@@ -40,6 +40,7 @@ from typing import Dict, List, Optional, Tuple
 import httpx
 import sentry_sdk
 import websockets
+from sqlalchemy import and_, or_
 
 from app.config import ai_config
 from app.core.config import settings
@@ -56,6 +57,7 @@ from app.services.openai_service import (
     wrap_untrusted,
 )
 from app.services.s3_service import s3_service
+from app.services.talk_tools import local_date
 
 logger = logging.getLogger(__name__)
 
@@ -76,8 +78,12 @@ SIDEBAND_MAX_RECONNECTS = 4
 # count against it.
 SIDEBAND_STABLE_SECONDS = 30
 MIN_SAVED_CALL_SECONDS = 5
-# A 'finalizing' row older than this lost its finalizer; it is reported as failed.
+# A 'finalizing' row claimed longer ago than this lost its finalizer (heartbeat_at is
+# stamped at the claim). It is reported as failed, and any instance may resume the save.
 FINALIZING_STALE_SECONDS = 15 * 60
+# An interrupted or abandoned save is resumed only this long after the call; past it the
+# working transcript is dropped (retention) and the call is marked failed.
+RESUME_WINDOW_SECONDS = 7 * 24 * 3600
 # `message_metadata.status` of a Talk chat card; a finished card has no status.
 SUMMARY_SAVING = "saving"
 SUMMARY_FAILED = "failed"
@@ -303,6 +309,39 @@ def _flush_row(talk_id: str, turns: Optional[List[dict]], last_speech: Optional[
         db.close()
 
 
+def _claimed_info(db, talk_id: str, *, resumed: bool = False) -> dict:
+    """What a finalizer needs, read after its claim committed."""
+    talk = db.query(TalkSession).filter(TalkSession.id == talk_id).first()
+    from app.models import User
+    user = db.query(User).filter(User.id == talk.user_id).first()
+    card_id = None
+    if resumed:
+        # The interrupted finalizer may already have posted the "saving" card.
+        row = db.query(Conversation.id).filter(
+            Conversation.session_id == talk.session_id,
+            Conversation.message_metadata["kind"].astext == "talk_summary",
+            Conversation.message_metadata["talk_id"].astext == talk_id,
+        ).order_by(Conversation.id).first()
+        card_id = row[0] if row else None
+    return {
+        "talk_id": talk_id,
+        "session_id": talk.session_id,
+        "user_id": talk.user_id,
+        "user_name": (user.name if user else "") or "",
+        "started_at": talk.started_at,
+        "ended_at": talk.ended_at,
+        "turns": talk.transcript or [],
+        "duration": talk.duration_seconds,
+        "recording_name": talk.recording_name,
+        # The call's date where the caller is (it started then), for journal synthesis.
+        "local_date": local_date(talk.user_timezone, talk.started_at),
+        # Set when an interrupted save had already stored the recording.
+        "audio_recording_id": talk.audio_recording_id,
+        "card_id": card_id,
+        "resumed": resumed,
+    }
+
+
 def _claim_for_finalizing(talk_id: str, reason: str, turns: Optional[List[dict]],
                           duration: Optional[float], require_stale: bool) -> Optional[dict]:
     """The exclusive claim. Exactly one caller gets a dict back; everyone else gets None."""
@@ -314,7 +353,10 @@ def _claim_for_finalizing(talk_id: str, reason: str, turns: Optional[List[dict]]
         if require_stale:
             cutoff = datetime.utcnow() - timedelta(seconds=settings.TALK_STALE_SECONDS)
             query = query.filter(TalkSession.heartbeat_at < cutoff)
-        values = {"status": TalkStatus.FINALIZING.value, "ended_at": datetime.utcnow(),
+        now = datetime.utcnow()
+        # heartbeat_at now dates the claim: a 'finalizing' row whose claim is older than
+        # FINALIZING_STALE_SECONDS lost its finalizer.
+        values = {"status": TalkStatus.FINALIZING.value, "ended_at": now, "heartbeat_at": now,
                   "end_reason": reason, "pending_actions": None}
         if turns is not None:
             values["transcript"] = turns
@@ -324,19 +366,73 @@ def _claim_for_finalizing(talk_id: str, reason: str, turns: Optional[List[dict]]
             db.rollback()
             return None
         db.commit()
-        talk = db.query(TalkSession).filter(TalkSession.id == talk_id).first()
-        from app.models import User
-        user = db.query(User).filter(User.id == talk.user_id).first()
-        return {
-            "session_id": talk.session_id,
-            "user_id": talk.user_id,
-            "user_name": (user.name if user else "") or "",
-            "started_at": talk.started_at,
-            "ended_at": talk.ended_at,
-            "turns": talk.transcript or [],
-            "duration": talk.duration_seconds,
-            "recording_name": talk.recording_name,
-        }
+        return _claimed_info(db, talk_id)
+    finally:
+        db.close()
+
+
+def _resumable_filter(now: datetime):
+    """Saves that were cut off and can be finished from the stored transcript: one a
+    shutdown interrupted, or one whose finalizer died silently (SIGKILL, OOM)."""
+    return and_(
+        TalkSession.ended_at >= now - timedelta(seconds=RESUME_WINDOW_SECONDS),
+        or_(
+            TalkSession.status == TalkStatus.INTERRUPTED.value,
+            and_(
+                TalkSession.status == TalkStatus.FINALIZING.value,
+                TalkSession.heartbeat_at < now - timedelta(seconds=FINALIZING_STALE_SECONDS),
+            ),
+        ),
+    )
+
+
+def is_resumable(talk: TalkSession) -> bool:
+    now = datetime.utcnow()
+    if talk.ended_at is None or (now - talk.ended_at).total_seconds() > RESUME_WINDOW_SECONDS:
+        return False
+    if talk.status == TalkStatus.INTERRUPTED.value:
+        return True
+    return (
+        talk.status == TalkStatus.FINALIZING.value and talk.heartbeat_at is not None
+        and (now - talk.heartbeat_at).total_seconds() > FINALIZING_STALE_SECONDS
+    )
+
+
+def _claim_for_resuming(talk_id: str) -> Optional[dict]:
+    """Exclusive claim of a cut-off save, back to 'finalizing' with a fresh heartbeat."""
+    db = SessionLocal()
+    try:
+        now = datetime.utcnow()
+        count = db.query(TalkSession).filter(
+            TalkSession.id == talk_id, _resumable_filter(now)
+        ).update({"status": TalkStatus.FINALIZING.value, "heartbeat_at": now}, synchronize_session=False)
+        if count == 0:
+            db.rollback()
+            return None
+        db.commit()
+        return _claimed_info(db, talk_id, resumed=True)
+    finally:
+        db.close()
+
+
+def _mark_interrupted(talk_id: str) -> None:
+    """Shutdown mid-save: hand the save back. Only a row still 'finalizing' (not one the
+    finalizer already finished) is touched."""
+    db = SessionLocal()
+    try:
+        db.query(TalkSession).filter(
+            TalkSession.id == talk_id, TalkSession.status == TalkStatus.FINALIZING.value
+        ).update({"status": TalkStatus.INTERRUPTED.value}, synchronize_session=False)
+        db.commit()
+    finally:
+        db.close()
+
+
+def _resumable_ids(limit: int = 50) -> List[str]:
+    db = SessionLocal()
+    try:
+        rows = db.query(TalkSession.id).filter(_resumable_filter(datetime.utcnow())).limit(limit).all()
+        return [r[0] for r in rows]
     finally:
         db.close()
 
@@ -362,24 +458,36 @@ def _finish_row(talk_id: str, status: TalkStatus, outcome: Optional[TalkOutcome]
 
 
 def clear_saved_transcripts(db) -> int:
-    """Startup retention step: drop the working transcript from every call that is no
-    longer live. `_finish_row` already does this; this catches a finalizer that died
-    mid-save (its row stays 'finalizing' for good) and rows saved before it did."""
-    cutoff = datetime.utcnow() - timedelta(seconds=FINALIZING_STALE_SECONDS)
+    """Startup retention step: drop the working transcript from every finished call.
+    `_finish_row` already does this; this catches rows saved before it did.
+
+    A save that was cut off keeps its transcript, because it is the only copy until the
+    save is resumed. Past RESUME_WINDOW_SECONDS such a call is no longer resumed: its
+    transcript is dropped and it is marked failed."""
+    now = datetime.utcnow()
+    cutoff = now - timedelta(seconds=FINALIZING_STALE_SECONDS)
     count = db.query(TalkSession).filter(
-        TalkSession.status != TalkStatus.ACTIVE.value,
+        TalkSession.status.in_([TalkStatus.COMPLETED.value, TalkStatus.FAILED.value]),
         TalkSession.transcript.isnot(None),
         TalkSession.ended_at < cutoff,
     ).update({"transcript": None}, synchronize_session=False)
+    count += db.query(TalkSession).filter(
+        TalkSession.status.in_([TalkStatus.FINALIZING.value, TalkStatus.INTERRUPTED.value]),
+        TalkSession.ended_at < now - timedelta(seconds=RESUME_WINDOW_SECONDS),
+    ).update({"transcript": None, "status": TalkStatus.FAILED.value}, synchronize_session=False)
     db.commit()
     return count
 
 
 def effective_status(talk: TalkSession) -> str:
-    """Status as reported to clients: a finalizer that died must not spin forever."""
-    if talk.status == TalkStatus.FINALIZING.value and talk.ended_at is not None:
-        if (datetime.utcnow() - talk.ended_at).total_seconds() > FINALIZING_STALE_SECONDS:
+    """Status as reported to clients: a finalizer that died must not spin forever (the
+    same 15 minutes after which its chat card reads "could not be saved"), and an
+    interrupted save is still on its way (clients know only 'finalizing')."""
+    if talk.status in (TalkStatus.FINALIZING.value, TalkStatus.INTERRUPTED.value):
+        if (talk.heartbeat_at is not None
+                and (datetime.utcnow() - talk.heartbeat_at).total_seconds() > FINALIZING_STALE_SECONDS):
             return TalkStatus.FAILED.value
+        return TalkStatus.FINALIZING.value
     return talk.status
 
 
@@ -750,6 +858,13 @@ async def _run_sideband(talk_id: str, openai_session_id: str, max_seconds: int) 
         recorder.cleanup()
         raise
 
+    if state["reason"] == "sideband_lost":
+        # We can no longer record the call or keep its tools working (they stop with the
+        # row's 'active' status), but the phone's audio runs straight to OpenAI and would
+        # carry on. Close it. If OpenAI can't be reached for that either, the app's own
+        # status check ends the call once the row is no longer active.
+        logger.warning(f"Talk {talk_id}: sideband lost for good; closing the call")
+        await close_live_session(openai_session_id)
     duration = state["usage_seconds"] or (recorder.end_ms / 1000.0) or (time.monotonic() - started)
     await finalize_talk(
         talk_id, reason=state["reason"] or "closed", turns=transcript.snapshot(),
@@ -787,6 +902,11 @@ async def request_end(talk_id: str, openai_session_id: Optional[str]) -> None:
     if event is not None:
         event.set()
         return
+    await close_live_session(openai_session_id)
+
+
+async def close_live_session(openai_session_id: Optional[str]) -> None:
+    """Close the OpenAI session through a short sideband of its own (~10 s at most)."""
     if not openai_session_id:
         return
     try:
@@ -807,11 +927,13 @@ async def request_end(talk_id: str, openai_session_id: Optional[str]) -> None:
 
 
 async def shutdown_talk_sessions() -> None:
-    """Shutdown hook: stop every sideband so its transcript is flushed and claimable."""
-    tasks = list(_tasks.values())
+    """Shutdown hook: stop every sideband so its transcript is flushed and claimable, and
+    every save in progress so it is marked interrupted and resumed by another instance.
+    (A sideband that has reached finalize_talk is a save in progress too.)"""
+    tasks = list(_tasks.values()) + list(_finalizers)
     if not tasks:
         return
-    logger.warning(f"Shutdown: stopping {len(tasks)} live Talk session(s); their transcripts are kept")
+    logger.warning(f"Shutdown: stopping {len(tasks)} Talk call(s) or save(s); their transcripts are kept")
     for task in tasks:
         task.cancel()
     await asyncio.wait(tasks, timeout=5)
@@ -824,6 +946,14 @@ async def shutdown_talk_sessions() -> None:
 _finalizers: set = set()
 
 
+def _spawn_finalizer(talk_id: str, reason: str, claimed: dict) -> None:
+    task = asyncio.create_task(
+        finalize_talk(talk_id, reason=reason, preclaimed=claimed), name=f"talk-finalize-{talk_id}"
+    )
+    _finalizers.add(task)
+    task.add_done_callback(_finalizers.discard)
+
+
 async def claim_stale_and_finalize(talk_id: str) -> bool:
     """Take over a call whose instance died: claim it now, save its transcript in the
     background. The claim commits before this returns, so the caller can rely on the
@@ -831,12 +961,30 @@ async def claim_stale_and_finalize(talk_id: str) -> bool:
     claimed = await asyncio.to_thread(_claim_for_finalizing, talk_id, "instance_lost", None, None, True)
     if claimed is None:
         return False
-    task = asyncio.create_task(
-        finalize_talk(talk_id, reason="instance_lost", preclaimed=claimed), name=f"talk-finalize-{talk_id}"
-    )
-    _finalizers.add(task)
-    task.add_done_callback(_finalizers.discard)
+    _spawn_finalizer(talk_id, "instance_lost", claimed)
     return True
+
+
+async def resume_interrupted_save(talk_id: str) -> bool:
+    """Finish a save that was cut off (see `is_resumable`), in the background, from the
+    transcript on the row. The audio went with the instance that was saving it, unless
+    the recording had already been stored."""
+    claimed = await asyncio.to_thread(_claim_for_resuming, talk_id)
+    if claimed is None:
+        return False
+    logger.info(f"Talk {talk_id}: resuming an interrupted save")
+    _spawn_finalizer(talk_id, "resumed", claimed)
+    return True
+
+
+async def resume_interrupted_saves() -> int:
+    """Startup: resume every cut-off save. The claim is exclusive, so instances starting
+    together each take different calls; a save still running elsewhere is not stale."""
+    resumed = 0
+    for talk_id in await asyncio.to_thread(_resumable_ids):
+        if await resume_interrupted_save(talk_id):
+            resumed += 1
+    return resumed
 
 
 async def finalize_talk(
@@ -844,9 +992,13 @@ async def finalize_talk(
     recorder: Optional[_Recorder] = None, duration: Optional[float] = None,
     preclaimed: Optional[dict] = None,
 ) -> None:
-    """Save a finished call. Safe to call from several places: the claim is exclusive."""
+    """Save a finished call. Safe to call from several places: the claim is exclusive.
+
+    Also finishes a save that was cut off (`preclaimed` from `_claim_for_resuming`): its
+    chat card and, if it got that far, its recording are reused rather than made again."""
     card_id: Optional[int] = None
     session_id: Optional[str] = None
+    claimed: Optional[dict] = None
     try:
         claimed = preclaimed or await asyncio.to_thread(
             _claim_for_finalizing, talk_id, reason, turns, duration, False
@@ -857,18 +1009,29 @@ async def finalize_talk(
         duration = claimed["duration"]
         if duration is None:
             duration = max((t.get("end_ms", 0) for t in turns), default=0) / 1000.0
+        session_id = claimed["session_id"]
+        card_id = claimed.get("card_id")
+
+        if claimed.get("resumed") and not turns and claimed.get("audio_recording_id") is None:
+            # Nothing left to save from (the transcript was cleared by an older release).
+            # The card, if any, already reads "could not be saved".
+            await asyncio.to_thread(_finish_row, talk_id, TalkStatus.FAILED, None, duration)
+            return
 
         if duration < MIN_SAVED_CALL_SECONDS or not has_user_speech(turns):
+            if card_id is not None:
+                await asyncio.to_thread(_delete_card, card_id, session_id)
             await asyncio.to_thread(_finish_row, talk_id, TalkStatus.COMPLETED, TalkOutcome.DISCARDED, duration)
             return
 
         # The chat card goes in now, as "saving"; mixing, upload and journal synthesis take
         # a while, and the finished summary replaces this same row.
-        session_id = claimed["session_id"]
-        card_id = await asyncio.to_thread(_insert_saving_card, talk_id, session_id, duration)
+        if card_id is None:
+            card_id = await asyncio.to_thread(_insert_saving_card, talk_id, session_id, duration)
 
-        recording_id = None
-        if recorder is not None and recorder.has_audio:
+        # An interrupted save may have stored the recording already.
+        recording_id = claimed.get("audio_recording_id")
+        if recording_id is None and recorder is not None and recorder.has_audio:
             try:
                 recording_id = await _save_recording(talk_id, claimed, turns, duration, recorder)
             except Exception as e:
@@ -887,6 +1050,14 @@ async def finalize_talk(
                 _finish_row, talk_id, TalkStatus.COMPLETED, TalkOutcome.TRANSCRIPT_ONLY, duration, None, entries
             )
     except asyncio.CancelledError:
+        # Shutdown mid-save. The audio goes with this process, but the transcript is on
+        # the row: hand the save back so the next instance to see it (the phone's result
+        # poll, the user's next Talk call, or a startup) finishes it. Deleting the audio
+        # used to leave the row 'finalizing' for good, and its transcript was then
+        # cleared. Synchronous: no awaits during cancellation.
+        if claimed is not None:
+            with contextlib.suppress(Exception):
+                _mark_interrupted(talk_id)
         raise
     except Exception as e:
         logger.error(f"Talk {talk_id}: finalization failed: {e}", exc_info=True)
@@ -914,6 +1085,12 @@ def _insert_recording(claimed: dict, s3_key: str, filename: str, duration: float
             created_by_user_id=claimed["user_id"],
         )
         db.add(recording)
+        db.flush()
+        # In the same transaction: a save interrupted after this point resumes from the
+        # stored recording instead of posting the transcript to chat as well.
+        db.query(TalkSession).filter(TalkSession.id == claimed["talk_id"]).update(
+            {"audio_recording_id": recording.id}, synchronize_session=False
+        )
         db.commit()
         return recording.id
     finally:
@@ -1037,15 +1214,13 @@ def effective_summary_card(content: str, metadata: Optional[dict], created_at: O
 
 async def _synthesize_journal(claimed: dict, filename: str, transcript_text: str, summary: str,
                               duration: float, recording_id: Optional[int]) -> None:
-    from datetime import date as date_type
-
     from app.services.journal_service import JournalService
 
     db = SessionLocal()
     try:
         await JournalService(db).synthesize_from_audio(
             filename=filename, transcribed_text=transcript_text, ai_summary=summary or "",
-            duration=duration, session_id=claimed["session_id"], entry_date=date_type.today(),
+            duration=duration, session_id=claimed["session_id"], entry_date=claimed["local_date"],
             audio_id=recording_id, user_id=claimed["user_id"], talk_conversation=True,
         )
     except Exception as e:
@@ -1104,11 +1279,7 @@ def _count_recent_ai_entries(session_id: str, since: datetime) -> int:
         db.close()
 
 
-async def _save_transcript_only(talk_id: str, claimed: dict, turns: List[dict], duration: float,
-                                card_id: int) -> int:
-    """The audio is gone: post the conversation into the chat as if it had been typed."""
-    # The summary below says the text is "above", so the saving card can't stay where it is.
-    await asyncio.to_thread(_delete_card, card_id, claimed["session_id"])
+def _turn_rows(talk_id: str, claimed: dict, turns: List[dict]) -> List[dict]:
     rows = []
     for turn in turns:
         cleaned = _clean_turn(turn.get("text", ""))
@@ -1123,7 +1294,29 @@ async def _save_transcript_only(talk_id: str, claimed: dict, turns: List[dict], 
             "synthesized_to_journal": True,
             "message_metadata": {"kind": "talk_turn", "talk_id": talk_id},
         })
-    await asyncio.to_thread(_insert_messages, claimed["session_id"], rows)
+    return rows
+
+
+def _turns_posted(session_id: str, talk_id: str) -> bool:
+    """A resumed save must not post the turns a second time."""
+    db = SessionLocal()
+    try:
+        return db.query(Conversation.id).filter(
+            Conversation.session_id == session_id,
+            Conversation.message_metadata["kind"].astext == "talk_turn",
+            Conversation.message_metadata["talk_id"].astext == talk_id,
+        ).first() is not None
+    finally:
+        db.close()
+
+
+async def _save_transcript_only(talk_id: str, claimed: dict, turns: List[dict], duration: float,
+                                card_id: int) -> int:
+    """The audio is gone: post the conversation into the chat as if it had been typed."""
+    # The summary below says the text is "above", so the saving card can't stay where it is.
+    await asyncio.to_thread(_delete_card, card_id, claimed["session_id"])
+    if not await asyncio.to_thread(_turns_posted, claimed["session_id"], talk_id):
+        await asyncio.to_thread(_insert_messages, claimed["session_id"], _turn_rows(talk_id, claimed, turns))
 
     synthesis_started = datetime.utcnow()
     await _synthesize_journal(

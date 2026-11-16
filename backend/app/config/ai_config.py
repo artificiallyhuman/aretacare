@@ -1177,12 +1177,20 @@ EMPTY_JOURNAL_MARKER = "# Care Journal\n\nNo journal entries yet."
 # CHAT LOOKUPS (services/chat_tools.py, openai_service._complete_with_lookups)
 # ============================================================================
 
-# Bounds on one chat reply's lookups. After the last round (or once the deadline has
-# passed) the model is called with tool_choice "none", so a reply is always written well
-# inside Cloudflare's ~100s origin timeout and the clients' 120s request timeout.
+# Bounds on one chat reply's lookups. After the last round (or once the lookup deadline
+# has passed) the model is called with tool_choice "none" so it writes its reply.
+# The clock is checked before every model request and before every lookup, and each
+# request is given only the time left (retries included): no lookup starts after
+# CHAT_LOOKUP_DEADLINE_SECONDS, and no request runs past CHAT_REPLY_DEADLINE_SECONDS.
+# A request that may still look things up must finish CHAT_REPLY_RESERVE_SECONDS before
+# that, so a closing reply always has time; if it doesn't, the reply is written from what
+# was found so far. This keeps the reply, plus the journal synthesis that follows it,
+# inside Cloudflare's ~100s origin timeout.
 CHAT_MAX_LOOKUP_ROUNDS = 3
 CHAT_MAX_LOOKUP_CALLS = 8
 CHAT_LOOKUP_DEADLINE_SECONDS = 40
+CHAT_REPLY_DEADLINE_SECONDS = 75
+CHAT_REPLY_RESERVE_SECONDS = 25
 
 # Added to chat's messages only when lookups are on. The safety boundaries in
 # SYSTEM_PROMPT apply to looked-up records exactly as to the context above.

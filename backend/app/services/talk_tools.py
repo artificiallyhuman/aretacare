@@ -18,8 +18,9 @@ import json
 import logging
 import uuid
 from dataclasses import dataclass
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 from typing import Any, Awaitable, Callable, Dict, List, Optional
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from pydantic import ValidationError
 from sqlalchemy import desc, or_
@@ -32,7 +33,7 @@ from app.models import (
 from app.models.journal import EntryType
 from app.schemas.journal import JournalEntryCreate, JournalEntryUpdate
 from app.schemas.profile import PendingChange, ProfileData
-from app.services.openai_service import _strip_markdown_images, wrap_untrusted
+from app.services.openai_service import _strip_markdown_images, sanitize_user_timezone, wrap_untrusted
 
 logger = logging.getLogger(__name__)
 
@@ -65,6 +66,26 @@ class ToolContext:
     talk_id: Optional[str]  # None for chat lookups; only the write tools use it
     session_id: str
     user_id: str
+    # The caller's local date: the default for a proposed entry or digest. The server's
+    # own date is UTC, which in a US evening is already tomorrow.
+    user_today: Optional[date] = None
+
+    @property
+    def today(self) -> date:
+        return self.user_today or date.today()
+
+
+def local_date(user_timezone: Optional[str], at: Optional[datetime] = None) -> date:
+    """`at` (naive UTC; default now) as a calendar date in the caller's timezone. Without
+    a valid timezone it is the UTC date, which is what the server used before."""
+    at = at or datetime.utcnow()
+    tz = sanitize_user_timezone(user_timezone)
+    if tz:
+        try:
+            return at.replace(tzinfo=timezone.utc).astimezone(ZoneInfo(tz)).date()
+        except (ZoneInfoNotFoundError, ValueError):
+            pass
+    return at.date()
 
 
 # ---------------------------------------------------------------------------
@@ -162,14 +183,19 @@ async def _get_health_profile(ctx: ToolContext, args: dict) -> str:
 async def _search_journal(ctx: ToolContext, args: dict) -> str:
     query = _str_arg(args, "query", required=True, max_len=500)
     start, end = _date_arg(args, "start_date"), _date_arg(args, "end_date")
+    if start and end and end < start:
+        raise ToolError("'end_date' must not be before 'start_date'.")
 
     found: Dict[int, JournalEntry] = {}
     # Meaning first (pgvector), then literal matches the embedding may rank low
-    # (a drug name, a surname). Both are scoped to this care session.
+    # (a drug name, a surname). Both are scoped to this care session, and the date
+    # range is applied inside each search: filtering after the top-8 cut reported
+    # "no entries" whenever the best matches fell outside the period.
     from app.services.embedding_service import EmbeddingService
     try:
         similar = await EmbeddingService(ctx.db).find_similar_entries(
             session_id=ctx.session_id, query_text=query, top_k=8, min_days_old=-1,
+            start_date=start, end_date=end,
         )
         for entry, _score in similar:
             found[entry.id] = entry
@@ -180,17 +206,17 @@ async def _search_journal(ctx: ToolContext, args: dict) -> str:
     keyword = ctx.db.query(JournalEntry).filter(
         JournalEntry.session_id == ctx.session_id,
         or_(JournalEntry.title.ilike(like), JournalEntry.content.ilike(like)),
-    ).order_by(desc(JournalEntry.entry_date)).limit(8).all()
-    for entry in keyword:
+    )
+    if start is not None:
+        keyword = keyword.filter(JournalEntry.entry_date >= start)
+    if end is not None:
+        keyword = keyword.filter(JournalEntry.entry_date <= end)
+    for entry in keyword.order_by(desc(JournalEntry.entry_date)).limit(8).all():
         found.setdefault(entry.id, entry)
 
-    entries = [
-        e for e in found.values()
-        if (start is None or e.entry_date >= start) and (end is None or e.entry_date <= end)
-    ]
-    if not entries:
+    if not found:
         return "No journal entries matched."
-    entries.sort(key=lambda e: e.entry_date, reverse=True)
+    entries = sorted(found.values(), key=lambda e: e.entry_date, reverse=True)
     return _records("\n\n".join(_format_entry(e) for e in entries[:10]))
 
 
@@ -349,8 +375,8 @@ async def _propose_journal_entry(ctx: ToolContext, args: dict) -> str:
     title = _str_arg(args, "title", required=True, max_len=100)
     content = _str_arg(args, "content", required=True, max_len=MAX_JOURNAL_CONTENT_CHARS)
     entry_type = _entry_type_arg(args, required=True)
-    entry_date = _date_arg(args, "entry_date") or date.today()
-    if entry_date > date.today() + timedelta(days=366):
+    entry_date = _date_arg(args, "entry_date") or ctx.today
+    if entry_date > ctx.today + timedelta(days=366):
         raise ToolError("'entry_date' is too far in the future.")
     return _store_proposal(
         ctx, "journal_create",
@@ -404,7 +430,7 @@ async def _propose_description_update(ctx: ToolContext, args: dict) -> str:
 
 
 async def _propose_generate_digest(ctx: ToolContext, args: dict) -> str:
-    user_date = _date_arg(args, "date") or date.today()
+    user_date = _date_arg(args, "date") or ctx.today
     return _store_proposal(
         ctx, "generate_digest", {"date": user_date.isoformat()},
         f"Generate the Daily Digest for {user_date.isoformat()}.",

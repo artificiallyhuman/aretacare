@@ -554,27 +554,22 @@ struct ConversationView: View {
         }
     }
 
-    /// Uploads a finished voice message to the care session it was recorded in. On success
-    /// the local file is deleted; on failure it is kept on the device for Audio Recordings
-    /// to upload later (it used to be swept away at the next launch).
+    /// Uploads a finished voice message to the care session it was recorded in. The file is
+    /// held on the device for the whole upload and deleted once it succeeds; on failure it
+    /// stays there for Audio Recordings to upload later. (During the upload it used to wait
+    /// in the temporary directory, which the next launch sweeps, so iOS ending the app
+    /// mid-upload lost it.)
     private func sendVoiceMessage(_ audioData: Data, file: URL?) async {
         guard let sessionId = recordingSessionId ?? currentSessionId else { return }
         recordingSessionId = nil
-        // Before the upload: if it fails because the session expired, the signed-in user
-        // is already cleared when the result comes back.
-        let owner = PendingRecordingStore.shared.currentOwner()
-        if await conversationVM.uploadAudioMessage(data: audioData, sessionId: sessionId) {
-            if let file { try? FileManager.default.removeItem(at: file) }
-            return
-        }
-        guard let file, let owner else { return }
-        let kept = PendingRecordingStore.shared.keep(
-            fileAt: file,
+        let outcome = await PendingRecordingStore.shared.upload(
+            file: file,
             sessionId: sessionId,
-            filename: MultipartFormData.generatedRecordingFilename(),
-            owner: owner
-        )
-        if kept, sessionId == currentSessionId {
+            filename: MultipartFormData.generatedRecordingFilename()
+        ) {
+            await conversationVM.uploadAudioMessage(data: audioData, sessionId: sessionId)
+        }
+        if outcome == .keptOnDevice, sessionId == currentSessionId {
             conversationVM.errorMessage = "Your voice message couldn't be sent. It's saved on this device: open Audio Recordings in Tools to upload it."
         }
     }

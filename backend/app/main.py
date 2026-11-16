@@ -456,6 +456,15 @@ async def _run_startup_cleanup():
             logger.error(f"Talk transcript cleanup failed: {e}")
             db.rollback()
 
+        # Talk saves a previous deploy cut off (finished in the background from the transcript)
+        try:
+            from app.services.talk_session_service import resume_interrupted_saves
+            resumed = await resume_interrupted_saves()
+            if resumed:
+                logger.info(f"✓ Talk: resuming {resumed} interrupted save(s)")
+        except Exception as e:
+            logger.error(f"Resuming interrupted Talk saves failed: {e}")
+
         # MFA challenges
         try:
             deleted = MFAService.cleanup_expired_challenges(db)
