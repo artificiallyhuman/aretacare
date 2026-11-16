@@ -103,7 +103,7 @@ services:
       - key: WEBAUTHN_ORIGIN
         sync: false  # Your frontend origin for passkeys, e.g., https://yourdomain.com
       - key: PUSH_NOTIFICATIONS_ENABLED
-        value: "FALSE"  # Set to TRUE to enable iOS push notifications (requires APNs key)
+        sync: false  # Set in the dashboard. TRUE enables iOS push notifications; set the APNs keys below first. (A value here would be re-applied on every Blueprint sync, silently switching pushes off.)
       - key: APNS_KEY_ID
         sync: false  # 10-char Key ID from Apple Developer > Keys
       - key: APNS_TEAM_ID
