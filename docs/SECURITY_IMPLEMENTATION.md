@@ -505,15 +505,15 @@ Enabled: Security Policy, Security Advisories, Private Vulnerability Reporting, 
 
 ### CodeQL Code Scanning
 
-Custom workflow at `.github/workflows/codeql.yml` (default CodeQL setup cannot build Swift):
+Custom workflows (default CodeQL setup cannot build Swift):
 
-| Language | Runner | Build |
-|----------|--------|-------|
-| Python | `ubuntu-latest` | Autobuild |
-| JavaScript/TypeScript | `ubuntu-latest` | Autobuild |
-| Swift | `macos-15` | XcodeGen + `xcodebuild` with code signing disabled |
+| Language | Workflow | Runner | Build | Runs on |
+|----------|----------|--------|-------|---------|
+| Python | `codeql.yml` | `ubuntu-latest` | Autobuild | push to `main`, PRs to `main`, weekly (Wednesday) |
+| JavaScript/TypeScript | `codeql.yml` | `ubuntu-latest` | Autobuild | push to `main`, PRs to `main`, weekly (Wednesday) |
+| Swift | `codeql-swift.yml` | `macos-15` | XcodeGen + `xcodebuild` with code signing disabled | PRs to `main` that change `ios/`, weekly (Wednesday), on demand |
 
-Runs on: push to `main`, PRs to `main`, weekly schedule (Wednesday). The Swift job creates a placeholder `Secrets.xcconfig` (no real credentials needed for static analysis) and builds with `CODE_SIGNING_ALLOWED=NO`; the build step fails the job if compilation fails.
+The Swift analysis needs a Mac and takes about an hour, so it does not run on pushes to `main`, which Render deploys only once every check has passed. It creates a placeholder `Secrets.xcconfig` (no real credentials needed for static analysis) and builds with `CODE_SIGNING_ALLOWED=NO`; the build step fails the job if compilation fails.
 
 ### CI
 
@@ -523,8 +523,9 @@ Runs on: push to `main`, PRs to `main`, weekly schedule (Wednesday). The Swift j
 |-----|--------------|
 | Backend tests | `backend/tests` (pytest) against a `pgvector/pgvector:pg15` service container: health, login, care-session isolation, refresh-token behaviour, request limits, MFA guards, admin gating. No calls to OpenAI, S3 or SMTP |
 | Frontend build | `npm ci` and a full production build including prerendering |
-| iOS build | XcodeGen + `xcodebuild` for the simulator with code signing disabled |
 
 Render deploys are configured to wait for these checks (`autoDeployTrigger: checksPass` in `render.yaml`).
+
+`.github/workflows/ios.yml` builds the iOS app for the simulator (XcodeGen + `xcodebuild`, code signing disabled) on pull requests that change `ios/`, and on demand. Like the Swift analysis it needs a Mac, so it does not run on pushes to `main`; Xcode Cloud archives the app from `main`.
 
 All workflow actions are pinned to full commit SHAs; Dependabot keeps the pins current. Secret scanning (gitleaks) runs over the full history.

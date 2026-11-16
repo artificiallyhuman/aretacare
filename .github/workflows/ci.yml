@@ -2,9 +2,10 @@
 #
 # Runs on every pull request and every push to main. The production services deploy only
 # after these checks pass (`autoDeployTrigger: checksPass` in render.yaml), so a commit
-# that does not import, fails its tests or does not build never reaches production. The
-# iOS build runs only on pull requests that touch the iOS app, never on pushes to main
-# (see the `changes` job).
+# that does not import, fails its tests or does not build never reaches production.
+#
+# Everything here runs on Linux. The iOS build is in ios.yml: it needs a Mac, which GitHub
+# can't always supply, and nothing Render deploys is iOS code.
 #
 # Actions are pinned to full commit SHAs with the release in a trailing comment;
 # Dependabot's github-actions updates keep them current.
@@ -25,59 +26,6 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  changes:
-    # The macOS jobs (CI's iOS build, CodeQL's Swift analysis) never run on a push to
-    # main. Render deploys a main commit only once every check on it has passed (a
-    # skipped check counts as passing), and neither Render service contains iOS code,
-    # but a macOS job could still hold the deploy back: GitHub-hosted Macs run short at
-    # times (a job that never gets one is cancelled after about 15 minutes and fails the
-    # run), and the Swift analysis takes about an hour. So they run on pull requests that
-    # touch ios/ or the workflows, and CodeQL's weekly scan covers main. An iOS change
-    # pushed straight to main gets no check here; a broken build there shows up in Xcode
-    # or Xcode Cloud instead.
-    # Renames are listed as a deletion plus an addition (--no-renames), so moving a file
-    # into or out of ios/ counts, and git needs no file contents for the diff.
-    # Same job in codeql.yml; change both together.
-    name: Detect iOS changes
-    if: github.event_name != 'push'
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    outputs:
-      ios: ${{ steps.diff.outputs.ios }}
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          # Full history (without file contents) so the diff can reach the pull
-          # request's base.
-          fetch-depth: 0
-          filter: blob:none
-
-      - name: Compare with the pull request's base
-        id: diff
-        env:
-          EVENT_NAME: ${{ github.event_name }}
-          PR_BASE: ${{ github.event.pull_request.base.sha }}
-        run: |
-          case "$EVENT_NAME" in
-            pull_request) base="$PR_BASE" ;;
-            *) base="" ;;   # scheduled or manual runs build everything
-          esac
-          # No usable base (a scheduled or manual run, a base we cannot reach): build.
-          if [ -z "$base" ] || ! git cat-file -e "${base}^{commit}" 2>/dev/null; then
-            echo "ios=true" >> "$GITHUB_OUTPUT"
-            echo "No base to compare with; building the iOS app."
-            exit 0
-          fi
-          changed=$(git diff --name-only --no-renames "$base" "$GITHUB_SHA")
-          if printf '%s\n' "$changed" | grep -qE '^(ios/|\.github/workflows/)'; then
-            echo "ios=true" >> "$GITHUB_OUTPUT"
-            echo "iOS app or workflow files changed; building the iOS app."
-          else
-            echo "ios=false" >> "$GITHUB_OUTPUT"
-            echo "No iOS changes; the macOS job is skipped."
-          fi
-
   backend:
     name: Backend tests
     runs-on: ubuntu-latest
@@ -175,48 +123,3 @@ jobs:
           # deployed site gets the real key from the hosting environment.
           VITE_HCAPTCHA_SITE_KEY: 10000000-ffff-ffff-ffff-000000000001
         run: npm run build
-
-  ios:
-    name: iOS build
-    needs: changes
-    # Never on a push to main (see the `changes` job).
-    if: github.event_name != 'push' && needs.changes.outputs.ios == 'true'
-    runs-on: macos-15
-    timeout-minutes: 45
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-
-      # No Xcode version is selected: the runner's default Xcode is the one whose
-      # iOS Simulator platform is installed on the image. Selecting another version
-      # left xcodebuild with no eligible simulator destination.
-
-      - name: Install XcodeGen
-        run: brew install xcodegen
-
-      - name: Create Secrets.xcconfig
-        # Placeholders: the build only has to compile, it is never signed or run.
-        run: |
-          cat > ios/AretaCare/Configuration/Secrets.xcconfig <<'EOF'
-          DEVELOPMENT_TEAM = CI_PLACEHOLDER
-          REVENUECAT_API_KEY = ci_placeholder_key
-          EOF
-
-      - name: Generate Xcode project
-        run: cd ios && xcodegen generate
-
-      - name: Build
-        # pipefail so a failed build fails the step rather than reporting xcpretty's
-        # exit status.
-        run: |
-          set -o pipefail
-          cd ios
-          xcodebuild build \
-            -scheme AretaCare \
-            -destination 'generic/platform=iOS Simulator' \
-            -configuration Debug \
-            CODE_SIGNING_ALLOWED=NO \
-            CODE_SIGNING_REQUIRED=NO \
-            CODE_SIGN_IDENTITY="" \
-            COMPILER_INDEX_STORE_ENABLE=NO \
-            | xcpretty
