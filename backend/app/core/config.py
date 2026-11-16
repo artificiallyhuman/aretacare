@@ -47,6 +47,10 @@ class Settings(BaseSettings):
     OPENAI_RETRY_DELAY: int = 1  # Initial retry delay in seconds (doubles each attempt)
     OPENAI_MAX_RETRY_DELAY: int = 16  # Maximum retry delay in seconds
     OPENAI_TRANSCRIPTION_TIMEOUT_SECONDS: int = 300  # Per transcription chunk: upload ~19MB + transcribe 20 min of audio
+    # Chat may look up the care session's records (read-only, services/chat_tools.py).
+    # Kill switch: set FALSE in the Render dashboard. Not in render.yaml, whose values
+    # are re-applied on every Blueprint sync.
+    CHAT_TOOLS_ENABLED: bool = True
 
     # Audio transcription runs as a background job after the upload response
     # (services/audio_transcription_service.py)

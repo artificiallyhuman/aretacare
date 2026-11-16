@@ -468,6 +468,24 @@ def estimate_message_tokens(message: Dict[str, Any]) -> int:
     return 0
 
 
+def _response_text(response) -> Optional[str]:
+    """The reply text of a Responses result, with markdown images stripped (see
+    _strip_markdown_images), or None if it has none."""
+    # Prefer the convenience property if available
+    text = getattr(response, "output_text", None)
+    if text is not None:
+        return _strip_markdown_images(text)
+
+    # Fallback: extract first text segment from output
+    if getattr(response, "output", None):
+        first_item = response.output[0]
+        if getattr(first_item, "content", None):
+            first_content = first_item.content[0]
+            return _strip_markdown_images(getattr(first_content, "text", None))
+
+    return None
+
+
 class OpenAIService:
     """Service for OpenAI API interactions with safety boundaries"""
 
@@ -497,11 +515,15 @@ class OpenAIService:
         feature: str = "unknown",
         user_id: Optional[str] = None,
         max_output_tokens: Optional[int] = None,
+        tool_runner: Optional[Any] = None,
     ) -> Optional[str]:
         """Create chat completion with error handling, timeout, retry logic, and circuit breaker.
 
         `max_output_tokens` bounds the response (reasoning tokens count toward it, so keep
         it generous). Left unset for chat, where long answers are legitimate.
+
+        `tool_runner` (a `chat_tools.ChatToolRunner`) lets the model look up the care
+        session's records before answering; see `_complete_with_lookups`.
 
         Includes:
         - Circuit breaker to fail fast during extended outages
@@ -509,6 +531,99 @@ class OpenAIService:
         - Configurable retries with exponential backoff for transient failures
         - Retryable errors: RateLimitError, APIConnectionError, APITimeoutError, InternalServerError
         """
+        # store=False: the API keeps every response for 30 days by default
+        # (retrievable with our key). Nothing here uses previous_response_id,
+        # so health content has no reason to sit there.
+        request_kwargs: Dict[str, Any] = {"model": self.model, "input": messages, "store": False}
+        if max_output_tokens is not None:
+            request_kwargs["max_output_tokens"] = max_output_tokens
+
+        if tool_runner is not None:
+            return await self._complete_with_lookups(request_kwargs, feature, user_id, tool_runner)
+
+        response = await self._request_with_retries(request_kwargs, feature, user_id)
+        return None if response is None else _response_text(response)
+
+    async def _complete_with_lookups(
+        self,
+        request_kwargs: Dict[str, Any],
+        feature: str,
+        user_id: Optional[str],
+        tool_runner: Any,
+    ) -> Optional[str]:
+        """Chat with read-only lookups into the care session (chat_tools.ChatToolRunner).
+
+        With store=False there is no previous_response_id, so every round re-sends the
+        whole input with the model's own output items appended (its reasoning, as
+        encrypted content, and its function calls), followed by the lookup results.
+        Bounded by CHAT_MAX_LOOKUP_ROUNDS, CHAT_MAX_LOOKUP_CALLS and
+        CHAT_LOOKUP_DEADLINE_SECONDS; the closing round sends tool_choice "none" so the
+        model writes its reply. If OpenAI rejects a request with lookups (400), the reply
+        is written without them rather than failing.
+        """
+        items = list(request_kwargs["input"])
+        started = time.monotonic()
+        calls_made = 0
+        rounds = 0
+        while True:
+            can_look_up = (
+                rounds < ai_config.CHAT_MAX_LOOKUP_ROUNDS
+                and calls_made < ai_config.CHAT_MAX_LOOKUP_CALLS
+                and time.monotonic() - started < ai_config.CHAT_LOOKUP_DEADLINE_SECONDS
+            )
+            round_kwargs = {
+                **request_kwargs,
+                "input": items,
+                "tools": tool_runner.definitions(),
+                "include": ["reasoning.encrypted_content"],
+            }
+            if not can_look_up:
+                round_kwargs["tool_choice"] = "none"
+
+            try:
+                response = await self._request_with_retries(
+                    round_kwargs,
+                    feature if rounds == 0 else "conversation_lookup",
+                    user_id,
+                    raise_bad_request=True,
+                )
+            except BadRequestError:
+                logger.warning("OpenAI rejected a chat request with lookups; answering without them")
+                response = await self._request_with_retries(request_kwargs, feature, user_id)
+                return None if response is None else _response_text(response)
+
+            if response is None:
+                return None
+            output_items = list(getattr(response, "output", None) or [])
+            calls = [item for item in output_items if getattr(item, "type", None) == "function_call"]
+            if not calls or not can_look_up:
+                return _response_text(response)
+
+            items.extend(output_items)
+            for call in calls:
+                if calls_made < ai_config.CHAT_MAX_LOOKUP_CALLS:
+                    calls_made += 1
+                    output = await tool_runner.run(call.name, call.arguments)
+                else:
+                    output = "The lookup limit for this message has been reached. Answer with what you have."
+                items.append({"type": "function_call_output", "call_id": call.call_id, "output": output})
+            rounds += 1
+
+    async def _request_with_retries(
+        self,
+        request_kwargs: Dict[str, Any],
+        feature: str,
+        user_id: Optional[str],
+        raise_bad_request: bool = False,
+    ):
+        """One Responses request behind the circuit breaker, with retries and API-call
+        logging. Returns the response, or None if it failed.
+
+        A rejected image always raises ImageProcessingError. Any other BadRequestError is
+        logged and returns None, or is re-raised when `raise_bad_request` is set.
+        """
+        message_count = len(request_kwargs.get("input") or [])
+
         # Check circuit breaker first - fail fast if OpenAI is having issues
         if openai_circuit_breaker.is_open():
             logger.warning(f"Circuit breaker is OPEN - failing fast for feature: {feature}")
@@ -523,7 +638,7 @@ class OpenAIService:
                 user_id=user_id,
                 error_message="Circuit breaker open - service temporarily unavailable"
             )
-            return None  # Return None instead of raising - callers expect Optional[str]
+            return None  # Return None instead of raising - callers treat None as a failed call
 
         start_time = time.time()
         input_tokens = 0
@@ -533,12 +648,6 @@ class OpenAIService:
 
         for attempt in range(max_retries):
             try:
-                # store=False: the API keeps every response for 30 days by default
-                # (retrievable with our key). Nothing here uses previous_response_id,
-                # so health content has no reason to sit there.
-                request_kwargs = {"model": self.model, "input": messages, "store": False}
-                if max_output_tokens is not None:
-                    request_kwargs["max_output_tokens"] = max_output_tokens
                 response = await self.client.responses.create(**request_kwargs)
 
                 # Extract token usage from response
@@ -561,20 +670,7 @@ class OpenAIService:
 
                 # Record success with circuit breaker
                 openai_circuit_breaker.record_success()
-
-                # Prefer the convenience property if available
-                text = getattr(response, "output_text", None)
-                if text is not None:
-                    return _strip_markdown_images(text)
-
-                # Fallback: extract first text segment from output
-                if getattr(response, "output", None):
-                    first_item = response.output[0]
-                    if getattr(first_item, "content", None):
-                        first_content = first_item.content[0]
-                        return _strip_markdown_images(getattr(first_content, "text", None))
-
-                return None
+                return response
 
             except RETRYABLE_EXCEPTIONS as e:
                 last_exception = e
@@ -632,11 +728,13 @@ class OpenAIService:
                         source="services.openai._create_chat_completion",
                         error=e,
                         level="ERROR",
-                        details={"model": self.model, "message_count": len(messages)}
+                        details={"model": self.model, "message_count": message_count}
                     )
                 except Exception:
                     pass
 
+                if raise_bad_request:
+                    raise
                 return None
 
             except Exception as e:
@@ -665,7 +763,7 @@ class OpenAIService:
                         source="services.openai._create_chat_completion",
                         error=e,
                         level="ERROR",
-                        details={"model": self.model, "message_count": len(messages)}
+                        details={"model": self.model, "message_count": message_count}
                     )
                 except Exception:
                     pass
@@ -694,7 +792,7 @@ class OpenAIService:
                     source="services.openai._create_chat_completion",
                     error=last_exception,
                     level="ERROR",
-                    details={"model": self.model, "message_count": len(messages), "retries_exhausted": True}
+                    details={"model": self.model, "message_count": message_count, "retries_exhausted": True}
                 )
             except Exception:
                 pass
@@ -1081,9 +1179,13 @@ class OpenAIService:
         usage_patterns: Optional[Dict] = None,
         # Legacy parameter for backwards compatibility
         journal_context: Optional[str] = None,
-        user_id: Optional[str] = None
+        user_id: Optional[str] = None,
+        tool_runner: Optional[Any] = None,
     ) -> str:
         """Chat interface with journal context, health profile, and native file/image support
+
+        `tool_runner` (chat_tools.ChatToolRunner, built by the route for the authorized
+        care session) lets the model look up records the context below doesn't hold.
 
         Optimized context structure:
         1. System prompts (rules and instructions)
@@ -1245,6 +1347,9 @@ The user is now responding to THIS message above. Interpret their response accor
 ---"""
                 })
 
+        if tool_runner is not None:
+            messages.append({"role": "system", "content": ai_config.CHAT_LOOKUP_INSTRUCTIONS})
+
         # Explicitly mark the current message as the one to respond to
         messages.append({
             "role": "system",
@@ -1291,7 +1396,9 @@ The user is now responding to THIS message above. Interpret their response accor
         # Try with file URL first, fall back to extracted text if file processing fails
         response = None
         try:
-            response = await self._create_chat_completion(messages, feature="conversation", user_id=user_id)
+            response = await self._create_chat_completion(
+                messages, feature="conversation", user_id=user_id, tool_runner=tool_runner
+            )
         except BadRequestError as e:
             if use_file_url and extracted_text and content_type == "application/pdf" and is_file_processing_error(e):
                 logger.warning(f"OpenAI file processing failed for conversation: {e}. Falling back to extracted text.")
@@ -1305,7 +1412,8 @@ The user is now responding to THIS message above. Interpret their response accor
                 response = await self._create_chat_completion(
                     messages_without_file,
                     feature="conversation_text_fallback",
-                    user_id=user_id
+                    user_id=user_id,
+                    tool_runner=tool_runner,
                 )
             else:
                 # Re-raise if not a file error or no fallback available
@@ -1322,7 +1430,8 @@ The user is now responding to THIS message above. Interpret their response accor
             response = await self._create_chat_completion(
                 messages_without_file,
                 feature="conversation_text_fallback",
-                user_id=user_id
+                user_id=user_id,
+                tool_runner=tool_runner,
             )
 
         # NOTE: _filter_citation_links is deliberately NOT applied here — see chat() above.

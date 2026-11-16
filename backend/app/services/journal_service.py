@@ -730,9 +730,15 @@ IMPORTANT: Respond with ONLY a valid JSON object in this exact format, with no a
         entry_date: Optional[date] = None,
         audio_recording_id: Optional[int] = None,
         user_id: Optional[str] = None,
-        auto_commit: bool = True
+        auto_commit: bool = True,
+        restated_records: bool = False,
     ) -> JournalSynthesisResult:
-        """Assess if conversation contains journal-worthy information"""
+        """Assess if conversation contains journal-worthy information.
+
+        `restated_records`: the reply was written after chat looked up existing records
+        (chat_tools). Dedup below sees only the last 7 days, so without the note an
+        answer that recounts a months-old entry would be journaled again as new.
+        """
         try:
             recent_entries = self._get_recent_entries(session_id, days=7)
             recent_context = self._format_recent_journal_brief(recent_entries)
@@ -741,6 +747,12 @@ IMPORTANT: Respond with ONLY a valid JSON object in this exact format, with no a
             today = entry_date if entry_date else date.today()
             today_str = today.isoformat()
             day_of_week = today.strftime('%A')  # e.g., "Monday"
+
+            lookup_note = ""
+            if restated_records:
+                lookup_note = """
+LOOKED-UP RECORDS: To answer, the assistant looked up this care session's existing records (older journal entries, documents, recordings, digests or the Health Profile). Anything the reply restates from them is already recorded: do not create entries from it, and do not date it as a new event. Journal only what the user newly said. If the user only asked about past records, create ONE brief entry (1-2 sentences, type OTHER) noting what they asked about, without restating the answer.
+"""
 
             prompt = f"""TODAY'S DATE: {today_str} ({day_of_week})
 
@@ -752,7 +764,7 @@ User:
 {wrap_untrusted(user_message, source="user_message")}
 Assistant:
 {wrap_untrusted(ai_response, source="assistant_message")}
-
+{lookup_note}
 Create a journal entry for this conversation. Set should_create to true unless this is just a greeting with no substance (like just "hi" or "thanks").
 
 Choose the appropriate entry type:

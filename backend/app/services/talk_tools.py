@@ -5,6 +5,9 @@ Every tool runs for exactly one live call: the care session and the user come fr
 every lookup repeats the `session_id` predicate — record ids are sequential integers,
 so an id alone must never be enough to reach a record.
 
+Chat uses the read-only tools too (services/chat_tools.py, run in-process with no talk
+row: `talk_id` is None there), under its own allowlist.
+
 Writes are two-step. `propose_*` stores the intended change on the call's row and
 returns a read-back; `confirm_action` applies it, and only if the user has been heard
 speaking since the proposal. That check is here, in code, because a prompt instruction
@@ -59,7 +62,7 @@ class ToolError(Exception):
 @dataclass
 class ToolContext:
     db: DBSession
-    talk_id: str
+    talk_id: Optional[str]  # None for chat lookups; only the write tools use it
     session_id: str
     user_id: str
 

@@ -20,6 +20,7 @@ from app.schemas.conversation import (
     MAX_MESSAGE_CONTENT_CHARS,
 )
 from app.services.openai_service import openai_service, ImageProcessingError
+from app.services.chat_tools import ChatToolRunner
 from app.services.journal_service import JournalService
 from app.services.s3_service import s3_service
 from app.services.talk_session_service import effective_summary_card
@@ -219,6 +220,13 @@ async def send_message(
         session_owner_id = session.owner_id
         session_name = session.name
 
+        # Read-only lookups the model may make while answering. The care session and
+        # user are the ones authorized above, never anything the model supplies.
+        lookup_runner = (
+            ChatToolRunner(db, session_id=session_id, user_id=user_id)
+            if settings.CHAT_TOOLS_ENABLED else None
+        )
+
         # End the read transaction before the model call. The session holds its pooled
         # connection for as long as a transaction is open, and the call below can take
         # a minute or more: left open, every in-flight chat turn would pin one
@@ -240,7 +248,8 @@ async def send_message(
             user_timezone=user_timezone,
             current_time=current_time,
             usage_patterns=usage_patterns,
-            user_id=user_id
+            user_id=user_id,
+            tool_runner=lookup_runner,
         )
 
         # The reply is committed on its own, before journal synthesis. Synthesis is a
@@ -335,7 +344,8 @@ async def send_message(
                     entry_date=user_date,
                     audio_recording_id=user_message_audio_id,
                     user_id=user_id,
-                    auto_commit=False
+                    auto_commit=False,
+                    restated_records=bool(lookup_runner and lookup_runner.calls),
                 )
             except Exception as synth_err:
                 logger.error(f"Conversation synthesis failed, continuing without journal entries: {synth_err}", exc_info=True)

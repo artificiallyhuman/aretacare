@@ -276,6 +276,7 @@ All AI-generated content in AretaCare follows the same strict safety boundaries:
    - Main conversational interface
    - Enforces all safety boundaries via system prompt
    - Used for chat, jargon translation, conversation coaching
+   - In chat, can look up older records of the same care session with read-only tools (`chat_tools.py`); the boundaries apply to looked-up records exactly as to the rest of the context, and it says so when there is no record rather than guessing
 
 2. **Daily Plan Generation** (`daily_plan_service.py`):
    - AI-generated daily summaries with priorities, reminders, and questions
