@@ -20,17 +20,17 @@ struct MessageInputView: View {
     var onTakePhoto: () -> Void
     var onChoosePhoto: () -> Void
     var onChooseFile: () -> Void
-    var onMicrophone: () -> Void
+    var onRecordAudio: () -> Void
     var onRemoveAttachment: () -> Void
     /// Starts a Talk call. Nil hides the Talk button (no care session, or Talk is off).
     var onTalk: (() -> Void)? = nil
 
     @FocusState private var isFocused: Bool
-    /// Talk pill height, close to the send button that takes its slot while there is text.
-    @ScaledMetric(relativeTo: .title2) private var talkButtonSize: CGFloat = 32
+    /// Height of the bar's two round controls, the Add button and the Talk pill: close to
+    /// the send button, which takes Talk's slot while there is text.
+    @ScaledMetric(relativeTo: .title2) private var barButtonSize: CGFloat = 32
     @State private var sendTrigger = 0
     @State private var currentPromptIndex = 0
-    @State private var showingAttachOptions = false
 
     private let placeholderPrompts = [
         "My mom's been in the hospital for a week\u{2026}",
@@ -58,24 +58,34 @@ struct MessageInputView: View {
             }
 
             HStack(alignment: .center, spacing: 10) {
-                // Attach button
-                Button {
-                    showingAttachOptions = true
+                // Add: what you put into the care session (a photo, a file, a recording) sits
+                // behind one menu on the left, with a label on every choice; the ways to talk
+                // to AretaCare (Talk, Send) sit on the right. A bare microphone beside Talk
+                // read as dictation, which is what the keyboard's own mic in that corner does.
+                Menu {
+                    Section("One photo or file per message. To upload several, use Tools → Document Manager.") {
+                        Button { onTakePhoto() } label: { Label("Take Photo", systemImage: "camera") }
+                        Button { onChoosePhoto() } label: { Label("Choose Photo", systemImage: "photo.on.rectangle") }
+                        Button { onChooseFile() } label: { Label("Choose File", systemImage: "doc") }
+                    }
+                    Section {
+                        Button { onRecordAudio() } label: { Label("Record Audio", systemImage: "record.circle") }
+                    }
                 } label: {
-                    Image(systemName: "paperclip")
-                        .font(.title3)
-                        .foregroundStyle(.secondary)
+                    // Full accent: the menu tints its label, and `.secondary` came out a pale
+                    // blue on grey that looked disabled.
+                    Image(systemName: "plus")
+                        .font(.system(size: barButtonSize * 0.5, weight: .semibold))
+                        .foregroundStyle(Color.accentColor)
+                        .frame(width: barButtonSize, height: barButtonSize)
+                        .background(Circle().fill(Color(.systemGray6)))
                 }
-                .accessibilityLabel("Attach file")
+                // Top to bottom as written: the menu opens upward, and the automatic order
+                // would reverse it.
+                .menuOrder(.fixed)
+                .accessibilityLabel("Add")
+                .accessibilityHint("Take or choose a photo, choose a file, or record audio")
                 .disabled(isSending || isUploading)
-                .confirmationDialog("Add Attachment", isPresented: $showingAttachOptions, titleVisibility: .visible) {
-                    Button("Take Photo") { onTakePhoto() }
-                    Button("Choose Photo") { onChoosePhoto() }
-                    Button("Choose File") { onChooseFile() }
-                    Button("Cancel", role: .cancel) {}
-                } message: {
-                    Text("One file per message. To upload multiple, use Tools → Document Manager.")
-                }
 
                 // Text field
                 TextField(hasMessages ? "Type your message..." : placeholderPrompts[currentPromptIndex], text: $text, axis: .vertical)
@@ -91,44 +101,32 @@ struct MessageInputView: View {
                     .background(Color(.systemGray6))
                     .clipShape(RoundedRectangle(cornerRadius: 20))
 
-                if !hasText && pendingAttachment == nil {
-                    // Microphone button
-                    Button {
-                        onMicrophone()
-                    } label: {
-                        Image(systemName: "mic.fill")
-                            .font(.title3)
-                            .foregroundStyle(Color.accentColor)
-                    }
-                    .accessibilityLabel("Record audio")
-                    .disabled(isSending || isUploading)
-
+                if let onTalk, !hasText, pendingAttachment == nil {
                     // Talk: a labeled button at the end of the bar, where Send appears once
                     // there is text, so the main action sits in the same place. Labeled
                     // because an icon alone has to be learned.
-                    if let onTalk {
-                        Button {
-                            onTalk()
-                        } label: {
-                            HStack(spacing: 4) {
-                                Image(systemName: "waveform")
-                                Text("Talk")
-                            }
-                                .font(.subheadline.weight(.semibold))
-                                .foregroundStyle(.white)
-                                .padding(.horizontal, 10)
-                                .frame(minHeight: talkButtonSize)
-                                .background(Capsule().fill(isSending || isUploading ? Color.secondary : Color.accentColor))
-                                .fixedSize()
+                    Button {
+                        onTalk()
+                    } label: {
+                        HStack(spacing: 4) {
+                            Image(systemName: "waveform")
+                            Text("Talk")
                         }
-                        // Bar chrome: at the largest sizes the pill would squeeze the text field.
-                        .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
-                        .accessibilityLabel("Talk")
-                        .accessibilityHint("Start a live voice conversation")
-                        .disabled(isSending || isUploading)
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, 10)
+                            .frame(minHeight: barButtonSize)
+                            .background(Capsule().fill(isSending || isUploading ? Color.secondary : Color.accentColor))
+                            .fixedSize()
                     }
+                    // Bar chrome: at the largest sizes the pill would squeeze the text field.
+                    .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
+                    .accessibilityLabel("Talk")
+                    .accessibilityHint("Start a live voice conversation")
+                    .disabled(isSending || isUploading)
                 } else {
-                    // Send button
+                    // Send. Without Talk it stays in place, greyed out until there is
+                    // something to send, so the text field doesn't change width as you type.
                     Button {
                         performSend()
                     } label: {
@@ -226,7 +224,7 @@ struct MessageInputView: View {
         onTakePhoto: {},
         onChoosePhoto: {},
         onChooseFile: {},
-        onMicrophone: {},
+        onRecordAudio: {},
         onRemoveAttachment: {}
     )
 }

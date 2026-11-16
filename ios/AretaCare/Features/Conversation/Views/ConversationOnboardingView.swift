@@ -97,8 +97,7 @@ struct ConversationOnboardingView: View {
                     // Input hints
                     HStack(spacing: 20) {
                         Label("Message", systemImage: "text.bubble")
-                        Label("Attach", systemImage: "paperclip")
-                        Label("Record", systemImage: "mic.fill")
+                        Label("Attach or record", systemImage: "plus.circle")
                         if talkOffered {
                             Label("Talk", systemImage: "waveform")
                         }

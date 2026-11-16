@@ -257,7 +257,7 @@ struct ConversationView: View {
                     onTakePhoto: { showingCamera = true },
                     onChoosePhoto: { showingPhotoPicker = true },
                     onChooseFile: { showingFilePicker = true },
-                    onMicrophone: { startAudioRecording() },
+                    onRecordAudio: { startAudioRecording() },
                     onRemoveAttachment: { pendingAttachment = nil },
                     onTalk: currentSessionId != nil && talkVM.isOffered ? { mode = .talk } : nil
                 )
