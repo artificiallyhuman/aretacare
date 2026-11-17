@@ -7,6 +7,14 @@ struct UploadingOverlay: View {
     // VoiceOver label for the simple mode card — override for non-upload work.
     var accessibilityLabel: String = "Upload in progress"
 
+    // The work waits on the network: while offline, say so instead of `message` (requests
+    // wait for the connection and then go through). False for work done on the device.
+    var waitsForNetwork: Bool = true
+
+    private var isWaitingForConnection: Bool {
+        waitsForNetwork && !NetworkMonitor.shared.isConnected
+    }
+
     // Batch mode (optional — all nil by default for backward compatibility)
     var fileProgress: [UploadFileProgress]?
     var currentIndex: Int?
@@ -31,13 +39,13 @@ struct UploadingOverlay: View {
         VStack(spacing: 12) {
             ProgressView()
                 .controlSize(.large)
-            Text(message)
+            Text(isWaitingForConnection ? WaitingForConnection.message : message)
                 .font(.subheadline.weight(.medium))
         }
         .padding(24)
         .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16))
         .accessibilityElement(children: .combine)
-        .accessibilityLabel(Text(accessibilityLabel))
+        .accessibilityLabel(Text(isWaitingForConnection ? WaitingForConnection.message : accessibilityLabel))
     }
 
     // MARK: - Batch Mode
@@ -51,6 +59,11 @@ struct UploadingOverlay: View {
                     Text("File \(min(currentIndex + 1, totalCount)) of \(totalCount)")
                         .font(.caption)
                         .foregroundStyle(.secondary)
+                    if isWaitingForConnection {
+                        Text(WaitingForConnection.message)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
                 }
                 Spacer()
                 if let onCancel {

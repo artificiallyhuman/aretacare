@@ -199,7 +199,7 @@ struct DocumentsListView: View {
             } else if viewModel.isUploading {
                 UploadingOverlay()
             } else if viewModel.isPreparingUpload {
-                UploadingOverlay(message: "Preparing files...")
+                UploadingOverlay(message: "Preparing files...", waitsForNetwork: false)
             }
         }
         .toast(batchResultMessage, icon: "checkmark", isPresented: $showBatchResultToast)

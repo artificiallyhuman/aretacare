@@ -917,8 +917,19 @@ private struct PendingRecordingRow: View {
                 .font(.subheadline)
                 .frame(maxWidth: .infinity, alignment: .leading)
             if isUploading {
-                ProgressView()
-                    .accessibilityLabel("Uploading")
+                if NetworkMonitor.shared.isConnected {
+                    ProgressView()
+                        .accessibilityLabel("Uploading")
+                } else {
+                    HStack(spacing: 6) {
+                        ProgressView()
+                        Text(WaitingForConnection.message)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    .accessibilityElement(children: .combine)
+                    .accessibilityLabel(WaitingForConnection.message)
+                }
             } else {
                 HStack(spacing: 12) {
                     Button("Discard") {

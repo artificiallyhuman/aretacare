@@ -220,7 +220,7 @@ struct ConversationView: View {
                     HStack(spacing: 8) {
                         ProgressView()
                             .controlSize(.small)
-                        Text("Uploading...")
+                        Text(networkMonitor.isConnected ? "Uploading..." : WaitingForConnection.message)
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
                     }
@@ -420,11 +420,17 @@ struct ConversationView: View {
                             .id("msg-\(message.id)")
                         }
 
-                        // Typing indicator
+                        // Typing indicator (or, offline, what the send is waiting for)
                         if conversationVM.isSending {
-                            TypingBubbleView()
-                                .padding(.horizontal, 12)
-                                .padding(.bottom, 4)
+                            Group {
+                                if networkMonitor.isConnected {
+                                    TypingBubbleView()
+                                } else {
+                                    WaitingForConnectionBubble()
+                                }
+                            }
+                            .padding(.horizontal, 12)
+                            .padding(.bottom, 4)
                         }
 
                         // Bottom anchor
