@@ -146,7 +146,7 @@ Action types: `password_change`, `email_change`, `account_delete`
 
 Returns `action_token` — include as `X-MFA-Action-Token` header when performing the action. Single-use, expires in 5 minutes.
 
-Limited to 5 attempts per minute. Failed attempts count toward the same MFA lockout as failed MFA logins (10 failures in an hour); while locked the route returns `429`.
+Limited to 5 attempts per minute. A wrong code returns `400 {"detail": "MFA verification failed"}` (not `401`, which clients treat as an expired session). Failed attempts count toward the same MFA lockout as failed MFA logins (10 failures in an hour); while locked the route returns `429`.
 
 **Which routes require it.** `PUT /auth/email`, `PUT /auth/password` and `DELETE /auth/account`
 require step-up whenever the account has MFA enabled; the check runs *before* the password is
@@ -161,7 +161,7 @@ least as sensitive as removing one.
 While MFA is on, **adding a factor and turning MFA off** require step-up too:
 `POST /mfa/totp/setup`, `POST /mfa/passkey/register/options` (the follow-up verify calls
 only complete what these started) and `POST /mfa/disable` (password checked first, so a
-wrong password returns `401` without a verification prompt). Otherwise a stolen access
+wrong password returns `400 {"detail": "Incorrect password"}` without a verification prompt). Otherwise a stolen access
 token could add the attacker's own factor, which then passes every later step-up. iOS
 builds before 2.0.0 (by `X-Client-Type`/`X-App-Version`) are exempt while
 `STEP_UP_EXEMPT_LEGACY_IOS` is `TRUE`, because they cannot answer the demand; set it to
@@ -240,6 +240,12 @@ Content-Type: multipart/form-data
 The multipart body contains only `file`. Parameters `session_id`, `user_date`, and `skip_journal_synthesis` are **query parameters** (not form fields).
 
 Supported: PDF, PNG, JPG, TXT (30MB max). Auto-categorizes into 14 categories.
+
+The request answers within about 90 seconds (the edge proxy gives up at ~100). Scanned PDFs
+are OCR'd within a 75-second budget (`extraction_method: "partial_ocr"` when it ran out); the
+thumbnail and AI categorization then share what is left, so on a very large scan the
+thumbnail may be skipped and the category may fall back to `other` with a plain description,
+which can be edited with `PATCH /api/documents/{id}`.
 
 ### Check for Duplicates
 ```bash
@@ -338,6 +344,7 @@ Returns `message` (the assistant reply), `journal_suggestion` (entries created f
 - Attachments are referenced by `document_id` / `audio_recording_id`, which must belong to the same care session. The server derives media URLs from those IDs; a client-supplied `media_url` is ignored.
 - `user_timezone` must be an IANA zone name and `current_time` a short date/time string; other values are ignored.
 - `processing_warning` (string or `null`) is set when the reply was generated but a follow-up step did not complete, for example journal synthesis. The reply is still returned and stored; show the warning rather than treating the request as failed.
+- The request answers within about 90 seconds. The reply has its own time limit (lookups and a document's text fallback included); journal synthesis then runs only while time remains, and if it is still running the reply is returned with `journal_suggestion: null` and synthesis finishes in the background.
 
 ### History & Edit
 ```bash
@@ -479,10 +486,12 @@ A kept call gets one assistant message in the conversation, posted as soon as sa
 starts: `message_metadata = {"kind": "talk_summary", "status": "saving", "talk_id",
 "duration_seconds"}`. When saving finishes, the same message is updated in place to
 `{"kind": "talk_summary", "outcome", "talk_id", "audio_recording_id", "duration_seconds",
-"journal_entries"}` (no `status`). If saving fails the message is deleted; if the audio
-could not be saved, the turns are posted to the chat and the summary follows them. A
-message still `saving` after 15 minutes is returned by the history endpoint with
-`status: "failed"` and a "could not be saved" `content`. `content` is always a plain
+"journal_entries"}` (no `status`). If saving fails the message is deleted (unless the
+recording was already stored: then it says so); if the audio could not be saved, the turns
+are posted to the chat and the summary follows them. A message still `saving` after 15
+minutes whose save is no longer running (no heartbeat for 15 minutes) is returned by the
+history endpoint with `status: "failed"` and a "could not be saved" `content`; a save still
+queued behind other work keeps its `saving` message. `content` is always a plain
 sentence, so a client that does not know the kind shows it as an ordinary message.
 Deleting the call's recording (`DELETE /audio-recordings/{session_id}/{recording_id}`)
 also deletes this message.
@@ -608,7 +617,8 @@ GET  /api/notice                     # Authenticated, any user. {"notice": {id, 
                                      # link_label, created_at}} or {"notice": null}. No AI-consent or
                                      # subscription gate.
 GET  /api/admin/notices              # Admin. Every notice ever published, newest first (max 100)
-POST /api/admin/notices              # Admin, step-up. Publish; ends the active one. Returns 201.
+POST /api/admin/notices              # Admin, step-up. Publish; ends the active one. Returns 201,
+                                     # or 409 if another admin published at the same moment.
 POST /api/admin/notices/{id}/end     # Admin, step-up. Stop showing it. 409 if already ended.
 ```
 
@@ -657,7 +667,7 @@ Error format: `{"detail": "Error message"}`
 | AI Tools | 10/minute (Jargon Translator, Conversation Coach — public) |
 | AI Generation | 6/minute and 30/hour (profile update/regenerate, digest generate) |
 | Journal Write | 30/minute (create/update) |
-| Talk Start | 6/minute and 30/hour (`POST /talk/sessions`), plus per-user limits: one live call, 30 minutes per call, 60 minutes per rolling 24 hours |
+| Talk Start | 6/minute and 30/hour (`POST /talk/sessions`), plus per-user limits: one live call, 30 minutes per call, 60 minutes per rolling 24 hours (calls in a care session deleted since still count) |
 | Sharing | 10/hour (share, send-invitation), 10/hour (transfer), 30/minute (check-user) |
 | Password Re-Entry | 10/minute (name, email, password, account deletion) |
 | MFA Disable / Step-up Verify | 5/minute each |

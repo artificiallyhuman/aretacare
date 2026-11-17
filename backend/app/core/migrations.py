@@ -6,6 +6,17 @@ import logging
 logger = logging.getLogger(__name__)
 
 
+def index_exists(conn, index_name: str) -> bool:
+    """Checked before the CREATE INDEX IF NOT EXISTS statements that run on every start:
+    Postgres takes the table lock (SHARE, which blocks writes) before it checks whether the
+    index exists, so each restart briefly blocked writes, and waited behind any long write
+    transaction on the table while new writes queued behind it."""
+    return conn.execute(
+        text("SELECT 1 FROM pg_indexes WHERE schemaname = current_schema() AND indexname = :name"),
+        {"name": index_name},
+    ).first() is not None
+
+
 def has_migration_run(conn, migration_name: str) -> bool:
     """Check if a one-time migration has already been applied"""
     try:
@@ -2534,10 +2545,11 @@ def run_migrations():
         # Not created by create_all (it only exists here), and outside the once-only block
         # above so a table that create_all made on a fresh database still gets it.
         try:
-            conn.execute(text(
-                "CREATE UNIQUE INDEX IF NOT EXISTS uq_talk_sessions_one_active_per_user "
-                "ON talk_sessions(user_id) WHERE status = 'active'"
-            ))
+            if not index_exists(conn, "uq_talk_sessions_one_active_per_user"):
+                conn.execute(text(
+                    "CREATE UNIQUE INDEX IF NOT EXISTS uq_talk_sessions_one_active_per_user "
+                    "ON talk_sessions(user_id) WHERE status = 'active'"
+                ))
             conn.commit()
         except Exception as e:
             logger.error(f"Failed to create talk_sessions active-per-user index: {e}")
@@ -2601,9 +2613,10 @@ def run_migrations():
         # normalization may differ only by case, and the unique index on users.email is
         # case-sensitive. Logged on every start so such pairs stay visible until resolved.
         try:
-            conn.execute(text(
-                "CREATE INDEX IF NOT EXISTS idx_users_email_lower ON users (lower(email))"
-            ))
+            if not index_exists(conn, "idx_users_email_lower"):
+                conn.execute(text(
+                    "CREATE INDEX IF NOT EXISTS idx_users_email_lower ON users (lower(email))"
+                ))
             conn.commit()
             duplicate_groups = conn.execute(text(
                 "SELECT COUNT(*) FROM (SELECT lower(email) FROM users "

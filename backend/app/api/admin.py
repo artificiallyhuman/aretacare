@@ -4,6 +4,7 @@ Admin API endpoints for platform management.
 All endpoints require admin authentication via the ADMIN_EMAILS environment variable.
 """
 from fastapi import APIRouter, Depends, HTTPException, Query, BackgroundTasks, Request
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session as DBSession
 from datetime import datetime, date, timedelta
 from typing import Optional
@@ -497,6 +498,10 @@ async def admin_delete_user(
             "session_count": len(user_sessions)
         }
     )
+
+    # Talk voice-time rows carried over from deleted care sessions have no foreign key.
+    from app.services.talk_session_service import forget_talk_usage
+    forget_talk_usage(db, user.id)
 
     # Delete user (cascades to sessions, documents, etc.)
     db.delete(user)
@@ -1664,7 +1669,18 @@ async def publish_app_notice(
         created_by_email=admin_user.email,
     )
     db.add(notice)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError as e:
+        db.rollback()
+        if "uq_app_notices_one_active" not in str(e.orig):
+            raise
+        # Another admin published at the same moment: both ended the old notice, and the
+        # one-active-notice index refused the second insert (this was a 500).
+        raise HTTPException(
+            status_code=409,
+            detail="Another notice was published at the same moment. Reload to see it before publishing again.",
+        )
     db.refresh(notice)
 
     # After the commit — log_action commits internally.

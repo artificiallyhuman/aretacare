@@ -106,3 +106,45 @@ def test_blank_title_or_body_is_refused_and_subdomain_links_are_allowed(client, 
     ok = _publish(client, headers, link_url="https://status.aretacare.com/incident", link_label="Details")
     assert ok.status_code == 201, ok.text
     assert ok.json()["link_label"] == "Details"
+
+
+def test_two_admins_publishing_at_once_get_a_409_not_a_500(client, db, admin):
+    """Both requests end the old notice, then both insert an active one: the one-active
+    index refuses the second. Simulated by publishing from another session just before
+    this request's insert reaches the database."""
+    from sqlalchemy import event
+
+    from app.core.database import SessionLocal, get_db
+    from app.main import app
+
+    def racing_db():
+        session = SessionLocal()
+        raced = []
+
+        @event.listens_for(session, "before_flush")
+        def _other_admin_publishes(sess, _ctx, _instances):
+            if not raced and any(isinstance(obj, AppNotice) for obj in sess.new):
+                raced.append(True)
+                other = SessionLocal()
+                try:
+                    other.add(AppNotice(title="Other", body="Published at the same moment.", is_active=True,
+                                        created_by_email="other-admin@example.com"))
+                    other.commit()
+                finally:
+                    other.close()
+
+        try:
+            yield session
+        finally:
+            session.close()
+
+    headers = admin.auth_headers(client)
+    app.dependency_overrides[get_db] = racing_db
+    try:
+        response = _publish(client, headers)
+    finally:
+        app.dependency_overrides.pop(get_db, None)
+    assert response.status_code == 409, response.text
+    db.expire_all()
+    (active,) = db.query(AppNotice).filter(AppNotice.is_active.is_(True)).all()
+    assert active.title == "Other"

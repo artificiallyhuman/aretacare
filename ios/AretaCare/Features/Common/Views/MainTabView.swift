@@ -4,7 +4,10 @@ struct MainTabView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var sessionVM = SessionViewModel()
     @State private var digestBadgeVM = DailyDigestViewModel()
-    @AppStorage("activeTab") private var activeTab = 0
+    @AppStorage(MainTabView.activeTabKey) private var activeTab = 0
+    /// The selected tab's tag, stored under `activeTabKey`.
+    static let activeTabKey = "activeTab"
+    static let toolsTab = 2
     private let networkMonitor = NetworkMonitor.shared
     private let notificationRouter = NotificationRouter.shared
 
@@ -48,7 +51,7 @@ struct MainTabView: View {
                     // id followed the switch, so a Health Profile section loaded from one
                     // care session could be saved into another.
                     .id(currentSessionId)
-                    .tag(2)
+                    .tag(MainTabView.toolsTab)
                     .tabItem {
                         Label("Tools", systemImage: "wrench.and.screwdriver")
                     }
@@ -131,8 +134,9 @@ struct MainTabView: View {
         .onChange(of: notificationRouter.pendingSessionId) { _, sessionId in
             guard let sessionId else { return }
             // Not mid-recording: a recording is uploaded to the care session it was made
-            // in, and switching would tear down a recorder open in Tools.
-            if AudioRecorderManager.isRecordingInProgress {
+            // in, and switching would tear down a recorder open in Tools. Not during a Talk
+            // call either: leaving Chat or changing care session ends the call.
+            if AudioRecorderManager.isRecordingInProgress || TalkViewModel.isCallInProgress {
                 notificationRouter.clearPendingRoute()
                 return
             }

@@ -47,6 +47,10 @@ final class PendingRecordingStore {
     /// Recordings whose first upload is running now. Not listed (the Upload button would
     /// send them twice); after a relaunch nothing is running, so they all show.
     private var uploading: Set<String> = []
+    /// Listed recordings being uploaded again from the "not uploaded" card. Held here, not
+    /// in the screen: reopening Audio Recordings mid-upload showed Upload enabled again,
+    /// and a second tap sent the recording twice.
+    private var retrying: Set<String> = []
 
     @ObservationIgnored private let directory: URL
     @ObservationIgnored private let fileManager = FileManager.default
@@ -160,6 +164,23 @@ final class PendingRecordingStore {
         }
     }
 
+    /// Whether a listed recording is being uploaded again now (`retryUpload`).
+    func isRetrying(_ item: PendingRecording) -> Bool {
+        retrying.contains(item.id)
+    }
+
+    /// Uploads a listed recording again (`send`), at most once at a time, and removes it
+    /// once the upload succeeds. Returns false without sending if it is already uploading.
+    @discardableResult
+    func retryUpload(_ item: PendingRecording, send: () async -> Bool) async -> Bool {
+        guard !retrying.contains(item.id) else { return false }
+        retrying.insert(item.id)
+        let succeeded = await send()
+        retrying.remove(item.id)
+        if succeeded { remove(item) }
+        return succeeded
+    }
+
     /// The recording's bytes, or nil if the file is gone or unreadable.
     func data(for item: PendingRecording) -> Data? {
         try? Data(contentsOf: audioURL(item))
@@ -178,6 +199,7 @@ final class PendingRecordingStore {
         try? fileManager.removeItem(at: directory)
         items = []
         uploading = []
+        retrying = []
     }
 
     /// Drops recordings that can no longer be uploaded: another user's, or one whose care

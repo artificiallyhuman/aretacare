@@ -523,6 +523,7 @@ class OpenAIService:
         user_id: Optional[str] = None,
         max_output_tokens: Optional[int] = None,
         tool_runner: Optional[Any] = None,
+        reply_deadline: Optional[float] = None,
     ) -> Optional[str]:
         """Create chat completion with error handling, timeout, retry logic, and circuit breaker.
 
@@ -531,6 +532,10 @@ class OpenAIService:
 
         `tool_runner` (a `chat_tools.ChatToolRunner`) lets the model look up the care
         session's records before answering; see `_complete_with_lookups`.
+
+        `reply_deadline` (a time.monotonic() value) bounds the whole reply, retries and
+        lookups included. Chat passes one for the turn, so a fallback request after a
+        failed first one shares the turn's time instead of starting a fresh budget.
 
         Includes:
         - Circuit breaker to fail fast during extended outages
@@ -546,9 +551,11 @@ class OpenAIService:
             request_kwargs["max_output_tokens"] = max_output_tokens
 
         if tool_runner is not None:
-            return await self._complete_with_lookups(request_kwargs, feature, user_id, tool_runner)
+            return await self._complete_with_lookups(
+                request_kwargs, feature, user_id, tool_runner, reply_deadline=reply_deadline
+            )
 
-        response = await self._request_with_retries(request_kwargs, feature, user_id)
+        response = await self._request_with_retries(request_kwargs, feature, user_id, deadline=reply_deadline)
         return None if response is None else _response_text(response)
 
     async def _complete_with_lookups(
@@ -557,6 +564,7 @@ class OpenAIService:
         feature: str,
         user_id: Optional[str],
         tool_runner: Any,
+        reply_deadline: Optional[float] = None,
     ) -> Optional[str]:
         """Chat with read-only lookups into the care session (chat_tools.ChatToolRunner).
 
@@ -571,7 +579,8 @@ class OpenAIService:
         items = list(request_kwargs["input"])
         started = time.monotonic()
         lookup_deadline = started + ai_config.CHAT_LOOKUP_DEADLINE_SECONDS
-        reply_deadline = started + ai_config.CHAT_REPLY_DEADLINE_SECONDS
+        if reply_deadline is None:
+            reply_deadline = started + ai_config.CHAT_REPLY_DEADLINE_SECONDS
         calls_made = 0
         rounds = 0
         closing = False
@@ -974,13 +983,17 @@ class OpenAIService:
         content_type: str,
         document_url: str,
         extracted_text: str = "",
-        user_id: Optional[str] = None
+        user_id: Optional[str] = None,
+        deadline: Optional[float] = None,
     ) -> Dict:
         """Categorize a document and generate a brief description using AI.
 
         Uses GPT-5.6's native file support to analyze the actual document content.
         Falls back to extracted text if document URL is not available or if
         OpenAI fails to process the file.
+
+        `deadline` (time.monotonic()) bounds every request here, fallbacks included; past it
+        the fallback category and description are returned.
         """
 
         prompt = ai_config.get_document_categorization_prompt(filename, extracted_text)
@@ -1029,7 +1042,9 @@ class OpenAIService:
         # Try with file URL first, fall back to extracted text if file processing fails
         response = None
         try:
-            response = await self._create_chat_completion(messages, feature="document_categorization", user_id=user_id)
+            response = await self._create_chat_completion(
+                messages, feature="document_categorization", user_id=user_id, reply_deadline=deadline
+            )
         except BadRequestError as e:
             if use_file_url and extracted_text and is_file_processing_error(e):
                 logger.warning(f"OpenAI file processing failed for categorization: {e}. Falling back to extracted text.")
@@ -1044,7 +1059,8 @@ class OpenAIService:
                 response = await self._create_chat_completion(
                     fallback_messages,
                     feature="document_categorization_text_fallback",
-                    user_id=user_id
+                    user_id=user_id,
+                    reply_deadline=deadline,
                 )
             else:
                 # Re-raise if not a file error or no fallback available
@@ -1063,7 +1079,8 @@ class OpenAIService:
             response = await self._create_chat_completion(
                 fallback_messages,
                 feature="document_categorization_text_fallback",
-                user_id=user_id
+                user_id=user_id,
+                reply_deadline=deadline,
             )
 
         if response:
@@ -1464,11 +1481,17 @@ The user is now responding to THIS message above. Interpret their response accor
             # Text-only message
             messages.append({"role": "user", "content": message})
 
+        # One time budget for the whole reply: the text fallbacks below share it. Each
+        # used to start a fresh one, so a slow first attempt plus a fallback could pass
+        # Cloudflare's ~100 s origin timeout.
+        reply_deadline = time.monotonic() + ai_config.CHAT_REPLY_DEADLINE_SECONDS
+
         # Try with file URL first, fall back to extracted text if file processing fails
         response = None
         try:
             response = await self._create_chat_completion(
-                messages, feature="conversation", user_id=user_id, tool_runner=tool_runner
+                messages, feature="conversation", user_id=user_id, tool_runner=tool_runner,
+                reply_deadline=reply_deadline,
             )
         except BadRequestError as e:
             if use_file_url and extracted_text and content_type == "application/pdf" and is_file_processing_error(e):
@@ -1485,6 +1508,7 @@ The user is now responding to THIS message above. Interpret their response accor
                     feature="conversation_text_fallback",
                     user_id=user_id,
                     tool_runner=tool_runner,
+                    reply_deadline=reply_deadline,
                 )
             else:
                 # Re-raise if not a file error or no fallback available
@@ -1503,6 +1527,7 @@ The user is now responding to THIS message above. Interpret their response accor
                 feature="conversation_text_fallback",
                 user_id=user_id,
                 tool_runner=tool_runner,
+                reply_deadline=reply_deadline,
             )
 
         # NOTE: _filter_citation_links is deliberately NOT applied here — see chat() above.

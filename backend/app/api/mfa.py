@@ -457,7 +457,9 @@ def disable_mfa(
             user_agent=request.headers.get("User-Agent"),
             details="MFA disable attempt failed - incorrect password"
         )
-        raise HTTPException(status_code=401, detail="Incorrect password")
+        # 400, not 401: the access token is fine. Both clients treat a 401 as an expired
+        # session (refresh, replay, then iOS showed "Your session has expired").
+        raise HTTPException(status_code=400, detail="Incorrect password")
 
     # After the password check, so a wrong password fails without a verification prompt.
     _require_step_up_for_mfa_change(request, current_user, db)
@@ -532,7 +534,10 @@ def verify_for_sensitive_action(
         details=f"MFA verification for sensitive action failed (method: {data.method})"
     )
 
-    raise HTTPException(status_code=401, detail="MFA verification failed")
+    # 400, not 401: a 401 made both clients refresh the session and replay the same wrong
+    # code (two failures toward the MFA lockout per attempt), and iOS then showed "Your
+    # session has expired" instead of this message.
+    raise HTTPException(status_code=400, detail="MFA verification failed")
 
 
 # ==========================================

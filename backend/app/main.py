@@ -449,9 +449,11 @@ async def _run_startup_cleanup():
 
         # Talk working transcripts (the saved recording or chat turns are the user's copy)
         try:
-            from app.services.talk_session_service import clear_saved_transcripts
+            from app.services.talk_session_service import clear_saved_transcripts, prune_talk_usage
             cleared = clear_saved_transcripts(db)
             logger.info(f"✓ Talk transcript cleanup: {cleared or 'No'} finished calls cleared")
+            prune_talk_usage(db)
+            db.commit()
         except Exception as e:
             logger.error(f"Talk transcript cleanup failed: {e}")
             db.rollback()

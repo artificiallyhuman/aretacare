@@ -282,12 +282,13 @@ def _load_entry(ctx: ToolContext, entry_id: int) -> JournalEntry:
 
 async def _get_document_text(ctx: ToolContext, args: dict) -> str:
     doc = _load_document(ctx, _int_arg(args, "document_id", required=True))
+    # The filename and the AI description come from the upload, so they go through
+    # _records() like the text: unwrapped, they reached the model as plain instructions.
     if not (doc.extracted_text or "").strip():
-        return (
-            f"'{doc.filename}' has no extracted text (it may be an image or a scan). "
-            f"Its description: {_clip(doc.ai_description, 600) or 'none'}"
+        return "That document has no extracted text (it may be an image or a scan).\n" + _records(
+            f"Filename: {doc.filename}\nDescription: {_clip(doc.ai_description, 600) or 'none'}"
         )
-    return f"Text of '{doc.filename}':\n" + _records(doc.extracted_text)
+    return _records(f"Filename: {doc.filename}\n\n{doc.extracted_text}")
 
 
 async def _list_audio_recordings(ctx: ToolContext, args: dict) -> str:
@@ -309,8 +310,8 @@ async def _list_audio_recordings(ctx: ToolContext, args: dict) -> str:
 async def _get_recording_transcript(ctx: ToolContext, args: dict) -> str:
     rec = _load_recording(ctx, _int_arg(args, "recording_id", required=True))
     if not (rec.transcribed_text or "").strip():
-        return f"'{rec.filename}' has no transcript."
-    return f"Transcript of '{rec.filename}':\n" + _records(rec.transcribed_text)
+        return "That recording has no transcript.\n" + _records(f"Filename: {rec.filename}")
+    return _records(f"Filename: {rec.filename}\n\n{rec.transcribed_text}")
 
 
 async def _get_daily_digest(ctx: ToolContext, args: dict) -> str:

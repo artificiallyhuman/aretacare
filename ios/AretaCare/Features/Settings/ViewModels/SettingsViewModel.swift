@@ -193,7 +193,7 @@ final class SettingsViewModel {
     /// user has read the confirmation.
     func completeReauthentication() async {
         requiresReauthentication = false
-        await AuthManager.shared.logout()
+        await AuthManager.shared.logout(keepPendingRecordings: true)
     }
 
     func clearMFAStepUpRequirement() {

@@ -41,6 +41,11 @@ class DocumentProcessor:
     THUMBNAIL_RENDER_PIXELS = 600
 
     @staticmethod
+    def _time_left(deadline: float, cap: float) -> float:
+        """A subprocess timeout: what is left until `deadline`, at most `cap`, at least 1 s."""
+        return max(1.0, min(cap, deadline - time.monotonic()))
+
+    @staticmethod
     def _ocr_pdf_pages(file_content: bytes, pages_to_ocr: int) -> Tuple[list, int]:
         """OCR pages 1..pages_to_ocr one at a time.
 
@@ -58,8 +63,9 @@ class DocumentProcessor:
             with os.fdopen(fd, "wb") as f:
                 f.write(file_content)
 
+            budget_end = started + DocumentProcessor.OCR_TIME_BUDGET_SECONDS
             for page_number in range(1, pages_to_ocr + 1):
-                if time.monotonic() - started > DocumentProcessor.OCR_TIME_BUDGET_SECONDS:
+                if time.monotonic() >= budget_end:
                     logger.warning(
                         f"OCR time budget reached after {pages_attempted} of {pages_to_ocr} pages"
                     )
@@ -68,6 +74,9 @@ class DocumentProcessor:
 
                 image = None
                 try:
+                    # Each step gets at most what is left of the budget: a page started just
+                    # before it ran out could otherwise add a full render and OCR timeout
+                    # (60 s) on top of it.
                     images = convert_from_path(
                         pdf_path,
                         first_page=page_number,
@@ -75,13 +84,23 @@ class DocumentProcessor:
                         dpi=DocumentProcessor.OCR_DPI,
                         size=DocumentProcessor.OCR_MAX_PAGE_PIXELS,
                         grayscale=True,
-                        timeout=DocumentProcessor.PDF_RENDER_TIMEOUT_SECONDS,
+                        timeout=DocumentProcessor._time_left(
+                            budget_end, DocumentProcessor.PDF_RENDER_TIMEOUT_SECONDS
+                        ),
                     )
                     if not images:
                         continue
                     image = images[0]
+                    if time.monotonic() >= budget_end:
+                        pages_attempted -= 1  # rendered, but never read
+                        logger.warning(
+                            f"OCR time budget reached after {pages_attempted} of {pages_to_ocr} pages"
+                        )
+                        break
                     text = pytesseract.image_to_string(
-                        image, timeout=DocumentProcessor.OCR_PAGE_TIMEOUT_SECONDS
+                        image, timeout=DocumentProcessor._time_left(
+                            budget_end, DocumentProcessor.OCR_PAGE_TIMEOUT_SECONDS
+                        )
                     )
                     if text and text.strip():
                         ocr_text_content.append(f"--- Page {page_number} ---\n{text.strip()}")
@@ -210,7 +229,8 @@ class DocumentProcessor:
         )
 
     @staticmethod
-    def _generate_pdf_thumbnail_sync(file_content: bytes, max_width: int = 300) -> Optional[bytes]:
+    def _generate_pdf_thumbnail_sync(file_content: bytes, max_width: int = 300,
+                                     timeout: Optional[float] = None) -> Optional[bytes]:
         """Synchronous PDF thumbnail generation (CPU-intensive)"""
         try:
             # Convert first page to image. `size` caps the rendered bitmap's longest
@@ -221,7 +241,7 @@ class DocumentProcessor:
                 last_page=1,
                 dpi=150,
                 size=DocumentProcessor.THUMBNAIL_RENDER_PIXELS,
-                timeout=DocumentProcessor.PDF_RENDER_TIMEOUT_SECONDS,
+                timeout=timeout or DocumentProcessor.PDF_RENDER_TIMEOUT_SECONDS,
             )
             if not images:
                 return None
@@ -246,10 +266,12 @@ class DocumentProcessor:
             return None
 
     @staticmethod
-    async def generate_pdf_thumbnail(file_content: bytes, max_width: int = 300) -> Optional[bytes]:
-        """Generate thumbnail image from first page of PDF (runs in thread pool)"""
+    async def generate_pdf_thumbnail(file_content: bytes, max_width: int = 300,
+                                     timeout: Optional[float] = None) -> Optional[bytes]:
+        """Generate thumbnail image from first page of PDF (runs in thread pool).
+        `timeout` caps the render (default PDF_RENDER_TIMEOUT_SECONDS)."""
         return await asyncio.to_thread(
-            DocumentProcessor._generate_pdf_thumbnail_sync, file_content, max_width
+            DocumentProcessor._generate_pdf_thumbnail_sync, file_content, max_width, timeout
         )
 
     @staticmethod

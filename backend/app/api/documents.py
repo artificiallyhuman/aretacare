@@ -19,6 +19,7 @@ from pypdf.errors import FileNotDecryptedError
 from io import BytesIO
 import asyncio
 import os
+import time
 import uuid
 import logging
 
@@ -76,6 +77,15 @@ BLOCKED_MIME_TYPES = [
     'application/javascript', 'application/x-python-code', 'application/x-php',
     'text/javascript', 'application/x-sh',
 ]
+
+# How long an upload may run before it answers with what it has. The edge proxy gives up
+# at ~100 s (a 524), by which point the file is already stored. OCR has its own budget
+# (DocumentProcessor.OCR_TIME_BUDGET_SECONDS); the thumbnail and the AI categorization after
+# it are fitted into what is left: a thumbnail is skipped, and a categorization that would
+# not finish falls back to "other" with a plain description (as when the AI call fails).
+UPLOAD_RESPONSE_BUDGET_SECONDS = 90
+# Kept back from the thumbnail for the categorization that follows it.
+THUMBNAIL_RESERVE_SECONDS = 15
 
 MAX_FILE_SIZE = 30 * 1024 * 1024  # 30MB (OpenAI file URL limit is 32MB)
 MAX_CONVERSATION_FILE_SIZE = 30 * 1024 * 1024  # 30MB for conversation uploads
@@ -233,6 +243,7 @@ async def upload_document(
     db: Session = Depends(get_db)
 ):
     """Upload a medical document"""
+    upload_started = time.monotonic()
     security_service = SecurityService()
 
     # Check for abuse patterns (repeated upload failures)
@@ -454,10 +465,16 @@ async def upload_document(
         else:
             extracted_text = await document_processor.extract_text(file_content, actual_content_type)
 
-        # Generate and upload thumbnail for PDFs (runs in thread pool)
+        # Generate and upload thumbnail for PDFs (runs in thread pool). OCR above stops at its
+        # own budget; what follows shares UPLOAD_RESPONSE_BUDGET_SECONDS, so a large scan
+        # can't run the request past the edge proxy's timeout after the file is stored (a
+        # 524 there made people upload it again, creating a duplicate).
         thumbnail_s3_key = None
-        if file.content_type == "application/pdf":
-            thumbnail_bytes = await document_processor.generate_pdf_thumbnail(file_content)
+        thumbnail_time = UPLOAD_RESPONSE_BUDGET_SECONDS - THUMBNAIL_RESERVE_SECONDS - (time.monotonic() - upload_started)
+        if file.content_type == "application/pdf" and thumbnail_time >= 3:
+            thumbnail_bytes = await document_processor.generate_pdf_thumbnail(
+                file_content, timeout=min(thumbnail_time, document_processor.PDF_RENDER_TIMEOUT_SECONDS)
+            )
             if thumbnail_bytes:
                 thumbnail_s3_key = s3_service.get_prefixed_key(f"thumbnails/{session_id}/{uuid.uuid4()}.png")
                 thumbnail_upload_success = await s3_service.upload_file(
@@ -482,7 +499,8 @@ async def upload_document(
                 content_type=actual_content_type,
                 document_url=document_url,
                 extracted_text=extracted_text or "",
-                user_id=current_user.id
+                user_id=current_user.id,
+                deadline=upload_started + UPLOAD_RESPONSE_BUDGET_SECONDS,
             )
             # Convert category string to enum (with fallback to OTHER)
             try:

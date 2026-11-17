@@ -40,7 +40,7 @@ from typing import Dict, List, Optional, Tuple
 import httpx
 import sentry_sdk
 import websockets
-from sqlalchemy import and_, or_
+from sqlalchemy import and_, func, or_
 
 from app.config import ai_config
 from app.core.config import settings
@@ -49,12 +49,13 @@ from app.models import AudioRecording, Conversation, JournalEntry, TalkSession
 from app.models.audio_recording import AudioRecordingCategory, TranscriptionStatus
 from app.models.conversation import MessageRole, MessageType
 from app.models.talk_session import TalkOutcome, TalkStatus
+from app.models.talk_usage import TalkUsage
 from app.services.audio_transcription_service import (
     _FFMPEG_INPUT_GUARD, _stage_limiter, build_audio_keys,
 )
 from app.services.openai_service import (
-    openai_circuit_breaker, openai_service, sanitize_current_time, sanitize_user_timezone,
-    wrap_untrusted,
+    _strip_markdown_images, openai_circuit_breaker, openai_service, sanitize_current_time,
+    sanitize_user_timezone, wrap_untrusted,
 )
 from app.services.s3_service import s3_service
 from app.services.talk_tools import local_date
@@ -78,9 +79,15 @@ SIDEBAND_MAX_RECONNECTS = 4
 # count against it.
 SIDEBAND_STABLE_SECONDS = 30
 MIN_SAVED_CALL_SECONDS = 5
-# A 'finalizing' row claimed longer ago than this lost its finalizer (heartbeat_at is
-# stamped at the claim). It is reported as failed, and any instance may resume the save.
+# A 'finalizing' row with no heartbeat for this long lost its finalizer (heartbeat_at is
+# stamped at the claim, then every FINALIZE_HEARTBEAT_SECONDS while the save runs). It is
+# reported as failed, and any instance may resume the save.
 FINALIZING_STALE_SECONDS = 15 * 60
+# A save can wait a long time for an ffmpeg slot behind upload transcriptions (the same
+# per-instance semaphore), so a live finalizer keeps its claim fresh. Stamping only at the
+# claim made a save that queued past FINALIZING_STALE_SECONDS look dead: it was reported
+# failed, and a second finalizer saved the call again.
+FINALIZE_HEARTBEAT_SECONDS = 60
 # An interrupted or abandoned save is resumed only this long after the call; past it the
 # working transcript is dropped (retention) and the call is marked failed.
 RESUME_WINDOW_SECONDS = 7 * 24 * 3600
@@ -459,6 +466,83 @@ def _finish_row(talk_id: str, status: TalkStatus, outcome: Optional[TalkOutcome]
         db.close()
 
 
+def _fail_row(talk_id: str, duration: Optional[float]) -> Optional[Tuple[str, Optional[int], Optional[int]]]:
+    """A save that failed with an error. Only a row still 'finalizing' is touched: one
+    another save resumed or finished is not this one's to mark. If the recording was
+    already stored, the call is saved (the recording, and any journal entries, exist), so
+    it is completed with them kept rather than failed with them unlinked.
+
+    Returns (result, audio_recording_id, journal_entries_created), result "audio_saved" or
+    "failed"; None when the row was not this save's."""
+    db = SessionLocal()
+    try:
+        talk = db.query(TalkSession).filter(
+            TalkSession.id == talk_id, TalkSession.status == TalkStatus.FINALIZING.value
+        ).with_for_update().first()
+        if talk is None:
+            db.rollback()
+            return None
+        if talk.audio_recording_id is not None:
+            talk.status, talk.outcome, result = TalkStatus.COMPLETED.value, TalkOutcome.AUDIO.value, "audio_saved"
+        else:
+            talk.status, talk.outcome, result = TalkStatus.FAILED.value, None, "failed"
+        if duration is not None:
+            talk.duration_seconds = duration
+        talk.transcript = None
+        recording_id, entries = talk.audio_recording_id, talk.journal_entries_created
+        db.commit()
+        return result, recording_id, entries
+    finally:
+        db.close()
+
+
+def _beat_finalizing(talk_id: str) -> int:
+    db = SessionLocal()
+    try:
+        count = db.query(TalkSession).filter(
+            TalkSession.id == talk_id, TalkSession.status == TalkStatus.FINALIZING.value
+        ).update({"heartbeat_at": datetime.utcnow()}, synchronize_session=False)
+        db.commit()
+        return count
+    finally:
+        db.close()
+
+
+async def _finalize_heartbeat(talk_id: str) -> None:
+    """Runs beside a save: keeps its claim from looking stale (FINALIZE_HEARTBEAT_SECONDS)."""
+    while True:
+        await asyncio.sleep(FINALIZE_HEARTBEAT_SECONDS)
+        try:
+            await asyncio.to_thread(_beat_finalizing, talk_id)
+        except Exception as e:  # a missed beat is harmless; the next one retries
+            logger.warning(f"Talk {talk_id}: save heartbeat failed: {e}")
+
+
+def _journal_stamp(talk_id: str) -> Optional[int]:
+    db = SessionLocal()
+    try:
+        row = db.query(TalkSession.journal_entries_created).filter(TalkSession.id == talk_id).first()
+        return row[0] if row else None
+    finally:
+        db.close()
+
+
+def _stale_active_ids(limit: int = 50) -> List[str]:
+    """Calls whose instance died (no heartbeat for TALK_STALE_SECONDS) that nobody has
+    claimed: normally the phone's poll, its End, or the user's next call does."""
+    now = datetime.utcnow()
+    db = SessionLocal()
+    try:
+        rows = db.query(TalkSession.id).filter(
+            TalkSession.status == TalkStatus.ACTIVE.value,
+            TalkSession.heartbeat_at < now - timedelta(seconds=settings.TALK_STALE_SECONDS),
+            TalkSession.started_at >= now - timedelta(seconds=RESUME_WINDOW_SECONDS),
+        ).limit(limit).all()
+        return [r[0] for r in rows]
+    finally:
+        db.close()
+
+
 def clear_saved_transcripts(db) -> int:
     """Startup retention step: drop the working transcript from every finished call.
     `_finish_row` already does this; this catches rows saved before it did.
@@ -477,6 +561,15 @@ def clear_saved_transcripts(db) -> int:
         TalkSession.status.in_([TalkStatus.FINALIZING.value, TalkStatus.INTERRUPTED.value]),
         TalkSession.ended_at < now - timedelta(seconds=RESUME_WINDOW_SECONDS),
     ).update({"transcript": None, "status": TalkStatus.FAILED.value}, synchronize_session=False)
+    # A call whose instance died and that nobody ever claimed (no poll, no later call)
+    # stays 'active'. No call lasts a week: past the same window it is closed the same way.
+    count += db.query(TalkSession).filter(
+        TalkSession.status == TalkStatus.ACTIVE.value,
+        TalkSession.started_at < now - timedelta(seconds=RESUME_WINDOW_SECONDS),
+    ).update({
+        "transcript": None, "pending_actions": None, "status": TalkStatus.FAILED.value,
+        "ended_at": TalkSession.heartbeat_at,
+    }, synchronize_session=False)
     db.commit()
     return count
 
@@ -500,20 +593,56 @@ def is_stale(talk: TalkSession) -> bool:
     )
 
 
+def _call_seconds(status: str, started_at: datetime, duration: Optional[float], max_seconds: int,
+                  now: datetime) -> float:
+    if status == TalkStatus.ACTIVE.value:
+        return min((now - started_at).total_seconds(), max_seconds)
+    return duration or 0.0
+
+
 def seconds_used_today(db, user_id: str) -> float:
-    """Voice time in the rolling 24 hours, counting a live call's elapsed time."""
-    since = datetime.utcnow() - timedelta(hours=24)
+    """Voice time in the rolling 24 hours, counting a live call's elapsed time, and calls
+    whose care session has since been deleted (`carry_over_usage`)."""
+    now = datetime.utcnow()
+    since = now - timedelta(hours=24)
     rows = db.query(
         TalkSession.status, TalkSession.started_at, TalkSession.duration_seconds, TalkSession.max_seconds
     ).filter(TalkSession.user_id == user_id, TalkSession.started_at >= since).all()
-    total = 0.0
+    total = sum(_call_seconds(*row, now) for row in rows)
+    carried = db.query(func.coalesce(func.sum(TalkUsage.seconds), 0.0)).filter(
+        TalkUsage.user_id == user_id, TalkUsage.started_at >= since
+    ).scalar()
+    return total + float(carried or 0.0)
+
+
+def carry_over_usage(db, session_id: str) -> None:
+    """Call before deleting a care session, in the same transaction. Its calls cascade away
+    with it, and the daily allowance is summed from them: deleting and recreating a care
+    session gave a fresh allowance. Their last 24 hours of voice time is kept per user.
+    Does not commit."""
     now = datetime.utcnow()
-    for status, started_at, duration, max_seconds in rows:
-        if status == TalkStatus.ACTIVE.value:
-            total += min((now - started_at).total_seconds(), max_seconds)
-        else:
-            total += duration or 0.0
-    return total
+    since = now - timedelta(hours=24)
+    rows = db.query(
+        TalkSession.user_id, TalkSession.status, TalkSession.started_at, TalkSession.duration_seconds,
+        TalkSession.max_seconds,
+    ).filter(TalkSession.session_id == session_id, TalkSession.started_at >= since).all()
+    for user_id, *call in rows:
+        seconds = _call_seconds(*call, now)
+        if seconds > 0:
+            db.add(TalkUsage(user_id=user_id, started_at=call[1], seconds=seconds))
+    prune_talk_usage(db)
+
+
+def prune_talk_usage(db) -> int:
+    """Deletes `talk_usage` rows older than 24 hours, which no longer count toward
+    anything (startup cleanup and every carry-over). Does not commit."""
+    since = datetime.utcnow() - timedelta(hours=24)
+    return db.query(TalkUsage).filter(TalkUsage.started_at < since).delete(synchronize_session=False)
+
+
+def forget_talk_usage(db, user_id: str) -> None:
+    """Account deletion: `talk_usage` has no foreign key to cascade. Does not commit."""
+    db.query(TalkUsage).filter(TalkUsage.user_id == user_id).delete(synchronize_session=False)
 
 
 # ---------------------------------------------------------------------------
@@ -629,15 +758,16 @@ class _Transcript:
         self._seen: set = set()
         self.dirty = False
 
-    def add(self, role: str, event: dict) -> None:
+    def add(self, role: str, event: dict) -> bool:
+        """Folds in one delta. False for an event already seen (replayed after a reconnect)."""
         event_id = event.get("event_id")
         if event_id:
             if event_id in self._seen:
-                return  # replayed after a reconnect
+                return False  # replayed after a reconnect
             self._seen.add(event_id)
         delta = event.get("delta")
         if not isinstance(delta, str) or not delta:
-            return
+            return True
         start_ms, end_ms = int(event.get("start_ms") or 0), int(event.get("end_ms") or 0)
         last = self.turns[-1] if self.turns else None
         if last and last["role"] == role and start_ms - last["end_ms"] < 20_000:
@@ -646,6 +776,7 @@ class _Transcript:
         elif len(self.turns) < self.MAX_TURNS:
             self.turns.append({"role": role, "text": delta.lstrip(), "start_ms": start_ms, "end_ms": end_ms})
         self.dirty = True
+        return True
 
     def snapshot(self) -> List[dict]:
         return [dict(t) for t in self.turns]
@@ -660,10 +791,12 @@ def has_user_speech(turns: List[dict]) -> bool:
 
 
 def format_transcript(turns: List[dict], user_name: str) -> str:
+    """The speaker-labelled transcript stored on the recording (clients show it). Model
+    output, so image markup is stripped like every other AI text that reaches a client."""
     speaker = (user_name or "").strip().split(" ")[0] or "Caregiver"
     lines = []
     for turn in turns:
-        cleaned = _clean_turn(turn.get("text", ""))
+        cleaned = _strip_markdown_images(_clean_turn(turn.get("text", "")))
         if cleaned:
             lines.append(f"{speaker if turn.get('role') == 'user' else 'AretaCare'}: {cleaned}")
     return "\n\n".join(lines)
@@ -733,7 +866,10 @@ async def _run_sideband(talk_id: str, openai_session_id: str, max_seconds: int) 
                     base64.b64decode(event.get("delta") or ""), event.get("start_ms") or 0, event.get("end_ms")
                 )
         elif kind == "session.input_transcript.delta":
-            transcript.add("user", event)
+            if not transcript.add("user", event):
+                # Replayed after a reconnect: the person said it before, not now. Stamping
+                # it would let confirm_action accept a proposal they never answered.
+                return
             now = time.monotonic()
             state["last_speech"] = datetime.utcnow()
             state["last_speech_mono"] = now
@@ -980,11 +1116,16 @@ async def resume_interrupted_save(talk_id: str) -> bool:
 
 
 async def resume_interrupted_saves() -> int:
-    """Startup: resume every cut-off save. The claim is exclusive, so instances starting
-    together each take different calls; a save still running elsewhere is not stale."""
+    """Startup: resume every cut-off save, and save every call whose instance died that
+    nobody claimed (the user ended it, then left the app before its result poll did). The
+    claims are exclusive, so instances starting together each take different calls; a save
+    or call still running elsewhere is not stale."""
     resumed = 0
     for talk_id in await asyncio.to_thread(_resumable_ids):
         if await resume_interrupted_save(talk_id):
+            resumed += 1
+    for talk_id in await asyncio.to_thread(_stale_active_ids):
+        if await claim_stale_and_finalize(talk_id):
             resumed += 1
     return resumed
 
@@ -1001,12 +1142,14 @@ async def finalize_talk(
     card_id: Optional[int] = None
     session_id: Optional[str] = None
     claimed: Optional[dict] = None
+    heartbeat: Optional[asyncio.Task] = None
     try:
         claimed = preclaimed or await asyncio.to_thread(
             _claim_for_finalizing, talk_id, reason, turns, duration, False
         )
         if claimed is None:
             return
+        heartbeat = asyncio.create_task(_finalize_heartbeat(talk_id), name=f"talk-save-heartbeat-{talk_id}")
         turns = claimed["turns"]
         duration = claimed["duration"]
         if duration is None:
@@ -1065,13 +1208,35 @@ async def finalize_talk(
         logger.error(f"Talk {talk_id}: finalization failed: {e}", exc_info=True)
         with contextlib.suppress(Exception):
             sentry_sdk.capture_exception(e)
+        if claimed is None:
+            # The claim itself failed (a database blip). The row is still 'active', and
+            # whoever claims it next saves the call from its transcript; marking it failed
+            # here lost the whole call.
+            return
+        failure = None
         with contextlib.suppress(Exception):
-            await asyncio.to_thread(_finish_row, talk_id, TalkStatus.FAILED, None, duration)
-        if card_id is not None and session_id is not None:
-            # The app shows its own "couldn't save" banner; a card stuck on "saving" would lie.
-            with contextlib.suppress(Exception):
+            failure = await asyncio.to_thread(_fail_row, talk_id, duration)
+        if failure is None or card_id is None or session_id is None:
+            return  # another save owns the row now, or there is no card
+        result, recording_id, entries = failure
+        with contextlib.suppress(Exception):
+            if result == "audio_saved":
+                # The recording was stored before the error: say so rather than delete the
+                # card while Audio Recordings has the call.
+                await asyncio.to_thread(_update_card, card_id, session_id, (
+                    f"Talk conversation ({format_duration(duration)}). The recording and transcript "
+                    f"are saved in Audio Recordings.{_entries_phrase(entries or 0)}"
+                ), {
+                    "kind": "talk_summary", "outcome": TalkOutcome.AUDIO.value, "talk_id": talk_id,
+                    "audio_recording_id": recording_id, "duration_seconds": round(duration or 0, 1),
+                    "journal_entries": entries or 0,
+                })
+            else:
+                # The app shows its own "couldn't save" banner; a card stuck on "saving" would lie.
                 await asyncio.to_thread(_delete_card, card_id, session_id)
     finally:
+        if heartbeat is not None:
+            heartbeat.cancel()
         if recorder is not None:
             recorder.cleanup()
 
@@ -1197,15 +1362,40 @@ def _delete_card(card_id: int, session_id: str) -> None:
         db.close()
 
 
-def effective_summary_card(content: str, metadata: Optional[dict], created_at: Optional[datetime]):
-    """(content, metadata) as clients should see a Talk card: one still "saving" after a
-    finalizer would have finished is reported failed (the instance died mid-save), the same
-    rule `effective_status` applies to the call itself."""
-    if (
+def _possibly_stale_card(metadata: Optional[dict], created_at: Optional[datetime]) -> bool:
+    return bool(
         isinstance(metadata, dict) and metadata.get("kind") == "talk_summary"
         and metadata.get("status") == SUMMARY_SAVING and created_at is not None
         and (datetime.utcnow() - created_at).total_seconds() > FINALIZING_STALE_SECONDS
-    ):
+    )
+
+
+def talk_ids_still_saving(db, session_id: str, messages) -> set:
+    """Of the Talk cards in `messages` still "saving" past FINALIZING_STALE_SECONDS, the
+    calls whose save is in fact still running (its heartbeat is fresh: a save can queue
+    behind uploads). Queries only when there is such a card, which is rare."""
+    talk_ids = {
+        m.message_metadata.get("talk_id") for m in messages
+        if _possibly_stale_card(m.message_metadata, m.created_at)
+    }
+    talk_ids.discard(None)
+    if not talk_ids:
+        return set()
+    rows = db.query(TalkSession).filter(
+        TalkSession.id.in_(talk_ids), TalkSession.session_id == session_id
+    ).all()
+    return {t.id for t in rows if effective_status(t) == TalkStatus.FINALIZING.value}
+
+
+def effective_summary_card(content: str, metadata: Optional[dict], created_at: Optional[datetime],
+                           still_saving: Optional[set] = None):
+    """(content, metadata) as clients should see a Talk card: one still "saving" after a
+    finalizer would have finished is reported failed (the instance died mid-save), the same
+    rule `effective_status` applies to the call itself. `still_saving` (from
+    `talk_ids_still_saving`) names calls whose save is alive, which keep their card."""
+    if _possibly_stale_card(metadata, created_at):
+        if still_saving and metadata.get("talk_id") in still_saving:
+            return content, metadata
         duration = metadata.get("duration_seconds") or 0
         return (
             f"Talk conversation ({format_duration(duration)}). It could not be saved.",
@@ -1223,6 +1413,11 @@ async def _synthesize_journal(claimed: dict, filename: str, transcript_text: str
 
     if claimed.get("journal_entries_created") is not None:
         return claimed["journal_entries_created"]
+    # Read again: a save of this call resumed elsewhere may have journaled it since this
+    # one's claim was read.
+    already = await asyncio.to_thread(_journal_stamp, claimed["talk_id"])
+    if already is not None:
+        return already
 
     stamped: Dict[str, int] = {}
 
@@ -1288,7 +1483,8 @@ async def _synthesize_and_summarize_audio(talk_id: str, claimed: dict, turns: Li
 def _turn_rows(talk_id: str, claimed: dict, turns: List[dict]) -> List[dict]:
     rows = []
     for turn in turns:
-        cleaned = _clean_turn(turn.get("text", ""))
+        # Chat messages clients render: image markup stripped (see format_transcript).
+        cleaned = _strip_markdown_images(_clean_turn(turn.get("text", "")))
         if not cleaned:
             continue
         is_user = turn.get("role") == "user"

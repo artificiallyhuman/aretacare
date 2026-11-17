@@ -291,6 +291,17 @@ def revoke_all_user_tokens(db, user_id: str):
         token.is_revoked = True
         token.revoked_at = now
 
+    # A token rotated moments ago is still inside its grace window (see
+    # claim_refresh_token_for_rotation), and the loop above skips it because it is
+    # already revoked: without this it could still be exchanged for a fresh session after
+    # a password reset or sign-out-everywhere. Clearing replaced_at makes it plain invalid.
+    grace_cutoff = now - timedelta(seconds=settings.REFRESH_TOKEN_ROTATION_GRACE_SECONDS)
+    db.query(RefreshToken).filter(
+        RefreshToken.user_id == user_id,
+        RefreshToken.replaced_at.isnot(None),
+        RefreshToken.replaced_at >= grace_cutoff,
+    ).update({RefreshToken.replaced_at: None}, synchronize_session=False)
+
     # Signing out everywhere also has to stop push notifications: a device that can no
     # longer refresh its session must not keep receiving lock-screen alerts about the
     # account. A device that signs back in registers its token again.

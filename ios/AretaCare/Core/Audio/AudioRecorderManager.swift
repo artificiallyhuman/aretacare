@@ -16,6 +16,8 @@ final class AudioRecorderManager: NSObject, AVAudioRecorderDelegate {
     /// progress). Navigation that would change care session checks it, because a recording
     /// is uploaded to the session it was made in.
     private(set) static var isRecordingInProgress = false
+    /// The recorder capturing now, so signing out can stop it (`stopActiveRecording`).
+    private static weak var active: AudioRecorderManager?
     private(set) var elapsedTime: TimeInterval = 0
     private(set) var audioLevel: Float = 0
 
@@ -92,6 +94,7 @@ final class AudioRecorderManager: NSObject, AVAudioRecorderDelegate {
         audioLevel = 0
         meterTickCount = 0
         Self.isRecordingInProgress = true
+        Self.active = self
         setupInterruptionHandling()
         startTimer()
         return true
@@ -147,7 +150,7 @@ final class AudioRecorderManager: NSObject, AVAudioRecorderDelegate {
         timeoutTask.cancel()
 
         audioRecorder = nil
-        Self.isRecordingInProgress = false
+        finishRecording()
         AudioSessionManager.shared.deactivate()
 
         // Keep the file until the caller confirms the upload succeeded, then
@@ -185,7 +188,7 @@ final class AudioRecorderManager: NSObject, AVAudioRecorderDelegate {
         isRecording = false
         isPaused = false
         audioRecorder = nil
-        Self.isRecordingInProgress = false
+        finishRecording()
 
         AudioSessionManager.shared.deactivate()
 
@@ -193,6 +196,29 @@ final class AudioRecorderManager: NSObject, AVAudioRecorderDelegate {
         // Clean up temp recording file
         try? FileManager.default.removeItem(at: url)
         return data
+    }
+
+    /// A recording is capturing now (not paused). The idle sign-out treats it as activity,
+    /// the way a live Talk call is: recording is hands-free, and capture is capped at the
+    /// maximum duration.
+    static var isCapturing: Bool { active?.isRecording == true }
+
+    /// Signing out: a recording left running (its screen torn down with the signed-in UI)
+    /// would carry on capturing with nothing on screen to stop it. Stopped and deleted,
+    /// since its upload can't succeed without the signed-in user.
+    static func stopActiveRecording() {
+        if let active {
+            active.stop()
+        }
+        isRecordingInProgress = false
+    }
+
+    /// Bookkeeping for a recording that has ended, however it ended. Also drops the
+    /// max-duration callback, which captures the screen that started the recording.
+    private func finishRecording() {
+        Self.isRecordingInProgress = false
+        if Self.active === self { Self.active = nil }
+        onMaxDuration = nil
     }
 
     private func startTimer() {
@@ -240,7 +266,7 @@ final class AudioRecorderManager: NSObject, AVAudioRecorderDelegate {
         let data: Data? = flag ? (try? Data(contentsOf: recorder.url)) : nil
         Task { @MainActor in
             audioRecorder = nil
-            Self.isRecordingInProgress = false
+            finishRecording()
             AudioSessionManager.shared.deactivate()
 
             if let continuation = stopContinuation {

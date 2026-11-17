@@ -560,18 +560,94 @@ final class ConversationViewModel {
 
     /// Sends a message for a care session that is no longer on screen. Nothing is added to
     /// the chat on screen; that session's history is refetched when the user returns.
+    ///
+    /// The file (or recording) is already saved, so a failed post used to leave it with no
+    /// chat message and no word to the user. A failure that may be passing (no connection,
+    /// a timeout, a server error) is retried twice, each time only after checking the
+    /// server doesn't already have the message: it is stored before the AI call, so a
+    /// dropped connection usually leaves it posted. If it still fails, the person is told.
     private func postOffscreen(_ request: SendMessageRequest, sessionId: String) async {
-        do {
-            let _: SendMessageResponse = try await APIClient.shared.post(
-                APIEndpoints.Conversation.sendMessage,
-                body: request
-            )
-        } catch {
-            #if DEBUG
-            print("[Conversation] Off-screen message for another care session failed: \(error)")
-            #endif
+        defer { invalidateCache(for: sessionId) }
+        let retryDelays: [Double] = [3, 10]
+        var attempt = 0
+        while true {
+            do {
+                let _: SendMessageResponse = try await APIClient.shared.post(
+                    APIEndpoints.Conversation.sendMessage,
+                    body: request
+                )
+                return
+            } catch {
+                #if DEBUG
+                print("[Conversation] Off-screen message for another care session failed: \(error)")
+                #endif
+                switch Self.offscreenFailure(error) {
+                case .silent:
+                    return
+                case .final:
+                    break
+                case .passing:
+                    if attempt < retryDelays.count {
+                        try? await Task.sleep(for: .seconds(retryDelays[attempt]))
+                        attempt += 1
+                        if await offscreenMessageIsStored(request, sessionId: sessionId) { return }
+                        continue
+                    }
+                }
+            }
+            break
         }
-        invalidateCache(for: sessionId)
+        // The last attempt's response may have been lost after the server stored it.
+        if await offscreenMessageIsStored(request, sessionId: sessionId) { return }
+        errorMessage = request.audioRecordingId != nil
+            ? "A voice message for another care session was saved to its Audio Recordings, but couldn't be added to its chat."
+            : "A file for another care session was saved to its Documents, but couldn't be added to its chat."
+    }
+
+    /// Whether the server already has an off-screen message: the latest page of that care
+    /// session's history holds a user message with the same file, or the same text.
+    private func offscreenMessageIsStored(_ request: SendMessageRequest, sessionId: String) async -> Bool {
+        let queryItems = [
+            URLQueryItem(name: "limit", value: "\(AppConstants.defaultPageSize)"),
+            URLQueryItem(name: "offset", value: "0")
+        ]
+        guard let history: ConversationHistory = try? await APIClient.shared.get(
+            APIEndpoints.Conversation.history(sessionId),
+            queryItems: queryItems
+        ) else { return false }
+        return history.messages.contains { message in
+            guard message.role == .user else { return false }
+            if let documentId = request.documentId { return message.documentId == documentId }
+            return message.content == request.content
+        }
+    }
+
+    private enum OffscreenFailure {
+        /// Nothing to tell: cancelled, signed out, the care session is gone or no longer
+        /// shared, or the post went through and only its response couldn't be read.
+        case silent
+        /// A later attempt may get past it: no connection, a timeout, a server error.
+        case passing
+        /// Retrying won't help (the request was refused); the person is told.
+        case final
+    }
+
+    private static func offscreenFailure(_ error: Error) -> OffscreenFailure {
+        if error is CancellationError { return .silent }
+        guard let apiError = error as? APIError else { return .passing }
+        if apiError.requiresLogout { return .silent }
+        switch apiError {
+        case .networkError(let underlying):
+            return (underlying as? URLError)?.code == .cancelled ? .silent : .passing
+        case .offline, .sessionRefreshUnavailable, .serverError:
+            return .passing
+        case .unknown(let statusCode):
+            return statusCode >= 500 || statusCode == 0 ? .passing : .final
+        case .notFound, .forbidden, .unauthorized, .decodingError:
+            return .silent
+        case .rateLimited, .validationError, .mfaRequired, .noData:
+            return .final
+        }
     }
 
     // MARK: - Edit Message

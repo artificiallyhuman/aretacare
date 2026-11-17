@@ -461,3 +461,75 @@ def test_a_slow_lookup_is_cut_off_and_the_reply_still_written(db, alice, fake_op
     assert runner.calls == []
     assert "took too long" in _outputs(fake.calls[-1])["call_1"]
     assert fake.calls[-1]["tool_choice"] == "none"
+
+
+# --- staying inside the edge proxy's timeout ----------------------------------
+
+def test_a_slow_journal_synthesis_does_not_hold_up_the_reply(client, alice, fake_openai, monkeypatch):
+    """Synthesis (and the embeddings after it) had no time limit, so a slow turn could pass
+    Cloudflare's ~100 s and return a 524 for a reply that was already saved."""
+    import time as time_module
+
+    from app.api import conversation as conversation_api
+
+    monkeypatch.setattr(settings, "CHAT_TOOLS_ENABLED", False)
+    monkeypatch.setattr(conversation_api, "TURN_RESPONSE_BUDGET_SECONDS", 0)
+    fake_openai(lambda _kwargs, _i: _reply("Plain answer."))
+    started = []
+
+    async def slow_synthesize(self, **kwargs):
+        started.append(True)
+        await asyncio.sleep(5)
+        return JournalSynthesisResult(should_create=False, reasoning="slow", suggested_entries=[])
+
+    monkeypatch.setattr("app.services.journal_service.JournalService.assess_and_synthesize", slow_synthesize)
+    began = time_module.monotonic()
+    response = client.post(
+        "/api/conversation/message", headers=alice.auth_headers(client),
+        json={"content": "How was the appointment today?", "session_id": alice.session_id},
+    )
+    assert response.status_code == 200, response.text
+    assert response.json()["message"]["content"] == "Plain answer."
+    assert response.json()["journal_suggestion"] is None
+    assert started and time_module.monotonic() - began < 4
+
+
+def test_a_reply_past_its_deadline_starts_no_request(fake_openai):
+    fake = fake_openai(lambda _kwargs, _i: _reply("Too late."))
+    import time as time_module
+
+    result = asyncio.run(service_module.openai_service._create_chat_completion(
+        [{"role": "user", "content": "Hello"}], feature="conversation",
+        reply_deadline=time_module.monotonic() - 1,
+    ))
+    assert result is None and fake.calls == []
+
+
+def test_the_text_fallback_shares_the_replys_time_budget(monkeypatch):
+    """The PDF text fallback used to start a fresh 75 s budget after a slow first attempt."""
+    deadlines = []
+
+    async def no_reply(self, messages, feature="unknown", user_id=None, max_output_tokens=None,
+                       tool_runner=None, reply_deadline=None):
+        deadlines.append(reply_deadline)
+        return None
+
+    monkeypatch.setattr(type(service_module.openai_service), "_create_chat_completion", no_reply)
+    reply = asyncio.run(service_module.openai_service.chat_with_journal(
+        message="What does this say?", conversation_history=[],
+        document_url="https://files.example/doc.pdf", document_type="document",
+        content_type="application/pdf", extracted_text="Potassium 4.1",
+    ))
+    assert reply == ai_config.FALLBACK_CHAT
+    assert len(deadlines) == 2 and deadlines[0] is not None and deadlines[0] == deadlines[1]
+
+
+def test_document_categorization_past_its_deadline_falls_back(fake_openai):
+    import time as time_module
+
+    fake = fake_openai(lambda _kwargs, _i: _reply('{"category": "lab_result", "description": "Labs"}'))
+    result = asyncio.run(service_module.openai_service.categorize_document(
+        filename="scan.pdf", content_type="application/pdf", document_url="https://files.example/scan.pdf",
+        extracted_text="Potassium 4.1", deadline=time_module.monotonic() - 1,
+    ))
+    assert result["category"] == ai_config.FALLBACK_DOCUMENT_CATEGORY and fake.calls == []

@@ -226,7 +226,11 @@ final class AuthManager {
 
     // MARK: - Logout
 
-    func logout() async {
+    /// Signs out. `keepPendingRecordings` is for sign-outs the person didn't choose (the idle
+    /// timeout, the re-sign-in a password or email change requires): the same person signs
+    /// back in, so recordings whose upload failed stay on the device for them, as they do
+    /// through `forceLogout`. Choosing Sign Out deletes them.
+    func logout(keepPendingRecordings: Bool = false) async {
         // Unregister push token before clearing auth
         await NotificationManager.shared.unregisterToken()
 
@@ -243,9 +247,12 @@ final class AuthManager {
         UserDefaults.standard.removeObject(forKey: "biometricLockEnabled")
 
         // Recordings whose upload failed are health data held only on this device. Kept
-        // through `forceLogout` (an expired session, after which the same person signs back
+        // through `forceLogout` and the idle timeout (the same person signs back in; they
+        // are listed only to the user who recorded them, and dropped if someone else signs
         // in), deleted when someone chooses to sign out.
-        PendingRecordingStore.shared.removeAll()
+        if !keepPendingRecordings {
+            PendingRecordingStore.shared.removeAll()
+        }
 
         // Now safe to clear tokens — views are dismounting.
         startupErrorMessage = nil
@@ -294,6 +301,7 @@ final class AuthManager {
         mfaMethods = []
         hasAcceptedAIDataSharing = false
         stopIdleTimer()
+        AudioRecorderManager.stopActiveRecording()
         BiometricManager.shared.clearLock()
         UserDefaults.standard.removeObject(forKey: "lastSessionId")
         UserDefaults.standard.removeObject(forKey: "activeTab")
@@ -321,21 +329,28 @@ final class AuthManager {
 
     private func startIdleTimer() {
         stopIdleTimer()
+        // A new sign-in starts a fresh idle period. Only touches on the main screens count as
+        // activity, so after an idle sign-out (or an expired session) the clock still held
+        // the old time, and the first tick signed the person out again ~15 s after they
+        // signed back in.
+        lastActivityDate = Date()
         idleTimer = Timer.scheduledTimer(withTimeInterval: 15, repeats: true) { [weak self] _ in
             guard let self else { return }
             Task { @MainActor in
                 // Skip idle timeout entirely when biometric lock is enabled
                 // (biometric re-auth + 7-day token expiry provide sufficient security)
-                // Also pause while biometric lock screen is actively showing
+                // Also pause while biometric lock screen is actively showing, and while a
+                // recording is capturing (hands-free; signing out would end it)
                 guard !BiometricManager.shared.isBiometricLockEnabled,
-                      !BiometricManager.shared.isLocked else {
+                      !BiometricManager.shared.isLocked,
+                      !AudioRecorderManager.isCapturing else {
                     self.lastActivityDate = Date()
                     return
                 }
 
                 let elapsed = Date().timeIntervalSince(self.lastActivityDate)
                 if elapsed >= Self.idleTimeoutInterval {
-                    await self.logout()
+                    await self.logout(keepPendingRecordings: true)
                 } else if elapsed >= Self.idleWarningInterval {
                     self.showIdleWarning = true
                 }

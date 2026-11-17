@@ -117,7 +117,7 @@ struct IdleTimeoutModifier: ViewModifier {
                             authManager.recordActivity()
                         },
                         onTimeout: {
-                            Task { await authManager.logout() }
+                            Task { await authManager.logout(keepPendingRecordings: true) }
                         }
                     )
                 }

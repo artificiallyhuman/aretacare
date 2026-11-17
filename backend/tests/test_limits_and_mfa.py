@@ -106,7 +106,9 @@ def test_turning_mfa_off_needs_the_password_and_then_step_up(client, db, alice):
 
     # The password is checked first, so a wrong one fails without a verification prompt.
     wrong = client.post("/api/mfa/disable", json={"password": "not-the-password"}, headers=headers)
-    assert wrong.status_code == 401
+    # 400, not 401: clients read a 401 as an expired session.
+    assert wrong.status_code == 400
+    assert wrong.json()["detail"] == "Incorrect password"
 
     refused = client.post("/api/mfa/disable", json={"password": alice.password}, headers=headers)
     assert refused.status_code == 403
@@ -122,3 +124,21 @@ def test_turning_mfa_off_needs_the_password_and_then_step_up(client, db, alice):
     assert done.status_code == 200, done.text
     db.expire_all()
     assert db.get(User, alice.user_id).mfa_enabled is False
+
+
+def test_a_wrong_step_up_code_is_a_400_counted_once(client, db, alice):
+    """A 401 made clients refresh the session and replay the same wrong code (two failures
+    toward the MFA lockout per attempt), and iOS then said the session had expired."""
+    from app.models.security_log import SecurityLog
+
+    headers = _signed_in_with_mfa_on(client, db, alice)
+    wrong = client.post(
+        "/api/mfa/verify-for-action", json={"method": "totp", "code": "000000"}, headers=headers
+    )
+    assert wrong.status_code == 400
+    assert wrong.json()["detail"] == "MFA verification failed"
+    db.expire_all()
+    failures = db.query(SecurityLog).filter(
+        SecurityLog.user_id == alice.user_id, SecurityLog.event_type == "mfa_action_verification_failed"
+    ).count()
+    assert failures == 1

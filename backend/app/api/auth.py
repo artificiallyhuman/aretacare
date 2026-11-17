@@ -1366,6 +1366,10 @@ async def delete_account(
     # Remove user from any collaborative sessions (as collaborator)
     # This happens via SessionCollaborator CASCADE when we delete the user
 
+    # Talk voice-time rows carried over from deleted care sessions have no foreign key.
+    from app.services.talk_session_service import forget_talk_usage
+    forget_talk_usage(db, current_user.id)
+
     # Delete user (cascades to remaining related data)
     # Note: We already deleted owned sessions above, so CASCADE won't affect transferred sessions
     db.delete(current_user)

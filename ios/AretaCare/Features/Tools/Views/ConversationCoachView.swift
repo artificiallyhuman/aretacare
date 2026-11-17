@@ -236,6 +236,7 @@ struct ConversationCoachView: View {
             // The transcription poll can wait for minutes; don't leave it
             // running (with its spinner state) after the user navigates away
             viewModel.cancelTranscription()
+            stopRecordingIfLeaving()
         }
         .toolbar {
             ToolbarItem(placement: .principal) {
@@ -254,6 +255,21 @@ struct ConversationCoachView: View {
     }
 
     // MARK: - Audio Recording
+
+    /// Going back to the Tools menu, or this screen being torn down (a care-session change
+    /// resets Tools; signing out), left the recorder capturing with nothing on screen to
+    /// stop it. Switching to another tab keeps the screen, and the recording, for when the
+    /// person comes back: the Tools tab is then no longer the selected one.
+    private func stopRecordingIfLeaving() {
+        guard isRecordingAudio else { return }
+        let defaults = UserDefaults.standard
+        let stillOnTools = defaults.integer(forKey: MainTabView.activeTabKey) == MainTabView.toolsTab
+        let sameSession = defaults.string(forKey: "lastSessionId") == sessionId
+        guard stillOnTools || !sameSession else { return }
+        audioRecorder.stop()
+        audioRecorder.discardRecording()
+        isRecordingAudio = false
+    }
 
     private func startRecording() {
         Task {

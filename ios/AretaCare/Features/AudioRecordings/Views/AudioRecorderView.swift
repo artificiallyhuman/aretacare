@@ -161,7 +161,14 @@ struct AudioRecorderView: View {
                 )
             }
         }
-        .interactiveDismissDisabled(isUploading)
+        // Swiping the sheet away mid-recording skipped Cancel's confirmation and never
+        // stopped the recorder: the microphone kept capturing with nothing on screen.
+        .interactiveDismissDisabled(isUploading || recorder.isRecording || recorder.isPaused)
+        .onDisappear {
+            // Anything else that removes the sheet (signing out) ends the recording too.
+            // A no-op once Stop or Discard has finished it.
+            recorder.stop()
+        }
     }
 
     private var statusCaption: String {

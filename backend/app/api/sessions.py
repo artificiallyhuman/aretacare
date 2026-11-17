@@ -480,6 +480,11 @@ async def delete_session(
     for audio in audio_recordings:
         s3_keys_to_delete.append(audio.s3_key)
 
+    # The care session's Talk calls cascade away with it; keep their voice time toward
+    # each caller's daily allowance (same transaction as the delete).
+    from app.services.talk_session_service import carry_over_usage
+    carry_over_usage(db, session_id)
+
     # Delete DB records first (cascades to all related records)
     # If this fails, S3 files remain and references stay consistent
     db.delete(session)

@@ -732,18 +732,33 @@ private struct TalkModeModifier: ViewModifier {
                 }
             }
             .onChange(of: sessionId) { _, _ in
-                // The care session changed underneath a call (e.g. access revoked).
+                // The care session changed underneath a call (e.g. access revoked). Results
+                // of earlier calls belong to the previous session's chat, and so does this
+                // call's: polling for it would reload, and report a failed save in, the
+                // chat now on screen.
                 talkVM.cancelResultPolling()
                 if talkVM.isActive {
-                    Task { await talkVM.end() }
+                    Task { await talkVM.end(pollForResult: false) }
                 }
             }
             .onChange(of: talkVM.savedCallToken) { _, _ in
                 onCallSaved()
             }
             .onDisappear {
-                // Logout or the tab being torn down: never leave a call or the mic open.
-                talkVM.abandon()
+                // Never leave a call or the mic open. Signed out: just tear down. Still
+                // signed in (Chat left some other way mid-call): end it as the End button
+                // does, so the result is polled and the card fills in, and say so.
+                if AuthManager.shared.isAuthenticated, talkVM.isActive {
+                    if talkVM.phase.isLive {
+                        talkVM.notice = TalkViewModel.Notice(
+                            title: "Conversation Ended",
+                            message: "Your Talk conversation has ended and is being saved."
+                        )
+                    }
+                    Task { await talkVM.end() }
+                } else {
+                    talkVM.abandon()
+                }
                 mode = .chat
             }
             .sheet(isPresented: $talkVM.showingConsent) {

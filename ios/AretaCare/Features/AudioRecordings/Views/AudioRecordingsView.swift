@@ -839,10 +839,16 @@ private struct PendingRecordingsCard: View {
     let sessionId: String
     let viewModel: AudioRecordingsViewModel
 
-    @State private var uploadingId: String?
+    private var store: PendingRecordingStore { .shared }
 
     private var pending: [PendingRecording] {
-        PendingRecordingStore.shared.items(for: sessionId)
+        store.items(for: sessionId)
+    }
+
+    /// One upload at a time from the card. The store tracks it, so it survives leaving and
+    /// reopening this screen.
+    private var isRetryingAny: Bool {
+        pending.contains { store.isRetrying($0) }
     }
 
     var body: some View {
@@ -861,8 +867,8 @@ private struct PendingRecordingsCard: View {
                 ForEach(pending) { item in
                     PendingRecordingRow(
                         item: item,
-                        isUploading: uploadingId == item.id,
-                        uploadDisabled: uploadingId != nil || viewModel.isUploading,
+                        isUploading: store.isRetrying(item),
+                        uploadDisabled: isRetryingAny || viewModel.isUploading,
                         onUpload: { upload(item) }
                     )
                 }
@@ -879,16 +885,14 @@ private struct PendingRecordingsCard: View {
     }
 
     private func upload(_ item: PendingRecording) {
-        guard uploadingId == nil else { return }
-        guard let data = PendingRecordingStore.shared.data(for: item) else {
+        guard !isRetryingAny else { return }
+        guard let data = store.data(for: item) else {
             viewModel.showError("This recording can't be read right now. Unlock your device and try again.")
             return
         }
-        uploadingId = item.id
         Task {
-            defer { uploadingId = nil }
-            if await viewModel.uploadRecording(sessionId: sessionId, audioData: data, filename: item.filename) {
-                PendingRecordingStore.shared.remove(item)
+            await store.retryUpload(item) {
+                await viewModel.uploadRecording(sessionId: sessionId, audioData: data, filename: item.filename)
             }
         }
     }

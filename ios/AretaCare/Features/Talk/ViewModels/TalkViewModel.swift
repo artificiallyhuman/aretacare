@@ -56,7 +56,13 @@ final class TalkViewModel {
 
     // MARK: - Observed state
 
-    private(set) var phase: Phase = .idle
+    private(set) var phase: Phase = .idle {
+        didSet { Self.isCallInProgress = phase != .idle }
+    }
+    /// A call (or its setup) is under way. Tapping a notification checks it, like
+    /// `AudioRecorderManager.isRecordingInProgress`: routing to another tab or care session
+    /// would end the call.
+    private(set) static var isCallInProgress = false
     private(set) var userLevel: Double = 0
     private(set) var agentLevel: Double = 0
     private(set) var maxSessionSeconds = 1800
@@ -136,7 +142,9 @@ final class TalkViewModel {
     private var watchdogTask: Task<Void, Never>?
     private var keepAliveTask: Task<Void, Never>?
     private var statusTask: Task<Void, Never>?
-    private var pollTask: Task<Void, Never>?
+    /// One result poll per ended call, by talk id. Ending a second call must not cancel the
+    /// first one's poll: its card would stay on "Saving…" and a failure would go unreported.
+    private var pollTasks: [String: Task<Void, Never>] = [:]
     private var interruptionObserver: NSObjectProtocol?
     private var muteGestureObserver: NSObjectProtocol?
     private var previousIdleTimerDisabled = false
@@ -314,7 +322,7 @@ final class TalkViewModel {
     /// back to Chat straight away. Saving continues on the server; the result is polled so
     /// the chat card appears and fills in. Never waits on the network: End is the only way
     /// off the Talk screen, and `/end` can stall for minutes on a bad connection.
-    func end() async {
+    func end(pollForResult shouldPoll: Bool = true) async {
         guard isActive, !isEnding else { return }
         isEnding = true
         let wasLive = phase.isLive
@@ -332,7 +340,7 @@ final class TalkViewModel {
         endCallEnvironment()
         reset()
         onExit?()
-        if let endedTalkId, let endedSessionId, wasLive {
+        if shouldPoll, let endedTalkId, let endedSessionId, wasLive {
             pollForResult(talkId: endedTalkId, sessionId: endedSessionId)
         }
     }
@@ -385,6 +393,9 @@ final class TalkViewModel {
 
     private func reset() {
         phase = .idle
+        // The first-use consent sheet belongs to the attempt: left up after the attempt
+        // ended, "Agree and Start" recorded consent and then started nothing.
+        showingConsent = false
         userLevel = 0
         agentLevel = 0
         isMuted = false
@@ -397,8 +408,9 @@ final class TalkViewModel {
     // MARK: - Result polling
 
     private func pollForResult(talkId: String, sessionId: String) {
-        pollTask?.cancel()
-        pollTask = Task { [weak self] in
+        pollTasks[talkId]?.cancel()
+        pollTasks[talkId] = Task { [weak self] in
+            defer { self?.pollTasks[talkId] = nil }
             // Quick at first (the card appears within seconds), then slower; up to the
             // server's own limit (FINALIZING_STALE_SECONDS) for a save that queues behind uploads.
             let delays: [Double] = [2, 2, 3, 5, 5, 5]
@@ -440,8 +452,8 @@ final class TalkViewModel {
     }
 
     func cancelResultPolling() {
-        pollTask?.cancel()
-        pollTask = nil
+        for task in pollTasks.values { task.cancel() }
+        pollTasks = [:]
     }
 
     // MARK: - Loops

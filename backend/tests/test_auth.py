@@ -341,3 +341,23 @@ def test_accounts_differing_only_by_case_resolve_to_the_lowercase_one(db):
         from sqlalchemy import func
         db.query(User).filter(func.lower(User.email) == email).delete(synchronize_session=False)
         db.commit()
+
+
+def test_signing_out_everywhere_ends_the_rotation_grace(client, alice, monkeypatch):
+    """A token rotated moments before a sign-out-everywhere (or a password change) was
+    still inside its grace window, so it could be exchanged for a new session afterwards."""
+    from app.core.config import settings
+
+    monkeypatch.setattr(settings, "REFRESH_TOKEN_ROTATION_GRACE_SECONDS", 30)
+    login = alice.login(client, native=True).json()
+    old_token = login["refresh_token"]
+    rotated = client.post(REFRESH, json={"refresh_token": old_token}, headers=NATIVE)
+    assert rotated.status_code == 200
+    # Inside the grace window the rotated-away token still works (a lost response)...
+    assert client.post(REFRESH, json={"refresh_token": old_token}, headers=NATIVE).status_code == 200
+
+    headers = {"Authorization": f"Bearer {rotated.json()['access_token']}"}
+    assert client.post("/api/auth/logout-everywhere", headers=headers).status_code == 200
+
+    # ...but not once every session has been revoked.
+    assert client.post(REFRESH, json={"refresh_token": old_token}, headers=NATIVE).status_code == 401
