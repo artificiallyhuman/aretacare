@@ -171,6 +171,11 @@ backend/certs/
 ios/APP_STORE_DEPLOYMENT.md
 
 # =========================
+# App Store assets: screenshots and listing text (kept locally, uploaded to App Store Connect by hand)
+# =========================
+/app_store/
+
+# =========================
 # Swift Package Manager
 # =========================
 .build/
