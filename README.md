@@ -20,7 +20,7 @@ AretaCare was built from this experience—sitting beside a loved one, trying to
 
 ### Core Experience
 
-**Conversation** — Talk to AretaCare like you would a knowledgeable friend. Ask questions, share updates, upload documents, or record voice notes. It remembers your care situation and helps you make sense of complex medical information.
+**Conversation** — Talk to AretaCare like you would a knowledgeable friend. Ask questions, share updates, upload documents, or record voice notes. It remembers your care situation and helps you make sense of complex medical information. For general health questions it can search a fixed list of trusted health sites (MedlinePlus, the CDC, the FDA, Mayo Clinic, and others) and link the pages it used.
 
 **Talk** (iOS app) — Have a spoken conversation instead of typing. The assistant knows your care session, can look things up, and can add journal entries or suggest Health Profile updates when you ask — reading each change back before it is saved. Every conversation is recorded, transcribed, and saved to Audio Recordings.
 
@@ -40,7 +40,7 @@ AretaCare was built from this experience—sitting beside a loved one, trying to
 
 ### Tools (Free — No Account Required)
 
-**Jargon Translator** — Paste confusing medical language and get clear explanations in plain terms, with citations to authoritative sources (Mayo Clinic, MedlinePlus, Cleveland Clinic, CDC).
+**Jargon Translator** — Paste confusing medical language and get clear explanations in plain terms, with links to pages found on trusted health sites (such as MedlinePlus, Mayo Clinic, Cleveland Clinic, and the CDC).
 
 **Conversation Coach** — Preparing for an appointment? Get help forming the right questions to ask your care team, with links to relevant medical resources. Sign in to use voice input and get personalized results from your journal.
 

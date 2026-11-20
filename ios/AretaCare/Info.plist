@@ -35,6 +35,8 @@
 	<string>AretaCare needs camera access to capture photos of medical documents.</string>
 	<key>NSFaceIDUsageDescription</key>
 	<string>AretaCare uses Face ID to protect your health information.</string>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>AretaCare uses your network connection to set up the audio for Talk voice conversations. It doesn't look for, or collect data from, other devices on your network.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>AretaCare needs microphone access to record voice memos for your health journal and to have voice conversations in Talk mode.</string>
 	<key>NSPhotoLibraryUsageDescription</key>

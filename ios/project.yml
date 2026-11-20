@@ -78,6 +78,7 @@ targets:
           NSAllowsLocalNetworking: true
         API_BASE_URL: $(API_BASE_URL)
         FRONTEND_URL: $(FRONTEND_URL)
+        NSLocalNetworkUsageDescription: "AretaCare uses your network connection to set up the audio for Talk voice conversations. It doesn't look for, or collect data from, other devices on your network."
         NSMicrophoneUsageDescription: "AretaCare needs microphone access to record voice memos for your health journal and to have voice conversations in Talk mode."
         NSCameraUsageDescription: "AretaCare needs camera access to capture photos of medical documents."
         NSFaceIDUsageDescription: "AretaCare uses Face ID to protect your health information."
