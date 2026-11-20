@@ -16,7 +16,7 @@ const a = 'text-primary-600 dark:text-primary-400 hover:text-primary-700 font-me
 const PROCESSORS = [
   {
     name: 'OpenAI',
-    role: 'AI features: chat replies, transcription, journal entries, Daily Digests, Health Profile suggestions, and Talk voice conversations (iOS).',
+    role: 'AI features: chat replies, transcription, journal entries, Daily Digests, Health Profile suggestions, Talk voice conversations (iOS), and searches of a fixed list of trusted health websites for general health information.',
     contact: 'https://openai.com/policies/privacy-policy/',
   },
   {
@@ -51,7 +51,7 @@ const HealthDataPrivacy = () => {
           </Link>
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-6 sm:p-8">
             <h1 className="text-4xl sm:text-5xl font-bold text-gray-900 dark:text-white mb-2">Consumer Health Data Privacy Policy</h1>
-            <p className="text-sm text-gray-500 dark:text-gray-400">Last Updated: November 13, 2026</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400">Last Updated: November 20, 2026</p>
           </div>
         </div>
 
@@ -144,7 +144,7 @@ const HealthDataPrivacy = () => {
                   ))}
                 </div>
                 <p className={`${p} mt-3`}>
-                  OpenAI does not use AretaCare data to train its models. Its API policy allows it to keep requests for up to 30 days to monitor for abuse, after which they are deleted. The lookups Talk makes during a voice conversation are kept by OpenAI for up to 30 days.
+                  OpenAI does not use AretaCare data to train its models. Its API policy allows it to keep requests for up to 30 days to monitor for abuse, after which they are deleted. The lookups Talk makes during a voice conversation are kept by OpenAI for up to 30 days. When chat, Talk, or the AI tools look up general health information, they search OpenAI's stored copy of a fixed list of trusted health websites (such as MedlinePlus, the CDC, and Mayo Clinic). The AI is instructed to search in general terms, without names, and no websites are visited live.
                 </p>
               </div>
 

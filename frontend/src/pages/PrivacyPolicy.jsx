@@ -17,7 +17,7 @@ const PrivacyPolicy = () => {
           </Link>
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-6 sm:p-8">
             <h1 className="text-4xl sm:text-5xl font-bold text-gray-900 dark:text-white mb-2">Privacy Policy</h1>
-            <p className="text-sm text-gray-500 dark:text-gray-400">Last Updated: November 13, 2026</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400">Last Updated: November 20, 2026</p>
           </div>
         </div>
 
@@ -339,6 +339,7 @@ const PrivacyPolicy = () => {
                     <li>• Processes your messages to provide AI assistance</li>
                     <li>• Transcribes audio recordings</li>
                     <li>• Powers Talk voice conversations in the iOS app (your voice is streamed live)</li>
+                    <li>• When chat, Talk, or the AI tools look up general health information, searches OpenAI's stored copy of a fixed list of trusted health websites (such as MedlinePlus, the CDC, and Mayo Clinic); the AI is instructed to search in general terms, without names, and no websites are visited live</li>
                     <li>• Generates journal entries and daily digests</li>
                     <li>• Does not use your data to train its models</li>
                     <li>• May keep requests for up to 30 days to monitor for abuse; lookups made during Talk are kept for up to 30 days</li>

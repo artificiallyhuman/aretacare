@@ -21,17 +21,74 @@ MIN_REQUEST_SECONDS = 5
 class _DeadlineExceeded(Exception):
     """An attempt cut off by its deadline (asyncio.wait_for), handled like a timeout."""
 
-# Approved citation domains for Jargon Translator and Conversation Coach outputs.
-# Per SAFETY_GUIDELINES.md, the AI is instructed in the prompt to only cite these
-# domains — but a single jailbreak/prompt-injection/model-error can still produce
-# links to arbitrary sites. _filter_citation_links() below enforces the allowlist
-# server-side after generation, before the output reaches the user.
-APPROVED_CITATION_DOMAINS = (
-    "mayoclinic.org",
-    "medlineplus.gov",
-    "clevelandclinic.org",
-    "cdc.gov",
-)
+# Approved citation domains for Jargon Translator and Conversation Coach outputs: the
+# same trusted list their web search is restricted to. Per SAFETY_GUIDELINES.md, the AI
+# is instructed in the prompt to only cite these domains — but a single
+# jailbreak/prompt-injection/model-error can still produce links to arbitrary sites.
+# _filter_citation_links() below enforces the allowlist server-side after generation,
+# before the output reaches the user.
+APPROVED_CITATION_DOMAINS = ai_config.TRUSTED_HEALTH_DOMAINS
+
+
+def web_search_enabled() -> bool:
+    return bool(getattr(settings, "WEB_SEARCH_ENABLED", False))
+
+
+def trusted_web_search_tool() -> Dict[str, Any]:
+    """OpenAI's hosted web search, restricted to ai_config.TRUSTED_HEALTH_DOMAINS.
+
+    `external_web_access: False` searches OpenAI's cached index only: no live page visits,
+    so nothing outside OpenAI sees a query, and a prompt-injected document can't make the
+    model open a URL of its choosing. Both privacy policies describe it this way. Turning
+    on live access would need policy (and likely consent) changes first, which is why
+    there is deliberately no setting for it.
+    """
+    return {
+        "type": "web_search",
+        "filters": {"allowed_domains": list(ai_config.TRUSTED_HEALTH_DOMAINS)},
+        "external_web_access": False,
+        "search_context_size": "low",
+        "user_location": {"type": "approximate", "country": "US"},
+    }
+
+
+def _cited_sources(response: Any, limit: int = 4) -> List[str]:
+    """`Title (host)` for each distinct trusted page cited in a Responses result."""
+    found: List[str] = []
+    seen = set()
+    for item in getattr(response, "output", None) or []:
+        if getattr(item, "type", None) != "message":
+            continue
+        for part in getattr(item, "content", None) or []:
+            for note in getattr(part, "annotations", None) or []:
+                if getattr(note, "type", None) != "url_citation":
+                    continue
+                url = getattr(note, "url", "") or ""
+                try:
+                    host = (urlparse(url).hostname or "").lower()
+                except Exception:
+                    host = ""
+                if not _host_is_approved(host) or url in seen:
+                    continue
+                seen.add(url)
+                title = (getattr(note, "title", "") or "").strip() or host
+                found.append(f"{title} ({host.removeprefix('www.')})")
+    return found[:limit]
+
+
+def _count_web_searches(response: Any) -> int:
+    return sum(
+        1 for item in (getattr(response, "output", None) or [])
+        if getattr(item, "type", None) == "web_search_call"
+    )
+
+
+def _log_web_searches(response: Any, feature: str) -> None:
+    """Count only. Search queries are written from the conversation and can carry health
+    content, so they are never logged."""
+    count = _count_web_searches(response)
+    if count:
+        logger.info("%s: %d trusted-source web search(es)", feature, count)
 
 # Matches markdown links: [text](url). The URL captures up to the closing paren.
 _MARKDOWN_LINK_RE = re.compile(r"\[([^\]]+)\]\((https?://[^)\s]+)\)")
@@ -483,12 +540,13 @@ def _response_text(response) -> Optional[str]:
     if text is not None:
         return _strip_markdown_images(text)
 
-    # Fallback: extract first text segment from output
-    if getattr(response, "output", None):
-        first_item = response.output[0]
-        if getattr(first_item, "content", None):
-            first_content = first_item.content[0]
-            return _strip_markdown_images(getattr(first_content, "text", None))
+    # Fallback: the first text segment of the first message. Reasoning and web search
+    # items come before it in the output and have no text.
+    for item in getattr(response, "output", None) or []:
+        if getattr(item, "type", "message") != "message":
+            continue
+        if getattr(item, "content", None):
+            return _strip_markdown_images(getattr(item.content[0], "text", None))
 
     return None
 
@@ -524,6 +582,7 @@ class OpenAIService:
         max_output_tokens: Optional[int] = None,
         tool_runner: Optional[Any] = None,
         reply_deadline: Optional[float] = None,
+        web_search: bool = False,
     ) -> Optional[str]:
         """Create chat completion with error handling, timeout, retry logic, and circuit breaker.
 
@@ -536,6 +595,10 @@ class OpenAIService:
         `reply_deadline` (a time.monotonic() value) bounds the whole reply, retries and
         lookups included. Chat passes one for the turn, so a fallback request after a
         failed first one shares the turn's time instead of starting a fresh budget.
+
+        `web_search` offers the trusted-domain search (trusted_web_search_tool) when
+        WEB_SEARCH_ENABLED is on. The model decides whether to use it. If OpenAI rejects
+        the request with it (400), the reply is written without any tools.
 
         Includes:
         - Circuit breaker to fail fast during extended outages
@@ -550,10 +613,28 @@ class OpenAIService:
         if max_output_tokens is not None:
             request_kwargs["max_output_tokens"] = max_output_tokens
 
+        search_tools = [trusted_web_search_tool()] if web_search and web_search_enabled() else []
+
         if tool_runner is not None:
             return await self._complete_with_lookups(
-                request_kwargs, feature, user_id, tool_runner, reply_deadline=reply_deadline
+                request_kwargs, feature, user_id, tool_runner,
+                reply_deadline=reply_deadline, extra_tools=search_tools,
             )
+
+        if search_tools:
+            try:
+                response = await self._request_with_retries(
+                    {**request_kwargs, "tools": search_tools}, feature, user_id,
+                    raise_bad_request=True, deadline=reply_deadline,
+                )
+            except BadRequestError:
+                logger.warning("OpenAI rejected a request offering trusted-source search (400); retrying without tools")
+                response = await self._request_with_retries(
+                    request_kwargs, feature, user_id, deadline=reply_deadline
+                )
+            if response is not None:
+                _log_web_searches(response, feature)
+            return None if response is None else _response_text(response)
 
         response = await self._request_with_retries(request_kwargs, feature, user_id, deadline=reply_deadline)
         return None if response is None else _response_text(response)
@@ -565,6 +646,7 @@ class OpenAIService:
         user_id: Optional[str],
         tool_runner: Any,
         reply_deadline: Optional[float] = None,
+        extra_tools: Optional[List[Dict[str, Any]]] = None,
     ) -> Optional[str]:
         """Chat with read-only lookups into the care session (chat_tools.ChatToolRunner).
 
@@ -575,6 +657,12 @@ class OpenAIService:
         CHAT_REPLY_DEADLINE_SECONDS in ai_config); the closing round sends tool_choice
         "none" so the model writes its reply. If OpenAI rejects a request with lookups
         (400), the reply is written without them rather than failing.
+
+        `extra_tools` are hosted tools (the trusted-domain web search) offered alongside
+        the lookups. OpenAI runs them inside the request, so they are not lookups here:
+        their output items are re-sent with the rest when a round also has function calls,
+        and they don't count toward CHAT_MAX_LOOKUP_CALLS. tool_choice "none" turns them
+        off in the closing round too.
         """
         items = list(request_kwargs["input"])
         started = time.monotonic()
@@ -594,7 +682,7 @@ class OpenAIService:
             round_kwargs = {
                 **request_kwargs,
                 "input": items,
-                "tools": tool_runner.definitions(),
+                "tools": tool_runner.definitions() + list(extra_tools or []),
                 "include": ["reasoning.encrypted_content"],
             }
             if not can_look_up:
@@ -629,6 +717,8 @@ class OpenAIService:
                     closing = True
                     continue
                 return None
+            if extra_tools:
+                _log_web_searches(response, feature)
             output_items = list(getattr(response, "output", None) or [])
             calls = [item for item in output_items if getattr(item, "type", None) == "function_call"]
             if not calls or not can_look_up:
@@ -687,7 +777,7 @@ class OpenAIService:
                 input_tokens=0,
                 output_tokens=0,
                 success=False,
-                model=self.model,
+                model=request_kwargs.get("model", self.model),
                 response_time_ms=0,
                 user_id=user_id,
                 error_message="Circuit breaker open - service temporarily unavailable"
@@ -736,7 +826,7 @@ class OpenAIService:
                     input_tokens=input_tokens,
                     output_tokens=output_tokens,
                     success=True,
-                    model=self.model,
+                    model=request_kwargs.get("model", self.model),
                     response_time_ms=response_time_ms,
                     user_id=user_id
                 )
@@ -784,7 +874,7 @@ class OpenAIService:
                     input_tokens=input_tokens,
                     output_tokens=output_tokens,
                     success=False,
-                    model=self.model,
+                    model=request_kwargs.get("model", self.model),
                     response_time_ms=response_time_ms,
                     user_id=user_id,
                     error_message=error_msg
@@ -828,7 +918,7 @@ class OpenAIService:
                     input_tokens=input_tokens,
                     output_tokens=output_tokens,
                     success=False,
-                    model=self.model,
+                    model=request_kwargs.get("model", self.model),
                     response_time_ms=response_time_ms,
                     user_id=user_id,
                     error_message=error_msg
@@ -860,7 +950,7 @@ class OpenAIService:
                 input_tokens=input_tokens,
                 output_tokens=output_tokens,
                 success=False,
-                model=self.model,
+                model=request_kwargs.get("model", self.model),
                 response_time_ms=response_time_ms,
                 user_id=user_id,
                 error_message=f"Exhausted retries: {error_msg}"
@@ -888,7 +978,8 @@ class OpenAIService:
     ) -> Dict:
         """Translate medical jargon into plain language with optional journal context"""
 
-        prompt = ai_config.get_jargon_translation_prompt(medical_term, context)
+        search = web_search_enabled()
+        prompt = ai_config.get_jargon_translation_prompt(medical_term, context, web_search=search)
 
         messages = [
             {"role": "system", "content": ai_config.SYSTEM_PROMPT},
@@ -910,6 +1001,8 @@ class OpenAIService:
                 "PATIENT JOURNAL:\n" + wrap_untrusted(journal_context, source="journal")
             )})
 
+        if search:
+            messages.append({"role": "system", "content": ai_config.WEB_SEARCH_INSTRUCTIONS})
         messages.append({"role": "user", "content": prompt})
 
         response = await self._create_chat_completion(
@@ -917,11 +1010,12 @@ class OpenAIService:
             feature="jargon_translator",
             user_id=user_id,
             max_output_tokens=TOOLS_MAX_OUTPUT_TOKENS,
+            web_search=search,
         )
 
         if response:
             # Server-side citation allowlist enforcement — drops any markdown links
-            # the model produced that aren't on the approved 4-domain list.
+            # the model produced that aren't on the trusted-domain list.
             response = _filter_citation_links(response)
             return {
                 "term": medical_term,
@@ -943,7 +1037,8 @@ class OpenAIService:
     ) -> Dict:
         """Help families prepare for healthcare conversations with optional journal context"""
 
-        prompt = ai_config.get_conversation_coaching_prompt(situation)
+        search = web_search_enabled()
+        prompt = ai_config.get_conversation_coaching_prompt(situation, web_search=search)
 
         messages = [
             {"role": "system", "content": ai_config.SYSTEM_PROMPT},
@@ -962,6 +1057,8 @@ class OpenAIService:
                 "PATIENT JOURNAL:\n" + wrap_untrusted(journal_context, source="journal")
             )})
 
+        if search:
+            messages.append({"role": "system", "content": ai_config.WEB_SEARCH_INSTRUCTIONS})
         messages.append({"role": "user", "content": prompt})
 
         response = await self._create_chat_completion(
@@ -969,6 +1066,7 @@ class OpenAIService:
             feature="conversation_coach",
             user_id=user_id,
             max_output_tokens=TOOLS_MAX_OUTPUT_TOKENS,
+            web_search=search,
         )
 
         if response:
@@ -976,6 +1074,41 @@ class OpenAIService:
             return {"content": response}
         else:
             return {"content": ai_config.FALLBACK_COACHING}
+
+    async def search_trusted_sources(self, question: str, user_id: Optional[str] = None) -> Optional[str]:
+        """Answer one general health question from a search of TRUSTED_HEALTH_DOMAINS, for
+        Talk's search_trusted_sources tool. Returns a few plain spoken sentences naming the
+        source, then a "Sources:" line, or None if the search failed.
+
+        The model here sees only the question, never the care session. The cited pages are
+        filtered through the citation allowlist again (defence in depth on top of the
+        search's own domain filter).
+        """
+        request_kwargs: Dict[str, Any] = {
+            "model": ai_config.TRUSTED_SEARCH_MODEL,
+            "instructions": ai_config.TRUSTED_SEARCH_INSTRUCTIONS,
+            "input": [{"role": "user", "content": question}],
+            "tools": [trusted_web_search_tool()],
+            "tool_choice": "required",
+            "reasoning": {"effort": ai_config.TRUSTED_SEARCH_REASONING_EFFORT},
+            "store": False,
+        }
+        deadline = time.monotonic() + ai_config.TRUSTED_SEARCH_TIMEOUT_SECONDS
+        response = await self._request_with_retries(
+            request_kwargs, "talk_web_search", user_id, deadline=deadline
+        )
+        if response is None:
+            return None
+        _log_web_searches(response, "talk_web_search")
+        # Spoken, so no URLs: the model adds inline citations as markdown links
+        # ("([fda.gov](https://...))"); keep their labels. The sources follow by name.
+        answer = _MARKDOWN_LINK_RE.sub(lambda m: m.group(1), _response_text(response) or "").strip()
+        if not answer:
+            return None
+        sources = _cited_sources(response)
+        if sources:
+            answer += "\n\nSources: " + "; ".join(sources)
+        return answer
 
     async def categorize_document(
         self,
@@ -1244,7 +1377,7 @@ class OpenAIService:
         response = await self._create_chat_completion(messages, feature="chat", user_id=user_id)
 
         # NOTE: _filter_citation_links is deliberately NOT applied here. It enforces the
-        # four-domain allowlist that the Jargon Translator and Conversation Coach prompts
+        # trusted-domain allowlist that the Jargon Translator and Conversation Coach prompts
         # explicitly instruct the model to follow, so it is a no-op there. General
         # conversation carries no such instruction, so filtering flattened every legitimate
         # link into plain text. Image stripping — the zero-click exfiltration risk — is
@@ -1437,6 +1570,9 @@ The user is now responding to THIS message above. Interpret their response accor
 
         if tool_runner is not None:
             messages.append({"role": "system", "content": ai_config.CHAT_LOOKUP_INSTRUCTIONS})
+        search = web_search_enabled()
+        if search:
+            messages.append({"role": "system", "content": ai_config.WEB_SEARCH_INSTRUCTIONS})
 
         # Explicitly mark the current message as the one to respond to
         messages.append({
@@ -1491,7 +1627,7 @@ The user is now responding to THIS message above. Interpret their response accor
         try:
             response = await self._create_chat_completion(
                 messages, feature="conversation", user_id=user_id, tool_runner=tool_runner,
-                reply_deadline=reply_deadline,
+                reply_deadline=reply_deadline, web_search=search,
             )
         except BadRequestError as e:
             if use_file_url and extracted_text and content_type == "application/pdf" and is_file_processing_error(e):
@@ -1509,6 +1645,7 @@ The user is now responding to THIS message above. Interpret their response accor
                     user_id=user_id,
                     tool_runner=tool_runner,
                     reply_deadline=reply_deadline,
+                    web_search=search,
                 )
             else:
                 # Re-raise if not a file error or no fallback available
@@ -1528,10 +1665,12 @@ The user is now responding to THIS message above. Interpret their response accor
                 user_id=user_id,
                 tool_runner=tool_runner,
                 reply_deadline=reply_deadline,
+                web_search=search,
             )
 
         # NOTE: _filter_citation_links is deliberately NOT applied here — see chat() above.
-        # Conversation context does carry untrusted content (documents, OCR text, audio
+        # The trusted-domain restriction on what chat can search is enforced by the search
+        # tool itself (trusted_web_search_tool). Conversation context does carry untrusted content (documents, OCR text, audio
         # transcripts, collaborator messages), but the exfiltration risk that mattered was
         # markdown images, which fire with no user interaction and are stripped centrally in
         # _create_chat_completion(). A link requires a deliberate tap, and both clients

@@ -51,6 +51,10 @@ class Settings(BaseSettings):
     # Kill switch: set FALSE in the Render dashboard. Not in render.yaml, whose values
     # are re-applied on every Blueprint sync.
     CHAT_TOOLS_ENABLED: bool = True
+    # Chat, Talk, the Jargon Translator and the Conversation Coach may search a fixed list of
+    # trusted health sites (ai_config.TRUSTED_HEALTH_DOMAINS), OpenAI's cached index only.
+    # Kill switch for all four: set FALSE in the Render dashboard (not in render.yaml).
+    WEB_SEARCH_ENABLED: bool = True
 
     # Audio transcription runs as a background job after the upload response
     # (services/audio_transcription_service.py)

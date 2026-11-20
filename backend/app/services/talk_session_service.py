@@ -207,9 +207,11 @@ def build_session_config(
     *, mcp_token: str, input_items: List[dict],
     user_timezone: Optional[str], current_time: Optional[str],
 ) -> dict:
-    from app.services.talk_tools import TOOL_NAMES
+    from app.services.talk_tools import available_tool_names, search_tool_available
 
     backend_instructions = ai_config.TALK_BACKEND_INSTRUCTIONS
+    if not search_tool_available():
+        backend_instructions += "\n" + ai_config.TALK_BACKEND_NO_SEARCH_NOTE
     tz, now_text = sanitize_user_timezone(user_timezone), sanitize_current_time(current_time)
     if now_text or tz:
         backend_instructions += (
@@ -233,7 +235,10 @@ def build_session_config(
             # Confirmation of writes is enforced by the tools themselves (confirm_action),
             # not by an approval round-trip the phone would have to answer.
             "require_approval": "never",
-            "allowed_tools": TOOL_NAMES,
+            # The trusted-source search is one of these MCP tools (talk_tools), not a
+            # hosted web_search here: GPT-Live's delegation config does not document
+            # domain filters, and an ignored filter would mean searching the open web.
+            "allowed_tools": available_tool_names(),
         }]
     else:
         # Local development without a public URL: OpenAI cannot reach the MCP endpoint,

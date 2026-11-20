@@ -245,6 +245,7 @@ def test_chat_route_finds_an_old_entry_and_tells_synthesis(client, db, alice, fa
 
 def test_chat_route_without_lookups_when_switched_off(client, alice, fake_openai, monkeypatch):
     monkeypatch.setattr(settings, "CHAT_TOOLS_ENABLED", False)
+    monkeypatch.setattr(settings, "WEB_SEARCH_ENABLED", True)
     fake = fake_openai(lambda _kwargs, _i: _reply("Plain answer."))
     captured = _capture_synthesis(monkeypatch)
 
@@ -255,10 +256,30 @@ def test_chat_route_without_lookups_when_switched_off(client, alice, fake_openai
 
     assert response.status_code == 200, response.text
     assert len(fake.calls) == 1
-    assert "tools" not in fake.calls[0] and "include" not in fake.calls[0]
+    # No lookups: the only tool left is the trusted-source search (see test_web_search.py).
+    assert fake.calls[0]["tools"] == [service_module.trusted_web_search_tool()]
+    assert "include" not in fake.calls[0]
     assert not any(m.get("content") == ai_config.CHAT_LOOKUP_INSTRUCTIONS
                    for m in fake.calls[0]["input"] if isinstance(m, dict))
     assert captured["restated_records"] is False
+
+
+def test_chat_route_with_lookups_and_search_both_switched_off(client, alice, fake_openai, monkeypatch):
+    monkeypatch.setattr(settings, "CHAT_TOOLS_ENABLED", False)
+    monkeypatch.setattr(settings, "WEB_SEARCH_ENABLED", False)
+    fake = fake_openai(lambda _kwargs, _i: _reply("Plain answer."))
+    _capture_synthesis(monkeypatch)
+
+    response = client.post(
+        "/api/conversation/message", headers=alice.auth_headers(client),
+        json={"content": "What did I write about the pharmacy back then?", "session_id": alice.session_id},
+    )
+
+    assert response.status_code == 200, response.text
+    assert len(fake.calls) == 1
+    assert "tools" not in fake.calls[0] and "include" not in fake.calls[0]
+    assert not any(m.get("content") == ai_config.WEB_SEARCH_INSTRUCTIONS
+                   for m in fake.calls[0]["input"] if isinstance(m, dict))
 
 
 # --- searching a date range --------------------------------------------------
@@ -510,7 +531,7 @@ def test_the_text_fallback_shares_the_replys_time_budget(monkeypatch):
     deadlines = []
 
     async def no_reply(self, messages, feature="unknown", user_id=None, max_output_tokens=None,
-                       tool_runner=None, reply_deadline=None):
+                       tool_runner=None, reply_deadline=None, web_search=False):
         deadlines.append(reply_deadline)
         return None
 

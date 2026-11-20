@@ -437,7 +437,7 @@ Both tools are **publicly accessible** (no authentication required). When authen
 
 Input limits: `medical_term` 200 characters, `context` 4,000, `situation` 8,000. Longer input returns `400` with a readable message.
 
-Responses include citations from approved sources: Mayo Clinic, MedlinePlus/NIH, Cleveland Clinic, CDC.
+Responses include citations from a fixed list of trusted health sites (`TRUSTED_HEALTH_DOMAINS` in `backend/app/config/ai_config.py`: MedlinePlus, the NIH institutes, CDC, FDA, Mayo Clinic, Cleveland Clinic, national patient organizations), found with OpenAI's web search restricted to that list (cached index only). Links to any other site are removed server-side. `WEB_SEARCH_ENABLED=FALSE` turns the search off; the tools then cite from the same list without searching.
 
 ### Jargon Translator
 ```bash

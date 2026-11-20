@@ -8,12 +8,18 @@ so an id alone must never be enough to reach a record.
 Chat uses the read-only tools too (services/chat_tools.py, run in-process with no talk
 row: `talk_id` is None there), under its own allowlist.
 
+search_trusted_sources is the one tool that reaches beyond the care session: a search of
+ai_config.TRUSTED_HEALTH_DOMAINS (OpenAI's cached index, openai_service.search_trusted_sources)
+that is given the question only. It is read-only and offered to Talk alone; chat offers the
+same search as a hosted tool on its own requests.
+
 Writes are two-step. `propose_*` stores the intended change on the call's row and
 returns a read-back; `confirm_action` applies it, and only if the user has been heard
 speaking since the proposal. That check is here, in code, because a prompt instruction
 ("ask before saving") is not a control: a transcribed document or a misheard sentence
 can talk a model into calling a tool.
 """
+import importlib
 import json
 import logging
 import uuid
@@ -36,6 +42,9 @@ from app.schemas.profile import PendingChange, ProfileData
 from app.services.openai_service import _strip_markdown_images, sanitize_user_timezone, wrap_untrusted
 
 logger = logging.getLogger(__name__)
+
+# The module (app.services re-exports the OpenAIService instance under the same name).
+_openai = importlib.import_module("app.services.openai_service")
 
 # The user must be heard at least this long after a proposal for it to count as their
 # answer (the tail of the request that triggered the proposal is not a "yes").
@@ -92,12 +101,12 @@ def local_date(user_timezone: Optional[str], at: Optional[datetime] = None) -> d
 # Helpers
 # ---------------------------------------------------------------------------
 
-def _records(text: str) -> str:
-    """Care-session content going back to the model: sanitised, bounded, marked as data."""
+def _records(text: str, source: str = "care_session_records") -> str:
+    """Content going back to the model: sanitised, bounded, marked as data."""
     cleaned = _strip_markdown_images(text or "")
     if len(cleaned) > MAX_TOOL_OUTPUT_CHARS:
         cleaned = cleaned[:MAX_TOOL_OUTPUT_CHARS] + "\n[truncated - ask for something more specific]"
-    return wrap_untrusted(cleaned, "care_session_records")
+    return wrap_untrusted(cleaned, source)
 
 
 def _clip(text: Optional[str], limit: int) -> str:
@@ -335,6 +344,27 @@ async def _get_recent_chat(ctx: ToolContext, args: dict) -> str:
     return _records("\n\n".join(
         f"{m.created_at.date().isoformat()} {m.role.value}: {_clip(m.content, 1200)}" for m in reversed(rows)
     ))
+
+
+SEARCH_TOOL_NAME = "search_trusted_sources"
+MAX_SEARCH_QUESTION_CHARS = 500
+
+
+def search_tool_available() -> bool:
+    return _openai.web_search_enabled()
+
+
+async def _search_trusted_sources(ctx: ToolContext, args: dict) -> str:
+    if not search_tool_available():
+        raise ToolError("Trusted-source search is turned off.")
+    question = _str_arg(args, "question", required=True, max_len=2_000)[:MAX_SEARCH_QUESTION_CHARS]
+    # Nothing below touches the database: hand the request's pooled connection back
+    # instead of holding it idle-in-transaction through the search.
+    ctx.db.rollback()
+    answer = await _openai.openai_service.search_trusted_sources(question, user_id=ctx.user_id)
+    if not answer:
+        raise ToolError("The trusted-source search isn't available right now.")
+    return _records(answer, "trusted_health_sources")
 
 
 # ---------------------------------------------------------------------------
@@ -701,6 +731,14 @@ TOOLS: Dict[str, tuple] = {
         "The most recent typed chat messages in this care session.",
         _schema({"limit": {"type": "integer", "minimum": 1, "maximum": 40}}), _get_recent_chat, True,
     ),
+    SEARCH_TOOL_NAME: (
+        "Search a fixed list of trusted health websites (MedlinePlus, the NIH institutes, CDC, FDA, "
+        "Mayo Clinic, Cleveland Clinic, national patient organizations) and get a short answer that "
+        "names its source. For general questions only: side effects as listed, warning signs, recalls "
+        "and safety notices, current guidance. Ask the general question; never include names or other "
+        "identifying details. Takes several seconds.",
+        _schema({"question": {"type": "string"}}, ["question"]), _search_trusted_sources, True,
+    ),
     "propose_journal_entry": (
         "Step 1 of saving a new journal entry. Saves nothing; returns an action_id and a read-back.",
         _schema(
@@ -760,6 +798,13 @@ TOOLS: Dict[str, tuple] = {
 TOOL_NAMES = list(TOOLS)
 
 
+def available_tool_names() -> List[str]:
+    """TOOL_NAMES, less the trusted-source search while WEB_SEARCH_ENABLED is off."""
+    if search_tool_available():
+        return list(TOOL_NAMES)
+    return [name for name in TOOL_NAMES if name != SEARCH_TOOL_NAME]
+
+
 def list_tool_definitions() -> List[dict]:
     """MCP `tools/list` payload."""
     return [
@@ -770,6 +815,7 @@ def list_tool_definitions() -> List[dict]:
             "annotations": {"readOnlyHint": read_only},
         }
         for name, (description, schema, _handler, read_only) in TOOLS.items()
+        if name in available_tool_names()
     ]
 
 
