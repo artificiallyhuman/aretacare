@@ -443,6 +443,8 @@ class EmailCampaignRecipientStatus(BaseModel):
     name: Optional[str] = None
     status: str  # pending | sent | failed | skipped
     error: Optional[str] = None
+    error_detail: Optional[str] = None  # the mail server's reply behind a failure
+    retryable: bool = False  # "Retry failed" would send this one again (server's rule; see RETRYABLE_RECIPIENT_ERRORS)
     sent_at: Optional[datetime] = None
 
     class Config:
@@ -462,6 +464,7 @@ class EmailCampaignStatus(BaseModel):
     created_at: datetime
     started_at: Optional[datetime] = None
     completed_at: Optional[datetime] = None
+    paused_until: Optional[datetime] = None  # waiting out a mail-server rate limit until then
     recipients: Optional[List[EmailCampaignRecipientStatus]] = None
 
 

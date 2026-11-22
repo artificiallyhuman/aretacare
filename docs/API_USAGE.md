@@ -176,8 +176,8 @@ require step-up: `POST /admin/users/{id}/reset-password`, `POST /admin/users/{id
 `DELETE /admin/users/{id}`, `POST /admin/users/{id}/tokens/revoke-all`,
 `DELETE /admin/tokens/{id}`, `POST /admin/sessions/{id}/transfer`,
 `DELETE /admin/sessions/{id}`, `DELETE /admin/s3/orphans`,
-`POST /admin/accounts/inactive/email`, `POST /admin/email/campaigns` (create and
-`/resume`), and `POST /admin/notices` (publish and `/end`). They return the same
+`POST /admin/accounts/inactive/email`, `POST /admin/email/campaigns` (create,
+`/resume` and `/retry`), and `POST /admin/notices` (publish and `/end`). They return the same
 `403 MFA_REQUIRED` shape without a token.
 
 Clients that understand `MFA_REQUIRED` never surface the message — they present their
@@ -594,6 +594,7 @@ POST /api/admin/email/campaigns                # Create + start sending in the b
 GET  /api/admin/email/campaigns                # Campaign history (page, limit)
 GET  /api/admin/email/campaigns/{id}           # Status polling. ?include_recipients=true for per-recipient outcomes
 POST /api/admin/email/campaigns/{id}/resume    # Resume a campaign stalled by a deploy/restart. Returns 202.
+POST /api/admin/email/campaigns/{id}/retry     # Re-send a finished campaign to its retryable failures. Returns 202.
 ```
 
 Create body: `{"subject": "...", "body_html": "<p>...</p>", "user_ids": ["..."]}`.
@@ -604,7 +605,16 @@ Rate limited: 20/hour (Admin Email).
 
 Campaign `status`: `pending | sending | stalled | completed | completed_with_errors | failed`
 (`stalled` = the sending instance died; resume finishes only pending recipients — sent ones
-are never re-emailed).
+are never re-emailed). While a send waits out a mail-server rate limit, `paused_until` says
+when it tries again.
+
+Recipient outcomes (`include_recipients=true`): `status` is `sent | failed | skipped`, `error`
+the reason (`smtp_throttled`, `smtp_auth_failed`, `smtp_rejected`, `recipient_rejected`,
+`interrupted`, `unsubscribed`, `user_deleted`, `user_ineligible`, `smtp_not_configured`;
+failures recorded before `/retry` existed say `smtp_send_failed` and are never retried),
+`error_detail` the mail server's reply, and `retryable` whether `/retry` would send to it again. `/retry` is allowed on a `completed_with_errors` or
+`failed` campaign: 409 while it or another campaign is sending (a `stalled` one needs
+`/resume`), 400 when nothing can be retried. Step-up gated and rate limited like create.
 
 ## In-App Notice
 
@@ -676,7 +686,7 @@ Error format: `{"detail": "Error message"}`
 | Waitlist | 5/hour |
 | Admin Destructive | 5/hour (delete user, delete session, S3 cleanup) |
 | Admin Sensitive | 10/hour (reset password, reset MFA, transfer) |
-| Admin Email | 20/hour (invitations, notifications, campaign create/resume) |
+| Admin Email | 20/hour (invitations, notifications, campaign create/resume/retry) |
 | Unsubscribe | 20/minute (public unsubscribe endpoints) |
 | General API | 100/minute |
 

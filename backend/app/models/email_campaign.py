@@ -37,6 +37,9 @@ class EmailCampaign(Base):
     started_at = Column(DateTime, nullable=True)
     updated_at = Column(DateTime, nullable=False, default=datetime.utcnow)
     completed_at = Column(DateTime, nullable=True)
+    # Set while the job waits out a temporary SMTP refusal (rate limit) before
+    # trying the same recipient again; the admin panel shows when it resumes.
+    paused_until = Column(DateTime, nullable=True)
 
 
 class EmailCampaignRecipient(Base):
@@ -56,6 +59,11 @@ class EmailCampaignRecipient(Base):
 
     # pending | sending (in-flight, claimed atomically) | sent | failed | skipped
     status = Column(String(20), nullable=False, default="pending")
-    # smtp_send_failed | interrupted | unsubscribed | user_deleted | user_ineligible | smtp_not_configured
+    # failed: smtp_throttled | smtp_auth_failed | smtp_rejected | recipient_rejected |
+    #         interrupted | smtp_send_failed (rows from before Retry existed; never retried)
+    # skipped: unsubscribed | user_deleted | user_ineligible | smtp_not_configured
+    # Which failures "Retry failed" re-queues: email_campaign_service.RETRYABLE_RECIPIENT_ERRORS.
     error = Column(String, nullable=True)
+    # The mail server's reply behind a failure, e.g. "454 4.7.0 Too many login attempts".
+    error_detail = Column(String(300), nullable=True)
     sent_at = Column(DateTime, nullable=True)

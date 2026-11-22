@@ -66,6 +66,25 @@ transactional email** (verification, password reset, security, collaboration).
 - Sending runs as a background job (Cloudflare would 524 a long synchronous send); progress
   is polled by the admin UI, and a campaign interrupted by a deploy shows as `stalled` with
   a Resume action that never re-emails already-sent recipients.
+- **Delivery and rate limits**: one SMTP connection carries the whole send (a new login
+  every 50 messages) and emails go out 1 second apart. Logging in to Gmail once per email
+  got the account throttled partway through a list (`421 4.7.0` / `454 4.7.0` replies).
+  If the server still asks to slow down, the job waits and tries the same person again
+  (up to ~7.5 minutes; the admin panel shows when it resumes). If that doesn't clear, or
+  the server refuses the login, quota or message, the send stops and everyone not yet
+  emailed is marked failed with the reason. The server's reply is shown next to each
+  failed recipient.
+- **Retry failed**: a finished campaign with failures shows a "Retry N failed" button that
+  re-sends only to recipients whose failure can be retried (rate limits, sign-in, server
+  refusals). It never re-sends to anyone already emailed, an address the receiving server
+  refused, a send interrupted mid-delivery (that email may already have gone out), or a
+  failure recorded before Retry existed (those were re-sent by hand). Those rows are greyed
+  out in the panel with the reason.
+  Unsubscribes and deactivations are re-checked as each email goes out.
+- **If Gmail keeps throttling**: switch campaigns to Google Workspace's SMTP relay
+  (`smtp-relay.gmail.com`, enabled in the Admin console under Gmail → Routing, built for
+  application mail) or to a dedicated sending service such as Amazon SES or Postmark
+  (settings under "Alternative Email Providers" below).
 - **Deliverability note**: campaigns share `SMTP_FROM_EMAIL` with transactional mail. Fine at
   waitlist scale; if volume grows, consider a separate From address or an ESP so a
   spam-flagged campaign can't drag down transactional deliverability.
@@ -192,9 +211,10 @@ All emails include:
 
 ## Troubleshooting
 
-### "SMTP Authentication failed"
+### "SMTP send failed (auth)"
 
-**Problem:** Backend logs show SMTP authentication error
+**Problem:** Backend logs show an SMTP authentication error (`SMTP send failed (auth): 535 …`),
+or a campaign's recipients show "Mail server sign-in failed"
 
 **Solutions:**
 1. Verify 2-Step Verification is enabled on your Gmail account

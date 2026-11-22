@@ -173,7 +173,7 @@ Password reset has a second, per-account throttle (see Security Logging) layered
 | Feedback | 3/hour |
 | Admin Destructive | 5/hour (delete user, delete care session, S3 cleanup) |
 | Admin Sensitive | 10/hour (reset password, reset MFA, transfer) |
-| Admin Email | 20/hour (invitations, notifications, campaign create/resume) |
+| Admin Email | 20/hour (invitations, notifications, campaign create/resume/retry) |
 | Unsubscribe | 20/minute (public unsubscribe endpoints — the 256-bit per-user token is the real control) |
 | General API | 100/minute |
 
@@ -221,7 +221,7 @@ Unauthorized access attempts are logged.
 
 Email must be in `ADMIN_EMAILS` env var and the account's email must be verified. Frontend always verifies with server (no client-side caching).
 
-**Step-up for destructive actions.** When the admin has MFA enabled, these routes require a fresh `X-MFA-Action-Token` (same flow as Sensitive Action Protection): reset a user's password, reset a user's MFA, delete a user, revoke a user's tokens, transfer or delete a care session, delete orphaned S3 files, send inactive-account emails, and create or resume an email campaign. Setting `ADMIN_REQUIRE_MFA=TRUE` makes MFA mandatory for all admin access. The web client handles `MFA_REQUIRED` globally: it opens the verification dialog and replays the request with the token.
+**Step-up for destructive actions.** When the admin has MFA enabled, these routes require a fresh `X-MFA-Action-Token` (same flow as Sensitive Action Protection): reset a user's password, reset a user's MFA, delete a user, revoke a user's tokens, transfer or delete a care session, delete orphaned S3 files, send inactive-account emails, and create, resume or retry an email campaign. Setting `ADMIN_REQUIRE_MFA=TRUE` makes MFA mandatory for all admin access. The web client handles `MFA_REQUIRED` globally: it opens the verification dialog and replays the request with the token.
 
 **User Management Capabilities:**
 - Search users by email

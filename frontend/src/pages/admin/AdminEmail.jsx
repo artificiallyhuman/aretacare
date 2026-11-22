@@ -170,8 +170,23 @@ function FeatureMultiSelect({ label, hint, options, selected, onChange }) {
   );
 }
 
+// Why a failed recipient is left out of "Retry failed" (the server decides which are;
+// this only words it).
+const NOT_RETRIED_REASONS = {
+  smtp_send_failed: 'failed before Retry existed (already handled)',
+  interrupted: 'may already have been delivered',
+  recipient_rejected: "this address doesn't accept mail",
+};
+
+// Backend timestamps are naive UTC.
+const utcDate = (ts) => new Date(ts.endsWith('Z') ? ts : `${ts}Z`);
+
 const RECIPIENT_ERROR_LABELS = {
   smtp_send_failed: 'Send failed',
+  smtp_throttled: 'Mail server rate limit or outage',
+  smtp_auth_failed: 'Mail server sign-in failed',
+  smtp_rejected: 'Refused by our mail server',
+  recipient_rejected: 'Address refused',
   interrupted: 'Interrupted mid-send',
   unsubscribed: 'Unsubscribed before send',
   user_deleted: 'Account deleted',
@@ -210,6 +225,7 @@ export default function AdminEmail() {
   const [campaignId, setCampaignId] = useState(null);
   const [campaign, setCampaign] = useState(null);
   const [pollNonce, setPollNonce] = useState(0);
+  const [retrying, setRetrying] = useState(false);
 
   // History
   const [campaigns, setCampaigns] = useState([]);
@@ -412,6 +428,19 @@ export default function AdminEmail() {
       setPollNonce((n) => n + 1);
     } catch (err) {
       setError(apiErrorMessage(err, 'Failed to resume campaign'));
+    }
+  };
+
+  const handleRetryFailed = async () => {
+    setError('');
+    setRetrying(true);
+    try {
+      await adminAPI.retryEmailCampaign(campaignId);
+      setPollNonce((n) => n + 1);
+    } catch (err) {
+      setError(apiErrorMessage(err, 'Failed to retry the failed recipients'));
+    } finally {
+      setRetrying(false);
     }
   };
 
@@ -915,6 +944,37 @@ export default function AdminEmail() {
     const problemRecipients = (campaign.recipients || []).filter(
       (r) => r.status === 'failed' || r.status === 'skipped'
     );
+    // Rows a crashed send left pending are picked up by a retry too.
+    const retryableCount = (campaign.recipients || []).filter(
+      (r) => r.retryable || r.status === 'pending'
+    ).length;
+    const hasFailures = problemRecipients.some((r) => r.status === 'failed');
+    const pausedUntil = campaign.paused_until ? utcDate(campaign.paused_until) : null;
+    const isPaused = !isTerminal && pausedUntil && pausedUntil > new Date();
+    let retryButton = null;
+    if (retryableCount > 0) {
+      retryButton = (
+        <button
+          onClick={handleRetryFailed}
+          disabled={retrying}
+          className="px-3 py-1.5 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50 text-sm font-medium whitespace-nowrap"
+        >
+          {retrying ? 'Retrying...' : `Retry ${retryableCount} failed`}
+        </button>
+      );
+    } else if (hasFailures) {
+      retryButton = (
+        <button
+          disabled
+          title="None of these failures can be retried. The reason is shown next to each one below."
+          className="px-3 py-1.5 bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400 rounded-lg text-sm font-medium whitespace-nowrap cursor-not-allowed"
+        >
+          Retry failed
+        </button>
+      );
+    }
+    const noRetryNote = hasFailures && retryableCount === 0
+      && ' None of the failures can be retried; the reason is shown next to each one.';
 
     return (
       <div className="space-y-4">
@@ -956,14 +1016,25 @@ export default function AdminEmail() {
             </div>
           )}
           {campaign.status === 'completed_with_errors' && (
-            <div className="bg-orange-50 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300 px-4 py-3 rounded-lg text-sm">
-              Finished with issues: {campaign.sent_count} sent, {campaign.failed_count} failed,{' '}
-              {campaign.skipped_count} skipped. Details below.
+            <div className="bg-orange-50 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300 px-4 py-3 rounded-lg text-sm flex items-center justify-between gap-3">
+              <span>
+                Finished with issues: {campaign.sent_count} sent, {campaign.failed_count} failed,{' '}
+                {campaign.skipped_count} skipped. Details below.
+                {retryableCount > 0 && ' Retry emails only the failed recipients; no one who already got it is emailed again.'}
+                {noRetryNote}
+              </span>
+              {retryButton}
             </div>
           )}
           {campaign.status === 'failed' && (
-            <div className="bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-300 px-4 py-3 rounded-lg text-sm">
-              The send failed — no emails were delivered. Check the backend logs.
+            <div className="bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-300 px-4 py-3 rounded-lg text-sm flex items-center justify-between gap-3">
+              <span>
+                The send failed — no emails were delivered. See the reasons below (or the backend
+                logs if none are listed).
+                {retryableCount > 0 && ' Once the cause is fixed, retry.'}
+                {noRetryNote}
+              </span>
+              {retryButton}
             </div>
           )}
           {campaign.status === 'stalled' && (
@@ -980,7 +1051,13 @@ export default function AdminEmail() {
               </button>
             </div>
           )}
-          {!isTerminal && (
+          {isPaused && (
+            <div className="bg-yellow-50 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300 px-4 py-3 rounded-lg text-sm">
+              The mail server asked us to slow down. Sending resumes at{' '}
+              {pausedUntil.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', second: '2-digit' })}.
+            </div>
+          )}
+          {!isTerminal && !isPaused && (
             <p className="text-sm text-gray-500 dark:text-gray-400">
               Sending in the background — you can stay on this page to watch progress.
             </p>
@@ -998,17 +1075,29 @@ export default function AdminEmail() {
             <div className="overflow-x-auto">
               <table className="w-full min-w-[500px]">
                 <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                  {problemRecipients.map((r) => (
-                    <tr key={`${r.email}-${r.user_id || ''}`}>
-                      <td className="px-4 py-2">
-                        <p className="text-sm font-medium text-gray-900 dark:text-white">{r.name || '—'}</p>
-                        <p className="text-sm text-gray-500 dark:text-gray-400">{r.email}</p>
-                      </td>
-                      <td className="px-4 py-2 text-sm text-gray-600 dark:text-gray-400">
-                        {RECIPIENT_ERROR_LABELS[r.error] || r.error || r.status}
-                      </td>
-                    </tr>
-                  ))}
+                  {problemRecipients.map((r) => {
+                    // Failed but left out of Retry: greyed, with the reason.
+                    const notRetried = r.status === 'failed' && !r.retryable;
+                    return (
+                      <tr key={`${r.email}-${r.user_id || ''}`} className={notRetried ? 'opacity-60' : ''}>
+                        <td className="px-4 py-2">
+                          <p className="text-sm font-medium text-gray-900 dark:text-white">{r.name || '—'}</p>
+                          <p className="text-sm text-gray-500 dark:text-gray-400">{r.email}</p>
+                        </td>
+                        <td className="px-4 py-2 text-sm text-gray-600 dark:text-gray-400">
+                          <p>{RECIPIENT_ERROR_LABELS[r.error] || r.error || r.status}</p>
+                          {r.error_detail && (
+                            <p className="text-xs text-gray-400 dark:text-gray-500 break-words">{r.error_detail}</p>
+                          )}
+                          {notRetried && (
+                            <p className="text-xs italic text-gray-500 dark:text-gray-400">
+                              Not retried: {NOT_RETRIED_REASONS[r.error] || "this failure can't be retried"}
+                            </p>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>

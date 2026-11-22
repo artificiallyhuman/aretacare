@@ -2608,6 +2608,34 @@ def run_migrations():
                 logger.error(f"Failed to clear updated_at on assistant messages: {e}")
                 conn.rollback()
 
+        # Campaign sends record the mail server's reply on a failed recipient
+        # (error_detail) and when a rate-limited send will try again (paused_until).
+        # Must stay after create_email_campaigns_tables. Guarded by both the column
+        # inspector and IF NOT EXISTS, same as add_users_email_campaign_fields.
+        migration_name = "add_email_campaign_retry_fields"
+        if not has_migration_run(conn, migration_name):
+            try:
+                recipient_columns = [
+                    col['name'] for col in inspect(engine).get_columns('email_campaign_recipients')
+                ]
+                if 'error_detail' not in recipient_columns:
+                    conn.execute(text(
+                        "ALTER TABLE email_campaign_recipients "
+                        "ADD COLUMN IF NOT EXISTS error_detail VARCHAR(300) NULL"
+                    ))
+                    conn.commit()
+                campaign_columns = [col['name'] for col in inspect(engine).get_columns('email_campaigns')]
+                if 'paused_until' not in campaign_columns:
+                    conn.execute(text(
+                        "ALTER TABLE email_campaigns ADD COLUMN IF NOT EXISTS paused_until TIMESTAMP NULL"
+                    ))
+                    conn.commit()
+                mark_migration_complete(conn, migration_name)
+                logger.info("Added email campaign error_detail / paused_until")
+            except Exception as e:
+                logger.error(f"Failed to add email campaign retry fields: {e}")
+                conn.rollback()
+
         # Emails are matched without regard to case (core/email_address.py): lookups compare
         # lower(users.email), so index that expression. Not unique: accounts created before
         # normalization may differ only by case, and the unique index on users.email is

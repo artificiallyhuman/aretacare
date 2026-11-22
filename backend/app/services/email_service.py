@@ -61,16 +61,136 @@ EMAIL_RETRY_DELAY = 1  # Initial delay in seconds
 EMAIL_MAX_RETRY_DELAY = 8  # Max delay between retries
 EMAIL_SMTP_TIMEOUT = 30  # SMTP connection timeout in seconds
 
-# Retryable SMTP exceptions (transient failures)
-RETRYABLE_SMTP_EXCEPTIONS = (
-    smtplib.SMTPServerDisconnected,
-    smtplib.SMTPConnectError,
-    smtplib.SMTPHeloError,
-    smtplib.SMTPDataError,
-    TimeoutError,
-    ConnectionError,
-    OSError,
-)
+# What a failed send means for the next attempt (classify_smtp_error).
+SMTP_TEMPORARY = "temporary"  # 4xx reply, dropped connection, timeout: try again later
+SMTP_AUTH = "auth"            # the server refused our credentials
+SMTP_RECIPIENT = "recipient"  # this address was refused; others may still work
+SMTP_PERMANENT = "permanent"  # any other refusal (quota, content, sender)
+
+SMTP_ERROR_DETAIL_MAX = 300
+
+
+def _smtp_reply_text(code, reply) -> str:
+    """One header-safe line from an SMTP reply, e.g. '454 4.7.0 Too many login attempts'."""
+    if isinstance(reply, bytes):
+        reply = reply.decode("utf-8", errors="replace")
+    text = f"{code} {reply}" if isinstance(code, int) and code > 0 else str(reply)
+    return _safe_header(text, SMTP_ERROR_DETAIL_MAX)
+
+
+def classify_smtp_error(exc: BaseException) -> tuple:
+    """Return (kind, detail) for an exception raised while sending.
+
+    Keyed on the reply code, not the exception class: smtplib.SMTPException
+    subclasses OSError, so catching OSError as "transient" used to swallow
+    every SMTP error, permanent refusals included. A 4xx is temporary whatever
+    raised it (Gmail's throttle arrives as "421 4.7.0 Try again later" on
+    connect or "454 4.7.0 Too many login attempts" as an auth error).
+    """
+    if isinstance(exc, smtplib.SMTPRecipientsRefused):
+        replies = list(exc.recipients.values())
+        detail = _smtp_reply_text(*replies[0]) if replies else "Recipient refused"
+        if replies and all(400 <= code < 500 for code, _ in replies):
+            return SMTP_TEMPORARY, detail
+        return SMTP_RECIPIENT, detail
+    if isinstance(exc, smtplib.SMTPResponseException):
+        code = exc.smtp_code
+        detail = _smtp_reply_text(code, exc.smtp_error)
+        if not isinstance(code, int) or code < 500 or code >= 600:
+            # 4xx, or no usable code (connection dropped mid-reply).
+            return SMTP_TEMPORARY, detail
+        if isinstance(exc, smtplib.SMTPAuthenticationError) or code in (534, 535):
+            return SMTP_AUTH, detail
+        return SMTP_PERMANENT, detail
+    detail = _safe_header(f"{type(exc).__name__}: {exc}", SMTP_ERROR_DETAIL_MAX)
+    if isinstance(exc, smtplib.SMTPServerDisconnected):
+        return SMTP_TEMPORARY, detail
+    if isinstance(exc, ssl.SSLCertVerificationError):
+        return SMTP_PERMANENT, detail
+    if isinstance(exc, smtplib.SMTPException):
+        # SMTPNotSupportedError and the like: retrying changes nothing.
+        return SMTP_PERMANENT, detail
+    if isinstance(exc, OSError):  # timeouts, refused/reset connections, DNS
+        return SMTP_TEMPORARY, detail
+    return SMTP_PERMANENT, detail
+
+
+def _open_smtp_connection() -> smtplib.SMTP:
+    """Connect, STARTTLS and log in; the caller owns closing it."""
+    server = smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT, timeout=EMAIL_SMTP_TIMEOUT)
+    try:
+        # Verify the server certificate and hostname; the default
+        # (no context) accepts any certificate.
+        server.starttls(context=ssl.create_default_context())
+        server.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
+    except BaseException:
+        _close_quietly(server)
+        raise
+    return server
+
+
+def _close_quietly(server: smtplib.SMTP) -> None:
+    """QUIT, or just drop the socket. Never raises: a message the server
+    already accepted must not look failed (and be sent again) because the
+    goodbye went wrong."""
+    try:
+        server.quit()
+    except Exception:
+        try:
+            server.close()
+        except Exception:
+            pass
+
+
+class SMTPMailer:
+    """One authenticated SMTP connection reused across many messages.
+
+    For bulk sends (admin campaigns). Opening a connection and logging in for
+    every message is what gets a Gmail account throttled partway through a
+    list; this logs in once per `max_messages_per_connection` messages.
+
+    send() raises the smtplib exception on failure; the caller decides what to
+    do with it (classify_smtp_error). After any failure except a plain
+    recipient refusal the connection is dropped and the next send opens a
+    fresh one: after a 421 the server has already hung up.
+    """
+
+    def __init__(self, max_messages_per_connection: int = 50):
+        self.max_messages_per_connection = max_messages_per_connection
+        self._server: Optional[smtplib.SMTP] = None
+        self._sent_on_connection = 0
+
+    def __enter__(self) -> "SMTPMailer":
+        return self
+
+    def __exit__(self, *exc_info) -> bool:
+        self.close()
+        return False
+
+    def send(self, message) -> None:
+        if self._server is not None and self._sent_on_connection >= self.max_messages_per_connection:
+            self.close()
+        if self._server is None:
+            self._server = _open_smtp_connection()
+            self._sent_on_connection = 0
+        try:
+            self._server.send_message(message)
+        except Exception as exc:
+            # smtplib RSETs after refusing every recipient, so the connection
+            # is still good for the next address; anything else is not.
+            keep = (
+                isinstance(exc, smtplib.SMTPRecipientsRefused)
+                and classify_smtp_error(exc)[0] == SMTP_RECIPIENT
+            )
+            if not keep:
+                self.close()
+            raise
+        self._sent_on_connection += 1
+
+    def close(self) -> None:
+        if self._server is not None:
+            server, self._server = self._server, None
+            _close_quietly(server)
 
 
 class EmailService:
@@ -79,56 +199,35 @@ class EmailService:
     @staticmethod
     def _send_with_retry(message: MIMEMultipart) -> bool:
         """
-        Send email with exponential backoff retry for transient failures.
+        Send email with exponential backoff retry for temporary failures
+        (4xx replies, dropped connections, timeouts). Permanent refusals are
+        not retried.
 
         Returns:
             bool: True if email sent successfully, False otherwise
         """
-        last_exception = None
-
         for attempt in range(EMAIL_MAX_RETRIES):
             try:
-                with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT, timeout=EMAIL_SMTP_TIMEOUT) as server:
-                    # Verify the server certificate and hostname; the default
-                    # (no context) accepts any certificate.
-                    server.starttls(context=ssl.create_default_context())
-                    server.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
+                server = _open_smtp_connection()
+                try:
                     server.send_message(message)
+                finally:
+                    _close_quietly(server)
                 return True
-
-            except RETRYABLE_SMTP_EXCEPTIONS as e:
-                last_exception = e
-                retry_delay = min(
-                    EMAIL_RETRY_DELAY * (2 ** attempt),
-                    EMAIL_MAX_RETRY_DELAY
-                )
-
+            except Exception as e:
+                kind, detail = classify_smtp_error(e)
+                if kind != SMTP_TEMPORARY:
+                    logger.error(f"SMTP send failed ({kind}): {detail}")
+                    return False
                 if attempt < EMAIL_MAX_RETRIES - 1:
+                    retry_delay = min(EMAIL_RETRY_DELAY * (2 ** attempt), EMAIL_MAX_RETRY_DELAY)
                     logger.warning(
-                        f"SMTP transient error (attempt {attempt + 1}/{EMAIL_MAX_RETRIES}): {type(e).__name__}. "
+                        f"SMTP transient error (attempt {attempt + 1}/{EMAIL_MAX_RETRIES}): {detail}. "
                         f"Retrying in {retry_delay}s..."
                     )
                     time.sleep(retry_delay)
-                    continue
                 else:
-                    logger.error(f"SMTP failed after {EMAIL_MAX_RETRIES} attempts: {last_exception}")
-                    return False
-
-            except smtplib.SMTPAuthenticationError as e:
-                logger.error(f"SMTP Authentication failed: {str(e)}")
-                return False
-
-            except smtplib.SMTPRecipientsRefused as e:
-                logger.error(f"SMTP recipients refused: {str(e)}")
-                return False
-
-            except smtplib.SMTPException as e:
-                logger.error(f"SMTP error sending email: {str(e)}")
-                return False
-
-            except Exception as e:
-                logger.error(f"Unexpected error sending email: {str(e)}")
-                return False
+                    logger.error(f"SMTP failed after {EMAIL_MAX_RETRIES} attempts: {detail}")
 
         return False
 
@@ -3422,7 +3521,7 @@ This is an automated security alert from AretaCare.
             return False
 
     @staticmethod
-    def send_admin_campaign_email(
+    def build_admin_campaign_message(
         to_email: str,
         user_name: str,
         subject: str,
@@ -3430,9 +3529,10 @@ This is an automated security alert from AretaCare.
         body_text: str,
         unsubscribe_url: str,
         one_click_url: Optional[str] = None,
-    ) -> bool:
+    ) -> MIMEMultipart:
         """
-        Send one admin product-update campaign email.
+        Build one admin product-update campaign email. The campaign job sends
+        it over a shared SMTPMailer connection (email_campaign_service).
 
         Args:
             to_email: Recipient email address
@@ -3445,40 +3545,36 @@ This is an automated security alert from AretaCare.
             unsubscribe_url: Per-user frontend unsubscribe page link
             one_click_url: Per-user RFC 8058 one-click API endpoint, or None
                 when API_PUBLIC_URL is unset
-
-        Returns:
-            bool: True if email sent successfully, False otherwise
         """
-        try:
-            message = MIMEMultipart("alternative")
-            message["Subject"] = _safe_header(subject, 150)
-            message["From"] = _safe_header(f"{settings.SMTP_FROM_NAME} <{settings.SMTP_FROM_EMAIL}>")
-            message["To"] = _safe_header(to_email)
-            EmailService._add_deliverability_headers(message)
+        message = MIMEMultipart("alternative")
+        message["Subject"] = _safe_header(subject, 150)
+        message["From"] = _safe_header(f"{settings.SMTP_FROM_NAME} <{settings.SMTP_FROM_EMAIL}>")
+        message["To"] = _safe_header(to_email)
+        EmailService._add_deliverability_headers(message)
 
-            # List-Unsubscribe improves deliverability and lets providers show
-            # a native unsubscribe control. The one-click Post header must point
-            # at the API — providers POST to it, which the static frontend
-            # cannot process — so without API_PUBLIC_URL we send the plain
-            # RFC 2369 header only.
-            if one_click_url:
-                message["List-Unsubscribe"] = f"<{one_click_url}>"
-                message["List-Unsubscribe-Post"] = "List-Unsubscribe=One-Click"
-            else:
-                message["List-Unsubscribe"] = f"<{unsubscribe_url}>"
+        # List-Unsubscribe improves deliverability and lets providers show
+        # a native unsubscribe control. The one-click Post header must point
+        # at the API — providers POST to it, which the static frontend
+        # cannot process — so without API_PUBLIC_URL we send the plain
+        # RFC 2369 header only.
+        if one_click_url:
+            message["List-Unsubscribe"] = f"<{one_click_url}>"
+            message["List-Unsubscribe-Post"] = "List-Unsubscribe=One-Click"
+        else:
+            message["List-Unsubscribe"] = f"<{unsubscribe_url}>"
 
-            html_greeting = f"Hi {_h(user_name)}," if user_name else "Hi,"
-            text_greeting = f"Hi {user_name}," if user_name else "Hi,"
+        html_greeting = f"Hi {_h(user_name)}," if user_name else "Hi,"
+        text_greeting = f"Hi {user_name}," if user_name else "Hi,"
 
-            # Address line only when configured (a PO box / registered commercial
-            # mailbox satisfies CAN-SPAM; empty means omit the line).
-            text_address = f"\n{settings.COMPANY_POSTAL_ADDRESS}" if settings.COMPANY_POSTAL_ADDRESS else ""
-            html_address = (
-                f"<br>{_h(settings.COMPANY_POSTAL_ADDRESS)}"
-                if settings.COMPANY_POSTAL_ADDRESS else ""
-            )
+        # Address line only when configured (a PO box / registered commercial
+        # mailbox satisfies CAN-SPAM; empty means omit the line).
+        text_address = f"\n{settings.COMPANY_POSTAL_ADDRESS}" if settings.COMPANY_POSTAL_ADDRESS else ""
+        html_address = (
+            f"<br>{_h(settings.COMPANY_POSTAL_ADDRESS)}"
+            if settings.COMPANY_POSTAL_ADDRESS else ""
+        )
 
-            text_content = f"""{text_greeting}
+        text_content = f"""{text_greeting}
 
 {body_text}
 
@@ -3487,10 +3583,10 @@ You're receiving this email because you have an AretaCare account.
 Unsubscribe from product updates: {unsubscribe_url}{text_address}
 """
 
-            # body_html is interpolated UNESCAPED by design: it was sanitized
-            # with an allowlist upstream (sanitize_campaign_html) before being
-            # stored on the campaign row.
-            html_content = f"""
+        # body_html is interpolated UNESCAPED by design: it was sanitized
+        # with an allowlist upstream (sanitize_campaign_html) before being
+        # stored on the campaign row.
+        html_content = f"""
 <!DOCTYPE html>
 <html>
 <head>
@@ -3535,24 +3631,9 @@ Unsubscribe from product updates: {unsubscribe_url}{text_address}
 </html>
             """
 
-            part1 = MIMEText(text_content, "plain")
-            part2 = MIMEText(html_content, "html")
-            message.attach(part1)
-            message.attach(part2)
-
-            if not settings.SMTP_PASSWORD:
-                logger.warning("SMTP_PASSWORD not configured. Campaign email not sent. Using development mode.")
-                logger.info(f"Development mode: campaign email to {to_email}; unsubscribe: {unsubscribe_url}")
-                return False
-
-            if EmailService._send_with_retry(message):
-                logger.info(f"Campaign email sent successfully to {to_email}")
-                return True
-            return False
-
-        except Exception as e:
-            logger.error(f"Unexpected error preparing campaign email: {str(e)}")
-            return False
+        message.attach(MIMEText(text_content, "plain"))
+        message.attach(MIMEText(html_content, "html"))
+        return message
 
 
 # Global instance

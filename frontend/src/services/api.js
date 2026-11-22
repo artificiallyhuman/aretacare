@@ -637,6 +637,8 @@ export const adminAPI = {
     api.get(`/admin/email/campaigns/${campaignId}`, { params: { include_recipients: includeRecipients } }),
   resumeEmailCampaign: (campaignId) =>
     api.post(`/admin/email/campaigns/${campaignId}/resume`),
+  retryEmailCampaign: (campaignId) =>
+    api.post(`/admin/email/campaigns/${campaignId}/retry`),
 
   // In-app notice (breach notification channel); publish and end take MFA step-up
   listNotices: () => api.get('/admin/notices'),

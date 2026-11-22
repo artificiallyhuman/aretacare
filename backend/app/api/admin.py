@@ -1417,8 +1417,14 @@ def _campaign_to_status(campaign: EmailCampaign, recipients=None) -> EmailCampai
         created_at=campaign.created_at,
         started_at=campaign.started_at,
         completed_at=campaign.completed_at,
+        paused_until=campaign.paused_until,
         recipients=(
-            [EmailCampaignRecipientStatus.model_validate(r) for r in recipients]
+            [
+                EmailCampaignRecipientStatus.model_validate(r).model_copy(
+                    update={"retryable": email_campaign_service.is_retryable(r.status, r.error)}
+                )
+                for r in recipients
+            ]
             if recipients is not None else None
         ),
     )
@@ -1490,13 +1496,8 @@ async def create_email_campaign(
         )
 
     # One campaign at a time. A stalled campaign (stale heartbeat — its
-    # instance died) does not block; the effective-status check excludes it.
-    stale_cutoff = datetime.utcnow() - timedelta(seconds=email_campaign_service.CAMPAIGN_STALE_SECONDS)
-    active = db.query(EmailCampaign).filter(
-        EmailCampaign.status.in_(["pending", "sending"]),
-        EmailCampaign.updated_at >= stale_cutoff
-    ).first()
-    if active is not None:
+    # instance died) does not block.
+    if email_campaign_service.active_campaign_exists(db):
         raise HTTPException(
             status_code=409,
             detail="Another email campaign is currently sending. Wait for it to finish."
@@ -1625,6 +1626,65 @@ async def resume_email_campaign(
     return EmailCampaignCreateResponse(
         campaign_id=campaign_id,
         status="sending",
+        total_recipients=campaign.total_recipients,
+        smtp_configured=bool(settings.SMTP_PASSWORD),
+    )
+
+
+@router.post("/email/campaigns/{campaign_id}/retry", response_model=EmailCampaignCreateResponse, status_code=202, dependencies=STEP_UP)
+@limiter.limit(RateLimits.ADMIN_EMAIL)
+async def retry_email_campaign(
+    request: Request,
+    campaign_id: str,
+    admin_user: User = Depends(get_admin_user),
+    db: DBSession = Depends(get_db)
+):
+    """
+    Send a finished campaign again to the recipients it failed to reach
+    (rate limits, mail-server refusals). Recipients already sent to are never
+    re-sent; refused addresses, interrupted sends, failures recorded before
+    Retry existed and skipped users are left alone (see
+    email_campaign_service.RETRYABLE_RECIPIENT_ERRORS). Eligibility
+    (unsubscribed, deactivated) is re-checked as each email goes out.
+    """
+    campaign = db.query(EmailCampaign).filter(EmailCampaign.id == campaign_id).first()
+    if campaign is None:
+        raise HTTPException(status_code=404, detail="Campaign not found")
+
+    effective = email_campaign_service.effective_campaign_status(campaign)
+    if effective not in email_campaign_service.RETRYABLE_CAMPAIGN_STATUSES:
+        hint = " Resume it instead." if effective == "stalled" else ""
+        raise HTTPException(
+            status_code=409,
+            detail=f"Campaign is {effective}; only a finished campaign's failures can be retried.{hint}"
+        )
+
+    if email_campaign_service.active_campaign_exists(db):
+        raise HTTPException(
+            status_code=409,
+            detail="Another email campaign is currently sending. Wait for it to finish."
+        )
+
+    queued = email_campaign_service.reopen_for_retry(db, campaign_id)
+    if queued is None:
+        raise HTTPException(status_code=409, detail="Campaign is already being retried")
+    if queued == 0:
+        raise HTTPException(status_code=400, detail="No failed recipients can be retried")
+
+    admin_service.log_action(
+        db=db,
+        admin_user=admin_user,
+        action="email_campaign_retried",
+        target_type="email_campaign",
+        target_id=campaign_id,
+        details={"retried_count": queued},
+    )
+
+    email_campaign_service.start_campaign_send(campaign_id)
+
+    return EmailCampaignCreateResponse(
+        campaign_id=campaign_id,
+        status="pending",
         total_recipients=campaign.total_recipients,
         smtp_configured=bool(settings.SMTP_PASSWORD),
     )
