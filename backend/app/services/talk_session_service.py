@@ -48,7 +48,7 @@ from app.core.database import SessionLocal
 from app.models import AudioRecording, Conversation, JournalEntry, TalkSession
 from app.models.audio_recording import AudioRecordingCategory, TranscriptionStatus
 from app.models.conversation import MessageRole, MessageType
-from app.models.talk_session import TalkOutcome, TalkStatus
+from app.models.talk_session import TalkOutcome, TalkStatus, TalkSurface
 from app.models.talk_usage import TalkUsage
 from app.services.audio_transcription_service import (
     _FFMPEG_INPUT_GUARD, _stage_limiter, build_audio_keys,
@@ -65,6 +65,8 @@ logger = logging.getLogger(__name__)
 LIVE_SESSIONS_URL = "https://api.openai.com/v1/live/sessions"
 LIVE_ATTACH_URL = "wss://api.openai.com/v1/live/sessions/{session_id}/attach"
 MCP_SERVER_LABEL = "aretacare"
+SURFACE_APP = TalkSurface.APP.value
+SURFACE_CARPLAY = TalkSurface.CARPLAY.value
 
 # Sideband audio is always mono PCM16LE at 24 kHz, whatever the phone negotiated.
 PCM_RATE = 24000
@@ -206,12 +208,23 @@ def build_session_input(
 def build_session_config(
     *, mcp_token: str, input_items: List[dict],
     user_timezone: Optional[str], current_time: Optional[str],
+    surface: str = SURFACE_APP, opening: Optional[str] = None,
 ) -> dict:
+    """`surface` and `opening` are validated enums from the start request (api/talk.py);
+    they select fixed text from ai_config and never carry client text into the rules."""
     from app.services.talk_tools import available_tool_names, search_tool_available
 
+    instructions = ai_config.TALK_INSTRUCTIONS
     backend_instructions = ai_config.TALK_BACKEND_INSTRUCTIONS
     if not search_tool_available():
         backend_instructions += "\n" + ai_config.TALK_BACKEND_NO_SEARCH_NOTE
+    if surface == SURFACE_CARPLAY:
+        instructions += "\n" + ai_config.TALK_DRIVING_INSTRUCTIONS
+        backend_instructions += "\n" + ai_config.TALK_BACKEND_DRIVING_NOTE
+    if opening:
+        instructions += "\n" + ai_config.TALK_OPENINGS[opening]
+        if opening in ai_config.TALK_BACKEND_OPENING_NOTES:
+            backend_instructions += "\n" + ai_config.TALK_BACKEND_OPENING_NOTES[opening]
     tz, now_text = sanitize_user_timezone(user_timezone), sanitize_current_time(current_time)
     if now_text or tz:
         backend_instructions += (
@@ -247,7 +260,7 @@ def build_session_config(
 
     return {
         "model": ai_config.TALK_MODEL,
-        "instructions": ai_config.TALK_INSTRUCTIONS,
+        "instructions": instructions,
         "audio": {"output": {"voice": ai_config.TALK_VOICE}},
         "input": input_items,
         "store": False,

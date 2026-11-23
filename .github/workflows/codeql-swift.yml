@@ -55,7 +55,7 @@ jobs:
     needs: nightly-gate
     # The gate is skipped for every trigger except the schedule; that means analyse.
     if: ${{ !cancelled() && (needs.nightly-gate.result == 'skipped' || needs.nightly-gate.outputs.analyze == 'true') }}
-    runs-on: macos-15
+    runs-on: macos-26
     # A normal run takes about an hour. Without a limit, a hung build would hold the Mac
     # for GitHub's default of six hours.
     timeout-minutes: 120
@@ -67,7 +67,9 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       # No Xcode version is selected: the runner's default Xcode is the one whose
       # iOS Simulator platform is installed on the image. Selecting another version
-      # left xcodebuild with no eligible simulator destination.
+      # left xcodebuild with no eligible simulator destination. macos-26, not macos-15:
+      # the CarPlay code needs the iOS 26.4 SDK or later, and macos-15 images stop at
+      # Xcode 26.3 (iOS 26.2 SDK, Nov 2026).
 
       - name: Install XcodeGen
         run: brew install xcodegen

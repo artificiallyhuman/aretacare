@@ -31,7 +31,7 @@ Access tokens are HS256 JWTs signed and verified with PyJWT; the accepted algori
 
 ### Session Security
 
-- **Idle timeout**: 30 minutes inactivity triggers logout with 1-minute warning (disabled on iOS when biometric lock is enabled; token expiry provides session safeguard)
+- **Idle timeout**: 30 minutes inactivity triggers logout with 1-minute warning (disabled on iOS when biometric lock is enabled; token expiry provides session safeguard; paused on iOS while the phone is connected to CarPlay, where nobody touches the phone)
 - **Cross-tab sync**: Logout in one tab immediately logs out all tabs via `storage` event
 - **Dedicated logout**: `/logout` endpoint clears the cookie and revokes every refresh token presented (cookie and body)
 - **Idle timeout across tabs (web)**: last activity is shared between tabs and checked against the clock when a tab regains focus, so a sleeping machine is logged out on wake
@@ -433,7 +433,8 @@ Sentry is used for error/crash monitoring on all three platforms (backend, web, 
 - **Biometric re-auth**: Opt-in Face ID/Touch ID lock (Settings > Security) on foreground return after 5 min background. The background timestamp is persisted to UserDefaults and checked at launch (`lockOnColdLaunchIfNeeded()` in `AretaCareApp.init`), so cold relaunches after iOS terminates the app also lock — crashes and unknown states fail locked. Uses `.deviceOwnerAuthentication` (passcode fallback). Preference cleared on explicit user logout only (survives `forceLogout`/transient auth failures). Idle timer pauses while lock screen active. Opaque lock screen hides health data.
 - **Privacy overlay window**: The biometric lock screen and the app-switcher privacy shield render in a dedicated `UIWindow` above `.alert` level (`Core/Security/PrivacyShieldWindow.swift`), so they cover presented sheets and full-screen covers — an in-hierarchy overlay cannot (sheets present in a higher UIKit layer, which previously let the collaboration awareness sheet show collaborator names on top of the Face ID lock). The window intercepts all touches while lock/shield content is visible and passes touches through otherwise; the keyboard is dismissed when the overlay appears; overlay content is a VoiceOver modal so screen readers can't read covered sheets.
 - **App-switcher privacy shield**: A branded shield shows whenever the scene isn't active, so the app-switcher snapshot never exposes on-screen health data. Applies to all users regardless of auth state (login/MFA screens contain personal data); content is `accessibilityHidden` while biometric-locked.
-- **Idle timeout**: 30 min with 1-min warning; disabled when biometric lock is enabled (7-day token expiry serves as session safeguard); `@MainActor`-safe timer callbacks
+- **Idle timeout**: 30 min with 1-min warning; disabled when biometric lock is enabled (7-day token expiry serves as session safeguard); paused while CarPlay is connected; `@MainActor`-safe timer callbacks
+- **CarPlay**: works while the phone is locked, as Apple requires (refresh token in the keychain as `.afterFirstUnlockThisDeviceOnly`). The car's screen shows only fixed labels and care-session names, never health content; answers are spoken. The biometric lock and privacy shield still protect the phone's own screen. Talk start's `surface`/`opening` are enums that select fixed prompt text server-side.
 - **APNs entitlements**: `aps-environment: development` (Debug) / `production` (Release) via per-config entitlements
 - **Push token lifecycle**: Token unregistered (awaited) before auth tokens cleared during logout
 - **Privacy permissions**: Camera, microphone, photo library, Face ID usage descriptions in Info.plist
@@ -513,7 +514,7 @@ Custom workflows (default CodeQL setup cannot build Swift):
 |----------|----------|--------|-------|---------|
 | Python | `codeql.yml` | `ubuntu-latest` | Autobuild | push to `main`, PRs to `main`, weekly (Wednesday) |
 | JavaScript/TypeScript | `codeql.yml` | `ubuntu-latest` | Autobuild | push to `main`, PRs to `main`, weekly (Wednesday) |
-| Swift | `codeql-swift.yml` | `macos-15` | XcodeGen + `xcodebuild` with code signing disabled | `main` nightly after a day with `ios/` changes and every Wednesday night, PRs to `main` that change `ios/`, on demand |
+| Swift | `codeql-swift.yml` | `macos-26` | XcodeGen + `xcodebuild` with code signing disabled | `main` nightly after a day with `ios/` changes and every Wednesday night, PRs to `main` that change `ios/`, on demand |
 
 The Swift analysis needs a Mac and takes about an hour. Render deploys a `main` commit only once every check on it has passed, so running it on each push would hold every iOS commit's deploy for an hour; instead it runs on `main` overnight, after Render has deployed. A cheap Linux job decides whether a night's run goes ahead. It creates a placeholder `Secrets.xcconfig` (no real credentials needed for static analysis) and builds with `CODE_SIGNING_ALLOWED=NO`; the build step fails the job if compilation fails.
 

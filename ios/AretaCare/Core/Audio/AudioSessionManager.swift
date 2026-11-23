@@ -23,7 +23,11 @@ final class AudioSessionManager {
         setupInterruptionObserver()
     }
 
+    /// While a Talk call holds the session (a CarPlay call leaves the phone app usable), the
+    /// session is left alone: callers check `TalkViewModel.isUsingAudioSession` first, and
+    /// these are the backstop.
     func activateForRecording() throws {
+        guard !TalkViewModel.isUsingAudioSession else { return }
         try AVAudioSession.sharedInstance().setCategory(
             .playAndRecord, mode: .default, options: [.defaultToSpeaker]
         )
@@ -33,6 +37,7 @@ final class AudioSessionManager {
     }
 
     func activateForPlayback() throws {
+        guard !TalkViewModel.isUsingAudioSession else { return }
         try AVAudioSession.sharedInstance().setCategory(.playback)
         try AVAudioSession.sharedInstance().setActive(true)
         currentMode = .playback
@@ -40,6 +45,7 @@ final class AudioSessionManager {
     }
 
     func deactivate() {
+        guard !TalkViewModel.isUsingAudioSession else { return }
         try? AVAudioSession.sharedInstance().setActive(
             false, options: .notifyOthersOnDeactivation
         )

@@ -302,6 +302,9 @@ final class AuthManager {
         hasAcceptedAIDataSharing = false
         stopIdleTimer()
         AudioRecorderManager.stopActiveRecording()
+        // A Talk call from either screen (the phone's chat abandons its own as it goes away;
+        // a CarPlay call has no view to do that).
+        TalkViewModel.current?.abandon()
         BiometricManager.shared.clearLock()
         UserDefaults.standard.removeObject(forKey: "lastSessionId")
         UserDefaults.standard.removeObject(forKey: "activeTab")
@@ -339,11 +342,14 @@ final class AuthManager {
             Task { @MainActor in
                 // Skip idle timeout entirely when biometric lock is enabled
                 // (biometric re-auth + 7-day token expiry provide sufficient security)
-                // Also pause while biometric lock screen is actively showing, and while a
-                // recording is capturing (hands-free; signing out would end it)
+                // Also pause while biometric lock screen is actively showing, while a
+                // recording is capturing (hands-free; signing out would end it), and while
+                // the phone is connected to CarPlay: nobody touches the phone while driving,
+                // and a sign-out mid-drive would leave CarPlay unusable until they're parked.
                 guard !BiometricManager.shared.isBiometricLockEnabled,
                       !BiometricManager.shared.isLocked,
-                      !AudioRecorderManager.isCapturing else {
+                      !AudioRecorderManager.isCapturing,
+                      !CarPlayConnection.shared.isConnected else {
                     self.lastActivityDate = Date()
                     return
                 }

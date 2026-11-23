@@ -9,10 +9,27 @@ struct TalkStatusResponse: Codable, Sendable {
     let hasConsent: Bool
     let remainingSecondsToday: Int
     let maxSessionSeconds: Int
+    /// The server applies the driving rules to CarPlay calls. Absent on servers older than
+    /// 2.1.0, which would give a car call the phone's prompt.
+    let carplay: Bool?
 }
 
 struct TalkConsentResponse: Codable, Sendable {
     let status: String
+}
+
+/// Where a call was started. The server adds its driving rules for CarPlay calls.
+enum TalkSurface: String, Codable, Sendable {
+    case app
+    case carPlay = "carplay"
+}
+
+/// A one-tap start (CarPlay's landing screen). The server maps each to fixed opening
+/// instructions; the app never sends instruction text.
+enum TalkOpening: String, Codable, Sendable, CaseIterable {
+    case catchUp = "catch_up"
+    case visitPrep = "visit_prep"
+    case visitDebrief = "visit_debrief"
 }
 
 struct TalkStartRequest: Codable, Sendable {
@@ -20,6 +37,8 @@ struct TalkStartRequest: Codable, Sendable {
     let sdp: String
     let userTimezone: String
     let currentTime: String
+    let surface: TalkSurface
+    let opening: TalkOpening?
 }
 
 struct TalkStartResponse: Codable, Sendable {

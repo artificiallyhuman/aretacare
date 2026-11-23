@@ -78,10 +78,17 @@ class ToolContext:
     # The caller's local date: the default for a proposed entry or digest. The server's
     # own date is UTC, which in a US evening is already tomorrow.
     user_today: Optional[date] = None
+    # TalkSurface value. "carplay": the person is driving, so replies that would send them
+    # to a screen say it will be in the app for later instead.
+    surface: str = "app"
 
     @property
     def today(self) -> date:
         return self.user_today or date.today()
+
+    @property
+    def driving(self) -> bool:
+        return self.surface == "carplay"
 
 
 def local_date(user_timezone: Optional[str], at: Optional[datetime] = None) -> date:
@@ -571,6 +578,9 @@ async def _apply_action(ctx: ToolContext, kind: str, params: dict) -> str:
             raise ToolError(detail)
         if created:
             DailyPlanService.notify_digest_ready(ctx.db, ctx.session_id, exclude_user_id=ctx.user_id)
+        if ctx.driving:
+            return (f"The Daily Digest for {plan.date.isoformat()} is saved in the app. "
+                    "get_daily_digest can read it if the person wants to hear it.")
         return f"The Daily Digest for {plan.date.isoformat()} is in the Digest tab."
 
     raise ToolError("Unknown action.")
@@ -605,6 +615,9 @@ async def _suggest_profile_change(ctx: ToolContext, args: dict) -> str:
     if section in PROFILE_PREFERENCE_TEXT:
         # A single free-text field on the preferences object.
         if change_type == "delete":
+            if ctx.driving:
+                raise ToolError(f"Clearing {section} can't be done by voice. Tell the person they can "
+                                "do it in the Health Profile when they're parked.")
             raise ToolError(f"To clear {section}, the person should edit it in the Health Profile screen.")
         if not isinstance(new_value, str) or not new_value.strip():
             raise ToolError(f"'new_value' must be the new text for {section}.")
@@ -665,12 +678,18 @@ async def _suggest_profile_change(ctx: ToolContext, args: dict) -> str:
     if len(pending) >= MAX_PENDING_PROFILE_CHANGES:
         raise ToolError(
             "There are already many Health Profile suggestions waiting for review. "
-            "Ask the person to review them in the Health Profile screen first."
+            + ("Tell the person to review them in the app when they're parked, before adding more."
+               if ctx.driving else "Ask the person to review them in the Health Profile screen first.")
         )
     pending.append(change)
     profile.pending_changes = pending
     flag_modified(profile, "pending_changes")
     ctx.db.commit()
+    if ctx.driving:
+        return (
+            "Suggestion added. It has NOT changed the Health Profile: tell the person it is waiting "
+            "in the app for them to accept or reject when they're parked."
+        )
     return (
         "Suggestion added. It has NOT changed the Health Profile: tell the person it is waiting "
         "in the Health Profile screen for them to accept or reject."
@@ -780,7 +799,7 @@ TOOLS: Dict[str, tuple] = {
         _schema({"action_id": {"type": "string"}}, ["action_id"]), _cancel_action, False,
     ),
     "suggest_profile_change": (
-        "Queue a Health Profile change for the person to review on screen. It is never applied directly. "
+        "Queue a Health Profile change for the person to review later in the app. It is never applied directly. "
         "For edit/delete of a list item give the item's id from get_health_profile. new_value is an object "
         "of fields (or text for emergency_instructions / additional_notes).",
         _schema(

@@ -9,6 +9,8 @@
 		<string>applinks:staging.aretacare.com?mode=developer</string>
 		<string>webcredentials:staging.aretacare.com?mode=developer</string>
 	</array>
+	<key>com.apple.developer.carplay-voice-based-conversation</key>
+	<true/>
 	<key>keychain-access-groups</key>
 	<array>
 		<string>$(AppIdentifierPrefix)com.aretacare.ios</string>

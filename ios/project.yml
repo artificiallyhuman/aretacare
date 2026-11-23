@@ -8,7 +8,7 @@ options:
 
 settings:
   base:
-    MARKETING_VERSION: "2.0.1"
+    MARKETING_VERSION: "2.1.0"
     CURRENT_PROJECT_VERSION: "1"
     DEVELOPMENT_TEAM: $(DEVELOPMENT_TEAM)
     SWIFT_EMIT_LOC_STRINGS: YES
@@ -51,6 +51,8 @@ targets:
         ASSETCATALOG_COMPILER_APPICON_NAME: iOS_icon_glass
         ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
         ENABLE_USER_SCRIPT_SANDBOXING: YES
+      # Both entitlements files carry the CarPlay voice-based conversational entitlement
+      # (com.apple.developer.carplay-voice-based-conversation), approved by Apple Nov 2026.
       configs:
         Debug:
           CODE_SIGN_ENTITLEMENTS: AretaCare/Resources/AretaCare.debug.entitlements
@@ -62,8 +64,15 @@ targets:
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         CFBundleDisplayName: AretaCare
+        # The phone window is SwiftUI's (WindowGroup); the CarPlay screen is a template
+        # scene with its own delegate. Multiple scenes stays off: no extra iPad windows.
         UIApplicationSceneManifest:
           UIApplicationSupportsMultipleScenes: false
+          UISceneConfigurations:
+            CPTemplateApplicationSceneSessionRoleApplication:
+              - UISceneClassName: CPTemplateApplicationScene
+                UISceneConfigurationName: CarPlay
+                UISceneDelegateClassName: $(PRODUCT_MODULE_NAME).CarPlaySceneDelegate
         UILaunchScreen: {}
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait

@@ -468,9 +468,9 @@ exchanges it for OpenAI's answer, and audio then flows directly between the phon
 
 | Method | Path | Purpose |
 |--------|------|---------|
-| GET | `/talk/status` | `{enabled, has_consent, remaining_seconds_today, max_session_seconds}` |
+| GET | `/talk/status` | `{enabled, has_consent, remaining_seconds_today, max_session_seconds, carplay}`. `carplay: true` means the server applies the driving rules; the CarPlay app won't start a call without it |
 | POST | `/talk/consent` | Record the one-time Talk consent |
-| POST | `/talk/sessions` | Start a call. Body: `{session_id, sdp, user_timezone?, current_time?}` → `201 {talk_id, sdp, max_seconds}` |
+| POST | `/talk/sessions` | Start a call. Body: `{session_id, sdp, user_timezone?, current_time?, surface?, opening?}` → `201 {talk_id, sdp, max_seconds}`. `surface`: `app` (default) or `carplay` (the person is driving: shorter turns, nothing that needs a screen). `opening`: `catch_up`, `visit_prep` or `visit_debrief` (CarPlay's one-tap starts); any other value is a 400 |
 | POST | `/talk/sessions/{talk_id}/end` | End a call (idempotent). Saving continues in the background |
 | GET | `/talk/sessions/{talk_id}` | `{talk_id, status, outcome, audio_recording_id, duration_seconds, journal_entries_created}` |
 

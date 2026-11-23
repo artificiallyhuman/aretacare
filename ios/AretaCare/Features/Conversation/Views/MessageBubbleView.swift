@@ -302,6 +302,8 @@ struct MessageBubbleView: View {
             audioPlayer?.pause()
             isPlayingAudio = false
         } else {
+            // A Talk call (from CarPlay) holds the audio session; playing would talk over it.
+            guard !TalkViewModel.isUsingAudioSession else { return }
             if audioPlayer == nil, let urlString = message.mediaUrl, let url = URL(string: urlString) {
                 audioPlayer = AVPlayer(url: url)
                 // Remove any existing observer before adding a new one

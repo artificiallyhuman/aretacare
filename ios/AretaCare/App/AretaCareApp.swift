@@ -4,9 +4,7 @@ import RevenueCat
 @main
 struct AretaCareApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
-    @State private var authManager = AuthManager.shared
     @State private var deepLinkRoute: DeepLinkRoute?
-    @Environment(\.scenePhase) private var scenePhase
 
     init() {
         // Must run before the first scenePhase transition: the in-memory lock
@@ -24,9 +22,8 @@ struct AretaCareApp: App {
                     }
                 }
                 .task {
-                    TempFileCleanup.sweepAtLaunch()
-                    SubscriptionManager.shared.configure()
-                    await authManager.initAuth()
+                    // Shared with the CarPlay scene, which can launch the app on its own.
+                    await AppBootstrap.shared.start()
                 }
                 .onReceive(NotificationCenter.default.publisher(for: UIApplication.didReceiveMemoryWarningNotification)) { _ in
                     ImageCache.shared.clear()
@@ -34,22 +31,7 @@ struct AretaCareApp: App {
                 .onOpenURL { url in
                     handleUniversalLink(url)
                 }
-                .onChange(of: scenePhase) { _, newPhase in
-                    switch newPhase {
-                    case .background:
-                        BiometricManager.shared.appDidEnterBackground()
-                    case .active:
-                        BiometricManager.shared.appWillEnterForeground()
-                        NotificationManager.shared.retryPendingRegistration()
-                    default:
-                        break
-                    }
-                }
-                .onChange(of: scenePhase, initial: true) { _, newPhase in
-                    // Separate handler: initial: true must not re-run the
-                    // background/foreground transitions above at launch.
-                    PrivacyWindowManager.shared.update(phase: newPhase)
-                }
+                .modifier(PhoneWindowPhaseHandlers())
         }
     }
 
@@ -118,5 +100,33 @@ enum DeepLinkRoute: Equatable, Identifiable {
         case .resetPassword(let token): return "reset-\(token)"
         case .register(let token): return "register-\(token)"
         }
+    }
+}
+
+/// The biometric lock's background timing and the app-switcher shield follow the phone
+/// window's own phase. Read here, inside the `WindowGroup`, `scenePhase` is this window's;
+/// read on the `App` it is the app-wide phase, which a CarPlay scene on the car's screen
+/// keeps "active" while the phone is locked in a mount.
+private struct PhoneWindowPhaseHandlers: ViewModifier {
+    @Environment(\.scenePhase) private var scenePhase
+
+    func body(content: Content) -> some View {
+        content
+            .onChange(of: scenePhase) { _, newPhase in
+                switch newPhase {
+                case .background:
+                    BiometricManager.shared.appDidEnterBackground()
+                case .active:
+                    BiometricManager.shared.appWillEnterForeground()
+                    NotificationManager.shared.retryPendingRegistration()
+                default:
+                    break
+                }
+            }
+            .onChange(of: scenePhase, initial: true) { _, newPhase in
+                // Separate handler: initial: true must not re-run the
+                // background/foreground transitions above at launch.
+                PrivacyWindowManager.shared.update(phase: newPhase)
+            }
     }
 }

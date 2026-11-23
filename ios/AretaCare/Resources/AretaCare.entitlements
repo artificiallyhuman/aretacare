@@ -9,6 +9,8 @@
 		<string>applinks:www.aretacare.com</string>
 		<string>webcredentials:www.aretacare.com</string>
 	</array>
+	<key>com.apple.developer.carplay-voice-based-conversation</key>
+	<true/>
 	<key>keychain-access-groups</key>
 	<array>
 		<string>$(AppIdentifierPrefix)com.aretacare.ios</string>

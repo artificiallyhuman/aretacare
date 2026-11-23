@@ -2571,6 +2571,20 @@ def run_migrations():
             logger.error(f"Failed to add talk_sessions.user_timezone: {e}")
             conn.rollback()
 
+        # Where the call was started ('app' or 'carplay'). Same checked-first pattern as
+        # user_timezone. A constant default makes the ALTER a catalog-only change.
+        try:
+            talk_columns = {c["name"] for c in inspect(conn).get_columns("talk_sessions")}
+            if "surface" not in talk_columns:
+                conn.execute(text(
+                    "ALTER TABLE talk_sessions ADD COLUMN IF NOT EXISTS surface VARCHAR(16) NOT NULL DEFAULT 'app'"
+                ))
+                logger.info("Added talk_sessions.surface")
+            conn.commit()
+        except Exception as e:
+            logger.error(f"Failed to add talk_sessions.surface: {e}")
+            conn.rollback()
+
         # Runs on every start, not once: rows written by instances still on the previous
         # release during a rolling deploy arrive without a hash and are filled in here.
         # Idempotent and cheap (touches only rows missing a hash).

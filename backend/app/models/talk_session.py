@@ -19,6 +19,13 @@ class TalkStatus(str, enum.Enum):
     FAILED = "failed"
 
 
+class TalkSurface(str, enum.Enum):
+    """Where the call was started. CarPlay means the person is driving: the voice model
+    gets the driving rules and the tools' replies say "later in the app", not "on screen"."""
+    APP = "app"
+    CARPLAY = "carplay"
+
+
 class TalkOutcome(str, enum.Enum):
     AUDIO = "audio"                      # Recording saved to Audio Recordings
     TRANSCRIPT_ONLY = "transcript_only"  # Audio lost; the turns were posted to chat
@@ -37,6 +44,8 @@ class TalkSession(Base):
     # The caller's IANA timezone (validated), so the call's journal entries and the tools'
     # default dates use their local date, not the server's UTC date.
     user_timezone = Column(String(64), nullable=True)
+    # TalkSurface value (plain string, like status).
+    surface = Column(String(16), nullable=False, default=TalkSurface.APP.value, server_default=TalkSurface.APP.value)
     # Plain strings (not SQLEnum) so no PG enum type ever needs migrating.
     status = Column(String, nullable=False, default=TalkStatus.ACTIVE.value)
     outcome = Column(String, nullable=True)

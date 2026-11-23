@@ -181,6 +181,8 @@ struct AudioPlayerView: View {
                 isPlaying: false
             )
         } else {
+            // A Talk call (from CarPlay) holds the audio session; playing would talk over it.
+            guard !TalkViewModel.isUsingAudioSession else { return }
             try? AudioSessionManager.shared.activateForPlayback()
             setupNowPlaying()
             player.rate = playbackRate

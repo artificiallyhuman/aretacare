@@ -1,3 +1,4 @@
+import Combine
 import SwiftUI
 
 struct MainTabView: View {
@@ -136,7 +137,7 @@ struct MainTabView: View {
             // Not mid-recording: a recording is uploaded to the care session it was made
             // in, and switching would tear down a recorder open in Tools. Not during a Talk
             // call either: leaving Chat or changing care session ends the call.
-            if AudioRecorderManager.isRecordingInProgress || TalkViewModel.isCallInProgress {
+            if AudioRecorderManager.isRecordingInProgress || TalkViewModel.isPhoneCallInProgress {
                 notificationRouter.clearPendingRoute()
                 return
             }
@@ -152,7 +153,10 @@ struct MainTabView: View {
             }
             notificationRouter.clearPendingRoute()
         }
-        .onReceive(NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)) { _ in
+        // The phone window's own foreground, not the app's: while CarPlay is on screen the
+        // app stays active, so unlocking the phone never posts the app-level notification.
+        .onReceive(NotificationCenter.default.publisher(for: UIScene.willEnterForegroundNotification)
+            .filter { $0.object is UIWindowScene }) { _ in
             NotificationManager.shared.clearBadge()
             Task { await sessionVM.fetchSessions() }
         }

@@ -45,7 +45,7 @@ jobs:
     # commit, and its check shows on the pull request. Building it twice would only
     # compete for the same scarce Macs.
     if: github.head_ref != 'feature/iOS'
-    runs-on: macos-15
+    runs-on: macos-26
     timeout-minutes: 45
     steps:
       - name: Checkout repository
@@ -53,7 +53,9 @@ jobs:
 
       # No Xcode version is selected: the runner's default Xcode is the one whose
       # iOS Simulator platform is installed on the image. Selecting another version
-      # left xcodebuild with no eligible simulator destination.
+      # left xcodebuild with no eligible simulator destination. macos-26, not macos-15:
+      # the CarPlay code needs the iOS 26.4 SDK or later, and macos-15 images stop at
+      # Xcode 26.3 (iOS 26.2 SDK, Nov 2026).
 
       - name: Install XcodeGen
         run: brew install xcodegen

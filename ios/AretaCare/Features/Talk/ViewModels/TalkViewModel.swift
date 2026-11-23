@@ -56,13 +56,39 @@ final class TalkViewModel {
 
     // MARK: - Observed state
 
-    private(set) var phase: Phase = .idle {
-        didSet { Self.isCallInProgress = phase != .idle }
+    private(set) var phase: Phase = .idle
+
+    /// Where this call runs: the phone's chat or the CarPlay screen. On CarPlay the person is
+    /// driving, so nothing may need the phone (no consent sheet, no permission prompt), and
+    /// the phone itself is left alone (no screen kept awake, no haptics).
+    let surface: TalkSurface
+
+    init(surface: TalkSurface = .app) {
+        self.surface = surface
     }
+
+    /// The call this process is running, from whichever screen started it. The server allows
+    /// one live call per account; this keeps the phone and CarPlay from starting a second
+    /// one, lets CarPlay show a call the phone started, and lets sign-out end either.
+    private(set) static weak var current: TalkViewModel?
+
     /// A call (or its setup) is under way. Tapping a notification checks it, like
     /// `AudioRecorderManager.isRecordingInProgress`: routing to another tab or care session
     /// would end the call.
-    private(set) static var isCallInProgress = false
+    static var isCallInProgress: Bool { current?.isActive == true }
+    /// A call on the phone's own Talk screen, which switching tab or care session would end.
+    /// A CarPlay call isn't affected by what the phone shows.
+    static var isPhoneCallInProgress: Bool { isCallInProgress && current?.surface == .app }
+    /// A call holds the audio session. Deactivating it or changing its category would silence
+    /// the call, and during a CarPlay call the phone's chat and recordings stay usable.
+    static var isUsingAudioSession: Bool { current?.inCallEnvironment == true }
+
+    /// Posted when a call starts connecting (the microphone opens), so CarPlay can show a
+    /// call started on the phone: in the car, the microphone goes with the voice screen.
+    static let callDidStartNotification = Notification.Name("TalkViewModel.callDidStart")
+    /// Posted when a CarPlay call's card should reload in the phone's chat (userInfo:
+    /// "sessionId"). Phone calls reload their own chat through `savedCallToken`.
+    static let callSavedNotification = Notification.Name("TalkViewModel.callSaved")
     private(set) var userLevel: Double = 0
     private(set) var agentLevel: Double = 0
     private(set) var maxSessionSeconds = 1800
@@ -117,7 +143,7 @@ final class TalkViewModel {
         // plays no tone itself: during a call voice processing ducks any other audio the
         // app plays to near silence. A firm tap and the button's look carry the state.
         try? AVAudioApplication.shared.setInputMuted(isMuted)
-        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+        if surface == .app { UIImpactFeedbackGenerator(style: .medium).impactOccurred() }
     }
 
     private func setMuted(_ muted: Bool) {
@@ -128,7 +154,7 @@ final class TalkViewModel {
             userLevel = 0
             if phase == .userSpeaking { setPhase(.listening) }
         }
-        if UIAccessibility.isVoiceOverRunning {
+        if surface == .app, UIAccessibility.isVoiceOverRunning {
             UIAccessibility.post(notification: .announcement, argument: muted ? "Microphone muted" : "Microphone on")
         }
     }
@@ -137,7 +163,12 @@ final class TalkViewModel {
 
     private var transport: TalkTransport?
     private var talkId: String?
-    private var sessionId: String?
+    private(set) var sessionId: String?
+    private var opening: TalkOpening?
+    private var didKeepScreenAwake = false
+    /// The call's audio environment is set up: from here WebRTC's voice processing owns the
+    /// app's audio session until the call ends.
+    private(set) var inCallEnvironment = false
     private var levelTask: Task<Void, Never>?
     private var watchdogTask: Task<Void, Never>?
     private var keepAliveTask: Task<Void, Never>?
@@ -162,11 +193,23 @@ final class TalkViewModel {
     // MARK: - Entry
 
     /// The user chose Talk. Checks availability and consent before touching the microphone.
-    func begin(sessionId: String) async {
+    /// `opening` is one of CarPlay's one-tap starts.
+    func begin(sessionId: String, opening: TalkOpening? = nil) async {
         guard phase == .idle else { return }
+        if let other = Self.current, other !== self, other.isActive {
+            // Not `fail()`: its teardown resets the app-wide input mute, which would unmute
+            // the call that's running.
+            notice = Notice(title: "Talk Is Already On", message: other.surface == .carPlay
+                            ? "A Talk conversation is running in CarPlay."
+                            : "A Talk conversation is already running on your iPhone.")
+            onExit?()
+            return
+        }
+        Self.current = self
         let attempt = UUID()
         attemptId = attempt
         self.sessionId = sessionId
+        self.opening = opening
         phase = .preparing
 
         guard NetworkMonitor.shared.isConnected else {
@@ -187,18 +230,26 @@ final class TalkViewModel {
                 fail(title: "Talk Unavailable", message: "Talk isn't available right now.")
                 return
             }
+            // Never a car call without the server's driving rules (a server not yet updated).
+            if surface == .carPlay, status.carplay != true {
+                fail(title: "Talk Unavailable", message: "Talk isn't available in the car yet.")
+                return
+            }
             guard status.remainingSecondsToday >= 60 else {
                 fail(title: "Daily Limit Reached", message: "You've reached today's Talk limit. It resets within 24 hours.")
                 return
             }
             if status.hasConsent {
                 await startCall(attempt: attempt)
+            } else if surface == .carPlay {
+                // Consent means reading what Talk does: never while driving.
+                fail(title: "Talk Isn't Set Up", message: Self.notSetUpInCar)
             } else {
                 showingConsent = true
             }
         } catch {
             guard attempt == attemptId, phase == .preparing else { return }
-            fail(title: "Talk Unavailable", message: Self.message(for: error))
+            fail(title: "Talk Unavailable", message: message(for: error))
         }
     }
 
@@ -211,7 +262,7 @@ final class TalkViewModel {
             await startCall(attempt: attempt)
         } catch {
             guard attempt == attemptId, phase == .preparing else { return }  // ended while the request was in flight
-            fail(title: "Talk Unavailable", message: Self.message(for: error))
+            fail(title: "Talk Unavailable", message: message(for: error))
         }
     }
 
@@ -226,6 +277,11 @@ final class TalkViewModel {
     private func startCall(attempt: UUID) async {
         guard attempt == attemptId, let sessionId, phase == .preparing else { return }
 
+        // The permission prompt appears on the phone, so CarPlay never asks for it.
+        if surface == .carPlay, AVAudioApplication.shared.recordPermission != .granted {
+            fail(title: "Talk Isn't Set Up", message: Self.notSetUpInCar)
+            return
+        }
         let granted = await withCheckedContinuation { continuation in
             AVAudioApplication.requestRecordPermission { continuation.resume(returning: $0) }
         }
@@ -247,6 +303,7 @@ final class TalkViewModel {
         transport.onEvent = { [weak self] event in self?.handle(event, attempt: attempt) }
         phase = .connecting
         beginCallEnvironment()
+        NotificationCenter.default.post(name: Self.callDidStartNotification, object: self)
         startWatchdog(seconds: Self.connectTimeoutSeconds) { [weak self] in
             guard let self, attempt == self.attemptId else { return }
             self.fail(title: "Couldn't Connect", message: "Talk couldn't connect. Please try again.")
@@ -259,7 +316,9 @@ final class TalkViewModel {
                 sessionId: sessionId,
                 sdp: offer,
                 userTimezone: TimeZone.current.identifier,
-                currentTime: ISO8601DateFormatter().string(from: Date())
+                currentTime: ISO8601DateFormatter().string(from: Date()),
+                surface: surface,
+                opening: opening
             )
             let response: TalkStartResponse = try await APIClient.shared.post(APIEndpoints.Talk.sessions, body: request)
             guard attempt == attemptId, phase == .connecting else {
@@ -273,7 +332,7 @@ final class TalkViewModel {
             try await transport.applyAnswer(response.sdp)
         } catch {
             guard attempt == attemptId, phase == .connecting else { return }
-            fail(title: "Couldn't Start Talk", message: Self.message(for: error))
+            fail(title: "Couldn't Start Talk", message: message(for: error))
         }
     }
 
@@ -284,7 +343,7 @@ final class TalkViewModel {
             guard phase == .connecting else { return }
             phase = .listening
             announce(.listening)
-            UIImpactFeedbackGenerator(style: .soft).impactOccurred()
+            if surface == .app { UIImpactFeedbackGenerator(style: .soft).impactOccurred() }
             // The server enforces the limit; this is the fallback if its close never arrives.
             startWatchdog(seconds: Double(maxSessionSeconds) + 15) { [weak self] in
                 Task { await self?.end() }
@@ -393,6 +452,8 @@ final class TalkViewModel {
 
     private func reset() {
         phase = .idle
+        if Self.current === self { Self.current = nil }
+        opening = nil
         // The first-use consent sheet belongs to the attempt: left up after the attempt
         // ended, "Agree and Start" recorded consent and then started nothing.
         showingConsent = false
@@ -420,7 +481,8 @@ final class TalkViewModel {
             while !Task.isCancelled, Date() < deadline {
                 try? await Task.sleep(for: .seconds(attempt < delays.count ? delays[attempt] : 10))
                 attempt += 1
-                guard !Task.isCancelled else { return }
+                // Signed out since (a CarPlay call outlives the phone's chat): nothing to show.
+                guard !Task.isCancelled, AuthManager.shared.isAuthenticated else { return }
                 do {
                     let status: TalkSessionStatusResponse = try await APIClient.shared.get(APIEndpoints.Talk.session(talkId))
                     guard status.isFinished else {
@@ -429,16 +491,16 @@ final class TalkViewModel {
                         // because the server posts the card a moment after "finalizing".
                         if status.status == "finalizing", savingRefreshes < 2, let self {
                             savingRefreshes += 1
-                            self.savedCallToken += 1
+                            self.callSaved(sessionId: sessionId)
                         }
                         continue
                     }
                     guard let self, !Task.isCancelled else { return }
                     if status.failed {
-                        self.saveErrorMessage = "We couldn't save that Talk conversation."
-                        self.savedCallToken += 1  // the server removed the "saving" card
+                        self.saveErrorMessage = Self.saveFailedMessage
+                        self.callSaved(sessionId: sessionId, failed: true)  // the server removed the "saving" card
                     } else if !status.wasDiscarded {
-                        self.savedCallToken += 1
+                        self.callSaved(sessionId: sessionId)
                     }
                     return
                 } catch let error as APIError {
@@ -450,6 +512,22 @@ final class TalkViewModel {
             }
         }
     }
+
+    /// The chat should reload to show (or drop) the call's card. A phone call's own chat
+    /// watches `savedCallToken`; a CarPlay call's card belongs to whichever chat the phone
+    /// shows, so that one is told by notification.
+    private func callSaved(sessionId: String, failed: Bool = false) {
+        savedCallToken += 1
+        if surface == .carPlay {
+            NotificationCenter.default.post(name: Self.callSavedNotification, object: nil,
+                                            userInfo: ["sessionId": sessionId, "failed": failed])
+        }
+    }
+
+    static let saveFailedMessage = "We couldn't save that Talk conversation."
+
+    /// Still polling for an ended call's result (CarPlay keeps such calls alive until done).
+    var isAwaitingResult: Bool { !pollTasks.isEmpty }
 
     func cancelResultPolling() {
         for task in pollTasks.values { task.cancel() }
@@ -564,8 +642,14 @@ final class TalkViewModel {
     // MARK: - Device environment
 
     private func beginCallEnvironment() {
-        previousIdleTimerDisabled = UIApplication.shared.isIdleTimerDisabled
-        UIApplication.shared.isIdleTimerDisabled = true
+        inCallEnvironment = true
+        // Keep the phone's screen on for a call on the phone only. In the car the phone is
+        // usually locked in a mount, and a lit screen would be a distraction.
+        if surface == .app {
+            previousIdleTimerDisabled = UIApplication.shared.isIdleTimerDisabled
+            UIApplication.shared.isIdleTimerDisabled = true
+            didKeepScreenAwake = true
+        }
         interruptionObserver = NotificationCenter.default.addObserver(
             forName: AVAudioSession.interruptionNotification, object: nil, queue: .main
         ) { [weak self] notification in
@@ -593,7 +677,14 @@ final class TalkViewModel {
     }
 
     private func endCallEnvironment() {
-        UIApplication.shared.isIdleTimerDisabled = previousIdleTimerDisabled
+        // Only the call that set the environment up tears it down: an attempt that never
+        // reached the microphone must not reset the app-wide mute of a call that's running.
+        guard inCallEnvironment else { return }
+        inCallEnvironment = false
+        if didKeepScreenAwake {
+            UIApplication.shared.isIdleTimerDisabled = previousIdleTimerDisabled
+            didKeepScreenAwake = false
+        }
         if let interruptionObserver {
             NotificationCenter.default.removeObserver(interruptionObserver)
         }
@@ -607,11 +698,40 @@ final class TalkViewModel {
     }
 
     private func announce(_ phase: Phase) {
-        guard UIAccessibility.isVoiceOverRunning, let text = phase.announcement else { return }
+        guard surface == .app, UIAccessibility.isVoiceOverRunning, let text = phase.announcement else { return }
         UIAccessibility.post(notification: .announcement, argument: text)
     }
 
     // MARK: - Errors
+
+    /// Shown in the car when something needs the phone first (consent, the microphone
+    /// permission). Apple's CarPlay rules: say what's wrong, never tell the driver to pick
+    /// up the phone.
+    static let notSetUpInCar = "Talk isn't set up yet. You can set it up in AretaCare when you're parked."
+
+    private func message(for error: Error) -> String {
+        guard surface == .carPlay else { return Self.message(for: error) }
+        // In the car: short, and never an instruction to do something on the phone.
+        guard let apiError = error as? APIError else { return "Talk couldn't start. Try again in a moment." }
+        switch apiError {
+        case .forbidden(let code) where code == "TALK_CONSENT_REQUIRED" || code == "AI_DATA_SHARING_CONSENT_REQUIRED":
+            return Self.notSetUpInCar
+        case .forbidden(let code) where code == "TALK_SUBSCRIPTION_REQUIRED":
+            return "Talk needs an AretaCare subscription."
+        case _ where apiError.requiresLogout:
+            return "You're signed out of AretaCare."
+        case .notFound:
+            return "Talk isn't available right now."
+        case .unknown(let statusCode) where statusCode == 409:
+            return "A Talk conversation is already running."
+        case .rateLimited:
+            return "You've reached the Talk limit for now. Try again later."
+        case .offline, .networkError:
+            return "Talk needs an internet connection."
+        default:
+            return "Talk couldn't start. Try again in a moment."
+        }
+    }
 
     private static func message(for error: Error) -> String {
         guard let apiError = error as? APIError else {

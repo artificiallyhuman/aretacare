@@ -229,7 +229,7 @@ struct ConversationCoachView: View {
         .alert("Couldn't Start Recording", isPresented: $showingStartFailedAlert) {
             Button("OK", role: .cancel) {}
         } message: {
-            Text("The microphone may be in use by a call or another app. Try again in a moment.")
+            Text(AudioRecorderManager.startFailedMessage)
         }
         .navigationBarTitleDisplayMode(.inline)
         .onDisappear {

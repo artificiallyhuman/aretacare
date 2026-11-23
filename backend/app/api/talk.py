@@ -9,7 +9,7 @@ Two audiences share this router:
 """
 import logging
 from datetime import datetime
-from typing import Any, Optional
+from typing import Any, Literal, Optional
 from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -92,6 +92,9 @@ async def talk_status(current_user: User = Depends(get_current_user), db: DBSess
         "has_consent": _has_talk_consent(db, current_user.id),
         "remaining_seconds_today": remaining,
         "max_session_seconds": settings.TALK_MAX_SESSION_SECONDS,
+        # This server applies the driving rules to CarPlay calls (`surface`). A CarPlay build
+        # won't start a call without it, so it never gets the phone prompt from an older server.
+        "carplay": True,
     }
 
 
@@ -118,6 +121,10 @@ class TalkStartRequest(BaseModel):
     sdp: str
     user_timezone: Optional[str] = Field(None, max_length=64)
     current_time: Optional[str] = Field(None, max_length=64)
+    # Enums only: each selects fixed instruction text (ai_config), so nothing the client
+    # sends becomes part of the model's rules. Older apps send neither.
+    surface: Literal["app", "carplay"] = "app"
+    opening: Optional[Literal["catch_up", "visit_prep", "visit_debrief"]] = None
 
 
 def _recording_name(user_timezone: Optional[str]) -> str:
@@ -186,7 +193,7 @@ async def start_talk_session(
     talk = TalkSession(
         session_id=session_id, user_id=user_id, max_seconds=max_seconds,
         mcp_token_hash=token_hash, recording_name=_recording_name(body.user_timezone),
-        user_timezone=sanitize_user_timezone(body.user_timezone),
+        user_timezone=sanitize_user_timezone(body.user_timezone), surface=body.surface,
     )
     db.add(talk)
     try:
@@ -203,6 +210,7 @@ async def start_talk_session(
     config = talk_service.build_session_config(
         mcp_token=mcp_token, input_items=input_items,
         user_timezone=body.user_timezone, current_time=body.current_time,
+        surface=body.surface, opening=body.opening,
     )
     try:
         openai_session_id, sdp_answer = await talk_service.create_live_session(body.sdp, config)
@@ -217,6 +225,7 @@ async def start_talk_session(
     )
     db.commit()
     talk_service.start_sideband(talk_id, openai_session_id, max_seconds)
+    logger.info(f"Talk {talk_id}: started from {body.surface}" + (f" ({body.opening})" if body.opening else ""))
     return {"talk_id": talk_id, "sdp": sdp_answer, "max_seconds": max_seconds}
 
 
@@ -298,7 +307,7 @@ async def _call_tool(db: DBSession, talk: TalkSession, params: Any) -> dict:
         return text_result("Malformed tool call.", True)
     name = params["name"]
     talk_id, session_id, user_id = talk.id, talk.session_id, talk.user_id
-    user_timezone = talk.user_timezone
+    user_timezone, surface = talk.user_timezone, talk.surface
 
     # Access can be revoked mid-call (collaborator removed, account deactivated).
     user = db.query(User).filter(User.id == user_id).first()
@@ -325,7 +334,7 @@ async def _call_tool(db: DBSession, talk: TalkSession, params: Any) -> dict:
 
     ctx = talk_tools.ToolContext(
         db=db, talk_id=talk_id, session_id=session_id, user_id=user_id,
-        user_today=talk_tools.local_date(user_timezone),
+        user_today=talk_tools.local_date(user_timezone), surface=surface or "app",
     )
     try:
         output = await talk_tools.call_tool(ctx, name, params.get("arguments"))

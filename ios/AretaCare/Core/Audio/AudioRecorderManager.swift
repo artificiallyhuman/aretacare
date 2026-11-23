@@ -16,6 +16,17 @@ final class AudioRecorderManager: NSObject, AVAudioRecorderDelegate {
     /// progress). Navigation that would change care session checks it, because a recording
     /// is uploaded to the session it was made in.
     private(set) static var isRecordingInProgress = false
+
+    /// Why `start` returned false, for the recorder screens.
+    static var startFailedMessage: String {
+        if CarPlayConnection.shared.isConnected {
+            return "Recording isn't available while your iPhone is connected to CarPlay. You can use Talk on the car's screen."
+        }
+        if TalkViewModel.isCallInProgress {
+            return "A Talk conversation is using the microphone. Try again when it ends."
+        }
+        return "The microphone may be in use by a call or another app. Try again in a moment."
+    }
     /// The recorder capturing now, so signing out can stop it (`stopActiveRecording`).
     private static weak var active: AudioRecorderManager?
     private(set) var elapsedTime: TimeInterval = 0
@@ -49,6 +60,10 @@ final class AudioRecorderManager: NSObject, AVAudioRecorderDelegate {
     /// Starts recording. Returns false when the microphone couldn't start (a phone call, or
     /// another app holding the input): the caller must say so, not show a running timer.
     func start(maxDuration: TimeInterval, onMaxDuration: @escaping () -> Void) -> Bool {
+        // A Talk call (from CarPlay, say, while the phone's chat is open) holds the microphone,
+        // and Apple's CarPlay rules allow recording only through the car's voice screen.
+        // Callers show `startFailedMessage`.
+        guard !TalkViewModel.isCallInProgress, !CarPlayConnection.shared.isConnected else { return false }
         self.maxDuration = maxDuration
         self.onMaxDuration = onMaxDuration
 

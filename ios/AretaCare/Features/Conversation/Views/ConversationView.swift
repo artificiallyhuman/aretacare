@@ -552,7 +552,7 @@ struct ConversationView: View {
                 }
             }
             guard started else {
-                conversationVM.errorMessage = "Couldn't start recording. The microphone may be in use by a call or another app."
+                conversationVM.errorMessage = "Couldn't start recording. " + AudioRecorderManager.startFailedMessage
                 return
             }
             recordingSessionId = sessionId
@@ -749,6 +749,15 @@ private struct TalkModeModifier: ViewModifier {
             }
             .onChange(of: talkVM.savedCallToken) { _, _ in
                 onCallSaved()
+            }
+            .onReceive(NotificationCenter.default.publisher(for: TalkViewModel.callSavedNotification)) { note in
+                // A call made in CarPlay: its card lands in this chat if it's the same care session.
+                if let saved = note.userInfo?["sessionId"] as? String, saved == sessionId {
+                    if note.userInfo?["failed"] as? Bool == true {
+                        talkVM.saveErrorMessage = TalkViewModel.saveFailedMessage
+                    }
+                    onCallSaved()
+                }
             }
             .onDisappear {
                 // Never leave a call or the mic open. Signed out: just tear down. Still

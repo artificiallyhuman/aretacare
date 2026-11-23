@@ -55,8 +55,10 @@ final class PrivacyWindowManager {
     }
 
     /// Idempotent; re-run on every scene phase transition as a self-healing
-    /// backstop. Single-scene app, so pruning against `connectedScenes`
-    /// replaces a disconnect observer.
+    /// backstop. One phone window, so pruning against `connectedScenes`
+    /// replaces a disconnect observer. The CarPlay template scene is not a
+    /// `UIWindowScene` and never gets an overlay: the car's screen shows no
+    /// health content, and it must work while the phone is locked.
     func attachIfNeeded() {
         let connected = UIApplication.shared.connectedScenes
         let connectedIDs = Set(connected.map(ObjectIdentifier.init))

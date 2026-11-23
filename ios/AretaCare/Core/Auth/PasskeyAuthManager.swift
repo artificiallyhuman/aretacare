@@ -201,7 +201,10 @@ final class PasskeyAuthManager: NSObject, ASAuthorizationControllerDelegate, ASA
     // MARK: - ASAuthorizationControllerPresentationContextProviding
 
     func presentationAnchor(for controller: ASAuthorizationController) -> ASPresentationAnchor {
-        guard let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+        // The phone's window scene: with CarPlay connected, `connectedScenes` (a Set) also
+        // holds the car's template scene, which has no window to present from.
+        let windowScenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
+        guard let scene = windowScenes.first(where: { $0.activationState == .foregroundActive }) ?? windowScenes.first,
               let window = scene.windows.first(where: \.isKeyWindow)
                 ?? scene.windows.first(where: { !($0 is PassthroughWindow) }) else {
             return ASPresentationAnchor()
