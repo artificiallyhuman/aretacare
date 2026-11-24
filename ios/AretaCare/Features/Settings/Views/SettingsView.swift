@@ -145,16 +145,14 @@ struct SettingsView: View {
             // Product update emails. Off = unsubscribed from admin campaign emails
             // (same flag an emailed unsubscribe link sets); transactional email is
             // unaffected. Disabled until the preference has loaded.
-            VStack(alignment: .leading, spacing: 4) {
-                Toggle(isOn: productUpdateEmailsBinding) {
-                    Label("Receive updates", systemImage: "megaphone")
-                }
-                .disabled(viewModel.productUpdateEmails == nil)
-                Text("Occasional emails about new features. Doesn't affect account or security emails.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .padding(.leading, 36)
+            Toggle(isOn: productUpdateEmailsBinding) {
+                CaptionedToggleLabel(
+                    title: "Receive updates",
+                    systemImage: "megaphone",
+                    caption: "Occasional emails about new features. Doesn't affect account or security emails."
+                )
             }
+            .disabled(viewModel.productUpdateEmails == nil)
         }
     }
 
@@ -178,16 +176,12 @@ struct SettingsView: View {
             }
 
             if BiometricManager.shared.isAvailable {
-                VStack(alignment: .leading, spacing: 4) {
-                    Toggle(isOn: $biometricLockEnabled) {
-                        Label(biometricLockLabel, systemImage: biometricLockIcon)
-                    }
-                    if biometricLockEnabled {
-                        Text("Disables automatic logout after inactivity.")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                            .padding(.leading, 36)
-                    }
+                Toggle(isOn: $biometricLockEnabled) {
+                    CaptionedToggleLabel(
+                        title: biometricLockLabel,
+                        systemImage: biometricLockIcon,
+                        caption: biometricLockEnabled ? "Disables automatic logout after inactivity." : nil
+                    )
                 }
             }
 
@@ -566,6 +560,31 @@ struct SettingsView: View {
         .background(Color.green.opacity(0.9))
         .clipShape(RoundedRectangle(cornerRadius: 10))
         .padding(.horizontal)
+    }
+}
+
+/// A toggle row's label with an optional caption under the title. The caption is part of
+/// the label, so it starts where the title starts at every text size and wraps before the
+/// switch (a caption placed under the whole Toggle ran beneath the switch, and a fixed
+/// indent drifted from the title as the icon grew with Dynamic Type).
+private struct CaptionedToggleLabel: View {
+    let title: String
+    let systemImage: String
+    let caption: String?
+
+    var body: some View {
+        Label {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                if let caption {
+                    Text(caption)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+        } icon: {
+            Image(systemName: systemImage)
+        }
     }
 }
 
