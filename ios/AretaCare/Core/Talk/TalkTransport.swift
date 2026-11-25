@@ -56,6 +56,17 @@ enum TalkTransportError: LocalizedError {
     }
 }
 
+/// Audio work a transport finishes after its call is over: closing the connection and
+/// releasing the audio session run off the main thread. Until that's done the session is
+/// still Talk's, so `TalkViewModel.isUsingAudioSession` counts it and the app's players and
+/// recorders leave the session alone.
+@MainActor
+enum TalkAudioTeardown {
+    private(set) static var pending = 0
+    static func begin() { pending += 1 }
+    static func end() { pending = max(0, pending - 1) }
+}
+
 enum TalkTransportFactory {
     @MainActor
     static func make() -> TalkTransport? {

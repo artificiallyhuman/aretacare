@@ -172,9 +172,12 @@ struct MainTabView: View {
                   !AudioRecorderManager.isRecordingInProgress, !TalkViewModel.isPhoneCallInProgress
             else { return }
             if !sessionVM.follow(sessionId: sessionId) {
-                // Not in this screen's list yet (created since it last fetched).
+                // Not in this screen's list yet (created since it last fetched). The fetch
+                // can take a while: check again that nothing started that a switch would end.
                 Task {
                     await sessionVM.fetchSessions()
+                    guard !AudioRecorderManager.isRecordingInProgress, !TalkViewModel.isPhoneCallInProgress
+                    else { return }
                     sessionVM.follow(sessionId: sessionId)
                 }
             }

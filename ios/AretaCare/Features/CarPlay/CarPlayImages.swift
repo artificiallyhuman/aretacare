@@ -11,12 +11,6 @@ import UIKit
 @available(iOS 26.4, *)
 @MainActor
 enum CarPlayImages {
-    /// A symbol for a button, tinted by CarPlay.
-    static func symbol(_ name: String, pointSize: CGFloat = 28) -> UIImage {
-        let configuration = UIImage.SymbolConfiguration(pointSize: pointSize, weight: .semibold)
-        return UIImage(systemName: name, withConfiguration: configuration) ?? UIImage()
-    }
-
     // MARK: - Landing screen
 
     /// A gradient from top-leading to bottom-trailing.
@@ -81,10 +75,18 @@ enum CarPlayImages {
 
     /// Mute shows the slashed microphone either way, like the Phone app's mute button. While
     /// muted it lights up: a white circle with the microphone in red (and the title says
-    /// Muted).
-    static func muteButton(muted: Bool, scale: CGFloat) -> UIImage {
-        guard muted else { return cached("mute.off") { symbol("mic.slash.fill") } }
-        return cached("mute.on@\(scale)") { disc("mic.slash.fill", fill: .white, glyph: .systemRed, scale: scale) }
+    /// Muted). Both are drawn on the same circle as End, so the button keeps its size: a
+    /// plain symbol for the unmuted state was sized by CarPlay, not by us, and the button
+    /// grew and shrank with every tap. `dark` is the car's appearance.
+    static func muteButton(muted: Bool, dark: Bool, scale: CGFloat) -> UIImage {
+        if muted {
+            return cached("mute.on@\(scale)") { disc("mic.slash.fill", fill: .white, glyph: .systemRed, scale: scale) }
+        }
+        return cached("mute.off.\(dark)@\(scale)") {
+            dark
+                ? disc("mic.slash.fill", fill: UIColor(white: 1, alpha: 0.22), glyph: .white, scale: scale)
+                : disc("mic.slash.fill", fill: UIColor(white: 0, alpha: 0.1), glyph: UIColor(hex: 0x1C2B3A), scale: scale)
+        }
     }
 
     /// End is the red hang-up button everyone knows from phone calls.
@@ -207,7 +209,8 @@ enum CarPlayImages {
             _ = voiceState(state, scale: scale)
         }
         await Task.yield()
-        _ = muteButton(muted: true, scale: scale)
+        _ = muteButton(muted: false, dark: dark, scale: scale)
+        _ = muteButton(muted: true, dark: dark, scale: scale)
         _ = endButton(scale: scale)
     }
 

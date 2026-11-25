@@ -81,11 +81,6 @@ final class AuthManager {
         }
     }
 
-    /// Retries the launch-time session restore after a transient failure.
-    func retryInitAuth() async {
-        await initAuth()
-    }
-
     /// True when a refresh token is still on the device — the session may just
     /// be unreachable rather than over.
     var hasStoredSession: Bool {

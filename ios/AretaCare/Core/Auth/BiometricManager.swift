@@ -120,6 +120,10 @@ final class BiometricManager {
             // which would otherwise read as "just backgrounded" and skip the lock.
             let elapsed = Date().timeIntervalSince(Date(timeIntervalSince1970: persisted))
             if elapsed >= 0 && elapsed < AppConstants.biometricReauthSeconds {
+                // Not locked yet, but the phone window decides when it next comes up
+                // (`appWillEnterForeground`), measured from the same moment: CarPlay can
+                // start the process with no window, and the window may open an hour later.
+                backgroundDate = Date(timeIntervalSince1970: persisted)
                 return
             }
         }

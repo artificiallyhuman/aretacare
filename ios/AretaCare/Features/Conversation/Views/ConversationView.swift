@@ -64,6 +64,10 @@ struct ConversationView: View {
                 onCallSaved: {
                     guard let sessionId = currentSessionId else { return }
                     Task { await conversationVM.fetchHistory(sessionId: sessionId, forceRefresh: true) }
+                },
+                onCarCallSaved: {
+                    guard let sessionId = currentSessionId else { return }
+                    Task { await conversationVM.mergeLatest(sessionId: sessionId) }
                 }
             ))
             .navigationDestination(isPresented: $showingAudioRecordings) {
@@ -145,6 +149,9 @@ struct ConversationView: View {
                 // Recordings screen still holds its id, and a Talk save error is about it.
                 showingAudioRecordings = false
                 talkVM.saveErrorMessage = nil
+                // A file staged in one care session isn't sent to another. The switch may
+                // come from CarPlay, unseen by whoever is holding the phone.
+                pendingAttachment = nil
                 conversationVM.show(sessionId: newId)
                 isNearBottom = true
                 Task {
@@ -716,6 +723,8 @@ private struct TalkModeModifier: ViewModifier {
     @Bindable var talkVM: TalkViewModel
     let sessionId: String?
     let onCallSaved: () -> Void
+    /// A CarPlay call's card: the phone may be in use, so it's merged in, not reloaded.
+    let onCarCallSaved: () -> Void
 
     func body(content: Content) -> some View {
         content
@@ -756,7 +765,7 @@ private struct TalkModeModifier: ViewModifier {
                     if note.userInfo?["failed"] as? Bool == true {
                         talkVM.saveErrorMessage = TalkViewModel.saveFailedMessage
                     }
-                    onCallSaved()
+                    onCarCallSaved()
                 }
             }
             .onDisappear {

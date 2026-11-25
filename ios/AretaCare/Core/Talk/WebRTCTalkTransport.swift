@@ -1,7 +1,7 @@
 #if canImport(WebRTC)
 import AVFoundation
 import Foundation
-import WebRTC
+@preconcurrency import WebRTC  // its objects are handed to `audioQueue` to close
 
 /// `TalkTransport` on libwebrtc.
 ///
@@ -10,6 +10,10 @@ import WebRTC
 /// - Echo cancellation is the client's job for a full-duplex call on a speaker, so the
 ///   audio session runs in `.voiceChat` mode (hardware AEC/AGC/noise suppression).
 /// - Levels for the orb come from the connection's own statistics, so no audio taps.
+/// - Activating and releasing the audio session, and closing the connection, block until
+///   the audio hardware has started or stopped (over CarPlay, a noticeable moment). They run
+///   on `audioQueue`, in order: End doesn't stall the screen, and a call started straight
+///   after another can't have its session released by the earlier call's teardown.
 @MainActor
 final class WebRTCTalkTransport: NSObject, TalkTransport {
     var onEvent: ((TalkTransportEvent) -> Void)?
@@ -21,6 +25,8 @@ final class WebRTCTalkTransport: NSObject, TalkTransport {
             decoderFactory: RTCDefaultVideoDecoderFactory()
         )
     }()
+
+    private nonisolated static let audioQueue = DispatchQueue(label: "com.aretacare.talk.audio", qos: .userInitiated)
 
     private var peerConnection: RTCPeerConnection?
     private var dataChannel: RTCDataChannel?
@@ -35,7 +41,18 @@ final class WebRTCTalkTransport: NSObject, TalkTransport {
     // MARK: - TalkTransport
 
     func makeOffer() async throws -> String {
-        try configureAudioSession()
+        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+            Self.audioQueue.async {
+                do {
+                    try Self.configureAudioSession()
+                    continuation.resume()
+                } catch {
+                    continuation.resume(throwing: error)
+                }
+            }
+        }
+        // Ended meanwhile: its teardown, queued after the activation, releases the session.
+        guard !isClosed else { throw TalkTransportError.setupFailed("closed") }
 
         let configuration = RTCConfiguration()
         configuration.sdpSemantics = .unifiedPlan
@@ -141,13 +158,19 @@ final class WebRTCTalkTransport: NSObject, TalkTransport {
         gatheringContinuation = nil
         audioTrack?.isEnabled = false
         dataChannel?.delegate = nil
-        dataChannel?.close()
         peerConnection?.delegate = nil
-        peerConnection?.close()
+        let channel = dataChannel
+        let connection = peerConnection
         dataChannel = nil
         audioTrack = nil
         peerConnection = nil
-        releaseAudioSession()
+        TalkAudioTeardown.begin()
+        Self.audioQueue.async {
+            channel?.close()
+            connection?.close()  // synchronous: stops the audio unit
+            Self.releaseAudioSession()
+            Task { @MainActor in TalkAudioTeardown.end() }
+        }
     }
 
     // MARK: - Setup helpers
@@ -189,7 +212,7 @@ final class WebRTCTalkTransport: NSObject, TalkTransport {
         timeout.cancel()
     }
 
-    private func configureAudioSession() throws {
+    private nonisolated static func configureAudioSession() throws {
         let configuration = RTCAudioSessionConfiguration.webRTC()
         configuration.category = AVAudioSession.Category.playAndRecord.rawValue
         configuration.mode = AVAudioSession.Mode.voiceChat.rawValue
@@ -205,7 +228,7 @@ final class WebRTCTalkTransport: NSObject, TalkTransport {
         try session.setConfiguration(configuration, active: true)
     }
 
-    private func releaseAudioSession() {
+    private nonisolated static func releaseAudioSession() {
         let session = RTCAudioSession.sharedInstance()
         session.lockForConfiguration()
         try? session.setActive(false)

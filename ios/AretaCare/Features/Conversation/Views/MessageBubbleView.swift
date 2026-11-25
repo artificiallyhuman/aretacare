@@ -286,6 +286,14 @@ struct MessageBubbleView: View {
                     .lineLimit(4)
             }
         }
+        .onReceive(NotificationCenter.default.publisher(for: TalkViewModel.callDidStartNotification)) { _ in
+            // A Talk call is starting (in CarPlay the chat stays on screen): stop playing,
+            // rather than play on under the call.
+            if isPlayingAudio {
+                audioPlayer?.pause()
+                isPlayingAudio = false
+            }
+        }
         .onDisappear {
             audioPlayer?.pause()
             isPlayingAudio = false

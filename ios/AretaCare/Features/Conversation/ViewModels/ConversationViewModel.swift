@@ -779,6 +779,18 @@ final class ConversationViewModel {
         }
     }
 
+    /// Picks up a card posted from somewhere else (a CarPlay call) while this chat may be in
+    /// use: appends what's new and updates "saving" cards in place, like the collaborator
+    /// poll. A full reload would drop failed sends (their Retry would then lose the text) and
+    /// loaded older pages. An empty chat simply loads.
+    func mergeLatest(sessionId: String) async {
+        if messages.isEmpty {
+            await fetchHistory(sessionId: sessionId, forceRefresh: true)
+        } else {
+            await pollForNewMessages(sessionId: sessionId)
+        }
+    }
+
     /// A Talk card is posted as "saving" and filled in later on the same row (or deleted if
     /// saving failed); polling otherwise only appends, so collaborators would keep the
     /// spinner. Updates in place by id, which keeps ForEach identity. Returns whether

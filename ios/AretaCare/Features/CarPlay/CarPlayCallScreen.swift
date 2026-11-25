@@ -34,8 +34,10 @@ final class CarPlayCallScreen {
     private(set) lazy var template: CPVoiceControlTemplate = {
         let template = CPVoiceControlTemplate(voiceControlStates: State.allCases.map { state in
             let voiceState = makeState(state)
+            // End is last; if a car allows fewer buttons, it's the one kept.
             let buttons = buttons(for: state)
-            voiceState.actionButtons = Array(buttons.prefix(CPVoiceControlState.maximumActionButtonCount))
+            let limit = max(1, CPVoiceControlState.maximumActionButtonCount)
+            voiceState.actionButtons = Array(buttons.suffix(limit))
             return voiceState
         })
         // The system's close button was an unexplained X beside the End button. Done says
@@ -60,6 +62,7 @@ final class CarPlayCallScreen {
     private var pendingState: Task<Void, Never>?
     private var resendCheck: Task<Void, Never>?
     private var resends = 0
+    private var lastAppeared = Date.distantPast
     private var isClosed = false
 
     /// `scale` and `style` are the car screen's (`carTraitCollection`), for the images.
@@ -75,7 +78,11 @@ final class CarPlayCallScreen {
 
     /// The template is on screen, so states can be activated. A call that was already
     /// running (started on the phone) would otherwise sit on "Connecting…" until it changed.
+    /// Also when the driver comes back from another CarPlay app (the present's completion
+    /// and the appear event can both report the same appearance; once is enough).
     func didAppear() {
+        guard Date().timeIntervalSince(lastAppeared) > 1 else { return }
+        lastAppeared = Date()
         // Activations before the template was up had no effect: it shows its first state.
         shownState = .connecting
         lastStateChange = .distantPast
@@ -180,6 +187,17 @@ final class CarPlayCallScreen {
         }
     }
 
+    /// Shows the call's real state now, dwell or not.
+    private func resync() {
+        guard !isClosed else { return }
+        pendingState?.cancel()
+        let state = state(for: talk)
+        shownState = state
+        lastStateChange = Date()
+        resends = 0
+        activate(state)
+    }
+
     private func close() {
         guard !isClosed else { return }
         isClosed = true
@@ -224,9 +242,16 @@ final class CarPlayCallScreen {
         // toggling: a tap delivered twice, or tapped on a screen CarPlay hadn't updated yet,
         // can't undo itself.
         let muted = state == .muted
-        let mute = CPButton(image: CarPlayImages.muteButton(muted: muted, scale: scale)) { [weak self] _ in
+        let mute = CPButton(image: CarPlayImages.muteButton(muted: muted, dark: darkBackground, scale: scale)) { [weak self] _ in
+            guard let self else { return }
             AuthManager.shared.recordActivity()
-            self?.talk.setMicrophoneMuted(!muted)
+            if self.talk.isMuted == !muted {
+                // Already so: the screen is behind (CarPlay dropped a change), and a tap that
+                // changes nothing wouldn't fix it. Show the call as it is.
+                self.resync()
+            } else {
+                self.talk.setMicrophoneMuted(!muted)
+            }
         }
         mute.title = muted ? "Unmute" : "Mute"
         return [mute, end]

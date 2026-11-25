@@ -17,13 +17,14 @@ final class CarPlaySceneDelegate: UIResponder, CPTemplateApplicationSceneDelegat
         _ templateApplicationScene: CPTemplateApplicationScene,
         didConnect interfaceController: CPInterfaceController
     ) {
+        // The category doesn't exist before 26.4. Checked first: "connected" pauses the idle
+        // sign-out and refuses recording on the phone, which only a working car screen justifies.
+        guard #available(iOS 26.4, *) else { return }
         CarPlayConnection.shared.setConnected(true)
         AuthManager.shared.recordActivity()
-        guard #available(iOS 26.4, *) else { return }  // the category doesn't exist before 26.4
-        // Portrait screens (Subaru's, among others) get the starts as rows.
-        let size = templateApplicationScene.carWindow.bounds.size
+        // The window gives the screen's shape (portrait screens get the starts as rows).
         let coordinator = CarPlayCoordinator(interfaceController: interfaceController,
-                                             isTallScreen: size.height > size.width)
+                                             carWindow: templateApplicationScene.carWindow)
         self.coordinator = coordinator
         coordinator.connect()
     }

@@ -81,7 +81,7 @@ final class TalkViewModel {
     static var isPhoneCallInProgress: Bool { isCallInProgress && current?.surface == .app }
     /// A call holds the audio session. Deactivating it or changing its category would silence
     /// the call, and during a CarPlay call the phone's chat and recordings stay usable.
-    static var isUsingAudioSession: Bool { current?.inCallEnvironment == true }
+    static var isUsingAudioSession: Bool { current?.inCallEnvironment == true || TalkAudioTeardown.pending > 0 }
 
     /// Posted when a call starts connecting (the microphone opens), so CarPlay can show a
     /// call started on the phone: in the car, the microphone goes with the voice screen.

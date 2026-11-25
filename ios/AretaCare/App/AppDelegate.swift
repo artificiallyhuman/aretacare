@@ -26,6 +26,14 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
             options.tracesSampleRate = 0.1
             options.attachScreenshot = false
             options.attachViewHierarchy = false
+            // Hangs come from MetricKit, which iOS measures itself. Sentry's own detector
+            // judges the main thread by the frames the phone's screen draws, and with CarPlay
+            // connected the app stays active while the phone is locked or shows another app:
+            // it reported each such stretch as a hang (the main thread idle in its run loop),
+            // and as a fatal one when the app was later closed. The SDK deprecates that
+            // detector for false positives and names MetricKit as the replacement.
+            options.enableAppHangTracking = false
+            options.enableMetricKit = true
             // Query strings and fragments carry presigned S3 signatures, verification tokens
             // and search text (which can be health terms). The SDK strips them from "url"
             // but copies them into separate fields on network breadcrumbs ("http.query",

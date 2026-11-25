@@ -127,6 +127,12 @@ private struct PhoneWindowPhaseHandlers: ViewModifier {
                 // Separate handler: initial: true must not re-run the
                 // background/foreground transitions above at launch.
                 PrivacyWindowManager.shared.update(phase: newPhase)
+                // Except the lock check: a window opened while CarPlay already runs the app
+                // can start out active, with no change to report. A second call is a no-op
+                // (the first clears the background time).
+                if newPhase == .active {
+                    BiometricManager.shared.appWillEnterForeground()
+                }
             }
     }
 }

@@ -103,6 +103,11 @@ struct AudioPlayerView: View {
         .task {
             await loadAudio()
         }
+        .onReceive(NotificationCenter.default.publisher(for: TalkViewModel.callDidStartNotification)) { _ in
+            // A Talk call is starting in CarPlay, which leaves this screen up: stop playing,
+            // rather than play on under the call.
+            if isPlaying { togglePlayback() }
+        }
         .onDisappear {
             cleanup()
         }

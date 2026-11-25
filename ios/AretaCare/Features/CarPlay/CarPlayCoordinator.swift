@@ -1,4 +1,5 @@
 import CarPlay
+import Sentry
 import UIKit
 
 /// Runs AretaCare on the CarPlay screen.
@@ -6,9 +7,9 @@ import UIKit
 /// Landing screen: a list titled AretaCare with four one-tap starts (Talk, Catch me up,
 /// Before a visit, After a visit) and, under a "Care session" header, one row naming the
 /// care session; with more than one, tapping it opens the list of care sessions. On a wide
-/// screen the starts are round buttons pinned along the top; on a tall one (portrait, like
-/// Subaru's) they're rows, which fill the screen instead of leaving most of it empty. A
-/// start opens the voice screen and starts a Talk call. Apple's
+/// screen the starts are round buttons pinned along the top; on any other (Subaru's portrait
+/// screen, which leaves the app about a square) they're rows, which fill the screen instead
+/// of leaving most of it empty. A start opens the voice screen and starts a Talk call. Apple's
 /// rules for the category (CarPlay Developer Guide, Oct 2026): voice first, no text or
 /// images in answers, at most three templates deep, the microphone only with the voice
 /// control template, and never a message telling the driver to pick up the phone.
@@ -16,8 +17,12 @@ import UIKit
 @MainActor
 final class CarPlayCoordinator {
     private let interfaceController: CPInterfaceController
-    /// The car's screen is taller than it is wide: the starts are list rows.
-    private let isTallScreen: Bool
+    /// The scene's window, for the screen's shape.
+    private weak var carWindow: CPWindow?
+    /// The starts are list rows (a screen that isn't clearly wide) rather than round buttons
+    /// pinned along the top.
+    private var startsAsRows = false
+    private var recordedScreenSize: CGSize?
     private var sessionVM = SessionViewModel()
     private var landing: CPListTemplate?
     /// Built once: the start rows don't change, and the landing list is re-sent whenever the
@@ -32,9 +37,12 @@ final class CarPlayCoordinator {
     private var isConnected = false
     private var startTask: Task<Void, Never>?
     /// A tap's checks are running (network, sign-in, care session). Cleared before the call
-    /// itself begins: from then on the voice screen (and its End) represents the attempt,
-    /// so a stalled request can never leave the landing screen ignoring taps.
+    /// itself begins: from then on the voice screen (and its End) represents the attempt.
+    /// The checks themselves wait on the network (a sign-in restore, the care session list),
+    /// so they give up after `prepareTimeoutSeconds` and say so, rather than leave the
+    /// landing screen ignoring taps.
     private var preparing: UUID?
+    private static let prepareTimeoutSeconds: Double = 15
     private var isPreparing: Bool { preparing != nil }
     private var isLoadingSessions = false
     /// The first load (sign-in restore included) has finished. Until then the care session
@@ -46,15 +54,20 @@ final class CarPlayCoordinator {
     /// updated until an animated present finishes.
     private var desiredModal: CPTemplate?
     private var isChangingModal = false
+    /// The present or dismiss in flight. Its completion is expected, but CarPlay doesn't
+    /// promise one for every case, and a change that never finished would block every later
+    /// alert and voice screen: after `modalChangeTimeoutSeconds` the next one goes ahead.
+    private var modalChange: UUID?
+    private static let modalChangeTimeoutSeconds: Double = 4
 
     /// Calls started from CarPlay that are still waiting for their result. The view model's
     /// result poll (which reloads the phone's chat card and reports a failed save) holds it
     /// weakly, and `TalkViewModel.current` lets go when the call ends.
     private static var callsAwaitingResult: [TalkViewModel] = []
 
-    init(interfaceController: CPInterfaceController, isTallScreen: Bool) {
+    init(interfaceController: CPInterfaceController, carWindow: CPWindow) {
         self.interfaceController = interfaceController
-        self.isTallScreen = isTallScreen
+        self.carWindow = carWindow
     }
 
     // MARK: - Connection
@@ -62,10 +75,20 @@ final class CarPlayCoordinator {
     func connect() {
         isConnected = true
         templateEvents.didDisappear = { [weak self] template in self?.templateDidDisappear(template) }
+        templateEvents.didAppear = { [weak self] template in
+            guard let self else { return }
+            if template === self.landing {
+                self.applyScreenShape()
+            } else if let callScreen = self.callScreen, callScreen.template === template {
+                // Back from another CarPlay app: bring the voice screen up to date.
+                callScreen.didAppear()
+            }
+        }
         interfaceController.delegate = templateEvents
         let landing = makeLanding()
         self.landing = landing
-        interfaceController.setRootTemplate(landing, animated: false, completion: nil)
+        // A completion, even an empty one: without it a refusal throws.
+        interfaceController.setRootTemplate(landing, animated: false) { _, _ in }
 
         let center = NotificationCenter.default
         observers.append(center.addObserver(
@@ -118,6 +141,7 @@ final class CarPlayCoordinator {
         observers.forEach(NotificationCenter.default.removeObserver)
         observers = []
         templateEvents.didDisappear = nil
+        templateEvents.didAppear = nil
         callScreen?.detach()
         callScreen = nil
         if let live = TalkViewModel.current, live.surface == .carPlay, live.isActive {
@@ -134,12 +158,46 @@ final class CarPlayCoordinator {
     // MARK: - Landing screen
 
     private func makeLanding() -> CPListTemplate {
-        CPListTemplate(title: "AretaCare", sections: landingSections(), assistantCellConfiguration: nil,
-                       headerGridButtons: isTallScreen ? nil : startButtons())
+        startsAsRows = screenWantsRows() ?? false
+        return CPListTemplate(title: "AretaCare", sections: landingSections(), assistantCellConfiguration: nil,
+                              headerGridButtons: startsAsRows ? nil : startButtons())
     }
 
     private func landingSections() -> [CPListSection] {
-        isTallScreen ? [startSection, sessionSection()] : [sessionSection()]
+        startsAsRows ? [startSection, sessionSection()] : [sessionSection()]
+    }
+
+    /// Round buttons along the top suit a wide screen (Sony's 800 × 480). Anything less wide
+    /// gets rows, which fill the screen instead of leaving most of it empty. Subaru's portrait
+    /// screen gives the app about a square (the dock takes the bottom), so the first test,
+    /// "taller than wide", missed it.
+    private static let wideAspectRatio: CGFloat = 1.3
+
+    /// Whether the car's screen calls for rows, or nil while its size isn't known (the window
+    /// may not be laid out yet at connect; the landing screen asks again when it appears and
+    /// on every update).
+    private func screenWantsRows() -> Bool? {
+        guard let window = carWindow else { return nil }
+        var size = window.bounds.size
+        // A window not laid out yet: the car's own screen. (A window's screen defaults to the
+        // phone's, which is portrait, so only the CarPlay screen counts.)
+        if size.width < 1 || size.height < 1, window.screen.traitCollection.userInterfaceIdiom == .carPlay {
+            size = window.screen.bounds.size
+        }
+        guard size.width >= 1, size.height >= 1 else { return nil }
+        let rows = size.width < size.height * Self.wideAspectRatio
+        recordScreen(size, rows: rows)
+        return rows
+    }
+
+    /// The car's screen size and the layout picked, in the breadcrumbs of any later Sentry
+    /// event: car screens can only be measured in the car. Once per distinct size.
+    private func recordScreen(_ size: CGSize, rows: Bool) {
+        guard size != recordedScreenSize else { return }
+        recordedScreenSize = size
+        let crumb = Breadcrumb(level: .info, category: "carplay")
+        crumb.message = "CarPlay screen \(Int(size.width))×\(Int(size.height)) pt: \(rows ? "rows" : "buttons")"
+        SentrySDK.addBreadcrumb(crumb)
     }
 
     /// The four one-tap starts. Titles list a shorter variant for narrow buttons.
@@ -212,7 +270,19 @@ final class CarPlayCoordinator {
     }
 
     private func updateLanding() {
-        landing?.updateSections(landingSections())
+        if !applyScreenShape() { landing?.updateSections(landingSections()) }
+    }
+
+    /// Measures the screen again and, if the layout should change, switches between rows and
+    /// pinned buttons. Cheap when nothing changed (the landing screen calls it each time it
+    /// appears): nothing is sent to the car. Returns whether it switched.
+    @discardableResult
+    private func applyScreenShape() -> Bool {
+        guard let landing, let rows = screenWantsRows(), rows != startsAsRows else { return false }
+        startsAsRows = rows
+        landing.headerGridButtons = rows ? nil : startButtons()
+        landing.updateSections(landingSections())
+        return true
     }
 
     private var carScale: CGFloat { interfaceController.carTraitCollection.displayScale }
@@ -247,7 +317,18 @@ final class CarPlayCoordinator {
     /// followed by the phone the same way, in `MainTabView`.)
     private func follow(sessionId: String?, chosenBy chooser: ObjectIdentifier?) {
         guard isConnected, let sessionId, chooser != ObjectIdentifier(sessionVM) else { return }
-        if sessionVM.follow(sessionId: sessionId) { updateLanding() }
+        if sessionVM.follow(sessionId: sessionId) {
+            updateLanding()
+        } else if sessionVM.currentSession?.id != sessionId {
+            // Not in this list yet (just created on the phone): fetch, then follow.
+            let vm = sessionVM
+            Task { [weak self] in
+                await vm.fetchSessions()
+                guard let self, self.isConnected, vm === self.sessionVM else { return }
+                vm.follow(sessionId: sessionId)
+                self.updateLanding()
+            }
+        }
     }
 
     // MARK: - Care session picker (template depth 2)
@@ -260,6 +341,8 @@ final class CarPlayCoordinator {
             showAlert("AretaCare is recording on your iPhone.")
             return
         }
+        // Already open (a tap delivered twice over a wireless link).
+        guard interfaceController.topTemplate === landing else { return }
         let currentId = sessionVM.currentSession?.id
         let sessions = sessionVM.sessions.sorted { $0.lastActivity > $1.lastActivity }
         let items: [CPListItem] = sessions.prefix(Int(CPListTemplate.maximumItemCount)).map { session in
@@ -272,7 +355,7 @@ final class CarPlayCoordinator {
             return item
         }
         let list = CPListTemplate(title: "Care Sessions", sections: [CPListSection(items: items)])
-        interfaceController.pushTemplate(list, animated: true, completion: nil)
+        interfaceController.pushTemplate(list, animated: true) { _, _ in }  // a refusal without one throws
     }
 
     private func choose(_ session: SessionResponse) {
@@ -297,6 +380,13 @@ final class CarPlayCoordinator {
         preparing = token
         startTask = Task { [weak self] in
             await self?.prepareAndStart(opening: opening, token: token)
+        }
+        Task { [weak self] in
+            try? await Task.sleep(for: .seconds(Self.prepareTimeoutSeconds))
+            guard let self, self.preparing == token else { return }
+            self.startTask?.cancel()  // every await in the checks is followed by a cancel check
+            self.preparing = nil
+            self.showAlert("AretaCare can't connect right now. Try again in a moment.")
         }
     }
 
@@ -420,46 +510,68 @@ final class CarPlayCoordinator {
         let shown = interfaceController.presentedTemplate
         if shown === desiredModal { return }
         isChangingModal = true
+        let change = UUID()
+        modalChange = change
+        Task { [weak self] in
+            try? await Task.sleep(for: .seconds(Self.modalChangeTimeoutSeconds))
+            guard let self, self.modalChange == change else { return }
+            self.finishModalChange(change)
+        }
         if shown != nil {
             interfaceController.dismissTemplate(animated: desiredModal == nil) { [weak self] _, _ in
-                Task { @MainActor in
-                    self?.isChangingModal = false
-                    self?.reconcileModal()
-                }
+                Task { @MainActor in self?.finishModalChange(change) }
             }
         } else if let desired = desiredModal {
             interfaceController.presentTemplate(desired, animated: true) { [weak self] presented, _ in
                 Task { @MainActor in
                     guard let self else { return }
-                    self.isChangingModal = false
                     if !presented, self.desiredModal === desired {
                         self.desiredModal = nil  // don't retry a template CarPlay refused
-                        // A refused voice screen is rebuilt on the next tap, not kept unseen
-                        // (its call would have no Mute or End).
+                        // A refused voice screen is rebuilt on the next tap, not kept unseen.
                         if let callScreen = self.callScreen, callScreen.template === desired {
                             callScreen.detach()
                             self.callScreen = nil
+                            // A call started here would have an open microphone and no Mute or
+                            // End: end it. One started on the phone has its own there.
+                            let talk = callScreen.talk
+                            if talk.surface == .carPlay, talk.isActive { Task { await talk.end() } }
                         }
                     }
                     if presented, let callScreen = self.callScreen, callScreen.template === desired {
                         callScreen.didAppear()
                     }
-                    self.reconcileModal()
+                    self.finishModalChange(change)
                 }
             }
         } else {
             isChangingModal = false
+            modalChange = nil
         }
+    }
+
+    /// A present or dismiss finished (or timed out): the next one may go. A late completion
+    /// from a change that already timed out is ignored.
+    private func finishModalChange(_ change: UUID) {
+        guard modalChange == change else { return }
+        modalChange = nil
+        isChangingModal = false
+        reconcileModal()
     }
 
     /// A short message with OK. Wording rule: say what's wrong, never tell the driver to use
     /// the phone. `shorter` is used where the car's screen has less room.
     private func showAlert(_ message: String, shorter: String? = nil) {
         guard isConnected else { return }
+        weak var shownAlert: CPAlertTemplate?
         let ok = CPAlertAction(title: "OK", style: .cancel) { [weak self] _ in
-            self?.setModal(nil)
+            guard let self else { return }
+            // Only this alert's OK: a late tap mustn't take down a voice screen that has
+            // replaced it. And a call that's live (one an alert covered) gets its screen back.
+            if self.desiredModal == nil || self.desiredModal === shownAlert { self.setModal(nil) }
+            self.showLiveCallIfAny()
         }
         let alert = CPAlertTemplate(titleVariants: [message] + (shorter.map { [$0] } ?? []), actions: [ok])
+        shownAlert = alert
         setModal(alert)
     }
 }
@@ -468,7 +580,12 @@ final class CarPlayCoordinator {
 @available(iOS 26.4, *)
 @MainActor
 private final class TemplateEvents: NSObject, CPInterfaceControllerDelegate {
+    var didAppear: ((CPTemplate) -> Void)?
     var didDisappear: ((CPTemplate) -> Void)?
+
+    func templateDidAppear(_ aTemplate: CPTemplate, animated: Bool) {
+        didAppear?(aTemplate)
+    }
 
     func templateDidDisappear(_ aTemplate: CPTemplate, animated: Bool) {
         didDisappear?(aTemplate)

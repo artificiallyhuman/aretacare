@@ -96,7 +96,9 @@ struct ContentView: View {
                 .multilineTextAlignment(.center)
 
             Button("Try Again") {
-                Task { await authManager.retryInitAuth() }
+                // Through the shared startup, so a restore CarPlay starts at the same moment
+                // joins this one instead of running a second.
+                Task { await AppBootstrap.shared.start() }
             }
             .buttonStyle(PrimaryButtonStyle())
 

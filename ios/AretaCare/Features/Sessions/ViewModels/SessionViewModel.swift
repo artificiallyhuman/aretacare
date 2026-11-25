@@ -115,6 +115,7 @@ final class SessionViewModel {
             if let previousId, !fetched.contains(where: { $0.id == previousId }) {
                 let candidates = fetched.filter(\.isActive).isEmpty ? fetched : fetched.filter(\.isActive)
                 currentSession = candidates.max(by: { $0.lastActivity < $1.lastActivity }) ?? candidates.first
+                announce(currentSession)
                 errorMessage = "You no longer have access to that care session."
             } else if let current = currentSession {
                 currentSession = fetched.first { $0.id == current.id } ?? currentSession
@@ -143,6 +144,7 @@ final class SessionViewModel {
             )
             sessions.append(newSession)
             currentSession = newSession
+            announce(newSession)
 
             // Auto-assign colors when going to 2+ sessions
             if sessions.count >= 2 {
@@ -157,15 +159,22 @@ final class SessionViewModel {
 
     func switchSession(to session: SessionResponse) {
         currentSession = session
-        Self.chosenInProcess = session.id
-        // The other screen (phone or CarPlay) follows.
-        NotificationCenter.default.post(name: .activeSessionDidChange, object: self,
-                                        userInfo: [Self.sessionIdKey: session.id])
+        announce(session)
 
         // Notify backend to update last_active_session_id (fire-and-forget, matches web behavior)
         Task {
             let _: SessionResponse? = try? await APIClient.shared.get(APIEndpoints.Sessions.get(session.id))
         }
+    }
+
+    /// This screen moved to a care session (chosen, created, or moved to because the current
+    /// one was deleted or its access revoked): remember it for this process, and the other
+    /// screen (phone or CarPlay) follows.
+    private func announce(_ session: SessionResponse?) {
+        guard let session else { return }
+        Self.chosenInProcess = session.id
+        NotificationCenter.default.post(name: .activeSessionDidChange, object: self,
+                                        userInfo: [Self.sessionIdKey: session.id])
     }
 
     /// Takes up a care session chosen on the other screen. No server call or notification:
@@ -201,6 +210,7 @@ final class SessionViewModel {
                         )
                         sessions = [newSession]
                         currentSession = newSession
+                        announce(newSession)
                     } catch {
                         currentSession = nil
                         errorMessage = "Unable to create a new session. Please try again."
@@ -212,6 +222,7 @@ final class SessionViewModel {
                     currentSession = candidates.max(by: {
                         $0.lastActivity < $1.lastActivity
                     }) ?? candidates.first
+                    announce(currentSession)
                 }
             }
         } catch {
