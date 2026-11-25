@@ -76,6 +76,11 @@ PCM_CHUNK_MS = 200
 FLUSH_INTERVAL_SECONDS = 5          # transcript + heartbeat to the row
 SPEECH_STAMP_INTERVAL_SECONDS = 1   # last_user_speech_at (read by confirm_action)
 WRAP_UP_WARNING_SECONDS = 60
+# A one-tap start (CarPlay's `opening`) should hear the assistant begin. The cue in
+# session.input usually does it, but OpenAI doesn't promise it, and in the car it didn't:
+# if the assistant still hasn't said anything this long after the phone's audio started
+# arriving, the sideband tells it to begin (once per call).
+OPENING_NUDGE_SECONDS = 2.5
 SIDEBAND_MAX_RECONNECTS = 4
 # A sideband connection that lasted this long resets the reconnect budget; shorter ones
 # count against it.
@@ -847,7 +852,9 @@ async def _send(ws, payload: dict) -> None:
         await ws.send(json.dumps(payload))
 
 
-async def _run_sideband(talk_id: str, openai_session_id: str, max_seconds: int) -> None:
+async def _run_sideband(
+    talk_id: str, openai_session_id: str, max_seconds: int, opening: Optional[str] = None,
+) -> None:
     recorder = _Recorder(talk_id)
     transcript = _Transcript()
     end_requested = _end_requests[talk_id]
@@ -856,6 +863,9 @@ async def _run_sideband(talk_id: str, openai_session_id: str, max_seconds: int) 
         "reason": None, "closed": False, "close_sent_at": None, "warned": False,
         "usage_seconds": None, "last_speech": None, "last_speech_mono": started,
         "last_flush": started, "last_speech_stamp": 0.0, "row_gone": False,
+        # For a one-tap start: when the phone's audio first arrived, and whether anyone has
+        # spoken since (assistant output from before that moment went unheard).
+        "phone_audio_at": None, "assistant_heard": False, "user_spoke": False, "nudged": False,
     }
 
     async def flush(force: bool = False) -> None:
@@ -882,9 +892,13 @@ async def _run_sideband(talk_id: str, openai_session_id: str, max_seconds: int) 
     async def handle(ws, event: dict) -> None:
         kind = event.get("type")
         if kind == "session.input_audio.append":
+            if state["phone_audio_at"] is None:
+                state["phone_audio_at"] = time.monotonic()
             with contextlib.suppress(Exception):
                 recorder.add_input(base64.b64decode(event.get("audio") or ""))
         elif kind == "session.output_audio.delta":
+            if state["phone_audio_at"] is not None:
+                state["assistant_heard"] = True
             with contextlib.suppress(Exception):
                 recorder.add_output(
                     base64.b64decode(event.get("delta") or ""), event.get("start_ms") or 0, event.get("end_ms")
@@ -894,6 +908,7 @@ async def _run_sideband(talk_id: str, openai_session_id: str, max_seconds: int) 
                 # Replayed after a reconnect: the person said it before, not now. Stamping
                 # it would let confirm_action accept a proposal they never answered.
                 return
+            state["user_spoke"] = True
             now = time.monotonic()
             state["last_speech"] = datetime.utcnow()
             state["last_speech_mono"] = now
@@ -903,6 +918,8 @@ async def _run_sideband(talk_id: str, openai_session_id: str, max_seconds: int) 
                 with contextlib.suppress(Exception):
                     await asyncio.to_thread(_flush_row, talk_id, None, state["last_speech"], None)
         elif kind == "session.output_transcript.delta":
+            if state["phone_audio_at"] is not None:
+                state["assistant_heard"] = True
             transcript.add("assistant", event)
         elif kind == "session.usage.updated":
             seconds = (event.get("usage") or {}).get("seconds")
@@ -966,6 +983,17 @@ async def _run_sideband(talk_id: str, openai_session_id: str, max_seconds: int) 
                     "type": "session.instructions.append", "delegation_id": None,
                     "content": "About one minute remains in this conversation. At the next natural "
                                "pause, tell the person and help them wrap up.",
+                })
+            if (opening and not state["nudged"] and state["close_sent_at"] is None
+                    and state["phone_audio_at"] is not None
+                    and not state["assistant_heard"] and not state["user_spoke"]
+                    and now - state["phone_audio_at"] >= OPENING_NUDGE_SECONDS):
+                # OpenAI's documented way to make a running session say something now.
+                state["nudged"] = True
+                logger.info(f"Talk {talk_id}: assistant hadn't started the {opening} opening; nudging it")
+                await _send(ws, {
+                    "type": "session.instructions.append", "delegation_id": None,
+                    "content": ai_config.TALK_OPENING_NUDGE,
                 })
             await flush()
 
@@ -1047,11 +1075,15 @@ def _on_task_done(talk_id: str, task: asyncio.Task) -> None:
             sentry_sdk.capture_exception(exc)
 
 
-def start_sideband(talk_id: str, openai_session_id: str, max_seconds: int) -> asyncio.Task:
+def start_sideband(
+    talk_id: str, openai_session_id: str, max_seconds: int, opening: Optional[str] = None,
+) -> asyncio.Task:
     """Launch the sideband detached from the request (create_task + a strong reference:
     a Starlette BackgroundTask would pin the request's DB connection for the whole call)."""
     _end_requests[talk_id] = asyncio.Event()
-    task = asyncio.create_task(_run_sideband(talk_id, openai_session_id, max_seconds), name=f"talk-{talk_id}")
+    task = asyncio.create_task(
+        _run_sideband(talk_id, openai_session_id, max_seconds, opening=opening), name=f"talk-{talk_id}"
+    )
     _tasks[talk_id] = task
     task.add_done_callback(lambda t: _on_task_done(talk_id, t))
     return task

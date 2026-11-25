@@ -164,12 +164,17 @@ final class WebRTCTalkTransport: NSObject, TalkTransport {
         }
     }
 
-    /// The offer is exchanged once, so wait for candidates — but never indefinitely:
-    /// on some networks gathering never reports "complete".
+    /// The offer is exchanged once, so wait for candidates, but only until one
+    /// server-reflexive candidate shows a route to the internet (`didGenerate`), and never
+    /// longer than 1.5 s. Waiting for "complete" meant waiting out every interface: with
+    /// wireless CarPlay the phone is on the car's Wi-Fi, which has no internet, so its STUN
+    /// request never got an answer and every car call sat out the old 3 s cap before it
+    /// could even ask to connect. Candidates found later still take part in the
+    /// connectivity checks (OpenAI's own examples send the offer with none at all).
     private func waitForIceGathering(on connection: RTCPeerConnection) async {
         guard connection.iceGatheringState != .complete else { return }
         let timeout = Task { [weak self] in
-            try? await Task.sleep(for: .seconds(3))
+            try? await Task.sleep(for: .seconds(1.5))
             guard !Task.isCancelled else { return }
             self?.gatheringContinuation?.resume()
             self?.gatheringContinuation = nil
@@ -279,7 +284,14 @@ extension WebRTCTalkTransport: RTCPeerConnectionDelegate {
     nonisolated func peerConnection(_ peerConnection: RTCPeerConnection, didAdd stream: RTCMediaStream) {}
     nonisolated func peerConnection(_ peerConnection: RTCPeerConnection, didRemove stream: RTCMediaStream) {}
     nonisolated func peerConnectionShouldNegotiate(_ peerConnection: RTCPeerConnection) {}
-    nonisolated func peerConnection(_ peerConnection: RTCPeerConnection, didGenerate candidate: RTCIceCandidate) {}
+    nonisolated func peerConnection(_ peerConnection: RTCPeerConnection, didGenerate candidate: RTCIceCandidate) {
+        // A server-reflexive candidate: a working route out is known, so the offer can go.
+        guard candidate.sdp.contains(" typ srflx") else { return }
+        Task { @MainActor in
+            self.gatheringContinuation?.resume()
+            self.gatheringContinuation = nil
+        }
+    }
     nonisolated func peerConnection(_ peerConnection: RTCPeerConnection, didRemove candidates: [RTCIceCandidate]) {}
     nonisolated func peerConnection(_ peerConnection: RTCPeerConnection, didOpen dataChannel: RTCDataChannel) {}
 }

@@ -224,7 +224,7 @@ async def start_talk_session(
         {"openai_session_id": openai_session_id, "heartbeat_at": datetime.utcnow()}, synchronize_session=False
     )
     db.commit()
-    talk_service.start_sideband(talk_id, openai_session_id, max_seconds)
+    talk_service.start_sideband(talk_id, openai_session_id, max_seconds, opening=body.opening)
     logger.info(f"Talk {talk_id}: started from {body.surface}" + (f" ({body.opening})" if body.opening else ""))
     return {"talk_id": talk_id, "sdp": sdp_answer, "max_seconds": max_seconds}
 

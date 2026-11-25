@@ -3,10 +3,12 @@ import UIKit
 
 /// Runs AretaCare on the CarPlay screen.
 ///
-/// Landing screen: a list titled AretaCare with four one-tap starts pinned along the top
-/// (Talk, Catch me up, Before a visit, After a visit) and, under a "Care session" header,
-/// one row naming the care session; with more than one, tapping it opens the list of care
-/// sessions. A start opens the voice screen and starts a Talk call. Apple's
+/// Landing screen: a list titled AretaCare with four one-tap starts (Talk, Catch me up,
+/// Before a visit, After a visit) and, under a "Care session" header, one row naming the
+/// care session; with more than one, tapping it opens the list of care sessions. On a wide
+/// screen the starts are round buttons pinned along the top; on a tall one (portrait, like
+/// Subaru's) they're rows, which fill the screen instead of leaving most of it empty. A
+/// start opens the voice screen and starts a Talk call. Apple's
 /// rules for the category (CarPlay Developer Guide, Oct 2026): voice first, no text or
 /// images in answers, at most three templates deep, the microphone only with the voice
 /// control template, and never a message telling the driver to pick up the phone.
@@ -14,8 +16,13 @@ import UIKit
 @MainActor
 final class CarPlayCoordinator {
     private let interfaceController: CPInterfaceController
+    /// The car's screen is taller than it is wide: the starts are list rows.
+    private let isTallScreen: Bool
     private var sessionVM = SessionViewModel()
     private var landing: CPListTemplate?
+    /// Built once: the start rows don't change, and the landing list is re-sent whenever the
+    /// care session row does.
+    private lazy var startSection = makeStartSection()
     /// Hears when the system closes the voice screen itself (its navigation bar button).
     private let templateEvents = TemplateEvents()
     private var callScreen: CarPlayCallScreen?
@@ -45,8 +52,9 @@ final class CarPlayCoordinator {
     /// weakly, and `TalkViewModel.current` lets go when the call ends.
     private static var callsAwaitingResult: [TalkViewModel] = []
 
-    init(interfaceController: CPInterfaceController) {
+    init(interfaceController: CPInterfaceController, isTallScreen: Bool) {
         self.interfaceController = interfaceController
+        self.isTallScreen = isTallScreen
     }
 
     // MARK: - Connection
@@ -79,6 +87,8 @@ final class CarPlayCoordinator {
         })
 
         Task { await loadSessions() }
+        // Draw the voice screen's images now, so the first tap doesn't wait on them.
+        Task { await CarPlayImages.prepareVoiceScreen(scale: carScale, dark: carIsDark) }
         observeSignIn()
         // A call started on the phone before the car connected: its audio has moved to the
         // car, so the driver needs its Mute and End.
@@ -124,29 +134,54 @@ final class CarPlayCoordinator {
     // MARK: - Landing screen
 
     private func makeLanding() -> CPListTemplate {
-        CPListTemplate(title: "AretaCare", sections: [sessionSection()],
-                       assistantCellConfiguration: nil, headerGridButtons: startButtons())
+        CPListTemplate(title: "AretaCare", sections: landingSections(), assistantCellConfiguration: nil,
+                       headerGridButtons: isTallScreen ? nil : startButtons())
     }
 
-    /// The four starts, pinned above the list as round colored tiles.
+    private func landingSections() -> [CPListSection] {
+        isTallScreen ? [startSection, sessionSection()] : [sessionSection()]
+    }
+
+    /// The four one-tap starts. Titles list a shorter variant for narrow buttons.
+    private struct Start {
+        let titles: [String]
+        let symbol: String
+        let colors: CarPlayImages.Gradient
+        let opening: TalkOpening?
+    }
+
+    private static let starts = [
+        Start(titles: ["Talk"], symbol: "waveform", colors: CarPlayImages.talkColors, opening: nil),
+        Start(titles: ["Catch me up", "Catch up"], symbol: "sun.horizon.fill",
+              colors: CarPlayImages.catchUpColors, opening: .catchUp),
+        Start(titles: ["Before a visit", "Before visit"], symbol: "list.clipboard.fill",
+              colors: CarPlayImages.visitPrepColors, opening: .visitPrep),
+        Start(titles: ["After a visit", "After visit"], symbol: "square.and.pencil",
+              colors: CarPlayImages.visitDebriefColors, opening: .visitDebrief),
+    ]
+
+    /// Wide screens: round colored tiles pinned above the list.
     private func startButtons() -> [CPGridButton] {
-        [
-            startButton(["Talk"], symbol: "waveform", colors: CarPlayImages.talkColors, opening: nil),
-            startButton(["Catch me up", "Catch up"], symbol: "sun.horizon.fill",
-                        colors: CarPlayImages.catchUpColors, opening: .catchUp),
-            startButton(["Before a visit", "Before visit"], symbol: "list.clipboard.fill",
-                        colors: CarPlayImages.visitPrepColors, opening: .visitPrep),
-            startButton(["After a visit", "After visit"], symbol: "square.and.pencil",
-                        colors: CarPlayImages.visitDebriefColors, opening: .visitDebrief),
-        ]
+        Self.starts.map { start in
+            let image = CarPlayImages.startTile(start.symbol, colors: start.colors, scale: carScale)
+            return CPGridButton(titleVariants: start.titles, image: image) { [weak self] _ in
+                self?.startCall(opening: start.opening)
+            }
+        }
     }
 
-    private func startButton(_ titles: [String], symbol: String, colors: CarPlayImages.Gradient,
-                             opening: TalkOpening?) -> CPGridButton {
-        let image = CarPlayImages.startTile(symbol, colors: colors, scale: carScale)
-        return CPGridButton(titleVariants: titles, image: image) { [weak self] _ in
-            self?.startCall(opening: opening)
+    /// Tall screens: one row per start, with the same colored icon.
+    private func makeStartSection() -> CPListSection {
+        let items = Self.starts.map { start in
+            let item = CPListItem(text: start.titles[0], detailText: nil,
+                                  image: CarPlayImages.startRowIcon(start.symbol, colors: start.colors, scale: carScale))
+            item.handler = { [weak self] _, completion in
+                self?.startCall(opening: start.opening)
+                completion()
+            }
+            return item
         }
+        return CPListSection(items: items)
     }
 
     /// "Care session" and the care session's name, so the name says what it is. With more
@@ -177,10 +212,12 @@ final class CarPlayCoordinator {
     }
 
     private func updateLanding() {
-        landing?.updateSections([sessionSection()])
+        landing?.updateSections(landingSections())
     }
 
     private var carScale: CGFloat { interfaceController.carTraitCollection.displayScale }
+    /// Dark unless the car says light (the voice screen's background follows it).
+    private var carIsDark: Bool { interfaceController.carTraitCollection.userInterfaceStyle != .light }
 
     private func loadSessions() async {
         // Connect and the scene's first foreground both ask; one load is enough.
@@ -326,7 +363,8 @@ final class CarPlayCoordinator {
             return
         }
         callScreen?.detach()
-        let screen = CarPlayCallScreen(talk: talk, scale: interfaceController.carTraitCollection.displayScale) {
+        let traits = interfaceController.carTraitCollection
+        let screen = CarPlayCallScreen(talk: talk, scale: traits.displayScale, style: traits.userInterfaceStyle) {
             [weak self] screen, notice in
             self?.callScreenClosed(screen, notice: notice)
         }

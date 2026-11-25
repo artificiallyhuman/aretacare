@@ -4,6 +4,8 @@ code-enforced confirmation of writes, and how a finished call is saved.
 OpenAI, RevenueCat, S3 and ffmpeg are stubbed; nothing here leaves the machine.
 """
 import asyncio
+import base64
+import json
 from datetime import date, datetime, timedelta
 
 import pytest
@@ -1406,6 +1408,97 @@ def test_a_sideband_that_keeps_dropping_gives_up_and_ends_the_call(monkeypatch):
 def test_a_dropping_sideband_still_honours_end_and_the_time_limit(monkeypatch):
     assert run_sideband_against_dropping_socket(monkeypatch, end_requested=True) == (1, "ended_by_user", [])
     assert run_sideband_against_dropping_socket(monkeypatch, max_seconds=0) == (1, "time_limit", [])
+
+
+# --- a one-tap start that the assistant doesn't open on its own ----------------
+
+def run_sideband_with_script(monkeypatch, script, opening):
+    """A sideband fed `script`: (seconds after the previous event, event type) pairs, then
+    the call closes. Returns what it sent to OpenAI."""
+    sent = []
+    clock = {"now": 1000.0}
+    events = list(script)
+    audio = base64.b64encode(b"\x00\x00" * 240).decode()
+
+    class FakeTime:
+        @staticmethod
+        def monotonic():
+            return clock["now"]
+
+    class ScriptedSocket:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *_exc):
+            return False
+
+        async def recv(self):
+            if not events:
+                return json.dumps({"type": "session.closed", "reason": "remote_hangup"})
+            after, kind = events.pop(0)
+            clock["now"] += after
+            event = {"type": kind, "event_id": f"evt_{len(events)}"}
+            if kind == "session.input_audio.append":
+                event["audio"] = audio
+            elif kind == "session.output_audio.delta":
+                event.update(delta=audio, start_ms=0, end_ms=10)
+            else:
+                event.update(delta="Hello", start_ms=0, end_ms=500)
+            return json.dumps(event)
+
+        async def send(self, message):
+            sent.append(json.loads(message))
+
+    async def fake_finalize(talk_id, *, recorder=None, **_kwargs):
+        if recorder is not None:
+            recorder.cleanup()
+
+    monkeypatch.setattr(talk_service, "time", FakeTime)
+    monkeypatch.setattr(talk_service.websockets, "connect", lambda *a, **k: ScriptedSocket())
+    monkeypatch.setattr(talk_service, "finalize_talk", fake_finalize)
+    monkeypatch.setattr(talk_service, "_flush_row", lambda *a, **k: 1)
+
+    talk_id = "opening-test"
+    talk_service._end_requests[talk_id] = asyncio.Event()
+    try:
+        asyncio.run(talk_service._run_sideband(talk_id, "live_x", 600, opening=opening))
+    finally:
+        talk_service._end_requests.pop(talk_id, None)
+    return [m for m in sent if m.get("type") == "session.instructions.append"]
+
+
+PHONE_AUDIO = "session.input_audio.append"
+ASSISTANT_AUDIO = "session.output_audio.delta"
+PERSON_SPEAKS = "session.input_transcript.delta"
+
+
+def test_a_one_tap_start_is_nudged_when_the_assistant_waits(monkeypatch):
+    # Assistant audio from before the phone was connected went unheard: it doesn't count.
+    script = [(0.1, ASSISTANT_AUDIO)] + [(0.5, PHONE_AUDIO)] * 10
+    nudges = run_sideband_with_script(monkeypatch, script, opening="catch_up")
+    assert nudges == [{"type": "session.instructions.append", "delegation_id": None,
+                       "content": ai_config.TALK_OPENING_NUDGE}]
+
+
+def test_no_nudge_once_the_assistant_has_started(monkeypatch):
+    script = [(0.1, PHONE_AUDIO), (1.0, ASSISTANT_AUDIO)] + [(0.5, PHONE_AUDIO)] * 10
+    assert run_sideband_with_script(monkeypatch, script, opening="visit_prep") == []
+
+
+def test_no_nudge_when_the_person_speaks_first_or_for_plain_talk(monkeypatch):
+    script = [(0.1, PHONE_AUDIO), (1.0, PERSON_SPEAKS)] + [(0.5, PHONE_AUDIO)] * 10
+    assert run_sideband_with_script(monkeypatch, script, opening="visit_debrief") == []
+    script = [(0.5, PHONE_AUDIO)] * 10
+    assert run_sideband_with_script(monkeypatch, script, opening=None) == []
+
+
+def test_the_nudge_waits_for_the_phone_and_says_only_when_to_start(monkeypatch):
+    # Nothing from the phone yet (still connecting): no nudge however long it takes.
+    assert run_sideband_with_script(monkeypatch, [(5.0, ASSISTANT_AUDIO)] * 3, opening="catch_up") == []
+    # It points at the opening's own text, which every opening has.
+    assert "HOW TO OPEN THIS CONVERSATION" in ai_config.TALK_OPENING_NUDGE
+    for text in ai_config.TALK_OPENINGS.values():
+        assert "HOW TO OPEN THIS CONVERSATION" in text
 
 
 def test_recorder_places_both_streams_on_one_timeline():

@@ -33,10 +33,16 @@ enum CarPlayImages {
     /// A care session with no color of its own: the app icon's navy.
     private static let sessionColors = Gradient(top: UIColor(hex: 0x1C5D93), bottom: UIColor(hex: 0x0A355C))
 
-    /// A round tile with a white symbol, sized for the list's pinned buttons.
+    /// A round tile with a white symbol, sized for the list's pinned buttons (wide screens).
     static func startTile(_ symbol: String, colors: Gradient, scale: CGFloat) -> UIImage {
         let size = CPListTemplate.maximumGridButtonImageSize
         return tile(symbol, colors: colors, side: max(32, min(size.width, size.height)), scale: scale)
+    }
+
+    /// The same tile sized for a list row (tall screens, where the starts are rows).
+    static func startRowIcon(_ symbol: String, colors: Gradient, scale: CGFloat) -> UIImage {
+        let size = CPListItem.maximumImageSize
+        return tile(symbol, colors: colors, side: max(24, min(size.width, size.height)), scale: scale)
     }
 
     /// The care session row's icon, in the care session's own color (the swatch the phone's
@@ -74,16 +80,16 @@ enum CarPlayImages {
     }
 
     /// Mute shows the slashed microphone either way, like the Phone app's mute button. While
-    /// muted it lights up: a white circle with the microphone in red (the screen's background
-    /// also turns red, and the title says Muted).
+    /// muted it lights up: a white circle with the microphone in red (and the title says
+    /// Muted).
     static func muteButton(muted: Bool, scale: CGFloat) -> UIImage {
-        guard muted else { return symbol("mic.slash.fill") }
-        return disc("mic.slash.fill", fill: .white, glyph: .systemRed, scale: scale)
+        guard muted else { return cached("mute.off") { symbol("mic.slash.fill") } }
+        return cached("mute.on@\(scale)") { disc("mic.slash.fill", fill: .white, glyph: .systemRed, scale: scale) }
     }
 
     /// End is the red hang-up button everyone knows from phone calls.
     static func endButton(scale: CGFloat) -> UIImage {
-        disc("phone.down.fill", fill: .systemRed, glyph: .white, scale: scale)
+        cached("end@\(scale)") { disc("phone.down.fill", fill: .systemRed, glyph: .white, scale: scale) }
     }
 
     private static func disc(_ symbol: String, fill: UIColor, glyph: UIColor, scale: CGFloat) -> UIImage {
@@ -96,9 +102,17 @@ enum CarPlayImages {
         }.withRenderingMode(.alwaysOriginal)
     }
 
+    /// One instance per image: the same object in every voice state is handed to CarPlay once.
+    private static func cached(_ key: String, _ make: () -> UIImage) -> UIImage {
+        if let image = cache[key] { return image }
+        let image = make()
+        cache[key] = image
+        return image
+    }
+
     // MARK: - Voice screen states
 
-    /// Each state's color, shared by its animation and its background glow.
+    /// Each state's color, for its animation.
     private static func accent(_ state: CarPlayCallScreen.State) -> UIColor {
         switch state {
         case .connecting: return UIColor(hex: 0x8DD5EE)
@@ -109,20 +123,17 @@ enum CarPlayImages {
         }
     }
 
-    /// 150 × 150 pt is the voice control template's maximum, drawn at the car screen's scale.
+    /// 150 × 150 pt is the voice control template's maximum.
     private static let stateCanvas = CGSize(width: 150, height: 150)
 
-    /// Rendered once per state and scale: the frames are a few megabytes in all, and a call
-    /// screen is built for every call.
+    /// Rendered once per state and scale, and kept: a call screen is built for every call,
+    /// and everything on it is copied to CarPlay each time it's shown.
     private static var cache: [String: UIImage] = [:]
 
     static func voiceState(_ state: CarPlayCallScreen.State, scale: CGFloat) -> UIImage {
-        let scale = clamped(scale)
-        let key = "state.\(state.rawValue)@\(scale)"
-        if let cached = cache[key] { return cached }
-        let image = renderState(state, scale: scale)
-        cache[key] = image
-        return image
+        // 2x is plenty for bars and dots, and a third fewer pixels to hand over than 3x.
+        let scale = min(clamped(scale), 2)
+        return cached("state.\(state.rawValue)@\(scale)") { renderState(state, scale: scale) }
     }
 
     private static func renderState(_ state: CarPlayCallScreen.State, scale: CGFloat) -> UIImage {
@@ -130,8 +141,8 @@ enum CarPlayImages {
         switch state {
         case .connecting:
             // A slow sweep across low bars.
-            let frames = (0..<6).map { step in
-                bars((0..<5).map { index in index == step % 5 ? 0.45 : 0.18 }, color: color, scale: scale)
+            let frames = (0..<5).map { step in
+                bars((0..<5).map { index in index == step ? 0.45 : 0.18 }, color: color, scale: scale)
             }
             return animated(frames, duration: 1.2)
         case .listening:
@@ -147,62 +158,57 @@ enum CarPlayImages {
                 [0.6, 0.4, 0.9, 0.5, 0.65],
                 [0.45, 0.85, 0.6, 0.4, 0.75],
                 [0.7, 0.5, 0.75, 0.9, 0.45],
-                [0.4, 0.65, 0.45, 0.6, 0.85],
-                [0.55, 0.9, 0.7, 0.45, 0.6],
             ]
-            return animated(patterns.map { bars($0, color: color, scale: scale) }, duration: 0.9)
+            return animated(patterns.map { bars($0, color: color, scale: scale) }, duration: 0.8)
         case .working:
             // Three dots taking turns: looking something up.
             let frames = (0..<3).map { lit in dots(lit: lit, color: color, scale: scale) }
             return animated(frames, duration: 1.2)
         case .muted:
-            return renderer(stateCanvas, scale: scale).image { _ in
-                drawSymbol("mic.slash.fill", color: color, in: CGRect(origin: .zero, size: stateCanvas).insetBy(dx: 38, dy: 38))
-            }.withRenderingMode(.alwaysOriginal)
+            // The listening bars, flat, still and red: the same shape in the same place, so
+            // muting reads as the bars stopping rather than the screen changing.
+            return bars([0.12, 0.12, 0.12, 0.12, 0.12], color: color, scale: scale).withRenderingMode(.alwaysOriginal)
         }
     }
 
-    /// The full-screen background behind a state (iOS 27): the app icon's navy with a glow
-    /// in the state's color (red while muted), with a light-mode version for cars that show
-    /// CarPlay in light appearance.
-    static func voiceBackground(_ state: CarPlayCallScreen.State, scale: CGFloat) -> UIImage {
-        let scale = clamped(scale)
-        let key = "background.\(state.rawValue)@\(scale)"
-        if let cached = cache[key] { return cached }
-        let dark = background(state, dark: true, scale: scale)
-        let light = background(state, dark: false, scale: scale)
-        let asset = UIImageAsset()
-        asset.register(dark, with: UITraitCollection(userInterfaceStyle: .dark))
-        asset.register(light, with: UITraitCollection(userInterfaceStyle: .light))
-        let image = asset.image(with: UITraitCollection(userInterfaceStyle: .dark))
-        cache[key] = image
-        return image
+    /// The full-screen background behind the voice screen (iOS 27): the app icon's navy with
+    /// a soft teal and sky glow, one image for every state. Per-state backgrounds made each
+    /// change a full-screen crossfade (the clunky red flash on Mute, and heavy to stream over
+    /// wireless CarPlay). The car's appearance picks the dark or light version up front: a
+    /// light/dark `UIImageAsset` didn't survive the trip to CarPlay, which showed the light
+    /// one under white text.
+    static func voiceBackground(dark: Bool) -> UIImage {
+        cached("background.\(dark)") { background(dark: dark) }
     }
 
-    /// A smooth gradient scales up without loss, so a modest canvas covers any car screen.
-    private static func background(_ state: CarPlayCallScreen.State, dark: Bool, scale: CGFloat) -> UIImage {
+    /// A smooth gradient scales up without visible loss, so a small 1x canvas covers any car
+    /// screen and stays light to hand over.
+    private static func background(dark: Bool) -> UIImage {
         let canvas = CGSize(width: 480, height: 270)
-        let color = accent(state)
-        let glow: CGFloat
-        switch state {
-        case .connecting: glow = dark ? 0.28 : 0.22
-        case .muted: glow = dark ? 0.55 : 0.32
-        default: glow = dark ? 0.5 : 0.3
-        }
-        return renderer(canvas, scale: min(scale, 2), opaque: true).image { context in
+        return renderer(canvas, scale: 1, opaque: true).image { context in
             let cg = context.cgContext
             let base = dark
                 ? [UIColor(hex: 0x0B2D50), UIColor(hex: 0x04172A)]
                 : [UIColor(hex: 0xF5F9FD), UIColor(hex: 0xE2ECF6)]
             fillLinear(cg, colors: base, from: .zero, to: CGPoint(x: 0, y: canvas.height))
-            let center = CGPoint(x: canvas.width / 2, y: canvas.height * 0.45)
-            fillRadial(cg, color: color, alpha: glow, center: center, radius: canvas.width * 0.42)
-            if state == .speaking {
-                // A second, teal glow: AretaCare's voice in the icon's two colors.
-                fillRadial(cg, color: UIColor(hex: 0x2BD3A0), alpha: glow * 0.6,
-                           center: CGPoint(x: canvas.width * 0.62, y: canvas.height * 0.6), radius: canvas.width * 0.3)
-            }
+            fillRadial(cg, color: UIColor(hex: 0x4FB3F6), alpha: dark ? 0.38 : 0.22,
+                       center: CGPoint(x: canvas.width * 0.42, y: canvas.height * 0.42), radius: canvas.width * 0.42)
+            fillRadial(cg, color: UIColor(hex: 0x2BD3A0), alpha: dark ? 0.3 : 0.18,
+                       center: CGPoint(x: canvas.width * 0.62, y: canvas.height * 0.58), radius: canvas.width * 0.32)
         }.withRenderingMode(.alwaysOriginal)
+    }
+
+    /// Draws the voice screen's images ahead of the first tap, so starting a call doesn't
+    /// wait on them. Spread over a few main-actor turns so the landing screen stays responsive.
+    static func prepareVoiceScreen(scale: CGFloat, dark: Bool) async {
+        _ = voiceBackground(dark: dark)
+        for state in CarPlayCallScreen.State.allCases {
+            await Task.yield()
+            _ = voiceState(state, scale: scale)
+        }
+        await Task.yield()
+        _ = muteButton(muted: true, scale: scale)
+        _ = endButton(scale: scale)
     }
 
     // MARK: - Drawing

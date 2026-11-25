@@ -137,13 +137,22 @@ final class TalkViewModel {
     /// The on-screen Mute button. Only during a live call: before that there is no
     /// microphone track.
     func toggleMute() {
-        guard phase.isLive else { return }
-        setMuted(!isMuted)
-        // Tell iOS too, so an AirPods stem press toggles from the right state. The app
-        // plays no tone itself: during a call voice processing ducks any other audio the
-        // app plays to near silence. A firm tap and the button's look carry the state.
+        setMicrophoneMuted(!isMuted)
+    }
+
+    /// Mute or unmute outright. CarPlay's buttons say which they mean (each voice state has
+    /// its own), so a tap delivered twice over a slow wireless link can't undo itself.
+    func setMicrophoneMuted(_ muted: Bool) {
+        guard phase.isLive, muted != isMuted else { return }
+        setMuted(muted)
+        // On the phone, tell iOS too, so an AirPods stem press toggles from the right state.
+        // Not in the car, where the car's microphone is the route and the app-level mute
+        // only added a second, system-held mute state to keep in step. The app plays no
+        // tone itself: during a call voice processing ducks any other audio the app plays
+        // to near silence. A firm tap and the button's look carry the state.
+        guard surface == .app else { return }
         try? AVAudioApplication.shared.setInputMuted(isMuted)
-        if surface == .app { UIImpactFeedbackGenerator(style: .medium).impactOccurred() }
+        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
     }
 
     private func setMuted(_ muted: Bool) {
@@ -352,7 +361,7 @@ final class TalkViewModel {
             startKeepAlive()
             startStatusChecks(attempt: attempt)
             // A stem press while connecting already muted the microphone at the system level.
-            if AVAudioApplication.shared.isInputMuted { setMuted(true) }
+            if surface == .app, AVAudioApplication.shared.isInputMuted { setMuted(true) }
         case .working:
             guard phase.isLive else { return }
             setPhase(.working)
@@ -665,8 +674,11 @@ final class TalkViewModel {
         }
         // AirPods "press to mute" (iOS 17+). Observing this notification opts the app in;
         // on a stem press iOS mutes the microphone, plays its own tone, and posts it here.
-        // Registered only for the call, so outside Talk the stem keeps its usual job.
+        // Registered only for the call, so outside Talk the stem keeps its usual job. Not
+        // for a call in the car: its Mute is the car screen's button alone, and a second,
+        // system-held mute state is one more way for Unmute not to take.
         try? AVAudioApplication.shared.setInputMuted(false)
+        guard surface == .app else { return }
         muteGestureObserver = NotificationCenter.default.addObserver(
             forName: AVAudioApplication.inputMuteStateChangeNotification, object: nil, queue: .main
         ) { [weak self] notification in

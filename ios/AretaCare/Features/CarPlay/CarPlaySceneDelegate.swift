@@ -20,7 +20,10 @@ final class CarPlaySceneDelegate: UIResponder, CPTemplateApplicationSceneDelegat
         CarPlayConnection.shared.setConnected(true)
         AuthManager.shared.recordActivity()
         guard #available(iOS 26.4, *) else { return }  // the category doesn't exist before 26.4
-        let coordinator = CarPlayCoordinator(interfaceController: interfaceController)
+        // Portrait screens (Subaru's, among others) get the starts as rows.
+        let size = templateApplicationScene.carWindow.bounds.size
+        let coordinator = CarPlayCoordinator(interfaceController: interfaceController,
+                                             isTallScreen: size.height > size.width)
         self.coordinator = coordinator
         coordinator.connect()
     }

@@ -1297,6 +1297,14 @@ TALK_OPENING_CUES = {
     "visit_debrief": 'The person just tapped "After a visit" in the car. Begin speaking now, in English, by following HOW TO OPEN THIS CONVERSATION, then pause and listen.',
 }
 
+# Sent by the sideband (session.instructions.append) when a one-tap start's assistant still
+# hasn't spoken a couple of seconds after the phone's audio connected. Same rule as the
+# cues: fixed text, and it says only when to start, not what to say.
+TALK_OPENING_NUDGE = (
+    "The person is waiting for you to begin. Start speaking now, in English: open the "
+    "conversation the way HOW TO OPEN THIS CONVERSATION describes."
+)
+
 # The backend model's half of an opening, where it has one: "Before a visit" asks it to
 # write the questions.
 TALK_BACKEND_OPENING_NOTES = {
