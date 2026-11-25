@@ -1126,6 +1126,10 @@ TALK_PROFILE_TOKENS = 2500
 TALK_JOURNAL_TOKENS = 2000
 TALK_HISTORY_TOKENS = 1500
 TALK_HISTORY_MESSAGES = 12
+# "Catch me up" (CarPlay) also gets the latest Daily Digest in its seed, so it can answer
+# without a lookup first; that call's chat history gives up the same room, keeping the seed
+# inside GPT-Live's 8,192-token cap.
+TALK_DIGEST_TOKENS = 1000
 
 # Shared by both Talk prompts. tests/test_talk.py checks every NEVER line of
 # SYSTEM_PROMPT, and its 911/988 lines, appear here, so the voice path cannot drift from
@@ -1267,9 +1271,9 @@ THE PERSON IS DRIVING (CarPlay): keep each reply to what fits in one or two spok
 TALK_OPENINGS = {
     "catch_up": """
 HOW TO OPEN THIS CONVERSATION: the person chose "Catch me up". This replaces the usual greeting.
-- Say a short hello and that you'll pull up the latest, then delegate for today's Daily Digest or, if there is none for today, the journal entries from the last three days.
-- Give the two or three most useful points (what happened and what's coming up) exactly as recorded, in no more than three short sentences. Then ask whether they want more detail or have a question.
-- If nothing recent is on record, say so in one sentence and ask how you can help.""",
+- Start speaking right away, from the reference material you already have: the latest Daily Digest, when there is one, and the recent journal entries. Don't delegate or look anything up before you've given the catch-up: the person is waiting in silence.
+- Say a brief hello, then the two or three most useful points (what happened and what's coming up) exactly as recorded, in no more than three short sentences. Then ask whether they want more detail or have a question.
+- If the reference material has nothing from the last few days, say so in one sentence and ask how you can help.""",
     "visit_prep": """
 HOW TO OPEN THIS CONVERSATION: the person chose "Before a visit". This replaces the usual greeting.
 - Ask who they're going to see and what the visit is about.
@@ -1303,6 +1307,13 @@ TALK_OPENING_CUES = {
 TALK_OPENING_NUDGE = (
     "The person is waiting for you to begin. Start speaking now, in English: open the "
     "conversation the way HOW TO OPEN THIS CONVERSATION describes."
+)
+
+# Sent instead of the nudge when the assistant had already spoken, but before the phone's
+# audio was connected, so nobody heard it.
+TALK_OPENING_REPEAT = (
+    "The person's audio has only just connected, so they didn't hear what you said. Start "
+    "again now, in English: open the conversation the way HOW TO OPEN THIS CONVERSATION describes."
 )
 
 # The backend model's half of an opening, where it has one: "Before a visit" asks it to

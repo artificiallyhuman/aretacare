@@ -30,7 +30,7 @@ final class CarPlayCallScreen {
 
     let talk: TalkViewModel
     /// Each state carries its own buttons (iOS 26.4): End everywhere, plus Mute while the
-    /// call is live (lit while muted). No microphone track exists while connecting.
+    /// call is live (its microphone slashed while muted). No microphone track exists while connecting.
     private(set) lazy var template: CPVoiceControlTemplate = {
         let template = CPVoiceControlTemplate(voiceControlStates: State.allCases.map { state in
             let voiceState = makeState(state)
@@ -231,7 +231,7 @@ final class CarPlayCallScreen {
     // MARK: - Buttons
 
     private func buttons(for state: State) -> [CPButton] {
-        let end = CPButton(image: CarPlayImages.endButton(scale: scale)) { [weak self] _ in
+        let end = CPButton(image: CarPlayImages.endButton()) { [weak self] _ in
             guard let talk = self?.talk else { return }
             Task { await talk.end() }
         }
@@ -242,7 +242,7 @@ final class CarPlayCallScreen {
         // toggling: a tap delivered twice, or tapped on a screen CarPlay hadn't updated yet,
         // can't undo itself.
         let muted = state == .muted
-        let mute = CPButton(image: CarPlayImages.muteButton(muted: muted, dark: darkBackground, scale: scale)) { [weak self] _ in
+        let mute = CPButton(image: CarPlayImages.muteButton(muted: muted)) { [weak self] _ in
             guard let self else { return }
             AuthManager.shared.recordActivity()
             if self.talk.isMuted == !muted {

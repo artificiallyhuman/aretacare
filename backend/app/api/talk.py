@@ -187,7 +187,7 @@ async def start_talk_session(
 
     input_items = talk_service.build_session_input(
         db, session_id, user_name=user_name, session_name=session_name,
-        user_timezone=body.user_timezone, current_time=body.current_time,
+        user_timezone=body.user_timezone, current_time=body.current_time, opening=body.opening,
     )
     mcp_token, token_hash = talk_service.new_mcp_token()
     talk = TalkSession(

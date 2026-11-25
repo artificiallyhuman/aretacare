@@ -1258,6 +1258,27 @@ def _end_live_calls(db, account):
     return account
 
 
+def test_catch_me_up_starts_with_the_latest_digest_in_its_seed(client, db, alice, talk_on):
+    # So it can speak at once: looking the digest up first left the person waiting in
+    # silence while the screen said "Listening".
+    from app.models.daily_plan import DailyPlan
+
+    grant_talk_consent(db, alice)
+    today = talk_tools.local_date("America/Chicago")
+    db.add(DailyPlan(session_id=alice.session_id, date=today - timedelta(days=3), content="An old digest."))
+    db.add(DailyPlan(session_id=alice.session_id, date=today, content="Physical therapy moved to Thursday."))
+    db.commit()
+
+    assert start(client, alice, surface="carplay", opening="catch_up").status_code == 201
+    assert start(client, _end_live_calls(db, alice), surface="carplay", opening="visit_prep").status_code == 201
+    catch_up_seed, prep_seed = (json.dumps(config["input"]) for config in talk_on[:2])
+    assert "Physical therapy moved to Thursday." in catch_up_seed
+    assert "(today)" in catch_up_seed
+    assert "An old digest." not in catch_up_seed  # older than yesterday: the journal covers it
+    assert "Physical therapy moved to Thursday." not in prep_seed
+    assert "Don't delegate" in ai_config.TALK_OPENINGS["catch_up"]
+
+
 def test_every_opening_the_api_accepts_has_its_text():
     # A Literal value without text would 500 after the call's row is committed, holding the
     # person's one live-call slot until it went stale.
@@ -1473,11 +1494,35 @@ PERSON_SPEAKS = "session.input_transcript.delta"
 
 
 def test_a_one_tap_start_is_nudged_when_the_assistant_waits(monkeypatch):
-    # Assistant audio from before the phone was connected went unheard: it doesn't count.
-    script = [(0.1, ASSISTANT_AUDIO)] + [(0.5, PHONE_AUDIO)] * 10
+    script = [(0.1, PHONE_AUDIO)] + [(0.5, PHONE_AUDIO)] * 10
     nudges = run_sideband_with_script(monkeypatch, script, opening="catch_up")
     assert nudges == [{"type": "session.instructions.append", "delegation_id": None,
                        "content": ai_config.TALK_OPENING_NUDGE}]
+    # Not before OPENING_NUDGE_SECONDS.
+    assert run_sideband_with_script(monkeypatch, [(0.1, PHONE_AUDIO)] + [(0.5, PHONE_AUDIO)] * 4,
+                                    opening="catch_up") == []
+
+
+def test_an_opening_spoken_before_the_phone_connected_is_repeated_promptly(monkeypatch):
+    # Assistant audio from before the phone was connected went unheard: it doesn't count,
+    # and the assistant is asked to start again within about a second, not 2.5.
+    script = [(0.1, ASSISTANT_AUDIO), (0.5, PHONE_AUDIO), (1.0, PHONE_AUDIO)]
+    nudges = run_sideband_with_script(monkeypatch, script, opening="visit_prep")
+    assert nudges == [{"type": "session.instructions.append", "delegation_id": None,
+                       "content": ai_config.TALK_OPENING_REPEAT}]
+    assert "HOW TO OPEN THIS CONVERSATION" in ai_config.TALK_OPENING_REPEAT
+
+
+def test_a_lookup_for_the_opening_holds_off_the_nudge(monkeypatch):
+    # The answer to the lookup is what the person hears first; a nudge in the meantime
+    # could start a second one.
+    delegation = "session.delegation.created"
+    script = [(0.1, PHONE_AUDIO), (0.2, delegation)] + [(0.5, PHONE_AUDIO)] * 16  # 8 s
+    assert run_sideband_with_script(monkeypatch, script, opening="catch_up") == []
+    # Still silent well after the lookup began: nudged then.
+    script = [(0.1, PHONE_AUDIO), (0.2, delegation)] + [(1.0, PHONE_AUDIO)] * 14
+    nudges = run_sideband_with_script(monkeypatch, script, opening="catch_up")
+    assert [n["content"] for n in nudges] == [ai_config.TALK_OPENING_NUDGE]
 
 
 def test_no_nudge_once_the_assistant_has_started(monkeypatch):

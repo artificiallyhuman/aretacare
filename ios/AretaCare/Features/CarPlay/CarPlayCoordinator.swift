@@ -21,7 +21,7 @@ final class CarPlayCoordinator {
     private var landing: CPGridTemplate?
     /// What the landing screen's navigation bar shows now (its title, and the care session's
     /// name on the button), so an unchanged one isn't sent to the car again.
-    private var shownHeader: (title: String, sessionName: String?)?
+    private var shownHeader: (title: String, sessionName: String?, sharedWith: String?)?
     /// Hears when the system closes the voice screen itself (its navigation bar button).
     private let templateEvents = TemplateEvents()
     private var callScreen: CarPlayCallScreen?
@@ -39,6 +39,9 @@ final class CarPlayCoordinator {
     private static let prepareTimeoutSeconds: Double = 15
     private var isPreparing: Bool { preparing != nil }
     private var isLoadingSessions = false
+    /// The first load (sign-in restore included) has finished: until then the landing
+    /// screen can't say whether someone is signed in.
+    private var hasLoadedOnce = false
 
     /// The modal template that should be up (an alert or the voice screen), reconciled one
     /// step at a time: CarPlay presents one modal at a time, and `presentedTemplate` isn't
@@ -177,25 +180,92 @@ final class CarPlayCoordinator {
 
     /// The navigation bar reads as a label and its value: the title says "Care session" and
     /// the rounded button beside it carries the care session's name and opens the list of
-    /// care sessions. In the first car test the title was the bare name with a "Switch"
+    /// care sessions. A shared care session gets a second button saying who else can see it
+    /// (like the line under the phone's chat title), which lists them. In the first car test the title was the bare name with a "Switch"
     /// button, and neither said it was about the care session. (The title is fixed and short,
-    /// so a long care-session name can't push the label out on a narrow screen.) Until a care
-    /// session is known (sign-in restoring, signed out, none yet, or the list failed) the
-    /// title is AretaCare with no button; a tap on a start explains what's missing.
+    /// so a long care-session name can't push the label out on a narrow screen.) Without a
+    /// care session there's no button, and the title says what's missing before anyone
+    /// taps: "Not signed in" or "No care session"; AretaCare while sign-in is still being
+    /// restored or can't reach the server. A tap on a start then says what to do.
     private func updateLanding() {
         guard let landing else { return }
-        let session = AuthManager.shared.isAuthenticated ? sessionVM.currentSession : nil
-        let header = (title: session == nil ? "AretaCare" : "Care session", sessionName: session?.name)
+        let auth = AuthManager.shared
+        let session = auth.isAuthenticated ? sessionVM.currentSession : nil
+        let title: String
+        if session != nil {
+            title = "Care session"
+        } else if !hasLoadedOnce || auth.startupErrorMessage != nil {
+            title = "AretaCare"
+        } else if !auth.isAuthenticated {
+            title = "Not signed in"
+        } else if sessionVM.sessions.isEmpty, sessionVM.errorMessage == nil, !isLoadingSessions {
+            title = "No care session"
+        } else {
+            title = "AretaCare"
+        }
+        let header = (title: title, sessionName: session?.name,
+                      sharedWith: session.flatMap { Self.sharedWithText(otherPeople(in: $0)) })
         if let shownHeader, shownHeader == header { return }
         shownHeader = header
         if landing.title != header.title { landing.updateTitle(header.title) }
+        var buttons: [CPBarButton] = []
         if let name = header.sessionName {
             let button = CPBarButton(title: name) { [weak self] _ in self?.showSessionPicker() }
             button.buttonStyle = .rounded
-            landing.trailingNavigationBarButtons = [button]
-        } else {
-            landing.trailingNavigationBarButtons = []
+            buttons.append(button)
         }
+        if let sharedWith = header.sharedWith {
+            let button = CPBarButton(title: sharedWith) { [weak self] _ in self?.showPeople() }
+            button.buttonStyle = .rounded
+            buttons.append(button)
+        }
+        landing.trailingNavigationBarButtons = buttons
+    }
+
+    // MARK: - Who can see the care session
+
+    /// First names of everyone else who can see the care session, owner first: the people
+    /// the phone's chat title lists (`SessionTitleView`).
+    private func otherPeople(in session: SessionResponse) -> [String] {
+        let me = AuthManager.shared.currentUser?.id
+        var names: [String] = []
+        if session.ownerId != me { names.append(session.ownerName) }
+        names += session.collaborators.filter { $0.userId != me }.map(\.name)
+        return names.map(SessionTitleView.firstName)
+    }
+
+    /// The landing screen's second button when the care session is shared, beside its name:
+    /// "With Sarah", "With Sarah & Tom", or a count when names would make it long (the bar
+    /// also holds the title and the name, and car screens can be narrow). Nil when only you
+    /// can see it: there's nothing to invite from the car, so the phone's "Only you · Invite"
+    /// has no counterpart.
+    static func sharedWithText(_ others: [String]) -> String? {
+        guard !others.isEmpty else { return nil }
+        let names = others.count == 1 ? others[0] : others.count == 2 ? "\(others[0]) & \(others[1])" : nil
+        if let names, names.count <= 14 { return "With \(names)" }
+        return others.count == 1 ? "With 1 person" : "With \(others.count) people"
+    }
+
+    /// Everyone who can see the care session (template depth 2): names only, the owner and
+    /// you marked. Read-only; sharing is managed in the app.
+    private func showPeople() {
+        AuthManager.shared.recordActivity()
+        // Already open (a tap delivered twice over a wireless link).
+        guard interfaceController.topTemplate === landing, let session = sessionVM.currentSession else { return }
+        let me = AuthManager.shared.currentUser?.id
+        var people: [(name: String, detail: String?)] = [
+            (session.ownerName, session.ownerId == me ? "Owner · You" : "Owner"),
+        ]
+        people += session.collaborators
+            .filter { $0.userId != session.ownerId }
+            .sorted { $0.addedAt < $1.addedAt }
+            .map { ($0.name, $0.userId == me ? "You" : nil) }
+        let icon = UIImage(systemName: "person.crop.circle.fill")
+        let items = people.prefix(Int(CPListTemplate.maximumItemCount)).map { person in
+            CPListItem(text: person.name, detailText: person.detail, image: icon)
+        }
+        let list = CPListTemplate(title: "Shared With", sections: [CPListSection(items: Array(items))])
+        interfaceController.pushTemplate(list, animated: true) { _, _ in }  // a refusal without one throws
     }
 
     private var carScale: CGFloat { interfaceController.carTraitCollection.displayScale }
@@ -208,6 +278,7 @@ final class CarPlayCoordinator {
         isLoadingSessions = true
         defer {
             isLoadingSessions = false
+            hasLoadedOnce = true
             updateLanding()
         }
         await AppBootstrap.shared.start()
@@ -258,7 +329,11 @@ final class CarPlayCoordinator {
         let currentId = sessionVM.currentSession?.id
         let sessions = sessionVM.sessions.sorted { $0.lastActivity > $1.lastActivity }
         let items: [CPListItem] = sessions.prefix(Int(CPListTemplate.maximumItemCount)).map { session in
-            let item = CPListItem(text: session.name, detailText: session.id == currentId ? "Current" : nil,
+            // "Current", and who else can see it, as on the landing screen.
+            let detail = [session.id == currentId ? "Current" : nil,
+                          Self.sharedWithText(self.otherPeople(in: session))]
+                .compactMap { $0 }.joined(separator: " · ")
+            let item = CPListItem(text: session.name, detailText: detail.isEmpty ? nil : detail,
                                   image: CarPlayImages.sessionIcon(colorKey: session.colorKey, scale: carScale))
             item.handler = { [weak self] _, completion in
                 self?.choose(session)
@@ -318,7 +393,7 @@ final class CarPlayCoordinator {
         let auth = AuthManager.shared
         guard auth.isAuthenticated else {
             showAlert(auth.startupErrorMessage == nil
-                      ? "You're signed out of AretaCare."
+                      ? TalkViewModel.signedOutInCar
                       : "AretaCare can't connect right now. Try again in a moment.")
             return
         }
@@ -333,7 +408,7 @@ final class CarPlayCoordinator {
         }
         guard let sessionId = sessionVM.currentSession?.id else {
             showAlert(sessionVM.errorMessage == nil
-                      ? "No care session yet."
+                      ? TalkViewModel.noCareSessionInCar
                       : "AretaCare couldn't load your care sessions. Try again in a moment.")
             return
         }
@@ -394,7 +469,7 @@ final class CarPlayCoordinator {
         sessionVM = SessionViewModel()
         updateLanding()
         interfaceController.popToRootTemplate(animated: false, completion: nil)
-        if wasInCall { showAlert("You're signed out of AretaCare.") }
+        if wasInCall { showAlert(TalkViewModel.signedOutInCar) }
     }
 
     /// The voice screen went away while this coordinator still wanted it up and CarPlay no

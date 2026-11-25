@@ -64,39 +64,28 @@ enum CarPlayImages {
 
     // MARK: - Voice screen buttons
 
-    private static var buttonSide: CGFloat {
-        min(40, CPButtonMaximumImageSize.width, CPButtonMaximumImageSize.height)
+    /// Mute and End are plain SF Symbols (template images), which CarPlay draws on its own
+    /// buttons: the glass capsules of its other controls, sized and tinted by CarPlay. A
+    /// drawn image (a colored circle with the glyph) was stretched to fill the whole button,
+    /// glyph included, and looked oversized and unlike CarPlay's own controls. Mute shows
+    /// the microphone's state the way video calls do: on while live, slashed while muted
+    /// (with the screen saying Muted). Both states use the same kind of image, so the
+    /// button keeps its size on every tap.
+    static func muteButton(muted: Bool) -> UIImage {
+        buttonSymbol(muted ? "mic.slash.fill" : "mic.fill")
     }
 
-    /// Mute shows the slashed microphone either way, like the Phone app's mute button. While
-    /// muted it lights up: a white circle with the microphone in red (and the title says
-    /// Muted). Both are drawn on the same circle as End, so the button keeps its size: a
-    /// plain symbol for the unmuted state was sized by CarPlay, not by us, and the button
-    /// grew and shrank with every tap. `dark` is the car's appearance.
-    static func muteButton(muted: Bool, dark: Bool, scale: CGFloat) -> UIImage {
-        if muted {
-            return cached("mute.on@\(scale)") { disc("mic.slash.fill", fill: .white, glyph: .systemRed, scale: scale) }
+    /// End is the hang-up symbol from phone calls.
+    static func endButton() -> UIImage {
+        buttonSymbol("phone.down.fill")
+    }
+
+    private static func buttonSymbol(_ name: String) -> UIImage {
+        cached("button.\(name)") {
+            let configuration = UIImage.SymbolConfiguration(pointSize: 28, weight: .semibold)
+            return (UIImage(systemName: name, withConfiguration: configuration) ?? UIImage())
+                .withRenderingMode(.alwaysTemplate)
         }
-        return cached("mute.off.\(dark)@\(scale)") {
-            dark
-                ? disc("mic.slash.fill", fill: UIColor(white: 1, alpha: 0.22), glyph: .white, scale: scale)
-                : disc("mic.slash.fill", fill: UIColor(white: 0, alpha: 0.1), glyph: UIColor(hex: 0x1C2B3A), scale: scale)
-        }
-    }
-
-    /// End is the red hang-up button everyone knows from phone calls.
-    static func endButton(scale: CGFloat) -> UIImage {
-        cached("end@\(scale)") { disc("phone.down.fill", fill: .systemRed, glyph: .white, scale: scale) }
-    }
-
-    private static func disc(_ symbol: String, fill: UIColor, glyph: UIColor, scale: CGFloat) -> UIImage {
-        let side = buttonSide
-        let canvas = CGSize(width: side, height: side)
-        return renderer(canvas, scale: scale).image { _ in
-            fill.setFill()
-            UIBezierPath(ovalIn: CGRect(origin: .zero, size: canvas)).fill()
-            drawSymbol(symbol, color: glyph, in: CGRect(origin: .zero, size: canvas).insetBy(dx: side * 0.21, dy: side * 0.21))
-        }.withRenderingMode(.alwaysOriginal)
     }
 
     /// One instance per image: the same object in every voice state is handed to CarPlay once.
@@ -204,9 +193,9 @@ enum CarPlayImages {
             _ = voiceState(state, scale: scale)
         }
         await Task.yield()
-        _ = muteButton(muted: false, dark: dark, scale: scale)
-        _ = muteButton(muted: true, dark: dark, scale: scale)
-        _ = endButton(scale: scale)
+        _ = muteButton(muted: false)
+        _ = muteButton(muted: true)
+        _ = endButton()
     }
 
     // MARK: - Drawing

@@ -174,6 +174,9 @@ final class TalkViewModel {
     private var talkId: String?
     private(set) var sessionId: String?
     private var opening: TalkOpening?
+    /// The assistant started a lookup before the connection was up (an opening that looks
+    /// something up first, like "Catch me up"): the call opens on Working, not Listening.
+    private var workingAtConnect = false
     private var didKeepScreenAwake = false
     /// The call's audio environment is set up: from here WebRTC's voice processing owns the
     /// app's audio session until the call ends.
@@ -350,8 +353,10 @@ final class TalkViewModel {
         switch event {
         case .ready:
             guard phase == .connecting else { return }
-            phase = .listening
-            announce(.listening)
+            // A lookup already under way: say so. "Listening" sat on screen through the whole
+            // lookup, as if the assistant were waiting for the person.
+            phase = workingAtConnect ? .working : .listening
+            announce(phase)
             if surface == .app { UIImpactFeedbackGenerator(style: .soft).impactOccurred() }
             // The server enforces the limit; this is the fallback if its close never arrives.
             startWatchdog(seconds: Double(maxSessionSeconds) + 15) { [weak self] in
@@ -363,6 +368,10 @@ final class TalkViewModel {
             // A stem press while connecting already muted the microphone at the system level.
             if surface == .app, AVAudioApplication.shared.isInputMuted { setMuted(true) }
         case .working:
+            if phase == .connecting {
+                workingAtConnect = true  // shown once the call is live (.ready)
+                return
+            }
             guard phase.isLive else { return }
             setPhase(.working)
         case .closedByServer(let reason):
@@ -463,6 +472,7 @@ final class TalkViewModel {
         phase = .idle
         if Self.current === self { Self.current = nil }
         opening = nil
+        workingAtConnect = false
         // The first-use consent sheet belongs to the attempt: left up after the attempt
         // ended, "Agree and Start" recorded consent and then started nothing.
         showingConsent = false
@@ -720,6 +730,8 @@ final class TalkViewModel {
     /// permission). Apple's CarPlay rules: say what's wrong, never tell the driver to pick
     /// up the phone.
     static let notSetUpInCar = "Talk isn't set up yet. You can set it up in AretaCare when you're parked."
+    static let signedOutInCar = "You're signed out. You can sign in to AretaCare when you're parked."
+    static let noCareSessionInCar = "There's no care session yet. You can create one in AretaCare when you're parked."
 
     private func message(for error: Error) -> String {
         guard surface == .carPlay else { return Self.message(for: error) }
@@ -731,7 +743,7 @@ final class TalkViewModel {
         case .forbidden(let code) where code == "TALK_SUBSCRIPTION_REQUIRED":
             return "Talk needs an AretaCare subscription."
         case _ where apiError.requiresLogout:
-            return "You're signed out of AretaCare."
+            return Self.signedOutInCar
         case .notFound:
             return "Talk isn't available right now."
         case .unknown(let statusCode) where statusCode == 409:

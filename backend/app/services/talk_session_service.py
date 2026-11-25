@@ -49,6 +49,7 @@ from app.models import AudioRecording, Conversation, JournalEntry, TalkSession
 from app.models.audio_recording import AudioRecordingCategory, TranscriptionStatus
 from app.models.conversation import MessageRole, MessageType
 from app.models.talk_session import TalkOutcome, TalkStatus, TalkSurface
+from app.models.daily_plan import DailyPlan
 from app.models.talk_usage import TalkUsage
 from app.services.audio_transcription_service import (
     _FFMPEG_INPUT_GUARD, _stage_limiter, build_audio_keys,
@@ -81,6 +82,12 @@ WRAP_UP_WARNING_SECONDS = 60
 # if the assistant still hasn't said anything this long after the phone's audio started
 # arriving, the sideband tells it to begin (once per call).
 OPENING_NUDGE_SECONDS = 2.5
+# If it did speak, but before the phone's audio was connected (nobody heard it; a cold start
+# connects more slowly), it is asked to start again as soon as it has gone quiet.
+OPENING_REPEAT_SECONDS = 0.8
+# A lookup the assistant started for its opening: its answer is what the person will hear
+# first, so it gets this long before a nudge (which could start a second lookup).
+OPENING_DELEGATION_GRACE_SECONDS = 12
 SIDEBAND_MAX_RECONNECTS = 4
 # A sideband connection that lasted this long resets the reconnect budget; shorter ones
 # count against it.
@@ -145,9 +152,27 @@ def _clip_tokens(value: str, tokens: int) -> str:
     return value if len(value) <= limit else value[:limit] + "\n[truncated]"
 
 
+def _latest_digest(db, session_id: str, user_timezone: Optional[str]) -> str:
+    """Today's Daily Digest, or yesterday's, as seed text ("" when there is neither): what
+    "Catch me up" opens with, without a lookup first. The person's local date."""
+    today = local_date(user_timezone)
+    plan = db.query(DailyPlan).filter(
+        DailyPlan.session_id == session_id,
+        DailyPlan.date >= today - timedelta(days=1),
+        DailyPlan.date <= today,
+    ).order_by(DailyPlan.date.desc()).first()
+    if plan is None:
+        return ""
+    text = (plan.user_edited_content or plan.content or "").strip()
+    if not text:
+        return ""
+    when = "today" if plan.date == today else "yesterday"
+    return f"Daily Digest for {plan.date.strftime('%A, %B')} {plan.date.day} ({when}):\n" + text
+
+
 def build_session_input(
     db, session_id: str, *, user_name: str, session_name: str,
-    user_timezone: Optional[str], current_time: Optional[str],
+    user_timezone: Optional[str], current_time: Optional[str], opening: Optional[str] = None,
 ) -> List[dict]:
     """Seed context for the voice model (`session.input`, capped by OpenAI at 8,192 tokens).
 
@@ -176,6 +201,12 @@ def build_session_input(
         reference += "\n\n" + _clip_tokens(profile_text, ai_config.TALK_PROFILE_TOKENS)
     if (recent_journal or "").strip():
         reference += "\n\n" + _clip_tokens(recent_journal, ai_config.TALK_JOURNAL_TOKENS)
+    history_tokens = ai_config.TALK_HISTORY_TOKENS
+    if opening == "catch_up":
+        digest = _latest_digest(db, session_id, user_timezone)
+        if digest:
+            reference += "\n\n" + _clip_tokens(digest, ai_config.TALK_DIGEST_TOKENS)
+            history_tokens = max(0, history_tokens - ai_config.TALK_DIGEST_TOKENS)
 
     items: List[dict] = [{
         "type": "message",
@@ -190,7 +221,7 @@ def build_session_input(
     rows = db.query(Conversation).filter(
         Conversation.session_id == session_id
     ).order_by(Conversation.id.desc()).limit(ai_config.TALK_HISTORY_MESSAGES).all()
-    budget = ai_config.TALK_HISTORY_TOKENS * 4
+    budget = history_tokens * 4
     history: List[dict] = []
     for msg in rows:  # newest first: keep the most recent that fit
         content = (msg.content or "").strip()
@@ -852,6 +883,19 @@ async def _send(ws, payload: dict) -> None:
         await ws.send(json.dumps(payload))
 
 
+def _opening_nudge_due(state: dict) -> float:
+    """When a one-tap start whose assistant hasn't been heard yet gets nudged (monotonic
+    seconds). Called once the phone's audio has arrived."""
+    unheard = state["unheard_output_at"] is not None
+    due = state["phone_audio_at"] + (OPENING_REPEAT_SECONDS if unheard else OPENING_NUDGE_SECONDS)
+    if unheard:
+        # Not while it may still be finishing what nobody heard.
+        due = max(due, state["unheard_output_at"] + OPENING_REPEAT_SECONDS)
+    if state["delegation_at"] is not None:
+        due = max(due, state["delegation_at"] + OPENING_DELEGATION_GRACE_SECONDS)
+    return due
+
+
 async def _run_sideband(
     talk_id: str, openai_session_id: str, max_seconds: int, opening: Optional[str] = None,
 ) -> None:
@@ -866,6 +910,9 @@ async def _run_sideband(
         # For a one-tap start: when the phone's audio first arrived, and whether anyone has
         # spoken since (assistant output from before that moment went unheard).
         "phone_audio_at": None, "assistant_heard": False, "user_spoke": False, "nudged": False,
+        # Assistant output from before the phone's audio arrived (unheard), and when the
+        # assistant last started a lookup.
+        "unheard_output_at": None, "delegation_at": None,
     }
 
     async def flush(force: bool = False) -> None:
@@ -899,6 +946,8 @@ async def _run_sideband(
         elif kind == "session.output_audio.delta":
             if state["phone_audio_at"] is not None:
                 state["assistant_heard"] = True
+            else:
+                state["unheard_output_at"] = time.monotonic()
             with contextlib.suppress(Exception):
                 recorder.add_output(
                     base64.b64decode(event.get("delta") or ""), event.get("start_ms") or 0, event.get("end_ms")
@@ -920,7 +969,11 @@ async def _run_sideband(
         elif kind == "session.output_transcript.delta":
             if state["phone_audio_at"] is not None:
                 state["assistant_heard"] = True
+            else:
+                state["unheard_output_at"] = time.monotonic()
             transcript.add("assistant", event)
+        elif isinstance(kind, str) and kind.startswith("session.delegation."):
+            state["delegation_at"] = time.monotonic()
         elif kind == "session.usage.updated":
             seconds = (event.get("usage") or {}).get("seconds")
             if isinstance(seconds, (int, float)):
@@ -987,13 +1040,15 @@ async def _run_sideband(
             if (opening and not state["nudged"] and state["close_sent_at"] is None
                     and state["phone_audio_at"] is not None
                     and not state["assistant_heard"] and not state["user_spoke"]
-                    and now - state["phone_audio_at"] >= OPENING_NUDGE_SECONDS):
+                    and now >= _opening_nudge_due(state)):
                 # OpenAI's documented way to make a running session say something now.
                 state["nudged"] = True
-                logger.info(f"Talk {talk_id}: assistant hadn't started the {opening} opening; nudging it")
+                repeat = state["unheard_output_at"] is not None
+                logger.info(f"Talk {talk_id}: the {opening} opening "
+                            f"{'went unheard' if repeat else 'had not started'}; nudging it")
                 await _send(ws, {
                     "type": "session.instructions.append", "delegation_id": None,
-                    "content": ai_config.TALK_OPENING_NUDGE,
+                    "content": ai_config.TALK_OPENING_REPEAT if repeat else ai_config.TALK_OPENING_NUDGE,
                 })
             await flush()
 
