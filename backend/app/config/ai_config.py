@@ -1285,6 +1285,18 @@ HOW TO OPEN THIS CONVERSATION: the person chose "After a visit". This replaces t
 - If something stored in the Health Profile changed (a medication started, stopped, or changed; a new provider; a new allergy), offer to suggest the update. It waits for their review in the app.""",
 }
 
+# The cue that makes the assistant speak first. GPT-Live waits for the person to speak
+# unless the session starts with a developer message in `session.input` saying to begin
+# (OpenAI, "Greet before the caller speaks"). A plain Talk call keeps waiting; a one-tap
+# start has already said what the person wants, so they hear it begin. Fixed text,
+# selected by the same enum as TALK_OPENINGS, and it only says when to start: what to
+# say is in TALK_OPENINGS, inside the instructions.
+TALK_OPENING_CUES = {
+    "catch_up": 'The person just tapped "Catch me up" in the car. Begin speaking now, in English, by following HOW TO OPEN THIS CONVERSATION.',
+    "visit_prep": 'The person just tapped "Before a visit" in the car. Begin speaking now, in English, by following HOW TO OPEN THIS CONVERSATION, then pause and listen.',
+    "visit_debrief": 'The person just tapped "After a visit" in the car. Begin speaking now, in English, by following HOW TO OPEN THIS CONVERSATION, then pause and listen.',
+}
+
 # The backend model's half of an opening, where it has one: "Before a visit" asks it to
 # write the questions.
 TALK_BACKEND_OPENING_NOTES = {

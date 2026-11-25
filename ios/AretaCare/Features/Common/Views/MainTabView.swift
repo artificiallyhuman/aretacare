@@ -163,6 +163,22 @@ struct MainTabView: View {
         .onReceive(NotificationCenter.default.publisher(for: .sessionsDidChange)) { _ in
             Task { await sessionVM.fetchSessions() }
         }
+        .onReceive(NotificationCenter.default.publisher(for: .activeSessionDidChange)) { notification in
+            // A care session chosen in CarPlay: the phone follows, as it does a notification
+            // tap, except mid-recording or mid-call (same reasons as above).
+            guard let chooser = notification.object as? SessionViewModel, chooser !== sessionVM,
+                  let sessionId = notification.userInfo?[SessionViewModel.sessionIdKey] as? String,
+                  sessionVM.currentSession?.id != sessionId,
+                  !AudioRecorderManager.isRecordingInProgress, !TalkViewModel.isPhoneCallInProgress
+            else { return }
+            if !sessionVM.follow(sessionId: sessionId) {
+                // Not in this screen's list yet (created since it last fetched).
+                Task {
+                    await sessionVM.fetchSessions()
+                    sessionVM.follow(sessionId: sessionId)
+                }
+            }
+        }
         .onReceive(NotificationCenter.default.publisher(for: .sessionAccessRevoked)) { _ in
             // An owner revoked sharing on a care session — drop it and move on.
             // Deliberately not a logout.

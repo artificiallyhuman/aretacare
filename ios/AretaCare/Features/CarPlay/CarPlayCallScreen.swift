@@ -3,7 +3,8 @@ import Observation
 import UIKit
 
 /// The voice screen for one Talk call: a `CPVoiceControlTemplate` that shows only the
-/// call's state (no words from the conversation) with Mute and End buttons.
+/// call's state (no words from the conversation) with Mute and End buttons, and Done in the
+/// navigation bar, which also ends the call.
 ///
 /// It follows the call's `TalkViewModel` and closes itself when the call ends, whichever
 /// screen ended it. CarPlay ignores state changes that come too fast, so each state stays
@@ -27,14 +28,23 @@ final class CarPlayCallScreen {
 
     let talk: TalkViewModel
     /// Each state carries its own buttons (iOS 26.4): End everywhere, plus Mute while the
-    /// call is live and Unmute while muted. No microphone track exists while connecting.
-    private(set) lazy var template = CPVoiceControlTemplate(voiceControlStates: State.allCases.map { state in
-        let voiceState = CPVoiceControlState(identifier: state.rawValue, titleVariants: state.titles,
-                                             image: CarPlayImages.voiceState(state, scale: scale), repeats: true)
-        let buttons = buttons(for: state)
-        voiceState.actionButtons = Array(buttons.prefix(CPVoiceControlState.maximumActionButtonCount))
-        return voiceState
-    })
+    /// call is live (red while muted). No microphone track exists while connecting.
+    private(set) lazy var template: CPVoiceControlTemplate = {
+        let template = CPVoiceControlTemplate(voiceControlStates: State.allCases.map { state in
+            let voiceState = makeState(state)
+            let buttons = buttons(for: state)
+            voiceState.actionButtons = Array(buttons.prefix(CPVoiceControlState.maximumActionButtonCount))
+            return voiceState
+        })
+        // The system's close button was an unexplained X beside the End button. Done says
+        // what it does: the conversation is over (closing the screen and leaving the call
+        // running unseen would leave the driver no way to end it).
+        template.backButton = CPBarButton(title: "Done") { [weak self] _ in
+            guard let talk = self?.talk else { return }
+            Task { await talk.end() }
+        }
+        return template
+    }()
 
     private let scale: CGFloat
     private let onClose: (CarPlayCallScreen, TalkViewModel.Notice?) -> Void
@@ -140,10 +150,26 @@ final class CarPlayCallScreen {
         onClose(self, notice)
     }
 
+    /// iOS 27 adds a full-screen background per state: a glow in the state's color, red
+    /// while muted. The `compiler` check keeps the build working on an iOS 26 SDK (GitHub's
+    /// runners), which doesn't have that initializer.
+    private func makeState(_ state: State) -> CPVoiceControlState {
+        let image = CarPlayImages.voiceState(state, scale: scale)
+        #if compiler(>=6.4)
+        if #available(iOS 27.0, *) {
+            return CPVoiceControlState(identifier: state.rawValue, titleVariants: state.titles, image: image,
+                                       backgroundImage: CarPlayImages.voiceBackground(state, scale: scale),
+                                       repeats: true)
+        }
+        #endif
+        return CPVoiceControlState(identifier: state.rawValue, titleVariants: state.titles,
+                                   image: image, repeats: true)
+    }
+
     // MARK: - Buttons
 
     private func buttons(for state: State) -> [CPButton] {
-        let end = CPButton(image: CarPlayImages.symbol("xmark")) { [weak self] _ in
+        let end = CPButton(image: CarPlayImages.endButton(scale: scale)) { [weak self] _ in
             guard let talk = self?.talk else { return }
             Task { await talk.end() }
         }
@@ -151,7 +177,7 @@ final class CarPlayCallScreen {
         guard state != .connecting else { return [end] }
 
         let muted = state == .muted
-        let mute = CPButton(image: CarPlayImages.symbol(muted ? "mic.fill" : "mic.slash.fill")) { [weak self] _ in
+        let mute = CPButton(image: CarPlayImages.muteButton(muted: muted, scale: scale)) { [weak self] _ in
             AuthManager.shared.recordActivity()
             self?.talk.toggleMute()
         }

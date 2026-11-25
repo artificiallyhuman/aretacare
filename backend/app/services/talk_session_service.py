@@ -225,6 +225,12 @@ def build_session_config(
         instructions += "\n" + ai_config.TALK_OPENINGS[opening]
         if opening in ai_config.TALK_BACKEND_OPENING_NOTES:
             backend_instructions += "\n" + ai_config.TALK_BACKEND_OPENING_NOTES[opening]
+        # Last, after the seed and the chat history: the newest message is the one that says
+        # to start. A new list, so the caller's seed isn't changed.
+        input_items = input_items + [{
+            "type": "message", "role": "developer",
+            "content": [{"type": "input_text", "text": ai_config.TALK_OPENING_CUES[opening]}],
+        }]
     tz, now_text = sanitize_user_timezone(user_timezone), sanitize_current_time(current_time)
     if now_text or tz:
         backend_instructions += (

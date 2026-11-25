@@ -1,8 +1,27 @@
 import Foundation
 import Observation
 
+extension Notification.Name {
+    /// A care session was chosen on one screen (the phone or CarPlay); the other follows.
+    /// `object` is the `SessionViewModel` that chose it; `userInfo[SessionViewModel.sessionIdKey]`
+    /// is the care session's id.
+    static let activeSessionDidChange = Notification.Name("activeSessionDidChange")
+}
+
 @Observable @MainActor
 final class SessionViewModel {
+    nonisolated static let sessionIdKey = "sessionId"
+
+    /// The care session most recently chosen in this process, on either screen. The phone
+    /// window can open after a choice made in CarPlay, and its first restore would otherwise
+    /// use `currentUser.lastActiveSessionId`, which is read once at sign-in.
+    private static var chosenInProcess: String?
+
+    /// Sign-out: the next account starts from its own server value.
+    static func forgetChoice() {
+        chosenInProcess = nil
+    }
+
     private(set) var sessions: [SessionResponse] = []
     private(set) var currentSession: SessionResponse? {
         didSet {
@@ -41,16 +60,20 @@ final class SessionViewModel {
             }
 
             // If no current session selected, restore using priority:
-            // 1. Backend preference (synced across devices)
-            // 2. Local UserDefaults cache (offline fallback)
-            // 3. Most recent session by activity
+            // 1. A choice made since this process started (on the phone or in CarPlay)
+            // 2. Backend preference (synced across devices)
+            // 3. Local UserDefaults cache (offline fallback)
+            // 4. Most recent session by activity
             if currentSession == nil {
+                let chosenId = Self.chosenInProcess
                 let backendId = AuthManager.shared.currentUser?.lastActiveSessionId
                 let localId = UserDefaults.standard.string(forKey: "lastSessionId")
 
                 let activeSessions = fetched.filter(\.isActive)
 
-                if let backendId, let restored = activeSessions.first(where: { $0.id == backendId }) {
+                if let chosenId, let restored = activeSessions.first(where: { $0.id == chosenId }) {
+                    currentSession = restored
+                } else if let backendId, let restored = activeSessions.first(where: { $0.id == backendId }) {
                     currentSession = restored
                 } else if let localId, let restored = activeSessions.first(where: { $0.id == localId }) {
                     currentSession = restored
@@ -134,11 +157,26 @@ final class SessionViewModel {
 
     func switchSession(to session: SessionResponse) {
         currentSession = session
+        Self.chosenInProcess = session.id
+        // The other screen (phone or CarPlay) follows.
+        NotificationCenter.default.post(name: .activeSessionDidChange, object: self,
+                                        userInfo: [Self.sessionIdKey: session.id])
 
         // Notify backend to update last_active_session_id (fire-and-forget, matches web behavior)
         Task {
             let _: SessionResponse? = try? await APIClient.shared.get(APIEndpoints.Sessions.get(session.id))
         }
+    }
+
+    /// Takes up a care session chosen on the other screen. No server call or notification:
+    /// the screen that chose it made both. Returns false when it's already current or not in
+    /// this list (the caller can fetch and try again).
+    @discardableResult
+    func follow(sessionId: String) -> Bool {
+        guard currentSession?.id != sessionId,
+              let session = sessions.first(where: { $0.id == sessionId }) else { return false }
+        currentSession = session
+        return true
     }
 
     // MARK: - Delete Session

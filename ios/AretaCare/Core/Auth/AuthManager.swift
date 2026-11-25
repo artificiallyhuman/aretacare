@@ -307,6 +307,7 @@ final class AuthManager {
         TalkViewModel.current?.abandon()
         BiometricManager.shared.clearLock()
         UserDefaults.standard.removeObject(forKey: "lastSessionId")
+        SessionViewModel.forgetChoice()
         UserDefaults.standard.removeObject(forKey: "activeTab")
 
         // Clear cached data

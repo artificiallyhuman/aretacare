@@ -1152,6 +1152,20 @@ def test_a_phone_call_gets_neither_the_driving_rules_nor_an_opening(client, db, 
     assert voice == ai_config.TALK_INSTRUCTIONS
     assert ai_config.TALK_BACKEND_DRIVING_NOTE not in backend
     assert db.query(TalkSession).filter(TalkSession.id == talk_id).one().surface == "app"
+    # No cue to start talking: a plain call waits for the person.
+    assert _start_cues(talk_on[0]) == []
+
+
+def test_plain_talk_in_the_car_also_waits_for_the_person(client, db, alice, talk_on):
+    grant_talk_consent(db, alice)
+    assert start(client, alice, surface="carplay").status_code == 201
+    assert _start_cues(talk_on[0]) == []
+
+
+def _start_cues(config):
+    cues = set(ai_config.TALK_OPENING_CUES.values())
+    return [item for item in config["input"]
+            if item.get("role") == "developer" and item["content"][0]["text"] in cues]
 
 
 def test_a_carplay_call_gets_the_driving_rules_after_the_safety_rules(client, db, alice, talk_on):
@@ -1173,6 +1187,13 @@ def test_each_opening_adds_its_own_text_and_keeps_the_safety_lines(client, db, a
     assert start(client, alice, surface="carplay", opening=opening).status_code == 201
     voice, _backend = _voice_and_backend(talk_on[0])
     assert voice.endswith(ai_config.TALK_OPENINGS[opening])
+    # The assistant speaks first: the session's newest input message says to begin, after
+    # the seed (still first, still wrapped).
+    inputs = talk_on[0]["input"]
+    assert inputs[-1] == {"type": "message", "role": "developer", "content": [
+        {"type": "input_text", "text": ai_config.TALK_OPENING_CUES[opening]}]}
+    assert _start_cues(talk_on[0]) == [inputs[-1]]
+    assert '<untrusted_content source="' in inputs[0]["content"][0]["text"]
     for other in set(ai_config.TALK_OPENINGS) - {opening}:
         assert ai_config.TALK_OPENINGS[other] not in voice
     never = ai_config.SYSTEM_PROMPT.split("YOU MUST NEVER:")[1].split("CRITICAL REMINDER")[0]
@@ -1244,6 +1265,7 @@ def test_every_opening_the_api_accepts_has_its_text():
     annotation = TalkStartRequest.model_fields["opening"].annotation
     literal = next(arg for arg in get_args(annotation) if get_origin(arg) is Literal)
     assert set(get_args(literal)) == set(ai_config.TALK_OPENINGS)
+    assert set(ai_config.TALK_OPENING_CUES) == set(ai_config.TALK_OPENINGS)
     assert set(ai_config.TALK_BACKEND_OPENING_NOTES) <= set(ai_config.TALK_OPENINGS)
 
 

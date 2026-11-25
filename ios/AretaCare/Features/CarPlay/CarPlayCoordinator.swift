@@ -3,9 +3,10 @@ import UIKit
 
 /// Runs AretaCare on the CarPlay screen.
 ///
-/// Landing screen: a grid of four one-tap starts (Talk, Catch me up, Before a visit,
-/// After a visit), titled with the care session's name, plus Switch when there is more
-/// than one care session. A tap opens the voice screen and starts a Talk call. Apple's
+/// Landing screen: a list titled AretaCare with four one-tap starts pinned along the top
+/// (Talk, Catch me up, Before a visit, After a visit) and, under a "Care session" header,
+/// one row naming the care session; with more than one, tapping it opens the list of care
+/// sessions. A start opens the voice screen and starts a Talk call. Apple's
 /// rules for the category (CarPlay Developer Guide, Oct 2026): voice first, no text or
 /// images in answers, at most three templates deep, the microphone only with the voice
 /// control template, and never a message telling the driver to pick up the phone.
@@ -14,7 +15,9 @@ import UIKit
 final class CarPlayCoordinator {
     private let interfaceController: CPInterfaceController
     private var sessionVM = SessionViewModel()
-    private var grid: CPGridTemplate?
+    private var landing: CPListTemplate?
+    /// Hears when the system closes the voice screen itself (its navigation bar button).
+    private let templateEvents = TemplateEvents()
     private var callScreen: CarPlayCallScreen?
     private var observers: [NSObjectProtocol] = []
     /// False once the car disconnects: work that was waiting on the network must not start
@@ -23,10 +26,13 @@ final class CarPlayCoordinator {
     private var startTask: Task<Void, Never>?
     /// A tap's checks are running (network, sign-in, care session). Cleared before the call
     /// itself begins: from then on the voice screen (and its End) represents the attempt,
-    /// so a stalled request can never leave the grid ignoring taps.
+    /// so a stalled request can never leave the landing screen ignoring taps.
     private var preparing: UUID?
     private var isPreparing: Bool { preparing != nil }
     private var isLoadingSessions = false
+    /// The first load (sign-in restore included) has finished. Until then the care session
+    /// row says Loading: on a cold start in the car, sign-in is still being restored.
+    private var hasLoadedOnce = false
 
     /// The modal template that should be up (an alert or the voice screen), reconciled one
     /// step at a time: CarPlay presents one modal at a time, and `presentedTemplate` isn't
@@ -47,9 +53,11 @@ final class CarPlayCoordinator {
 
     func connect() {
         isConnected = true
-        let grid = makeGrid()
-        self.grid = grid
-        interfaceController.setRootTemplate(grid, animated: false, completion: nil)
+        templateEvents.didDisappear = { [weak self] template in self?.templateDidDisappear(template) }
+        interfaceController.delegate = templateEvents
+        let landing = makeLanding()
+        self.landing = landing
+        interfaceController.setRootTemplate(landing, animated: false, completion: nil)
 
         let center = NotificationCenter.default
         observers.append(center.addObserver(
@@ -63,6 +71,12 @@ final class CarPlayCoordinator {
         observers.append(center.addObserver(forName: .sessionsDidChange, object: nil, queue: .main) { [weak self] _ in
             MainActor.assumeIsolated { self?.refresh() }
         })
+        observers.append(center.addObserver(forName: .activeSessionDidChange, object: nil, queue: .main) {
+            [weak self] notification in
+            let chooser = (notification.object as AnyObject?).map(ObjectIdentifier.init)
+            let sessionId = notification.userInfo?[SessionViewModel.sessionIdKey] as? String
+            MainActor.assumeIsolated { self?.follow(sessionId: sessionId, chosenBy: chooser) }
+        })
 
         Task { await loadSessions() }
         observeSignIn()
@@ -71,7 +85,7 @@ final class CarPlayCoordinator {
         showLiveCallIfAny()
     }
 
-    /// Signing in on the phone while connected: the grid's title and Switch follow.
+    /// Signing in on the phone while connected: the care session row follows.
     private func observeSignIn() {
         withObservationTracking {
             _ = AuthManager.shared.isAuthenticated
@@ -93,6 +107,7 @@ final class CarPlayCoordinator {
         preparing = nil
         observers.forEach(NotificationCenter.default.removeObserver)
         observers = []
+        templateEvents.didDisappear = nil
         callScreen?.detach()
         callScreen = nil
         if let live = TalkViewModel.current, live.surface == .carPlay, live.isActive {
@@ -106,46 +121,79 @@ final class CarPlayCoordinator {
         showLiveCallIfAny()
     }
 
-    // MARK: - Landing grid
+    // MARK: - Landing screen
 
-    private func makeGrid() -> CPGridTemplate {
-        let buttons: [CPGridButton] = [
-            gridButton(["Talk"], symbol: "waveform", opening: nil),
-            gridButton(["Catch me up", "Catch up"], symbol: "sun.horizon", opening: .catchUp),
-            gridButton(["Before a visit", "Before visit"], symbol: "list.clipboard", opening: .visitPrep),
-            gridButton(["After a visit", "After visit"], symbol: "square.and.pencil", opening: .visitDebrief),
-        ]
-        return CPGridTemplate(title: "AretaCare", gridButtons: buttons)
+    private func makeLanding() -> CPListTemplate {
+        CPListTemplate(title: "AretaCare", sections: [sessionSection()],
+                       assistantCellConfiguration: nil, headerGridButtons: startButtons())
     }
 
-    private func gridButton(_ titles: [String], symbol: String, opening: TalkOpening?) -> CPGridButton {
-        CPGridButton(titleVariants: titles, image: CarPlayImages.gridIcon(symbol)) { [weak self] _ in
+    /// The four starts, pinned above the list as round colored tiles.
+    private func startButtons() -> [CPGridButton] {
+        [
+            startButton(["Talk"], symbol: "waveform", colors: CarPlayImages.talkColors, opening: nil),
+            startButton(["Catch me up", "Catch up"], symbol: "sun.horizon.fill",
+                        colors: CarPlayImages.catchUpColors, opening: .catchUp),
+            startButton(["Before a visit", "Before visit"], symbol: "list.clipboard.fill",
+                        colors: CarPlayImages.visitPrepColors, opening: .visitPrep),
+            startButton(["After a visit", "After visit"], symbol: "square.and.pencil",
+                        colors: CarPlayImages.visitDebriefColors, opening: .visitDebrief),
+        ]
+    }
+
+    private func startButton(_ titles: [String], symbol: String, colors: CarPlayImages.Gradient,
+                             opening: TalkOpening?) -> CPGridButton {
+        let image = CarPlayImages.startTile(symbol, colors: colors, scale: carScale)
+        return CPGridButton(titleVariants: titles, image: image) { [weak self] _ in
             self?.startCall(opening: opening)
         }
     }
 
-    private func updateGrid() {
-        guard let grid else { return }
-        grid.updateTitle(sessionVM.currentSession?.name ?? "AretaCare")
-        if sessionVM.sessions.count > 1 {
-            let switchButton = CPBarButton(title: "Switch") { [weak self] _ in self?.showSessionPicker() }
-            grid.trailingNavigationBarButtons = [switchButton]
+    /// "Care session" and the care session's name, so the name says what it is. With more
+    /// than one care session the row opens the list to switch.
+    private func sessionSection() -> CPListSection {
+        let item: CPListItem
+        if !hasLoadedOnce {
+            item = CPListItem(text: "Loading…", detailText: nil)
+        } else if !AuthManager.shared.isAuthenticated {
+            item = CPListItem(text: "Not signed in", detailText: nil)
+        } else if let session = sessionVM.currentSession {
+            let canSwitch = sessionVM.sessions.count > 1
+            item = CPListItem(text: session.name, detailText: canSwitch ? "Tap to switch" : nil,
+                              image: CarPlayImages.sessionIcon(colorKey: session.colorKey, scale: carScale),
+                              accessoryImage: nil, accessoryType: canSwitch ? .disclosureIndicator : .none)
+        } else if sessionVM.errorMessage != nil {
+            item = CPListItem(text: "Couldn't load your care sessions", detailText: nil)
         } else {
-            grid.trailingNavigationBarButtons = []
+            item = CPListItem(text: isLoadingSessions ? "Loading…" : "No care session yet", detailText: nil)
         }
+        item.handler = { [weak self] _, completion in
+            if let self, self.sessionVM.sessions.count > 1, self.sessionVM.currentSession != nil {
+                self.showSessionPicker()
+            }
+            completion()
+        }
+        return CPListSection(items: [item], header: "Care session", sectionIndexTitle: nil)
     }
+
+    private func updateLanding() {
+        landing?.updateSections([sessionSection()])
+    }
+
+    private var carScale: CGFloat { interfaceController.carTraitCollection.displayScale }
 
     private func loadSessions() async {
         // Connect and the scene's first foreground both ask; one load is enough.
         guard !isLoadingSessions else { return }
         isLoadingSessions = true
-        defer { isLoadingSessions = false }
+        defer {
+            isLoadingSessions = false
+            hasLoadedOnce = true
+            updateLanding()
+        }
         await AppBootstrap.shared.start()
         guard isConnected else { return }
-        guard AuthManager.shared.isAuthenticated else {
-            updateGrid()
-            return
-        }
+        guard AuthManager.shared.isAuthenticated else { return }
         // Follow the care session most recently chosen on either screen. Read it before the
         // fetch: a first fetch restores from the sign-in-time server value and records that
         // here, overwriting a newer choice made on the phone.
@@ -156,7 +204,13 @@ final class CarPlayCoordinator {
            let session = sessionVM.sessions.first(where: { $0.id == chosen }) {
             sessionVM.switchSession(to: session)
         }
-        updateGrid()
+    }
+
+    /// A care session chosen on the phone: the car's row follows. (A choice made here is
+    /// followed by the phone the same way, in `MainTabView`.)
+    private func follow(sessionId: String?, chosenBy chooser: ObjectIdentifier?) {
+        guard isConnected, let sessionId, chooser != ObjectIdentifier(sessionVM) else { return }
+        if sessionVM.follow(sessionId: sessionId) { updateLanding() }
     }
 
     // MARK: - Care session picker (template depth 2)
@@ -172,7 +226,8 @@ final class CarPlayCoordinator {
         let currentId = sessionVM.currentSession?.id
         let sessions = sessionVM.sessions.sorted { $0.lastActivity > $1.lastActivity }
         let items: [CPListItem] = sessions.prefix(Int(CPListTemplate.maximumItemCount)).map { session in
-            let item = CPListItem(text: session.name, detailText: session.id == currentId ? "Current" : nil)
+            let item = CPListItem(text: session.name, detailText: session.id == currentId ? "Current" : nil,
+                                  image: CarPlayImages.sessionIcon(colorKey: session.colorKey, scale: carScale))
             item.handler = { [weak self] _, completion in
                 self?.choose(session)
                 completion()
@@ -188,7 +243,7 @@ final class CarPlayCoordinator {
         if session.id != sessionVM.currentSession?.id {
             sessionVM.switchSession(to: session)
         }
-        updateGrid()
+        updateLanding()
         interfaceController.popToRootTemplate(animated: true, completion: nil)
     }
 
@@ -235,7 +290,7 @@ final class CarPlayCoordinator {
         if sessionVM.currentSession == nil {
             await sessionVM.fetchSessions()
             guard isConnected, !Task.isCancelled else { return }
-            updateGrid()
+            updateLanding()
         }
         guard let sessionId = sessionVM.currentSession?.id else {
             showAlert(sessionVM.errorMessage == nil
@@ -297,9 +352,22 @@ final class CarPlayCoordinator {
         for talk in Self.callsAwaitingResult { talk.cancelResultPolling() }
         Self.callsAwaitingResult = []
         sessionVM = SessionViewModel()
-        updateGrid()
+        updateLanding()
         interfaceController.popToRootTemplate(animated: false, completion: nil)
         if wasInCall { showAlert("You're signed out of AretaCare.") }
+    }
+
+    /// The voice screen went away while this coordinator still wanted it up and CarPlay no
+    /// longer shows it: the driver closed it with the navigation bar button (Done, or the
+    /// system's own close button if a car ignores Done). That ends the conversation. Leaving
+    /// it running would hide its Mute and End. A switch to another CarPlay app also hides
+    /// the screen, but it stays presented, so that call carries on.
+    private func templateDidDisappear(_ template: CPTemplate) {
+        guard let callScreen, callScreen.template === template, desiredModal === template,
+              interfaceController.presentedTemplate !== template else { return }
+        desiredModal = nil
+        let talk = callScreen.talk
+        if talk.isActive { Task { await talk.end() } }
     }
 
     // MARK: - Modal templates
@@ -355,5 +423,16 @@ final class CarPlayCoordinator {
         }
         let alert = CPAlertTemplate(titleVariants: [message] + (shorter.map { [$0] } ?? []), actions: [ok])
         setModal(alert)
+    }
+}
+
+/// `CPInterfaceControllerDelegate` needs an NSObject; the coordinator isn't one.
+@available(iOS 26.4, *)
+@MainActor
+private final class TemplateEvents: NSObject, CPInterfaceControllerDelegate {
+    var didDisappear: ((CPTemplate) -> Void)?
+
+    func templateDidDisappear(_ aTemplate: CPTemplate, animated: Bool) {
+        didDisappear?(aTemplate)
     }
 }
