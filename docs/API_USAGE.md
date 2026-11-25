@@ -62,8 +62,8 @@ Supported methods: `totp`, `passkey`, `backup_code`.
 | `/auth/refresh` | POST | Refresh access token |
 | `/auth/logout` | POST | End current session |
 | `/auth/logout-everywhere` | POST | End all active sign-ins |
-| `/auth/verify-email?token=` | GET | Verify email |
-| `/auth/resend-verification` | POST | Resend verification (1/min) |
+| `/auth/verify-email?token=` | GET | Verify email (opening the link again reports success; an expired link keeps saying so) |
+| `/auth/resend-verification` | POST | Resend verification (1/min; sends the same link with a fresh hour while it's still valid) |
 | `/auth/password/reset-request` | POST | Request password reset |
 | `/auth/password/reset` | POST | Complete password reset |
 | `/auth/email` | PUT | Request email change (requires MFA if enabled) |

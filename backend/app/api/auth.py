@@ -915,12 +915,20 @@ def verify_email(
     """
     Verify email address for new user registration.
     Creates initial session for the user after successful verification.
+
+    Idempotent: the token stays on the account after it is used, so opening the
+    link again reports success. The link is often opened before the person sees
+    it (an email security scanner that runs the page, the iOS app taking the
+    universal link, the page loading twice, a second tap), and clearing the
+    token on first use showed them "Invalid or expired verification link" on an
+    account that was in fact verified. The token proves only that the address
+    received the email; this route signs nobody in.
     """
-    # Find user by verification token
+    # Locked: two requests for the same link at once must not both create the
+    # first care session.
     user = db.query(User).filter(
-        User.email_verification_token == token,
-        User.is_email_verified == False
-    ).first()
+        User.email_verification_token == token
+    ).with_for_update().first()
 
     if not user:
         raise HTTPException(
@@ -928,21 +936,21 @@ def verify_email(
             detail="Invalid or expired verification link"
         )
 
-    # Check if token is expired
-    if user.email_verification_token_expires < datetime.utcnow():
-        # Clear expired token
-        user.email_verification_token = None
-        user.email_verification_token_expires = None
-        db.commit()
+    if user.is_email_verified:
+        return {"message": "Email verified successfully! You can now log in.", "verified": True}
+
+    # Check if token is expired. Kept rather than cleared, so opening the link
+    # again says "expired" again; requesting a new link replaces it.
+    expires = user.email_verification_token_expires
+    if expires is None or expires < datetime.utcnow():
+        db.rollback()
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Verification link has expired. Please request a new one."
         )
 
-    # Mark email as verified
+    # Mark email as verified (the token is kept: see above)
     user.is_email_verified = True
-    user.email_verification_token = None
-    user.email_verification_token_expires = None
 
     # Create initial session for the user (deferred from registration)
     initial_session = Session(
@@ -951,6 +959,7 @@ def verify_email(
         name="Session 1"
     )
     db.add(initial_session)
+    db.flush()  # assigns the session's id
 
     # Set as user's last active session
     user.last_active_session_id = initial_session.id
@@ -1003,9 +1012,16 @@ def resend_verification(
         # Don't reveal whether email exists or is already verified
         return {"message": "If an account with that email exists and is not yet verified, a verification email has been sent."}
 
-    # Generate new verification token
-    verification_token = secrets.token_urlsafe(32)
-    verification_expires = datetime.utcnow() + timedelta(hours=1)
+    # Send the same link again while it is still valid, with a fresh hour: a new
+    # token made every earlier email's link "invalid", and people click the
+    # first email that arrives. Only an expired (or missing) link is replaced.
+    now = datetime.utcnow()
+    if user.email_verification_token and user.email_verification_token_expires and \
+            user.email_verification_token_expires > now:
+        verification_token = user.email_verification_token
+    else:
+        verification_token = secrets.token_urlsafe(32)
+    verification_expires = now + timedelta(hours=1)
 
     user.email_verification_token = verification_token
     user.email_verification_token_expires = verification_expires

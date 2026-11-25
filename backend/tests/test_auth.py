@@ -1,10 +1,15 @@
-"""Login, protected routes, admin gating, refresh-token handling and sign-up consents."""
+"""Login, protected routes, admin gating, refresh-token handling, sign-up consents and
+email verification."""
 
+import secrets
 import uuid
+from datetime import datetime, timedelta
 
 import pytest
 
+from app.core.auth import get_password_hash
 from app.models import ConsentRecord, ConsentType, CONSENT_VERSIONS
+from app.models.session import Session as CareSession
 from app.models.user import User
 from tests.conftest import TEST_PASSWORD, cookie_header, refresh_cookie_from
 
@@ -361,3 +366,117 @@ def test_signing_out_everywhere_ends_the_rotation_grace(client, alice, monkeypat
 
     # ...but not once every session has been revoked.
     assert client.post(REFRESH, json={"refresh_token": old_token}, headers=NATIVE).status_code == 401
+
+
+# --- Email verification -------------------------------------------------------------
+#
+# The link is often opened before the person sees it: an email security scanner that
+# runs the page, the iOS app taking the universal link, the page loading twice, a
+# second tap. Each of those used to spend the token, and the person's own click then
+# read "Invalid or expired verification link" on an account that was verified.
+
+VERIFY = "/api/auth/verify-email"
+RESEND = "/api/auth/resend-verification"
+
+
+@pytest.fixture()
+def unverified(db):
+    """Factory for signed-up accounts that haven't verified; removes them (and the care
+    session verification creates) afterwards."""
+    user_ids = []
+
+    def _make(expires_in=timedelta(hours=1)):
+        token = secrets.token_urlsafe(32)
+        user = User(
+            name="Test Unverified",
+            email=f"test-unverified-{uuid.uuid4().hex[:12]}@example.com",
+            password_hash=get_password_hash(TEST_PASSWORD),
+            is_email_verified=False,
+            email_verification_token=token,
+            email_verification_token_expires=datetime.utcnow() + expires_in,
+        )
+        db.add(user)
+        db.commit()
+        user_ids.append(user.id)
+        return user.id, user.email, token
+
+    yield _make
+    db.rollback()
+    if user_ids:
+        db.query(User).filter(User.id.in_(user_ids)).delete(synchronize_session=False)
+        db.commit()
+
+
+@pytest.fixture()
+def sent_links(monkeypatch):
+    """The tokens of the verification emails sent (none really go out)."""
+    from app.api import auth as auth_api
+
+    sent = []
+    monkeypatch.setattr(
+        auth_api.email_service, "send_registration_verification",
+        lambda **kwargs: sent.append(kwargs["verification_token"]),
+    )
+    return sent
+
+
+def test_a_used_verification_link_still_reports_success(client, db, unverified):
+    user_id, _, token = unverified()
+
+    first = client.get(VERIFY, params={"token": token})
+    assert first.status_code == 200, first.text
+    again = client.get(VERIFY, params={"token": token})
+    assert again.status_code == 200, again.text
+    assert again.json()["verified"] is True
+
+    db.expire_all()
+    user = db.get(User, user_id)
+    assert user.is_email_verified
+    # Verifying twice didn't make a second first care session.
+    sessions = db.query(CareSession).filter(CareSession.owner_id == user_id).all()
+    assert len(sessions) == 1
+    assert user.last_active_session_id == sessions[0].id
+
+
+def test_an_unknown_verification_link_is_refused(client):
+    response = client.get(VERIFY, params={"token": secrets.token_urlsafe(32)})
+    assert response.status_code == 400
+    assert response.json()["detail"] == "Invalid or expired verification link"
+
+
+def test_an_expired_link_keeps_saying_it_expired(client, db, unverified):
+    user_id, _, token = unverified(expires_in=timedelta(minutes=-1))
+
+    for _ in range(2):
+        response = client.get(VERIFY, params={"token": token})
+        assert response.status_code == 400
+        assert response.json()["detail"] == "Verification link has expired. Please request a new one."
+
+    db.expire_all()
+    assert not db.get(User, user_id).is_email_verified
+
+
+def test_resend_sends_the_same_link_while_it_is_valid(client, db, unverified, sent_links):
+    user_id, email, token = unverified(expires_in=timedelta(minutes=10))
+
+    response = client.post(RESEND, json={"email": email})
+    assert response.status_code == 200, response.text
+    assert sent_links == [token]
+
+    db.expire_all()
+    user = db.get(User, user_id)
+    assert user.email_verification_token == token
+    assert user.email_verification_token_expires > datetime.utcnow() + timedelta(minutes=50)
+    # The first email's link still works.
+    assert client.get(VERIFY, params={"token": token}).status_code == 200
+
+
+def test_resend_replaces_an_expired_link(client, unverified, sent_links):
+    _, email, token = unverified(expires_in=timedelta(minutes=-1))
+
+    response = client.post(RESEND, json={"email": email})
+    assert response.status_code == 200, response.text
+    assert len(sent_links) == 1 and sent_links[0] != token
+
+    assert client.get(VERIFY, params={"token": token}).status_code == 400
+    assert client.get(VERIFY, params={"token": sent_links[0]}).status_code == 200
