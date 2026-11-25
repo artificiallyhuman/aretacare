@@ -1,15 +1,15 @@
 import CarPlay
-import Sentry
 import UIKit
 
 /// Runs AretaCare on the CarPlay screen.
 ///
-/// Landing screen: a list titled AretaCare with four one-tap starts (Talk, Catch me up,
-/// Before a visit, After a visit) and, under a "Care session" header, one row naming the
-/// care session; with more than one, tapping it opens the list of care sessions. On a wide
-/// screen the starts are round buttons pinned along the top; on any other (Subaru's portrait
-/// screen, which leaves the app about a square) they're rows, which fill the screen instead
-/// of leaving most of it empty. A start opens the voice screen and starts a Talk call. Apple's
+/// Landing screen: a grid of four one-tap starts (Talk, Catch me up, Before a visit, After a
+/// visit) as round colored tiles, under a navigation bar that reads "Care session" with the
+/// care session's name on a rounded button beside it, which opens the list of care sessions.
+/// One layout for every car: an app that isn't a navigation app can't measure the car's
+/// screen (its `carWindow` is only laid out for navigation apps), and CarPlay centers a grid
+/// on any screen, where a list (or buttons pinned above one) left a tall screen's lower half
+/// empty in the Subaru. A start opens the voice screen and starts a Talk call. Apple's
 /// rules for the category (CarPlay Developer Guide, Oct 2026): voice first, no text or
 /// images in answers, at most three templates deep, the microphone only with the voice
 /// control template, and never a message telling the driver to pick up the phone.
@@ -17,17 +17,11 @@ import UIKit
 @MainActor
 final class CarPlayCoordinator {
     private let interfaceController: CPInterfaceController
-    /// The scene's window, for the screen's shape.
-    private weak var carWindow: CPWindow?
-    /// The starts are list rows (a screen that isn't clearly wide) rather than round buttons
-    /// pinned along the top.
-    private var startsAsRows = false
-    private var recordedScreenSize: CGSize?
     private var sessionVM = SessionViewModel()
-    private var landing: CPListTemplate?
-    /// Built once: the start rows don't change, and the landing list is re-sent whenever the
-    /// care session row does.
-    private lazy var startSection = makeStartSection()
+    private var landing: CPGridTemplate?
+    /// What the landing screen's navigation bar shows now (its title, and the care session's
+    /// name on the button), so an unchanged one isn't sent to the car again.
+    private var shownHeader: (title: String, sessionName: String?)?
     /// Hears when the system closes the voice screen itself (its navigation bar button).
     private let templateEvents = TemplateEvents()
     private var callScreen: CarPlayCallScreen?
@@ -45,9 +39,6 @@ final class CarPlayCoordinator {
     private static let prepareTimeoutSeconds: Double = 15
     private var isPreparing: Bool { preparing != nil }
     private var isLoadingSessions = false
-    /// The first load (sign-in restore included) has finished. Until then the care session
-    /// row says Loading: on a cold start in the car, sign-in is still being restored.
-    private var hasLoadedOnce = false
 
     /// The modal template that should be up (an alert or the voice screen), reconciled one
     /// step at a time: CarPlay presents one modal at a time, and `presentedTemplate` isn't
@@ -65,9 +56,8 @@ final class CarPlayCoordinator {
     /// weakly, and `TalkViewModel.current` lets go when the call ends.
     private static var callsAwaitingResult: [TalkViewModel] = []
 
-    init(interfaceController: CPInterfaceController, carWindow: CPWindow) {
+    init(interfaceController: CPInterfaceController) {
         self.interfaceController = interfaceController
-        self.carWindow = carWindow
     }
 
     // MARK: - Connection
@@ -76,17 +66,15 @@ final class CarPlayCoordinator {
         isConnected = true
         templateEvents.didDisappear = { [weak self] template in self?.templateDidDisappear(template) }
         templateEvents.didAppear = { [weak self] template in
-            guard let self else { return }
-            if template === self.landing {
-                self.applyScreenShape()
-            } else if let callScreen = self.callScreen, callScreen.template === template {
-                // Back from another CarPlay app: bring the voice screen up to date.
+            // Back from another CarPlay app: bring the voice screen up to date.
+            if let callScreen = self?.callScreen, callScreen.template === template {
                 callScreen.didAppear()
             }
         }
         interfaceController.delegate = templateEvents
         let landing = makeLanding()
         self.landing = landing
+        updateLanding()
         // A completion, even an empty one: without it a refusal throws.
         interfaceController.setRootTemplate(landing, animated: false) { _, _ in }
 
@@ -157,50 +145,19 @@ final class CarPlayCoordinator {
 
     // MARK: - Landing screen
 
-    private func makeLanding() -> CPListTemplate {
-        startsAsRows = screenWantsRows() ?? false
-        return CPListTemplate(title: "AretaCare", sections: landingSections(), assistantCellConfiguration: nil,
-                              headerGridButtons: startsAsRows ? nil : startButtons())
-    }
-
-    private func landingSections() -> [CPListSection] {
-        startsAsRows ? [startSection, sessionSection()] : [sessionSection()]
-    }
-
-    /// Round buttons along the top suit a wide screen (Sony's 800 × 480). Anything less wide
-    /// gets rows, which fill the screen instead of leaving most of it empty. Subaru's portrait
-    /// screen gives the app about a square (the dock takes the bottom), so the first test,
-    /// "taller than wide", missed it.
-    private static let wideAspectRatio: CGFloat = 1.3
-
-    /// Whether the car's screen calls for rows, or nil while its size isn't known (the window
-    /// may not be laid out yet at connect; the landing screen asks again when it appears and
-    /// on every update).
-    private func screenWantsRows() -> Bool? {
-        guard let window = carWindow else { return nil }
-        var size = window.bounds.size
-        // A window not laid out yet: the car's own screen. (A window's screen defaults to the
-        // phone's, which is portrait, so only the CarPlay screen counts.)
-        if size.width < 1 || size.height < 1, window.screen.traitCollection.userInterfaceIdiom == .carPlay {
-            size = window.screen.bounds.size
+    /// The four one-tap starts as a grid: CarPlay sizes and centers a grid on any screen,
+    /// wide or tall, where a list's content sits at the top and leaves a tall screen's lower
+    /// half empty. Titles list a shorter variant for narrow buttons.
+    private func makeLanding() -> CPGridTemplate {
+        let buttons = Self.starts.map { start in
+            let image = CarPlayImages.startTile(start.symbol, colors: start.colors, scale: carScale)
+            return CPGridButton(titleVariants: start.titles, image: image) { [weak self] _ in
+                self?.startCall(opening: start.opening)
+            }
         }
-        guard size.width >= 1, size.height >= 1 else { return nil }
-        let rows = size.width < size.height * Self.wideAspectRatio
-        recordScreen(size, rows: rows)
-        return rows
+        return CPGridTemplate(title: "AretaCare", gridButtons: buttons)
     }
 
-    /// The car's screen size and the layout picked, in the breadcrumbs of any later Sentry
-    /// event: car screens can only be measured in the car. Once per distinct size.
-    private func recordScreen(_ size: CGSize, rows: Bool) {
-        guard size != recordedScreenSize else { return }
-        recordedScreenSize = size
-        let crumb = Breadcrumb(level: .info, category: "carplay")
-        crumb.message = "CarPlay screen \(Int(size.width))×\(Int(size.height)) pt: \(rows ? "rows" : "buttons")"
-        SentrySDK.addBreadcrumb(crumb)
-    }
-
-    /// The four one-tap starts. Titles list a shorter variant for narrow buttons.
     private struct Start {
         let titles: [String]
         let symbol: String
@@ -218,71 +175,27 @@ final class CarPlayCoordinator {
               colors: CarPlayImages.visitDebriefColors, opening: .visitDebrief),
     ]
 
-    /// Wide screens: round colored tiles pinned above the list.
-    private func startButtons() -> [CPGridButton] {
-        Self.starts.map { start in
-            let image = CarPlayImages.startTile(start.symbol, colors: start.colors, scale: carScale)
-            return CPGridButton(titleVariants: start.titles, image: image) { [weak self] _ in
-                self?.startCall(opening: start.opening)
-            }
-        }
-    }
-
-    /// Tall screens: one row per start, with the same colored icon.
-    private func makeStartSection() -> CPListSection {
-        let items = Self.starts.map { start in
-            let item = CPListItem(text: start.titles[0], detailText: nil,
-                                  image: CarPlayImages.startRowIcon(start.symbol, colors: start.colors, scale: carScale))
-            item.handler = { [weak self] _, completion in
-                self?.startCall(opening: start.opening)
-                completion()
-            }
-            return item
-        }
-        return CPListSection(items: items)
-    }
-
-    /// "Care session" and the care session's name, so the name says what it is. With more
-    /// than one care session the row opens the list to switch.
-    private func sessionSection() -> CPListSection {
-        let item: CPListItem
-        if !hasLoadedOnce {
-            item = CPListItem(text: "Loading…", detailText: nil)
-        } else if !AuthManager.shared.isAuthenticated {
-            item = CPListItem(text: "Not signed in", detailText: nil)
-        } else if let session = sessionVM.currentSession {
-            let canSwitch = sessionVM.sessions.count > 1
-            item = CPListItem(text: session.name, detailText: canSwitch ? "Tap to switch" : nil,
-                              image: CarPlayImages.sessionIcon(colorKey: session.colorKey, scale: carScale),
-                              accessoryImage: nil, accessoryType: canSwitch ? .disclosureIndicator : .none)
-        } else if sessionVM.errorMessage != nil {
-            item = CPListItem(text: "Couldn't load your care sessions", detailText: nil)
-        } else {
-            item = CPListItem(text: isLoadingSessions ? "Loading…" : "No care session yet", detailText: nil)
-        }
-        item.handler = { [weak self] _, completion in
-            if let self, self.sessionVM.sessions.count > 1, self.sessionVM.currentSession != nil {
-                self.showSessionPicker()
-            }
-            completion()
-        }
-        return CPListSection(items: [item], header: "Care session", sectionIndexTitle: nil)
-    }
-
+    /// The navigation bar reads as a label and its value: the title says "Care session" and
+    /// the rounded button beside it carries the care session's name and opens the list of
+    /// care sessions. In the first car test the title was the bare name with a "Switch"
+    /// button, and neither said it was about the care session. (The title is fixed and short,
+    /// so a long care-session name can't push the label out on a narrow screen.) Until a care
+    /// session is known (sign-in restoring, signed out, none yet, or the list failed) the
+    /// title is AretaCare with no button; a tap on a start explains what's missing.
     private func updateLanding() {
-        if !applyScreenShape() { landing?.updateSections(landingSections()) }
-    }
-
-    /// Measures the screen again and, if the layout should change, switches between rows and
-    /// pinned buttons. Cheap when nothing changed (the landing screen calls it each time it
-    /// appears): nothing is sent to the car. Returns whether it switched.
-    @discardableResult
-    private func applyScreenShape() -> Bool {
-        guard let landing, let rows = screenWantsRows(), rows != startsAsRows else { return false }
-        startsAsRows = rows
-        landing.headerGridButtons = rows ? nil : startButtons()
-        landing.updateSections(landingSections())
-        return true
+        guard let landing else { return }
+        let session = AuthManager.shared.isAuthenticated ? sessionVM.currentSession : nil
+        let header = (title: session == nil ? "AretaCare" : "Care session", sessionName: session?.name)
+        if let shownHeader, shownHeader == header { return }
+        shownHeader = header
+        if landing.title != header.title { landing.updateTitle(header.title) }
+        if let name = header.sessionName {
+            let button = CPBarButton(title: name) { [weak self] _ in self?.showSessionPicker() }
+            button.buttonStyle = .rounded
+            landing.trailingNavigationBarButtons = [button]
+        } else {
+            landing.trailingNavigationBarButtons = []
+        }
     }
 
     private var carScale: CGFloat { interfaceController.carTraitCollection.displayScale }
@@ -295,7 +208,6 @@ final class CarPlayCoordinator {
         isLoadingSessions = true
         defer {
             isLoadingSessions = false
-            hasLoadedOnce = true
             updateLanding()
         }
         await AppBootstrap.shared.start()

@@ -22,9 +22,7 @@ final class CarPlaySceneDelegate: UIResponder, CPTemplateApplicationSceneDelegat
         guard #available(iOS 26.4, *) else { return }
         CarPlayConnection.shared.setConnected(true)
         AuthManager.shared.recordActivity()
-        // The window gives the screen's shape (portrait screens get the starts as rows).
-        let coordinator = CarPlayCoordinator(interfaceController: interfaceController,
-                                             carWindow: templateApplicationScene.carWindow)
+        let coordinator = CarPlayCoordinator(interfaceController: interfaceController)
         self.coordinator = coordinator
         coordinator.connect()
     }

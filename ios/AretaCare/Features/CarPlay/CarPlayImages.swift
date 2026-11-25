@@ -27,19 +27,14 @@ enum CarPlayImages {
     /// A care session with no color of its own: the app icon's navy.
     private static let sessionColors = Gradient(top: UIColor(hex: 0x1C5D93), bottom: UIColor(hex: 0x0A355C))
 
-    /// A round tile with a white symbol, sized for the list's pinned buttons (wide screens).
+    /// A start's grid button: a round tile in the start's colors with a white symbol, at the
+    /// size the grid draws its buttons.
     static func startTile(_ symbol: String, colors: Gradient, scale: CGFloat) -> UIImage {
-        let size = CPListTemplate.maximumGridButtonImageSize
+        let size = CPGridTemplate.maximumGridButtonImageSize
         return tile(symbol, colors: colors, side: max(32, min(size.width, size.height)), scale: scale)
     }
 
-    /// The same tile sized for a list row (tall screens, where the starts are rows).
-    static func startRowIcon(_ symbol: String, colors: Gradient, scale: CGFloat) -> UIImage {
-        let size = CPListItem.maximumImageSize
-        return tile(symbol, colors: colors, side: max(24, min(size.width, size.height)), scale: scale)
-    }
-
-    /// The care session row's icon, in the care session's own color (the swatch the phone's
+    /// A care session's icon in the list of care sessions, in its own color (the swatch the phone's
     /// switcher shows), or navy when it has none.
     static func sessionIcon(colorKey: String?, scale: CGFloat) -> UIImage {
         let size = CPListItem.maximumImageSize
