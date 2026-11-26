@@ -21,6 +21,8 @@ final class CarPlaySceneDelegate: UIResponder, CPTemplateApplicationSceneDelegat
         // sign-out and refuses recording on the phone, which only a working car screen justifies.
         guard #available(iOS 26.4, *) else { return }
         CarPlayConnection.shared.setConnected(true)
+        // Recording isn't allowed while CarPlay is active: a recording on the phone pauses.
+        AudioRecorderManager.pauseForCarPlay()
         AuthManager.shared.recordActivity()
         let coordinator = CarPlayCoordinator(interfaceController: interfaceController)
         self.coordinator = coordinator
@@ -32,6 +34,7 @@ final class CarPlaySceneDelegate: UIResponder, CPTemplateApplicationSceneDelegat
         didDisconnectInterfaceController interfaceController: CPInterfaceController
     ) {
         CarPlayConnection.shared.setConnected(false)
+        AudioRecorderManager.carPlayDisconnected()
         if #available(iOS 26.4, *) {
             (coordinator as? CarPlayCoordinator)?.disconnect()
         }

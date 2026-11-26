@@ -16,6 +16,12 @@ struct DailyDigestView: View {
     @State private var showingEditor = false
     @State private var editingContent = ""
     @State private var originalEditingContent = ""
+    /// The digest the editor, and the Delete and Regenerate confirmations, were opened for.
+    /// The care session can change under them (chosen in CarPlay, or a notification tap),
+    /// and `selectedDigest` then becomes the other care session's latest digest: saving or
+    /// deleting through it wrote one care session's digest over another's.
+    @State private var editingPlanId: Int?
+    @State private var actionDigest: DailyPlanResponse?
 
     // Alerts
     @State private var showDeleteConfirmation = false
@@ -96,6 +102,11 @@ struct DailyDigestView: View {
         }
         .onChange(of: sessionId) { _, newId in
             guard !newId.isEmpty else { return }
+            // A confirmation is about a digest no longer on screen. (An open editor stays:
+            // it saves to the digest it was opened for.)
+            showDeleteConfirmation = false
+            showRegenerateConfirmation = false
+            actionDigest = nil
             selectedDigest = nil
             Task { await loadData() }
         }
@@ -326,14 +337,13 @@ struct DailyDigestView: View {
                     }
 
                     Button {
-                        editingContent = digest.displayContent
-                        originalEditingContent = digest.displayContent
-                        showingEditor = true
+                        startEditing(digest)
                     } label: {
                         Label("Edit", systemImage: "pencil")
                     }
 
                     Button {
+                        actionDigest = digest
                         showRegenerateConfirmation = true
                     } label: {
                         Label("Regenerate", systemImage: "arrow.clockwise")
@@ -342,6 +352,7 @@ struct DailyDigestView: View {
                     Divider()
 
                     Button(role: .destructive) {
+                        actionDigest = digest
                         showDeleteConfirmation = true
                     } label: {
                         Label("Delete", systemImage: "trash")
@@ -399,18 +410,19 @@ struct DailyDigestView: View {
                 Label("Copy", systemImage: "doc.on.doc")
             }
             Button {
-                editingContent = digest.displayContent
-                showingEditor = true
+                startEditing(digest)
             } label: {
                 Label("Edit", systemImage: "pencil")
             }
             Button {
+                actionDigest = digest
                 showRegenerateConfirmation = true
             } label: {
                 Label("Regenerate", systemImage: "arrow.clockwise")
             }
             Divider()
             Button(role: .destructive) {
+                actionDigest = digest
                 showDeleteConfirmation = true
             } label: {
                 Label("Delete", systemImage: "trash")
@@ -418,7 +430,7 @@ struct DailyDigestView: View {
         }
         .confirmationDialog("Delete Digest", isPresented: $showDeleteConfirmation, titleVisibility: .visible) {
             Button("Delete", role: .destructive) {
-                guard let digest = selectedDigest else { return }
+                guard let digest = actionDigest else { return }
                 guard !viewModel.isLoading && !viewModel.isGenerating else { return }
                 deleteHapticTrigger += 1
                 Task { await deleteDigest(digest) }
@@ -429,7 +441,7 @@ struct DailyDigestView: View {
         }
         .confirmationDialog("Regenerate Digest", isPresented: $showRegenerateConfirmation, titleVisibility: .visible) {
             Button("Regenerate", role: .destructive) {
-                guard let digest = selectedDigest else { return }
+                guard let digest = actionDigest else { return }
                 guard !viewModel.isLoading && !viewModel.isGenerating else { return }
                 Task { await regenerateDigest(replacing: digest) }
             }
@@ -489,7 +501,7 @@ struct DailyDigestView: View {
                     ToolbarItem(placement: .confirmationAction) {
                         Button("Save") {
                             Task {
-                                if let planId = selectedDigest?.id {
+                                if let planId = editingPlanId {
                                     await viewModel.updateContent(
                                         planId: planId,
                                         content: editingContent.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -513,6 +525,13 @@ struct DailyDigestView: View {
     }
 
     // MARK: - Actions
+
+    private func startEditing(_ digest: DailyPlanResponse) {
+        editingPlanId = digest.id
+        editingContent = digest.displayContent
+        originalEditingContent = digest.displayContent
+        showingEditor = true
+    }
 
     private func generateDigest() async {
         let sid = sessionId

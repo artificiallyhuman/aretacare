@@ -1266,6 +1266,14 @@ IN THE CAR: this conversation is running through CarPlay while the person drives
 TALK_BACKEND_DRIVING_NOTE = """
 THE PERSON IS DRIVING (CarPlay): keep each reply to what fits in one or two spoken sentences, give at most three items at a time and say how many more there are, and never mention screens, tabs, or buttons. Anything they would have to read or review themselves is "in the app for when they're parked". Two exceptions: a read-back before saving keeps every name, dose, and date; and an emergency or crisis still gets 911 or 988 right away, by a hands-free call or after pulling over safely, never by text and never "later"."""
 
+# Sent mid-call (session.instructions.append) when a call started on the phone moves to the
+# car. The driving rules themselves are TALK_DRIVING_INSTRUCTIONS, unchanged.
+TALK_DRIVING_HANDOFF = (
+    "The person has just connected their phone to their car and is now driving. From your next "
+    "reply on, follow the rules below. Don't announce or remark on the change; carry on the "
+    "conversation where it was." + TALK_DRIVING_INSTRUCTIONS
+)
+
 # One-tap starts from CarPlay's landing screen. The client chooses one of these keys
 # (`opening`), never any text. Each replaces the usual greeting; every other rule applies.
 TALK_OPENINGS = {

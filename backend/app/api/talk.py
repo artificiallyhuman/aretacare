@@ -224,7 +224,7 @@ async def start_talk_session(
         {"openai_session_id": openai_session_id, "heartbeat_at": datetime.utcnow()}, synchronize_session=False
     )
     db.commit()
-    talk_service.start_sideband(talk_id, openai_session_id, max_seconds, opening=body.opening)
+    talk_service.start_sideband(talk_id, openai_session_id, max_seconds, opening=body.opening, surface=body.surface)
     logger.info(f"Talk {talk_id}: started from {body.surface}" + (f" ({body.opening})" if body.opening else ""))
     return {"talk_id": talk_id, "sdp": sdp_answer, "max_seconds": max_seconds}
 
@@ -247,6 +247,34 @@ async def end_talk_session(
         await talk_service.resume_interrupted_save(talk_id)
         talk = _load_own_talk(db, talk_id, current_user)
     return _talk_response(talk)
+
+
+class TalkSurfaceRequest(BaseModel):
+    # An enum, like the start request's: it selects fixed text, never carries any.
+    surface: Literal["carplay"]
+
+
+@router.post("/sessions/{talk_id}/surface")
+async def move_talk_session(
+    talk_id: str, body: TalkSurfaceRequest,
+    current_user: User = Depends(get_current_user), db: DBSession = Depends(get_db),
+):
+    """A call started on the phone has moved to the car (CarPlay connected during it): the
+    driving rules apply from now on. Tool replies read the row's surface on every call, and
+    the call's sideband (on whichever instance holds it) sees the change at its next flush
+    and adds the rules to the voice model. Only toward the car: a call that leaves the car
+    keeps them, which is harmless. The delegated model keeps its start-time instructions;
+    the voice model relays its answers under the driving rules."""
+    talk = _load_own_talk(db, talk_id, current_user)
+    if talk.status != TalkStatus.ACTIVE.value:
+        raise _error(409, "TALK_NOT_ACTIVE", "This Talk conversation has ended.")
+    if talk.surface != body.surface:
+        db.query(TalkSession).filter(
+            TalkSession.id == talk_id, TalkSession.status == TalkStatus.ACTIVE.value,
+        ).update({"surface": body.surface}, synchronize_session=False)
+        db.commit()
+        logger.info(f"Talk {talk_id}: moved to {body.surface}")
+    return {"surface": body.surface}
 
 
 @router.get("/sessions/{talk_id}")

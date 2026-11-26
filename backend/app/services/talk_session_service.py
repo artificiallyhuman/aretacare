@@ -40,7 +40,7 @@ from typing import Dict, List, Optional, Tuple
 import httpx
 import sentry_sdk
 import websockets
-from sqlalchemy import and_, func, or_
+from sqlalchemy import and_, func, or_, update
 
 from app.config import ai_config
 from app.core.config import settings
@@ -356,8 +356,9 @@ async def create_live_session(sdp_offer: str, session_config: dict) -> Tuple[str
 # ---------------------------------------------------------------------------
 
 def _flush_row(talk_id: str, turns: Optional[List[dict]], last_speech: Optional[datetime],
-               duration: Optional[float], heartbeat: Optional[datetime] = None) -> int:
-    """Heartbeat + transcript. Returns 0 when the row is no longer this call's to write."""
+               duration: Optional[float], heartbeat: Optional[datetime] = None) -> Optional[str]:
+    """Heartbeat + transcript. Returns the call's surface (it changes when a phone call moves
+    to the car), or None when the row is no longer this call's to write."""
     values = {"heartbeat_at": heartbeat or datetime.utcnow()}
     if turns is not None:
         values["transcript"] = turns
@@ -367,11 +368,15 @@ def _flush_row(talk_id: str, turns: Optional[List[dict]], last_speech: Optional[
         values["duration_seconds"] = duration
     db = SessionLocal()
     try:
-        count = db.query(TalkSession).filter(
-            TalkSession.id == talk_id, TalkSession.status == TalkStatus.ACTIVE.value
-        ).update(values, synchronize_session=False)
+        row = db.execute(
+            update(TalkSession)
+            .where(TalkSession.id == talk_id, TalkSession.status == TalkStatus.ACTIVE.value)
+            .values(values)
+            .returning(TalkSession.surface)
+            .execution_options(synchronize_session=False)
+        ).first()
         db.commit()
-        return count
+        return (row[0] or SURFACE_APP) if row else None
     finally:
         db.close()
 
@@ -898,6 +903,7 @@ def _opening_nudge_due(state: dict) -> float:
 
 async def _run_sideband(
     talk_id: str, openai_session_id: str, max_seconds: int, opening: Optional[str] = None,
+    surface: str = SURFACE_APP,
 ) -> None:
     recorder = _Recorder(talk_id)
     transcript = _Transcript()
@@ -913,6 +919,9 @@ async def _run_sideband(
         # Assistant output from before the phone's audio arrived (unheard), and when the
         # assistant last started a lookup.
         "unheard_output_at": None, "delegation_at": None,
+        # Whether the voice model has the driving rules, and whether they still have to be
+        # sent: a phone call that moved to the car (`POST .../surface`) gets them mid-call.
+        "driving": surface == SURFACE_CARPLAY, "driving_due": False,
     }
 
     async def flush(force: bool = False) -> None:
@@ -923,8 +932,13 @@ async def _run_sideband(
         turns = transcript.snapshot() if transcript.dirty else None
         transcript.dirty = False
         try:
-            if await asyncio.to_thread(_flush_row, talk_id, turns, state["last_speech"], state["usage_seconds"]) == 0:
+            row_surface = await asyncio.to_thread(
+                _flush_row, talk_id, turns, state["last_speech"], state["usage_seconds"]
+            )
+            if row_surface is None:
                 state["row_gone"] = True
+            elif row_surface == SURFACE_CARPLAY and not state["driving"]:
+                state["driving"] = state["driving_due"] = True
         except Exception as e:  # a missed beat is harmless; the next tick retries
             logger.warning(f"Talk {talk_id}: heartbeat failed: {e}")
             if turns is not None:
@@ -1051,6 +1065,14 @@ async def _run_sideband(
                     "content": ai_config.TALK_OPENING_REPEAT if repeat else ai_config.TALK_OPENING_NUDGE,
                 })
             await flush()
+            if state["driving_due"] and state["close_sent_at"] is None:
+                # Cleared once sent: a dropped connection sends it again after reconnecting.
+                await _send(ws, {
+                    "type": "session.instructions.append", "delegation_id": None,
+                    "content": ai_config.TALK_DRIVING_HANDOFF,
+                })
+                state["driving_due"] = False
+                logger.info(f"Talk {talk_id}: moved to the car; driving rules added")
 
     try:
         failures = 0
@@ -1132,12 +1154,14 @@ def _on_task_done(talk_id: str, task: asyncio.Task) -> None:
 
 def start_sideband(
     talk_id: str, openai_session_id: str, max_seconds: int, opening: Optional[str] = None,
+    surface: str = SURFACE_APP,
 ) -> asyncio.Task:
     """Launch the sideband detached from the request (create_task + a strong reference:
     a Starlette BackgroundTask would pin the request's DB connection for the whole call)."""
     _end_requests[talk_id] = asyncio.Event()
     task = asyncio.create_task(
-        _run_sideband(talk_id, openai_session_id, max_seconds, opening=opening), name=f"talk-{talk_id}"
+        _run_sideband(talk_id, openai_session_id, max_seconds, opening=opening, surface=surface),
+        name=f"talk-{talk_id}",
     )
     _tasks[talk_id] = task
     task.add_done_callback(lambda t: _on_task_done(talk_id, t))

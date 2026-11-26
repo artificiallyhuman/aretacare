@@ -177,6 +177,17 @@ final class TalkViewModel {
     /// The assistant started a lookup before the connection was up (an opening that looks
     /// something up first, like "Catch me up"): the call opens on Working, not Listening.
     private var workingAtConnect = false
+    /// The server has the driving rules (`TALK_DRIVING_INSTRUCTIONS`) for this call: it was
+    /// started in the car, or on the phone while CarPlay was connected, or it moved to the
+    /// car since (`moveToCar`). They're set when a call starts, so a phone call whose audio
+    /// went to the car would otherwise go on pointing the driver at screens.
+    private var hasDrivingRules = false
+    /// CarPlay showed this phone call's voice screen: it should get the driving rules once
+    /// the server has given it an id.
+    private var wantsDrivingRules = false
+    /// This server applies driving rules (`/talk/status` `carplay`). An older one has no
+    /// route to move a call to the car.
+    private var serverHasDrivingRules = false
     private var didKeepScreenAwake = false
     /// The call's audio environment is set up: from here WebRTC's voice processing owns the
     /// app's audio session until the call ends.
@@ -236,6 +247,7 @@ final class TalkViewModel {
             let status: TalkStatusResponse = try await APIClient.shared.get(APIEndpoints.Talk.status)
             guard attempt == attemptId, phase == .preparing else { return }
             maxSessionSeconds = status.maxSessionSeconds
+            serverHasDrivingRules = status.carplay == true
             isOffered = status.enabled
             offeredCheckedAt = Date()
             guard status.enabled else {
@@ -324,14 +336,17 @@ final class TalkViewModel {
         do {
             let offer = try await transport.makeOffer()
             guard attempt == attemptId, phase == .connecting else { return }
+            // A phone call while CarPlay is connected: its audio is in the car.
+            let inCar = surface == .carPlay || (serverHasDrivingRules && CarPlayConnection.shared.isConnected)
             let request = TalkStartRequest(
                 sessionId: sessionId,
                 sdp: offer,
                 userTimezone: TimeZone.current.identifier,
                 currentTime: ISO8601DateFormatter().string(from: Date()),
-                surface: surface,
+                surface: inCar ? .carPlay : .app,
                 opening: opening
             )
+            hasDrivingRules = inCar
             let response: TalkStartResponse = try await APIClient.shared.post(APIEndpoints.Talk.sessions, body: request)
             guard attempt == attemptId, phase == .connecting else {
                 // Ended while the request was in flight (possibly with a new attempt
@@ -341,6 +356,7 @@ final class TalkViewModel {
             }
             talkId = response.talkId
             maxSessionSeconds = response.maxSeconds
+            sendDrivingRulesIfNeeded()
             try await transport.applyAnswer(response.sdp)
         } catch {
             guard attempt == attemptId, phase == .connecting else { return }
@@ -454,6 +470,32 @@ final class TalkViewModel {
         }
     }
 
+    /// CarPlay is showing this phone call's voice screen: the driver is now in it. Asks the
+    /// server for the driving rules, once the call has an id.
+    func moveToCar() {
+        guard surface == .app, isActive else { return }
+        wantsDrivingRules = true
+        sendDrivingRulesIfNeeded()
+    }
+
+    private func sendDrivingRulesIfNeeded() {
+        guard wantsDrivingRules, !hasDrivingRules, serverHasDrivingRules, let talkId else { return }
+        hasDrivingRules = true
+        let attempt = attemptId
+        Task { [weak self] in
+            do {
+                let _: TalkSurfaceResponse = try await APIClient.shared.post(
+                    APIEndpoints.Talk.surface(talkId), body: TalkSurfaceRequest(surface: .carPlay)
+                )
+            } catch {
+                // The next time CarPlay shows this call (it reappears, or the car reconnects)
+                // asks again.
+                guard let self, attempt == self.attemptId else { return }
+                self.hasDrivingRules = false
+            }
+        }
+    }
+
     private func fail(title: String, message: String) {
         let orphanedTalkId = talkId
         stopLoops()
@@ -473,6 +515,8 @@ final class TalkViewModel {
         if Self.current === self { Self.current = nil }
         opening = nil
         workingAtConnect = false
+        hasDrivingRules = false
+        wantsDrivingRules = false
         // The first-use consent sheet belongs to the attempt: left up after the attempt
         // ended, "Agree and Start" recorded consent and then started nothing.
         showingConsent = false

@@ -54,6 +54,7 @@ enum APIEndpoints {
         static let sessions = "/talk/sessions"
         static func session(_ talkId: String) -> String { "/talk/sessions/\(talkId)" }
         static func end(_ talkId: String) -> String { "/talk/sessions/\(talkId)/end" }
+        static func surface(_ talkId: String) -> String { "/talk/sessions/\(talkId)/surface" }
     }
 
     // MARK: - Conversation

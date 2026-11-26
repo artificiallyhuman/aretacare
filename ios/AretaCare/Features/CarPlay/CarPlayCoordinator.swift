@@ -40,6 +40,9 @@ final class CarPlayCoordinator {
     private static let prepareTimeoutSeconds: Double = 15
     private var isPreparing: Bool { preparing != nil }
     private var isLoadingSessions = false
+    /// Counts care-session choices made while connected (here, or followed from the phone),
+    /// so a refresh that was waiting on the network doesn't undo a newer one.
+    private var choiceCount = 0
     /// The first load (sign-in restore included) has finished: until then the landing
     /// screen can't say whether someone is signed in.
     private var hasLoadedOnce = false
@@ -127,7 +130,12 @@ final class CarPlayCoordinator {
     /// carrying on through the phone's speaker; a call started on the phone is left alone.
     func disconnect() {
         isConnected = false
-        startTask?.cancel()
+        // Only the checks before a call are cancelled. Once the call has begun, cancelling
+        // would also cancel its start request: if the server had already created the call,
+        // its id would be lost, and with it the /end that frees the account's one live call
+        // (a retry got "already in progress" until the server timed it out). Ending the call
+        // below lets that request finish, and its late response ends the call by its id.
+        if isPreparing { startTask?.cancel() }
         startTask = nil
         preparing = nil
         observers.forEach(NotificationCenter.default.removeObserver)
@@ -322,8 +330,12 @@ final class CarPlayCoordinator {
         // fetch: a first fetch restores from the sign-in-time server value and records that
         // here, overwriting a newer choice made on the phone.
         let chosen = UserDefaults.standard.string(forKey: "lastSessionId")
+        let choicesBefore = choiceCount
         await sessionVM.fetchSessions()
         guard isConnected else { return }
+        // Someone chose a care session during the fetch (here or on the phone): that's the
+        // newer choice. Switching back would also tell the phone to follow.
+        guard choiceCount == choicesBefore else { return }
         if let chosen, chosen != sessionVM.currentSession?.id,
            let session = sessionVM.sessions.first(where: { $0.id == chosen }) {
             sessionVM.switchSession(to: session)
@@ -334,6 +346,7 @@ final class CarPlayCoordinator {
     /// followed by the phone the same way, in `MainTabView`.)
     private func follow(sessionId: String?, chosenBy chooser: ObjectIdentifier?) {
         guard isConnected, let sessionId, chooser != ObjectIdentifier(sessionVM) else { return }
+        choiceCount += 1
         if sessionVM.follow(sessionId: sessionId) {
             updateLanding()
         } else if sessionVM.currentSession?.id != sessionId {
@@ -357,10 +370,11 @@ final class CarPlayCoordinator {
                 showAlert("AretaCare is recording on your iPhone.")
                 return
             }
+            choiceCount += 1
             sessionVM.switchSession(to: session)
         }
         updateLanding()
-        interfaceController.popToRootTemplate(animated: true, completion: nil)
+        interfaceController.popToRootTemplate(animated: true) { _, _ in }
     }
 
     // MARK: - Calls
@@ -392,8 +406,9 @@ final class CarPlayCoordinator {
             showAlert("Talk needs an internet connection.")
             return
         }
-        // Recording on the phone (the visit itself, say): Talk would take its microphone.
-        guard !AudioRecorderManager.isRecordingInProgress else {
+        // Recording on the phone (the visit itself, say): Talk would take its microphone. One
+        // the car paused when it connected holds none.
+        guard !AudioRecorderManager.isRecordingInProgress || AudioRecorderManager.isHeldForCarPlay else {
             showAlert("AretaCare is recording on your iPhone.")
             return
         }
@@ -444,6 +459,8 @@ final class CarPlayCoordinator {
     }
 
     private func showCallScreen(for talk: TalkViewModel) {
+        // A call started on the phone is now the driver's: the server adds its driving rules.
+        talk.moveToCar()
         if let callScreen, callScreen.talk === talk {
             setModal(callScreen.template)  // already built; make sure it's the one up
             return
@@ -477,7 +494,7 @@ final class CarPlayCoordinator {
         Self.callsAwaitingResult = []
         sessionVM = SessionViewModel()
         updateLanding()
-        interfaceController.popToRootTemplate(animated: false, completion: nil)
+        interfaceController.popToRootTemplate(animated: false) { _, _ in }
         if wasInCall { showAlert(TalkViewModel.signedOutInCar) }
     }
 

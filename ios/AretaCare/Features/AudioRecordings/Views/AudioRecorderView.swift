@@ -8,6 +8,7 @@ struct AudioRecorderView: View {
     @State private var recorder = AudioRecorderManager()
     @State private var showingPermissionAlert = false
     @State private var showingStartFailedAlert = false
+    @State private var showingResumeFailedAlert = false
     @State private var showingCancelConfirmation = false
     @State private var isUploading = false
 
@@ -37,6 +38,13 @@ struct AudioRecorderView: View {
                     .lineLimit(1)
                     .accessibilityLabel("Recording time: \(recorder.formattedDuration)")
 
+                if recorder.isPausedForCarPlay {
+                    Text("Paused while your iPhone is connected to CarPlay.")
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                }
+
                 // Max duration warning
                 if recorder.elapsedTime > AppConstants.maxRecordingDuration - 60 {
                     Text("Less than 1 minute remaining")
@@ -52,7 +60,7 @@ struct AudioRecorderView: View {
                         // Pause / Resume
                         Button {
                             if recorder.isPaused {
-                                recorder.resume()
+                                if !recorder.resume() { showingResumeFailedAlert = true }
                             } else {
                                 recorder.pause()
                             }
@@ -145,6 +153,11 @@ struct AudioRecorderView: View {
                 Text("Please allow microphone access in Settings to record audio.")
             }
             .alert("Couldn't Start Recording", isPresented: $showingStartFailedAlert) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text(AudioRecorderManager.startFailedMessage)
+            }
+            .alert("Couldn't Resume Recording", isPresented: $showingResumeFailedAlert) {
                 Button("OK", role: .cancel) {}
             } message: {
                 Text(AudioRecorderManager.startFailedMessage)

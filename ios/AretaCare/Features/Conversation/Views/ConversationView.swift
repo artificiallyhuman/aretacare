@@ -10,8 +10,17 @@ struct ConversationView: View {
     @Environment(\.colorScheme) private var colorScheme
 
     @State private var messageText = ""
+    /// Unsent text of the other care sessions, by care-session id. A switch (possibly from
+    /// CarPlay, unseen by whoever holds the phone) puts the draft away and brings back the
+    /// new care session's, so text typed for one is never sent to another.
+    @State private var drafts: [String: String] = [:]
+    @State private var pendingDraftText: String?
     @State private var showingSessionSwitcher = false
     @State private var showingCollaboration = false
+    /// The care session the sharing screen was opened for. It stays on that one: following
+    /// a switch kept the typed email and the ticked consent box, and Share then shared the
+    /// newly chosen care session.
+    @State private var collaborationSessionId: String?
     @State private var isNearBottom = true
     @State private var editingMessage: MessageResponse?
     @State private var editText = ""
@@ -38,6 +47,10 @@ struct ConversationView: View {
     @State private var showingFilePicker = false
     @State private var selectedPhotoItems: [PhotosPickerItem] = []
     @State private var pendingAttachment: PendingAttachment?
+    /// The care session a camera, photo or file pick began in. A pick that finishes after a
+    /// switch (a large photo or an iCloud file can take a while) is dropped, not staged in
+    /// the other care session.
+    @State private var importSessionId: String?
     @State private var showFileSizeAlert = false
 
     // Talk (live voice) mode
@@ -90,6 +103,7 @@ struct ConversationView: View {
                     // Not mid-call: collaboration is unreachable during Talk.
                     if mode == .chat, let session = sessionVM.currentSession {
                         SessionTitleView(session: session, currentUserId: currentUserId) {
+                            collaborationSessionId = session.id
                             showingCollaboration = true
                         }
                     } else {
@@ -119,7 +133,7 @@ struct ConversationView: View {
                 SessionSwitcherView(sessionVM: sessionVM)
             }
             .sheet(isPresented: $showingCollaboration) {
-                if let session = sessionVM.currentSession {
+                if let session = collaborationSession {
                     NavigationStack {
                         CollaborationView(session: session)
                     }
@@ -143,8 +157,9 @@ struct ConversationView: View {
                 }
             }
             .task { await talkVM.refreshAvailability() }
-            .onChange(of: sessionVM.currentSession?.id) { _, newId in
+            .onChange(of: sessionVM.currentSession?.id) { oldId, newId in
                 guard let newId else { return }
+                swapDraft(from: oldId, to: newId)
                 // Nothing from the previous care session carries over: a pushed Audio
                 // Recordings screen still holds its id, and a Talk save error is about it.
                 showingAudioRecordings = false
@@ -261,9 +276,9 @@ struct ConversationView: View {
                     hasMessages: !conversationVM.messages.isEmpty,
                     pendingAttachment: pendingAttachment,
                     onSend: sendMessage,
-                    onTakePhoto: { showingCamera = true },
-                    onChoosePhoto: { showingPhotoPicker = true },
-                    onChooseFile: { showingFilePicker = true },
+                    onTakePhoto: { importSessionId = currentSessionId; showingCamera = true },
+                    onChoosePhoto: { importSessionId = currentSessionId; showingPhotoPicker = true },
+                    onChooseFile: { importSessionId = currentSessionId; showingFilePicker = true },
                     onRecordAudio: { startAudioRecording() },
                     onRemoveAttachment: { pendingAttachment = nil },
                     onTalk: currentSessionId != nil && talkVM.isOffered ? { mode = .talk } : nil
@@ -601,6 +616,41 @@ struct ConversationView: View {
         return ids
     }
 
+    // MARK: - Care-session switches
+
+    /// The sharing screen's care session, kept current (sharing changes it) but never
+    /// another one.
+    private var collaborationSession: SessionResponse? {
+        guard let id = collaborationSessionId else { return nil }
+        if sessionVM.currentSession?.id == id { return sessionVM.currentSession }
+        return sessionVM.sessions.first { $0.id == id }
+    }
+
+    private func swapDraft(from oldId: String?, to newId: String) {
+        // A swap still waiting for the next run loop holds the text that belongs on screen.
+        let text = pendingDraftText ?? messageText
+        if let oldId {
+            drafts[oldId] = text.isEmpty ? nil : text
+        }
+        let restored = drafts.removeValue(forKey: newId) ?? ""
+        guard restored != messageText || pendingDraftText != nil else { return }
+        pendingDraftText = restored
+        // The field may be focused (someone typing while the car switches): a focused text
+        // field doesn't reliably take a new value from its binding, so let go of the
+        // keyboard first and change the text on the next run loop, as sending does.
+        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+        Task { @MainActor in
+            guard let pending = pendingDraftText else { return }
+            pendingDraftText = nil
+            messageText = pending
+        }
+    }
+
+    private func stage(_ attachment: PendingAttachment, pickedIn sessionId: String?) {
+        guard let sessionId, sessionId == currentSessionId else { return }
+        pendingAttachment = attachment
+    }
+
     // MARK: - Attachment Handling
 
     private func handleCameraImage(_ image: UIImage) {
@@ -610,12 +660,13 @@ struct ConversationView: View {
             return
         }
         let filename = "photo_\(Date().apiDateString).jpg"
-        pendingAttachment = PendingAttachment(data: data, filename: filename, contentType: "image/jpeg")
+        stage(PendingAttachment(data: data, filename: filename, contentType: "image/jpeg"), pickedIn: importSessionId)
     }
 
     private func handlePhotoSelection(_ items: [PhotosPickerItem]) {
         guard let item = items.first else { return }
         selectedPhotoItems = []
+        let pickedIn = importSessionId
 
         Task {
             // Re-encodes HEIC/TIFF/etc. to JPEG — the backend only accepts JPEG/PNG
@@ -625,7 +676,8 @@ struct ConversationView: View {
                     return
                 }
                 let filename = "photo_\(Date().apiDateString).\(image.ext)"
-                pendingAttachment = PendingAttachment(data: image.data, filename: filename, contentType: image.contentType)
+                stage(PendingAttachment(data: image.data, filename: filename, contentType: image.contentType),
+                      pickedIn: pickedIn)
             }
         }
     }
@@ -636,6 +688,7 @@ struct ConversationView: View {
             guard let url = urls.first else { return }
             let filename = url.lastPathComponent
             let contentType = url.pathExtension.mimeTypeForExtension
+            let pickedIn = importSessionId
 
             // Reading up to 30 MB — potentially from an iCloud-backed URL that
             // has to be materialised first — must not run on the main actor.
@@ -654,7 +707,7 @@ struct ConversationView: View {
                     showFileSizeAlert = true
                     return
                 }
-                pendingAttachment = PendingAttachment(data: data, filename: filename, contentType: contentType)
+                stage(PendingAttachment(data: data, filename: filename, contentType: contentType), pickedIn: pickedIn)
             }
 
         case .failure:

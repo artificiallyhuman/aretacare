@@ -11,6 +11,11 @@ final class AudioRecorderManager: NSObject, AVAudioRecorderDelegate {
 
     private(set) var isRecording = false
     private(set) var isPaused = false
+    /// Paused because CarPlay connected (`pauseForCarPlay`). It can still be stopped and
+    /// uploaded; it resumes only once the car has gone.
+    private(set) var isPausedForCarPlay = false
+    /// `pauseForCarPlay` let go of the audio session; `resume` takes it back.
+    private var releasedSessionForCarPlay = false
 
     /// True from a successful `start` until the recording is stopped (paused counts as in
     /// progress). Navigation that would change care session checks it, because a recording
@@ -123,13 +128,46 @@ final class AudioRecorderManager: NSObject, AVAudioRecorderDelegate {
         stopTimer()
     }
 
-    /// Stays paused if capture can't restart (the interruption is still holding the input).
-    func resume() {
-        guard audioRecorder?.record() == true else { return }
+    /// Stays paused, and returns false, if capture can't restart: CarPlay is connected or a
+    /// Talk call holds the microphone (the same rule as `start`; callers show
+    /// `startFailedMessage`), or an interruption is still holding the input.
+    @discardableResult
+    func resume() -> Bool {
+        guard !CarPlayConnection.shared.isConnected, !TalkViewModel.isCallInProgress else { return false }
+        if releasedSessionForCarPlay {
+            try? AudioSessionManager.shared.activateForRecording()
+        }
+        guard audioRecorder?.record() == true else { return false }
+        releasedSessionForCarPlay = false
+        isPausedForCarPlay = false
         isPaused = false
         isRecording = true
         meterTickCount = 0
         startTimer()
+        return true
+    }
+
+    /// CarPlay connected. Apple's CarPlay rules: no recording while CarPlay is active, except
+    /// a voice app's voice screen, because a recording audio session affects the car's own
+    /// microphone use (Siri, phone calls). A recording in progress is paused, not ended (it
+    /// may be a visit), and its audio session released; it can still be stopped and
+    /// uploaded, and resumes once the car has gone.
+    static func pauseForCarPlay() {
+        guard let active, active.audioRecorder != nil else { return }
+        if active.isRecording { active.pause() }
+        active.isPausedForCarPlay = true
+        AudioSessionManager.shared.deactivate()
+        active.releasedSessionForCarPlay = true
+    }
+
+    /// A recording is in progress but paused by `pauseForCarPlay`: it holds no microphone, so
+    /// a Talk call in the car may start. (Changing care session still waits: the recording
+    /// is uploaded to the one it was made in.)
+    static var isHeldForCarPlay: Bool { active?.isPausedForCarPlay == true }
+
+    /// The car went: the recording stays paused until the person resumes it.
+    static func carPlayDisconnected() {
+        active?.isPausedForCarPlay = false
     }
 
     /// Stops recording and waits for the file to be finalized before returning data.
@@ -231,6 +269,8 @@ final class AudioRecorderManager: NSObject, AVAudioRecorderDelegate {
     /// Bookkeeping for a recording that has ended, however it ended. Also drops the
     /// max-duration callback, which captures the screen that started the recording.
     private func finishRecording() {
+        isPausedForCarPlay = false
+        releasedSessionForCarPlay = false
         Self.isRecordingInProgress = false
         if Self.active === self { Self.active = nil }
         onMaxDuration = nil

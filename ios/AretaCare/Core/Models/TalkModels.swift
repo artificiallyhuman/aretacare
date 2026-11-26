@@ -41,6 +41,15 @@ struct TalkStartRequest: Codable, Sendable {
     let opening: TalkOpening?
 }
 
+/// A call started on the phone moved to the car: the server adds its driving rules.
+struct TalkSurfaceRequest: Codable, Sendable {
+    let surface: TalkSurface
+}
+
+struct TalkSurfaceResponse: Codable, Sendable {
+    let surface: TalkSurface
+}
+
 struct TalkStartResponse: Codable, Sendable {
     let talkId: String
     let sdp: String
