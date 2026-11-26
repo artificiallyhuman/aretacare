@@ -4,8 +4,9 @@ import UIKit
 /// Runs AretaCare on the CarPlay screen.
 ///
 /// Landing screen: a grid of four one-tap starts (Talk, Catch me up, Before a visit, After a
-/// visit) as round colored tiles, under a navigation bar that reads "Care session" with the
-/// care session's name on a rounded button beside it, which opens the list of care sessions.
+/// visit) as round colored tiles, under a navigation bar titled AretaCare with the care
+/// session's name on a rounded button (the list of care sessions) and, when it's shared, a
+/// people icon (who can see it).
 /// One layout for every car: an app that isn't a navigation app can't measure the car's
 /// screen (its `carWindow` is only laid out for navigation apps), and CarPlay centers a grid
 /// on any screen, where a list (or buttons pinned above one) left a tall screen's lower half
@@ -178,25 +179,23 @@ final class CarPlayCoordinator {
               colors: CarPlayImages.visitDebriefColors, opening: .visitDebrief),
     ]
 
-    /// The navigation bar reads as a label and its value: the title says "Care session" and
-    /// the rounded button beside it carries the care session's name. A shared care session
-    /// also gets a people icon (CarPlay draws it like its other bar icons), which says it's
-    /// shared without spelling out names: a "With Sarah" button was small and turned into a
-    /// count with more people. Both open the care session's own screen, where everyone who
-    /// can see it is listed. In the first car test the title was the bare name with a
-    /// "Switch" button, and neither said it was about the care session. (The title is fixed
-    /// and short, so a long care-session name can't push the label out on a narrow screen.)
-    /// Without a care session there are no buttons, and the title says what's missing before
-    /// anyone taps: "Not signed in" or "No care session"; AretaCare while sign-in is still
-    /// being restored or can't reach the server. A tap on a start then says what to do.
+    /// The navigation bar: the title AretaCare, then the care session's name on a rounded
+    /// button that opens the list of care sessions, and for a shared care session a people
+    /// icon (CarPlay draws it like its other bar icons) that opens who can see it. A
+    /// "With Sarah" button was small and turned into a count with more people. The title
+    /// was "Care session" for a while, meant as the label for the name, but CarPlay draws the
+    /// title and the buttons apart, so the two didn't read as one (Rob, Nov 25, 2026). The
+    /// title is fixed and short, so a long care-session name can't push it out on a narrow
+    /// screen. Without a care session there are no buttons, and the title says what's
+    /// missing before anyone taps: "Not signed in" or "No care session"; AretaCare while
+    /// sign-in is still being restored or can't reach the server. A tap on a start then
+    /// says what to do.
     private func updateLanding() {
         guard let landing else { return }
         let auth = AuthManager.shared
         let session = auth.isAuthenticated ? sessionVM.currentSession : nil
         let title: String
-        if session != nil {
-            title = "Care session"
-        } else if !hasLoadedOnce || auth.startupErrorMessage != nil {
+        if session != nil || !hasLoadedOnce || auth.startupErrorMessage != nil {
             title = "AretaCare"
         } else if !auth.isAuthenticated {
             title = "Not signed in"
@@ -215,20 +214,20 @@ final class CarPlayCoordinator {
         var buttons: [CPBarButton] = []
         if header.isShared, let icon = UIImage(systemName: "person.2.fill") {
             let button = CPBarButton(image: icon.withRenderingMode(.alwaysTemplate)) { [weak self] _ in
-                self?.showCareSession()
+                self?.showPeople()
             }
             button.buttonStyle = .rounded
             buttons.append(button)
         }
         if let name = header.sessionName {
-            let button = CPBarButton(title: name) { [weak self] _ in self?.showCareSession() }
+            let button = CPBarButton(title: name) { [weak self] _ in self?.showSessionList() }
             button.buttonStyle = .rounded
             buttons.append(button)
         }
         landing.trailingNavigationBarButtons = buttons
     }
 
-    // MARK: - The care session's screen (template depth 2)
+    // MARK: - Lists (template depth 2)
 
     /// First names of everyone else who can see a care session, owner first: the people the
     /// phone's chat title lists (`SessionTitleView`).
@@ -240,7 +239,7 @@ final class CarPlayCoordinator {
         return names.map(SessionTitleView.firstName)
     }
 
-    /// Who else can see a care session, for a row in the switch list: "With Sarah",
+    /// Who else can see a care session, for its row in the list: "With Sarah",
     /// "With Sarah & Tom", or a count when names would make it long. Nil when only you can.
     static func sharedWithText(_ others: [String]) -> String? {
         guard !others.isEmpty else { return nil }
@@ -249,10 +248,38 @@ final class CarPlayCoordinator {
         return others.count == 1 ? "With 1 person" : "With \(others.count) people"
     }
 
-    /// The current care session, under its own name: everyone who can see it (the owner and
-    /// you marked; read-only, since sharing is managed in the app), then the other care
-    /// sessions to switch to. One screen for both of the landing screen's buttons.
-    private func showCareSession() {
+    /// Some cars show only 12 rows and cut the rest from the end.
+    private var rowLimit: Int { max(1, Int(CPListTemplate.maximumItemCount)) }
+
+    /// The care-session name button: every care session, the current one first and marked,
+    /// then the rest by latest activity, each saying who else can see it. Choosing one makes
+    /// it current and goes back to the landing screen.
+    private func showSessionList() {
+        AuthManager.shared.recordActivity()
+        // Already open (a tap delivered twice over a wireless link).
+        guard interfaceController.topTemplate === landing, let current = sessionVM.currentSession else { return }
+        let sessions = [current] + sessionVM.sessions
+            .filter { $0.id != current.id }
+            .sorted { $0.lastActivity > $1.lastActivity }
+        let items: [CPListItem] = sessions.prefix(rowLimit).map { session in
+            let detail = [session.id == current.id ? "Current" : nil,
+                          Self.sharedWithText(otherPeople(in: session))]
+                .compactMap { $0 }.joined(separator: " · ")
+            let item = CPListItem(text: session.name, detailText: detail.isEmpty ? nil : detail,
+                                  image: CarPlayImages.sessionIcon(colorKey: session.colorKey, scale: carScale))
+            item.handler = { [weak self] _, completion in
+                self?.choose(session)
+                completion()
+            }
+            return item
+        }
+        let list = CPListTemplate(title: "Care Sessions", sections: [CPListSection(items: items)])
+        interfaceController.pushTemplate(list, animated: true) { _, _ in }  // a refusal without one throws
+    }
+
+    /// The people icon: everyone who can see the current care session, owner first, with
+    /// the owner and you marked. Read-only: sharing is managed in the app.
+    private func showPeople() {
         AuthManager.shared.recordActivity()
         // Already open (a tap delivered twice over a wireless link).
         guard interfaceController.topTemplate === landing, let session = sessionVM.currentSession else { return }
@@ -264,39 +291,14 @@ final class CarPlayCoordinator {
             .filter { $0.userId != session.ownerId }
             .sorted { $0.addedAt < $1.addedAt }
             .map { ($0.name, $0.userId == me ? "You" : nil) }
-
-        // Some cars show only 12 rows across all sections and cut the rest from the end.
-        let rowLimit = Int(CPListTemplate.maximumItemCount)
-        let others = sessionVM.sessions
-            .filter { $0.id != session.id }
-            .sorted { $0.lastActivity > $1.lastActivity }
-            .prefix(max(0, rowLimit - 1))
-        let switchItems: [CPListItem] = others.map { other in
-            let item = CPListItem(text: other.name, detailText: Self.sharedWithText(otherPeople(in: other)),
-                                  image: CarPlayImages.sessionIcon(colorKey: other.colorKey, scale: carScale))
-            item.handler = { [weak self] _, completion in
-                self?.choose(other)
-                completion()
-            }
-            return item
+        // A care session holds at most 10 people, but a car may show fewer rows: the last
+        // row that fits says how many more there are.
+        if people.count > rowLimit {
+            people = Array(people.prefix(rowLimit - 1)) + [("\(people.count - rowLimit + 1) more", nil)]
         }
-
-        // The care sessions come last but matter more, so the people give way: the last row
-        // that fits says how many more there are.
-        let room = max(1, rowLimit - switchItems.count)
-        if people.count > room {
-            people = room == 1
-                ? [("\(people.count) people", nil)]
-                : Array(people.prefix(room - 1)) + [("\(people.count - room + 1) more", nil)]
-        }
-        let personIcon = UIImage(systemName: "person.crop.circle.fill")
-        let peopleItems = people.map { CPListItem(text: $0.name, detailText: $0.detail, image: personIcon) }
-
-        var sections = [CPListSection(items: peopleItems, header: "Who can see it", sectionIndexTitle: nil)]
-        if !switchItems.isEmpty {
-            sections.append(CPListSection(items: switchItems, header: "Switch care session", sectionIndexTitle: nil))
-        }
-        let list = CPListTemplate(title: session.name, sections: sections)
+        let icon = UIImage(systemName: "person.crop.circle.fill")
+        let items = people.map { CPListItem(text: $0.name, detailText: $0.detail, image: icon) }
+        let list = CPListTemplate(title: "Shared With", sections: [CPListSection(items: items)])
         interfaceController.pushTemplate(list, animated: true) { _, _ in }  // a refusal without one throws
     }
 
@@ -348,13 +350,13 @@ final class CarPlayCoordinator {
 
     private func choose(_ session: SessionResponse) {
         AuthManager.shared.recordActivity()
-        // A recording on the phone belongs to the care session it started in, and the phone's
-        // recorders stop (and discard) when the chosen care session changes under them.
-        guard !AudioRecorderManager.isRecordingInProgress else {
-            showAlert("AretaCare is recording on your iPhone.")
-            return
-        }
         if session.id != sessionVM.currentSession?.id {
+            // A recording on the phone belongs to the care session it started in, and the
+            // phone's recorders stop (and discard) when the chosen care session changes.
+            guard !AudioRecorderManager.isRecordingInProgress else {
+                showAlert("AretaCare is recording on your iPhone.")
+                return
+            }
             sessionVM.switchSession(to: session)
         }
         updateLanding()
