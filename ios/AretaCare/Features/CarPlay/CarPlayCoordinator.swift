@@ -40,6 +40,8 @@ final class CarPlayCoordinator {
     private static let prepareTimeoutSeconds: Double = 15
     private var isPreparing: Bool { preparing != nil }
     private var isLoadingSessions = false
+    /// Bumped when `sessionVM` is replaced (turned off, signed out).
+    private var sessionsGeneration = 0
     /// Counts care-session choices made while connected (here, or followed from the phone),
     /// so a refresh that was waiting on the network doesn't undo a newer one.
     private var choiceCount = 0
@@ -174,15 +176,26 @@ final class CarPlayCoordinator {
             Task { await loadSessions() }
             return
         }
-        startTask?.cancel()
+        // Only a tap's checks are cancelled, as in `disconnect()`: once the call has begun,
+        // cancelling would also cancel its start request, and a call the server had already
+        // created would lose its id (and with it the /end that frees the account's one live
+        // call). Ending it below lets that request finish; its late response ends the call.
+        if isPreparing { startTask?.cancel() }
         startTask = nil
         preparing = nil
-        sessionVM = SessionViewModel()
+        replaceSessions()
         updateLanding()
         interfaceController.popToRootTemplate(animated: false) { _, _ in }
         if let live = TalkViewModel.current, live.surface == .carPlay, live.isActive {
             Task { await live.end() }
         }
+    }
+
+    /// Drops the care sessions this screen holds (turned off, signed out). A load still
+    /// under way belongs to the old ones; `loadSessions` sees the generation change.
+    private func replaceSessions() {
+        sessionVM = SessionViewModel()
+        sessionsGeneration += 1
     }
 
     /// The CarPlay screen came back to the foreground.
@@ -365,6 +378,18 @@ final class CarPlayCoordinator {
             hasLoadedOnce = true
             updateLanding()
         }
+        // The care sessions were replaced while a load waited (CarPlay turned off and back
+        // on, or signed out and in again): its result was dropped, and the load asked for
+        // meanwhile was skipped because this one was running. Load again for the new ones.
+        var generation: Int
+        repeat {
+            generation = sessionsGeneration
+            await loadSessionsOnce()
+        } while generation != sessionsGeneration && isConnected && CarPlaySettings.isEnabled
+            && AuthManager.shared.isAuthenticated
+    }
+
+    private func loadSessionsOnce() async {
         await AppBootstrap.shared.start()
         guard isConnected, CarPlaySettings.isEnabled else { return }
         guard AuthManager.shared.isAuthenticated else { return }
@@ -375,7 +400,7 @@ final class CarPlayCoordinator {
         let choicesBefore = choiceCount
         let vm = sessionVM
         await vm.fetchSessions()
-        // Turned off meanwhile (which also replaces `sessionVM`): nothing more.
+        // Turned off or signed out meanwhile (both replace `sessionVM`): nothing more.
         guard isConnected, CarPlaySettings.isEnabled, vm === sessionVM else { return }
         // Someone chose a care session during the fetch (here or on the phone): that's the
         // newer choice. Switching back would also tell the phone to follow.
@@ -408,7 +433,12 @@ final class CarPlayCoordinator {
         }
     }
 
-    private func choose(_ session: SessionResponse) {
+    private func choose(_ picked: SessionResponse) {
+        // A pick delivered late from a list that was open (CarPlay turned off, signed out,
+        // or the care session gone since) must not move either screen: the phone follows a
+        // choice made here. The list's copy may be older than this screen's, so use this one.
+        guard isConnected, CarPlaySettings.isEnabled, AuthManager.shared.isAuthenticated,
+              let session = sessionVM.sessions.first(where: { $0.id == picked.id }) else { return }
         AuthManager.shared.recordActivity()
         if session.id != sessionVM.currentSession?.id {
             // A recording on the phone belongs to the care session it started in, and the
@@ -542,11 +572,14 @@ final class CarPlayCoordinator {
         // AuthManager already ended any call; its voice screen closes on its own. Say why,
         // if the driver was starting or in a call: otherwise it would just disappear.
         let wasInCall = isPreparing || callScreen != nil
-        startTask?.cancel()
+        // A call that has begun was ended by AuthManager; cancelling its start request
+        // would lose a call the server had already created (see `disconnect()`).
+        if isPreparing { startTask?.cancel() }
+        startTask = nil
         preparing = nil
         for talk in Self.callsAwaitingResult { talk.cancelResultPolling() }
         Self.callsAwaitingResult = []
-        sessionVM = SessionViewModel()
+        replaceSessions()
         updateLanding()
         interfaceController.popToRootTemplate(animated: false) { _, _ in }
         if wasInCall { showAlert(TalkViewModel.signedOutInCar) }
