@@ -17,6 +17,12 @@ final class SessionViewModel {
     /// use `currentUser.lastActiveSessionId`, which is read once at sign-in.
     private static var chosenInProcess: String?
 
+    /// The care session most recently chosen on either screen. A screen that has to fetch
+    /// before it can follow a choice checks this afterwards: a newer choice made during the
+    /// fetch wins, and following the older one would leave the two screens on different
+    /// care sessions without either saying so.
+    static var latestChoice: String? { chosenInProcess }
+
     /// Sign-out: the next account starts from its own server value.
     static func forgetChoice() {
         chosenInProcess = nil

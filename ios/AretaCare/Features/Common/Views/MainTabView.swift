@@ -173,10 +173,12 @@ struct MainTabView: View {
             else { return }
             if !sessionVM.follow(sessionId: sessionId) {
                 // Not in this screen's list yet (created since it last fetched). The fetch
-                // can take a while: check again that nothing started that a switch would end.
+                // can take a while: check again that nothing started that a switch would end,
+                // and that no other care session was chosen meanwhile.
                 Task {
                     await sessionVM.fetchSessions()
-                    guard !AudioRecorderManager.isRecordingInProgress, !TalkViewModel.isPhoneCallInProgress
+                    guard !AudioRecorderManager.isRecordingInProgress, !TalkViewModel.isPhoneCallInProgress,
+                          SessionViewModel.latestChoice == sessionId
                     else { return }
                     sessionVM.follow(sessionId: sessionId)
                 }

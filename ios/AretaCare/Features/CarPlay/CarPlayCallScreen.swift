@@ -11,7 +11,8 @@ import UIKit
 /// the pauses between sentences (`speakingHold`), so the screen doesn't flicker. Mute and
 /// Unmute skip that wait (the driver is looking for the result of their tap), but nothing
 /// skips `carMinimumGap`: CarPlay throws away a state change that arrives within 0.5 s of
-/// the last one it showed, without telling the app.
+/// the last one it showed, without telling the app. Every state sent is sent again a moment
+/// later, twice (`repeatDelays`), which repairs the screen if CarPlay dropped it.
 @available(iOS 26.4, *)
 @MainActor
 final class CarPlayCallScreen {
@@ -70,8 +71,22 @@ final class CarPlayCallScreen {
     /// CarPlay's host (CarPlaySupport, iOS 26 and 27) discards a state change that comes
     /// less than 0.5 s after the last one it accepted, and logs "Throttling state change";
     /// the app isn't told, and `activeStateIdentifier` already names the discarded state.
-    /// A little over that, for the hop between the app and the host.
-    private static let carMinimumGap: TimeInterval = 0.6
+    /// The host times that 0.5 s when the change runs on its own main queue, not when the
+    /// app sent it, so a change that waited there makes the next one look sooner: 0.6 s
+    /// still lost changes in the car. Mute stayed flaky after 9e981d1 (Rob, Nov 27, 2026).
+    private static let carMinimumGap: TimeInterval = 0.75
+    /// Each state is sent again at these times after it was sent, unless something newer
+    /// was. The host ignores a state it already shows ("Already in state … skipping
+    /// activation") without touching its 0.5 s clock or redrawing, and the app's side of
+    /// CarPlay passes a repeat on rather than skipping it. So a repeat costs nothing when the
+    /// state landed and puts it on screen when it was dropped, without the driver tapping
+    /// again (a dropped Mute used to need a second tap). The first repeat comes 0.8 s later,
+    /// past the 0.5 s of anything the host could have accepted just before; the second covers a
+    /// host busy for longer than that. A repeat doesn't count as a send for `carMinimumGap`:
+    /// counting it would hold back most real changes. If a repeat did repair a drop, and so
+    /// restarted the host's clock, the next change may be dropped in turn, and its own
+    /// repeats repair it.
+    private static let repeatDelays: [TimeInterval] = [0.8, 2.0]
     private var shownState: State = .connecting
     /// When the shown state last changed (for `minimumDwell`).
     private var lastStateChange = Date()
@@ -81,6 +96,10 @@ final class CarPlayCallScreen {
     private var resendRequested = false
     private var lastSpeaking = Date.distantPast
     private var pendingState: Task<Void, Never>?
+    /// Counts real sends; the repeats of a send go out only if nothing was sent after it.
+    private var sendGeneration = 0
+    /// Cancelled only by a newer send (or closing), never by a refresh that sends nothing.
+    private var repeatTask: Task<Void, Never>?
     private var lastAppeared = Date.distantPast
     private var isClosed = false
 
@@ -113,6 +132,7 @@ final class CarPlayCallScreen {
     func detach() {
         isClosed = true
         pendingState?.cancel()
+        repeatTask?.cancel()
     }
 
     // MARK: - Following the call
@@ -186,6 +206,26 @@ final class CarPlayCallScreen {
         lastSent = Date()
         resendRequested = false
         template.activateVoiceControlState(withIdentifier: state.rawValue)
+        scheduleRepeats()
+    }
+
+    /// Sends the state just sent again at `repeatDelays` (see there), unless a newer one was
+    /// sent meanwhile or the call has moved on to another state.
+    private func scheduleRepeats() {
+        sendGeneration += 1
+        let generation = sendGeneration
+        repeatTask?.cancel()
+        repeatTask = Task { [weak self] in
+            var waited: TimeInterval = 0
+            for delay in Self.repeatDelays {
+                try? await Task.sleep(for: .seconds(delay - waited))
+                waited = delay
+                guard let self, !Task.isCancelled, !self.isClosed, self.sendGeneration == generation else { return }
+                let state = self.shownState
+                guard self.state(for: self.talk) == state else { return }
+                self.template.activateVoiceControlState(withIdentifier: state.rawValue)
+            }
+        }
     }
 
     private func recheck(after seconds: TimeInterval) {
@@ -210,6 +250,7 @@ final class CarPlayCallScreen {
         guard !isClosed else { return }
         isClosed = true
         pendingState?.cancel()
+        repeatTask?.cancel()
         // A CarPlay call's problems are reported here; a phone call reports its own on the phone.
         var notice: TalkViewModel.Notice?
         if talk.surface == .carPlay {
@@ -259,6 +300,9 @@ final class CarPlayCallScreen {
                 self.resync()
             } else {
                 self.talk.setMicrophoneMuted(muting)
+                // Now, not a main-actor hop later when the observation fires (that refresh
+                // then finds nothing to do).
+                self.refresh()
             }
         }
         button.title = muting ? "Mute" : "Unmute"

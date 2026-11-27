@@ -25,9 +25,11 @@ final class AudioRecorderManager: NSObject, AVAudioRecorderDelegate {
     /// Why `start` returned false, for the recorder screens.
     static var startFailedMessage: String {
         if CarPlayConnection.shared.isConnected {
-            return "Recording isn't available while your iPhone is connected to CarPlay. You can use Talk on the car's screen."
+            return CarPlaySettings.isEnabled
+                ? "Recording isn't available while your iPhone is connected to CarPlay. You can use Talk on the car's screen."
+                : "Recording isn't available while your iPhone is connected to CarPlay."
         }
-        if TalkViewModel.isCallInProgress {
+        if TalkViewModel.isCallInProgress || TalkViewModel.isUsingAudioSession {
             return "A Talk conversation is using the microphone. Try again when it ends."
         }
         return "The microphone may be in use by a call or another app. Try again in a moment."
@@ -67,8 +69,11 @@ final class AudioRecorderManager: NSObject, AVAudioRecorderDelegate {
     func start(maxDuration: TimeInterval, onMaxDuration: @escaping () -> Void) -> Bool {
         // A Talk call (from CarPlay, say, while the phone's chat is open) holds the microphone,
         // and Apple's CarPlay rules allow recording only through the car's voice screen.
-        // Callers show `startFailedMessage`.
-        guard !TalkViewModel.isCallInProgress, !CarPlayConnection.shared.isConnected else { return false }
+        // Callers show `startFailedMessage`. A call that just ended may still be releasing the
+        // audio session (`isUsingAudioSession`): its teardown would deactivate the session
+        // under the new recording.
+        guard !TalkViewModel.isCallInProgress, !TalkViewModel.isUsingAudioSession,
+              !CarPlayConnection.shared.isConnected else { return false }
         self.maxDuration = maxDuration
         self.onMaxDuration = onMaxDuration
 
@@ -133,7 +138,8 @@ final class AudioRecorderManager: NSObject, AVAudioRecorderDelegate {
     /// `startFailedMessage`), or an interruption is still holding the input.
     @discardableResult
     func resume() -> Bool {
-        guard !CarPlayConnection.shared.isConnected, !TalkViewModel.isCallInProgress else { return false }
+        guard !CarPlayConnection.shared.isConnected, !TalkViewModel.isCallInProgress,
+              !TalkViewModel.isUsingAudioSession else { return false }
         if releasedSessionForCarPlay {
             try? AudioSessionManager.shared.activateForRecording()
         }

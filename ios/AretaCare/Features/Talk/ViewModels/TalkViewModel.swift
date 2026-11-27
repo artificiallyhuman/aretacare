@@ -65,6 +65,7 @@ final class TalkViewModel {
 
     init(surface: TalkSurface = .app) {
         self.surface = surface
+        isInCar = surface == .carPlay
     }
 
     /// The call this process is running, from whichever screen started it. The server allows
@@ -146,11 +147,12 @@ final class TalkViewModel {
         guard phase.isLive, muted != isMuted else { return }
         setMuted(muted)
         // On the phone, tell iOS too, so an AirPods stem press toggles from the right state.
-        // Not in the car, where the car's microphone is the route and the app-level mute
-        // only added a second, system-held mute state to keep in step. The app plays no
-        // tone itself: during a call voice processing ducks any other audio the app plays
-        // to near silence. A firm tap and the button's look carry the state.
-        guard surface == .app else { return }
+        // Not in the car (started there, or moved there: `isInCar`), where the car's
+        // microphone is the route and the app-level mute only added a second, system-held
+        // mute state to keep in step. The app plays no tone itself: during a call voice
+        // processing ducks any other audio the app plays to near silence. A firm tap and the
+        // button's look carry the state.
+        guard !isInCar else { return }
         try? AVAudioApplication.shared.setInputMuted(isMuted)
         UIImpactFeedbackGenerator(style: .medium).impactOccurred()
     }
@@ -188,6 +190,17 @@ final class TalkViewModel {
     /// This server applies driving rules (`/talk/status` `carplay`). An older one has no
     /// route to move a call to the car.
     private var serverHasDrivingRules = false
+    /// Asking for the driving rules failed this many times; retried after
+    /// `drivingRulesRetryDelays`, then left to the next time CarPlay shows the call.
+    private var drivingRulesRetries = 0
+    private static let drivingRulesRetryDelays: [Double] = [2, 5, 15]
+    /// The call is the car's: started there, or a phone call whose voice screen CarPlay
+    /// showed (`moveToCar`). From then on its only mute is the microphone track, which the
+    /// car screen's Mute and Unmute set: no app-level `AVAudioApplication` mute and no AirPods
+    /// stem. A phone call kept both after moving to the car, a second mute state that a
+    /// late notification could set against the car's Unmute. Kept for the rest of the call,
+    /// even if the car disconnects (the phone's Mute still works; the stem doesn't).
+    private var isInCar = false
     private var didKeepScreenAwake = false
     /// The call's audio environment is set up: from here WebRTC's voice processing owns the
     /// app's audio session until the call ends.
@@ -382,7 +395,7 @@ final class TalkViewModel {
             startKeepAlive()
             startStatusChecks(attempt: attempt)
             // A stem press while connecting already muted the microphone at the system level.
-            if surface == .app, AVAudioApplication.shared.isInputMuted { setMuted(true) }
+            if !isInCar, AVAudioApplication.shared.isInputMuted { setMuted(true) }
         case .working:
             if phase == .connecting {
                 workingAtConnect = true  // shown once the call is live (.ready)
@@ -474,6 +487,18 @@ final class TalkViewModel {
     /// server for the driving rules, once the call has an id.
     func moveToCar() {
         guard surface == .app, isActive else { return }
+        if !isInCar {
+            isInCar = true
+            // The car screen's Mute is the only one now. The observer goes first, so clearing
+            // the app-level mute can't come back to `setMuted` (a notification it already
+            // queued is turned away by its own `isInCar` check). The track keeps its state:
+            // a call muted on the phone shows Muted in the car.
+            if let muteGestureObserver {
+                NotificationCenter.default.removeObserver(muteGestureObserver)
+            }
+            muteGestureObserver = nil
+            if inCallEnvironment { try? AVAudioApplication.shared.setInputMuted(false) }
+        }
         wantsDrivingRules = true
         sendDrivingRulesIfNeeded()
     }
@@ -488,10 +513,17 @@ final class TalkViewModel {
                     APIEndpoints.Talk.surface(talkId), body: TalkSurfaceRequest(surface: .carPlay)
                 )
             } catch {
-                // The next time CarPlay shows this call (it reappears, or the car reconnects)
-                // asks again.
                 guard let self, attempt == self.attemptId else { return }
                 self.hasDrivingRules = false
+                // The driver is in the car under the phone's rules: try again a few times.
+                // After that, CarPlay showing this call again (the car reconnecting, a tap on
+                // a start, an alert's OK) asks once more.
+                guard self.drivingRulesRetries < Self.drivingRulesRetryDelays.count else { return }
+                let delay = Self.drivingRulesRetryDelays[self.drivingRulesRetries]
+                self.drivingRulesRetries += 1
+                try? await Task.sleep(for: .seconds(delay))
+                guard attempt == self.attemptId, self.isActive else { return }
+                self.sendDrivingRulesIfNeeded()
             }
         }
     }
@@ -517,6 +549,8 @@ final class TalkViewModel {
         workingAtConnect = false
         hasDrivingRules = false
         wantsDrivingRules = false
+        drivingRulesRetries = 0
+        isInCar = surface == .carPlay
         // The first-use consent sheet belongs to the attempt: left up after the attempt
         // ended, "Agree and Start" recorded consent and then started nothing.
         showingConsent = false
@@ -732,13 +766,19 @@ final class TalkViewModel {
         // for a call in the car: its Mute is the car screen's button alone, and a second,
         // system-held mute state is one more way for Unmute not to take.
         try? AVAudioApplication.shared.setInputMuted(false)
-        guard surface == .app else { return }
+        guard !isInCar else { return }
+        let attempt = attemptId
         muteGestureObserver = NotificationCenter.default.addObserver(
             forName: AVAudioApplication.inputMuteStateChangeNotification, object: nil, queue: .main
         ) { [weak self] notification in
             guard let muted = notification.userInfo?[AVAudioApplication.muteStateKey] as? Bool else { return }
             // Also fires for this app's own setInputMuted calls; setMuted ignores no-ops.
-            Task { @MainActor in self?.setMuted(muted) }
+            // Removing the observer doesn't recall a notification already handed on: one that
+            // arrives after the call moved to the car (or ended) is ignored.
+            Task { @MainActor in
+                guard let self, !self.isInCar, attempt == self.attemptId else { return }
+                self.setMuted(muted)
+            }
         }
     }
 

@@ -57,11 +57,19 @@ final class CarPlayCoordinator {
     /// alert and voice screen: after `modalChangeTimeoutSeconds` the next one goes ahead.
     private var modalChange: UUID?
     private static let modalChangeTimeoutSeconds: Double = 4
+    /// Dismisses CarPlay refused in a row. Retried after a moment, at most
+    /// `maxDismissRetries` times, then left until the next `setModal`.
+    private var dismissRefusals = 0
+    private static let maxDismissRetries = 2
 
     /// Calls started from CarPlay that are still waiting for their result. The view model's
     /// result poll (which reloads the phone's chat card and reports a failed save) holds it
     /// weakly, and `TalkViewModel.current` lets go when the call ends.
     private static var callsAwaitingResult: [TalkViewModel] = []
+
+    /// The person turned AretaCare off for CarPlay (Settings → Use in CarPlay). Said in
+    /// "when you're parked" form, like the other things that need the phone.
+    static let turnedOffInCar = "AretaCare is turned off for CarPlay. You can turn it on in AretaCare's Settings when you're parked."
 
     init(interfaceController: CPInterfaceController) {
         self.interfaceController = interfaceController
@@ -96,6 +104,11 @@ final class CarPlayCoordinator {
         })
         observers.append(center.addObserver(forName: .sessionsDidChange, object: nil, queue: .main) { [weak self] _ in
             MainActor.assumeIsolated { self?.refresh() }
+        })
+        observers.append(center.addObserver(
+            forName: CarPlaySettings.didChangeNotification, object: nil, queue: .main
+        ) { [weak self] _ in
+            MainActor.assumeIsolated { self?.carPlaySettingChanged() }
         })
         observers.append(center.addObserver(forName: .activeSessionDidChange, object: nil, queue: .main) {
             [weak self] notification in
@@ -144,6 +157,29 @@ final class CarPlayCoordinator {
         templateEvents.didAppear = nil
         callScreen?.detach()
         callScreen = nil
+        if let live = TalkViewModel.current, live.surface == .carPlay, live.isActive {
+            Task { await live.end() }
+        }
+    }
+
+    /// "Use in CarPlay" changed on the phone. Off: whatever is under way stops (a tap's
+    /// checks, a list, a call started here) and the care sessions held for this screen are
+    /// dropped, so nothing that finishes late can show a name. A call started on the phone
+    /// keeps its voice screen: its audio is already in the car, and Mute and End are all it
+    /// shows. On: the landing screen loads again.
+    private func carPlaySettingChanged() {
+        guard isConnected else { return }
+        if CarPlaySettings.isEnabled {
+            updateLanding()
+            Task { await loadSessions() }
+            return
+        }
+        startTask?.cancel()
+        startTask = nil
+        preparing = nil
+        sessionVM = SessionViewModel()
+        updateLanding()
+        interfaceController.popToRootTemplate(animated: false) { _, _ in }
         if let live = TalkViewModel.current, live.surface == .carPlay, live.isActive {
             Task { await live.end() }
         }
@@ -201,9 +237,13 @@ final class CarPlayCoordinator {
     private func updateLanding() {
         guard let landing else { return }
         let auth = AuthManager.shared
-        let session = auth.isAuthenticated ? sessionVM.currentSession : nil
+        let enabled = CarPlaySettings.isEnabled
+        // Turned off: no care-session name or people, whatever finished loading.
+        let session = auth.isAuthenticated && enabled ? sessionVM.currentSession : nil
         let title: String
-        if session != nil || !hasLoadedOnce || auth.startupErrorMessage != nil {
+        if !enabled {
+            title = "CarPlay is off"
+        } else if session != nil || !hasLoadedOnce || auth.startupErrorMessage != nil {
             title = "AretaCare"
         } else if !auth.isAuthenticated {
             title = "Not signed in"
@@ -265,7 +305,8 @@ final class CarPlayCoordinator {
     private func showSessionList() {
         AuthManager.shared.recordActivity()
         // Already open (a tap delivered twice over a wireless link).
-        guard interfaceController.topTemplate === landing, let current = sessionVM.currentSession else { return }
+        guard CarPlaySettings.isEnabled, interfaceController.topTemplate === landing,
+              let current = sessionVM.currentSession else { return }
         let sessions = [current] + sessionVM.sessions
             .filter { $0.id != current.id }
             .sorted { $0.lastActivity > $1.lastActivity }
@@ -290,7 +331,8 @@ final class CarPlayCoordinator {
     private func showPeople() {
         AuthManager.shared.recordActivity()
         // Already open (a tap delivered twice over a wireless link).
-        guard interfaceController.topTemplate === landing, let session = sessionVM.currentSession else { return }
+        guard CarPlaySettings.isEnabled, interfaceController.topTemplate === landing,
+              let session = sessionVM.currentSession else { return }
         let me = AuthManager.shared.currentUser?.id
         var people: [(name: String, detail: String?)] = [
             (session.ownerName, session.ownerId == me ? "Owner · You" : "Owner"),
@@ -324,15 +366,17 @@ final class CarPlayCoordinator {
             updateLanding()
         }
         await AppBootstrap.shared.start()
-        guard isConnected else { return }
+        guard isConnected, CarPlaySettings.isEnabled else { return }
         guard AuthManager.shared.isAuthenticated else { return }
         // Follow the care session most recently chosen on either screen. Read it before the
         // fetch: a first fetch restores from the sign-in-time server value and records that
         // here, overwriting a newer choice made on the phone.
         let chosen = UserDefaults.standard.string(forKey: "lastSessionId")
         let choicesBefore = choiceCount
-        await sessionVM.fetchSessions()
-        guard isConnected else { return }
+        let vm = sessionVM
+        await vm.fetchSessions()
+        // Turned off meanwhile (which also replaces `sessionVM`): nothing more.
+        guard isConnected, CarPlaySettings.isEnabled, vm === sessionVM else { return }
         // Someone chose a care session during the fetch (here or on the phone): that's the
         // newer choice. Switching back would also tell the phone to follow.
         guard choiceCount == choicesBefore else { return }
@@ -345,16 +389,19 @@ final class CarPlayCoordinator {
     /// A care session chosen on the phone: the car's row follows. (A choice made here is
     /// followed by the phone the same way, in `MainTabView`.)
     private func follow(sessionId: String?, chosenBy chooser: ObjectIdentifier?) {
-        guard isConnected, let sessionId, chooser != ObjectIdentifier(sessionVM) else { return }
+        guard isConnected, CarPlaySettings.isEnabled, let sessionId,
+              chooser != ObjectIdentifier(sessionVM) else { return }
         choiceCount += 1
         if sessionVM.follow(sessionId: sessionId) {
             updateLanding()
         } else if sessionVM.currentSession?.id != sessionId {
-            // Not in this list yet (just created on the phone): fetch, then follow.
+            // Not in this list yet (just created on the phone): fetch, then follow, unless
+            // another care session was chosen meanwhile (on either screen).
             let vm = sessionVM
             Task { [weak self] in
                 await vm.fetchSessions()
-                guard let self, self.isConnected, vm === self.sessionVM else { return }
+                guard let self, self.isConnected, CarPlaySettings.isEnabled, vm === self.sessionVM,
+                      SessionViewModel.latestChoice == sessionId else { return }
                 vm.follow(sessionId: sessionId)
                 self.updateLanding()
             }
@@ -385,6 +432,10 @@ final class CarPlayCoordinator {
             showCallScreen(for: live)
             return
         }
+        guard CarPlaySettings.isEnabled else {
+            showAlert(Self.turnedOffInCar, shorter: "AretaCare is turned off for CarPlay.")
+            return
+        }
         guard !isPreparing else { return }
         let token = UUID()
         preparing = token
@@ -413,7 +464,9 @@ final class CarPlayCoordinator {
             return
         }
         await AppBootstrap.shared.start()
-        guard isConnected, !Task.isCancelled else { return }
+        // Turning CarPlay off cancels this task too; the setting is checked as well, so
+        // nothing that was waiting can go on to start a call.
+        guard isConnected, !Task.isCancelled, CarPlaySettings.isEnabled else { return }
         let auth = AuthManager.shared
         guard auth.isAuthenticated else {
             showAlert(auth.startupErrorMessage == nil
@@ -427,7 +480,7 @@ final class CarPlayCoordinator {
         }
         if sessionVM.currentSession == nil {
             await sessionVM.fetchSessions()
-            guard isConnected, !Task.isCancelled else { return }
+            guard isConnected, !Task.isCancelled, CarPlaySettings.isEnabled else { return }
             updateLanding()
         }
         guard let sessionId = sessionVM.currentSession?.id else {
@@ -441,6 +494,7 @@ final class CarPlayCoordinator {
             showCallScreen(for: live)
             return
         }
+        guard isConnected, !Task.isCancelled, CarPlaySettings.isEnabled, preparing == token else { return }
         let talk = TalkViewModel(surface: .carPlay)
         Self.callsAwaitingResult.removeAll { !$0.isActive && !$0.isAwaitingResult }
         Self.callsAwaitingResult.append(talk)
@@ -515,6 +569,7 @@ final class CarPlayCoordinator {
 
     private func setModal(_ template: CPTemplate?) {
         desiredModal = template
+        dismissRefusals = 0
         reconcileModal()
     }
 
@@ -530,14 +585,26 @@ final class CarPlayCoordinator {
             guard let self, self.modalChange == change else { return }
             self.finishModalChange(change)
         }
+        // Each completion first checks that its change is still the current one. A late
+        // completion (after the timeout let the next change go) mustn't act: `desiredModal`
+        // may have gone A → B → A since, and an identity check alone would pass. The
+        // timeout already reconciled from what CarPlay actually shows.
         if shown != nil {
-            interfaceController.dismissTemplate(animated: desiredModal == nil) { [weak self] _, _ in
-                Task { @MainActor in self?.finishModalChange(change) }
+            interfaceController.dismissTemplate(animated: desiredModal == nil) { [weak self] dismissed, _ in
+                Task { @MainActor in
+                    guard let self, self.modalChange == change else { return }
+                    if dismissed {
+                        self.dismissRefusals = 0
+                        self.finishModalChange(change)
+                    } else {
+                        self.dismissRefused(change)
+                    }
+                }
             }
         } else if let desired = desiredModal {
             interfaceController.presentTemplate(desired, animated: true) { [weak self] presented, _ in
                 Task { @MainActor in
-                    guard let self else { return }
+                    guard let self, self.modalChange == change else { return }
                     if !presented, self.desiredModal === desired {
                         self.desiredModal = nil  // don't retry a template CarPlay refused
                         // A refused voice screen is rebuilt on the next tap, not kept unseen.
@@ -560,6 +627,31 @@ final class CarPlayCoordinator {
             isChangingModal = false
             modalChange = nil
         }
+    }
+
+    /// CarPlay refused to dismiss what it shows. Retried a moment later, a couple of times;
+    /// retrying at once, every time, could loop for as long as CarPlay kept refusing. After
+    /// that the modal is left as it is until the next `setModal`, except that a call started
+    /// here whose voice screen still isn't up is ended: never an open microphone without
+    /// Mute and End.
+    private func dismissRefused(_ change: UUID) {
+        dismissRefusals += 1
+        guard dismissRefusals > Self.maxDismissRetries else {
+            Task { [weak self] in
+                try? await Task.sleep(for: .seconds(0.5))
+                self?.finishModalChange(change)
+            }
+            return
+        }
+        let wanted = desiredModal
+        desiredModal = interfaceController.presentedTemplate
+        if let callScreen, callScreen.template === wanted {
+            callScreen.detach()
+            self.callScreen = nil
+            let talk = callScreen.talk
+            if talk.surface == .carPlay, talk.isActive { Task { await talk.end() } }
+        }
+        finishModalChange(change)
     }
 
     /// A present or dismiss finished (or timed out): the next one may go. A late completion

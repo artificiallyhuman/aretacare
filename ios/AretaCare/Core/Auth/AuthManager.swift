@@ -342,10 +342,12 @@ final class AuthManager {
                 // recording is capturing (hands-free; signing out would end it), and while
                 // the phone is connected to CarPlay: nobody touches the phone while driving,
                 // and a sign-out mid-drive would leave CarPlay unusable until they're parked.
+                // Not when AretaCare is turned off for CarPlay (`isInUse`): its car screen
+                // then only says so.
                 guard !BiometricManager.shared.isBiometricLockEnabled,
                       !BiometricManager.shared.isLocked,
                       !AudioRecorderManager.isCapturing,
-                      !CarPlayConnection.shared.isConnected else {
+                      !CarPlayConnection.shared.isInUse else {
                     self.lastActivityDate = Date()
                     return
                 }

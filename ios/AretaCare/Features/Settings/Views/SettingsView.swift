@@ -6,6 +6,8 @@ struct SettingsView: View {
 
     @Environment(\.openURL) private var openURL
     @AppStorage("biometricLockEnabled") private var biometricLockEnabled = false
+    /// "Use in CarPlay" (`CarPlaySettings`): this iPhone's setting, kept through sign-out.
+    @AppStorage(CarPlaySettings.enabledKey) private var carPlayEnabled = true
     @State private var showChangeName = false
     @State private var showChangeEmail = false
     @State private var showChangePassword = false
@@ -185,6 +187,20 @@ struct SettingsView: View {
                 }
             }
 
+            // The CarPlay app exists from iOS 26.4 (the voice-based conversational category).
+            if #available(iOS 26.4, *) {
+                Toggle(isOn: $carPlayEnabled) {
+                    CaptionedToggleLabel(
+                        title: "Use in CarPlay",
+                        systemImage: "car",
+                        caption: carPlayCaption
+                    )
+                }
+                .onChange(of: carPlayEnabled) {
+                    NotificationCenter.default.post(name: CarPlaySettings.didChangeNotification, object: nil)
+                }
+            }
+
             Button {
                 showLogoutEverywhereConfirmation = true
             } label: {
@@ -211,6 +227,19 @@ struct SettingsView: View {
                 Text("This will log you out of all devices and sessions, including this one.")
             }
         }
+    }
+
+    /// CarPlay works while the phone is locked, and AretaCare's own Face ID lock covers only
+    /// the phone's screen, so the caption says who can use it in the car.
+    private var carPlayCaption: String {
+        guard carPlayEnabled else { return "The car's screen says AretaCare is turned off." }
+        let appLock: String
+        switch BiometricManager.shared.biometricType {
+        case .faceID: appLock = " or AretaCare's Face ID lock is on"
+        case .touchID: appLock = " or AretaCare's Touch ID lock is on"
+        case .none: appLock = ""
+        }
+        return "Anyone in the car can talk with AretaCare about your care sessions, even while your iPhone is locked\(appLock)."
     }
 
     private var biometricLockLabel: String {
