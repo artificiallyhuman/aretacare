@@ -640,6 +640,253 @@ def test_a_review_from_a_stale_copy_keeps_a_newer_suggestion(client, db, alice, 
         reviewer.close()
 
 
+def caregiver_add(change_id, name, relationship, role):
+    return {"id": change_id, "change_type": "add", "field_path": "caregivers.new_item", "section": "caregivers",
+            "item_id": None, "old_value": None, "reasoning": "x",
+            "new_value": {"name": name, "relationship": relationship, "role": role}}
+
+
+def list_add(change_id, section, value, field_path=None):
+    return {"id": change_id, "change_type": "add", "field_path": field_path or f"{section}.new_item",
+            "section": section, "item_id": None, "old_value": None, "reasoning": "x", "new_value": value}
+
+
+def test_repeats_are_recognised_in_every_list():
+    """One rule for every list in the Health Profile: what names an item is compared loosely,
+    and only a caregiver's name is allowed to look misheard."""
+    from app.services.profile_service import ProfileService
+
+    def kind(list_name, first, second, a=None, b=None):
+        field = {"caregivers": "name", "providers": "name", "medications": "name", "conditions": "clinical_term",
+                 "allergies": "substance", "events": "description", "communication_preferences": "preference",
+                 "caregiving_guidelines": "guideline", "important_context": "context"}[list_name]
+        return ProfileService._match_kind(list_name, {field: first, **(a or {})}, {field: second, **(b or {})})
+
+    wife = {"a": {"relationship": "Wife"}, "b": {"relationship": "wife"}}
+    assert kind("caregivers", "Priya", "priya.") == "same"
+    assert kind("caregivers", "Priya", "Preya", **wife) == "variant"
+    assert kind("caregivers", "Priya", "Priya Shah", **wife) == "variant"
+    assert kind("caregivers", "Priya", "Preya") is None                       # no relationship to go on
+    assert kind("caregivers", "Mia", "Maia", **wife) is None                  # too short to tell a typo
+    assert kind("caregivers", "Priya", "Preya", a={"relationship": "Wife"}, b={"relationship": "Daughter"}) is None
+
+    assert kind("medications", "Ibuprofen", "ibuprofen 600 mg tablet") == "same"
+    assert kind("medications", "Metformin ER 500 mg", "Metformin") == "same"
+    assert kind("medications", "Acetaminophen (Tylenol)", "Tylenol") == "same"
+    assert kind("medications", "Oxycodone-acetaminophen 5/325 mg (Percocet)", "Percocet") == "same"
+    assert kind("medications", "Tylenol #3", "Tylenol") is None               # a number without a unit is the name
+    assert kind("medications", "Insulin glargine", "Insulin lispro") is None
+    assert kind("medications", "Oxycodone-acetaminophen", "Oxycodone") is None
+    assert kind("medications", "Lisinopril (blood pressure)", "Amlodipine (blood pressure)") is None
+    assert kind("medications", "Gabapentin", "Gabapentine") is None           # never guessed for a drug
+
+    assert kind("providers", "Dr. Avery Patel", "Avery Patel, MD") == "same"
+    assert kind("providers", "Patel, Avery", "Patel, Sam") is None
+    assert kind("providers", "Dr. Anh Do", "Anh") is None                    # "Do" is a surname here
+    assert kind("conditions", "Hypertension (high blood pressure)", "High blood pressure") == "same"
+    assert kind("conditions", "Ankle fracture", "ankle fracture") == "same"
+    assert kind("allergies", "Penicillin", "penicillin") == "same"
+
+    assert kind("events", "ER visit", "ER visit", a={"date": "2026-11-20"}, b={"date": "2026-11-20"}) == "same"
+    assert kind("events", "ER visit", "ER visit", a={"date": "2026-11-20"}) == "same"
+    assert kind("events", "ER visit", "ER visit", a={"date": "2026-11-20"}, b={"date": "2026-12-02"}) is None
+    assert kind("caregiving_guidelines", "No weight on the right ankle.", "no weight on the right ankle") == "same"
+    assert kind("important_context", "Enjoys gardening", "Enjoys gardening and music") is None
+
+
+def test_talk_doesnt_suggest_a_caregiver_twice(client, db, alice, talk_on):
+    empty_profile(db, alice, pending=[caregiver_add("wait0001", "Sam", "Son", "Drives to appointments")])
+    profile = db.query(Profile).filter(Profile.session_id == alice.session_id).one()
+    profile.profile_data = {**profile.profile_data, "caregivers": [
+        {"id": "car_abc123", "name": "Priya", "relationship": "Wife", "role": "Provides care at home"}]}
+    db.commit()
+    _talk_id, token = live_call(db, alice)
+
+    listed, _ = call_tool(client, token, "get_health_profile", {})
+    assert "waiting for review" in listed and "Drives to appointments" in listed
+
+    def suggest(**value):
+        return call_tool(client, token, "suggest_profile_change", {
+            "section": "caregivers", "change_type": "add", "new_value": value, "reasoning": "x"})
+
+    text, is_error = suggest(name="Preya", relationship="wife", role="caregiver")
+    assert is_error and "already in the Health Profile (item id car_abc123)" in text
+    text, is_error = suggest(name="sam", relationship="son", role="Drives to appointments")
+    assert is_error and "already waiting" in text
+    text, is_error = suggest(name="Sam", relationship="Son", contact_info="(555) 555-0188")
+    assert not is_error and "already waiting" in text
+    assert suggest(name="Ravi", relationship="Brother")[1] is False
+    db.expire_all()
+    pending = db.query(Profile).filter(Profile.session_id == alice.session_id).one().pending_changes
+    assert [c["new_value"]["name"] for c in pending] == ["Sam", "Ravi"]
+    assert pending[0]["new_value"] == {"name": "Sam", "relationship": "Son", "role": "Drives to appointments",
+                                       "contact_info": "(555) 555-0188"}
+    assert pending[0]["id"] != "wait0001"   # a review screen showing the old one can't accept unseen values
+
+
+def test_talk_turns_a_repeated_medication_into_an_update(client, db, alice, talk_on):
+    empty_profile(db, alice)   # Lisinopril 10 mg, id med_abc123
+    _talk_id, token = live_call(db, alice)
+
+    def suggest(change_type, value, item_id=None):
+        return call_tool(client, token, "suggest_profile_change", {
+            "section": "medications", "change_type": change_type, "item_id": item_id,
+            "new_value": value, "reasoning": "x"})
+
+    text, is_error = suggest("add", {"name": "Lisinopril 20 mg tablet", "dose": "20 mg"})
+    assert not is_error and "suggested as an update" in text
+    assert suggest("add", {"name": "lisinopril", "dose": "10 mg"})[1] is True           # what it already says
+    assert suggest("edit", {"dose": "10 mg"}, "med_abc123")[1] is True                  # same
+    assert suggest("edit", {"dose": "20 mg"}, "med_abc123")[1] is True                  # already waiting
+    db.expire_all()
+    (change,) = db.query(Profile).filter(Profile.session_id == alice.session_id).one().pending_changes
+    assert change["change_type"] == "edit" and change["item_id"] == "med_abc123"
+    assert change["new_value"] == {"id": "med_abc123", "dose": "20 mg"}
+
+
+def test_accepting_two_suggestions_for_one_item_adds_it_once(client, db, alice):
+    """"Accept all" on the same caregiver or medication suggested twice added two."""
+    empty_profile(db, alice, pending=[
+        caregiver_add("first001", "Priya", "Wife", "Provides care at home"),
+        caregiver_add("second01", "Preya", "wife", "caregiver"),
+        {**caregiver_add("third001", "Priya Shah", "Wife", None),
+         "new_value": {"name": "Priya Shah", "relationship": "Wife", "contact_info": "(555) 555-0123"}},
+        list_add("med00001", "medications", {"name": "Ibuprofen", "dose": "600 mg"}),
+        list_add("med00002", "medications", {"name": "Ibuprofen 600 mg tablet", "frequency": "every 6 hours"}),
+        list_add("med00003", "medications", {"name": "Lisinopril", "dose": "20 mg"}),
+    ])
+    decisions = {c: "accept" for c in ("first001", "second01", "third001", "med00001", "med00002", "med00003")}
+    applied = client.post(f"/api/profile/{alice.session_id}/pending-changes/review",
+                          json={"decisions": decisions}, headers=alice.auth_headers(client))
+    assert applied.status_code == 200, applied.text
+    data = applied.json()["profile_data"]
+    (caregiver,) = data["caregivers"]
+    # The first one accepted stays as it was; a repeat only fills in what it lacked.
+    assert caregiver["name"] == "Priya" and caregiver["role"] == "Provides care at home"
+    assert caregiver["contact_info"] == "(555) 555-0123"
+    lisinopril, ibuprofen = data["medications"]
+    assert lisinopril["name"] == "Lisinopril" and lisinopril["dose"] == "20 mg"   # what was accepted wins
+    assert ibuprofen["name"] == "Ibuprofen" and ibuprofen["dose"] == "600 mg"
+    assert ibuprofen["frequency"] == "every 6 hours"
+    assert applied.json()["pending_changes"] == []
+
+
+def test_a_profile_update_doesnt_repeat_anything(db, alice, monkeypatch):
+    """Every section: list items (named and free text), edits, deletes, patient details and
+    the free-text preferences."""
+    from types import SimpleNamespace
+    from app.services.profile_service import ProfileService
+
+    empty_profile(db, alice, pending=[
+        caregiver_add("wait0001", "Sam", "Son", "Drives to appointments"),
+        {"id": "wait0002", "change_type": "edit", "field_path": "medications.med_abc123", "section": "medications",
+         "item_id": "med_abc123", "old_value": None, "new_value": {"dose": "20 mg"}, "reasoning": "x"},
+    ])
+    profile = db.query(Profile).filter(Profile.session_id == alice.session_id).one()
+    profile.profile_data = {
+        **profile.profile_data,
+        "patient": {"full_name": "Alex Rivera", "preferred_name": "Alex"},
+        "caregivers": [{"id": "car_abc123", "name": "Priya", "relationship": "Wife", "role": "Provides care at home"}],
+        "events": [{"id": "eve_abc123", "event_type": "er_visit", "description": "ER visit for ankle injury",
+                    "date": "2026-11-20"}],
+        "preferences": {"emergency_instructions": "Call 911 for chest pain.",
+                        "caregiving_guidelines": [{"id": "guide_abc1", "category": "mobility",
+                                                   "guideline": "No weight on the right ankle", "importance": "critical"}]},
+    }
+    db.commit()
+
+    def edit(section, item_id, value, field_path=None):
+        return {"id": None, "change_type": "edit", "section": section, "item_id": item_id,
+                "field_path": field_path or f"{section}.{item_id}", "old_value": None, "new_value": value,
+                "reasoning": "x"}
+
+    suggested = [
+        caregiver_add(None, "Preya", "wife", "caregiver"),                       # 0 in profile, nothing new
+        {**caregiver_add(None, "Priya", "Wife", None),                           # 1 in profile, phone new
+         "new_value": {"name": "Priya", "relationship": "Wife", "contact_info": "(555) 555-0123"}},
+        caregiver_add(None, "Sam", "Son", "Helps on weekends"),                  # 2 waiting: newer role joins it
+        caregiver_add(None, "Ravi", "Brother", "Visits on Sundays"),             # 3 new
+        caregiver_add(None, "Ravi", "brother", None),                            # 4 repeated in the same reply
+        list_add(None, "medications", {"name": "Lisinopril 10 mg tablet", "dose": "10 mg"}),   # 5 says nothing new
+        list_add(None, "medications", {"name": "Lisinopril", "frequency": "once daily"}),      # 6 new detail
+        edit("medications", "med_abc123", {"dose": "20 mg"}),                    # 7 already waiting
+        list_add(None, "events", {"event_type": "er_visit", "description": "ER visit for ankle injury",
+                                  "date": "2026-11-20"}),                        # 8 same event
+        list_add(None, "events", {"event_type": "er_visit", "description": "ER visit for ankle injury",
+                                  "date": "2026-12-02"}),                        # 9 another visit
+        list_add(None, "preferences", {"category": "mobility", "guideline": "no weight on the right ankle."},
+                 field_path="preferences.caregiving_guidelines"),               # 10 same guideline
+        edit("patient", None, {"full_name": "Alex Rivera"}, field_path="patient"),            # 11 already says it
+        edit("preferences", None, "Call 911 for chest pain.",
+             field_path="preferences.emergency_instructions"),                  # 12 already says it
+        {**edit("medications", "med_abc123", None), "change_type": "delete"},  # 13 a delete
+        {**edit("medications", "med_abc123", None), "change_type": "delete"},  # 14 the same delete again
+        edit("medications", "med_gone99", {"dose": "5 mg"}),                     # 15 item isn't there
+    ]
+    prompts = []
+
+    async def scripted_model(*_args, **kwargs):
+        prompts.append(kwargs["input"][-1]["content"])
+        return SimpleNamespace(output_text=json.dumps({"changes": suggested}), usage=None, output=[])
+
+    monkeypatch.setattr("app.services.profile_service.guarded_responses_create", scripted_model)
+    updated = asyncio.run(ProfileService._update_existing_profile(db, profile, {"conversations": []}))
+
+    assert "SUGGESTIONS ALREADY WAITING FOR REVIEW" in prompts[0] and "Drives to appointments" in prompts[0]
+    queued = [(c["change_type"], c["section"], c.get("item_id"), c["new_value"]) for c in updated.pending_changes]
+    # Each item has at most one waiting edit: Lisinopril's new frequency joined its waiting dose change.
+    assert queued == [
+        ("edit", "caregivers", "car_abc123", {"id": "car_abc123", "contact_info": "(555) 555-0123"}),
+        ("add", "caregivers", None, {"name": "Sam", "relationship": "Son", "role": "Helps on weekends"}),
+        ("add", "caregivers", None, {"name": "Ravi", "relationship": "Brother", "role": "Visits on Sundays"}),
+        ("edit", "medications", "med_abc123", {"id": "med_abc123", "dose": "20 mg", "frequency": "once daily"}),
+        ("add", "events", None, {"event_type": "er_visit", "description": "ER visit for ankle injury",
+                                 "date": "2026-12-02"}),
+        ("delete", "medications", "med_abc123", None),
+    ]
+
+
+def test_a_new_profile_lists_each_item_once(db, alice, monkeypatch):
+    """A new or regenerated profile is written straight from one model reply, with no review."""
+    from types import SimpleNamespace
+    from app.services.profile_service import ProfileService
+
+    db.add(Profile(session_id=alice.session_id, pending_changes=[], profile_data={}))
+    db.commit()
+    profile = db.query(Profile).filter(Profile.session_id == alice.session_id).one()
+    reply = {
+        "patient": {"full_name": "Alex Rivera"},
+        "caregivers": [{"name": "Priya", "relationship": "Wife", "role": "Provides care at home"},
+                       {"name": "Preya", "relationship": "wife", "contact_info": "(555) 555-0123"}],
+        "providers": [{"name": "Dr. Avery Patel", "specialty": "Orthopedics"}, {"name": "Avery Patel, MD"}],
+        "conditions": [{"clinical_term": "Ankle fracture", "status": "active"}, {"clinical_term": "ankle fracture"}],
+        "medications": [{"name": "Ibuprofen", "dose": "600 mg"}, {"name": "Ibuprofen 600 mg tablet",
+                                                                  "frequency": "every 6 hours"},
+                        {"name": "Acetaminophen (Tylenol)"}, {"name": "Tylenol"}, {"name": "Insulin glargine"},
+                        {"name": "Insulin lispro"}],
+        "allergies": [{"substance": "Penicillin"}, {"substance": "penicillin", "reaction": "Rash"}],
+        "events": [{"event_type": "er_visit", "description": "ER visit", "date": "2026-11-20"},
+                   {"event_type": "er_visit", "description": "ER visit", "date": "2026-12-02"}],
+        "preferences": {"caregiving_guidelines": [{"category": "mobility", "guideline": "No weight on the ankle"},
+                                                  {"category": "mobility", "guideline": "no weight on the ankle."}]},
+    }
+
+    async def scripted_model(*_args, **_kwargs):
+        return SimpleNamespace(output_text=json.dumps(reply), usage=None, output=[])
+
+    monkeypatch.setattr("app.services.profile_service.guarded_responses_create", scripted_model)
+    data = asyncio.run(ProfileService._generate_initial_profile(db, profile, {"conversations": []})).profile_data
+
+    assert data["caregivers"] == [{"name": "Priya", "relationship": "Wife", "role": "Provides care at home",
+                                   "contact_info": "(555) 555-0123"}]
+    assert [p["name"] for p in data["providers"]] == ["Dr. Avery Patel"]
+    assert len(data["conditions"]) == 1 and data["allergies"] == [{"substance": "Penicillin", "reaction": "Rash"}]
+    assert [m["name"] for m in data["medications"]] == ["Ibuprofen", "Acetaminophen (Tylenol)", "Insulin glargine",
+                                                        "Insulin lispro"]
+    assert data["medications"][0]["frequency"] == "every 6 hours"
+    assert len(data["events"]) == 2 and len(data["preferences"]["caregiving_guidelines"]) == 1
+
+
 def test_a_digest_made_by_voice_notifies_the_others_once(client, db, alice, bob, talk_on, monkeypatch):
     from app.models import SessionCollaborator
     from app.services.daily_plan_service import DailyPlanService

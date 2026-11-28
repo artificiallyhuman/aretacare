@@ -22,6 +22,7 @@ can talk a model into calling a tool.
 import importlib
 import json
 import logging
+import re
 import uuid
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta, timezone
@@ -188,12 +189,22 @@ async def _get_health_profile(ctx: ToolContext, args: dict) -> str:
         (d for d in (profile.last_ai_update, profile.last_user_update, profile.created_at) if d),
         default=None,
     )
-    pending = len(profile.pending_changes or [])
+    pending = profile.pending_changes or []
     header = (
         f"Health Profile (a snapshot, last refreshed {refreshed.date().isoformat() if refreshed else 'unknown'}; "
-        f"{pending} suggested change(s) waiting for review). Item ids are for suggest_profile_change.\n"
+        f"{len(pending)} suggested change(s) waiting for review). Item ids are for suggest_profile_change.\n"
     )
-    return header + _records(json.dumps(profile.profile_data, ensure_ascii=False, default=str))
+    output = header + _records(json.dumps(profile.profile_data, ensure_ascii=False, default=str))
+    if pending:
+        # Listed so a voice suggestion doesn't repeat one already waiting (a count alone
+        # didn't say what was there, and the same caregiver was suggested twice).
+        from app.services.profile_service import ProfileService
+        output += (
+            "\nSuggestions waiting for review. They are NOT in the profile until the person accepts "
+            "them; don't suggest them again:\n"
+            + _records(ProfileService._pending_for_prompt(pending), "pending_suggestions")
+        )
+    return output
 
 
 async def _search_journal(ctx: ToolContext, args: dict) -> str:
@@ -663,6 +674,31 @@ async def _suggest_profile_change(ctx: ToolContext, args: dict) -> str:
         "reasoning": f"Requested in a Talk conversation: {reasoning}",
     }
     PendingChange.model_validate(change)  # a malformed row would break every profile read
+
+    # The same rule as AI updates (ProfileService.screen_suggestion): a repeat of what's in
+    # the profile or already waiting becomes an update carrying only what's new, joins the
+    # waiting suggestion, or is refused, misheard caregiver names and medication strengths
+    # included. The same caregiver was suggested twice and accepted twice (Nov 27, 2026).
+    pending = list(profile.pending_changes or [])
+    where = "in the app for when they're parked." if ctx.driving else "in the Health Profile screen."
+    screened = ProfileService.screen_suggestion(data, pending, change)
+    if screened.action == "skip":
+        if screened.reason == "in_profile":
+            existing_id = (screened.match or {}).get("id")
+            ref = f" (item id {existing_id})" if isinstance(existing_id, str) and re.fullmatch(r"[\w-]{1,64}", existing_id) else ""
+            raise ToolError(f"That is already in the Health Profile{ref}, with nothing new to add. "
+                            "Tell the person it's already there; don't suggest it again.")
+        if screened.reason == "waiting":
+            raise ToolError("A suggestion for that is already waiting for review, with nothing new to add. "
+                            "Don't suggest it again: tell the person it is already waiting " + where)
+        raise ToolError("The Health Profile already says that, so there is nothing to suggest. Tell the person.")
+    change = screened.change
+    note = ""
+    if screened.replaces is not None:
+        note = "A suggestion for this was already waiting; that suggestion now includes it. "
+    elif screened.match is not None:
+        note = "It is already in the Health Profile, so this was suggested as an update to that item. "
+
     # The change's shape is fine; now its values. `new_value` is free-form, and accepting
     # e.g. an integer age would store a profile that no longer validates on read.
     try:
@@ -674,8 +710,9 @@ async def _suggest_profile_change(ctx: ToolContext, args: dict) -> str:
         # api/talk.py rolls back on ToolError, which also releases the row lock.
         raise ToolError(f"'new_value' doesn't fit the Health Profile ({problems}). Fix it and try again.")
 
-    pending = list(profile.pending_changes or [])
-    if len(pending) >= MAX_PENDING_PROFILE_CHANGES:
+    if screened.replaces is not None:
+        pending = [c for c in pending if c is not screened.replaces]
+    elif len(pending) >= MAX_PENDING_PROFILE_CHANGES:
         raise ToolError(
             "There are already many Health Profile suggestions waiting for review. "
             + ("Tell the person to review them in the app when they're parked, before adding more."
@@ -687,11 +724,11 @@ async def _suggest_profile_change(ctx: ToolContext, args: dict) -> str:
     ctx.db.commit()
     if ctx.driving:
         return (
-            "Suggestion added. It has NOT changed the Health Profile: tell the person it is waiting "
+            note + "Suggestion added. It has NOT changed the Health Profile: tell the person it is waiting "
             "in the app for them to accept or reject when they're parked."
         )
     return (
-        "Suggestion added. It has NOT changed the Health Profile: tell the person it is waiting "
+        note + "Suggestion added. It has NOT changed the Health Profile: tell the person it is waiting "
         "in the Health Profile screen for them to accept or reject."
     )
 

@@ -3,13 +3,14 @@ from pydantic import ValidationError
 import logging
 import copy
 import json
+import re
 import uuid
 import time
 from types import SimpleNamespace
 from sqlalchemy.orm import Session
 from sqlalchemy.orm.attributes import flag_modified
 from datetime import datetime
-from typing import Optional, List, Dict, Any, Tuple
+from typing import Optional, List, Dict, Any, NamedTuple, Tuple
 
 from ..schemas.profile import PendingChange, ProfileData
 from ..models.profile import Profile
@@ -74,6 +75,105 @@ PRIMARY_FIELDS = {
     "caregiving_guidelines": "guideline",
     "important_context": "context",
 }
+
+# How much of the review list a profile update shows the model (newest first kept).
+MAX_PENDING_IN_PROMPT_CHARS = 20_000
+
+
+def _loose(value: Any) -> str:
+    """Text compared loosely: case, spacing and punctuation ignored."""
+    if not isinstance(value, str):
+        return ""
+    return " ".join(re.sub(r"[^\w\s]", " ", value).split()).casefold()
+
+
+def _one_edit_apart(a: str, b: str) -> bool:
+    """True when one letter added, dropped or changed turns `a` into `b`."""
+    if a == b:
+        return True
+    if abs(len(a) - len(b)) > 1:
+        return False
+    if len(a) > len(b):
+        a, b = b, a
+    i = 0
+    while i < len(a) and a[i] == b[i]:
+        i += 1
+    return a[i + 1:] == b[i + 1:] if len(a) == len(b) else a[i:] == b[i + 1:]
+
+
+def _same_person_name(a: str, b: str) -> bool:
+    """Two loose names for one person, the way a name heard in a Talk call or a recording
+    comes out next to a typed one: one adds a surname ("Priya" / "Priya Shah"), or the first
+    names differ by one letter and the shorter has at least four ("Priya" / "Preya")."""
+    ta, tb = a.split(), b.split()
+    if not ta or not tb:
+        return False
+    short, longer = (ta, tb) if len(ta) <= len(tb) else (tb, ta)
+    if longer[:len(short)] == short:
+        return True
+    if ta[1:] and tb[1:] and ta[1:] != tb[1:]:
+        return False
+    return min(len(ta[0]), len(tb[0])) >= 4 and _one_edit_apart(ta[0], tb[0])
+
+
+# Lists whose items are named things (a person, a drug, a diagnosis, a substance). The rest
+# (events, and the three preferences lists) are free text and match only word for word.
+NAMED_LISTS = {"caregivers", "providers", "medications", "conditions", "allergies"}
+_PARENTHESES = re.compile(r"\(([^()]*)\)")
+# A strength written into a medication's name ("600 mg", "5/325 mg", "1,000 IU"). Only with a
+# unit: a bare number can be part of the name ("Tylenol #3" is not Tylenol).
+_STRENGTH = re.compile(
+    r"(?<![\w.])\d+(?:[.,/]\d+)*\s*(?:mg|mcg|µg|ug|g|ml|units?|iu|meq|mmol|%)(?!\w)", re.IGNORECASE)
+# Words for how a medication is made, not which one it is ("Metformin ER tablet"). Inhalers,
+# patches, creams and injections are left out: one drug can be prescribed in two of those.
+_MEDICATION_FORM_WORDS = {"tablet", "tablets", "tab", "tabs", "capsule", "capsules", "cap", "caps", "oral",
+                          "er", "xr", "sr", "xl", "cr", "dr", "ir"}
+# Credentials after a provider's name. After a comma all of them count ("Avery Patel, MD,
+# PhD"); without one only those that can't be a surname (Do, Pa and Od can).
+_CREDENTIALS = {"md", "do", "np", "pa", "pa-c", "rn", "aprn", "fnp", "fnp-c", "dnp", "phd", "pharmd",
+                "dds", "dmd", "dpm", "od", "mph", "facs", "facc"}
+_TRAILING_CREDENTIALS = {"md", "np", "rn", "aprn", "fnp", "dnp", "phd", "pharmd", "dds", "dmd", "dpm"}
+
+
+def _name_key(list_name: str, text: str) -> str:
+    """One name, compared loosely, without what doesn't tell two items apart."""
+    if list_name == "medications":
+        text = _STRENGTH.sub(" ", text)
+    if list_name == "providers" and "," in text:
+        head, tail = text.split(",", 1)
+        tail_words = [w for w in re.split(r"[\s,]+", tail.lower().replace(".", "")) if w]
+        if tail_words and all(w in _CREDENTIALS for w in tail_words):
+            text = head
+    words = _loose(text).split()
+    if list_name == "medications":
+        words = [w for w in words if w not in _MEDICATION_FORM_WORDS]
+    elif list_name == "providers":
+        while words and words[0] in ("dr", "doctor"):
+            words = words[1:]
+        while len(words) > 1 and words[-1] in _TRAILING_CREDENTIALS:
+            words = words[:-1]
+    return " ".join(words)
+
+
+def _name_keys(list_name: str, value: Any) -> Tuple[str, set]:
+    """A name as compared for repeats: the name outside parentheses, and what they hold
+    ("Acetaminophen (Tylenol)" is acetaminophen and {tylenol})."""
+    if not isinstance(value, str):
+        return "", set()
+    inner = {_name_key(list_name, part) for part in _PARENTHESES.findall(value)} - {""}
+    return _name_key(list_name, _PARENTHESES.sub(" ", value)), inner
+
+
+_EMPTY = (None, "", [], {})
+
+
+class Screened(NamedTuple):
+    """What to do with a new profile suggestion (ProfileService.screen_suggestion)."""
+    action: str                      # "queue" or "skip"
+    change: Optional[Dict] = None    # what to queue (possibly rewritten)
+    replaces: Optional[Dict] = None  # a waiting suggestion it takes the place of
+    reason: Optional[str] = None     # why skipped: "in_profile", "waiting" or "no_change"
+    match: Optional[Dict] = None     # the profile item an add turned out to repeat
 
 # Initialize OpenAI client. SDK retries off: one call is one bounded HTTP
 # attempt, so a degraded API can't stretch a request to timeout × 3.
@@ -492,6 +592,8 @@ class ProfileService:
             # one request instead of breaking every later read of the profile.
             if not isinstance(profile_data, dict):
                 raise ValueError("AI profile output was not a JSON object")
+            # Written in one go with no review, so the duplicate rule applies here too.
+            ProfileService._collapse_repeats(profile_data)
             try:
                 ProfileData.model_validate(profile_data)
             except ValidationError as e:
@@ -533,10 +635,14 @@ class ProfileService:
             # Format data for the prompt
             existing_profile = json.dumps(profile.profile_data, indent=2)
             new_activity = ProfileService._format_activity_for_prompt(activity)
+            # Suggestions not yet accepted aren't in the profile. Without them the model
+            # suggested the same person again from the next mention (a caregiver added twice).
+            waiting = ProfileService._pending_for_prompt(profile.pending_changes)
 
             # Build the prompt
             user_prompt = ai_config.PROFILE_UPDATE_PROMPT.format(
                 existing_profile=wrap_untrusted(existing_profile, source="existing_profile"),
+                pending_changes=wrap_untrusted(waiting, source="pending_suggestions"),
                 new_activity=wrap_untrusted(new_activity, source="new_activity")
             )
 
@@ -571,7 +677,8 @@ class ProfileService:
             # ALL changes require approval - AI returns unified list of suggested changes.
             # Re-read the list under a row lock: Talk suggestions, the review screen and
             # manual edits rewrite it too, and the model call above can take minutes.
-            db.refresh(profile, attribute_names=["pending_changes"], with_for_update=True)
+            # profile_data is re-read too (never written here), for the duplicate check.
+            db.refresh(profile, attribute_names=["pending_changes", "profile_data"], with_for_update=True)
             pending = list(profile.pending_changes or [])
 
             # Process all suggested changes from AI
@@ -618,7 +725,16 @@ class ProfileService:
                     )
                     continue
 
-                pending.append(change)
+                # The prompt says not to repeat what's there or waiting, but nothing made the
+                # model follow it: a repeat becomes an update carrying only what's new, joins
+                # the suggestion already waiting, or is dropped (see screen_suggestion).
+                screened = ProfileService.screen_suggestion(profile.profile_data, pending, change)
+                if screened.action == "skip":
+                    logger.info(f"Skipped a repeated AI suggestion for session {profile.session_id} ({screened.reason})")
+                    continue
+                if screened.replaces is not None:
+                    pending = [c for c in pending if c is not screened.replaces]
+                pending.append(screened.change)
 
             profile.pending_changes = pending
 
@@ -776,6 +892,17 @@ class ProfileService:
                         f"Dropping pending change {change_id} for session {profile.session_id}: "
                         f"it would make the profile invalid {[(err['loc'], err['type']) for err in e.errors()[:3]]}"
                     )
+                    continue
+
+                # Accepting an add of something the profile already has (two suggestions for
+                # one item, or one added since) updates that item instead of adding it again.
+                # "Accept all" used to add a caregiver, and a medication, twice.
+                repeat = ProfileService._accepted_repeat(profile.profile_data, change, value_to_apply)
+                if repeat is not None:
+                    existing, fields = repeat
+                    if fields:
+                        existing.update(fields)
+                        changes_applied += 1
                     continue
 
                 # Apply the change
@@ -1122,15 +1249,8 @@ class ProfileService:
         target = next((i for i in items if item_id and i.get("id") == item_id), None)
 
         if change_type == "add":
-            if isinstance(new_value, dict):
-                proposed_id = new_value.get("id")
-                if proposed_id and any(i.get("id") == proposed_id for i in items):
-                    return None
-                primary = PRIMARY_FIELDS.get(list_name)
-                if primary and new_value.get(primary) is not None and any(
-                    ProfileService._same(i.get(primary), new_value.get(primary)) for i in items
-                ):
-                    return None
+            if isinstance(new_value, dict) and ProfileService._matching_item(items, list_name, new_value) is not None:
+                return None
             return change
 
         if target is None:
@@ -1180,6 +1300,282 @@ class ProfileService:
                 return None
             return {**change, "old_value": copy.deepcopy(current.get(field_name))}
         return change
+
+    # ------------------------------------------------------------------
+    # Repeated adds: one rule for queuing (AI updates, Talk), accepting and manual edits
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _list_name(change: Dict, new_value: Any = None) -> Optional[str]:
+        """The list an add/edit/delete touches (same routing as _apply_change), or None for
+        the patient object and the two free-text preferences."""
+        section = change.get("section")
+        value = change.get("new_value") if new_value is None else new_value
+        sub_array = ProfileService._resolve_preferences_sub_array(
+            section, change.get("field_path") or "", change.get("change_type"), value)
+        if sub_array:
+            return sub_array
+        if not section or section in ("patient", "preferences"):
+            return None
+        return section
+
+    @staticmethod
+    def _added_item(new_value: Any, list_name: Optional[str]) -> Optional[Dict]:
+        """The item an add would create, unwrapping {"<list_name>": [{...}]} like _apply_change."""
+        if isinstance(new_value, dict) and list_name and isinstance(new_value.get(list_name), list):
+            new_value = new_value[list_name][0] if new_value[list_name] else None
+        return new_value if isinstance(new_value, dict) and new_value else None
+
+    @staticmethod
+    def _items_in(profile_data: Optional[Dict], list_name: str) -> List[Dict]:
+        """The profile's live list (not a copy), or an empty one."""
+        data = profile_data or {}
+        if list_name in PREFERENCES_ARRAY_FIELDS:
+            holder = data.get("preferences")
+            items = holder.get(list_name) if isinstance(holder, dict) else None
+        else:
+            items = data.get(list_name)
+        return items if isinstance(items, list) else []
+
+    @staticmethod
+    def _match_kind(list_name: str, a: Dict, b: Dict) -> Optional[str]:
+        """Whether two items of one list are the same thing.
+
+        "same": the field that names them matches, with case, spacing and punctuation
+        ignored, and for named things also what's in parentheses ("Acetaminophen (Tylenol)"
+        is Tylenol), a strength or pill form in a medication's name ("Ibuprofen 600 mg
+        tablet" is Ibuprofen) and a provider's title and credentials ("Dr. Avery Patel" is
+        "Avery Patel, MD"). Events also need dates that don't differ: the same kind of visit
+        on two dates is two events.
+        "variant": a caregiver with the same relationship whose name looks misheard ("Priya"
+        and "Preya", or "Priya Shah"). People only: a drug one letter off can be another drug.
+        None: different things.
+        """
+        primary = PRIMARY_FIELDS.get(list_name)
+        if not primary:
+            return None
+        if list_name in NAMED_LISTS:
+            main_a, inner_a = _name_keys(list_name, a.get(primary))
+            main_b, inner_b = _name_keys(list_name, b.get(primary))
+            if not main_a or not main_b:
+                return None
+            if main_a == main_b or main_a in inner_b or main_b in inner_a:
+                return "same"
+            if list_name == "caregivers":
+                relationship = _loose(a.get("relationship"))
+                if relationship and relationship == _loose(b.get("relationship")) and _same_person_name(main_a, main_b):
+                    return "variant"
+            return None
+        text_a = _loose(a.get(primary))
+        if not text_a or text_a != _loose(b.get(primary)):
+            return None
+        if list_name == "events":
+            date_a, date_b = _loose(a.get("date")), _loose(b.get("date"))
+            if date_a and date_b and date_a != date_b:
+                return None
+        return "same"
+
+    @staticmethod
+    def _matching_item(items: Any, list_name: str, new_item: Dict) -> Optional[Tuple[Dict, str]]:
+        """The item in `items` that `new_item` repeats and how ("same" before "variant")."""
+        variant = None
+        proposed_id = new_item.get("id")
+        for item in items if isinstance(items, list) else []:
+            if not isinstance(item, dict):
+                continue
+            kind = "same" if proposed_id and item.get("id") == proposed_id else \
+                ProfileService._match_kind(list_name, item, new_item)
+            if kind == "same":
+                return item, kind
+            if kind == "variant" and variant is None:
+                variant = (item, kind)
+        return variant
+
+    @staticmethod
+    def _missing_fields(existing: Dict, new_item: Optional[Dict]) -> Dict:
+        """The fields of `new_item` that `existing` has no value for."""
+        return {k: copy.deepcopy(v) for k, v in (new_item or {}).items()
+                if k != "id" and v not in _EMPTY and existing.get(k) in _EMPTY}
+
+    @staticmethod
+    def _changed_fields(existing: Dict, new_item: Optional[Dict], list_name: str) -> Dict:
+        """The fields of `new_item` that say something `existing` doesn't: missing there, or
+        different. The name stays as it is ("Ibuprofen" doesn't become "Ibuprofen 600 mg")."""
+        primary = PRIMARY_FIELDS.get(list_name)
+        return {k: copy.deepcopy(v) for k, v in (new_item or {}).items()
+                if k not in ("id", primary) and v not in _EMPTY and not ProfileService._same(existing.get(k), v)}
+
+    @staticmethod
+    def _as_edit(change: Dict, existing: Dict, list_name: str, fields: Dict) -> Optional[Dict]:
+        """An add of an item the profile already has, as an edit of that item with `fields`.
+        None when there's nothing to change (or the item has no id to edit by)."""
+        item_id = existing.get("id")
+        if not fields or not item_id:
+            return None
+        in_preferences = list_name in PREFERENCES_ARRAY_FIELDS
+        edit = {
+            **change,
+            "change_type": "edit",
+            "section": "preferences" if in_preferences else list_name,
+            "item_id": item_id,
+            "field_path": f"preferences.{list_name}" if in_preferences else f"{list_name}.{item_id}",
+            "old_value": copy.deepcopy(existing),
+            "new_value": {"id": item_id, **fields},
+        }
+        try:
+            PendingChange.model_validate(edit)
+        except ValidationError:
+            return None
+        return edit
+
+    @staticmethod
+    def _target(change: Dict) -> Optional[Tuple]:
+        """What an edit or delete acts on: one list item, or a field of the patient /
+        preferences object (None for the whole object). None for an add to a list."""
+        list_name = ProfileService._list_name(change)
+        if list_name:
+            item_id = change.get("item_id")
+            return ("item", list_name, item_id) if item_id else None
+        section = change.get("section")
+        field = (change.get("field_path") or "").split(".")[-1]
+        return ("field", section, None if not field or field == section else field)
+
+    @staticmethod
+    def _merged(older: Any, newer: Any) -> Any:
+        """Two proposed values for one target as one: the newer wins, a null in it is "unknown"."""
+        if isinstance(older, dict) and isinstance(newer, dict):
+            return {**older, **{k: v for k, v in newer.items() if v is not None}}
+        return older if newer is None else newer
+
+    @staticmethod
+    def _same_value(a: Any, b: Any) -> bool:
+        if isinstance(a, dict) and isinstance(b, dict):
+            fa, fb = ProfileService._proposed_fields(a), ProfileService._proposed_fields(b)
+            return fa.keys() == fb.keys() and all(ProfileService._same(fa[k], fb[k]) for k in fa)
+        return ProfileService._same(a, b)
+
+    @staticmethod
+    def screen_suggestion(profile_data: Optional[Dict], pending: Optional[List[Dict]], change: Dict) -> Screened:
+        """Decide what a new suggestion adds, given the profile and the suggestions already
+        waiting for review. One rule for every section and every source (AI updates and Talk):
+
+        - An add of something the profile has becomes an edit of that item carrying only
+          what's new (a new dose), or is skipped ("in_profile") when nothing is. A misheard
+          caregiver name ("variant") can only fill in what the item lacks.
+        - An add of something already waiting is merged into that suggestion, which it
+          replaces (new id, so a review screen showing the old one can't accept unseen
+          values), or is skipped ("waiting") when it adds nothing.
+        - An edit or delete that changes nothing, or targets an item that's gone, is skipped
+          ("no_change"); a second edit of the same item or field is merged into the waiting
+          one, and a second delete is skipped.
+        """
+        pending = [c for c in (pending or []) if isinstance(c, dict) and c is not change]
+        list_name = ProfileService._list_name(change)
+        item = ProfileService._added_item(change.get("new_value"), list_name) if list_name else None
+        if change.get("change_type") == "add" and item:
+            found = ProfileService._matching_item(ProfileService._items_in(profile_data, list_name), list_name, item)
+            if found:
+                existing, kind = found
+                fields = (ProfileService._missing_fields(existing, item) if kind == "variant"
+                          else ProfileService._changed_fields(existing, item, list_name))
+                edit = ProfileService._as_edit(change, existing, list_name, fields)
+                result = ProfileService.screen_suggestion(profile_data, pending, edit) if edit else None
+                if result is None or result.reason == "no_change":
+                    return Screened("skip", reason="in_profile", match=existing)
+                return result._replace(match=existing)
+            for other in pending:
+                if other.get("change_type") != "add" or ProfileService._list_name(other) != list_name:
+                    continue
+                waiting = ProfileService._added_item(other.get("new_value"), list_name)
+                found = ProfileService._matching_item([waiting], list_name, item) if waiting else None
+                if not found:
+                    continue
+                extra = (ProfileService._missing_fields(waiting, item) if found[1] == "variant"
+                         else ProfileService._changed_fields(waiting, item, list_name))
+                if not extra:
+                    return Screened("skip", reason="waiting")
+                return Screened("queue", {**change, "new_value": {**copy.deepcopy(waiting), **extra}}, replaces=other)
+            return Screened("queue", change)
+
+        reconciled = ProfileService._reconcile_one(profile_data or {}, change)
+        if reconciled is None:
+            return Screened("skip", reason="no_change")
+        target = ProfileService._target(reconciled)
+        is_delete = reconciled.get("change_type") == "delete"
+        for other in pending:
+            if target is None or ProfileService._target(other) != target:
+                continue
+            if (other.get("change_type") == "delete") != is_delete:
+                continue  # an edit and a delete of one item are both the person's to decide
+            if is_delete:
+                return Screened("skip", reason="waiting")
+            merged = ProfileService._merged(other.get("new_value"), reconciled.get("new_value"))
+            if ProfileService._same_value(merged, other.get("new_value")):
+                return Screened("skip", reason="waiting")
+            return Screened("queue", {**reconciled, "new_value": merged}, replaces=other)
+        return Screened("queue", reconciled)
+
+    @staticmethod
+    def _accepted_repeat(profile_data: Optional[Dict], change: Dict, value: Any) -> Optional[Tuple[Dict, Dict]]:
+        """For an add being accepted with `value` that repeats an item the profile has: that
+        live item and the fields to write into it. What the person accepted wins over what
+        the item says ("Lisinopril 20 mg" accepted over 10 mg), except that a misheard
+        caregiver name only fills gaps. The name itself is never rewritten."""
+        if change.get("change_type") != "add":
+            return None
+        list_name = ProfileService._list_name(change, value)
+        new_item = ProfileService._added_item(value, list_name)
+        if not list_name or not new_item:
+            return None
+        found = ProfileService._matching_item(ProfileService._items_in(profile_data, list_name), list_name, new_item)
+        if not found:
+            return None
+        existing, kind = found
+        fields = (ProfileService._missing_fields(existing, new_item) if kind == "variant"
+                  else ProfileService._changed_fields(existing, new_item, list_name))
+        return existing, fields
+
+    @staticmethod
+    def _collapse_repeats(profile_data: Dict) -> int:
+        """Merge items that repeat an earlier one in the same list, in every list of a profile
+        written in one go (a new or regenerated profile): the first keeps its values and
+        gains only what the repeat adds. Returns how many were merged."""
+        merged = 0
+        lists = [(name, profile_data.get(name)) for name in PRIMARY_FIELDS if name not in PREFERENCES_ARRAY_FIELDS]
+        preferences = profile_data.get("preferences")
+        if isinstance(preferences, dict):
+            lists += [(name, preferences.get(name)) for name in PREFERENCES_ARRAY_FIELDS]
+        for list_name, items in lists:
+            if not isinstance(items, list):
+                continue
+            kept: List[Any] = []
+            for item in items:
+                found = ProfileService._matching_item(kept, list_name, item) if isinstance(item, dict) else None
+                if found:
+                    found[0].update(ProfileService._missing_fields(found[0], item))
+                    merged += 1
+                else:
+                    kept.append(item)
+            items[:] = kept
+        return merged
+
+    @staticmethod
+    def _pending_for_prompt(pending: Optional[List[Dict]]) -> str:
+        """The review list as the profile update sees it: what each suggestion would do,
+        newest kept when it's long. Reasoning and old values are left out."""
+        if not pending:
+            return "None."
+        shown: List[Dict] = []
+        size = 0
+        for change in reversed(pending):
+            if not isinstance(change, dict):
+                continue
+            entry = {k: change.get(k) for k in ("change_type", "section", "field_path", "item_id", "new_value")}
+            size += len(json.dumps(entry, default=str))
+            if size > MAX_PENDING_IN_PROMPT_CHARS:
+                break
+            shown.append(entry)
+        return json.dumps(list(reversed(shown)), indent=2, default=str)
 
     @staticmethod
     def check_for_updates(

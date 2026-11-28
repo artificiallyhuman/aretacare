@@ -109,8 +109,14 @@ enum CarPlayImages {
         }
     }
 
-    /// 150 × 150 pt is the voice control template's maximum.
-    private static let stateCanvas = CGSize(width: 150, height: 150)
+    /// CarPlay lays the voice screen out as the title, the image, a fixed gap and the
+    /// buttons, and the image is the only part that gives way: it is fitted (aspect fit, at
+    /// most 150 × 150 pt) into whatever height is left (read from CarPlaySupport, iOS 27).
+    /// On a wide, short screen that's about 10 pt: in a Toyota 4Runner the old square image
+    /// shrank to a dot under the word (Rob, Nov 27, 2026). So the image is a wide strip with
+    /// nothing around its marks: whatever height a car leaves, it is about four times as
+    /// wide, and a tall screen shows it 150 pt wide.
+    private static let stateCanvas = CGSize(width: 150, height: 36)
 
     /// Rendered once per state and scale, and kept: a call screen is built for every call,
     /// and everything on it is copied to CarPlay each time it's shown.
@@ -125,25 +131,26 @@ enum CarPlayImages {
     private static func renderState(_ state: CarPlayCallScreen.State, scale: CGFloat) -> UIImage {
         let color = accent(state)
         switch state {
+        // Bar heights are fractions of the canvas height; the tallest bar fills it.
         case .connecting:
             // A slow sweep across low bars.
             let frames = (0..<5).map { step in
-                bars((0..<5).map { index in index == step ? 0.45 : 0.18 }, color: color, scale: scale)
+                bars((0..<5).map { index in index == step ? 0.85 : 0.45 }, color: color, scale: scale)
             }
             return animated(frames, duration: 1.2)
         case .listening:
             // Gentle breathing: ready for the person to speak.
-            let frames = [0.25, 0.32, 0.38, 0.32].map { height in
+            let frames = [0.6, 0.7, 0.8, 0.7].map { height in
                 bars([height * 0.8, height, height * 1.15, height, height * 0.8], color: color, scale: scale)
             }
             return animated(frames, duration: 1.6)
         case .speaking:
             // Livelier bars while AretaCare speaks.
             let patterns: [[Double]] = [
-                [0.35, 0.7, 0.5, 0.85, 0.4],
-                [0.6, 0.4, 0.9, 0.5, 0.65],
-                [0.45, 0.85, 0.6, 0.4, 0.75],
-                [0.7, 0.5, 0.75, 0.9, 0.45],
+                [0.5, 0.9, 0.65, 1.0, 0.55],
+                [0.75, 0.5, 1.0, 0.65, 0.8],
+                [0.6, 1.0, 0.75, 0.5, 0.9],
+                [0.85, 0.6, 0.9, 1.0, 0.55],
             ]
             return animated(patterns.map { bars($0, color: color, scale: scale) }, duration: 0.8)
         case .working:
@@ -153,7 +160,7 @@ enum CarPlayImages {
         case .muted:
             // The listening bars, flat, still and red: the same shape in the same place, so
             // muting reads as the bars stopping rather than the screen changing.
-            return bars([0.12, 0.12, 0.12, 0.12, 0.12], color: color, scale: scale).withRenderingMode(.alwaysOriginal)
+            return bars([0, 0, 0, 0, 0], color: color, scale: scale).withRenderingMode(.alwaysOriginal)
         }
     }
 
@@ -240,16 +247,17 @@ enum CarPlayImages {
                               endCenter: center, endRadius: radius, options: [])
     }
 
-    /// Five rounded bars, each `height` a fraction of the canvas.
+    /// Rounded bars spread across the whole canvas, each `height` a fraction of its height
+    /// (never shorter than a bar is wide, so the lowest is a round dot).
     private static func bars(_ heights: [Double], color: UIColor, scale: CGFloat) -> UIImage {
         renderer(stateCanvas, scale: scale).image { _ in
             let barWidth: CGFloat = 14
-            let gap: CGFloat = 10
-            let total = CGFloat(heights.count) * barWidth + CGFloat(heights.count - 1) * gap
-            var x = (stateCanvas.width - total) / 2
+            let count = CGFloat(heights.count)
+            let gap = (stateCanvas.width - count * barWidth) / max(count - 1, 1)
+            var x: CGFloat = 0
             color.setFill()
             for height in heights {
-                let barHeight = max(barWidth, stateCanvas.height * 0.8 * CGFloat(height))
+                let barHeight = min(stateCanvas.height, max(barWidth, stateCanvas.height * CGFloat(height)))
                 let rect = CGRect(x: x, y: (stateCanvas.height - barHeight) / 2, width: barWidth, height: barHeight)
                 UIBezierPath(roundedRect: rect, cornerRadius: barWidth / 2).fill()
                 x += barWidth + gap
@@ -257,13 +265,12 @@ enum CarPlayImages {
         }
     }
 
-    /// Three dots, the `lit` one full strength.
+    /// Three dots spread across the canvas, the `lit` one full strength.
     private static func dots(lit: Int, color: UIColor, scale: CGFloat) -> UIImage {
         renderer(stateCanvas, scale: scale).image { _ in
-            let diameter: CGFloat = 20
-            let gap: CGFloat = 16
-            let total = 3 * diameter + 2 * gap
-            var x = (stateCanvas.width - total) / 2
+            let diameter: CGFloat = 26
+            let gap = (stateCanvas.width - 3 * diameter) / 2
+            var x: CGFloat = 0
             for index in 0..<3 {
                 color.withAlphaComponent(index == lit ? 1 : 0.35).setFill()
                 UIBezierPath(ovalIn: CGRect(x: x, y: (stateCanvas.height - diameter) / 2,

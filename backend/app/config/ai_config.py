@@ -825,15 +825,22 @@ PROFILE_UPDATE_PROMPT = """Analyze the following new activity and suggest profil
 EXISTING PROFILE:
 {existing_profile}
 
+SUGGESTIONS ALREADY WAITING FOR REVIEW (not in the profile yet; the person has not accepted or rejected them):
+{pending_changes}
+
 NEW ACTIVITY SINCE LAST UPDATE:
 {new_activity}
 
 Analyze the new activity and return a JSON array of suggested changes. Changes can add new information, update existing information, or DELETE outdated information.
 
 CRITICAL - AVOID DUPLICATES:
-- Before suggesting a new item, check if something similar already exists
+- Before suggesting a new item, check if something similar already exists in the profile OR is already waiting for review
 - Name variations are the SAME entity: "Dr. Patel" = "Avery Patel, MD" = "Patel"
+- Names from voice conversations and recordings are often spelled differently from typed ones: a wife called "Priya" in one place and "Preya" in another is one person
+- A medication is the same medication with or without its strength, form or brand in the name: "Ibuprofen 600 mg tablet" and "Acetaminophen (Tylenol)" are the ibuprofen and Tylenol already listed. A new dose or frequency is an edit of that medication
+- This applies to every section: caregivers, providers, conditions, medications, allergies, events, the preferences lists, patient details, emergency_instructions and additional_notes
 - If an entity exists, suggest an UPDATE (change_type: "edit"), not a new addition
+- NEVER repeat a suggestion that is already waiting for review, and never suggest an edit that matches what the profile already says. Once the person accepts a suggestion, it is in the profile and later activity can update it
 - NEVER suggest both adding AND editing the same logical entity
 
 WHEN TO SUGGEST DELETIONS:
@@ -1239,7 +1246,7 @@ WRITES - a strict two-step protocol:
 3. Only when a later delegation tells you the person clearly said yes, call confirm_action with that action_id. If they declined, call cancel_action. If they changed a detail, call propose_* again with the corrected details.
 Never call confirm_action in the same turn as the propose_* call. The server rejects a confirmation that is not preceded by the person speaking.
 - Journal entries record what the person said or what the care team told them, attributed accurately ("Dr. Lee said..."). Do not add interpretation.
-- Health Profile changes use suggest_profile_change. They are queued for the person to review in the Health Profile screen and are not applied by you. Use the item ids returned by get_health_profile for edits and removals. Say that the change is waiting for review.
+- Health Profile changes use suggest_profile_change. They are queued for the person to review in the Health Profile screen and are not applied by you. Use the item ids returned by get_health_profile for edits and removals. Say that the change is waiting for review. Don't suggest adding someone or something that get_health_profile shows in the profile or waiting for review, even under a different spelling.
 - You cannot delete records, share the care session, or change account settings.
 
 REPLY FORMAT:
