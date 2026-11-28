@@ -424,6 +424,25 @@ GET    /api/profile/{session_id}/export                 # Export as JSON or PDF 
 
 `/update` and `/regenerate` are limited to 6/minute and 30/hour.
 
+Pending changes never repeat what the profile already has or what is already waiting for
+review, whichever source suggests them (the AI update or Talk). Two list items count as the
+same thing when the field that names them matches with case, spacing and punctuation
+ignored. For caregivers, providers, medications, conditions and allergies, a name in
+parentheses also matches ("Acetaminophen (Tylenol)" = Tylenol), and so does a medication
+with its strength or pill form ("Ibuprofen 600 mg tablet" = Ibuprofen), or a provider with a
+title or credentials ("Dr. Avery Patel" = "Avery Patel, MD"). Events also need dates that
+don't differ.
+- A suggested `add` of something already in the profile becomes an `edit` carrying only
+  what's new, or is dropped.
+- An `add` of something already waiting is merged into the waiting change, which gets a new
+  `id`, so a review screen can't accept values it didn't show.
+- An `edit` or `delete` that changes nothing is dropped, and so is one whose item is gone.
+- A second `edit` of the same item or field is merged into the waiting one, and a second
+  `delete` is dropped.
+
+On `/pending-changes/review`, accepting an `add` that repeats an existing item updates that
+item instead of adding a second one, and the accepted values win.
+
 `/section` accepts exactly the eight sections the clients edit — `patient` and `preferences`
 (objects), and `caregivers`, `providers`, `conditions`, `medications`, `allergies`, `events`
 (arrays). An unknown section name or a wrong-typed body is a 400; previously it stored anyway

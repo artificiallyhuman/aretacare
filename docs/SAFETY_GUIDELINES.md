@@ -269,6 +269,12 @@ converse with the user, so they don't carry it.
 - Flag ambiguous or unclear information
 - Acknowledge gaps in information
 
+### Health Profile
+
+- A suggestion never repeats something the profile already holds or that is waiting for review: it becomes an update to that item, is merged into the waiting suggestion, or is dropped (`ProfileService.screen_suggestion`)
+- Matching ignores case, punctuation, a name in parentheses, a medication's strength or pill form, and a provider's title or credentials. It never guesses at spelling for medications, conditions, allergies or providers: a drug name one letter off can be a different drug, and a duplicate the person can delete is safer than a real medication silently dropped. Only a caregiver's name gets that allowance (same relationship; a misheard first name or an added surname)
+- A repeated medication with a new dose or frequency is shown as an update for the person to review, never applied on its own
+
 ### Terminology
 
 - Provide accurate, plain-language explanations
